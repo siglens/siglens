@@ -637,3 +637,106 @@ func Test_fetchSortedRRCsFromQSRs_multipleFetches_multipleSegments(t *testing.T)
 	assert.ElementsMatch(t, expectedGreen, actualRRCData[6:9])
 	assert.ElementsMatch(t, expectedRed, actualRRCData[9:])
 }
+
+func Test_fetchSortedRRCsFromQSRs_multipleSegments_earlyExit(t *testing.T) {
+	tempDir := t.TempDir()
+	segKey1 := filepath.Join(tempDir, "segKey1")
+	segKey2 := filepath.Join(tempDir, "segKey2")
+
+	qsr1 := &query.QuerySegmentRequest{}
+	qsr1.SetSegKey(segKey1)
+	qsr1.SetTimeRange(&dtu.TimeRange{StartEpochMs: 0, EndEpochMs: 100})
+	qsr2 := &query.QuerySegmentRequest{}
+	qsr2.SetSegKey(segKey2)
+	qsr2.SetTimeRange(&dtu.TimeRange{StartEpochMs: 0, EndEpochMs: 100})
+
+	sortCname := "color"
+	queryInfo := &query.QueryInformation{}
+	queryInfo.SetSearchNodeType(structs.MatchAllQuery)
+	queryInfo.SetQueryTimeRange(&dtu.TimeRange{StartEpochMs: 0, EndEpochMs: 100})
+	sortExpr := &structs.SortExpr{
+		SortEles: []*structs.SortElement{
+			{
+				SortByAsc: true,
+				Op:        "",
+				Field:     sortCname,
+			},
+		},
+		Limit: 6,
+	}
+	searcher := &Searcher{
+		sortIndexSettings: sortIndexSettings{
+			numRecordsPerBatch: 1,
+		},
+		qid:         0,
+		queryInfo:   queryInfo,
+		sortExpr:    sortExpr,
+		segEncToKey: utils.NewTwoWayMap[uint32, string](),
+	}
+
+	seg1Data := map[string]map[uint16][]uint16{ // value -> block number -> record numbers
+		"blue": {
+			1: {1},
+			2: {2, 3},
+		},
+		"green": {
+			1: {10, 11},
+			2: {1},
+		},
+	}
+	err := sortindex.WriteSortIndexMock(segKey1, sortCname, seg1Data)
+	assert.NoError(t, err)
+
+	seg2Data := map[string]map[uint16][]uint16{ // value -> block number -> record numbers
+		"blue": {
+			1: {1, 2},
+			2: {3},
+		},
+		"red": {
+			1: {10},
+			2: {1, 2},
+		},
+	}
+	err = sortindex.WriteSortIndexMock(segKey2, sortCname, seg2Data)
+	assert.NoError(t, err)
+
+	qsrs := []*query.QuerySegmentRequest{qsr1, qsr2}
+	iqr, err := searcher.fetchSortedRRCsFromQSRs(qsrs)
+	require.NoError(t, err)
+	require.NotNil(t, iqr)
+
+	for {
+		nextIQR, err := searcher.fetchSortedRRCsFromQSRs(qsrs)
+		err2 := iqr.Append(nextIQR)
+		assert.NoError(t, err2)
+
+		if err == io.EOF {
+			break
+		} else {
+			require.NoError(t, err)
+		}
+	}
+
+	rrcs := iqr.GetRRCs()
+	assert.NotNil(t, rrcs)
+	assert.Equal(t, 6, len(rrcs))
+
+	segEnc1 := searcher.getSegKeyEncoding(segKey1)
+	segEnc2 := searcher.getSegKeyEncoding(segKey2)
+
+	expectedBlue := []rrcData{
+		{segEnc: segEnc1, blockNum: 1, recordNum: 1},
+		{segEnc: segEnc1, blockNum: 2, recordNum: 2},
+		{segEnc: segEnc1, blockNum: 2, recordNum: 3},
+		{segEnc: segEnc2, blockNum: 1, recordNum: 1},
+		{segEnc: segEnc2, blockNum: 1, recordNum: 2},
+		{segEnc: segEnc2, blockNum: 2, recordNum: 3},
+	}
+
+	actualRRCData := make([]rrcData, 0, len(rrcs))
+	for _, rrc := range rrcs {
+		actualRRCData = append(actualRRCData, extractRRCData(rrc))
+	}
+
+	assert.ElementsMatch(t, expectedBlue, actualRRCData)
+}

@@ -61,6 +61,7 @@ type sortIndexSettings struct {
 	didFirstFetch      bool
 	segKeyToInfo       map[string]*segInfo
 	exhaustedSegKey    toputils.Option[string]
+	numRecordsSent     uint64
 }
 
 type segInfo struct {
@@ -267,6 +268,18 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 			}
 		}
 	}
+
+	numRecords := uint64(result.NumberOfRecords())
+	numRemainingRecords := s.sortExpr.Limit - s.sortIndexSettings.numRecordsSent
+	numRecordsToSend := toputils.Min(numRecords, numRemainingRecords)
+
+	err := result.DiscardAfter(numRecordsToSend)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to discard after %v; err=%v",
+			s.qid, numRecordsToSend, err)
+	}
+
+	s.sortIndexSettings.numRecordsSent += uint64(result.NumberOfRecords())
 
 	if len(s.sortIndexSettings.segKeyToInfo) == 0 {
 		return result, io.EOF
