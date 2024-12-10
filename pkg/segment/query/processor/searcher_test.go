@@ -739,4 +739,5 @@ func Test_fetchSortedRRCsFromQSRs_multipleSegments_earlyExit(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, expectedBlue, actualRRCData)
+	assert.True(t, searcher.sortIndexSettings.didEarlyExit)
 }

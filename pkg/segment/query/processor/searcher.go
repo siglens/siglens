@@ -62,6 +62,7 @@ type sortIndexSettings struct {
 	segKeyToInfo       map[string]*segInfo
 	exhaustedSegKey    toputils.Option[string]
 	numRecordsSent     uint64
+	didEarlyExit       bool
 }
 
 type segInfo struct {
@@ -192,6 +193,10 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 // Once this is called with one set of QSRs, each subsequent call should be
 // made with the same set of QSRs (until a new Searcher is created).
 func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*iqr.IQR, error) {
+	if s.sortIndexSettings.didEarlyExit {
+		return nil, io.EOF
+	}
+
 	result := iqr.NewIQR(s.qid)
 	sorter := &sortProcessor{
 		options: s.sortExpr,
@@ -271,7 +276,12 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 
 	numRecords := uint64(result.NumberOfRecords())
 	numRemainingRecords := s.sortExpr.Limit - s.sortIndexSettings.numRecordsSent
-	numRecordsToSend := toputils.Min(numRecords, numRemainingRecords)
+
+	numRecordsToSend := numRecords
+	if numRecordsToSend > numRemainingRecords {
+		numRecordsToSend = numRemainingRecords
+		s.sortIndexSettings.didEarlyExit = true
+	}
 
 	err := result.DiscardAfter(numRecordsToSend)
 	if err != nil {
