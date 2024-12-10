@@ -827,8 +827,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
-		// TODO: make this a background job; somehow handle siglens being
-		// gracefully shutdown.
 		go writeSortIndexes(segstore.SegmentKey)
 
 		if blobErr == nil {
