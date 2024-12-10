@@ -43,6 +43,10 @@ func getFilename(segkey string, cname string) string {
 	return filepath.Join(segkey, cname+".srt") // srt means "sort", not an acronym
 }
 
+func getTempFilename(segkey string, cname string) string {
+	return getFilename(segkey, cname) + ".tmp"
+}
+
 func WriteSortIndex(segkey string, cname string) error {
 	blockToRecords, err := segreader.ReadAllRecords(segkey, cname)
 	if err != nil {
@@ -104,7 +108,9 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 		return err
 	}
 
-	file, err := os.Create(getFilename(segkey, cname))
+	finalName := getFilename(segkey, cname)
+	tmpFileName := getTempFilename(segkey, cname)
+	file, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
@@ -184,6 +190,11 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 	err = writer.Flush()
 	if err != nil {
 		return fmt.Errorf("writeSortIndex: failed flushing writer: %v", err)
+	}
+
+	err = os.Rename(tmpFileName, finalName)
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: error while migrating %v to %v, err: %v", tmpFileName, finalName, err)
 	}
 
 	return nil
