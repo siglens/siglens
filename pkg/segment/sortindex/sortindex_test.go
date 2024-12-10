@@ -24,7 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_writeAndRead(t *testing.T) {
+func writeTestData(t *testing.T) (string, string) {
+	t.Helper()
+
 	data := map[string]map[uint16][]uint16{
 		"apple": {
 			1: {1, 2},
@@ -42,6 +44,23 @@ func Test_writeAndRead(t *testing.T) {
 	cname := "col1"
 	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
+
+	return segkey, cname
+}
+
+func readAndAssert(t *testing.T, segkey, cname string, maxRecords int, checkpoint *Checkpoint,
+	expected []Line) *Checkpoint {
+
+	t.Helper()
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+
+	return checkpoint
+}
+
+func Test_writeAndRead(t *testing.T) {
+	segkey, cname := writeTestData(t)
 
 	_ = readAndAssert(t, segkey, cname, 100, nil, []Line{
 		{Value: "apple", Blocks: []Block{
@@ -56,7 +75,6 @@ func Test_writeAndRead(t *testing.T) {
 		}},
 	})
 
-	// Test with maxRecords
 	_ = readAndAssert(t, segkey, cname, 3, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
@@ -65,24 +83,8 @@ func Test_writeAndRead(t *testing.T) {
 	})
 }
 
-func Test_read_fromCheckpointAtStartOfLine(t *testing.T) {
-	data := map[string]map[uint16][]uint16{
-		"apple": {
-			1: {1, 2},
-			2: {100, 42},
-		},
-		"zebra": {
-			1: {7},
-		},
-		"banana": {
-			2: {13, 2, 7},
-		},
-	}
-
-	segkey := filepath.Join(t.TempDir(), "test-segkey")
-	cname := "col1"
-	err := writeSortIndex(segkey, cname, data)
-	assert.NoError(t, err)
+func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
+	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, 4, nil, []Line{
 		{Value: "apple", Blocks: []Block{
@@ -101,24 +103,8 @@ func Test_read_fromCheckpointAtStartOfLine(t *testing.T) {
 	})
 }
 
-func Test_read_fromCheckpointInMiddleOfLine(t *testing.T) {
-	data := map[string]map[uint16][]uint16{
-		"apple": {
-			1: {1, 2},
-			2: {100, 42},
-		},
-		"zebra": {
-			1: {7},
-		},
-		"banana": {
-			2: {13, 2, 7},
-		},
-	}
-
-	segkey := filepath.Join(t.TempDir(), "test-segkey")
-	cname := "col1"
-	err := writeSortIndex(segkey, cname, data)
-	assert.NoError(t, err)
+func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
+	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, 2, nil, []Line{
 		{Value: "apple", Blocks: []Block{
@@ -133,7 +119,7 @@ func Test_read_fromCheckpointInMiddleOfLine(t *testing.T) {
 	})
 }
 
-func Test_read_fromCheckpointInMiddleOfLine_test2(t *testing.T) {
+func Test_readFromCheckpointInMiddleOfLine_test2(t *testing.T) {
 	data := map[string]map[uint16][]uint16{
 		"blue": {
 			1: {1},
@@ -161,15 +147,4 @@ func Test_read_fromCheckpointInMiddleOfLine_test2(t *testing.T) {
 			{BlockNum: 2, RecNums: []uint16{2}},
 		}},
 	})
-}
-
-func readAndAssert(t *testing.T, segkey, cname string, maxRecords int, checkpoint *Checkpoint,
-	expected []Line) *Checkpoint {
-
-	t.Helper()
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, checkpoint)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-
-	return checkpoint
 }
