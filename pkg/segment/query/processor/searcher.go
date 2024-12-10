@@ -56,7 +56,7 @@ type block struct {
 	segkeyFname string
 }
 
-type sortIndexSettings struct {
+type sortIndexState struct {
 	numRecordsPerBatch int
 	didFirstFetch      bool
 	segKeyToInfo       map[string]*segInfo
@@ -72,7 +72,7 @@ type segInfo struct {
 }
 
 type Searcher struct {
-	sortIndexSettings
+	sortIndexState
 
 	qid          uint64
 	queryInfo    *query.QueryInformation
@@ -105,7 +105,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 	qid := queryInfo.GetQid()
 
 	return &Searcher{
-		sortIndexSettings: sortIndexSettings{
+		sortIndexState: sortIndexState{
 			// TODO: find a better way to limit.
 			numRecordsPerBatch: 1000,
 		},
@@ -193,7 +193,7 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 // Once this is called with one set of QSRs, each subsequent call should be
 // made with the same set of QSRs (until a new Searcher is created).
 func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*iqr.IQR, error) {
-	if s.sortIndexSettings.didEarlyExit {
+	if s.sortIndexState.didEarlyExit {
 		return nil, io.EOF
 	}
 
@@ -202,15 +202,15 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		options: s.sortExpr,
 	}
 
-	if !s.sortIndexSettings.didFirstFetch {
-		s.sortIndexSettings.didFirstFetch = true
-		s.sortIndexSettings.segKeyToInfo = make(map[string]*segInfo)
+	if !s.sortIndexState.didFirstFetch {
+		s.sortIndexState.didFirstFetch = true
+		s.sortIndexState.segKeyToInfo = make(map[string]*segInfo)
 
 		for _, qsr := range qsrs {
 			segInfo := &segInfo{
 				qsr: qsr,
 			}
-			s.sortIndexSettings.segKeyToInfo[qsr.GetSegKey()] = segInfo
+			s.sortIndexState.segKeyToInfo[qsr.GetSegKey()] = segInfo
 
 			nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
 			if err != nil && err != io.EOF {
@@ -221,8 +221,8 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 			segInfo.savedIQR = nextIQR
 		}
 	} else {
-		if segkey, ok := s.sortIndexSettings.exhaustedSegKey.Get(); ok {
-			segInfo, ok := s.sortIndexSettings.segKeyToInfo[segkey]
+		if segkey, ok := s.sortIndexState.exhaustedSegKey.Get(); ok {
+			segInfo, ok := s.sortIndexState.segKeyToInfo[segkey]
 			if !ok {
 				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
 					s.qid, segkey)
@@ -237,9 +237,9 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 			segInfo.savedIQR = nextIQR
 		}
 
-		segkeys := make([]string, 0, len(s.sortIndexSettings.segKeyToInfo))
-		iqrs := make([]*iqr.IQR, 0, len(s.sortIndexSettings.segKeyToInfo))
-		for segkey, segInfo := range s.sortIndexSettings.segKeyToInfo {
+		segkeys := make([]string, 0, len(s.sortIndexState.segKeyToInfo))
+		iqrs := make([]*iqr.IQR, 0, len(s.sortIndexState.segKeyToInfo))
+		for segkey, segInfo := range s.sortIndexState.segKeyToInfo {
 			segkeys = append(segkeys, segkey)
 			iqrs = append(iqrs, segInfo.savedIQR)
 		}
@@ -262,25 +262,25 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		}
 
 		segkey := segkeys[firstExhaustedIndex]
-		s.sortIndexSettings.exhaustedSegKey.Set(segkey)
-		if segInfo, ok := s.sortIndexSettings.segKeyToInfo[segkey]; !ok {
+		s.sortIndexState.exhaustedSegKey.Set(segkey)
+		if segInfo, ok := s.sortIndexState.segKeyToInfo[segkey]; !ok {
 			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
 				s.qid, segkey)
 		} else {
 			if sortindex.IsEOF(segInfo.checkpoint) {
-				s.sortIndexSettings.exhaustedSegKey.Clear()
-				delete(s.sortIndexSettings.segKeyToInfo, segkey)
+				s.sortIndexState.exhaustedSegKey.Clear()
+				delete(s.sortIndexState.segKeyToInfo, segkey)
 			}
 		}
 	}
 
 	numRecords := uint64(result.NumberOfRecords())
-	numRemainingRecords := s.sortExpr.Limit - s.sortIndexSettings.numRecordsSent
+	numRemainingRecords := s.sortExpr.Limit - s.sortIndexState.numRecordsSent
 
 	numRecordsToSend := numRecords
 	if numRecordsToSend > numRemainingRecords {
 		numRecordsToSend = numRemainingRecords
-		s.sortIndexSettings.didEarlyExit = true
+		s.sortIndexState.didEarlyExit = true
 	}
 
 	err := result.DiscardAfter(numRecordsToSend)
@@ -289,9 +289,9 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 			s.qid, numRecordsToSend, err)
 	}
 
-	s.sortIndexSettings.numRecordsSent += uint64(result.NumberOfRecords())
+	s.sortIndexState.numRecordsSent += uint64(result.NumberOfRecords())
 
-	if len(s.sortIndexSettings.segKeyToInfo) == 0 {
+	if len(s.sortIndexState.segKeyToInfo) == 0 {
 		return result, io.EOF
 	}
 

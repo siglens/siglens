@@ -484,7 +484,7 @@ func initSortIndexDataForTest(sortCname string, sortLimit uint64, numRecordsPerB
 		Limit: sortLimit,
 	}
 	searcher := &Searcher{
-		sortIndexSettings: sortIndexSettings{
+		sortIndexState: sortIndexState{
 			numRecordsPerBatch: numRecordsPerBatch,
 		},
 		qid:         0,
@@ -608,7 +608,7 @@ func Test_fetchSortedRRCsFromQSRs_multipleSegments_earlyExit(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, expectedBlue, actualRRCData)
-	assert.True(t, searcher.sortIndexSettings.didEarlyExit)
+	assert.True(t, searcher.sortIndexState.didEarlyExit)
 }
 
 type rrcData struct {
