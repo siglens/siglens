@@ -119,32 +119,18 @@ func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
 	})
 }
 
-func Test_readFromCheckpointInMiddleOfLine_test2(t *testing.T) {
-	data := map[string]map[uint16][]uint16{
-		"blue": {
-			1: {1},
-			2: {2, 3},
-		},
-		"green": {
-			1: {10, 11},
-			2: {1},
-		},
-	}
-
-	segkey := filepath.Join(t.TempDir(), "test-segkey")
-	cname := "col1"
-	err := writeSortIndex(segkey, cname, data)
-	assert.NoError(t, err)
+func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
+	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, 1, nil, []Line{
-		{Value: "blue", Blocks: []Block{
+		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, 1, checkpoint, []Line{
-		{Value: "blue", Blocks: []Block{
-			{BlockNum: 2, RecNums: []uint16{2}},
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{2}},
 		}},
 	})
 }
