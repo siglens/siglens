@@ -24,7 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_writeAndRead(t *testing.T) {
+func writeTestData(t *testing.T) (string, string) {
+	t.Helper()
+
 	data := map[string]map[uint16][]uint16{
 		"apple": {
 			1: {1, 2},
@@ -43,8 +45,24 @@ func Test_writeAndRead(t *testing.T) {
 	err := writeSortIndex(segkey, cname, data)
 	assert.NoError(t, err)
 
-	maxRecords := 100
-	expected := []Line{
+	return segkey, cname
+}
+
+func readAndAssert(t *testing.T, segkey, cname string, maxRecords int, checkpoint *Checkpoint,
+	expected []Line) *Checkpoint {
+
+	t.Helper()
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+
+	return checkpoint
+}
+
+func Test_writeAndRead(t *testing.T) {
+	segkey, cname := writeTestData(t)
+
+	_ = readAndAssert(t, segkey, cname, 100, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
@@ -55,22 +73,64 @@ func Test_writeAndRead(t *testing.T) {
 		{Value: "zebra", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-	}
+	})
 
-	actual, err := ReadSortIndex(segkey, cname, maxRecords)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
-
-	// Test with maxRecords
-	maxRecords = 3
-	expected = []Line{
+	_ = readAndAssert(t, segkey, cname, 3, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42}},
 		}},
-	}
+	})
+}
 
-	actual, err = ReadSortIndex(segkey, cname, maxRecords)
-	assert.NoError(t, err)
-	assert.Equal(t, expected, actual)
+func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
+	segkey, cname := writeTestData(t)
+
+	checkpoint := readAndAssert(t, segkey, cname, 4, nil, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
+		}},
+	})
+
+	_ = readAndAssert(t, segkey, cname, 4, checkpoint, []Line{
+		{Value: "banana", Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
+		}},
+		{Value: "zebra", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{7}},
+		}},
+	})
+}
+
+func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
+	segkey, cname := writeTestData(t)
+
+	checkpoint := readAndAssert(t, segkey, cname, 2, nil, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+		}},
+	})
+
+	_ = readAndAssert(t, segkey, cname, 2, checkpoint, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
+		}},
+	})
+}
+
+func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
+	segkey, cname := writeTestData(t)
+
+	checkpoint := readAndAssert(t, segkey, cname, 1, nil, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1}},
+		}},
+	})
+
+	_ = readAndAssert(t, segkey, cname, 1, checkpoint, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{2}},
+		}},
+	})
 }

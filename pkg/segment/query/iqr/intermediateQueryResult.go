@@ -1059,6 +1059,14 @@ func (iqr *IQR) getRRCIQR() (*IQR, error) {
 	return newIQR, nil
 }
 
+func (iqr *IQR) GetRRCs() []*utils.RecordResultContainer {
+	if iqr == nil {
+		return nil
+	}
+
+	return iqr.rrcs
+}
+
 func (iqr *IQR) AddColumnsToDelete(cnames map[string]struct{}) {
 	for cname := range cnames {
 		iqr.deletedColumns[cname] = struct{}{}

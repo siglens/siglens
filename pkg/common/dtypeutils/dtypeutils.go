@@ -69,6 +69,10 @@ func (tr *TimeRange) AreTimesFullyEnclosed(lowTs, highTs uint64) bool {
 	return false
 }
 
+func (tr *TimeRange) Encloses(other *TimeRange) bool {
+	return tr.AreTimesFullyEnclosed(other.StartEpochMs, other.EndEpochMs)
+}
+
 func (tsVal *TimeRange) CheckInRange(timeStamp uint64) bool {
 
 	if tsVal.StartEpochMs <= timeStamp && timeStamp <= tsVal.EndEpochMs {
