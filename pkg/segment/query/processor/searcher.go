@@ -59,10 +59,14 @@ type block struct {
 type sortIndexSettings struct {
 	numRecordsPerBatch int
 	didFirstFetch      bool
-	segKeyToCheckpoint map[string]*sortindex.Checkpoint
-	segKeyToSavedIQR   map[string]*iqr.IQR
-	segKeyToQSR        map[string]*query.QuerySegmentRequest
+	segKeyToInfo       map[string]*segInfo
 	exhaustedSegKey    toputils.Option[string]
+}
+
+type segInfo struct {
+	qsr        *query.QuerySegmentRequest
+	savedIQR   *iqr.IQR
+	checkpoint *sortindex.Checkpoint
 }
 
 type Searcher struct {
@@ -194,36 +198,44 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 
 	if !s.sortIndexSettings.didFirstFetch {
 		s.sortIndexSettings.didFirstFetch = true
-		s.sortIndexSettings.segKeyToCheckpoint = make(map[string]*sortindex.Checkpoint)
-		s.sortIndexSettings.segKeyToSavedIQR = make(map[string]*iqr.IQR)
-		s.sortIndexSettings.segKeyToQSR = make(map[string]*query.QuerySegmentRequest)
+		s.sortIndexSettings.segKeyToInfo = make(map[string]*segInfo)
 
 		for _, qsr := range qsrs {
+			segInfo := &segInfo{
+				qsr: qsr,
+			}
+			s.sortIndexSettings.segKeyToInfo[qsr.GetSegKey()] = segInfo
+
 			nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
 			if err != nil && err != io.EOF {
 				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 				return nil, err
 			}
 
-			s.sortIndexSettings.segKeyToSavedIQR[qsr.GetSegKey()] = nextIQR
-			s.sortIndexSettings.segKeyToQSR[qsr.GetSegKey()] = qsr
+			segInfo.savedIQR = nextIQR
 		}
 	} else {
 		if segkey, ok := s.sortIndexSettings.exhaustedSegKey.Get(); ok {
-			nextIQR, err := s.fetchSortedRRCsForQSR(s.sortIndexSettings.segKeyToQSR[segkey])
+			segInfo, ok := s.sortIndexSettings.segKeyToInfo[segkey]
+			if !ok {
+				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
+					s.qid, segkey)
+			}
+
+			nextIQR, err := s.fetchSortedRRCsForQSR(segInfo.qsr)
 			if err != nil && err != io.EOF {
 				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 				return nil, err
 			}
 
-			s.sortIndexSettings.segKeyToSavedIQR[segkey] = nextIQR
+			segInfo.savedIQR = nextIQR
 		}
 
-		segkeys := make([]string, 0, len(s.sortIndexSettings.segKeyToSavedIQR))
-		iqrs := make([]*iqr.IQR, 0, len(s.sortIndexSettings.segKeyToSavedIQR))
-		for segkey, iqr := range s.sortIndexSettings.segKeyToSavedIQR {
+		segkeys := make([]string, 0, len(s.sortIndexSettings.segKeyToInfo))
+		iqrs := make([]*iqr.IQR, 0, len(s.sortIndexSettings.segKeyToInfo))
+		for segkey, segInfo := range s.sortIndexSettings.segKeyToInfo {
 			segkeys = append(segkeys, segkey)
-			iqrs = append(iqrs, iqr)
+			iqrs = append(iqrs, segInfo.savedIQR)
 		}
 
 		if len(iqrs) == 0 {
@@ -245,18 +257,18 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 
 		segkey := segkeys[firstExhaustedIndex]
 		s.sortIndexSettings.exhaustedSegKey.Set(segkey)
-		if checkpoint, ok := s.sortIndexSettings.segKeyToCheckpoint[segkey]; !ok {
-			log.Errorf("andrew segkey=%v not found in segKeyToCheckpoint", segkey)
+		if segInfo, ok := s.sortIndexSettings.segKeyToInfo[segkey]; !ok {
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
+				s.qid, segkey)
 		} else {
-			if sortindex.IsEOF(checkpoint) {
+			if sortindex.IsEOF(segInfo.checkpoint) {
 				s.sortIndexSettings.exhaustedSegKey.Clear()
-				delete(s.sortIndexSettings.segKeyToSavedIQR, segkey)
-				delete(s.sortIndexSettings.segKeyToQSR, segkey)
+				delete(s.sortIndexSettings.segKeyToInfo, segkey)
 			}
 		}
 	}
 
-	if len(s.sortIndexSettings.segKeyToSavedIQR) == 0 {
+	if len(s.sortIndexSettings.segKeyToInfo) == 0 {
 		return result, io.EOF
 	}
 
@@ -264,19 +276,23 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 }
 
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
-	if s.segKeyToCheckpoint == nil {
-		s.segKeyToCheckpoint = make(map[string]*sortindex.Checkpoint)
+	if s.segKeyToInfo == nil {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKeyToInfo is nil", s.qid)
+	}
+	segInfo, ok := s.segKeyToInfo[qsr.GetSegKey()]
+	if !ok {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKey not found: %v", s.qid, qsr.GetSegKey())
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
-	checkpoint := s.segKeyToCheckpoint[qsr.GetSegKey()]
+	checkpoint := segInfo.checkpoint
 	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch, checkpoint)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
 	}
 
-	s.segKeyToCheckpoint[qsr.GetSegKey()] = checkpoint
+	segInfo.checkpoint = checkpoint
 
 	if len(lines) == 0 {
 		// TODO: raw search this segment if we got no results because it has
