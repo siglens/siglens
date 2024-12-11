@@ -853,7 +853,7 @@ func writeSortIndexes(segkey string) {
 		defer sortedIndexWG.Done()
 
 		for _, cname := range sortIndexCnames {
-			err := sortindex.WriteSortIndex(segkey, cname)
+			err := sortindex.WriteSortIndex(segkey, cname, sortindex.SortAsString) // TODO: write all sort files
 			if err != nil {
 				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
 					segkey, cname, err)

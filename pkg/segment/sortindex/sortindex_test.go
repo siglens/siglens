@@ -21,28 +21,29 @@ import (
 	"path/filepath"
 	"testing"
 
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func writeTestData(t *testing.T) (string, string) {
 	t.Helper()
 
-	data := map[string]map[uint16][]uint16{
-		"apple": {
+	data := map[*segutils.CValueEnclosure]map[uint16][]uint16{
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"}: {
 			1: {1, 2},
 			2: {100, 42},
 		},
-		"zebra": {
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}: {
 			1: {7},
 		},
-		"banana": {
+		{Dtype: segutils.SS_DT_STRING, CVal: "banana"}: {
 			2: {13, 2, 7},
 		},
 	}
 
 	segkey := filepath.Join(t.TempDir(), "test-segkey")
 	cname := "col1"
-	err := writeSortIndex(segkey, cname, data)
+	err := writeSortIndex(segkey, cname, SortAsString, data)
 	assert.NoError(t, err)
 
 	return segkey, cname

@@ -429,30 +429,30 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 	segKey2 := filepath.Join(tempDir, "segKey2")
 
 	cname := "color"
-	seg1Data := map[string]map[uint16][]uint16{ // value -> block number -> record numbers
-		"blue": {
+	seg1Data := map[*segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
+		{Dtype: segutils.SS_DT_STRING, CVal: "blue"}: {
 			1: {1},
 			2: {2, 3},
 		},
-		"green": {
+		{Dtype: segutils.SS_DT_STRING, CVal: "green"}: {
 			1: {10, 11},
 			2: {1},
 		},
 	}
-	err := sortindex.WriteSortIndexMock(segKey1, cname, seg1Data)
+	err := sortindex.WriteSortIndexMock(segKey1, cname, sortindex.SortAsString, seg1Data)
 	assert.NoError(t, err)
 
-	seg2Data := map[string]map[uint16][]uint16{ // value -> block number -> record numbers
-		"blue": {
+	seg2Data := map[*segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
+		{Dtype: segutils.SS_DT_STRING, CVal: "blue"}: {
 			1: {1, 2},
 			2: {3},
 		},
-		"red": {
+		{Dtype: segutils.SS_DT_STRING, CVal: "red"}: {
 			1: {10},
 			2: {1, 2},
 		},
 	}
-	err = sortindex.WriteSortIndexMock(segKey2, cname, seg2Data)
+	err = sortindex.WriteSortIndexMock(segKey2, cname, sortindex.SortAsString, seg2Data)
 	assert.NoError(t, err)
 
 	return cname, segKey1, segKey2

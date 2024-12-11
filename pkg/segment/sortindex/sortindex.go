@@ -29,7 +29,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,6 +39,15 @@ type Block struct {
 
 var VERSION_SORT_INDEX = []byte{0}
 
+type SortMode int
+
+const (
+	InvalidSortMode SortMode = iota
+	SortAsAuto
+	SortAsNumeric
+	SortAsString
+)
+
 func getFilename(segkey string, cname string) string {
 	return filepath.Join(segkey, cname+".srt") // srt means "sort", not an acronym
 }
@@ -48,13 +56,13 @@ func getTempFilename(segkey string, cname string) string {
 	return getFilename(segkey, cname) + ".tmp"
 }
 
-func WriteSortIndex(segkey string, cname string) error {
+func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
 	blockToRecords, err := segreader.ReadAllRecords(segkey, cname)
 	if err != nil {
 		return fmt.Errorf("WriteSortIndex: failed reading all records for segkey=%v, cname=%v; err=%v", segkey, cname, err)
 	}
 
-	valToBlockToRecords := make(map[string]map[uint16][]uint16)
+	valToBlockToRecords := make(map[*segutils.CValueEnclosure]map[uint16][]uint16)
 	for blockNum, records := range blockToRecords {
 		for recNum, recBytes := range records {
 			if len(recBytes) == 0 {
@@ -62,32 +70,25 @@ func WriteSortIndex(segkey string, cname string) error {
 					segkey, cname, blockNum, recNum)
 			}
 
-			idx := 1
-			switch dtype := recBytes[0]; dtype {
-			case segutils.VALTYPE_ENC_SMALL_STRING[0]:
-				length := toputils.BytesToUint16LittleEndian(recBytes[idx : idx+2])
-				idx += 2
-				value := string(recBytes[idx : idx+int(length)])
-
-				if _, ok := valToBlockToRecords[value]; !ok {
-					valToBlockToRecords[value] = make(map[uint16][]uint16)
-				}
-
-				if _, ok := valToBlockToRecords[value][blockNum]; !ok {
-					valToBlockToRecords[value][blockNum] = make([]uint16, 0)
-				}
-
-				valToBlockToRecords[value][blockNum] = append(valToBlockToRecords[value][blockNum], uint16(recNum))
-			case segutils.VALTYPE_ENC_BACKFILL[0]:
-				// TODO: handle it
-			default:
-				return fmt.Errorf("WriteSortIndex: unsupported dtype=%v for segkey=%v, cname=%v, blockNum=%v, recNum=%v",
-					dtype, segkey, cname, blockNum, recNum)
+			enclosure, _, err := segutils.CValFromBytes(recBytes)
+			if err != nil {
+				return fmt.Errorf("WriteSortIndex: failed to decode CValueEnclosure for segkey=%v, cname=%v, blockNum=%v, recNum=%v; err=%v",
+					segkey, cname, blockNum, recNum, err)
 			}
+
+			if _, ok := valToBlockToRecords[enclosure]; !ok {
+				valToBlockToRecords[enclosure] = make(map[uint16][]uint16)
+			}
+
+			if _, ok := valToBlockToRecords[enclosure][blockNum]; !ok {
+				valToBlockToRecords[enclosure][blockNum] = make([]uint16, 0)
+			}
+
+			valToBlockToRecords[enclosure][blockNum] = append(valToBlockToRecords[enclosure][blockNum], uint16(recNum))
 		}
 	}
 
-	err = writeSortIndex(segkey, cname, valToBlockToRecords)
+	err = writeSortIndex(segkey, cname, sortMode, valToBlockToRecords)
 	if err != nil {
 		return fmt.Errorf("WriteSortIndex: failed writing sort index for segkey=%v, cname=%v; err=%v", segkey, cname, err)
 	}
@@ -101,7 +102,9 @@ func WriteSortIndex(segkey string, cname string) error {
 // DType ColValue1 NumBlocks BlockNum1 NumRecords Rec1, Rec2, … BlockNum2 NumRecords Rec1, Rec2
 // [If string]
 // DType NumBytes ColValue1 NumBlocks BlockNum3 NumRecords Rec1, Rec2, … BlockNum4 NumRecords Rec1, Rec2
-func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]map[uint16][]uint16) error {
+func writeSortIndex(segkey string, cname string, sortMode SortMode,
+	valToBlockToRecords map[*segutils.CValueEnclosure]map[uint16][]uint16) error {
+
 	filename := getFilename(segkey, cname)
 	dir := filepath.Dir(filename)
 	err := os.MkdirAll(dir, 0755)
@@ -118,7 +121,28 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 	defer file.Close()
 
 	sortedValues := utils.GetKeysOfMap(valToBlockToRecords)
-	sort.Strings(sortedValues)
+	switch sortMode {
+	case SortAsAuto:
+		// TODO
+	case SortAsNumeric:
+		// TODO
+	case SortAsString:
+		sort.Slice(sortedValues, func(i, j int) bool {
+			s1, err := sortedValues[i].GetString()
+			if err != nil {
+				return false
+			}
+
+			s2, err := sortedValues[j].GetString()
+			if err != nil {
+				return true
+			}
+
+			return s1 < s2
+		})
+	default:
+		return fmt.Errorf("writeSortIndex: invalid sort mode: %v", sortMode)
+	}
 
 	writer := bufio.NewWriter(file)
 
@@ -136,10 +160,7 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 
 	for _, value := range sortedValues {
 		// Write column value
-		err = writeCValEnc(writer, segutils.CValueEnclosure{
-			Dtype: segutils.SS_DT_STRING,
-			CVal:  value,
-		})
+		err = writeCValEnc(writer, value)
 		if err != nil {
 			return fmt.Errorf("writeSortIndex: failed writing CValEnc: %v", err)
 		}
@@ -156,7 +177,7 @@ func writeSortIndex(segkey string, cname string, valToBlockToRecords map[string]
 		for _, blockNum := range sortedBlockNums {
 			sortedRecords, ok := valToBlockToRecords[value][blockNum]
 			if !ok {
-				return fmt.Errorf("writeSortIndex: missing records for value %s block %d", value, blockNum)
+				return fmt.Errorf("writeSortIndex: missing records for value %v block %d", value, blockNum)
 			}
 
 			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
@@ -441,7 +462,7 @@ func IsEOF(checkpoint *Checkpoint) bool {
 	return checkpoint.eof
 }
 
-func writeCValEnc(writer *bufio.Writer, CValEnc segutils.CValueEnclosure) error {
+func writeCValEnc(writer *bufio.Writer, CValEnc *segutils.CValueEnclosure) error {
 	if writer == nil {
 		return fmt.Errorf("writeCValEnc: writer is nil")
 	}
