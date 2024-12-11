@@ -130,6 +130,18 @@ func GetNumBlocksInSegment(segKey string) uint64 {
 	return 0
 }
 
+func GetTotalBlocksInSegments(segKeys []string) uint64 {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	totalBlocks := uint64(0)
+	for _, segKey := range segKeys {
+		if segMeta, ok := globalMetadata.segmentMetadataReverseIndex[segKey]; ok {
+			totalBlocks += uint64(segMeta.NumBlocks)
+		}
+	}
+	return totalBlocks
+}
+
 func (hm *allSegmentMetadata) bulkAddSegmentMicroIndex(allMetadata []*SegmentMicroIndex) {
 	hm.updateLock.Lock()
 	defer hm.updateLock.Unlock()
