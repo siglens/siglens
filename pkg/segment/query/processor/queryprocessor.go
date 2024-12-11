@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/colusage"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -88,25 +89,48 @@ func mutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	}
 
 	var sorterAgg *structs.QueryAggregators
+	var prevAgg *structs.QueryAggregators
 	for curAgg := queryAgg; curAgg != nil; curAgg = curAgg.Next {
 		if curAgg.SortExpr != nil {
 			sorterAgg = curAgg
 			break
 		}
+		prevAgg = curAgg
 	}
 
 	if sorterAgg == nil {
 		return nil
 	}
-
-	// TODO: if any of the sort fields are created/modified by the query before
-	// the sort command, return nil (so we use the normal searcher).
+	if prevAgg != nil {
+		prevAgg.Next = nil // Get QueryAggs till the sorterAgg
+		defer func() {
+			prevAgg.Next = sorterAgg // Restore the original QueryAggs
+		}()
+		if !canUseSortIndex(queryAgg, sorterAgg) {
+			return nil
+		}
+	}
 
 	// TODO: Replace the sort with a head if the sort is fully handled by the
 	// searcher.
 	sortExpr := sorterAgg.SortExpr
 
 	return sortExpr
+}
+
+func canUseSortIndex(queryAgg *structs.QueryAggregators, sorterAgg *structs.QueryAggregators) bool {
+	queryCols := make(map[string]struct{})
+	createdCols := make(map[string]struct{})
+
+	colusage.AddQueryCols(queryAgg, queryCols, createdCols)
+
+	for _, sortEle := range sorterAgg.SortExpr.SortEles {
+		if _, isCreated := createdCols[sortEle.Field]; isCreated {
+			return false
+		}
+	}
+
+	return true
 }
 
 func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.QueryInformation,
