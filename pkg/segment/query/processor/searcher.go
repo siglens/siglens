@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
+	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -70,6 +71,7 @@ type segInfo struct {
 	qsr        *query.QuerySegmentRequest
 	savedIQR   *iqr.IQR
 	checkpoint *sortindex.Checkpoint
+	pqmr       *pqmr.SegmentPQMRResults
 }
 
 type Searcher struct {
@@ -218,6 +220,33 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	}
 }
 
+func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []toputils.Option[*pqmr.SegmentPQMRResults] {
+	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
+
+	for i, qsr := range qsrs {
+		// The query may require filtering out records after search, so we
+		// shouldn't limit the searcher.
+		qsr.SetSizeLimit(uint64(math.MaxUint64))
+
+		if qsr.GetSegType() != structs.PQS {
+			continue
+		}
+
+		spqmr, err := pqs.GetAllPersistentQueryResults(qsr.GetSegKey(), qsr.QueryInformation.GetPqid())
+		if err != nil {
+			log.Errorf("qid=%d, searcher.getBlocks: Cannot get persistent query results; searching all blocks; err=%v",
+				s.qid, err)
+			qsr.SetSegType(structs.RAW_SEARCH)
+			qsr.SetBlockTracker(structs.InitEntireFileBlockTracker())
+		} else {
+			qsr.SetBlockTracker(structs.InitExclusionBlockTracker(spqmr))
+			pqmrs[i].Set(spqmr)
+		}
+	}
+
+	return pqmrs
+}
+
 func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
 	if err != nil {
@@ -240,17 +269,21 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		options: s.sortExpr,
 	}
 
+	pqmrs := s.getPQMRsFromQSRs(qsrs)
+
 	if !s.sortIndexState.didFirstFetch {
 		s.sortIndexState.didFirstFetch = true
 		s.sortIndexState.segKeyToInfo = make(map[string]*segInfo)
 
-		for _, qsr := range qsrs {
+		for i, qsr := range qsrs {
+			pqmr, _ := pqmrs[i].Get()
 			segInfo := &segInfo{
-				qsr: qsr,
+				qsr:  qsr,
+				pqmr: pqmr,
 			}
 			s.sortIndexState.segKeyToInfo[qsr.GetSegKey()] = segInfo
 
-			nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
+			nextIQR, err := s.fetchSortedRRCsForQSR(qsr, pqmr)
 			if err != nil && err != io.EOF {
 				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 				return nil, err
@@ -266,7 +299,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 					s.qid, segkey)
 			}
 
-			nextIQR, err := s.fetchSortedRRCsForQSR(segInfo.qsr)
+			nextIQR, err := s.fetchSortedRRCsForQSR(segInfo.qsr, segInfo.pqmr)
 			if err != nil && err != io.EOF {
 				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
 				return nil, err
@@ -336,7 +369,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 	return result, nil
 }
 
-func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
+func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *pqmr.SegmentPQMRResults) (*iqr.IQR, error) {
 	if s.segKeyToInfo == nil {
 		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKeyToInfo is nil", s.qid)
 	}
@@ -379,7 +412,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 		}
 	}
 
-	return s.handleSortIndexWithFilter(qsr, lines)
+	return s.handleSortIndexWithFilter(qsr, lines, pqmr)
 }
 
 func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
@@ -404,11 +437,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 }
 
 // TODO: read PQS if enabled.
-func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
-	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
-	if err != nil {
-		return nil, fmt.Errorf("handleSortIndexWithFilter: failed to get SSRs from QSR: err=%v", err)
-	}
+func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults) (*iqr.IQR, error) {
 
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
@@ -439,19 +468,35 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 		}
 	}
 
-	for segkeyFname := range allSSRs {
-		allSSRs[segkeyFname].BlockToValidRecNums = blockToValidRecNums
+	canUsePQMR := false
+	var blockToMetadata map[uint16]*structs.BlockMetadataHolder
+	var blockSummaries []*structs.BlockSummary
+	if pqmr != nil {
+		blockToMetadata, blockSummaries, err = metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
+		if err != nil {
+			log.Errorf("qid=%v, fetchSortedRRCsForQSR: failed to get search info and summary for PQS: %v",
+				s.qid, err)
+			return nil, err
+		}
+		canUsePQMR = true
+		for blkNum := range blockToValidRecNums {
+			if _, ok := blockToMetadata[blkNum]; !ok {
+				canUsePQMR = false
+				break
+			}
+		}
 	}
 
-	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
-	searchNode := s.queryInfo.GetSearchNode()
-	timeRange := s.queryInfo.GetTimeRange()
-
-	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
-		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.handleSortIndexWithFilter: failed to apply filter operator: %v", s.qid, err)
-		return nil, err
+	if canUsePQMR {
+		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, blockToMetadata, blockSummaries, sizeLimit, aggs, blockToValidRecNums)
+		if err != nil {
+			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply PQS, err: %v", err)
+		}
+	} else {
+		err = s.applyRawSearchForSortedIndex(qsr, searchResults, sizeLimit, aggs, blockToValidRecNums)
+		if err != nil {
+			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply raw search, err: %v", err)
+		}
 	}
 
 	rrcs := searchResults.GetResults()
@@ -463,6 +508,78 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	}
 
 	return iqr, nil
+}
+
+func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, searchResults *segresults.SearchResults,
+	pqmrResults *pqmr.SegmentPQMRResults, searchMetadata map[uint16]*structs.BlockMetadataHolder, blkSummaries []*structs.BlockSummary,
+	sizeLimit uint64, aggs *structs.QueryAggregators, blockToValidRecNums map[uint16][]uint16) error {
+
+	if len(searchMetadata) == 0 {
+		log.Infof("qid=%d, applyPQSForSortedIndex: segKey %+v has 0 blocks in segment PQMR results", s.qid, qsr.GetSegKey())
+		return nil
+	}
+
+	// Remove blockNums that are not required to be processed.
+	searchMetadataToSend := make(map[uint16]*structs.BlockMetadataHolder)
+	pqmrToSend := pqmr.InitSegmentPQMResults()
+	for blockNum := range searchMetadata {
+		if _, ok := blockToValidRecNums[blockNum]; ok {
+			searchMetadataToSend[blockNum] = searchMetadata[blockNum]
+			blkResults, present := pqmrResults.GetBlockResults(blockNum)
+			if !present {
+				return fmt.Errorf("qid=%d, applyPQSForSortedIndex: blockNum %d not found in PQMR results", s.qid, blockNum)
+			}
+			pqmrToSend.CopyBlockResults(blockNum, blkResults)
+		}
+	}
+
+	req := &structs.SegmentSearchRequest{
+		SegmentKey:          qsr.GetSegKey(),
+		VirtualTableName:    qsr.GetTableName(),
+		AllPossibleColumns:  s.queryInfo.GetColsToSearch(),
+		AllBlocksToSearch:   searchMetadataToSend,
+		BlockToValidRecNums: blockToValidRecNums,
+		SearchMetadata: &structs.SearchMetadataHolder{
+			BlockSummaries:    blkSummaries,
+			SearchTotalMemory: uint64(len(blkSummaries) * 16), // TODO: add bitset size here
+		},
+		ConsistentCValLenMap: qsr.ConsistentCValLenMap,
+	}
+	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(s.qid)
+	if err != nil {
+		return fmt.Errorf("qid=%d, applyPQSForSortedIndex: failed to get or create query search node result! Error: %v", s.qid, err)
+	}
+	search.RawSearchPQMResults(req, s.queryInfo.GetParallelismPerFile(), s.queryInfo.GetTimeRange(), aggs, sizeLimit, pqmrToSend, searchResults, s.qid, s.querySummary, nodeRes)
+
+	if req.HasMatchedRrc {
+		qsr.HasMatchedRrc = true
+	}
+
+	return nil
+}
+
+func (s *Searcher) applyRawSearchForSortedIndex(qsr *query.QuerySegmentRequest, searchResults *segresults.SearchResults,
+	sizeLimit uint64, aggs *structs.QueryAggregators, blockToValidRecNums map[uint16][]uint16) error {
+	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
+	if err != nil {
+		return fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)
+	}
+
+	for segkeyFname := range allSSRs {
+		allSSRs[segkeyFname].BlockToValidRecNums = blockToValidRecNums
+	}
+
+	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
+	searchNode := s.queryInfo.GetSearchNode()
+	timeRange := s.queryInfo.GetTimeRange()
+
+	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
+		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
+	if err != nil {
+		return fmt.Errorf("qid=%v, searcher.addRRCsFromRawSearch: failed to apply filter operator: %v", s.qid, err)
+	}
+
+	return nil
 }
 
 func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
@@ -828,28 +945,7 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 		return nil, fmt.Errorf("qid=%v, searcher.getBlocks: failed to get QSRs to process: %v", s.qid, err)
 	}
 
-	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
-
-	for i, qsr := range qsrs {
-		// The query may require filtering out records after search, so we
-		// shouldn't limit the searcher.
-		qsr.SetSizeLimit(uint64(math.MaxUint64))
-
-		if qsr.GetSegType() != structs.PQS {
-			continue
-		}
-
-		spqmr, err := pqs.GetAllPersistentQueryResults(qsr.GetSegKey(), qsr.QueryInformation.GetPqid())
-		if err != nil {
-			log.Errorf("qid=%d, searcher.getBlocks: Cannot get persistent query results; searching all blocks; err=%v",
-				s.qid, err)
-			qsr.SetSegType(structs.RAW_SEARCH)
-			qsr.SetBlockTracker(structs.InitEntireFileBlockTracker())
-		} else {
-			qsr.SetBlockTracker(structs.InitExclusionBlockTracker(spqmr))
-			pqmrs[i].Set(spqmr)
-		}
-	}
+	pqmrs := s.getPQMRsFromQSRs(qsrs)
 
 	for i, qsr := range qsrs {
 		pqmrBlockNumbers := make(map[uint16]struct{})

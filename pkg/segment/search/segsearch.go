@@ -397,20 +397,35 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 
 		isBlkFullyEncosed := tRange.AreTimesFullyEnclosed(blkSum.LowTs, blkSum.HighTs)
 		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs, false) {
-			for recNum := uint(0); recNum < numRecsInBlock; recNum++ {
-				if pqmr.DoesRecordMatch(recNum) {
+
+			var recordNums []uint16
+			if req.BlockToValidRecNums != nil {
+				records, ok := req.BlockToValidRecNums[blockNum]
+				if !ok {
+					// TODO: do this check in the caller.
+					return
+				}
+				recordNums = records
+			} else {
+				recordNums = make([]uint16, numRecsInBlock)
+				for i := 0; i < int(numRecsInBlock); i++ {
+					recordNums[i] = uint16(i)
+				}
+			}
+
+			for _, recNum := range recordNums {
+				if pqmr.DoesRecordMatch(uint(recNum)) {
 					if int(recNum) > len(currTS) {
 						log.Errorf("qid=%d, rawSearchSingleSPQMR tried to get the ts for recNum %+v but only %+v records exist, segkey=%v", qid, recNum, len(currTS), req.SegmentKey)
 						continue
 					}
 					recTs := currTS[recNum]
 					if !tRange.CheckInRange(recTs) {
-						pqmr.ClearBit(recNum)
+						pqmr.ClearBit(uint(recNum))
 						continue
 					}
-					convertedRecNum := uint16(recNum)
 					if config.IsNewQueryPipelineEnabled() {
-						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
 						if !invalidCol {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
@@ -418,7 +433,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 									IsRemote:  false,
 								},
 								BlockNum:         blockNum,
-								RecordNum:        convertedRecNum,
+								RecordNum:        recNum,
 								SortColumnValue:  sortVal,
 								VirtualTableName: req.VirtualTableName,
 								TimeStamp:        recTs,
@@ -427,7 +442,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 						}
 					} else {
 						if blkResults.ShouldAddMore() {
-							sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+							sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
 							if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
 								rrc := &utils.RecordResultContainer{
 									SegKeyInfo: utils.SegKeyInfo{
@@ -435,7 +450,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 										IsRemote:  false,
 									},
 									BlockNum:         blockNum,
-									RecordNum:        convertedRecNum,
+									RecordNum:        recNum,
 									SortColumnValue:  sortVal,
 									VirtualTableName: req.VirtualTableName,
 									TimeStamp:        recTs,

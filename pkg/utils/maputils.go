@@ -213,6 +213,16 @@ func GetSortedStringKeys[T any](map1 map[string]T) []string {
 	return keys
 }
 
+func GetShallowCopy[K comparable, V any](mp map[K]V) map[K]V {
+	copy := make(map[K]V, len(mp))
+
+	for k, v := range mp {
+		copy[k] = v
+	}
+
+	return copy
+}
+
 func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
 	result := make([]map[K]V, 0)
 

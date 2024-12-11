@@ -173,6 +173,12 @@ func (spqmr *SegmentPQMRResults) SetBlockResults(blkNum uint16, og *PQMatchResul
 	spqmr.accessLock.Unlock()
 }
 
+func (spqmr *SegmentPQMRResults) RemoveBlockResults(blkNum uint16) {
+	spqmr.accessLock.Lock()
+	delete(spqmr.allBlockResults, blkNum)
+	spqmr.accessLock.Unlock()
+}
+
 // [blkNum - uint16][bitSetLen - uint16][raw bitset….]
 func (pqmr *PQMatchResults) FlushPqmr(fname *string, blkNum uint16) error {
 
