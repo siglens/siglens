@@ -1270,7 +1270,7 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) error {
 	return nil
 }
 
-// Returns the number of bytes read and the CValueEnclosure
+// Returns the CValueEnclosure and the number of bytes read
 func CValFromBytes(buf []byte) (*CValueEnclosure, int, error) {
 	if len(buf) == 0 {
 		return nil, 0, errors.New("CValFromBytes: empty buffer")
