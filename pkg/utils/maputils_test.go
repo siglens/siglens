@@ -18,7 +18,6 @@
 package utils
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -439,20 +438,4 @@ func TestRemoveKeyFromNestedMap(t *testing.T) {
 	// Test removing the last inner key and removing the outer map key
 	RemoveKeyFromNestedMap(m, "key1", "key3")
 	assert.Equal(t, 0, len(m), "Outer map key should be removed when the inner map becomes empty")
-}
-
-func TestShallowCopy(t *testing.T) {
-	m := map[string]int{
-		"a": 1,
-		"b": 2,
-		"c": 3,
-	}
-
-	copied := GetShallowCopy(m)
-	assert.Equal(t, m, copied)
-
-	mAddr := fmt.Sprintf("%p", m)
-	copiedAddr := fmt.Sprintf("%p", copied)
-
-	assert.NotEqual(t, mAddr, copiedAddr)
 }

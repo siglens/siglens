@@ -538,7 +538,7 @@ func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, search
 		BlockToValidRecNums: blockToValidRecNums,
 		SearchMetadata: &structs.SearchMetadataHolder{
 			BlockSummaries:    blkSummaries,
-			SearchTotalMemory: uint64(len(blkSummaries) * 16), // TODO: add bitset size here
+			SearchTotalMemory: uint64(len(blkSummaries) * 24),
 		},
 		ConsistentCValLenMap: qsr.ConsistentCValLenMap,
 	}
