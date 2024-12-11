@@ -403,7 +403,7 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 				records, ok := req.BlockToValidRecNums[blockNum]
 				if !ok {
 					// TODO: do this check in the caller.
-					return
+					continue
 				}
 				recordNums = records
 			} else {
