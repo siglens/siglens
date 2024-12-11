@@ -79,7 +79,7 @@ func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
 	return chainedDP
 }
 
-func mutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr {
+func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr {
 	if !config.IsSortIndexEnabled() {
 		return nil
 	}
@@ -141,7 +141,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	}
 
 	sortMode := recentFirst // TODO: compute this from the query.
-	sortExpr := mutateForSearchSorter(firstAgg)
+	sortExpr := MutateForSearchSorter(firstAgg)
 	searcher, err := NewSearcher(queryInfo, querySummary, sortMode, sortExpr, startTime)
 	if err != nil {
 		return nil, utils.TeeErrorf("NewQueryProcessor: cannot make searcher; err=%v", err)
