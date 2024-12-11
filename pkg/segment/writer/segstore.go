@@ -827,9 +827,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
-		// TODO: make this a background job; somehow handle siglens being
-		// gracefully shutdown.
-		writeSortIndexes(segstore.SegmentKey)
+		go writeSortIndexes(segstore.SegmentKey)
 
 		if blobErr == nil {
 			// upload ingest node dir to s3
@@ -849,7 +847,11 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 }
 
 func writeSortIndexes(segkey string) {
+
 	if config.IsSortIndexEnabled() {
+		sortedIndexWG.Add(1)
+		defer sortedIndexWG.Done()
+
 		for _, cname := range sortIndexCnames {
 			err := sortindex.WriteSortIndex(segkey, cname)
 			if err != nil {

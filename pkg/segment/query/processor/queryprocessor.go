@@ -327,7 +327,7 @@ func asDataProcessor(queryAgg *structs.QueryAggregators, queryInfo *query.QueryI
 		timechartOptions := &timechartOptions{
 			timeChartExpr: queryAgg.TimechartExpr,
 			qid:           queryInfo.GetQid(),
-			timeRange:     queryInfo.GetQueryRange(),
+			timeRange:     queryInfo.GetTimeRange(),
 		}
 		return NewTimechartDP(timechartOptions)
 	} else if queryAgg.StatsExpr != nil {
