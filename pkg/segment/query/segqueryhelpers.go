@@ -73,8 +73,12 @@ func (qi *QueryInformation) GetAggregators() *structs.QueryAggregators {
 	return qi.aggs
 }
 
-func (qi *QueryInformation) GetQueryRange() *dtu.TimeRange {
+func (qi *QueryInformation) GetTimeRange() *dtu.TimeRange {
 	return qi.queryRange
+}
+
+func (qi *QueryInformation) SetQueryTimeRange(queryRange *dtu.TimeRange) {
+	qi.queryRange = queryRange
 }
 
 func (qi *QueryInformation) GetQueryRangeStartMs() uint64 {
@@ -107,6 +111,14 @@ func (qi *QueryInformation) GetPqid() string {
 
 func (qi *QueryInformation) GetParallelismPerFile() int64 {
 	return qi.parallelismPerFile
+}
+
+func (qi *QueryInformation) GetSearchNodeType() structs.SearchNodeType {
+	return qi.sNodeType
+}
+
+func (qi *QueryInformation) SetSearchNodeType(sNodeType structs.SearchNodeType) {
+	qi.sNodeType = sNodeType
 }
 
 func (qi *QueryInformation) GetQueryType() structs.QueryType {
@@ -146,6 +158,18 @@ func (qi *QueryInformation) GetBatchError() *toputils.BatchError {
 
 func (qsr *QuerySegmentRequest) GetSegKey() string {
 	return qsr.segKey
+}
+
+func (qsr *QuerySegmentRequest) SetSegKey(segKey string) {
+	qsr.segKey = segKey
+}
+
+func (qsr *QuerySegmentRequest) GetTimeRange() *dtu.TimeRange {
+	return qsr.segKeyTsRange
+}
+
+func (qsr *QuerySegmentRequest) SetTimeRange(segKeyTsRange *dtu.TimeRange) {
+	qsr.segKeyTsRange = segKeyTsRange
 }
 
 func (qsr *QuerySegmentRequest) GetTableName() string {

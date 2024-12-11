@@ -57,7 +57,24 @@ type block struct {
 	segkeyFname string
 }
 
+type sortIndexState struct {
+	numRecordsPerBatch int
+	didFirstFetch      bool
+	segKeyToInfo       map[string]*segInfo
+	exhaustedSegKey    toputils.Option[string]
+	numRecordsSent     uint64
+	didEarlyExit       bool
+}
+
+type segInfo struct {
+	qsr        *query.QuerySegmentRequest
+	savedIQR   *iqr.IQR
+	checkpoint *sortindex.Checkpoint
+}
+
 type Searcher struct {
+	sortIndexState
+
 	qid          uint64
 	queryInfo    *query.QueryInformation
 	querySummary *summary.QuerySummary
@@ -93,6 +110,11 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 	qid := queryInfo.GetQid()
 
 	return &Searcher{
+		sortIndexState: sortIndexState{
+			// TODO: find a better way to limit.
+			numRecordsPerBatch: 1000,
+		},
+
 		qid:                   qid,
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
@@ -203,50 +225,189 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
-	// TODO: read PQS if enabled.
+	return s.fetchSortedRRCsFromQSRs(qsrs)
+}
 
-	result := iqr.NewIQR(s.queryInfo.GetQid())
+// Once this is called with one set of QSRs, each subsequent call should be
+// made with the same set of QSRs (until a new Searcher is created).
+func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*iqr.IQR, error) {
+	if s.sortIndexState.didEarlyExit {
+		return nil, io.EOF
+	}
+
+	result := iqr.NewIQR(s.qid)
 	sorter := &sortProcessor{
 		options: s.sortExpr,
 	}
 
-	for _, qsr := range qsrs {
-		nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
-		if err != nil {
-			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
-			return nil, err
+	if !s.sortIndexState.didFirstFetch {
+		s.sortIndexState.didFirstFetch = true
+		s.sortIndexState.segKeyToInfo = make(map[string]*segInfo)
+
+		for _, qsr := range qsrs {
+			segInfo := &segInfo{
+				qsr: qsr,
+			}
+			s.sortIndexState.segKeyToInfo[qsr.GetSegKey()] = segInfo
+
+			nextIQR, err := s.fetchSortedRRCsForQSR(qsr)
+			if err != nil && err != io.EOF {
+				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
+				return nil, err
+			}
+
+			segInfo.savedIQR = nextIQR
+		}
+	} else {
+		if segkey, ok := s.sortIndexState.exhaustedSegKey.Get(); ok {
+			segInfo, ok := s.sortIndexState.segKeyToInfo[segkey]
+			if !ok {
+				return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
+					s.qid, segkey)
+			}
+
+			nextIQR, err := s.fetchSortedRRCsForQSR(segInfo.qsr)
+			if err != nil && err != io.EOF {
+				log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to fetch sorted RRCs: %v", s.qid, err)
+				return nil, err
+			}
+
+			segInfo.savedIQR = nextIQR
 		}
 
-		result, err = iqr.MergeAndDiscardAfter(result, nextIQR, sorter.less, s.sortExpr.Limit)
+		segkeys := make([]string, 0, len(s.sortIndexState.segKeyToInfo))
+		iqrs := make([]*iqr.IQR, 0, len(s.sortIndexState.segKeyToInfo))
+		for segkey, segInfo := range s.sortIndexState.segKeyToInfo {
+			segkeys = append(segkeys, segkey)
+			iqrs = append(iqrs, segInfo.savedIQR)
+		}
+
+		if len(iqrs) == 0 {
+			return result, io.EOF
+		}
+
+		var firstExhaustedIndex int
+		var err error
+		result, firstExhaustedIndex, err = iqr.MergeIQRs(iqrs, sorter.less)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to merge IQRs: %v", s.qid, err)
 			return nil, err
 		}
+
+		if firstExhaustedIndex < 0 || firstExhaustedIndex >= len(iqrs) {
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: unexpected firstExhaustedIndex: %v",
+				s.qid, firstExhaustedIndex)
+		}
+
+		segkey := segkeys[firstExhaustedIndex]
+		s.sortIndexState.exhaustedSegKey.Set(segkey)
+		if segInfo, ok := s.sortIndexState.segKeyToInfo[segkey]; !ok {
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: segkey not found: %v",
+				s.qid, segkey)
+		} else {
+			if sortindex.IsEOF(segInfo.checkpoint) {
+				s.sortIndexState.exhaustedSegKey.Clear()
+				delete(s.sortIndexState.segKeyToInfo, segkey)
+			}
+		}
 	}
 
-	// TODO: don't always return EOF.
-	return result, io.EOF
+	numRecords := uint64(result.NumberOfRecords())
+	numRemainingRecords := s.sortExpr.Limit - s.sortIndexState.numRecordsSent
+
+	numRecordsToSend := numRecords
+	if numRecordsToSend > numRemainingRecords {
+		numRecordsToSend = numRemainingRecords
+		s.sortIndexState.didEarlyExit = true
+	}
+
+	err := result.DiscardAfter(numRecordsToSend)
+	if err != nil {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to discard after %v; err=%v",
+			s.qid, numRecordsToSend, err)
+	}
+
+	s.sortIndexState.numRecordsSent += uint64(result.NumberOfRecords())
+
+	if len(s.sortIndexState.segKeyToInfo) == 0 {
+		return result, io.EOF
+	}
+
+	return result, nil
 }
 
 func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.IQR, error) {
-	// TODO: handle subsequent fetches to this QSR.
+	if s.segKeyToInfo == nil {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKeyToInfo is nil", s.qid)
+	}
+	segInfo, ok := s.segKeyToInfo[qsr.GetSegKey()]
+	if !ok {
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: segKey not found: %v", s.qid, qsr.GetSegKey())
+	}
 
-	const recordLimit = 1000 // TODO: find a better way to limit.
 	cname := s.sortExpr.SortEles[0].Field
-	lines, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, recordLimit)
+	checkpoint := segInfo.checkpoint
+	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch, checkpoint)
 	if err != nil {
+		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
 	}
 
+	segInfo.checkpoint = checkpoint
+
 	if len(lines) == 0 {
-		// TODO: raw search this segment if it has the cname
-		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: no lines found in sort index; raw search not implemented", s.qid)
-		return nil, nil
+		// TODO: raw search this segment if we got no results because it has
+		// the cname but no sort index.
+		return nil, io.EOF
 	}
 
+	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
+		queryRange := s.queryInfo.GetTimeRange()
+		segmentRange := qsr.GetTimeRange()
+
+		if queryRange.Encloses(segmentRange) {
+			iqr, err := s.handleSortIndexMatchAll(qsr, lines)
+			if err != nil {
+				return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to handle match all: err=%v", err)
+			}
+
+			if sortindex.IsEOF(checkpoint) {
+				return iqr, io.EOF
+			}
+
+			return iqr, nil
+		}
+	}
+
+	return s.handleSortIndexWithFilter(qsr, lines)
+}
+
+func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
+	segKeyEncoding := s.getSegKeyEncoding(qsr.GetSegKey())
+
+	rrcs, values := sortindex.AsRRCs(lines, segKeyEncoding)
+	iqr := iqr.NewIQR(s.queryInfo.GetQid())
+	err := iqr.AppendRRCs(rrcs, s.segEncToKey.GetMapForReading())
+	if err != nil {
+		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append RRCs: %v", s.qid, err)
+		return nil, err
+	}
+
+	cname := s.sortExpr.SortEles[0].Field
+	err = iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{cname: values})
+	if err != nil {
+		log.Errorf("qid=%v, searcher.handleSortIndexMatchAll: failed to append known values: %v", s.qid, err)
+		return nil, err
+	}
+
+	return iqr, nil
+}
+
+// TODO: read PQS if enabled.
+func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
-		return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)
+		return nil, fmt.Errorf("handleSortIndexWithFilter: failed to get SSRs from QSR: err=%v", err)
 	}
 
 	sizeLimit := uint64(math.MaxUint64)
@@ -255,7 +416,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 	queryType := s.queryInfo.GetQueryType()
 	searchResults, err := segresults.InitSearchResults(sizeLimit, aggs, queryType, s.qid)
 	if err != nil {
-		log.Errorf("qid=%v, fetchSortedRRCsForQSR: failed to initialize search results: %v", s.qid, err)
+		log.Errorf("qid=%v, handleSortIndexWithFilter: failed to initialize search results: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -284,12 +445,12 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest) (*iqr.I
 
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
-	timeRange := s.queryInfo.GetQueryRange()
+	timeRange := s.queryInfo.GetTimeRange()
 
 	err = query.ApplyFilterOperatorInternal(searchResults, allSSRs,
 		parallelismPerFile, searchNode, timeRange, sizeLimit, aggs, s.qid, s.querySummary)
 	if err != nil {
-		log.Errorf("qid=%v, searcher.addRRCsFromRawSearch: failed to apply filter operator: %v", s.qid, err)
+		log.Errorf("qid=%v, searcher.handleSortIndexWithFilter: failed to apply filter operator: %v", s.qid, err)
 		return nil, err
 	}
 
@@ -738,6 +899,18 @@ func (s *Searcher) getNextSegEncTokey() uint32 {
 	return s.segEncToKeyBaseValue + uint32(s.segEncToKey.Len())
 }
 
+func (s *Searcher) getSegKeyEncoding(segKey string) uint32 {
+	encoding, ok := s.segEncToKey.GetReverse(segKey)
+	if ok {
+		return encoding
+	}
+
+	encoding = s.getNextSegEncTokey()
+	s.segEncToKey.Set(encoding, segKey)
+
+	return encoding
+}
+
 func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,
 	blockSummaries []*structs.BlockSummary, qsr *query.QuerySegmentRequest,
 	pqmr *pqmr.SegmentPQMRResults) []*block {
@@ -1021,7 +1194,7 @@ func (s *Searcher) addRRCsFromRawSearch(searchResults *segresults.SearchResults,
 
 	parallelismPerFile := s.queryInfo.GetParallelismPerFile()
 	searchNode := s.queryInfo.GetSearchNode()
-	timeRange := s.queryInfo.GetQueryRange()
+	timeRange := s.queryInfo.GetTimeRange()
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
 
