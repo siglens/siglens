@@ -454,6 +454,5 @@ func TestShallowCopy(t *testing.T) {
 	mAddr := fmt.Sprintf("%p", m)
 	copiedAddr := fmt.Sprintf("%p", copied)
 
-	// Ensure that the copied map is a different instance
 	assert.NotEqual(t, mAddr, copiedAddr)
 }

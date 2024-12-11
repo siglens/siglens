@@ -521,17 +521,14 @@ func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, search
 
 	// Remove blockNums that are not required to be processed.
 	searchMetadataToSend := make(map[uint16]*structs.BlockMetadataHolder)
-	pqmrToSend := pqmr.InitSegmentPQMResults()
+	validBlkNums := []uint16{}
 	for blockNum := range searchMetadata {
 		if _, ok := blockToValidRecNums[blockNum]; ok {
 			searchMetadataToSend[blockNum] = searchMetadata[blockNum]
-			blkResults, present := pqmrResults.GetBlockResults(blockNum)
-			if !present {
-				return fmt.Errorf("qid=%d, applyPQSForSortedIndex: blockNum %d not found in PQMR results", s.qid, blockNum)
-			}
-			pqmrToSend.CopyBlockResults(blockNum, blkResults)
+			validBlkNums = append(validBlkNums, blockNum)
 		}
 	}
+	pqmrToSend := pqmrResults.GetCopyOfBlockResults(validBlkNums)
 
 	req := &structs.SegmentSearchRequest{
 		SegmentKey:          qsr.GetSegKey(),
