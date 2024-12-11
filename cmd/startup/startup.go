@@ -320,6 +320,7 @@ func ShutdownSiglensServer() {
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()
 	alertsHandler.Disconnect()
+	writer.WaitForSortedIndexToComplete()
 
 	if hook := hooks.GlobalHooks.ShutdownSiglensExtrasHook; hook != nil {
 		hook()

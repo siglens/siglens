@@ -53,6 +53,7 @@ const maxAllowedSegStores = 1000
 // global map
 var allSegStores = map[string]*SegStore{}
 var allSegStoresLock sync.RWMutex = sync.RWMutex{}
+var sortedIndexWG = &sync.WaitGroup{}
 
 var KibanaInternalBaseDir string
 
@@ -567,6 +568,10 @@ func ForcedFlushToSegfile() {
 		delete(allSegStores, streamid)
 	}
 	allSegStoresLock.Unlock()
+}
+
+func WaitForSortedIndexToComplete() {
+	sortedIndexWG.Wait()
 }
 
 func idleWipFlushToFile() {
