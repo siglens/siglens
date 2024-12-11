@@ -22,6 +22,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"strconv"
@@ -1200,6 +1201,73 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	}
 
 	return buf, bufIdx
+}
+
+// TODO: remove the duplication with WriteToBytesWithType
+func (e *CValueEnclosure) WriteBytes(writer io.Writer) error {
+	var typeErr, valErr error
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		_, typeErr = writer.Write(VALTYPE_ENC_BOOL)
+		value, ok := e.CVal.(bool)
+		if !ok {
+			return fmt.Errorf("WriteBytes: error converting value %v to bool", e.CVal)
+		}
+
+		if value {
+			_, valErr = writer.Write([]byte{1})
+		} else {
+			_, valErr = writer.Write([]byte{0})
+		}
+	case SS_DT_UNSIGNED_NUM:
+		_, typeErr = writer.Write(VALTYPE_ENC_UINT64)
+		if value, ok := e.CVal.(uint64); ok {
+			_, valErr = writer.Write(toputils.Uint64ToBytesLittleEndian(value))
+		} else {
+			return fmt.Errorf("WriteBytes: error converting value %v to uint64", e.CVal)
+		}
+	case SS_DT_SIGNED_NUM:
+		_, typeErr = writer.Write(VALTYPE_ENC_INT64)
+		if value, ok := e.CVal.(int64); ok {
+			_, valErr = writer.Write(toputils.Int64ToBytesLittleEndian(value))
+		} else {
+			return fmt.Errorf("WriteBytes: error converting value %v to int64", e.CVal)
+		}
+	case SS_DT_FLOAT:
+		_, typeErr = writer.Write(VALTYPE_ENC_FLOAT64)
+		if value, ok := e.CVal.(float64); ok {
+			_, valErr = writer.Write(toputils.Float64ToBytesLittleEndian(value))
+		} else {
+			return fmt.Errorf("WriteBytes: error converting value %v to float64", e.CVal)
+		}
+	case SS_DT_STRING:
+		_, typeErr = writer.Write(VALTYPE_ENC_SMALL_STRING)
+		value, ok := e.CVal.(string)
+		if !ok {
+			return fmt.Errorf("WriteBytes: error converting value %v to string", e.CVal)
+		}
+		strBytes := []byte(value)
+
+		_, err := writer.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(strBytes))))
+		if err != nil {
+			return fmt.Errorf("WriteBytes: error writing string length: %v", err)
+		}
+
+		_, valErr = writer.Write(strBytes)
+	case SS_DT_BACKFILL:
+		_, typeErr = writer.Write(VALTYPE_ENC_BACKFILL)
+	default:
+		return fmt.Errorf("WriteBytes: unsupported Dtype: %v", e.Dtype)
+	}
+
+	if typeErr != nil {
+		return fmt.Errorf("WriteBytes: error writing type: %v", typeErr)
+	}
+	if valErr != nil {
+		return fmt.Errorf("WriteBytes: error writing value: %v", valErr)
+	}
+
+	return nil
 }
 
 // Returns the number of bytes read and the CValueEnclosure

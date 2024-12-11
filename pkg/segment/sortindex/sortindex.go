@@ -160,7 +160,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 
 	for _, value := range sortedValues {
 		// Write column value
-		err = writeCValEnc(writer, value)
+		err = value.WriteBytes(writer)
 		if err != nil {
 			return fmt.Errorf("writeSortIndex: failed writing CValEnc: %v", err)
 		}
@@ -460,38 +460,4 @@ func IsEOF(checkpoint *Checkpoint) bool {
 	}
 
 	return checkpoint.eof
-}
-
-func writeCValEnc(writer *bufio.Writer, CValEnc *segutils.CValueEnclosure) error {
-	if writer == nil {
-		return fmt.Errorf("writeCValEnc: writer is nil")
-	}
-
-	if CValEnc.Dtype != segutils.SS_DT_STRING {
-		return fmt.Errorf("writeCValEnc: Unsupported Dtype: %v", CValEnc.Dtype)
-	}
-
-	// Write dtype
-	_, err := writer.Write([]byte{byte(CValEnc.Dtype)})
-	if err != nil {
-		return fmt.Errorf("writeCValEnc: failed writing dtype: %v", err)
-	}
-
-	switch CValEnc.Dtype {
-	case segutils.SS_DT_STRING:
-		// Write len of string
-		_, err = writer.Write(utils.Uint16ToBytesLittleEndian(uint16(len(CValEnc.CVal.(string)))))
-		if err != nil {
-			return fmt.Errorf("writeCValEnc: failed writing len of string CValEnc: %v, err: %v", CValEnc, err)
-		}
-		// Write string
-		_, err = writer.Write([]byte(CValEnc.CVal.(string)))
-		if err != nil {
-			return fmt.Errorf("writeCValEnc: failed writing string CValEnc: %v, err: %v", CValEnc, err)
-		}
-	default:
-		return fmt.Errorf("writeCValEnc: Unsupported Dtype: %v", CValEnc.Dtype)
-	}
-
-	return nil
 }
