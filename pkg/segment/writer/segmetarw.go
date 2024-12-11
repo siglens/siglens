@@ -89,7 +89,7 @@ func initSmr() {
 	go listenBackFillAndEmptyPQSRequests()
 }
 
-func getSegFullMetaFnameFromSegkey(segkey string) string {
+func GetSegFullMetaFnameFromSegkey(segkey string) string {
 	return fmt.Sprintf("%s.sfm", segkey)
 }
 
@@ -162,7 +162,7 @@ func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 
 	sfm := &structs.SegFullMeta{}
 
-	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
+	sfmFname := GetSegFullMetaFnameFromSegkey(segkey)
 
 	sfmBytes, err := os.ReadFile(sfmFname)
 	if err != nil {
@@ -196,7 +196,7 @@ func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 func writeSfm(segkey string, sfmData *structs.SegFullMeta) {
 
 	// create a separate individual file for SegFullMeta
-	sfmFname := getSegFullMetaFnameFromSegkey(segkey)
+	sfmFname := GetSegFullMetaFnameFromSegkey(segkey)
 	sfmFd, err := os.OpenFile(sfmFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Errorf("writeSfm: failed to open a sfm filename=%v: err=%v", sfmFname, err)
