@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_CVal_Equal(t *testing.T) {
@@ -70,4 +71,29 @@ func Test_CVal_Hash(t *testing.T) {
 		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil}).Hash(),
 		(&CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: 123}).Hash(),
 	)
+}
+
+func Test_CValFromBytes(t *testing.T) {
+	original := make([]*CValueEnclosure, 0)
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_STRING, CVal: "hello"})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: int64(-123)})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_UNSIGNED_NUM, CVal: uint64(123)})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(123.456)})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_BOOL, CVal: true})
+	original = append(original, &CValueEnclosure{Dtype: SS_DT_BACKFILL, CVal: nil})
+
+	var bytes []byte
+	idx := 0
+	for _, enclosure := range original {
+		bytes, idx = enclosure.WriteToBytesWithType(bytes, idx)
+	}
+
+	idx = 0
+	for i := 0; i < len(original); i++ {
+		enclosure, numBytesRead, err := CValFromBytes(bytes[idx:])
+		idx += numBytesRead
+
+		require.NoError(t, err, "errored in iteration %d", i)
+		require.Equal(t, original[i], enclosure, "failed in iteration %d", i)
+	}
 }
