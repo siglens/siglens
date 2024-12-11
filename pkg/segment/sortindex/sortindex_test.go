@@ -174,4 +174,20 @@ func Test_sort(t *testing.T) {
 		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
 		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
 	}, enclosures)
+
+	rand.Seed(42)
+	rand.Shuffle(len(enclosures), func(i, j int) {
+		enclosures[i], enclosures[j] = enclosures[j], enclosures[i]
+	})
+
+	sortEnclosures(enclosures, SortAsAuto)
+	assert.Equal(t, []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	}, enclosures)
 }
