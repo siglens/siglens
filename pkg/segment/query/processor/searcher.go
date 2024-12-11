@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"container/list"
 	"fmt"
 	"io"
 	"math"
@@ -84,6 +85,10 @@ type Searcher struct {
 	gotBlocks             bool
 	remainingBlocksSorted []*block // Sorted by time as specified by sortMode.
 	qsrs                  []*query.QuerySegmentRequest
+	cutOffTimestampInMs   uint64
+	unprocessedQSRs       *list.List
+	processedBlocks       map[string]map[uint16]struct{}
+	gotAllSegments        bool
 
 	unsentRRCs           []*segutils.RecordResultContainer
 	segEncToKey          *toputils.TwoWayMap[uint32, string]
@@ -129,6 +134,10 @@ func (s *Searcher) SetAsIqrStatsResults() {
 
 func (s *Searcher) Rewind() {
 	s.gotBlocks = false
+	s.qsrs = nil
+	s.processedBlocks = nil
+	s.unprocessedQSRs = nil
+	s.gotAllSegments = false
 	s.remainingBlocksSorted = make([]*block, 0)
 	s.unsentRRCs = make([]*segutils.RecordResultContainer, 0)
 	s.segEncToKey = toputils.NewTwoWayMap[uint32, string]()
@@ -146,14 +155,44 @@ func getNumRecords(blocks []*block) uint64 {
 	return totalRecords
 }
 
+func getAllSegKeysInQSRS(qsrs []*query.QuerySegmentRequest) []string {
+	segKeys := make([]string, 0, len(qsrs))
+	for _, qsr := range qsrs {
+		segKeys = append(segKeys, qsr.GetSegKey())
+	}
+	return segKeys
+}
+
+func (s *Searcher) initUnprocessedQSRs() {
+	if s.qsrs == nil {
+		return
+	}
+	s.unprocessedQSRs = list.New()
+	s.processedBlocks = make(map[string]map[uint16]struct{})
+
+	for _, qsr := range s.qsrs {
+		s.unprocessedQSRs.PushBack(qsr)
+	}
+}
+
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
+		// Get blocks for the segment batch to process
 		if config.IsSortIndexEnabled() && s.sortExpr != nil {
 			query.InitProgressForRRCCmd(0 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
+		}
+		// initialize QSRs if they don't exist
+		if s.qsrs == nil {
+			err := s.initializeQSRs()
+			if err != nil {
+				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
+			}
+			s.initUnprocessedQSRs()
+			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
@@ -170,7 +209,6 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 
 			s.remainingBlocksSorted = blocks
 			s.gotBlocks = true
-			query.InitProgressForRRCCmd(uint64(len(blocks)), s.qid)
 		}
 
 		return s.fetchRRCs()
@@ -428,7 +466,8 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 }
 
 func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
-	if s.gotBlocks && len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 {
+
+	if len(s.remainingBlocksSorted) == 0 && len(s.unsentRRCs) == 0 && s.gotAllSegments {
 		err := query.SetRawSearchFinished(s.qid)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchRRCs: failed to set raw search finished: %v", s.qid, err)
@@ -448,6 +487,12 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 	// Remove the blocks we're going to process. Since the blocks are sorted,
 	// we always take blocks from the front of the list.
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
+
+	if len(s.remainingBlocksSorted) == 0 {
+		// Since we are fetching blocks in batches based on cutOffTimestampInMs, we need to fetch more
+		// blocks to process if we have processed all the blocks in the current batch.
+		s.gotBlocks = false
+	}
 
 	allRRCsSlices := make([][]*segutils.RecordResultContainer, 0, len(nextBlocks)+1)
 
@@ -661,15 +706,126 @@ func (s *Searcher) initializeQSRs() error {
 		return err
 	}
 
+	switch s.sortMode {
+	case anyOrder:
+		return nil
+	case recentFirst:
+		sort.Slice(qsrs, func(i, j int) bool {
+			return qsrs[i].GetEndEpochMs() > qsrs[j].GetEndEpochMs()
+		})
+	case recentLast:
+		sort.Slice(qsrs, func(i, j int) bool {
+			return qsrs[i].GetStartEpochMs() < qsrs[j].GetStartEpochMs()
+		})
+	default:
+		return fmt.Errorf("initializeQSRs: invalid sort mode: %v", s.sortMode)
+	}
+
 	s.qsrs = qsrs
 	return nil
 }
 
+func (s *Searcher) shouldProcessBlock(block *block) bool {
+	switch s.sortMode {
+	case recentFirst:
+		return block.HighTs >= s.cutOffTimestampInMs
+	case recentLast:
+		return block.LowTs <= s.cutOffTimestampInMs
+	default:
+		return true
+	}
+}
+
+func (s *Searcher) getFilteredBlocks(blocks []*block) []*block {
+	filteredBlocks := make([]*block, 0)
+
+	for _, block := range blocks {
+		if s.processedBlocks[block.parentQSR.GetSegKey()] == nil {
+			s.processedBlocks[block.parentQSR.GetSegKey()] = make(map[uint16]struct{})
+		}
+		_, processed := s.processedBlocks[block.parentQSR.GetSegKey()][block.BlkNum]
+		if processed {
+			continue
+		}
+
+		if s.shouldProcessBlock(block) {
+			filteredBlocks = append(filteredBlocks, block)
+			s.processedBlocks[block.parentQSR.GetSegKey()][block.BlkNum] = struct{}{}
+		}
+	}
+
+	return filteredBlocks
+}
+
+func (s *Searcher) shouldProcessQSR(qsr *query.QuerySegmentRequest) bool {
+	switch s.sortMode {
+	case recentFirst:
+		return qsr.GetEndEpochMs() >= s.cutOffTimestampInMs
+	case recentLast:
+		return qsr.GetStartEpochMs() <= s.cutOffTimestampInMs
+	default:
+		return true
+	}
+}
+
+func (s *Searcher) willProcessQSRCompletely(qsr *query.QuerySegmentRequest) bool {
+	switch s.sortMode {
+	case recentFirst:
+		return qsr.GetStartEpochMs() >= s.cutOffTimestampInMs
+	case recentLast:
+		return qsr.GetEndEpochMs() <= s.cutOffTimestampInMs
+	default:
+		return true
+	}
+}
+
+func (s *Searcher) getQSRSToProcess() ([]*query.QuerySegmentRequest, error) {
+	qsrs := make([]*query.QuerySegmentRequest, 0)
+
+	if s.unprocessedQSRs.Len() == 0 {
+		s.gotAllSegments = true
+		return nil, nil
+	}
+
+	segForCutOff, isQSR := s.unprocessedQSRs.Front().Value.(*query.QuerySegmentRequest)
+	if !isQSR {
+		return nil, fmt.Errorf("qid=%v, getQSRSToProcess: invalid type: %T", s.qid, s.unprocessedQSRs.Front().Value)
+	}
+
+	switch s.sortMode {
+	case recentFirst, anyOrder:
+		s.cutOffTimestampInMs = segForCutOff.GetStartEpochMs()
+	case recentLast:
+		s.cutOffTimestampInMs = segForCutOff.GetEndEpochMs()
+	default:
+		return nil, fmt.Errorf("qid=%v, getQSRSToProcess: invalid sort mode: %v", s.qid, s.sortMode)
+	}
+
+	for e := s.unprocessedQSRs.Front(); e != nil; {
+		next := e.Next()
+		qsr, isQSR := e.Value.(*query.QuerySegmentRequest)
+		if !isQSR {
+			return nil, fmt.Errorf("qid=%v, getQSRSToProcess: invalid type: %T", s.qid, e.Value)
+		}
+		if s.shouldProcessQSR(qsr) {
+			qsrs = append(qsrs, qsr)
+		}
+		if s.willProcessQSRCompletely(qsr) {
+			s.unprocessedQSRs.Remove(e)
+		}
+		e = next
+	}
+
+	return qsrs, nil
+}
+
 func (s *Searcher) getBlocks() ([]*block, error) {
-	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
+
+	allBlocksInBatch := make([]*block, 0)
+
+	qsrs, err := s.getQSRSToProcess()
 	if err != nil {
-		log.Errorf("qid=%v, searcher.getBlocks: failed to get sorted QSRs: %v", s.qid, err)
-		return nil, err
+		return nil, fmt.Errorf("qid=%v, searcher.getBlocks: failed to get QSRs to process: %v", s.qid, err)
 	}
 
 	pqmrs := make([]toputils.Option[*pqmr.SegmentPQMRResults], len(qsrs))
@@ -695,7 +851,6 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 		}
 	}
 
-	allBlocks := make([]*block, 0)
 	for i, qsr := range qsrs {
 		pqmrBlockNumbers := make(map[uint16]struct{})
 		if pqmr, ok := pqmrs[i].Get(); ok {
@@ -707,7 +862,7 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 			}
 
 			blocks := makeBlocksFromPQMR(blockToMetadata, blockSummaries, qsr, pqmr)
-			allBlocks = append(allBlocks, blocks...)
+			allBlocksInBatch = append(allBlocksInBatch, blocks...)
 
 			for _, block := range blocks {
 				pqmrBlockNumbers[block.BlkNum] = struct{}{}
@@ -731,13 +886,13 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 
 			for _, block := range blocks {
 				if _, ok := pqmrBlockNumbers[block.BlkNum]; !ok {
-					allBlocks = append(allBlocks, block)
+					allBlocksInBatch = append(allBlocksInBatch, block)
 				}
 			}
 		}
 	}
 
-	return allBlocks, nil
+	return s.getFilteredBlocks(allBlocksInBatch), nil
 }
 
 func (s *Searcher) getNextSegEncTokey() uint32 {

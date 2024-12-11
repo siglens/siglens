@@ -64,6 +64,14 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
+	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
+	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
+
+	if segmentsRLockFunc != nil && segmentsRUnlockFunc != nil {
+		segmentsRLockFunc()
+		defer segmentsRUnlockFunc()
+	}
+
 	allSegMetas := writer.ReadLocalSegmeta(true)
 
 	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)

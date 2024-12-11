@@ -180,6 +180,14 @@ func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
 	return qsr.sType
 }
 
+func (qsr *QuerySegmentRequest) GetStartEpochMs() uint64 {
+	return qsr.segKeyTsRange.StartEpochMs
+}
+
+func (qsr *QuerySegmentRequest) GetEndEpochMs() uint64 {
+	return qsr.segKeyTsRange.EndEpochMs
+}
+
 func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
 	qsr.sType = sType
 }
