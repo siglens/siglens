@@ -96,6 +96,58 @@ func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
 	return nil
 }
 
+func sortEnclosures(values []*segutils.CValueEnclosure, sortMode SortMode) error {
+	switch sortMode {
+	case SortAsAuto:
+		// TODO: when IP sorting is handled, don't fall through.
+		fallthrough
+	case SortAsNumeric: // TODO:
+		sort.Slice(values, func(i, j int) bool {
+			v1, ok1 := values[i].GetFloatValueIfPossible()
+			v2, ok2 := values[j].GetFloatValueIfPossible()
+
+			if ok1 && ok2 {
+				return v1 < v2
+			} else if ok1 && !ok2 {
+				return true
+			} else if !ok1 && ok2 {
+				return false
+			}
+
+			// Neither are numeric, so sort as strings.
+			s1, err := values[i].GetString()
+			if err != nil {
+				return false
+			}
+
+			s2, err := values[j].GetString()
+			if err != nil {
+				return true
+			}
+
+			return s1 < s2
+		})
+	case SortAsString:
+		sort.Slice(values, func(i, j int) bool {
+			s1, err := values[i].GetString()
+			if err != nil {
+				return false
+			}
+
+			s2, err := values[j].GetString()
+			if err != nil {
+				return true
+			}
+
+			return s1 < s2
+		})
+	default:
+		return fmt.Errorf("sortEnclosures: invalid sort mode: %v", sortMode)
+	}
+
+	return nil
+}
+
 // Version Number
 // NumOfUniqueColValues
 // [If numeric]
@@ -121,28 +173,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 	defer file.Close()
 
 	sortedValues := utils.GetKeysOfMap(valToBlockToRecords)
-	switch sortMode {
-	case SortAsAuto:
-		// TODO
-	case SortAsNumeric:
-		// TODO
-	case SortAsString:
-		sort.Slice(sortedValues, func(i, j int) bool {
-			s1, err := sortedValues[i].GetString()
-			if err != nil {
-				return false
-			}
-
-			s2, err := sortedValues[j].GetString()
-			if err != nil {
-				return true
-			}
-
-			return s1 < s2
-		})
-	default:
-		return fmt.Errorf("writeSortIndex: invalid sort mode: %v", sortMode)
-	}
+	sortEnclosures(sortedValues, sortMode)
 
 	writer := bufio.NewWriter(file)
 

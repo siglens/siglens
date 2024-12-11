@@ -23,6 +23,7 @@ import (
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/rand"
 )
 
 func writeTestData(t *testing.T) (string, string) {
@@ -134,4 +135,43 @@ func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
 			{BlockNum: 1, RecNums: []uint16{2}},
 		}},
 	})
+}
+
+func Test_sort(t *testing.T) {
+	enclosures := []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+	}
+
+	sortEnclosures(enclosures, SortAsString)
+	assert.Equal(t, []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	}, enclosures)
+
+	rand.Seed(42)
+	rand.Shuffle(len(enclosures), func(i, j int) {
+		enclosures[i], enclosures[j] = enclosures[j], enclosures[i]
+	})
+
+	sortEnclosures(enclosures, SortAsNumeric)
+	assert.Equal(t, []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	}, enclosures)
 }
