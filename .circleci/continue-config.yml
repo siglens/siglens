@@ -76,7 +76,7 @@ jobs:
   functional-test:
     working_directory: ~/repo
     docker:
-      - image: cimg/go:1.19
+      - image: cimg/go:1.21
     steps:
       - run:
           name: Check if tests should be run
