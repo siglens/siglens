@@ -43,13 +43,12 @@ type SortMode int
 
 const (
 	InvalidSortMode SortMode = iota
-	AllSortModes
 	SortAsAuto
 	SortAsNumeric
 	SortAsString
 )
 
-var allSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
+var AllSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
 
 func getFilename(segkey string, cname string, sortMode SortMode) (string, error) {
 	suffix := ""
@@ -76,7 +75,7 @@ func getTempFilename(segkey string, cname string, sortMode SortMode) (string, er
 	return filename + ".tmp", nil
 }
 
-func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
+func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 	blockToRecords, err := segreader.ReadAllRecords(segkey, cname)
 	if err != nil {
 		return fmt.Errorf("WriteSortIndex: failed reading all records for segkey=%v, cname=%v; err=%v", segkey, cname, err)
@@ -106,11 +105,6 @@ func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
 
 			valToBlockToRecords[enclosure][blockNum] = append(valToBlockToRecords[enclosure][blockNum], uint16(recNum))
 		}
-	}
-
-	sortModes := allSortModes
-	if sortMode != AllSortModes {
-		sortModes = []SortMode{sortMode}
 	}
 
 	for _, mode := range sortModes {
