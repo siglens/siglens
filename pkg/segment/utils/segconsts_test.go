@@ -91,7 +91,7 @@ func Test_CValFromBytes(t *testing.T) {
 	idx = 0
 	enclosure := &CValueEnclosure{}
 	for i := 0; i < len(original); i++ {
-		numBytesRead, err := enclosure.CValFromBytes(bytes[idx:])
+		numBytesRead, err := enclosure.FromBytes(bytes[idx:])
 		idx += numBytesRead
 
 		require.NoError(t, err, "errored in iteration %d", i)

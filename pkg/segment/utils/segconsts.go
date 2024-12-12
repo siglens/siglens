@@ -1273,9 +1273,9 @@ func (e *CValueEnclosure) WriteBytes(writer io.Writer) error {
 }
 
 // Returns the number of bytes read
-func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
+func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 	if len(buf) == 0 {
-		return 0, errors.New("CValFromBytes: empty buffer")
+		return 0, errors.New("CVal.FromBytes: empty buffer")
 	}
 
 	valtype := buf[0]
@@ -1284,7 +1284,7 @@ func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
 	switch valtype {
 	case VALTYPE_ENC_BOOL[0]:
 		if len(buf) < idx+1 {
-			return 0, errors.New("CValFromBytes: not enough bytes for bool")
+			return 0, errors.New("CVal.FromBytes: not enough bytes for bool")
 		}
 		boolVal := buf[idx]
 		idx += 1
@@ -1292,7 +1292,7 @@ func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
 		e.Dtype = SS_DT_BOOL
 	case VALTYPE_ENC_UINT64[0]:
 		if len(buf) < idx+8 {
-			return 0, errors.New("CValFromBytes: not enough bytes for uint64")
+			return 0, errors.New("CVal.FromBytes: not enough bytes for uint64")
 		}
 		uint64Val := toputils.BytesToUint64LittleEndian(buf[idx : idx+8])
 		idx += 8
@@ -1300,7 +1300,7 @@ func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
 		e.Dtype = SS_DT_UNSIGNED_NUM
 	case VALTYPE_ENC_INT64[0]:
 		if len(buf) < idx+8 {
-			return 0, errors.New("CValFromBytes: not enough bytes for int64")
+			return 0, errors.New("CVal.FromBytes: not enough bytes for int64")
 		}
 		int64Val := toputils.BytesToInt64LittleEndian(buf[idx : idx+8])
 		idx += 8
@@ -1308,7 +1308,7 @@ func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
 		e.Dtype = SS_DT_SIGNED_NUM
 	case VALTYPE_ENC_FLOAT64[0]:
 		if len(buf) < idx+8 {
-			return 0, errors.New("CValFromBytes: not enough bytes for float64")
+			return 0, errors.New("CVal.FromBytes: not enough bytes for float64")
 		}
 		float64Val := toputils.BytesToFloat64LittleEndian(buf[idx : idx+8])
 		idx += 8
@@ -1316,12 +1316,12 @@ func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
 		e.Dtype = SS_DT_FLOAT
 	case VALTYPE_ENC_SMALL_STRING[0]:
 		if len(buf) < idx+2 {
-			return 0, errors.New("CValFromBytes: not enough bytes for string length")
+			return 0, errors.New("CVal.FromBytes: not enough bytes for string length")
 		}
 		strLen := int(toputils.BytesToUint16LittleEndian(buf[idx : idx+2]))
 		idx += 2
 		if len(buf) < idx+strLen {
-			return 0, errors.New("CValFromBytes: not enough bytes for string")
+			return 0, errors.New("CVal.FromBytes: not enough bytes for string")
 		}
 		strVal := string(buf[idx : idx+strLen])
 		idx += strLen
@@ -1331,7 +1331,7 @@ func (e *CValueEnclosure) CValFromBytes(buf []byte) (int, error) {
 		e.CVal = nil
 		e.Dtype = SS_DT_BACKFILL
 	default:
-		return 0, fmt.Errorf("CValFromBytes: unsupported Dtype: %v", valtype)
+		return 0, fmt.Errorf("CVal.FromBytes: unsupported Dtype: %v", valtype)
 	}
 
 	return idx, nil

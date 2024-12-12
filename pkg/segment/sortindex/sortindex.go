@@ -90,7 +90,7 @@ func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 					segkey, cname, blockNum, recNum)
 			}
 
-			_, err := enclosure.CValFromBytes(recBytes)
+			_, err := enclosure.FromBytes(recBytes)
 			if err != nil {
 				return fmt.Errorf("WriteSortIndex: failed to decode CValueEnclosure for segkey=%v, cname=%v, blockNum=%v, recNum=%v; err=%v",
 					segkey, cname, blockNum, recNum, err)
