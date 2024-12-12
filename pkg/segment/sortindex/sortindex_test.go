@@ -148,7 +148,8 @@ func Test_sort(t *testing.T) {
 		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
 	}
 
-	sortEnclosures(enclosures, SortAsString)
+	err := sortEnclosures(enclosures, SortAsString)
+	assert.NoError(t, err)
 	assert.Equal(t, []*segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
@@ -164,7 +165,8 @@ func Test_sort(t *testing.T) {
 		enclosures[i], enclosures[j] = enclosures[j], enclosures[i]
 	})
 
-	sortEnclosures(enclosures, SortAsNumeric)
+	err = sortEnclosures(enclosures, SortAsNumeric)
+	assert.NoError(t, err)
 	assert.Equal(t, []*segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
 		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
@@ -180,7 +182,8 @@ func Test_sort(t *testing.T) {
 		enclosures[i], enclosures[j] = enclosures[j], enclosures[i]
 	})
 
-	sortEnclosures(enclosures, SortAsAuto)
+	err = sortEnclosures(enclosures, SortAsAuto)
+	assert.NoError(t, err)
 	assert.Equal(t, []*segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
 		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},

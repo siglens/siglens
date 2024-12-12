@@ -173,7 +173,10 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 	defer file.Close()
 
 	sortedValues := utils.GetKeysOfMap(valToBlockToRecords)
-	sortEnclosures(sortedValues, sortMode)
+	err = sortEnclosures(sortedValues, sortMode)
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed to sort column values: %v", err)
+	}
 
 	writer := bufio.NewWriter(file)
 
