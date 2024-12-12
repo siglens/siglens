@@ -81,7 +81,8 @@ func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 		return fmt.Errorf("WriteSortIndex: failed reading all records for segkey=%v, cname=%v; err=%v", segkey, cname, err)
 	}
 
-	valToBlockToRecords := make(map[*segutils.CValueEnclosure]map[uint16][]uint16)
+	valToBlockToRecords := make(map[segutils.CValueEnclosure]map[uint16][]uint16)
+	enclosure := segutils.CValueEnclosure{}
 	for blockNum, records := range blockToRecords {
 		for recNum, recBytes := range records {
 			if len(recBytes) == 0 {
@@ -89,7 +90,7 @@ func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 					segkey, cname, blockNum, recNum)
 			}
 
-			enclosure, _, err := segutils.CValFromBytes(recBytes)
+			_, err := enclosure.CValFromBytes(recBytes)
 			if err != nil {
 				return fmt.Errorf("WriteSortIndex: failed to decode CValueEnclosure for segkey=%v, cname=%v, blockNum=%v, recNum=%v; err=%v",
 					segkey, cname, blockNum, recNum, err)
@@ -118,7 +119,7 @@ func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 	return nil
 }
 
-func sortEnclosures(values []*segutils.CValueEnclosure, sortMode SortMode) error {
+func sortEnclosures(values []segutils.CValueEnclosure, sortMode SortMode) error {
 	switch sortMode {
 	case SortAsAuto:
 		// TODO: when IP sorting is handled, don't fall through.
@@ -177,7 +178,7 @@ func sortEnclosures(values []*segutils.CValueEnclosure, sortMode SortMode) error
 // [If string]
 // DType NumBytes ColValue1 NumBlocks BlockNum3 NumRecords Rec1, Rec2, … BlockNum4 NumRecords Rec1, Rec2
 func writeSortIndex(segkey string, cname string, sortMode SortMode,
-	valToBlockToRecords map[*segutils.CValueEnclosure]map[uint16][]uint16) error {
+	valToBlockToRecords map[segutils.CValueEnclosure]map[uint16][]uint16) error {
 
 	switch sortMode {
 	case SortAsAuto, SortAsNumeric, SortAsString: // Do nothing.

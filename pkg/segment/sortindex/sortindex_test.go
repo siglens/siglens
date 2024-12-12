@@ -29,7 +29,7 @@ import (
 func writeTestData(t *testing.T) (string, string) {
 	t.Helper()
 
-	data := map[*segutils.CValueEnclosure]map[uint16][]uint16{
+	data := map[segutils.CValueEnclosure]map[uint16][]uint16{
 		{Dtype: segutils.SS_DT_STRING, CVal: "apple"}: {
 			1: {1, 2},
 			2: {100, 42},
@@ -138,7 +138,7 @@ func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
 }
 
 func Test_sort(t *testing.T) {
-	enclosures := []*segutils.CValueEnclosure{
+	enclosures := []segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
 		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
@@ -150,7 +150,7 @@ func Test_sort(t *testing.T) {
 
 	err := sortEnclosures(enclosures, SortAsString)
 	assert.NoError(t, err)
-	assert.Equal(t, []*segutils.CValueEnclosure{
+	assert.Equal(t, []segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
 		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
@@ -167,7 +167,7 @@ func Test_sort(t *testing.T) {
 
 	err = sortEnclosures(enclosures, SortAsNumeric)
 	assert.NoError(t, err)
-	assert.Equal(t, []*segutils.CValueEnclosure{
+	assert.Equal(t, []segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
 		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
 		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
@@ -184,7 +184,7 @@ func Test_sort(t *testing.T) {
 
 	err = sortEnclosures(enclosures, SortAsAuto)
 	assert.NoError(t, err)
-	assert.Equal(t, []*segutils.CValueEnclosure{
+	assert.Equal(t, []segutils.CValueEnclosure{
 		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
 		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
 		{Dtype: segutils.SS_DT_STRING, CVal: "10"},

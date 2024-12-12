@@ -429,7 +429,7 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 	segKey2 := filepath.Join(tempDir, "segKey2")
 
 	cname := "color"
-	seg1Data := map[*segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
+	seg1Data := map[segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
 		{Dtype: segutils.SS_DT_STRING, CVal: "blue"}: {
 			1: {1},
 			2: {2, 3},
@@ -442,7 +442,7 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 	err := sortindex.WriteSortIndexMock(segKey1, cname, sortindex.SortAsAuto, seg1Data)
 	assert.NoError(t, err)
 
-	seg2Data := map[*segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
+	seg2Data := map[segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
 		{Dtype: segutils.SS_DT_STRING, CVal: "blue"}: {
 			1: {1, 2},
 			2: {3},
