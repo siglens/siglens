@@ -173,6 +173,23 @@ func (spqmr *SegmentPQMRResults) SetBlockResults(blkNum uint16, og *PQMatchResul
 	spqmr.accessLock.Unlock()
 }
 
+func (spqmr *SegmentPQMRResults) GetCopyOfBlockResults(blkNums []uint16) *SegmentPQMRResults {
+	spqmr.accessLock.Lock()
+	defer spqmr.accessLock.Unlock()
+
+	new := &SegmentPQMRResults{
+		allBlockResults: make(map[uint16]*PQMatchResults),
+		accessLock:      &sync.RWMutex{},
+	}
+	for _, blkNum := range blkNums {
+		if pqmr, ok := spqmr.allBlockResults[blkNum]; ok {
+			new.allBlockResults[blkNum] = pqmr.Copy()
+		}
+	}
+
+	return new
+}
+
 // [blkNum - uint16][bitSetLen - uint16][raw bitset….]
 func (pqmr *PQMatchResults) FlushPqmr(fname *string, blkNum uint16) error {
 
