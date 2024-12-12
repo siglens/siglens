@@ -25,6 +25,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 /*
@@ -217,6 +218,9 @@ func getHashForDtypeEnclosure(dte *utils.DtypeEnclosure) uint64 {
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.SignedVal)
 	case utils.SS_DT_FLOAT:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.FloatVal)
+	default:
+		log.Errorf("getHashForDtypeEnclosure: unsupported dtype: %v", dte.Dtype)
+		return 0
 	}
 
 	return xxhash.Sum64String(val)

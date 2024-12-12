@@ -547,6 +547,8 @@ func (match *MatchFilter) GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled bool
 			mValStr = fmt.Sprintf("%v", mVal.SignedVal)
 		case utils.SS_DT_FLOAT:
 			mValStr = fmt.Sprintf("%v", mVal.FloatVal)
+		default:
+			log.Errorf("MatchFilter.GetAllBlockBloomKeysToSearch: unsupported dtype: %v", mVal.Dtype)
 		}
 
 		allKeys[string(mKey)] = true

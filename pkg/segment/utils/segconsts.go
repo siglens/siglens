@@ -714,6 +714,8 @@ func (dte *DtypeEnclosure) AddStringAsByteSlice() {
 	switch dte.Dtype {
 	case SS_DT_STRING:
 		dte.StringValBytes = []byte(dte.StringVal)
+	default:
+		log.Errorf("AddStringAsByteSlice: unsupported Dtype: %v", dte.Dtype)
 	}
 }
 

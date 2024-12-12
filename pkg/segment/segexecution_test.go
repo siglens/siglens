@@ -1325,6 +1325,8 @@ func asyncQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileC
 			assert.Nil(t, err)
 			sawExit = true
 			result = nil
+		default:
+			assert.Fail(t, "unexpected update type %+v", updateType)
 		}
 	}
 

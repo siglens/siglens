@@ -544,6 +544,8 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 					return err
 				}
 				mName = value
+			default:
+				return toputils.TeeErrorf("ExtractOTSDBPayload: invalid type %v for metric name %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
@@ -605,6 +607,8 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 					log.Errorf("ExtractOTSDBPayload: unknown timestamp format %s", value)
 					return fmt.Errorf("unknown timestamp format %s", value)
 				}
+			default:
+				return toputils.TeeErrorf("ExtractOTSDBPayload: invalid type %v for timestamp %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {

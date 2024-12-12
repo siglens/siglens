@@ -591,6 +591,8 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 		bi.uniqueWordCount = 0
 		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
+	default:
+		log.Errorf("initMicroIndices: unknown valType: %v", valType)
 	}
 }
 
@@ -1626,6 +1628,8 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		inIntgrVal = int64(uintVal)
 	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
 		inIntgrVal = intVal
+	case SS_FLOAT64:
+		// Do nothing. We'll handle this later.
 	}
 
 	// we just use the Min stats for stored val comparison but apply the same

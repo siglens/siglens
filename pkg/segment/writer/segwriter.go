@@ -899,6 +899,8 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 			existingRI = &structs.Numbers{Min_float64: float64(rangeIndexPtr[key].Min_uint64), Max_float64: float64(rangeIndexPtr[key].Max_uint64), NumType: RNT_FLOAT64}
 		case RNT_SIGNED_INT:
 			existingRI = &structs.Numbers{Min_float64: float64(rangeIndexPtr[key].Min_int64), Max_float64: float64(rangeIndexPtr[key].Max_int64), NumType: RNT_FLOAT64}
+		case RNT_FLOAT64:
+			// Do nothing.
 		}
 		if incomingVal < existingRI.Min_float64 {
 			existingRI.Min_float64 = incomingVal
