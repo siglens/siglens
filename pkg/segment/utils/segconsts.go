@@ -22,6 +22,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"strconv"
@@ -1200,6 +1201,140 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	}
 
 	return buf, bufIdx
+}
+
+// TODO: remove the duplication with WriteToBytesWithType
+func (e *CValueEnclosure) WriteBytes(writer io.Writer) error {
+	var typeErr, valErr error
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		_, typeErr = writer.Write(VALTYPE_ENC_BOOL)
+		value, ok := e.CVal.(bool)
+		if !ok {
+			return fmt.Errorf("WriteBytes: error converting value %v to bool", e.CVal)
+		}
+
+		if value {
+			_, valErr = writer.Write([]byte{1})
+		} else {
+			_, valErr = writer.Write([]byte{0})
+		}
+	case SS_DT_UNSIGNED_NUM:
+		_, typeErr = writer.Write(VALTYPE_ENC_UINT64)
+		if value, ok := e.CVal.(uint64); ok {
+			_, valErr = writer.Write(toputils.Uint64ToBytesLittleEndian(value))
+		} else {
+			return fmt.Errorf("WriteBytes: error converting value %v to uint64", e.CVal)
+		}
+	case SS_DT_SIGNED_NUM:
+		_, typeErr = writer.Write(VALTYPE_ENC_INT64)
+		if value, ok := e.CVal.(int64); ok {
+			_, valErr = writer.Write(toputils.Int64ToBytesLittleEndian(value))
+		} else {
+			return fmt.Errorf("WriteBytes: error converting value %v to int64", e.CVal)
+		}
+	case SS_DT_FLOAT:
+		_, typeErr = writer.Write(VALTYPE_ENC_FLOAT64)
+		if value, ok := e.CVal.(float64); ok {
+			_, valErr = writer.Write(toputils.Float64ToBytesLittleEndian(value))
+		} else {
+			return fmt.Errorf("WriteBytes: error converting value %v to float64", e.CVal)
+		}
+	case SS_DT_STRING:
+		_, typeErr = writer.Write(VALTYPE_ENC_SMALL_STRING)
+		value, ok := e.CVal.(string)
+		if !ok {
+			return fmt.Errorf("WriteBytes: error converting value %v to string", e.CVal)
+		}
+		strBytes := []byte(value)
+
+		_, err := writer.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(strBytes))))
+		if err != nil {
+			return fmt.Errorf("WriteBytes: error writing string length: %v", err)
+		}
+
+		_, valErr = writer.Write(strBytes)
+	case SS_DT_BACKFILL:
+		_, typeErr = writer.Write(VALTYPE_ENC_BACKFILL)
+	default:
+		return fmt.Errorf("WriteBytes: unsupported Dtype: %v", e.Dtype)
+	}
+
+	if typeErr != nil {
+		return fmt.Errorf("WriteBytes: error writing type: %v", typeErr)
+	}
+	if valErr != nil {
+		return fmt.Errorf("WriteBytes: error writing value: %v", valErr)
+	}
+
+	return nil
+}
+
+// Returns the CValueEnclosure and the number of bytes read
+func CValFromBytes(buf []byte) (*CValueEnclosure, int, error) {
+	if len(buf) == 0 {
+		return nil, 0, errors.New("CValFromBytes: empty buffer")
+	}
+
+	enclosure := &CValueEnclosure{}
+
+	valtype := buf[0]
+	idx := 1
+
+	switch valtype {
+	case VALTYPE_ENC_BOOL[0]:
+		if len(buf) < idx+1 {
+			return nil, 0, errors.New("CValFromBytes: not enough bytes for bool")
+		}
+		boolVal := buf[idx]
+		idx += 1
+		enclosure.CVal = (boolVal == 1)
+		enclosure.Dtype = SS_DT_BOOL
+	case VALTYPE_ENC_UINT64[0]:
+		if len(buf) < idx+8 {
+			return nil, 0, errors.New("CValFromBytes: not enough bytes for uint64")
+		}
+		uint64Val := toputils.BytesToUint64LittleEndian(buf[idx : idx+8])
+		idx += 8
+		enclosure.CVal = uint64Val
+		enclosure.Dtype = SS_DT_UNSIGNED_NUM
+	case VALTYPE_ENC_INT64[0]:
+		if len(buf) < idx+8 {
+			return nil, 0, errors.New("CValFromBytes: not enough bytes for int64")
+		}
+		int64Val := toputils.BytesToInt64LittleEndian(buf[idx : idx+8])
+		idx += 8
+		enclosure.CVal = int64Val
+		enclosure.Dtype = SS_DT_SIGNED_NUM
+	case VALTYPE_ENC_FLOAT64[0]:
+		if len(buf) < idx+8 {
+			return nil, 0, errors.New("CValFromBytes: not enough bytes for float64")
+		}
+		float64Val := toputils.BytesToFloat64LittleEndian(buf[idx : idx+8])
+		idx += 8
+		enclosure.CVal = float64Val
+		enclosure.Dtype = SS_DT_FLOAT
+	case VALTYPE_ENC_SMALL_STRING[0]:
+		if len(buf) < idx+2 {
+			return nil, 0, errors.New("CValFromBytes: not enough bytes for string length")
+		}
+		strLen := int(toputils.BytesToUint16LittleEndian(buf[idx : idx+2]))
+		idx += 2
+		if len(buf) < idx+strLen {
+			return nil, 0, errors.New("CValFromBytes: not enough bytes for string")
+		}
+		strVal := string(buf[idx : idx+strLen])
+		idx += strLen
+		enclosure.CVal = strVal
+		enclosure.Dtype = SS_DT_STRING
+	case VALTYPE_ENC_BACKFILL[0]:
+		enclosure.CVal = nil
+		enclosure.Dtype = SS_DT_BACKFILL
+	default:
+		return nil, 0, fmt.Errorf("CValFromBytes: unsupported Dtype: %v", valtype)
+	}
+
+	return enclosure, idx, nil
 }
 
 func (e *CValueEnclosure) IsNull() bool {
