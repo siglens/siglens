@@ -459,15 +459,15 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 			}
 
 			// Read total records
-			var totalRecords uint32
-			err = binary.Read(file, binary.LittleEndian, &totalRecords)
+			var totalRecordsInBlock uint32
+			err = binary.Read(file, binary.LittleEndian, &totalRecordsInBlock)
 			if err != nil {
 				return nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalRecords: %v", err)
 			}
 
 			numRecords := uint32(0)
 			recNums := make([]uint16, 0)
-			for numRecords < totalRecords && totalRecordsRead < uint64(maxRecordsToRead) {
+			for numRecords < totalRecordsInBlock && totalRecordsRead < uint64(maxRecordsToRead) {
 				// Read recNum
 				var recNum uint16
 				err = binary.Read(file, binary.LittleEndian, &recNum)
@@ -486,19 +486,22 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 				}
 			}
 
+			numBlocks++
+
 			if totalRecordsRead >= uint64(maxRecordsToRead) {
 				done = true
 
-				filePos, err = file.Seek(0, io.SeekCurrent)
-				if err != nil {
-					return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+				if numRecords == totalRecordsInBlock && numBlocks == totalBlocks {
+					filePos, err = file.Seek(0, io.SeekCurrent)
+					if err != nil {
+						return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+					}
+					finalCheckpoint.offsetToStartOfLine = uint64(filePos)
 				}
-				finalCheckpoint.totalOffset = uint64(filePos)
-			} else if numRecords != totalRecords {
-				return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecords)
+			} else if numRecords != totalRecordsInBlock {
+				return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecordsInBlock)
 			}
 
-			numBlocks++
 			if pastCheckpoint(fromCheckpoint, file) {
 				blocks = append(blocks, Block{
 					BlockNum: blockNum,
@@ -511,12 +514,10 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 			return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
 		}
 
-		if pastCheckpoint(fromCheckpoint, file) {
-			lines = append(lines, Line{
-				Value:  value,
-				Blocks: blocks,
-			})
-		}
+		lines = append(lines, Line{
+			Value:  value,
+			Blocks: blocks,
+		})
 	}
 
 	if err != nil && err != io.EOF {
