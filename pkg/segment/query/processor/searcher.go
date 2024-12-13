@@ -249,6 +249,10 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
+	if len(qsrs) == 0 {
+		return nil, io.EOF
+	}
+
 	if s.numRecordsPerBatch == 0 {
 		if s.sortExpr == nil {
 			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: sortExpr is nil", s.qid)
