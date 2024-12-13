@@ -359,9 +359,9 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 }
 
 type Checkpoint struct {
-	offsetToStartOfLine uint64
-	totalOffset         uint64
-	eof                 bool
+	lineNum     uint64
+	totalOffset uint64
+	eof         bool
 }
 
 func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
@@ -401,22 +401,22 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 	// Skip to the checkpoint.
 	if fromCheckpoint != nil {
-		_, err = file.Seek(int64(fromCheckpoint.offsetToStartOfLine), io.SeekStart)
+		offsetToStartOfLine := metadata.valueOffsets[fromCheckpoint.lineNum]
+		_, err = file.Seek(int64(offsetToStartOfLine), io.SeekStart)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed seeking to start of line (position %v): %v",
-				fromCheckpoint.offsetToStartOfLine, err)
+				offsetToStartOfLine, err)
 		}
 	}
 
 	finalCheckpoint := &Checkpoint{}
-	totalUniqueColValues := uint64(len(metadata.valueOffsets))
-	for numColValues < totalUniqueColValues && !done {
-		filePos, err := file.Seek(0, io.SeekCurrent)
-		if err != nil {
-			return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-		}
-		finalCheckpoint.offsetToStartOfLine = uint64(filePos)
+	if fromCheckpoint != nil {
+		finalCheckpoint.lineNum = fromCheckpoint.lineNum
+	}
 
+	totalUniqueColValues := uint64(len(metadata.valueOffsets))
+	completedLastLineSearched := false
+	for numColValues < totalUniqueColValues && !done {
 		// Read DType
 		var Dtype segutils.SS_DTYPE
 		err = binary.Read(file, binary.LittleEndian, &Dtype)
@@ -494,14 +494,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 			if totalRecordsRead >= uint64(maxRecordsToRead) {
 				done = true
-
-				if numRecords == totalRecordsInBlock && numBlocks == totalBlocks {
-					filePos, err = file.Seek(0, io.SeekCurrent)
-					if err != nil {
-						return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-					}
-					finalCheckpoint.offsetToStartOfLine = uint64(filePos)
-				}
+				completedLastLineSearched = (numBlocks == totalBlocks && numRecords == totalRecordsInBlock)
 			} else if numRecords != totalRecordsInBlock {
 				return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecordsInBlock)
 			}
@@ -522,10 +515,16 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 			Value:  value,
 			Blocks: blocks,
 		})
+
 	}
 
 	if err != nil && err != io.EOF {
 		return nil, nil, fmt.Errorf("ReadSortIndex: Error while reading sort index: %v", err)
+	}
+
+	finalCheckpoint.lineNum += uint64(len(lines))
+	if !completedLastLineSearched {
+		finalCheckpoint.lineNum--
 	}
 
 	filePos, err := file.Seek(0, io.SeekCurrent)
