@@ -50,11 +50,11 @@ func writeTestData(t *testing.T) (string, string) {
 	return segkey, cname
 }
 
-func readAndAssert(t *testing.T, segkey, cname string, sortMode SortMode, maxRecords int,
-	checkpoint *Checkpoint, expected []Line) *Checkpoint {
+func readAndAssert(t *testing.T, segkey, cname string, sortMode SortMode, reverse bool,
+	maxRecords int, checkpoint *Checkpoint, expected []Line) *Checkpoint {
 
 	t.Helper()
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, sortMode, maxRecords, checkpoint)
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, sortMode, reverse, maxRecords, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 
@@ -64,7 +64,7 @@ func readAndAssert(t *testing.T, segkey, cname string, sortMode SortMode, maxRec
 func Test_writeAndRead(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, 100, nil, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, false, 100, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
@@ -77,7 +77,7 @@ func Test_writeAndRead(t *testing.T) {
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, 3, nil, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, false, 3, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42}},
@@ -88,14 +88,14 @@ func Test_writeAndRead(t *testing.T) {
 func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	checkpoint := readAndAssert(t, segkey, cname, SortAsString, 4, nil, []Line{
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, false, 4, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, 4, checkpoint, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, false, 4, checkpoint, []Line{
 		{Value: "banana", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
@@ -108,13 +108,13 @@ func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
 func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	checkpoint := readAndAssert(t, segkey, cname, SortAsString, 2, nil, []Line{
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, false, 2, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, 2, checkpoint, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, false, 2, checkpoint, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
@@ -124,13 +124,13 @@ func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
 func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	checkpoint := readAndAssert(t, segkey, cname, SortAsString, 1, nil, []Line{
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, false, 1, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, 1, checkpoint, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, false, 1, checkpoint, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{2}},
 		}},
@@ -193,4 +193,28 @@ func Test_sort(t *testing.T) {
 		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
 		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
 	}, enclosures)
+}
+
+func Test_readReverse(t *testing.T) {
+	segkey, cname := writeTestData(t)
+
+	_ = readAndAssert(t, segkey, cname, SortAsString, true, 100, nil, []Line{
+		{Value: "zebra", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{7}},
+		}},
+		{Value: "banana", Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
+		}},
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
+		}},
+	})
+
+	_ = readAndAssert(t, segkey, cname, SortAsString, true, 3, nil, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+			{BlockNum: 2, RecNums: []uint16{42}},
+		}},
+	})
 }

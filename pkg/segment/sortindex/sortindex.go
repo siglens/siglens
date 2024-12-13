@@ -333,8 +333,8 @@ type Checkpoint struct {
 	eof                 bool
 }
 
-func ReadSortIndex(segkey string, cname string, sortMode SortMode, maxRecordsToRead int,
-	fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
+func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
+	maxRecordsToRead int, fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
 
 	if IsEOF(fromCheckpoint) {
 		return nil, fromCheckpoint, nil

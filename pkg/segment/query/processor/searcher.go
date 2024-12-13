@@ -387,6 +387,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
+	reverse := !s.sortExpr.SortEles[0].SortByAsc
 	checkpoint := segInfo.checkpoint
 	var sortMode sortindex.SortMode
 	switch s.sortExpr.SortEles[0].Op {
@@ -401,7 +402,8 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 			s.qid, s.sortExpr.SortEles[0].Op)
 	}
 
-	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode, s.numRecordsPerBatch, checkpoint)
+	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode,
+		!reverse, s.numRecordsPerBatch, checkpoint)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
