@@ -48,15 +48,34 @@ const (
 	SortAsString
 )
 
-func getFilename(segkey string, cname string) string {
-	return filepath.Join(segkey, cname+".srt") // srt means "sort", not an acronym
+var AllSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
+
+func getFilename(segkey string, cname string, sortMode SortMode) (string, error) {
+	suffix := ""
+	switch sortMode {
+	case SortAsAuto:
+		suffix = "_auto"
+	case SortAsNumeric:
+		suffix = "_num"
+	case SortAsString:
+		suffix = "_str"
+	default:
+		return "", fmt.Errorf("getFilename: invalid sort mode: %v", sortMode)
+	}
+
+	return filepath.Join(segkey, cname+suffix+".srt"), nil // srt means "sort", not an acronym
 }
 
-func getTempFilename(segkey string, cname string) string {
-	return getFilename(segkey, cname) + ".tmp"
+func getTempFilename(segkey string, cname string, sortMode SortMode) (string, error) {
+	filename, err := getFilename(segkey, cname, sortMode)
+	if err != nil {
+		return "", fmt.Errorf("getTempFilename: failed getting filename: %v", err)
+	}
+
+	return filename + ".tmp", nil
 }
 
-func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
+func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 	blockToRecords, err := segreader.ReadAllRecords(segkey, cname)
 	if err != nil {
 		return fmt.Errorf("WriteSortIndex: failed reading all records for segkey=%v, cname=%v; err=%v", segkey, cname, err)
@@ -88,9 +107,64 @@ func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
 		}
 	}
 
-	err = writeSortIndex(segkey, cname, sortMode, valToBlockToRecords)
-	if err != nil {
-		return fmt.Errorf("WriteSortIndex: failed writing sort index for segkey=%v, cname=%v; err=%v", segkey, cname, err)
+	for _, mode := range sortModes {
+		err = writeSortIndex(segkey, cname, mode, valToBlockToRecords)
+		if err != nil {
+			return fmt.Errorf("WriteSortIndex: failed writing sort index for segkey=%v, cname=%v, mode=%v; err=%v",
+				segkey, cname, mode, err)
+		}
+	}
+
+	return nil
+}
+
+func sortEnclosures(values []*segutils.CValueEnclosure, sortMode SortMode) error {
+	switch sortMode {
+	case SortAsAuto:
+		// TODO: when IP sorting is handled, don't fall through.
+		fallthrough
+	case SortAsNumeric: // TODO:
+		sort.Slice(values, func(i, j int) bool {
+			v1, ok1 := values[i].GetFloatValueIfPossible()
+			v2, ok2 := values[j].GetFloatValueIfPossible()
+
+			if ok1 && ok2 {
+				return v1 < v2
+			} else if ok1 && !ok2 {
+				return true
+			} else if !ok1 && ok2 {
+				return false
+			}
+
+			// Neither are numeric, so sort as strings.
+			s1, err := values[i].GetString()
+			if err != nil {
+				return false
+			}
+
+			s2, err := values[j].GetString()
+			if err != nil {
+				return true
+			}
+
+			return s1 < s2
+		})
+	case SortAsString:
+		sort.Slice(values, func(i, j int) bool {
+			s1, err := values[i].GetString()
+			if err != nil {
+				return false
+			}
+
+			s2, err := values[j].GetString()
+			if err != nil {
+				return true
+			}
+
+			return s1 < s2
+		})
+	default:
+		return fmt.Errorf("sortEnclosures: invalid sort mode: %v", sortMode)
 	}
 
 	return nil
@@ -105,15 +179,33 @@ func WriteSortIndex(segkey string, cname string, sortMode SortMode) error {
 func writeSortIndex(segkey string, cname string, sortMode SortMode,
 	valToBlockToRecords map[*segutils.CValueEnclosure]map[uint16][]uint16) error {
 
-	filename := getFilename(segkey, cname)
+	switch sortMode {
+	case SortAsAuto, SortAsNumeric, SortAsString: // Do nothing.
+	default:
+		return fmt.Errorf("writeSortIndex: invalid sort mode: %v", sortMode)
+	}
+
+	filename, err := getFilename(segkey, cname, sortMode)
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed getting filename: %v", err)
+	}
+
 	dir := filepath.Dir(filename)
-	err := os.MkdirAll(dir, 0755)
+	err = os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
 	}
 
-	finalName := getFilename(segkey, cname)
-	tmpFileName := getTempFilename(segkey, cname)
+	finalName, err := getFilename(segkey, cname, sortMode)
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed getting filename: %v", err)
+	}
+
+	tmpFileName, err := getTempFilename(segkey, cname, sortMode)
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed getting temp filename: %v", err)
+	}
+
 	file, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
@@ -121,27 +213,9 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 	defer file.Close()
 
 	sortedValues := utils.GetKeysOfMap(valToBlockToRecords)
-	switch sortMode {
-	case SortAsAuto:
-		// TODO
-	case SortAsNumeric:
-		// TODO
-	case SortAsString:
-		sort.Slice(sortedValues, func(i, j int) bool {
-			s1, err := sortedValues[i].GetString()
-			if err != nil {
-				return false
-			}
-
-			s2, err := sortedValues[j].GetString()
-			if err != nil {
-				return true
-			}
-
-			return s1 < s2
-		})
-	default:
-		return fmt.Errorf("writeSortIndex: invalid sort mode: %v", sortMode)
+	err = sortEnclosures(sortedValues, sortMode)
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed to sort column values: %v", err)
 	}
 
 	writer := bufio.NewWriter(file)
@@ -258,14 +332,25 @@ type Checkpoint struct {
 	eof                 bool
 }
 
-func ReadSortIndex(segkey string, cname string, maxRecordsToRead int,
+func ReadSortIndex(segkey string, cname string, sortMode SortMode, maxRecordsToRead int,
 	fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
 
 	if IsEOF(fromCheckpoint) {
 		return nil, fromCheckpoint, nil
 	}
 
-	file, err := os.Open(getFilename(segkey, cname))
+	switch sortMode {
+	case SortAsAuto, SortAsNumeric, SortAsString: // Do nothing.
+	default:
+		return nil, nil, fmt.Errorf("ReadSortIndex: invalid sort mode: %v", sortMode)
+	}
+
+	filename, err := getFilename(segkey, cname, sortMode)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed getting filename: %v", err)
+	}
+
+	file, err := os.Open(filename)
 	if err != nil {
 		return nil, nil, err
 	}
