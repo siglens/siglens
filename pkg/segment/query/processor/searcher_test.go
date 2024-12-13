@@ -499,12 +499,13 @@ func initSortIndexDataForTest(sortCname string, sortLimit uint64, numRecordsPerB
 func fetchAllFromQSRsForTest(t *testing.T, searcher *Searcher, qsrs []*query.QuerySegmentRequest) []*segutils.RecordResultContainer {
 	t.Helper()
 
-	iqr, err := searcher.fetchSortedRRCsFromQSRs(qsrs)
+	searcher.sortIndexState.sortIndexQSRs = qsrs
+	iqr, err := searcher.fetchSortedRRCsFromQSRs()
 	require.NoError(t, err)
 	require.NotNil(t, iqr)
 
 	for {
-		nextIQR, err := searcher.fetchSortedRRCsFromQSRs(qsrs)
+		nextIQR, err := searcher.fetchSortedRRCsFromQSRs()
 		err2 := iqr.Append(nextIQR)
 		assert.NoError(t, err2)
 

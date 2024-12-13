@@ -65,6 +65,9 @@ type sortIndexState struct {
 	exhaustedSegKey    toputils.Option[string]
 	numRecordsSent     uint64
 	didEarlyExit       bool
+	gotQSRs            bool
+	sortIndexQSRs      []*query.QuerySegmentRequest
+	otherQSRs          []*query.QuerySegmentRequest
 }
 
 type segInfo struct {
@@ -248,18 +251,42 @@ func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []toputil
 }
 
 func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
-	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to get sorted QSRs: %v", s.qid, err)
-		return nil, err
+	if !s.sortIndexState.gotQSRs {
+		s.sortIndexState.gotQSRs = true
+
+		qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to get sorted QSRs: %v", s.qid, err)
+			return nil, err
+		}
+
+		cname := s.sortExpr.SortEles[0].Field
+		sortMode, err := sortindex.ModeFromString(s.sortExpr.SortEles[0].Op)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: unknown sort mode %v; err=%v",
+				s.qid, s.sortExpr.SortEles[0].Op, err)
+			return nil, err
+		}
+
+		sortIndexQSRs := make([]*query.QuerySegmentRequest, 0, len(qsrs))
+		otherQSRs := make([]*query.QuerySegmentRequest, 0, len(qsrs))
+
+		for _, qsr := range qsrs {
+			if sortindex.Exists(qsr.GetSegKey(), cname, sortMode) {
+				sortIndexQSRs = append(sortIndexQSRs, qsr)
+			} else {
+				otherQSRs = append(otherQSRs, qsr)
+			}
+		}
+
+		s.sortIndexState.sortIndexQSRs = sortIndexQSRs
+		s.sortIndexState.otherQSRs = otherQSRs
 	}
 
-	return s.fetchSortedRRCsFromQSRs(qsrs)
+	return s.fetchSortedRRCsFromQSRs()
 }
 
-// Once this is called with one set of QSRs, each subsequent call should be
-// made with the same set of QSRs (until a new Searcher is created).
-func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*iqr.IQR, error) {
+func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 	if s.sortIndexState.didEarlyExit {
 		return nil, io.EOF
 	}
@@ -269,6 +296,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		options: s.sortExpr,
 	}
 
+	qsrs := s.sortIndexState.sortIndexQSRs
 	pqmrs := s.getPQMRsFromQSRs(qsrs)
 
 	if !s.sortIndexState.didFirstFetch {
