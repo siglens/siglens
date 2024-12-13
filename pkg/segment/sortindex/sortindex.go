@@ -49,6 +49,32 @@ const (
 
 var AllSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
 
+func (sm SortMode) String() string {
+	switch sm {
+	case SortAsAuto:
+		return "auto"
+	case SortAsNumeric:
+		return "num"
+	case SortAsString:
+		return "str"
+	}
+
+	return "unknown"
+}
+
+func ModeFromString(mode string) (SortMode, error) {
+	switch mode {
+	case "", "auto":
+		return SortAsAuto, nil
+	case "num":
+		return SortAsNumeric, nil
+	case "str":
+		return SortAsString, nil
+	}
+
+	return -1, fmt.Errorf("invalid sort mode: %v", mode)
+}
+
 func getFilename(segkey string, cname string, sortMode SortMode) string {
 	suffix := ""
 	switch sortMode {
