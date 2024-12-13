@@ -396,7 +396,6 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	lines := make([]Line, 0)
 
 	numColValues := uint64(0)
-	totalRecordsRead := uint64(0)
 	done := false
 
 	// Skip to the checkpoint.
@@ -415,116 +414,31 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	}
 
 	totalUniqueColValues := uint64(len(metadata.valueOffsets))
-	completedLastLineSearched := false
 	for numColValues < totalUniqueColValues && !done {
-		// Read DType
-		var Dtype segutils.SS_DTYPE
-		err = binary.Read(file, binary.LittleEndian, &Dtype)
-		if err == io.EOF {
+		numRecords, line, checkpoint, err := readLine(file, metadata, maxRecordsToRead, fromCheckpoint)
+		if err != nil {
+			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading line: %v", err)
+		}
+
+		maxRecordsToRead -= numRecords
+
+		if line != nil {
+			lines = append(lines, *line)
+		}
+
+		if checkpoint != nil {
+			finalCheckpoint = checkpoint
+			fromCheckpoint = checkpoint
+		}
+
+		if maxRecordsToRead <= 0 {
 			break
 		}
-		if err != nil {
-			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
+
+		if finalCheckpoint.lineNum >= totalUniqueColValues {
+			finalCheckpoint.eof = true
+			break
 		}
-
-		// Read len of value
-		var valueLen uint16
-		err = binary.Read(file, binary.LittleEndian, &valueLen)
-		if err != nil {
-			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
-		}
-
-		valueBytes := make([]byte, valueLen)
-		_, err = file.Read(valueBytes)
-		if err != nil {
-			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
-		}
-		value := string(valueBytes)
-
-		// Read total blocks
-		var totalBlocks uint32
-		err = binary.Read(file, binary.LittleEndian, &totalBlocks)
-		if err != nil {
-			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalBlocks: %v", err)
-		}
-
-		numBlocks := uint32(0)
-		blocks := make([]Block, 0)
-
-		for numBlocks < totalBlocks && !done {
-			// Read blockNum
-			var blockNum uint16
-			err = binary.Read(file, binary.LittleEndian, &blockNum)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return nil, nil, fmt.Errorf("ReadSortIndex: failed reading blockNum: %v", err)
-			}
-
-			// Read total records
-			var totalRecordsInBlock uint32
-			err = binary.Read(file, binary.LittleEndian, &totalRecordsInBlock)
-			if err != nil {
-				return nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalRecords: %v", err)
-			}
-
-			numRecords := uint32(0)
-			recNums := make([]uint16, 0)
-			for numRecords < totalRecordsInBlock && totalRecordsRead < uint64(maxRecordsToRead) {
-				// Read recNum
-				var recNum uint16
-				err = binary.Read(file, binary.LittleEndian, &recNum)
-				if err == io.EOF {
-					break
-				}
-				if err != nil {
-					return nil, nil, fmt.Errorf("ReadSortIndex: failed reading recNum: %v", err)
-				}
-
-				numRecords++
-
-				if pastCheckpoint(fromCheckpoint, file) {
-					totalRecordsRead++
-					recNums = append(recNums, recNum)
-				}
-			}
-
-			numBlocks++
-
-			if totalRecordsRead >= uint64(maxRecordsToRead) {
-				done = true
-				completedLastLineSearched = (numBlocks == totalBlocks && numRecords == totalRecordsInBlock)
-			} else if numRecords != totalRecordsInBlock {
-				return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecordsInBlock)
-			}
-
-			if pastCheckpoint(fromCheckpoint, file) {
-				blocks = append(blocks, Block{
-					BlockNum: blockNum,
-					RecNums:  recNums,
-				})
-			}
-		}
-
-		if !done && numBlocks != totalBlocks {
-			return nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
-		}
-
-		lines = append(lines, Line{
-			Value:  value,
-			Blocks: blocks,
-		})
-
-	}
-
-	if err != nil && err != io.EOF {
-		return nil, nil, fmt.Errorf("ReadSortIndex: Error while reading sort index: %v", err)
-	}
-
-	finalCheckpoint.lineNum += uint64(len(lines))
-	if !completedLastLineSearched {
-		finalCheckpoint.lineNum--
 	}
 
 	filePos, err := file.Seek(0, io.SeekCurrent)
@@ -544,6 +458,117 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	}
 
 	return lines, finalCheckpoint, nil
+}
+
+func readLine(file *os.File, meta *metadata, maxRecordsToRead int, fromCheckpoint *Checkpoint) (int, *Line, *Checkpoint, error) {
+	gotToEndOfLine := true
+	line := Line{}
+	finalCheckpoint := &Checkpoint{}
+	if fromCheckpoint != nil {
+		finalCheckpoint.lineNum = fromCheckpoint.lineNum
+	}
+
+	// Read DType
+	var Dtype segutils.SS_DTYPE
+	err := binary.Read(file, binary.LittleEndian, &Dtype)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
+	}
+
+	// Read len of value
+	var valueLen uint16
+	err = binary.Read(file, binary.LittleEndian, &valueLen)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
+	}
+
+	valueBytes := make([]byte, valueLen)
+	_, err = file.Read(valueBytes)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
+	}
+	value := string(valueBytes)
+
+	// Read total blocks
+	var totalBlocks uint32
+	err = binary.Read(file, binary.LittleEndian, &totalBlocks)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalBlocks: %v", err)
+	}
+
+	numBlocks := uint32(0)
+	blocks := make([]Block, 0)
+	done := false
+	totalRecordsRead := uint64(0)
+
+	for numBlocks < totalBlocks && !done {
+		// Read blockNum
+		var blockNum uint16
+		err = binary.Read(file, binary.LittleEndian, &blockNum)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading blockNum: %v", err)
+		}
+
+		// Read total records
+		var totalRecordsInBlock uint32
+		err = binary.Read(file, binary.LittleEndian, &totalRecordsInBlock)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading totalRecords: %v", err)
+		}
+
+		numRecords := uint32(0)
+		recNums := make([]uint16, 0)
+		for numRecords < totalRecordsInBlock && totalRecordsRead < uint64(maxRecordsToRead) {
+			// Read recNum
+			var recNum uint16
+			err = binary.Read(file, binary.LittleEndian, &recNum)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading recNum: %v", err)
+			}
+
+			numRecords++
+
+			if pastCheckpoint(fromCheckpoint, file) {
+				totalRecordsRead++
+				recNums = append(recNums, recNum)
+			}
+		}
+
+		numBlocks++
+
+		if totalRecordsRead >= uint64(maxRecordsToRead) {
+			done = true
+			gotToEndOfLine = (numBlocks == totalBlocks && numRecords == totalRecordsInBlock)
+		} else if numRecords != totalRecordsInBlock {
+			return 0, nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecordsInBlock)
+		}
+
+		if pastCheckpoint(fromCheckpoint, file) {
+			blocks = append(blocks, Block{
+				BlockNum: blockNum,
+				RecNums:  recNums,
+			})
+		}
+	}
+
+	if !done && numBlocks != totalBlocks {
+		return 0, nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numBlocks(%v) != totalBlocks(%v)", numBlocks, totalBlocks)
+	}
+
+	if gotToEndOfLine {
+		finalCheckpoint.lineNum++
+	}
+
+	line.Value = value
+	line.Blocks = blocks
+
+	return int(totalRecordsRead), &line, finalCheckpoint, nil
 }
 
 func pastCheckpoint(fromCheckpoint *Checkpoint, file *os.File) bool {
