@@ -1076,8 +1076,10 @@ func applyFilterOperatorSingleRequest(qsr *QuerySegmentRequest, allSegFileResult
 		return applyFilterOperatorUnrotatedRawSearchRequest(qsr, allSegFileResults, qs)
 	case structs.UNKNOWN:
 		log.Errorf("qid=%d, Got a unknown query segment request! SegKey %+v", qsr.qid, qsr.segKey)
+		fallthrough
+	default:
+		return fmt.Errorf("qid=%d, applyFilterOperatorSingleRequest: unsupported segment type %+v", qsr.qid, qsr.sType)
 	}
-	return fmt.Errorf("unsupported segment type %+v", qsr.sType)
 }
 
 func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {

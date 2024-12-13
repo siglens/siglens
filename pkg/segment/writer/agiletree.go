@@ -131,9 +131,10 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 		return MeasFnSumIdx
 	case utils.Count:
 		return MeasFnCountIdx
+	default:
+		log.Errorf("AgFnToIdx: invalid fn: %v", fn)
+		return MeasFnCountIdx
 	}
-	log.Errorf("AgFnToIdx: invalid fn: %v", fn)
-	return MeasFnCountIdx
 }
 
 func (stb *StarTreeBuilder) GetGroupByKeys() []string {

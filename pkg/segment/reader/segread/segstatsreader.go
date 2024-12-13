@@ -302,6 +302,8 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 		default:
 			return &utils.CValueEnclosure{}
 		}
+	default:
+		log.Errorf("getRange: unsupported dtype: %v", max.Dtype)
 	}
 
 	return &result

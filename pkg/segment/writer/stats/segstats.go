@@ -100,6 +100,8 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		inIntgrVal = int64(uintVal)
 	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
 		inIntgrVal = intVal
+	case SS_FLOAT64:
+		// Do nothing. This is handled later.
 	}
 
 	if hasValuesFunc {

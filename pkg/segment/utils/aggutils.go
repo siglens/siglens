@@ -51,6 +51,8 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case SS_DT_SIGNED_NUM:
 			e2.Dtype = SS_DT_FLOAT
 			e2.CVal = float64(e2.CVal.(int64))
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported e2 Dtype: %v", e2.Dtype)
 		}
 	}
 
@@ -62,6 +64,8 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case SS_DT_SIGNED_NUM:
 			e1.Dtype = SS_DT_FLOAT
 			e1.CVal = float64(e1.CVal.(int64))
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported e1 Dtype: %v", e1.Dtype)
 		}
 	}
 
@@ -79,6 +83,8 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
 		}
 	case SS_DT_SIGNED_NUM:
 		switch fun {
@@ -91,6 +97,8 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
@@ -103,6 +111,8 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
 			return e1, nil
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
 		}
 	case SS_DT_STRING_SET:
 		{
@@ -116,8 +126,9 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 					set1[str] = struct{}{}
 				}
 				return e1, nil
+			default:
+				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for string set", fun)
 			}
-			return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
 		}
 	case SS_DT_STRING_SLICE:
 		{
@@ -134,7 +145,6 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	default:
 		return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
 	}
-	return e1, fmt.Errorf("Reduce: unsupported reduce function: %v", fun)
 }
 
 func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
@@ -147,6 +157,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = e2int64
 		case SS_DT_FLOAT:
 			self.FloatVal = e2float64
+		default:
+			return fmt.Errorf("ReduceFast: unsupported e2 Dtype: %v", e2Dtype)
 		}
 		return nil
 	} else if e2Dtype == SS_INVALID { // if e2 is invalid, we live with whats in self
@@ -160,6 +172,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = e2int64
 		case SS_DT_FLOAT:
 			self.FloatVal = e2float64
+		default:
+			return fmt.Errorf("ReduceFast: unsupported e2 Dtype: %v", e2Dtype)
 		}
 		return nil
 	}
@@ -174,6 +188,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		switch e2Dtype {
 		case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
 			e2float64 = float64(e2int64)
+		default:
+			return fmt.Errorf("ReduceFast: unsupported e2 Dtype: %v", e2Dtype)
 		}
 	}
 
@@ -183,6 +199,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
 			self.Ntype = SS_DT_FLOAT
 			self.FloatVal = float64(self.IntgrVal)
+		default:
+			return fmt.Errorf("ReduceFast: unsupported self Dtype: %v", self.Ntype)
 		}
 	}
 
@@ -203,6 +221,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
+		default:
+			return fmt.Errorf("ReduceFast: unsupported int function: %v", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
@@ -218,11 +238,12 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.FloatVal = self.FloatVal + e2float64
 			return nil
+		default:
+			return fmt.Errorf("ReduceFast: unsupported float function: %v", fun)
 		}
 	default:
 		return fmt.Errorf("Reduce: unsupported self CVal Dtype: %v", self.Ntype)
 	}
-	return fmt.Errorf("Reduce: unsupported reduce function: %v", fun)
 }
 
 func GetMinMaxString(str1 string, str2 string, isMin bool) string {
