@@ -39,6 +39,11 @@ type Block struct {
 
 var VERSION_SORT_INDEX = []byte{0}
 
+type metadata struct {
+	version      uint8
+	valueOffsets []uint64
+}
+
 type SortMode int
 
 const (
@@ -233,13 +238,24 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 		return fmt.Errorf("writeSortIndex: failed writing number of unique column values: %v", err)
 	}
 
+	// Skip the space for the offsets; we'll write them later.
+	offsets := make([]uint64, 0, len(sortedValues))
+	_, err = writer.Write(make([]byte, 8*len(sortedValues)))
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed skipping space for offsets: %v", err)
+	}
+
+	offset := uint64(9 + len(sortedValues)*8) // 1 (version) + 8 (numUniqueColValues) + offsets
 	for _, value := range sortedValues {
+		offsets = append(offsets, offset)
+
 		// Write column value
-		err = value.WriteBytes(writer)
+		size, err := value.WriteBytes(writer)
 		if err != nil {
 			return fmt.Errorf("writeSortIndex: failed writing CValEnc: %v", err)
 		}
 
+		offset += uint64(size)
 		sortedBlockNums := utils.GetKeysOfMap(valToBlockToRecords[value])
 		sort.Slice(sortedBlockNums, func(i, j int) bool { return sortedBlockNums[i] < sortedBlockNums[j] })
 
@@ -287,6 +303,17 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 	err = writer.Flush()
 	if err != nil {
 		return fmt.Errorf("writeSortIndex: failed flushing writer: %v", err)
+	}
+
+	// Go back and write the offsets.
+	offsetsAsBytes := make([]byte, 8*len(offsets))
+	for i, offset := range offsets {
+		copy(offsetsAsBytes[i*8:], utils.Uint64ToBytesLittleEndian(offset))
+	}
+	offset = 9 // 1 (version) + 8 (numUniqueColValues)
+	_, err = file.WriteAt(offsetsAsBytes, int64(offset))
+	if err != nil {
+		return fmt.Errorf("writeSortIndex: failed writing offsets: %v", err)
 	}
 
 	err = os.Rename(tmpFileName, finalName)
@@ -357,21 +384,9 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	}
 	defer file.Close()
 
-	// Read version
-	version := make([]byte, 1)
-	err = binary.Read(file, binary.LittleEndian, &version)
+	metadata, err := readMetadata(file)
 	if err != nil {
-		return nil, nil, fmt.Errorf("ReadSortIndex: failed reading version: %v", err)
-	}
-	if version[0] != VERSION_SORT_INDEX[0] {
-		return nil, nil, fmt.Errorf("ReadSortIndex: unsupported version: %v", version)
-	}
-
-	// Read Number of unique column values
-	var totalUniqueColValues uint64
-	err = binary.Read(file, binary.LittleEndian, &totalUniqueColValues)
-	if err != nil {
-		return nil, nil, fmt.Errorf("ReadSortIndex: failed reading number of unique column values: %v", err)
+		return nil, nil, fmt.Errorf("ReadSortIndex: failed reading metadata: %v", err)
 	}
 
 	lines := make([]Line, 0)
@@ -390,6 +405,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	}
 
 	finalCheckpoint := &Checkpoint{}
+	totalUniqueColValues := uint64(len(metadata.valueOffsets))
 	for numColValues < totalUniqueColValues && !done {
 		filePos, err := file.Seek(0, io.SeekCurrent)
 		if err != nil {
@@ -546,4 +562,39 @@ func IsEOF(checkpoint *Checkpoint) bool {
 	}
 
 	return checkpoint.eof
+}
+
+func readMetadata(file *os.File) (*metadata, error) {
+	meta := &metadata{}
+
+	// Read version
+	version := make([]byte, 1)
+	err := binary.Read(file, binary.LittleEndian, &version)
+	if err != nil {
+		return nil, fmt.Errorf("readMetadata: failed reading version: %v", err)
+	}
+	if version[0] != VERSION_SORT_INDEX[0] {
+		return nil, fmt.Errorf("readMetadata: unsupported version: %v", version)
+	}
+
+	meta.version = version[0]
+
+	// Read Number of unique column values
+	var totalUniqueColValues uint64
+	err = binary.Read(file, binary.LittleEndian, &totalUniqueColValues)
+	if err != nil {
+		return nil, fmt.Errorf("readMetadata: failed reading number of unique column values: %v", err)
+	}
+
+	meta.valueOffsets = make([]uint64, totalUniqueColValues)
+
+	// Read the offsets.
+	for i := uint64(0); i < totalUniqueColValues; i++ {
+		err = binary.Read(file, binary.LittleEndian, &meta.valueOffsets[i])
+		if err != nil {
+			return nil, fmt.Errorf("readMetadata: failed reading offset: %v", err)
+		}
+	}
+
+	return meta, nil
 }
