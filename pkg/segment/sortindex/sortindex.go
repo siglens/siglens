@@ -67,6 +67,13 @@ func getTempFilename(segkey string, cname string, sortMode SortMode) string {
 	return getFilename(segkey, cname, sortMode) + ".tmp"
 }
 
+func Exists(segkey string, cname string, sortMode SortMode) bool {
+	filename := getFilename(segkey, cname, sortMode)
+
+	_, err := os.Stat(filename)
+	return err == nil
+}
+
 func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
 	blockToRecords, err := segreader.ReadAllRecords(segkey, cname)
 	if err != nil {
