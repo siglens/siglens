@@ -380,7 +380,20 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 
 	cname := s.sortExpr.SortEles[0].Field
 	checkpoint := segInfo.checkpoint
-	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, s.numRecordsPerBatch, checkpoint)
+	var sortMode sortindex.SortMode
+	switch s.sortExpr.SortEles[0].Op {
+	case "", "auto":
+		sortMode = sortindex.SortAsAuto
+	case "num":
+		sortMode = sortindex.SortAsNumeric
+	case "str":
+		sortMode = sortindex.SortAsString
+	default:
+		return nil, toputils.TeeErrorf("qid=%v, searcher.fetchSortedRRCsForQSR: invalid sort mode: %v",
+			s.qid, s.sortExpr.SortEles[0].Op)
+	}
+
+	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode, s.numRecordsPerBatch, checkpoint)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
