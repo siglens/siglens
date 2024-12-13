@@ -439,7 +439,7 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 			2: {1},
 		},
 	}
-	err := sortindex.WriteSortIndexMock(segKey1, cname, sortindex.SortAsString, seg1Data)
+	err := sortindex.WriteSortIndexMock(segKey1, cname, sortindex.SortAsAuto, seg1Data)
 	assert.NoError(t, err)
 
 	seg2Data := map[*segutils.CValueEnclosure]map[uint16][]uint16{ // value -> block number -> record numbers
@@ -452,7 +452,7 @@ func writeSortIndexForTest(t *testing.T) (string, string, string) {
 			2: {1, 2},
 		},
 	}
-	err = sortindex.WriteSortIndexMock(segKey2, cname, sortindex.SortAsString, seg2Data)
+	err = sortindex.WriteSortIndexMock(segKey2, cname, sortindex.SortAsAuto, seg2Data)
 	assert.NoError(t, err)
 
 	return cname, segKey1, segKey2

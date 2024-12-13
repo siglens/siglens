@@ -23,6 +23,7 @@ import (
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/exp/rand"
 )
 
 func writeTestData(t *testing.T) (string, string) {
@@ -49,11 +50,11 @@ func writeTestData(t *testing.T) (string, string) {
 	return segkey, cname
 }
 
-func readAndAssert(t *testing.T, segkey, cname string, maxRecords int, checkpoint *Checkpoint,
-	expected []Line) *Checkpoint {
+func readAndAssert(t *testing.T, segkey, cname string, sortMode SortMode, maxRecords int,
+	checkpoint *Checkpoint, expected []Line) *Checkpoint {
 
 	t.Helper()
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, maxRecords, checkpoint)
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, sortMode, maxRecords, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 
@@ -63,7 +64,7 @@ func readAndAssert(t *testing.T, segkey, cname string, maxRecords int, checkpoin
 func Test_writeAndRead(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	_ = readAndAssert(t, segkey, cname, 100, nil, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, 100, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
@@ -76,7 +77,7 @@ func Test_writeAndRead(t *testing.T) {
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, 3, nil, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, 3, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42}},
@@ -87,14 +88,14 @@ func Test_writeAndRead(t *testing.T) {
 func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	checkpoint := readAndAssert(t, segkey, cname, 4, nil, []Line{
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, 4, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, 4, checkpoint, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, 4, checkpoint, []Line{
 		{Value: "banana", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
@@ -107,13 +108,13 @@ func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
 func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	checkpoint := readAndAssert(t, segkey, cname, 2, nil, []Line{
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, 2, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, 2, checkpoint, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, 2, checkpoint, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
@@ -123,15 +124,73 @@ func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
 func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
-	checkpoint := readAndAssert(t, segkey, cname, 1, nil, []Line{
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, 1, nil, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, 1, checkpoint, []Line{
+	_ = readAndAssert(t, segkey, cname, SortAsString, 1, checkpoint, []Line{
 		{Value: "apple", Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{2}},
 		}},
 	})
+}
+
+func Test_sort(t *testing.T) {
+	enclosures := []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+	}
+
+	err := sortEnclosures(enclosures, SortAsString)
+	assert.NoError(t, err)
+	assert.Equal(t, []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	}, enclosures)
+
+	rand.Seed(42)
+	rand.Shuffle(len(enclosures), func(i, j int) {
+		enclosures[i], enclosures[j] = enclosures[j], enclosures[i]
+	})
+
+	err = sortEnclosures(enclosures, SortAsNumeric)
+	assert.NoError(t, err)
+	assert.Equal(t, []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	}, enclosures)
+
+	rand.Seed(42)
+	rand.Shuffle(len(enclosures), func(i, j int) {
+		enclosures[i], enclosures[j] = enclosures[j], enclosures[i]
+	})
+
+	err = sortEnclosures(enclosures, SortAsAuto)
+	assert.NoError(t, err)
+	assert.Equal(t, []*segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "5"},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(8)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "10"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true},
+		{Dtype: segutils.SS_DT_STRING, CVal: "zebra"},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+	}, enclosures)
 }
