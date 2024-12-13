@@ -264,6 +264,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 		if err != nil {
 			return fmt.Errorf("writeSortIndex: failed writing number of blocks for cname: %v, colValue: %v, len(sortedBlockNums): %v, err: %v", cname, value, len(sortedBlockNums), err)
 		}
+		offset += 4
 
 		for _, blockNum := range sortedBlockNums {
 			sortedRecords, ok := valToBlockToRecords[value][blockNum]
@@ -282,12 +283,14 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 			if err != nil {
 				return fmt.Errorf("writeSortIndex: failed writing blockNum, blockNum: %v, err: %v", block.BlockNum, err)
 			}
+			offset += 2
 
 			// Write number of records
 			_, err = writer.Write(utils.Uint32ToBytesLittleEndian(uint32(len(block.RecNums))))
 			if err != nil {
 				return fmt.Errorf("writeSortIndex: failed writing number of records: %v, err: %v", len(block.RecNums), err)
 			}
+			offset += 4
 
 			// Write sortedRecords
 			for _, recNum := range block.RecNums {
@@ -296,6 +299,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 				if err != nil {
 					return fmt.Errorf("writeSortIndex: failed writing recNum: %v, err: %v", recNum, err)
 				}
+				offset += 2
 			}
 		}
 	}
