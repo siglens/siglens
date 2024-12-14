@@ -588,6 +588,8 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 		reverseSortedQSRSlice(sortedQSRSlice)
 	}
 
+	shouldRemoveUsageForSeg := !queryInfo.GetQueryType().IsRRCCmd() && allSegFileResults.GetAggs().HasStatsBlock()
+
 	for idx, segReq := range sortedQSRSlice {
 		if idx == sortedQSRSliceLen-1 {
 			doBuckPull = true
@@ -681,6 +683,10 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 		if !rrcsCompleted && areAllRRCsFound(allSegFileResults, sortedQSRSlice[idx+1:], segReq.aggs) {
 			qs.SetRRCFinishTime()
 			rrcsCompleted = true
+		}
+
+		if shouldRemoveUsageForSeg {
+			removeUsageForSegmentHook(queryInfo.qid, segReq.segKey)
 		}
 	}
 
@@ -971,6 +977,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		}
 		segenc := allSegFileResults.GetAddSegEnc(segReq.segKey)
 		IncrementNumFinishedSegments(1, qid, totalRecsSearched, segenc, "", true, sstMap)
+
+		removeUsageForSegmentHook(qid, segReq.segKey)
 	}
 
 	finalSstMap := statsRes.GetSegStats()
@@ -1446,4 +1454,10 @@ func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QueryS
 	}
 
 	return qsrs, nil
+}
+
+func removeUsageForSegmentHook(qid uint64, segKey string) {
+	if hook := hooks.GlobalHooks.RemoveUsageForRotatedSegmentForQidHook; hook != nil {
+		hook(qid, segKey)
+	}
 }
