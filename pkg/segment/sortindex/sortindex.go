@@ -359,7 +359,7 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 }
 
 type Checkpoint struct {
-	lineNum     uint64
+	lineNum     int64
 	totalOffset uint64
 	eof         bool
 }
@@ -395,6 +395,12 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 	lines := make([]Line, 0)
 
+	if reverse && fromCheckpoint == nil {
+		fromCheckpoint = &Checkpoint{
+			lineNum: int64(len(metadata.valueOffsets)) - 1,
+		}
+	}
+
 	// Skip to the checkpoint.
 	if fromCheckpoint != nil {
 		offsetToStartOfLine := metadata.valueOffsets[fromCheckpoint.lineNum]
@@ -406,9 +412,9 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	}
 
 	finalCheckpoint := &Checkpoint{}
-	totalUniqueColValues := uint64(len(metadata.valueOffsets))
+	totalUniqueColValues := int64(len(metadata.valueOffsets))
 	for maxRecordsToRead > 0 && finalCheckpoint.lineNum < totalUniqueColValues {
-		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint)
+		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint, reverse)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading line: %v", err)
 		}
@@ -422,6 +428,19 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 		if checkpoint != nil {
 			finalCheckpoint = checkpoint
 			fromCheckpoint = checkpoint
+		}
+
+		if reverse {
+			if checkpoint.lineNum < 0 {
+				break
+			}
+
+			offsetToStartOfLine := metadata.valueOffsets[finalCheckpoint.lineNum]
+			_, err = file.Seek(int64(offsetToStartOfLine), io.SeekStart)
+			if err != nil {
+				return nil, nil, fmt.Errorf("ReadSortIndex: failed seeking to start of line (position %v): %v",
+					offsetToStartOfLine, err)
+			}
 		}
 	}
 
@@ -446,7 +465,9 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 // The file should already be positioned at the start of the line specified by
 // the checkpoint.
-func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint) (int, *Line, *Checkpoint, error) {
+func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
+	reverse bool) (int, *Line, *Checkpoint, error) {
+
 	gotToEndOfLine := true
 	line := Line{}
 	finalCheckpoint := &Checkpoint{}
@@ -548,7 +569,11 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint) (
 	}
 
 	if gotToEndOfLine {
-		finalCheckpoint.lineNum++
+		if reverse {
+			finalCheckpoint.lineNum--
+		} else {
+			finalCheckpoint.lineNum++
+		}
 	}
 
 	line.Value = value

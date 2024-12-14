@@ -211,10 +211,9 @@ func Test_readReverse(t *testing.T) {
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, true, 3, nil, []Line{
-		{Value: "apple", Blocks: []Block{
-			{BlockNum: 1, RecNums: []uint16{1, 2}},
-			{BlockNum: 2, RecNums: []uint16{42}},
+	_ = readAndAssert(t, segkey, cname, SortAsString, true, 1, nil, []Line{
+		{Value: "zebra", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
 	})
 }
