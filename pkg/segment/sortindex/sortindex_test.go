@@ -217,3 +217,23 @@ func Test_readReverse(t *testing.T) {
 		}},
 	})
 }
+
+func Test_readReverseFromEndOfLineCheckpoint(t *testing.T) {
+	segkey, cname := writeTestData(t)
+
+	checkpoint := readAndAssert(t, segkey, cname, SortAsString, true, 4, nil, []Line{
+		{Value: "zebra", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{7}},
+		}},
+		{Value: "banana", Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
+		}},
+	})
+
+	_ = readAndAssert(t, segkey, cname, SortAsString, true, 4, checkpoint, []Line{
+		{Value: "apple", Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
+		}},
+	})
+}
