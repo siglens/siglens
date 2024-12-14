@@ -415,7 +415,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 	totalUniqueColValues := uint64(len(metadata.valueOffsets))
 	for numColValues < totalUniqueColValues && !done {
-		numRecords, line, checkpoint, err := readLine(file, metadata, maxRecordsToRead, fromCheckpoint)
+		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading line: %v", err)
 		}
@@ -431,12 +431,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 			fromCheckpoint = checkpoint
 		}
 
-		if maxRecordsToRead <= 0 {
-			break
-		}
-
-		if finalCheckpoint.lineNum >= totalUniqueColValues {
-			finalCheckpoint.eof = true
+		if maxRecordsToRead <= 0 || finalCheckpoint.lineNum >= totalUniqueColValues {
 			break
 		}
 	}
@@ -460,7 +455,9 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	return lines, finalCheckpoint, nil
 }
 
-func readLine(file *os.File, meta *metadata, maxRecordsToRead int, fromCheckpoint *Checkpoint) (int, *Line, *Checkpoint, error) {
+// The file should already be positioned at the start of the line specified by
+// the checkpoint.
+func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint) (int, *Line, *Checkpoint, error) {
 	gotToEndOfLine := true
 	line := Line{}
 	finalCheckpoint := &Checkpoint{}
