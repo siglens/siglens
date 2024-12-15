@@ -414,7 +414,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	finalCheckpoint := &Checkpoint{}
 	totalUniqueColValues := int64(len(metadata.valueOffsets))
 	for maxRecordsToRead > 0 && finalCheckpoint.lineNum < totalUniqueColValues {
-		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint, reverse)
+		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint, reverse, metadata)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading line: %v", err)
 		}
@@ -444,12 +444,6 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 		}
 	}
 
-	filePos, err := file.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
-	}
-	finalCheckpoint.totalOffset = uint64(filePos)
-
 	// Check if we reached the end of the file.
 	fileStat, err := file.Stat()
 	if err != nil {
@@ -466,7 +460,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 // The file should already be positioned at the start of the line specified by
 // the checkpoint.
 func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
-	reverse bool) (int, *Line, *Checkpoint, error) {
+	reverse bool, meta *metadata) (int, *Line, *Checkpoint, error) {
 
 	gotToEndOfLine := true
 	line := Line{}
@@ -571,9 +565,25 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 	if gotToEndOfLine {
 		if reverse {
 			finalCheckpoint.lineNum--
+			if finalCheckpoint.lineNum < 0 {
+				finalCheckpoint.eof = true
+			} else {
+				finalCheckpoint.totalOffset = meta.valueOffsets[finalCheckpoint.lineNum]
+			}
 		} else {
 			finalCheckpoint.lineNum++
+			if finalCheckpoint.lineNum >= int64(len(meta.valueOffsets)) {
+				finalCheckpoint.eof = true
+			} else {
+				finalCheckpoint.totalOffset = meta.valueOffsets[finalCheckpoint.lineNum]
+			}
 		}
+	} else {
+		filePos, err := file.Seek(0, io.SeekCurrent)
+		if err != nil {
+			return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed to get current file position: %v", err)
+		}
+		finalCheckpoint.totalOffset = uint64(filePos)
 	}
 
 	line.Value = value
