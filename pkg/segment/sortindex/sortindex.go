@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
@@ -241,7 +242,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 		}
 
 		sortedBlockNums := utils.GetKeysOfMap(valToBlockToRecords[value])
-		sort.Slice(sortedBlockNums, func(i, j int) bool { return sortedBlockNums[i] < sortedBlockNums[j] })
+		slices.Sort(sortedBlockNums)
 
 		// Write number of blocks
 		_, err = writer.Write(utils.Uint32ToBytesLittleEndian(uint32(len(sortedBlockNums))))
@@ -255,7 +256,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 				return fmt.Errorf("writeSortIndex: missing records for value %v block %d", value, blockNum)
 			}
 
-			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
+			slices.Sort(sortedRecords)
 			block := Block{
 				BlockNum: blockNum,
 				RecNums:  sortedRecords,
