@@ -291,3 +291,40 @@ func Test_readReverseFromMiddleOfBlockCheckpoint(t *testing.T) {
 		}},
 	})
 }
+
+func Test_readMultipleTypes(t *testing.T) {
+	data := map[segutils.CValueEnclosure]map[uint16][]uint16{
+		{Dtype: segutils.SS_DT_STRING, CVal: "apple"}:          {1: {1, 2}},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(-42)}:   {1: {3, 4}},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(123.456)}:  {2: {5, 6}},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(42)}: {2: {7, 8}},
+		{Dtype: segutils.SS_DT_BOOL, CVal: true}:               {3: {9, 10}},
+		{Dtype: segutils.SS_DT_BACKFILL, CVal: nil}:            {3: {11, 12}},
+	}
+
+	segkey := filepath.Join(t.TempDir(), "test-segkey")
+	cname := "col1"
+	err := writeSortIndex(segkey, cname, SortAsNumeric, data)
+	assert.NoError(t, err)
+
+	_ = readAndAssert(t, segkey, cname, SortAsNumeric, false, 100, nil, []Line{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(-42)}, Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{3, 4}},
+		}},
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(42)}, Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{7, 8}},
+		}},
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT, CVal: float64(123.456)}, Blocks: []Block{
+			{BlockNum: 2, RecNums: []uint16{5, 6}},
+		}},
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1, 2}},
+		}},
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_BOOL, CVal: true}, Blocks: []Block{
+			{BlockNum: 3, RecNums: []uint16{9, 10}},
+		}},
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_BACKFILL, CVal: nil}, Blocks: []Block{
+			{BlockNum: 3, RecNums: []uint16{11, 12}},
+		}},
+	})
+}

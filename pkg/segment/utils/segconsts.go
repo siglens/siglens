@@ -1351,23 +1351,63 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 	var encoding byte
 	err := binary.Read(reader, binary.LittleEndian, &encoding)
 	if err != nil {
-		return 0, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
+		return 0, fmt.Errorf("CVal.FromReader: failed reading DType: %v", err)
 	}
 
 	idx := 1
 	switch encoding {
+	case VALTYPE_ENC_BOOL[0]:
+		var boolVal byte
+		err = binary.Read(reader, binary.LittleEndian, &boolVal)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading bool value: %v", err)
+		}
+
+		e.CVal = (boolVal == 1)
+		e.Dtype = SS_DT_BOOL
+		idx += 1
+	case VALTYPE_ENC_UINT64[0]:
+		var uint64Val uint64
+		err = binary.Read(reader, binary.LittleEndian, &uint64Val)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading uint64 value: %v", err)
+		}
+
+		e.CVal = uint64Val
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		idx += 8
+	case VALTYPE_ENC_INT64[0]:
+		var int64Val int64
+		err = binary.Read(reader, binary.LittleEndian, &int64Val)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading int64 value: %v", err)
+		}
+
+		e.CVal = int64Val
+		e.Dtype = SS_DT_SIGNED_NUM
+		idx += 8
+	case VALTYPE_ENC_FLOAT64[0]:
+		var float64Val float64
+		err = binary.Read(reader, binary.LittleEndian, &float64Val)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading float64 value: %v", err)
+		}
+
+		e.CVal = float64Val
+		e.Dtype = SS_DT_FLOAT
+		idx += 8
 	case VALTYPE_ENC_SMALL_STRING[0]:
 		// Read len of value
 		var valueLen uint16
 		err = binary.Read(reader, binary.LittleEndian, &valueLen)
 		if err != nil {
-			return 0, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
+			return 0, fmt.Errorf("CVal.FromReader: failed reading len of value: %v", err)
 		}
 
 		valueBytes := make([]byte, valueLen)
 		_, err = reader.Read(valueBytes)
 		if err != nil {
-			return 0, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
+			return 0, fmt.Errorf("CVal.FromReader: failed reading value: %v", err)
 		}
 
 		e.CVal = string(valueBytes)
@@ -1377,7 +1417,7 @@ func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
 		e.Dtype = SS_DT_BACKFILL
 		e.CVal = nil
 	default:
-		panic(fmt.Sprintf("andrew: invalid DType: %v", encoding))
+		return idx, fmt.Errorf("CVal.FromReader: invalid DType: %v", encoding)
 	}
 
 	return idx, nil
