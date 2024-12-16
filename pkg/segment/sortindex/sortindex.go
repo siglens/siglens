@@ -176,12 +176,14 @@ func sortEnclosures(values []segutils.CValueEnclosure, sortMode SortMode) error 
 	return nil
 }
 
-// Version Number
-// NumOfUniqueColValues
-// [If numeric]
-// DType ColValue1 NumBlocks BlockNum1 NumRecords Rec1, Rec2, … BlockNum2 NumRecords Rec1, Rec2
-// [If string]
-// DType NumBytes ColValue1 NumBlocks BlockNum3 NumRecords Rec1, Rec2, … BlockNum4 NumRecords Rec1, Rec2
+// File format:
+//
+//	 Metadata
+//	   Version Number
+//	     Number of unique column values
+//		 List of offsets in the file where each unique column value starts
+//	 Data
+//	   [CValueEnclosure encoding] NumBlocks BlockNum1 NumRecords Rec1, Rec2, … BlockNum2 NumRecords Rec1, Rec2
 func writeSortIndex(segkey string, cname string, sortMode SortMode,
 	valToBlockToRecords map[segutils.CValueEnclosure]map[uint16][]uint16) error {
 
