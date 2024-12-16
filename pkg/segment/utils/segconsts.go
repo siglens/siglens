@@ -19,6 +19,7 @@ package utils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"errors"
 	"fmt"
@@ -1340,6 +1341,43 @@ func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
 		e.Dtype = SS_DT_BACKFILL
 	default:
 		return 0, fmt.Errorf("CVal.FromBytes: unsupported Dtype: %v", valtype)
+	}
+
+	return idx, nil
+}
+
+// TODO: remove the duplication with FromBytes
+func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
+	var encoding byte
+	err := binary.Read(reader, binary.LittleEndian, &encoding)
+	if err != nil {
+		return 0, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
+	}
+
+	idx := 1
+	switch encoding {
+	case VALTYPE_ENC_SMALL_STRING[0]:
+		// Read len of value
+		var valueLen uint16
+		err = binary.Read(reader, binary.LittleEndian, &valueLen)
+		if err != nil {
+			return 0, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
+		}
+
+		valueBytes := make([]byte, valueLen)
+		_, err = reader.Read(valueBytes)
+		if err != nil {
+			return 0, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
+		}
+
+		e.CVal = string(valueBytes)
+		e.Dtype = SS_DT_STRING
+		idx += 2 + int(valueLen)
+	case VALTYPE_ENC_BACKFILL[0]:
+		e.Dtype = SS_DT_BACKFILL
+		e.CVal = nil
+	default:
+		panic(fmt.Sprintf("andrew: invalid DType: %v", encoding))
 	}
 
 	return idx, nil
