@@ -37,7 +37,7 @@ type Block struct {
 	RecNums  []uint16 `json:"recNums"`
 }
 
-var VERSION_SORT_INDEX = []byte{0}
+var VERSION_SORT_INDEX = []byte{1}
 
 type metadata struct {
 	version      uint8
@@ -394,7 +394,8 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 	if reverse && fromCheckpoint == nil {
 		fromCheckpoint = &Checkpoint{
-			lineNum: int64(len(metadata.valueOffsets)) - 1,
+			lineNum:     int64(len(metadata.valueOffsets)) - 1,
+			totalOffset: metadata.valueOffsets[len(metadata.valueOffsets)-1],
 		}
 	}
 
