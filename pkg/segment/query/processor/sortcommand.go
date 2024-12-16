@@ -157,7 +157,7 @@ func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 		case "num", "auto", "":
 			strVal := CValEnc.CVal.(string)
 			if utils.MightBeFloat(strVal) {
-				_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
+				_, err := strconv.ParseFloat(strVal, 64)
 				if err == nil {
 					// If floatValue is possible then it is considered as a number
 					return RANK_NUMERIC
