@@ -20,21 +20,34 @@ package sortindex
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 type Block struct {
 	BlockNum uint16   `json:"blockNum"`
 	RecNums  []uint16 `json:"recNums"`
+}
+
+type SortColumnConfig struct {
+	columns []string
+	mu      sync.RWMutex
+}
+
+var sortConfig = &SortColumnConfig{
+	columns: make([]string, 0),
+	mu:      sync.RWMutex{},
 }
 
 var VERSION_SORT_INDEX = []byte{0}
@@ -546,4 +559,48 @@ func IsEOF(checkpoint *Checkpoint) bool {
 	}
 
 	return checkpoint.eof
+}
+
+func SetSortColumns(columnNames []string) error {
+	if columnNames == nil {
+		columnNames = make([]string, 0)
+	}
+
+	sortConfig.mu.Lock()
+	defer sortConfig.mu.Unlock()
+
+	for _, col := range columnNames {
+		if col == "" {
+			return fmt.Errorf("SetSortColumns: column names must be non-empty strings")
+		}
+	}
+
+	sortConfig.columns = columnNames
+
+	return nil
+}
+
+func GetSortColumns() []string {
+	sortConfig.mu.RLock()
+	defer sortConfig.mu.RUnlock()
+	return sortConfig.columns
+}
+
+func SetSortColumnsAPI(ctx *fasthttp.RequestCtx) {
+	var columns []string
+	if err := json.Unmarshal(ctx.PostBody(), &columns); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetBodyString("Invalid request body: " + err.Error())
+		return
+	}
+
+	if err := SetSortColumns(columns); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.SetBodyString("Failed to set sort columns: " + err.Error())
+		return
+	}
+
+	ctx.SetContentType("application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.SetBodyString("Sort columns updated successfully")
 }
