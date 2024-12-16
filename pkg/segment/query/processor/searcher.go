@@ -190,7 +190,7 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	searcher.sortIndexState.sortIndexQSRs = sortIndexQSRs
 	searcher.sortIndexState.otherQSRs = otherQSRs
 
-	subsearchers := make([]*Searcher, 0, 2)
+	subsearchers := make([]*Searcher, 2)
 	for i := 0; i < 2; i++ {
 		subsearchers[i], err = newSearcherHelper(searcher.queryInfo, searcher.querySummary,
 			searcher.sortMode, searcher.sortExpr, searcher.startTime, false)
@@ -200,13 +200,17 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 		}
 	}
 	subsearchers[0].qsrs = sortIndexQSRs
+	subsearchers[0].initUnprocessedQSRs()
 	subsearchers[1].qsrs = otherQSRs
+	subsearchers[1].initUnprocessedQSRs()
 	subsearchers[1].sortIndexState.forceNormalSearch = true
+	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
 
 	merger := NewSortDP(searcher.sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
 	for _, searcher := range subsearchers {
 		merger.streams = append(merger.streams, NewCachedStream(searcher))
 	}
+	merger.SetLessFuncBasedOnStream(merger)
 
 	return &subsearch{
 		subsearchers: subsearchers,
@@ -262,6 +266,10 @@ func (s *Searcher) initUnprocessedQSRs() {
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
+	if s.subsearch != nil {
+		return s.subsearch.merger.Fetch()
+	}
+
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
