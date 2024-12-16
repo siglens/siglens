@@ -47,7 +47,6 @@ type SortColumnConfig struct {
 
 var sortConfig = &SortColumnConfig{
 	columns: make([]string, 0),
-	mu:      sync.RWMutex{},
 }
 
 var VERSION_SORT_INDEX = []byte{0}
