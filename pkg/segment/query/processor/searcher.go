@@ -126,11 +126,6 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 	qid := queryInfo.GetQid()
 
 	searcher := &Searcher{
-		sortIndexState: sortIndexState{
-			// TODO: find a better way to limit.
-			numRecordsPerBatch: 1000,
-		},
-
 		qid:                   qid,
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
@@ -334,8 +329,21 @@ func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []toputil
 	return pqmrs
 }
 
-// TODO: delete this function.
 func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
+	qsrs := s.qsrs
+	if len(qsrs) == 0 {
+		return nil, io.EOF
+	}
+
+	if s.numRecordsPerBatch == 0 {
+		if s.sortExpr == nil {
+			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: sortExpr is nil", s.qid)
+		}
+
+		// This is chosen somewhat arbitrarily. We may want to tune this.
+		s.numRecordsPerBatch = max(100, int(s.sortExpr.Limit)/len(qsrs))
+	}
+
 	return s.fetchSortedRRCsFromQSRs()
 }
 
