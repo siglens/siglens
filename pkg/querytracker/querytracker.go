@@ -1026,3 +1026,29 @@ func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
 	}
 	return evMap, nil
 }
+
+func GetSortColumnsFromPQS(virtualTable string) []string {
+	persistentInfoLock.RLock()
+	defer persistentInfoLock.RUnlock()
+
+	sortColumns := make(map[string]struct{})
+
+	for _, pqinfo := range allPersistentAggsSorted {
+		if _, ok := pqinfo.AllTables[virtualTable]; !ok {
+			continue
+		}
+
+		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil {
+			for _, sortEle := range aggs.SortExpr.SortEles {
+				sortColumns[sortEle.Field] = struct{}{}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(sortColumns))
+	for col := range sortColumns {
+		result = append(result, col)
+	}
+
+	return result
+}
