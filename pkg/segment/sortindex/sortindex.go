@@ -329,7 +329,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 }
 
 type Line struct {
-	Value  string
+	Value  segutils.CValueEnclosure
 	Blocks []Block
 }
 
@@ -347,10 +347,7 @@ func AsRRCs(lines []Line, segKeyEncoding uint32) ([]*segutils.RecordResultContai
 						SegKeyEnc: segKeyEncoding,
 					},
 				})
-				values = append(values, segutils.CValueEnclosure{
-					Dtype: segutils.SS_DT_STRING,
-					CVal:  line.Value,
-				})
+				values = append(values, line.Value)
 			}
 		}
 	}
@@ -469,26 +466,11 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 		finalCheckpoint.lineNum = fromCheckpoint.lineNum
 	}
 
-	// Read DType
-	var Dtype segutils.SS_DTYPE
-	err := binary.Read(file, binary.LittleEndian, &Dtype)
+	var enclosure segutils.CValueEnclosure
+	_, err := enclosure.FromReader(file)
 	if err != nil {
-		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading DType: %v", err)
+		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading enclosure: %v", err)
 	}
-
-	// Read len of value
-	var valueLen uint16
-	err = binary.Read(file, binary.LittleEndian, &valueLen)
-	if err != nil {
-		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading len of value: %v", err)
-	}
-
-	valueBytes := make([]byte, valueLen)
-	_, err = file.Read(valueBytes)
-	if err != nil {
-		return 0, nil, nil, fmt.Errorf("ReadSortIndex: failed reading value: %v", err)
-	}
-	value := string(valueBytes)
 
 	// Read total blocks
 	var totalBlocks uint32
@@ -586,7 +568,7 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 		finalCheckpoint.totalOffset = uint64(filePos)
 	}
 
-	line.Value = value
+	line.Value = enclosure
 	line.Blocks = blocks
 
 	return int(totalRecordsRead), &line, finalCheckpoint, nil

@@ -65,20 +65,20 @@ func Test_writeAndRead(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, false, 100, nil, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
-		{Value: "banana", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, false, 3, nil, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42}},
 		}},
@@ -89,17 +89,17 @@ func Test_readFromCheckpointAtStartOfLine(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, SortAsString, false, 4, nil, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, false, 4, checkpoint, []Line{
-		{Value: "banana", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
 	})
@@ -109,13 +109,13 @@ func Test_readFromCheckpointInMiddleOfLine(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, SortAsString, false, 2, nil, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, false, 2, checkpoint, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
@@ -125,13 +125,13 @@ func Test_readFromCheckpointInMiddleOfBlock(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, SortAsString, false, 1, nil, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, false, 1, checkpoint, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{2}},
 		}},
 	})
@@ -199,20 +199,20 @@ func Test_readReverse(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, true, 100, nil, []Line{
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-		{Value: "banana", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, true, 1, nil, []Line{
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
 	})
@@ -222,16 +222,16 @@ func Test_readReverseFromEndOfLineCheckpoint(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, SortAsString, true, 4, nil, []Line{
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-		{Value: "banana", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, true, 4, checkpoint, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
@@ -242,19 +242,19 @@ func Test_readReverseFromEndOfBlockCheckpoint(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, SortAsString, true, 6, nil, []Line{
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-		{Value: "banana", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2, 7, 13}},
 		}},
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{1, 2}},
 		}},
 	})
 
 	_ = readAndAssert(t, segkey, cname, SortAsString, true, 2, checkpoint, []Line{
-		{Value: "apple", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
@@ -264,17 +264,30 @@ func Test_readReverseFromMiddleOfBlockCheckpoint(t *testing.T) {
 	segkey, cname := writeTestData(t)
 
 	checkpoint := readAndAssert(t, segkey, cname, SortAsString, true, 2, nil, []Line{
-		{Value: "zebra", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "zebra"}, Blocks: []Block{
 			{BlockNum: 1, RecNums: []uint16{7}},
 		}},
-		{Value: "banana", Blocks: []Block{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{2}},
 		}},
 	})
 
-	_ = readAndAssert(t, segkey, cname, SortAsString, true, 2, checkpoint, []Line{
-		{Value: "banana", Blocks: []Block{
+	checkpoint = readAndAssert(t, segkey, cname, SortAsString, true, 2, checkpoint, []Line{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "banana"}, Blocks: []Block{
 			{BlockNum: 2, RecNums: []uint16{7, 13}},
+		}},
+	})
+
+	checkpoint = readAndAssert(t, segkey, cname, SortAsString, true, 1, checkpoint, []Line{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{1}},
+		}},
+	})
+
+	_ = readAndAssert(t, segkey, cname, SortAsString, true, 3, checkpoint, []Line{
+		{Value: segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "apple"}, Blocks: []Block{
+			{BlockNum: 1, RecNums: []uint16{2}},
+			{BlockNum: 2, RecNums: []uint16{42, 100}},
 		}},
 	})
 }
