@@ -66,8 +66,6 @@ type sortIndexState struct {
 	exhaustedSegKey    toputils.Option[string]
 	numRecordsSent     uint64
 	didEarlyExit       bool
-	sortIndexQSRs      []*query.QuerySegmentRequest
-	otherQSRs          []*query.QuerySegmentRequest
 }
 
 type segInfo struct {
@@ -186,9 +184,6 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 			otherQSRs = append(otherQSRs, qsr)
 		}
 	}
-
-	searcher.sortIndexState.sortIndexQSRs = sortIndexQSRs
-	searcher.sortIndexState.otherQSRs = otherQSRs
 
 	subsearchers := make([]*Searcher, 2)
 	for i := 0; i < 2; i++ {

@@ -500,7 +500,6 @@ func initSortIndexDataForTest(sortCname string, sortLimit uint64, numRecordsPerB
 func fetchAllFromQSRsForTest(t *testing.T, searcher *Searcher, qsrs []*query.QuerySegmentRequest) []*segutils.RecordResultContainer {
 	t.Helper()
 
-	searcher.sortIndexState.sortIndexQSRs = qsrs
 	iqr, err := searcher.fetchSortedRRCsFromQSRs()
 	require.True(t, err == nil || err == io.EOF)
 	require.NotNil(t, iqr)
