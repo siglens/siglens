@@ -155,10 +155,13 @@ func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 	case segutils.SS_DT_STRING:
 		switch op {
 		case "num", "auto", "":
-			_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
-			if err == nil {
-				// If floatValue is possible then it is considered as a number
-				return RANK_NUMERIC
+			strVal := CValEnc.CVal.(string)
+			if utils.MightBeFloat(strVal) {
+				_, err := strconv.ParseFloat(CValEnc.CVal.(string), 64)
+				if err == nil {
+					// If floatValue is possible then it is considered as a number
+					return RANK_NUMERIC
+				}
 			}
 			return RANK_STRING
 		case "str":
