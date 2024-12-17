@@ -33,6 +33,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/query/colusage"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 
@@ -1040,8 +1041,12 @@ func GetSortColumnsFromPQS(virtualTable string) []string {
 		}
 
 		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil && len(aggs.SortExpr.SortEles) > 0 {
+			_, queryCols := colusage.GetFilterAndQueryColumns(nil, aggs)
+
 			column := aggs.SortExpr.SortEles[0].Field
-			sortColumnFreq[column] += int(pqinfo.TotalUsage)
+			if _, exists := queryCols[column]; exists {
+				sortColumnFreq[column] += int(pqinfo.TotalUsage)
+			}
 		}
 	}
 
