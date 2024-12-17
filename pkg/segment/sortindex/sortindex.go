@@ -561,10 +561,6 @@ func IsEOF(checkpoint *Checkpoint) bool {
 }
 
 func SetSortColumns(columnNames []string) error {
-	if columnNames == nil {
-		columnNames = make([]string, 0)
-	}
-
 	sortConfig.mu.Lock()
 	defer sortConfig.mu.Unlock()
 

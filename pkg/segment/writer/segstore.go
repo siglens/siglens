@@ -63,8 +63,6 @@ const MaxAgileTreeNodeCount = 8_000_000
 
 const BS_INITIAL_SIZE = uint32(1000)
 
-var sortIndexCnames = []string{"app_name", "weekday"} // TODO: don't hardcode
-
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -852,7 +850,7 @@ func writeSortIndexes(segkey string) {
 		sortedIndexWG.Add(1)
 		defer sortedIndexWG.Done()
 
-		for _, cname := range sortIndexCnames {
+		for _, cname := range sortindex.GetSortColumns() {
 			err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
 			if err != nil {
 				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
