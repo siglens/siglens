@@ -64,7 +64,7 @@ type SharedTimeSeriesSegmentReader struct {
 	rwLock                       *sync.Mutex
 }
 
-var globalPool = memorypool.NewMemoryPool(4, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
+var globalPool = memorypool.NewMemoryPool(0, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 
 /*
 Exposes init functions for timeseries block readers.
