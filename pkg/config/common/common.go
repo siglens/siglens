@@ -149,6 +149,7 @@ type Configuration struct {
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string                  `yaml:"isNewQueryPipelineEnabled"`
 	EnableSortIndex             utils.WithDefault[bool] `yaml:"enableSortIndex"`
+	LowMemoryMode               utils.WithDefault[bool] `yaml:"lowMemoryMode"`
 	QueryTimeoutSecs            int                     `yaml:"queryTimeoutSecs"`
 }
 

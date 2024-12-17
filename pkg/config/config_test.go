@@ -76,6 +76,7 @@ func Test_ExtractConfigData(t *testing.T) {
  agileAggsEnabled: false
  isNewQueryPipelineEnabled: false
  enableSortIndex: true
+ lowMemoryMode: true
  queryTimeoutSecs: 600
  safeMode: true
  tracing:
@@ -138,6 +139,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				UseNewQueryPipeline:         "false",
 				UseNewPipelineConverted:     false,
 				EnableSortIndex:             utils.DefaultValue(false).Set(true),
+				LowMemoryMode:               utils.DefaultValue(false).Set(true),
 				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
@@ -194,6 +196,7 @@ func Test_ExtractConfigData(t *testing.T) {
    compressLogFile: true
  compressStatic: bad string
  enableSortIndex: bad string
+ lowMemoryMode: bad string
  `),
 
 			common.Configuration{
@@ -238,6 +241,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
 				EnableSortIndex:             utils.DefaultValue(false),
+				LowMemoryMode:               utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
@@ -293,6 +297,7 @@ invalid input, we should error out
 				UseNewQueryPipeline:        "true",
 				UseNewPipelineConverted:    true,
 				EnableSortIndex:            utils.DefaultValue(false),
+				LowMemoryMode:              utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
@@ -351,6 +356,7 @@ a: b
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
 				EnableSortIndex:             utils.DefaultValue(false),
+				LowMemoryMode:               utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,

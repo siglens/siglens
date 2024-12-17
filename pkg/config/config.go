@@ -369,6 +369,10 @@ func IsSortIndexEnabled() bool {
 	return runningConfig.EnableSortIndex.Value()
 }
 
+func IsLowMemoryModeEnabled() bool {
+	return runningConfig.LowMemoryMode.Value()
+}
+
 // returns a map of s3 config
 func GetS3ConfigMap() map[string]interface{} {
 	data, err := json.Marshal(runningConfig.S3)
@@ -698,6 +702,7 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	config := common.Configuration{
 		EnableSortIndex: utils.DefaultValue(false),
+		LowMemoryMode:   utils.DefaultValue(false),
 	}
 	err := yaml.Unmarshal(yamlData, &config)
 	if err != nil {
