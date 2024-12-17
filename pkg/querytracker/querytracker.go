@@ -1038,10 +1038,9 @@ func GetSortColumnsFromPQS(virtualTable string) []string {
 			continue
 		}
 
-		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil {
-			for _, sortEle := range aggs.SortExpr.SortEles {
-				sortColumns[sortEle.Field] = struct{}{}
-			}
+		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil && len(aggs.SortExpr.SortEles) > 0 {
+			// Only need the first sort column
+			sortColumns[aggs.SortExpr.SortEles[0].Field] = struct{}{}
 		}
 	}
 
