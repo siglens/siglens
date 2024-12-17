@@ -77,3 +77,22 @@ func DecodeFromBase64(s string) (string, error) {
 
 	return string(data), nil
 }
+
+func MightBeFloat(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+
+	switch s {
+	case "NaN", "nan", "Inf", "inf", "-Inf", "-inf":
+		return true
+	}
+
+	for _, ch := range s {
+		if (ch < '0' || ch > '9') && !strings.ContainsRune(".-+eE", ch) {
+			return false
+		}
+	}
+
+	return true
+}
