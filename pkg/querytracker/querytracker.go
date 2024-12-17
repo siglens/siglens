@@ -1031,7 +1031,8 @@ func GetSortColumnsFromPQS(virtualTable string) []string {
 	persistentInfoLock.RLock()
 	defer persistentInfoLock.RUnlock()
 
-	sortColumns := make(map[string]struct{})
+	const MaxSortColumns = 10
+	sortColumnFreq := make(map[string]int)
 
 	for _, pqinfo := range allPersistentAggsSorted {
 		if _, ok := pqinfo.AllTables[virtualTable]; !ok {
@@ -1039,14 +1040,35 @@ func GetSortColumnsFromPQS(virtualTable string) []string {
 		}
 
 		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil && len(aggs.SortExpr.SortEles) > 0 {
-			// Only need the first sort column
-			sortColumns[aggs.SortExpr.SortEles[0].Field] = struct{}{}
+			column := aggs.SortExpr.SortEles[0].Field
+			sortColumnFreq[column] += int(pqinfo.TotalUsage)
 		}
 	}
 
-	result := make([]string, 0, len(sortColumns))
-	for col := range sortColumns {
-		result = append(result, col)
+	if len(sortColumnFreq) <= MaxSortColumns {
+		result := make([]string, 0, len(sortColumnFreq))
+		for col := range sortColumnFreq {
+			result = append(result, col)
+		}
+		return result
+	}
+
+	type colFreq struct {
+		col  string
+		freq int
+	}
+	pairs := make([]colFreq, 0, len(sortColumnFreq))
+	for col, freq := range sortColumnFreq {
+		pairs = append(pairs, colFreq{col, freq})
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].freq > pairs[j].freq
+	})
+
+	result := make([]string, 0, MaxSortColumns)
+	for i := 0; i < MaxSortColumns && i < len(pairs); i++ {
+		result = append(result, pairs[i].col)
 	}
 
 	return result
