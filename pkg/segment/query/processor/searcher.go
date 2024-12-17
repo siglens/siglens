@@ -59,6 +59,7 @@ type block struct {
 }
 
 type sortIndexState struct {
+	forceNormalSearch  bool // If true, don't use sort index.
 	numRecordsPerBatch int
 	didFirstFetch      bool
 	segKeyToInfo       map[string]*segInfo
@@ -74,7 +75,14 @@ type segInfo struct {
 	pqmr       *pqmr.SegmentPQMRResults
 }
 
+type subsearch struct {
+	subsearchers []*Searcher
+	merger       *DataProcessor
+}
+
 type Searcher struct {
+	*subsearch
+
 	sortIndexState
 
 	qid          uint64
@@ -102,6 +110,12 @@ type Searcher struct {
 func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
 	sortMode sortMode, sortExpr *structs.SortExpr, startTime time.Time) (*Searcher, error) {
 
+	return newSearcherHelper(queryInfo, querySummary, sortMode, sortExpr, startTime, true)
+}
+
+func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.QuerySummary,
+	sortMode sortMode, sortExpr *structs.SortExpr, startTime time.Time, checkforSubsearch bool) (*Searcher, error) {
+
 	if queryInfo == nil {
 		return nil, toputils.TeeErrorf("searcher.NewSearcher: queryInfo is nil")
 	}
@@ -111,7 +125,7 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 
 	qid := queryInfo.GetQid()
 
-	return &Searcher{
+	searcher := &Searcher{
 		qid:                   qid,
 		queryInfo:             queryInfo,
 		querySummary:          querySummary,
@@ -122,6 +136,75 @@ func NewSearcher(queryInfo *query.QueryInformation, querySummary *summary.QueryS
 		unsentRRCs:            make([]*segutils.RecordResultContainer, 0),
 		segEncToKey:           toputils.NewTwoWayMap[uint32, string](),
 		segEncToKeyBaseValue:  queryInfo.GetSegEncToKeyBaseValue(),
+	}
+
+	if checkforSubsearch {
+		var err error
+		searcher.subsearch, err = getSubsearchIfNeeded(searcher)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.NewSearcher: failed to get subsearcher: %v", qid, err)
+			return nil, err
+		}
+	}
+
+	return searcher, nil
+}
+
+func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
+	if searcher == nil || searcher.sortExpr == nil {
+		return nil, nil
+	}
+
+	qsrs, err := query.GetSortedQSRs(searcher.queryInfo, searcher.startTime, searcher.querySummary)
+	if err != nil {
+		log.Errorf("qid=%v, getSubsearchIfNeeded: failed to get sorted QSRs: %v", searcher.qid, err)
+		return nil, err
+	}
+
+	cname := searcher.sortExpr.SortEles[0].Field
+	sortMode, err := sortindex.ModeFromString(searcher.sortExpr.SortEles[0].Op)
+	if err != nil {
+		log.Errorf("qid=%v, getSubsearchIfNeeded: unknown sort mode %v; err=%v",
+			searcher.qid, searcher.sortExpr.SortEles[0].Op, err)
+		return nil, err
+	}
+
+	sortIndexQSRs := make([]*query.QuerySegmentRequest, 0, len(qsrs))
+	otherQSRs := make([]*query.QuerySegmentRequest, 0, len(qsrs))
+
+	for _, qsr := range qsrs {
+		if sortindex.Exists(qsr.GetSegKey(), cname, sortMode) {
+			sortIndexQSRs = append(sortIndexQSRs, qsr)
+		} else {
+			otherQSRs = append(otherQSRs, qsr)
+		}
+	}
+
+	subsearchers := make([]*Searcher, 2)
+	for i := 0; i < 2; i++ {
+		subsearchers[i], err = newSearcherHelper(searcher.queryInfo, searcher.querySummary,
+			searcher.sortMode, searcher.sortExpr, searcher.startTime, false)
+		if err != nil {
+			log.Errorf("qid=%v, getSubsearchIfNeeded: failed to create subsearcher: %v", searcher.qid, err)
+			return nil, err
+		}
+	}
+	subsearchers[0].qsrs = sortIndexQSRs
+	subsearchers[0].initUnprocessedQSRs()
+	subsearchers[1].qsrs = otherQSRs
+	subsearchers[1].initUnprocessedQSRs()
+	subsearchers[1].sortIndexState.forceNormalSearch = true
+	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
+
+	merger := NewSortDP(searcher.sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
+	for _, searcher := range subsearchers {
+		merger.streams = append(merger.streams, NewCachedStream(searcher))
+	}
+	merger.SetLessFuncBasedOnStream(merger)
+
+	return &subsearch{
+		subsearchers: subsearchers,
+		merger:       merger,
 	}, nil
 }
 
@@ -173,12 +256,16 @@ func (s *Searcher) initUnprocessedQSRs() {
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {
+	if s.subsearch != nil {
+		return s.subsearch.merger.Fetch()
+	}
+
 	switch s.queryInfo.GetQueryType() {
 	case structs.SegmentStatsCmd, structs.GroupByCmd:
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
 		// Get blocks for the segment batch to process
-		if config.IsSortIndexEnabled() && s.sortExpr != nil {
+		if config.IsSortIndexEnabled() && s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
 			query.InitProgressForRRCCmd(0 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
 		}
@@ -243,12 +330,7 @@ func (s *Searcher) getPQMRsFromQSRs(qsrs []*query.QuerySegmentRequest) []toputil
 }
 
 func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
-	qsrs, err := query.GetSortedQSRs(s.queryInfo, s.startTime, s.querySummary)
-	if err != nil {
-		log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to get sorted QSRs: %v", s.qid, err)
-		return nil, err
-	}
-
+	qsrs := s.qsrs
 	if len(qsrs) == 0 {
 		return nil, io.EOF
 	}
@@ -262,12 +344,10 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		s.numRecordsPerBatch = max(100, int(s.sortExpr.Limit)/len(qsrs))
 	}
 
-	return s.fetchSortedRRCsFromQSRs(qsrs)
+	return s.fetchSortedRRCsFromQSRs()
 }
 
-// Once this is called with one set of QSRs, each subsequent call should be
-// made with the same set of QSRs (until a new Searcher is created).
-func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*iqr.IQR, error) {
+func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 	if s.sortIndexState.didEarlyExit {
 		return nil, io.EOF
 	}
@@ -277,6 +357,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs(qsrs []*query.QuerySegmentRequest) (*
 		options: s.sortExpr,
 	}
 
+	qsrs := s.qsrs
 	pqmrs := s.getPQMRsFromQSRs(qsrs)
 
 	if !s.sortIndexState.didFirstFetch {
@@ -387,6 +468,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 	}
 
 	cname := s.sortExpr.SortEles[0].Field
+	reverse := !s.sortExpr.SortEles[0].SortByAsc
 	checkpoint := segInfo.checkpoint
 	var sortMode sortindex.SortMode
 	switch s.sortExpr.SortEles[0].Op {
@@ -401,7 +483,8 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 			s.qid, s.sortExpr.SortEles[0].Op)
 	}
 
-	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode, s.numRecordsPerBatch, checkpoint)
+	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode,
+		reverse, s.numRecordsPerBatch, checkpoint)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
