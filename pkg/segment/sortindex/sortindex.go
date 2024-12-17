@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
@@ -47,15 +48,40 @@ type metadata struct {
 type SortMode int
 
 const (
-	InvalidSortMode SortMode = iota
-	SortAsAuto
+	SortAsAuto SortMode = iota + 1
 	SortAsNumeric
 	SortAsString
 )
 
 var AllSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
 
-func getFilename(segkey string, cname string, sortMode SortMode) (string, error) {
+func (sm SortMode) String() string {
+	switch sm {
+	case SortAsAuto:
+		return "auto"
+	case SortAsNumeric:
+		return "num"
+	case SortAsString:
+		return "str"
+	}
+
+	return "unknown"
+}
+
+func ModeFromString(mode string) (SortMode, error) {
+	switch mode {
+	case "", "auto":
+		return SortAsAuto, nil
+	case "num":
+		return SortAsNumeric, nil
+	case "str":
+		return SortAsString, nil
+	}
+
+	return -1, fmt.Errorf("invalid sort mode: %v", mode)
+}
+
+func getFilename(segkey string, cname string, sortMode SortMode) string {
 	suffix := ""
 	switch sortMode {
 	case SortAsAuto:
@@ -64,20 +90,20 @@ func getFilename(segkey string, cname string, sortMode SortMode) (string, error)
 		suffix = "_num"
 	case SortAsString:
 		suffix = "_str"
-	default:
-		return "", fmt.Errorf("getFilename: invalid sort mode: %v", sortMode)
 	}
 
-	return filepath.Join(segkey, cname+suffix+".srt"), nil // srt means "sort", not an acronym
+	return filepath.Join(segkey, cname+suffix+".srt") // srt means "sort", not an acronym
 }
 
-func getTempFilename(segkey string, cname string, sortMode SortMode) (string, error) {
-	filename, err := getFilename(segkey, cname, sortMode)
-	if err != nil {
-		return "", fmt.Errorf("getTempFilename: failed getting filename: %v", err)
-	}
+func getTempFilename(segkey string, cname string, sortMode SortMode) string {
+	return getFilename(segkey, cname, sortMode) + ".tmp"
+}
 
-	return filename + ".tmp", nil
+func Exists(segkey string, cname string, sortMode SortMode) bool {
+	filename := getFilename(segkey, cname, sortMode)
+
+	_, err := os.Stat(filename)
+	return err == nil
 }
 
 func WriteSortIndex(segkey string, cname string, sortModes []SortMode) error {
@@ -193,26 +219,16 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 		return fmt.Errorf("writeSortIndex: invalid sort mode: %v", sortMode)
 	}
 
-	filename, err := getFilename(segkey, cname, sortMode)
-	if err != nil {
-		return fmt.Errorf("writeSortIndex: failed getting filename: %v", err)
-	}
+	filename := getFilename(segkey, cname, sortMode)
 
 	dir := filepath.Dir(filename)
-	err = os.MkdirAll(dir, 0755)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
 	}
 
-	finalName, err := getFilename(segkey, cname, sortMode)
-	if err != nil {
-		return fmt.Errorf("writeSortIndex: failed getting filename: %v", err)
-	}
-
-	tmpFileName, err := getTempFilename(segkey, cname, sortMode)
-	if err != nil {
-		return fmt.Errorf("writeSortIndex: failed getting temp filename: %v", err)
-	}
+	finalName := getFilename(segkey, cname, sortMode)
+	tmpFileName := getTempFilename(segkey, cname, sortMode)
 
 	file, err := os.Create(tmpFileName)
 	if err != nil {
@@ -259,7 +275,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 
 		offset += uint64(size)
 		sortedBlockNums := utils.GetKeysOfMap(valToBlockToRecords[value])
-		sort.Slice(sortedBlockNums, func(i, j int) bool { return sortedBlockNums[i] < sortedBlockNums[j] })
+		slices.Sort(sortedBlockNums)
 
 		// Write number of blocks
 		_, err = writer.Write(utils.Uint32ToBytesLittleEndian(uint32(len(sortedBlockNums))))
@@ -274,7 +290,7 @@ func writeSortIndex(segkey string, cname string, sortMode SortMode,
 				return fmt.Errorf("writeSortIndex: missing records for value %v block %d", value, blockNum)
 			}
 
-			sort.Slice(sortedRecords, func(i, j int) bool { return sortedRecords[i] < sortedRecords[j] })
+			slices.Sort(sortedRecords)
 			block := Block{
 				BlockNum: blockNum,
 				RecNums:  sortedRecords,
@@ -376,11 +392,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 		return nil, nil, fmt.Errorf("ReadSortIndex: invalid sort mode: %v", sortMode)
 	}
 
-	filename, err := getFilename(segkey, cname, sortMode)
-	if err != nil {
-		return nil, nil, fmt.Errorf("ReadSortIndex: failed getting filename: %v", err)
-	}
-
+	filename := getFilename(segkey, cname, sortMode)
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, nil, err

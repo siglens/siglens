@@ -1016,7 +1016,12 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		floatVal, err := strconv.ParseFloat(e.CVal.(string), 64)
+		strVal := e.CVal.(string)
+		if !toputils.MightBeFloat(strVal) {
+			return 0, false
+		}
+
+		floatVal, err := strconv.ParseFloat(strVal, 64)
 		if err != nil {
 			return 0, false
 		}
