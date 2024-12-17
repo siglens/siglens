@@ -491,6 +491,7 @@ func initSortIndexDataForTest(sortCname string, sortLimit uint64, numRecordsPerB
 		queryInfo:   queryInfo,
 		sortExpr:    sortExpr,
 		segEncToKey: utils.NewTwoWayMap[uint32, string](),
+		qsrs:        qsrs,
 	}
 
 	return searcher, qsrs
@@ -499,12 +500,15 @@ func initSortIndexDataForTest(sortCname string, sortLimit uint64, numRecordsPerB
 func fetchAllFromQSRsForTest(t *testing.T, searcher *Searcher, qsrs []*query.QuerySegmentRequest) []*segutils.RecordResultContainer {
 	t.Helper()
 
-	iqr, err := searcher.fetchSortedRRCsFromQSRs(qsrs)
-	require.NoError(t, err)
+	iqr, err := searcher.fetchSortedRRCsFromQSRs()
+	require.True(t, err == nil || err == io.EOF)
 	require.NotNil(t, iqr)
+	if err == io.EOF {
+		return iqr.GetRRCs()
+	}
 
 	for {
-		nextIQR, err := searcher.fetchSortedRRCsFromQSRs(qsrs)
+		nextIQR, err := searcher.fetchSortedRRCsFromQSRs()
 		err2 := iqr.Append(nextIQR)
 		assert.NoError(t, err2)
 
