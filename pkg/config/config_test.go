@@ -76,7 +76,6 @@ func Test_ExtractConfigData(t *testing.T) {
  agileAggsEnabled: false
  isNewQueryPipelineEnabled: false
  enableSortIndex: true
- lowMemoryMode: true
  queryTimeoutSecs: 600
  safeMode: true
  tracing:
@@ -90,6 +89,7 @@ func Test_ExtractConfigData(t *testing.T) {
  compressStatic: false
  memoryLimits:
    maxUsagePercent: 80
+   lowMemoryMode: true
    searchPercent: 50
    microIndexPercent: 20
    metadataPercent: 20
@@ -139,10 +139,10 @@ func Test_ExtractConfigData(t *testing.T) {
 				UseNewQueryPipeline:         "false",
 				UseNewPipelineConverted:     false,
 				EnableSortIndex:             utils.DefaultValue(false).Set(true),
-				LowMemoryMode:               utils.DefaultValue(false).Set(true),
 				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false).Set(true),
 					SearchPercent:   50,
 					CMIPercent:      20,
 					MetadataPercent: 20,
@@ -196,7 +196,6 @@ func Test_ExtractConfigData(t *testing.T) {
    compressLogFile: true
  compressStatic: bad string
  enableSortIndex: bad string
- lowMemoryMode: bad string
  `),
 
 			common.Configuration{
@@ -241,9 +240,9 @@ func Test_ExtractConfigData(t *testing.T) {
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
 				EnableSortIndex:             utils.DefaultValue(false),
-				LowMemoryMode:               utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
@@ -297,9 +296,9 @@ invalid input, we should error out
 				UseNewQueryPipeline:        "true",
 				UseNewPipelineConverted:    true,
 				EnableSortIndex:            utils.DefaultValue(false),
-				LowMemoryMode:              utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
@@ -356,9 +355,9 @@ a: b
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
 				EnableSortIndex:             utils.DefaultValue(false),
-				LowMemoryMode:               utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
