@@ -266,7 +266,6 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	case structs.RRCCmd:
 		// Get blocks for the segment batch to process
 		if config.IsSortIndexEnabled() && s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
-			query.InitProgressForRRCCmd(0 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
 		}
 		// initialize QSRs if they don't exist
@@ -339,6 +338,10 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		if s.sortExpr == nil {
 			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: sortExpr is nil", s.qid)
 		}
+
+		segKeys := getAllSegKeysInQSRS(qsrs)
+		totalBlocks := metadata.GetTotalBlocksInSegments(segKeys)
+		query.InitProgressForRRCCmd(totalBlocks, s.qid)
 
 		// This is chosen somewhat arbitrarily. We may want to tune this.
 		s.numRecordsPerBatch = max(100, int(s.sortExpr.Limit)/len(qsrs))
@@ -488,6 +491,25 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
+	}
+
+	processedBlockMap := make(map[uint16]uint64)
+
+	for _, line := range lines {
+		for _, block := range line.Blocks {
+			processedBlockMap[block.BlockNum] += uint64(len(block.RecNums))
+		}
+	}
+
+	if len(processedBlockMap) > 0 {
+		var totalRecords uint64
+		for _, records := range processedBlockMap {
+			totalRecords += records
+		}
+		err = query.IncProgressForRRCCmd(totalRecords, uint64(len(processedBlockMap)), s.qid)
+		if err != nil {
+			log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to update progress: %v", s.qid, err)
+		}
 	}
 
 	segInfo.checkpoint = checkpoint
