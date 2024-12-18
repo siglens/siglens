@@ -662,6 +662,7 @@ func SetSortColumns(columnNames []string) error {
 	sortConfig.mu.Lock()
 	defer sortConfig.mu.Unlock()
 
+	// TODO: Persist sort column names to disk
 	for _, col := range columnNames {
 		if col == "" {
 			return fmt.Errorf("SetSortColumns: column names must be non-empty strings")
