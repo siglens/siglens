@@ -33,6 +33,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/query/colusage"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 
@@ -1025,4 +1026,55 @@ func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
 		}
 	}
 	return evMap, nil
+}
+
+func GetSortColumnsFromPQS(virtualTable string) []string {
+	persistentInfoLock.RLock()
+	defer persistentInfoLock.RUnlock()
+
+	const MaxSortColumns = 10
+	sortColumnFreq := make(map[string]int)
+
+	for _, pqinfo := range allPersistentAggsSorted {
+		if _, ok := pqinfo.AllTables[virtualTable]; !ok {
+			continue
+		}
+
+		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil && len(aggs.SortExpr.SortEles) > 0 {
+			_, queryCols := colusage.GetFilterAndQueryColumns(nil, aggs)
+
+			column := aggs.SortExpr.SortEles[0].Field
+			if _, exists := queryCols[column]; exists {
+				sortColumnFreq[column] += int(pqinfo.TotalUsage)
+			}
+		}
+	}
+
+	if len(sortColumnFreq) <= MaxSortColumns {
+		result := make([]string, 0, len(sortColumnFreq))
+		for col := range sortColumnFreq {
+			result = append(result, col)
+		}
+		return result
+	}
+
+	type colFreq struct {
+		col  string
+		freq int
+	}
+	pairs := make([]colFreq, 0, len(sortColumnFreq))
+	for col, freq := range sortColumnFreq {
+		pairs = append(pairs, colFreq{col, freq})
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].freq > pairs[j].freq
+	})
+
+	result := make([]string, 0, MaxSortColumns)
+	for i := 0; i < MaxSortColumns && i < len(pairs); i++ {
+		result = append(result, pairs[i].col)
+	}
+
+	return result
 }

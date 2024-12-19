@@ -63,8 +63,6 @@ const MaxAgileTreeNodeCount = 8_000_000
 
 const BS_INITIAL_SIZE = uint32(1000)
 
-var sortIndexCnames = []string{"app_name", "weekday"} // TODO: don't hardcode
-
 // SegStore Individual stream buffer
 type SegStore struct {
 	Lock              sync.Mutex
@@ -562,6 +560,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 		//readjust workBufComp size based on num of columns in this wip
 		flushParallelism := runtime.GOMAXPROCS(0) * 2
+		if config.IsLowMemoryModeEnabled() {
+			flushParallelism = 1
+		}
 		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
 			flushParallelism)
 		// now make each of these bufs of atleast WIP_SIZE
@@ -852,7 +853,7 @@ func writeSortIndexes(segkey string) {
 		sortedIndexWG.Add(1)
 		defer sortedIndexWG.Done()
 
-		for _, cname := range sortIndexCnames {
+		for _, cname := range sortindex.GetSortColumns() {
 			err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
 			if err != nil {
 				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",

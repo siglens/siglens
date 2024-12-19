@@ -89,6 +89,7 @@ func Test_ExtractConfigData(t *testing.T) {
  compressStatic: false
  memoryLimits:
    maxUsagePercent: 80
+   lowMemoryMode: true
    searchPercent: 50
    microIndexPercent: 20
    metadataPercent: 20
@@ -141,6 +142,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false).Set(true),
 					SearchPercent:   50,
 					CMIPercent:      20,
 					MetadataPercent: 20,
@@ -240,6 +242,7 @@ func Test_ExtractConfigData(t *testing.T) {
 				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
@@ -295,6 +298,7 @@ invalid input, we should error out
 				EnableSortIndex:            utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
@@ -353,6 +357,7 @@ a: b
 				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,

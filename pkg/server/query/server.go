@@ -268,6 +268,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/update-query-timeout", hs.Recovery(UpdateQueryTimeoutHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/get-query-timeout", hs.Recovery(GetQueryTimeoutHandler()))
 
+	hs.Router.POST(server_utils.API_PREFIX+"/sort-columns", hs.Recovery(setSortColumnsHandler()))
+
 	if config.IsPProfEnabled() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
