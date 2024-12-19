@@ -139,13 +139,13 @@ func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
 	return memory, nil
 }
 
-func GetTotalMemoryAvailable() uint64 {
+func GetTotalMemoryAvailableToUse() uint64 {
 	var gogc uint64
 	v := os.Getenv("GOGC")
 	if v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			log.Errorf("GetTotalMemoryAvailable: Error while converting gogc: %v to int", v)
+			log.Errorf("GetTotalMemoryAvailableToUse: Error while converting gogc: %v to int", v)
 			n = 100
 		}
 		gogc = uint64(n)
@@ -157,7 +157,7 @@ func GetTotalMemoryAvailable() uint64 {
 
 	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
 	allowedMemory := configuredMemory / (1 + gogc/100)
-	log.Infof("GetTotalMemoryAvailable: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
+	log.Infof("GetTotalMemoryAvailableToUse: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
 		runningConfig.MemoryConfig.MaxUsagePercent,
 		segutils.ConvertUintBytesToMB(totalMemoryOnHost),
 		segutils.ConvertUintBytesToMB(allowedMemory))

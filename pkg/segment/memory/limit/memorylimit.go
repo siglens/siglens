@@ -36,7 +36,7 @@ const MINUTES_UPDATE_METADATA_MEM_ALLOC = 1
 var LOG_GLOBAL_MEM_FREQUENCY = 5
 
 func InitMemoryLimiter() {
-	totalAvailableSizeBytes := config.GetTotalMemoryAvailable()
+	totalAvailableSizeBytes := config.GetTotalMemoryAvailableToUse()
 	log.Infof("InitMemoryLimiter: Total available memory %+v MB", utils.ConvertUintBytesToMB(totalAvailableSizeBytes))
 
 	memLimits := config.GetMemoryConfig()
