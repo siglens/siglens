@@ -116,12 +116,16 @@ var functionalTestCmd = &cobra.Command{
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		filePath, _ := cmd.Flags().GetString("queriesToRunFile")
 		longer, _ := cmd.Flags().GetBool("longer")
+		doIngest, _ := cmd.Flags().GetBool("doIngest")
+		doQuery, _ := cmd.Flags().GetBool("doQuery")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("queryDest : %+v\n", queryDest)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("queriesToRunFile : %+v\n", filePath)
 		log.Infof("longer : %+v\n", longer)
+		log.Infof("doIngest : %+v\n", doIngest)
+		log.Infof("doQuery : %+v\n", doQuery)
 
 		totalEvents := 100_000
 		batchSize := 100
@@ -141,20 +145,27 @@ var functionalTestCmd = &cobra.Command{
 			sleepDuration = 30 * time.Second
 		}
 
-		dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+		if doIngest {
 
-		ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-			indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-		time.Sleep(sleepDuration)
+			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
-		err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
-		if err != nil {
-			log.Fatalf("Error while migrating lookups: %v", err)
-			return
+			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
+			if err != nil {
+				log.Fatalf("Error while migrating lookups: %v", err)
+				return
+			}
+
+			if doQuery {
+				time.Sleep(sleepDuration)
+			}
 		}
 
-		query.FunctionalTest(queryDest, filePath)
+		if doQuery {
+			query.FunctionalTest(queryDest, filePath)
+		}
 	},
 }
 
@@ -224,6 +235,25 @@ var concurrentQueriesTestCmd = &cobra.Command{
 		log.Infof("bearerToken : %+v\n", bearerToken)
 
 		query.RunConcurrentQueries(dest, queryText, numOfConcurrentQueries, iterations)
+	},
+}
+
+var clickBenchTestCmd = &cobra.Command{
+	Use:   "clickBench",
+	Short: "testing clickBench queries on SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		thresholdFactor, _ := cmd.Flags().GetFloat64("thresholdFactor")
+
+		log.Infof("dest : %+v\n", dest)
+
+		queriesAndRespTimes, err := query.GetClickBenchQueriesAndRespTimes()
+		if err != nil {
+			log.Fatalf("Error getting clickbench queries: %v", err)
+			return
+		}
+
+		query.ValidateClickBenchQueries(dest, queriesAndRespTimes, thresholdFactor)
 	},
 }
 
@@ -494,6 +524,8 @@ func init() {
 	concurrentQueriesTestCmd.PersistentFlags().IntP("iterations", "i", 1, "Number of iterations to run")
 	concurrentQueriesTestCmd.PersistentFlags().StringP("queryText", "q", "", "Query to run")
 
+	clickBenchTestCmd.PersistentFlags().Float64P("thresholdFactor", "t", 1.5, "Threshold factor for clickbench queries")
+
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
@@ -514,6 +546,8 @@ func init() {
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
 	functionalTestCmd.PersistentFlags().BoolP("longer", "l", false, "Run longer functional test")
+	functionalTestCmd.PersistentFlags().BoolP("doIngest", "i", true, "Perfom ingestion for functional Test")
+	functionalTestCmd.PersistentFlags().BoolP("doQuery", "u", true, "Perfom query for functional Test")
 
 	performanceTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 
@@ -559,4 +593,5 @@ func init() {
 	rootCmd.AddCommand(metricsBenchCmd)
 	rootCmd.AddCommand(alertsCmd)
 	rootCmd.AddCommand(concurrentQueriesTestCmd)
+	rootCmd.AddCommand(clickBenchTestCmd)
 }

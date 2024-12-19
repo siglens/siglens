@@ -162,6 +162,8 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 
 			copy(columnValueSummary[idx:], []byte{byte(colValue.(int8))})
 			idx += 1
+		default:
+			log.Errorf("EncodeDictionaryColumn: Unsupported data type: %v", key.Dtype)
 		}
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(val)), columnValueSummary[idx:])
 		idx += 2
@@ -230,6 +232,8 @@ func DecodeDictionaryColumn(encodedBytes []byte) map[segutils.CValueDictEnclosur
 		case segutils.SS_DT_SIGNED_8_NUM:
 			colCVEnclosure.CValInt = int8(encodedBytes[idx+1])
 			idx += 1
+		default:
+			log.Errorf("DecodeDictionaryColumn: Unsupported data type: %v", colCVEnclosure.Dtype)
 		}
 
 		valuesLen := utils.BytesToUint16LittleEndian(encodedBytes[idx:(idx + 2)])

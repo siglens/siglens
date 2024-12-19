@@ -87,6 +87,8 @@ func GetIntervalInMillis(num int, timeUnit utils.TimeUnit) uint64 {
 		return uint64((numD * 30 * 24 * time.Hour).Milliseconds())
 	case utils.TMQuarter:
 		return uint64((numD * 120 * 24 * time.Hour).Milliseconds())
+	default:
+		log.Errorf("GetIntervalInMillis: unexpected time unit: %v", timeUnit)
 	}
 	return uint64((10 * time.Minute).Milliseconds()) // 10 Minutes
 }
@@ -373,6 +375,8 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		eVal.CVal = uniqueStrings
 		eVal.Dtype = utils.SS_DT_STRING_SLICE
 		return
+	default:
+		log.Errorf("MergeVal: unsupported aggregation function: %v", aggFunc)
 	}
 
 	retVal, err := utils.Reduce(eValToMerge, tmp, aggFunc)

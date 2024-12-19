@@ -41,6 +41,7 @@ import (
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
@@ -559,6 +560,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 		//readjust workBufComp size based on num of columns in this wip
 		flushParallelism := runtime.GOMAXPROCS(0) * 2
+		if config.IsLowMemoryModeEnabled() {
+			flushParallelism = 1
+		}
 		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
 			flushParallelism)
 		// now make each of these bufs of atleast WIP_SIZE
@@ -670,12 +674,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		sidFname := fmt.Sprintf("%v.sid", segstore.SegmentKey)
-		err = writeRunningSegMeta(sidFname, &segmeta)
-		if err != nil {
-			log.Errorf("AppendWipToSegfile: failed to write sidFname=%v, err=%v", sidFname, err)
-			return err
-		}
+		writeRunningSegMeta(segstore.SegmentKey, &segmeta)
 
 		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()
@@ -744,7 +743,6 @@ func removePqmrFilesAndDirectory(pqid string, segKey string) error {
 }
 
 func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bool, onTimeRotate bool) error {
-
 	onTreeRotate := false
 	if config.IsAggregationsEnabled() && segstore.stbHolder != nil {
 		nc := segstore.stbHolder.stbPtr.GetNodeCount()
@@ -787,13 +785,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			segstore.SegmentKey, segstore.RecordCount, segstore.OnDiskBytes, segstore.numBlocks,
 			segstore.OrgId, forceRotate, onTimeRotate, onTreeRotate)
 
-		err := toputils.WriteValidityFile(segstore.segbaseDir)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to write segment validity file for segkey=%v; err=%v",
-				segstore.SegmentKey, err)
-			return err
-		}
-
 		// delete pqmr files if empty and add to empty PQS
 		for pqid, hasMatchedAnyRecordInWip := range segstore.pqNonEmptyResults {
 			if !hasMatchedAnyRecordInWip {
@@ -810,9 +801,9 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		// Upload segment files to s3
 		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
 
-		err = blob.UploadSegmentFiles(filesToUpload)
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", err)
+		blobErr := blob.UploadSegmentFiles(filesToUpload)
+		if blobErr != nil {
+			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", blobErr)
 		}
 
 		allPqids := make(map[string]bool, len(segstore.pqMatches))
@@ -837,19 +828,39 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
-		// upload ingest node dir to s3
-		err = blob.UploadIngestNodeDir()
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+		go writeSortIndexes(segstore.SegmentKey)
+
+		if blobErr == nil {
+			// upload ingest node dir to s3
+			err := blob.UploadIngestNodeDir()
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+			}
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		err := CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err
 		}
 	}
 	return nil
+}
+
+func writeSortIndexes(segkey string) {
+
+	if config.IsSortIndexEnabled() {
+		sortedIndexWG.Add(1)
+		defer sortedIndexWG.Done()
+
+		for _, cname := range sortindex.GetSortColumns() {
+			err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
+			if err != nil {
+				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
+					segkey, cname, err)
+			}
+		}
+	}
 }
 
 func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool, resetSegstore bool) error {
@@ -1597,7 +1608,6 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	if !sst.IsNumeric {
 
 		if sst.Min.Dtype != utils.SS_DT_STRING || sst.Max.Dtype != utils.SS_DT_STRING {
-			log.Errorf("writeSstToBuf: Min or Max Dtype is not string, Min: %v, Max: %v", sst.Min.Dtype, sst.Max.Dtype)
 			copy(buf[idx:], []byte{byte(utils.SS_DT_BACKFILL)})
 			idx++
 			return idx, nil

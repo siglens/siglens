@@ -1,0 +1,42 @@
+name: Nightly-Longer-Functional-Test
+
+on:
+  schedule:
+    - cron: '0 20 * * *'  # Every day at 3PM EST (UTC-5)
+    - cron: '0 2 * * *'  # Every day at 9PM EST (UTC-5)
+  workflow_dispatch:  # Allows manual trigger as well
+
+jobs:
+  Longer-Functional-Test:
+    runs-on: [self-hosted, Linux, X64]
+    name: Longer Functional
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+      - uses: actions/checkout@v3
+      - name: Build Siglens
+        run: make build
+      - name: Run Siglens
+        run: |
+            ./siglens --config server.yaml &
+      - name: Ingest Longer Functional Data
+        run: |
+            sleep 5  # Wait for Siglens to start
+            cd tools/sigclient
+            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -u=false
+            sleep 5  # Wait for data to ingest
+      - name: Restart Siglens
+        run: |
+            pkill siglens
+            sleep 10
+            ./siglens --config server.yaml &
+      - name: Query Longer Functional
+        run: |
+            sleep 5  # Wait for Siglens to start
+            cd tools/sigclient
+            go run main.go functional -d http://localhost:8081/elastic -f longerFunctionalQueries/longerFunctionalQueries.yml -q localhost:5122 -l true -i=false
+      - name: Print logs file
+        if: always()
+        run: |
+            cat logs/siglens.log

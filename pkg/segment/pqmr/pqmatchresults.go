@@ -18,6 +18,7 @@
 package pqmr
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,6 +49,10 @@ func CreatePQMatchResultsFromBs(b *bitset.BitSet) *PQMatchResults {
 	retval := &PQMatchResults{}
 	retval.b = b
 	return retval
+}
+
+func GetPQMRFileNameFromSegKey(segmentKey string, pqid string) string {
+	return fmt.Sprintf("%v/pqmr/%v.pqmr", segmentKey, pqid)
 }
 
 func (pqmr *PQMatchResults) AddMatchedRecord(recNum uint) {
@@ -166,6 +171,23 @@ func (spqmr *SegmentPQMRResults) SetBlockResults(blkNum uint16, og *PQMatchResul
 	spqmr.accessLock.Lock()
 	spqmr.allBlockResults[blkNum] = og
 	spqmr.accessLock.Unlock()
+}
+
+func (spqmr *SegmentPQMRResults) GetCopyOfBlockResults(blkNums []uint16) *SegmentPQMRResults {
+	spqmr.accessLock.Lock()
+	defer spqmr.accessLock.Unlock()
+
+	new := &SegmentPQMRResults{
+		allBlockResults: make(map[uint16]*PQMatchResults),
+		accessLock:      &sync.RWMutex{},
+	}
+	for _, blkNum := range blkNums {
+		if pqmr, ok := spqmr.allBlockResults[blkNum]; ok {
+			new.allBlockResults[blkNum] = pqmr.Copy()
+		}
+	}
+
+	return new
 }
 
 // [blkNum - uint16][bitSetLen - uint16][raw bitset….]

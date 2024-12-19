@@ -294,6 +294,10 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		startQueryServer(queryServer)
 	}
 
+	if config.IsLowMemoryModeEnabled() {
+		StdOutLogger.Infof("----- Low Memory Mode is enabled ----- \n")
+	}
+
 	instrumentation.InitMetrics()
 
 	go tracinghandler.MonitorSpansHealth()
@@ -320,6 +324,7 @@ func ShutdownSiglensServer() {
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()
 	alertsHandler.Disconnect()
+	writer.WaitForSortedIndexToComplete()
 
 	if hook := hooks.GlobalHooks.ShutdownSiglensExtrasHook; hook != nil {
 		hook()

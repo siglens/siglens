@@ -72,6 +72,7 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
+	go initSyncSegMetaForAllIds(getMyIds)
 	go runQueryInfoRefreshLoop(getMyIds)
 
 	// Init specific writer components for kibana requests
@@ -100,6 +101,19 @@ func queryMetricsLooper() {
 		go func() {
 			instrumentation.SetSegmentMicroindexCountGauge(segmetadata.GetTotalSMICount())
 		}()
+	}
+}
+
+func initSyncSegMetaForAllIds(getMyIds func() []uint64) {
+	defaultId := uint64(0)
+	syncSegMetaWithSegFullMeta(defaultId)
+
+	for _, myId := range getMyIds() {
+		if myId == defaultId {
+			continue
+		}
+
+		syncSegMetaWithSegFullMeta(myId)
 	}
 }
 
@@ -285,7 +299,7 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 		qc.SizeLimit, aggs, qid, querySummary)
 	switch qType {
 	case structs.SegmentStatsCmd:
-		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid)
+		return GetNodeResultsForSegmentStatsCmd(queryInfo, *sTime, allSegFileResults, nil, querySummary, qc.Orgid, false)
 	case structs.RRCCmd, structs.GroupByCmd:
 		bucketLimit := MAX_GRP_BUCKS
 		if aggs != nil {
@@ -323,13 +337,15 @@ func ApplyFilterOperator(node *structs.ASTNode, timeRange *dtu.TimeRange, aggs *
 
 // Base function to apply operators on query segment requests
 func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *QueryInformation, sTime time.Time,
-	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary) *structs.NodeResult {
+	allSegFileResults *segresults.SearchResults, querySummary *summary.QuerySummary, returnAggBuckets bool) *structs.NodeResult {
 	applyFopAllRequests(sortedQSRSlice, queryInfo, allSegFileResults, querySummary)
-	err := queryInfo.Wait(querySummary)
-	if err != nil {
-		log.Errorf("qid=%d Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
-		return &structs.NodeResult{
-			ErrList: []error{err},
+	if !returnAggBuckets {
+		err := queryInfo.Wait(querySummary)
+		if err != nil {
+			log.Errorf("qid=%d Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+			return &structs.NodeResult{
+				ErrList: []error{err},
+			}
 		}
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
@@ -341,6 +357,16 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 			bucketLimit = queryInfo.aggs.BucketLimit
 		}
 	}
+
+	if returnAggBuckets {
+		return &structs.NodeResult{
+			ErrList:        allSegFileResults.GetAllErrors(),
+			Qtype:          queryType.String(),
+			GroupByBuckets: allSegFileResults.BlockResults.GroupByAggregation,
+			TimeBuckets:    allSegFileResults.BlockResults.TimeAggregation,
+		}
+	}
+
 	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, _, bucketCount := allSegFileResults.GetGroupyByBuckets(bucketLimit)
 	allSegResults := allSegFileResults.GetResults()
 	scrollFrom := queryInfo.GetScrollFrom()
@@ -385,11 +411,10 @@ func GetNodeResultsForRRCCmd(queryInfo *QueryInformation, sTime time.Time, allSe
 		}
 	}
 
-	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary)
+	return GetNodeResultsFromQSRS(sortedQSRSlice, queryInfo, sTime, allSegFileResults, querySummary, false)
 }
 
 func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *summary.QuerySummary) ([]*QuerySegmentRequest, error) {
-
 	sortedQSRSlice, numRawSearch, distributedQueries, numPQS, err := getAllSegmentsInQuery(queryInfo, sTime)
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to get all segments in query! Error: %+v", queryInfo.qid, err)
@@ -412,7 +437,7 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 }
 
 func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64) *structs.NodeResult {
+	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64, getSstMap bool) *structs.NodeResult {
 
 	sortedQSRSlice, numRawSearch, numDistributed, err := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs,
 		queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), queryInfo.qid, sTime, orgid)
@@ -436,20 +461,32 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
 	}
 
+	var sstMap map[string]*structs.SegStats
+
 	querySummary.UpdateRemainingDistributedQueries(numDistributed)
 	log.Infof("qid=%d, GetNodeResultsForSegmentStatsCmd: Received %+v query segment aggs, with %+v raw search %v distributed, query elapsed time: %+v",
 		queryInfo.qid, len(sortedQSRSlice), numRawSearch, numDistributed, time.Since(sTime))
 	if queryInfo.aggs.MeasureOperations != nil {
 		allSegFileResults.InitSegmentStatsResults(queryInfo.aggs.MeasureOperations)
-		applyAggOpOnSegments(sortedQSRSlice, allSegFileResults, queryInfo.qid, querySummary, queryInfo.sNodeType, queryInfo.aggs.MeasureOperations)
+		sstMap = applyAggOpOnSegments(sortedQSRSlice, allSegFileResults, queryInfo.qid, querySummary, queryInfo.sNodeType, queryInfo.aggs.MeasureOperations, getSstMap)
 	}
 	querySummary.UpdateQueryTotalTime(time.Since(sTime), allSegFileResults.GetNumBuckets())
 	queryType := GetQueryType(queryInfo.qid)
-	err = queryInfo.Wait(querySummary)
-	if err != nil {
-		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+	if !getSstMap {
+		err = queryInfo.Wait(querySummary)
+		if err != nil {
+			log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to wait for all query segment requests to finish! Error: %+v", queryInfo.qid, err)
+			return &structs.NodeResult{
+				ErrList: []error{err},
+			}
+		}
+	}
+
+	if getSstMap {
 		return &structs.NodeResult{
-			ErrList: []error{err},
+			ErrList:     allSegFileResults.GetAllErrors(),
+			Qtype:       queryType.String(),
+			SegStatsMap: sstMap,
 		}
 	}
 
@@ -478,7 +515,7 @@ func getSortedQSRResult(aggs *structs.QueryAggregators, allQSRs []*QuerySegmentR
 		} else {
 			// index 0 should have the earliest time
 			sort.Slice(allQSRs, func(i, j int) bool {
-				return allQSRs[i].segKeyTsRange.StartEpochMs > allQSRs[j].segKeyTsRange.StartEpochMs
+				return allQSRs[i].segKeyTsRange.EndEpochMs > allQSRs[j].segKeyTsRange.EndEpochMs
 			})
 		}
 	}
@@ -550,6 +587,8 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 	if queryInfo.aggs != nil && queryInfo.aggs.HasTransactionArgumentsInChain() {
 		reverseSortedQSRSlice(sortedQSRSlice)
 	}
+
+	shouldRemoveUsageForSeg := !queryInfo.GetQueryType().IsRRCCmd() && allSegFileResults.GetAggs().HasStatsBlock()
 
 	for idx, segReq := range sortedQSRSlice {
 		if idx == sortedQSRSliceLen-1 {
@@ -644,6 +683,10 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 		if !rrcsCompleted && areAllRRCsFound(allSegFileResults, sortedQSRSlice[idx+1:], segReq.aggs) {
 			qs.SetRRCFinishTime()
 			rrcsCompleted = true
+		}
+
+		if shouldRemoveUsageForSeg {
+			removeUsageForSegmentHook(queryInfo.qid, segReq.segKey)
 		}
 	}
 
@@ -767,6 +810,13 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 		return nil, 0, 0, err
 	}
 
+	if config.IsS3Enabled() {
+		rotatedSegments := getRotatedSegments(rotatedQSR)
+		if hook := hooks.GlobalHooks.AddUsageForRotatedSegmentsHook; hook != nil {
+			hook(queryInfo.qid, rotatedSegments)
+		}
+	}
+
 	finalQsrs = append(finalQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
 
@@ -857,13 +907,15 @@ func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.Quer
 }
 
 func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
-	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator) {
+	searchType structs.SearchNodeType, measureOperations []*structs.MeasureAggregator, getSstMap bool) map[string]*structs.SegStats {
 
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to get or create query search node result! Error: %v", qid, err)
-		return
+		return nil
 	}
+
+	statsRes := segresults.InitStatsResults()
 
 	//assuming we will allow 100 measure Operations
 	for _, segReq := range sortedQSRSlice {
@@ -880,7 +932,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 
 		// For Unrotated search, Check if the segment is rotated and update the search type accordingly
 		if segReq.sType == structs.UNROTATED_SEGMENT_STATS_SEARCH {
-			if utils.IsFileForRotatedSegment(segReq.segKey) {
+			if !writer.IsSegKeyUnrotated(segReq.segKey) {
+				// If the segment is not unrotated, we should search the rotated segment
 				segReq.sType = structs.SEGMENT_STATS_SEARCH
 			}
 		}
@@ -914,12 +967,8 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 			}
 		}
 
-		err = allSegFileResults.UpdateSegmentStats(sstMap, measureOperations)
-		if err != nil {
-			log.Errorf("qid=%d, applyAggOpOnSegments: Failed to update segment stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
-			allSegFileResults.AddError(err)
-			continue
-		}
+		statsRes.MergeSegStats(sstMap)
+
 		totalRecsSearched := uint64(0)
 		if segReq.sType == structs.SEGMENT_STATS_SEARCH {
 			totalRecsSearched = segmetadata.GetNumOfSearchedRecordsRotated(segReq.segKey)
@@ -928,11 +977,34 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		}
 		segenc := allSegFileResults.GetAddSegEnc(segReq.segKey)
 		IncrementNumFinishedSegments(1, qid, totalRecsSearched, segenc, "", true, sstMap)
+
+		removeUsageForSegmentHook(qid, segReq.segKey)
+	}
+
+	finalSstMap := statsRes.GetSegStats()
+
+	if !getSstMap {
+		err = allSegFileResults.UpdateSegmentStats(finalSstMap, measureOperations)
+		if err != nil {
+			log.Errorf("qid=%d,  applyAggOpOnSegments : ReadSegStats: Failed to update segment stats for segKey! Error: %v", qid, err)
+			allSegFileResults.AddError(err)
+		}
 	}
 
 	if len(sortedQSRSlice) == 0 {
 		IncrementNumFinishedSegments(0, qid, 0, 0, "", true, nil)
 	}
+
+	return finalSstMap
+}
+
+func getRotatedSegments(qsrs []*QuerySegmentRequest) map[string]struct{} {
+	usedSegments := make(map[string]struct{})
+	for _, qsr := range qsrs {
+		usedSegments[qsr.GetSegKey()] = struct{}{}
+	}
+
+	return usedSegments
 }
 
 // return sorted slice of querySegmentRequests, count of raw search requests, distributed queries, and count of pqs request
@@ -954,6 +1026,13 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	rotatedQSR, rotatedRawCount, rotatedPQS, err := getAllRotatedSegmentsInQuery(queryInfo, sTime)
 	if err != nil {
 		return nil, 0, 0, 0, err
+	}
+
+	if config.IsS3Enabled() {
+		rotatedSegments := getRotatedSegments(rotatedQSR)
+		if hook := hooks.GlobalHooks.AddUsageForRotatedSegmentsHook; hook != nil {
+			hook(queryInfo.qid, rotatedSegments)
+		}
 	}
 
 	unsortedQsrs = append(unsortedQsrs, rotatedQSR...)
@@ -1005,8 +1084,10 @@ func applyFilterOperatorSingleRequest(qsr *QuerySegmentRequest, allSegFileResult
 		return applyFilterOperatorUnrotatedRawSearchRequest(qsr, allSegFileResults, qs)
 	case structs.UNKNOWN:
 		log.Errorf("qid=%d, Got a unknown query segment request! SegKey %+v", qsr.qid, qsr.segKey)
+		fallthrough
+	default:
+		return fmt.Errorf("qid=%d, applyFilterOperatorSingleRequest: unsupported segment type %+v", qsr.qid, qsr.sType)
 	}
-	return fmt.Errorf("unsupported segment type %+v", qsr.sType)
 }
 
 func applyFilterOperatorPQSRequest(qsr *QuerySegmentRequest, allSegFileResults *segresults.SearchResults, qs *summary.QuerySummary) error {
@@ -1047,12 +1128,12 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 
 	sTime := time.Now()
 	var rawSearchSSRs map[string]*structs.SegmentSearchRequest
-	if utils.IsFileForRotatedSegment(qsr.segKey) {
-		rawSearchSSRs = ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
-			qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
-	} else {
+	if writer.IsSegKeyUnrotated(qsr.segKey) {
 		rawSearchSSRs = metadata.ExtractUnrotatedSSRFromSearchNode(qsr.sNode, qsr.queryRange,
 			qsr.indexInfo.GetQueryTables(), blocksToRawSearch, querySummary, qsr.qid)
+	} else {
+		rawSearchSSRs = ExtractSSRFromSearchNode(qsr.sNode, blocksToRawSearch, qsr.queryRange,
+			qsr.indexInfo.GetQueryTables(), querySummary, qsr.qid, isQueryPersistent, qsr.pqid)
 	}
 	querySummary.UpdateExtractSSRTime(time.Since(sTime))
 
@@ -1373,4 +1454,10 @@ func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QueryS
 	}
 
 	return qsrs, nil
+}
+
+func removeUsageForSegmentHook(qid uint64, segKey string) {
+	if hook := hooks.GlobalHooks.RemoveUsageForRotatedSegmentForQidHook; hook != nil {
+		hook(qid, segKey)
+	}
 }

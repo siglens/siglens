@@ -30,6 +30,7 @@ import (
 	"github.com/dustin/go-humanize"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -89,7 +90,7 @@ const (
 
 func InitMaxRunningQueries() {
 	memConfig := config.GetMemoryConfig()
-	totalMemoryInBytes := config.GetTotalMemoryAvailable()
+	totalMemoryInBytes := config.GetTotalMemoryAvailableToUse()
 	searchMemoryInBytes := (totalMemoryInBytes * memConfig.SearchPercent) / 100
 	maxConcurrentQueries := searchMemoryInBytes / memConfig.BytesPerQuery
 	if maxConcurrentQueries < 2 {
@@ -271,6 +272,10 @@ func DeleteQuery(qid uint64) {
 			rQuery.cleanupCallback()
 		}
 	}
+
+	if hook := hooks.GlobalHooks.RemoveUsageForRotatedSegmentsHook; hook != nil {
+		hook(qid)
+	}
 }
 
 func canRunQuery() bool {
@@ -278,19 +283,41 @@ func canRunQuery() bool {
 	return activeQueries < MAX_RUNNING_QUERIES
 }
 
+func initiateRunQuery(wsData *WaitStateData, segsRLockFunc, segsRUnlockFunc func()) {
+	if segsRLockFunc != nil && segsRUnlockFunc != nil {
+		segsRLockFunc()
+		defer segsRUnlockFunc()
+	}
+
+	runQuery(*wsData)
+}
+
+func getNextWaitStateData() *WaitStateData {
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+
+	if len(waitingQueries) == 0 {
+		return nil
+	}
+
+	wsData := waitingQueries[0]
+	waitingQueries = waitingQueries[1:]
+	return wsData
+}
+
 func PullQueriesToRun() {
+	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
+	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
+
 	for {
 		if canRunQuery() {
-			waitingQueriesLock.Lock()
-			if len(waitingQueries) == 0 {
-				waitingQueriesLock.Unlock()
+			wsData := getNextWaitStateData()
+			if wsData == nil {
 				time.Sleep(PULL_QUERY_INTERVAL)
 				continue
 			}
-			wsData := waitingQueries[0]
-			waitingQueries = waitingQueries[1:]
-			waitingQueriesLock.Unlock()
-			runQuery(*wsData)
+
+			initiateRunQuery(wsData, segmentsRLockFunc, segmentsRUnlockFunc)
 		}
 		time.Sleep(PULL_QUERY_INTERVAL)
 	}
@@ -1277,15 +1304,22 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
 }
 
 func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, scrollFrom uint64) *structs.PipeSearchWSUpdateResponse {
-	percCompleteBySearch := float64(0)
-	if progress.TotalUnits > 0 {
-		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+	completion := float64(0)
+	// TODO: clean up completion percentage
+	if config.IsSortIndexEnabled() {
+		completion = (float64(progress.RecordsSearched) * 100) / float64(progress.TotalRecords)
+	} else {
+		percCompleteBySearch := float64(0)
+		if progress.TotalUnits > 0 {
+			percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+		}
+		percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
+		completion = math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
 
 	return &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),
-		Completion:          math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent),
+		Completion:          completion,
 		Qtype:               qType.String(),
 		TotalEventsSearched: humanize.Comma(int64(progress.RecordsSearched)),
 		TotalPossibleEvents: humanize.Comma(int64(progress.TotalRecords)),

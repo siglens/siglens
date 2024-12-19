@@ -567,6 +567,8 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 		wsResponse.Qtype = qType.String()
 
 		wsResponse.ColumnsOrder = allCols
+	default:
+		return nil, fmt.Errorf("qid=%d, createRecsWsResp: unknown query type: %v", qid, qType)
 	}
 	return wsResponse, nil
 }

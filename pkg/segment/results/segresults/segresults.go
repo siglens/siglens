@@ -554,6 +554,8 @@ func (sr *SearchResults) GetSegmentStatsResults(skEnc uint32, humanizeValues boo
 			} else {
 				bucketHolder.MeasureVal[mfName] = strVal
 			}
+		default:
+			log.Errorf("GetSegmentStatsResults: unsupported dtype: %v, qid=%v", aggVal.Dtype, sr.qid)
 		}
 	}
 	aggMeasureResult := []*structs.BucketHolder{bucketHolder}
@@ -1174,6 +1176,8 @@ func (sr *SearchResults) GetRemoteStats() (*RemoteStats, error) {
 						StrList: metadata.([]string),
 					}
 				}
+			default:
+				return nil, fmt.Errorf("GetRemoteStats: unsupported aggOps: %v, qid=%v", measureAgg.MeasureFunc, sr.qid)
 			}
 		}
 	}

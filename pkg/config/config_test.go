@@ -25,6 +25,7 @@ import (
 	"github.com/pbnjay/memory"
 	"github.com/siglens/siglens/pkg/config/common"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,6 +75,7 @@ func Test_ExtractConfigData(t *testing.T) {
  analyticsEnabled: false
  agileAggsEnabled: false
  isNewQueryPipelineEnabled: false
+ enableSortIndex: true
  queryTimeoutSecs: 600
  safeMode: true
  tracing:
@@ -87,6 +89,7 @@ func Test_ExtractConfigData(t *testing.T) {
  compressStatic: false
  memoryLimits:
    maxUsagePercent: 80
+   lowMemoryMode: true
    searchPercent: 50
    microIndexPercent: 20
    metadataPercent: 20
@@ -135,9 +138,11 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
 				UseNewQueryPipeline:         "false",
 				UseNewPipelineConverted:     false,
+				EnableSortIndex:             utils.DefaultValue(false).Set(true),
 				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false).Set(true),
 					SearchPercent:   50,
 					CMIPercent:      20,
 					MetadataPercent: 20,
@@ -190,6 +195,7 @@ func Test_ExtractConfigData(t *testing.T) {
    logFileRotationSizeMB: 1000
    compressLogFile: true
  compressStatic: bad string
+ enableSortIndex: bad string
  `),
 
 			common.Configuration{
@@ -233,8 +239,10 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
+				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
@@ -287,8 +295,10 @@ invalid input, we should error out
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
 				UseNewQueryPipeline:        "true",
 				UseNewPipelineConverted:    true,
+				EnableSortIndex:            utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
@@ -344,8 +354,10 @@ a: b
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
+				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
+					LowMemoryMode:   utils.DefaultValue(false),
 					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
 					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
 					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,

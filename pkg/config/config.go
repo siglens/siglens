@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -66,6 +67,23 @@ var configFilePath string
 
 var parallelism int64
 
+var maxMemoryFilePaths = []string{
+	"/sys/fs/cgroup/memory.max",   // cgroup v2
+	"/sys/fs/cgroup/memory.limit", // cgroup v1
+}
+
+var usageMemoryFilePaths = []string{
+	"/sys/fs/cgroup/memory.current", // cgroup v2
+	"/sys/fs/cgroup/memory.usage",   // cgroup v1
+}
+
+type memoryValueType uint8
+
+const (
+	memoryValueMax memoryValueType = iota + 1
+	memoryValueUsage
+)
+
 var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
 var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
 
@@ -84,26 +102,93 @@ func init() {
 	}
 }
 
-func GetTotalMemoryAvailable() uint64 {
+func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
+	var memoryFilePaths []string
+
+	switch memoryValueType {
+	case memoryValueMax:
+		memoryFilePaths = maxMemoryFilePaths
+	case memoryValueUsage:
+		memoryFilePaths = usageMemoryFilePaths
+	default:
+		return 0, fmt.Errorf("getContainerMemory: Invalid memoryValueType: %v", memoryValueType)
+	}
+
+	var memory uint64
+
+	for _, path := range memoryFilePaths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return 0, err
+			}
+			continue
+		}
+
+		memory, err = strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("getContainerMemory: Error while converting memory limit: %v to uint64", string(data))
+		}
+		break
+	}
+
+	if memory == 0 {
+		return 0, fmt.Errorf("getContainerMemory: Memory limit not found")
+	}
+
+	return memory, nil
+}
+
+func GetTotalMemoryAvailableToUse() uint64 {
 	var gogc uint64
 	v := os.Getenv("GOGC")
 	if v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			log.Errorf("GetTotalMemoryAvailable: Error while converting gogc: %v to int", v)
+			log.Errorf("GetTotalMemoryAvailableToUse: Error while converting gogc: %v to int", v)
 			n = 100
 		}
 		gogc = uint64(n)
 	} else {
 		gogc = 100
 	}
-	hostMemory := memory.TotalMemory() * runningConfig.MemoryConfig.MaxUsagePercent / 100
-	allowedMemory := hostMemory / (1 + gogc/100)
-	log.Infof("GetTotalMemoryAvailable: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
+
+	totalMemoryOnHost := GetMemoryMax()
+
+	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
+	allowedMemory := configuredMemory / (1 + gogc/100)
+	log.Infof("GetTotalMemoryAvailableToUse: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
 		runningConfig.MemoryConfig.MaxUsagePercent,
-		segutils.ConvertUintBytesToMB(memory.TotalMemory()),
+		segutils.ConvertUintBytesToMB(totalMemoryOnHost),
 		segutils.ConvertUintBytesToMB(allowedMemory))
 	return allowedMemory
+}
+
+func GetMemoryMax() uint64 {
+	var memoryMax uint64
+
+	// try to get the memory from the cgroup
+	memoryMax, err := getContainerMemory(memoryValueMax)
+	if err != nil {
+		log.Debugf("GetMemoryMax: Error while getting memory from cgroup: %v", err)
+		// if we can't get the memory from the cgroup, get it from the OS
+		memoryMax = memory.TotalMemory()
+	}
+
+	return memoryMax
+}
+
+func GetContainerMemoryUsage() (uint64, error) {
+	var memoryInUse uint64
+
+	// try to get the memory from the cgroup
+	memoryInUse, err := getContainerMemory(memoryValueUsage)
+	if err != nil {
+		log.Debugf("GetContainerMemoryUsage: Error while getting memory from cgroup: %v", err)
+		return 0, err
+	}
+
+	return memoryInUse, nil
 }
 
 func GetMemoryConfig() common.MemoryConfig {
@@ -362,6 +447,14 @@ func IsNewQueryPipelineEnabled() bool {
 func SetNewQueryPipelineEnabled(enabled bool) {
 	// TODO: when we fully switch to the new pipeline, we can delete this function.
 	runningConfig.UseNewPipelineConverted = enabled
+}
+
+func IsSortIndexEnabled() bool {
+	return runningConfig.EnableSortIndex.Value()
+}
+
+func IsLowMemoryModeEnabled() bool {
+	return runningConfig.MemoryConfig.LowMemoryMode.Value()
 }
 
 // returns a map of s3 config
@@ -691,7 +784,12 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 }
 
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
-	var config common.Configuration
+	config := common.Configuration{
+		EnableSortIndex: utils.DefaultValue(false),
+		MemoryConfig: common.MemoryConfig{
+			LowMemoryMode: utils.DefaultValue(false),
+		},
+	}
 	err := yaml.Unmarshal(yamlData, &config)
 	if err != nil {
 		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
@@ -1385,6 +1483,10 @@ func GetSuffixFile(virtualTable string, streamId string) string {
 	return sb.String()
 }
 
+func GetBaseVTableDir(streamid string, virtualTableName string) string {
+	return filepath.Join(GetDataPath(), GetHostID(), "final", virtualTableName, streamid)
+}
+
 func GetBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
 	// Note: this is coupled to getSegBaseDirFromFilename. If the directory
 	// structure changes, change getSegBaseDirFromFilename too.
@@ -1402,6 +1504,10 @@ func GetBaseSegDir(streamid string, virtualTableName string, suffix uint64) stri
 
 func GetSegKey(streamid string, virtualTableName string, suffix uint64) string {
 	return fmt.Sprintf("%s%d", GetBaseSegDir(streamid, virtualTableName, suffix), suffix)
+}
+
+func GetSegKeyFromVTableDir(virtualTableDir string, suffixStr string) string {
+	return filepath.Join(virtualTableDir, suffixStr, suffixStr)
 }
 
 // DefaultUIServerHttpConfig  set fasthttp server default configuration

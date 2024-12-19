@@ -74,14 +74,23 @@ func ResetGlobalMetadataForTest() {
 }
 
 func GetAllSegmentMicroIndexForTest() []*SegmentMicroIndex {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
 	return globalMetadata.allSegmentMicroIndex
 }
 
 func GetSegmentMetadataReverseIndexForTest() map[string]*SegmentMicroIndex {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
 	return globalMetadata.segmentMetadataReverseIndex
 }
 
-func GetTableSortedMetadataForTest() map[string][]*SegmentMicroIndex {
+func GetTableSortedMetadata() map[string][]*SegmentMicroIndex {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
 	return globalMetadata.tableSortedMetadata
 }
 
@@ -97,6 +106,40 @@ func AddSegMetaToMetadata(segMeta *structs.SegMeta) {
 
 func BulkAddSegmentMicroIndex(allMetadata []*SegmentMicroIndex) {
 	globalMetadata.bulkAddSegmentMicroIndex(allMetadata)
+}
+
+func DiscardUnownedSegments(ownedSegments map[string]struct{}) {
+	globalMetadata.updateLock.RLock()
+	segsToDelete := make(map[string]struct{})
+	for segKey := range globalMetadata.segmentMetadataReverseIndex {
+		if _, ok := ownedSegments[segKey]; !ok {
+			segsToDelete[segKey] = struct{}{}
+		}
+	}
+	globalMetadata.updateLock.RUnlock()
+
+	DeleteSegmentKeys(segsToDelete)
+}
+
+func GetNumBlocksInSegment(segKey string) uint64 {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	if segMeta, ok := globalMetadata.segmentMetadataReverseIndex[segKey]; ok {
+		return uint64(segMeta.NumBlocks)
+	}
+	return 0
+}
+
+func GetTotalBlocksInSegments(segKeys []string) uint64 {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	totalBlocks := uint64(0)
+	for _, segKey := range segKeys {
+		if segMeta, ok := globalMetadata.segmentMetadataReverseIndex[segKey]; ok {
+			totalBlocks += uint64(segMeta.NumBlocks)
+		}
+	}
+	return totalBlocks
 }
 
 func (hm *allSegmentMetadata) bulkAddSegmentMicroIndex(allMetadata []*SegmentMicroIndex) {
@@ -332,7 +375,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyWithLock(key string) {
 
 }
 
-func getMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
+func GetMicroIndex(segKey string) (*SegmentMicroIndex, bool) {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
@@ -355,6 +398,18 @@ func getAllColumnsRecSizeWithLock(segKey string) (map[string]uint32, bool) {
 
 func DeleteSegmentKey(segKey string) {
 	globalMetadata.deleteSegmentKey(segKey)
+}
+
+func DeleteSegmentKeys[T any](segKeys map[string]T) {
+	if len(segKeys) == 0 {
+		return
+	}
+
+	globalMetadata.updateLock.Lock()
+	defer globalMetadata.updateLock.Unlock()
+	for segKey := range segKeys {
+		globalMetadata.deleteSegmentKeyWithLock(segKey)
+	}
 }
 
 func DeleteVirtualTable(vTable string, orgid uint64) {

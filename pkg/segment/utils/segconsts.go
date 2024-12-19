@@ -19,9 +19,11 @@ package utils
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"strconv"
@@ -713,6 +715,8 @@ func (dte *DtypeEnclosure) AddStringAsByteSlice() {
 	switch dte.Dtype {
 	case SS_DT_STRING:
 		dte.StringValBytes = []byte(dte.StringVal)
+	default:
+		log.Errorf("AddStringAsByteSlice: unsupported Dtype: %v", dte.Dtype)
 	}
 }
 
@@ -1012,7 +1016,12 @@ func (e *CValueEnclosure) GetFloatValue() (float64, error) {
 func (e *CValueEnclosure) GetFloatValueIfPossible() (float64, bool) {
 	switch e.Dtype {
 	case SS_DT_STRING:
-		floatVal, err := strconv.ParseFloat(e.CVal.(string), 64)
+		strVal := e.CVal.(string)
+		if !toputils.MightBeFloat(strVal) {
+			return 0, false
+		}
+
+		floatVal, err := strconv.ParseFloat(strVal, 64)
 		if err != nil {
 			return 0, false
 		}
@@ -1200,6 +1209,223 @@ func (e *CValueEnclosure) WriteToBytesWithType(buf []byte, bufIdx int) ([]byte, 
 	}
 
 	return buf, bufIdx
+}
+
+// TODO: remove the duplication with WriteToBytesWithType
+func (e *CValueEnclosure) WriteBytes(writer io.Writer) (int, error) {
+	var typeErr, valErr error
+	size := 1 // The Dtype byte
+
+	switch e.Dtype {
+	case SS_DT_BOOL:
+		size += 1
+		_, typeErr = writer.Write(VALTYPE_ENC_BOOL)
+		value, ok := e.CVal.(bool)
+		if !ok {
+			return 0, fmt.Errorf("WriteBytes: error converting value %v to bool", e.CVal)
+		}
+
+		if value {
+			_, valErr = writer.Write([]byte{1})
+		} else {
+			_, valErr = writer.Write([]byte{0})
+		}
+	case SS_DT_UNSIGNED_NUM:
+		size += 8
+		_, typeErr = writer.Write(VALTYPE_ENC_UINT64)
+		if value, ok := e.CVal.(uint64); ok {
+			_, valErr = writer.Write(toputils.Uint64ToBytesLittleEndian(value))
+		} else {
+			return 0, fmt.Errorf("WriteBytes: error converting value %v to uint64", e.CVal)
+		}
+	case SS_DT_SIGNED_NUM:
+		size += 8
+		_, typeErr = writer.Write(VALTYPE_ENC_INT64)
+		if value, ok := e.CVal.(int64); ok {
+			_, valErr = writer.Write(toputils.Int64ToBytesLittleEndian(value))
+		} else {
+			return 0, fmt.Errorf("WriteBytes: error converting value %v to int64", e.CVal)
+		}
+	case SS_DT_FLOAT:
+		size += 8
+		_, typeErr = writer.Write(VALTYPE_ENC_FLOAT64)
+		if value, ok := e.CVal.(float64); ok {
+			_, valErr = writer.Write(toputils.Float64ToBytesLittleEndian(value))
+		} else {
+			return 0, fmt.Errorf("WriteBytes: error converting value %v to float64", e.CVal)
+		}
+	case SS_DT_STRING:
+		size += 2
+		_, typeErr = writer.Write(VALTYPE_ENC_SMALL_STRING)
+		value, ok := e.CVal.(string)
+		if !ok {
+			return 0, fmt.Errorf("WriteBytes: error converting value %v to string", e.CVal)
+		}
+		strBytes := []byte(value)
+		size += len(strBytes)
+
+		_, err := writer.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(strBytes))))
+		if err != nil {
+			return 0, fmt.Errorf("WriteBytes: error writing string length: %v", err)
+		}
+
+		_, valErr = writer.Write(strBytes)
+	case SS_DT_BACKFILL:
+		_, typeErr = writer.Write(VALTYPE_ENC_BACKFILL)
+	default:
+		return 0, fmt.Errorf("WriteBytes: unsupported Dtype: %v", e.Dtype)
+	}
+
+	if typeErr != nil {
+		return 0, fmt.Errorf("WriteBytes: error writing type: %v", typeErr)
+	}
+	if valErr != nil {
+		return 0, fmt.Errorf("WriteBytes: error writing value: %v", valErr)
+	}
+
+	return size, nil
+}
+
+// Returns the number of bytes read
+func (e *CValueEnclosure) FromBytes(buf []byte) (int, error) {
+	if len(buf) == 0 {
+		return 0, errors.New("CVal.FromBytes: empty buffer")
+	}
+
+	valtype := buf[0]
+	idx := 1
+
+	switch valtype {
+	case VALTYPE_ENC_BOOL[0]:
+		if len(buf) < idx+1 {
+			return 0, errors.New("CVal.FromBytes: not enough bytes for bool")
+		}
+		boolVal := buf[idx]
+		idx += 1
+		e.CVal = (boolVal == 1)
+		e.Dtype = SS_DT_BOOL
+	case VALTYPE_ENC_UINT64[0]:
+		if len(buf) < idx+8 {
+			return 0, errors.New("CVal.FromBytes: not enough bytes for uint64")
+		}
+		uint64Val := toputils.BytesToUint64LittleEndian(buf[idx : idx+8])
+		idx += 8
+		e.CVal = uint64Val
+		e.Dtype = SS_DT_UNSIGNED_NUM
+	case VALTYPE_ENC_INT64[0]:
+		if len(buf) < idx+8 {
+			return 0, errors.New("CVal.FromBytes: not enough bytes for int64")
+		}
+		int64Val := toputils.BytesToInt64LittleEndian(buf[idx : idx+8])
+		idx += 8
+		e.CVal = int64Val
+		e.Dtype = SS_DT_SIGNED_NUM
+	case VALTYPE_ENC_FLOAT64[0]:
+		if len(buf) < idx+8 {
+			return 0, errors.New("CVal.FromBytes: not enough bytes for float64")
+		}
+		float64Val := toputils.BytesToFloat64LittleEndian(buf[idx : idx+8])
+		idx += 8
+		e.CVal = float64Val
+		e.Dtype = SS_DT_FLOAT
+	case VALTYPE_ENC_SMALL_STRING[0]:
+		if len(buf) < idx+2 {
+			return 0, errors.New("CVal.FromBytes: not enough bytes for string length")
+		}
+		strLen := int(toputils.BytesToUint16LittleEndian(buf[idx : idx+2]))
+		idx += 2
+		if len(buf) < idx+strLen {
+			return 0, errors.New("CVal.FromBytes: not enough bytes for string")
+		}
+		strVal := string(buf[idx : idx+strLen])
+		idx += strLen
+		e.CVal = strVal
+		e.Dtype = SS_DT_STRING
+	case VALTYPE_ENC_BACKFILL[0]:
+		e.CVal = nil
+		e.Dtype = SS_DT_BACKFILL
+	default:
+		return 0, fmt.Errorf("CVal.FromBytes: unsupported Dtype: %v", valtype)
+	}
+
+	return idx, nil
+}
+
+// TODO: remove the duplication with FromBytes
+func (e *CValueEnclosure) FromReader(reader io.Reader) (int, error) {
+	var encoding byte
+	err := binary.Read(reader, binary.LittleEndian, &encoding)
+	if err != nil {
+		return 0, fmt.Errorf("CVal.FromReader: failed reading DType: %v", err)
+	}
+
+	idx := 1
+	switch encoding {
+	case VALTYPE_ENC_BOOL[0]:
+		var boolVal byte
+		err = binary.Read(reader, binary.LittleEndian, &boolVal)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading bool value: %v", err)
+		}
+
+		e.CVal = (boolVal == 1)
+		e.Dtype = SS_DT_BOOL
+		idx += 1
+	case VALTYPE_ENC_UINT64[0]:
+		var uint64Val uint64
+		err = binary.Read(reader, binary.LittleEndian, &uint64Val)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading uint64 value: %v", err)
+		}
+
+		e.CVal = uint64Val
+		e.Dtype = SS_DT_UNSIGNED_NUM
+		idx += 8
+	case VALTYPE_ENC_INT64[0]:
+		var int64Val int64
+		err = binary.Read(reader, binary.LittleEndian, &int64Val)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading int64 value: %v", err)
+		}
+
+		e.CVal = int64Val
+		e.Dtype = SS_DT_SIGNED_NUM
+		idx += 8
+	case VALTYPE_ENC_FLOAT64[0]:
+		var float64Val float64
+		err = binary.Read(reader, binary.LittleEndian, &float64Val)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading float64 value: %v", err)
+		}
+
+		e.CVal = float64Val
+		e.Dtype = SS_DT_FLOAT
+		idx += 8
+	case VALTYPE_ENC_SMALL_STRING[0]:
+		// Read len of value
+		var valueLen uint16
+		err = binary.Read(reader, binary.LittleEndian, &valueLen)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading len of value: %v", err)
+		}
+
+		valueBytes := make([]byte, valueLen)
+		_, err = reader.Read(valueBytes)
+		if err != nil {
+			return 0, fmt.Errorf("CVal.FromReader: failed reading value: %v", err)
+		}
+
+		e.CVal = string(valueBytes)
+		e.Dtype = SS_DT_STRING
+		idx += 2 + int(valueLen)
+	case VALTYPE_ENC_BACKFILL[0]:
+		e.Dtype = SS_DT_BACKFILL
+		e.CVal = nil
+	default:
+		return idx, fmt.Errorf("CVal.FromReader: invalid DType: %v", encoding)
+	}
+
+	return idx, nil
 }
 
 func (e *CValueEnclosure) IsNull() bool {

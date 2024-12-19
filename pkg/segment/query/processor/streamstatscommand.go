@@ -333,6 +333,9 @@ func validateCurrResultDType(measureAgg utils.AggregateFunctions, currResult uti
 		if currResult.Dtype != utils.SS_DT_FLOAT {
 			return fmt.Errorf("validateCurrResultDType: Error: currResult value is not a float for measureAgg: %v", measureAgg)
 		}
+	default:
+		// TODO: should this be an error?
+		return nil
 	}
 
 	return nil

@@ -28,6 +28,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
@@ -94,8 +95,8 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 		timeMetadata:            blockMetadata,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
-		blockReadBuffer:         *fileReadBufferPool.Get().(*[]byte),
-		blockUncompressedBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
+		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
+		blockUncompressedBuffer: *segreader.UncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
 		allInUseFiles:           allInUseFiles,
 	}, nil
@@ -110,8 +111,8 @@ func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, blockMetadata map[uint
 		timeMetadata:            blockMetadata,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
-		blockReadBuffer:         *fileReadBufferPool.Get().(*[]byte),
-		blockUncompressedBuffer: *uncompressedReadBufferPool.Get().(*[]byte),
+		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
+		blockUncompressedBuffer: *segreader.UncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
 	}, nil
 }
@@ -233,8 +234,8 @@ func (trr *TimeRangeReader) Close() error {
 }
 
 func (trr *TimeRangeReader) returnBuffers() {
-	uncompressedReadBufferPool.Put(&trr.blockUncompressedBuffer)
-	fileReadBufferPool.Put(&trr.blockReadBuffer)
+	segreader.UncompressedReadBufferPool.Put(&trr.blockUncompressedBuffer)
+	segreader.FileReadBufferPool.Put(&trr.blockReadBuffer)
 	rawTimestampsBufferPool.Put(&trr.blockTimestamps)
 }
 
@@ -398,9 +399,9 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 				break
 			}
 		}
-		buffer := *uncompressedReadBufferPool.Get().(*[]byte)
+		buffer := *segreader.UncompressedReadBufferPool.Get().(*[]byte)
 		rawChunk, err := readChunkFromFile(fd, buffer, blkLen, firstBlkOff)
-		defer uncompressedReadBufferPool.Put(&rawChunk)
+		defer segreader.UncompressedReadBufferPool.Put(&rawChunk)
 		if err != nil {
 			log.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
 			continue
@@ -421,7 +422,12 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 }
 
 func ReturnTimeBuffers(og map[uint16][]uint64) {
-	for _, v := range og {
-		rawTimestampsBufferPool.Put(&v)
+	for k := range og {
+		// Due to a bug in Go 1.19, scope of the loop variable is per loop not per iteration
+		// and thus inserting the same value multiple times in the pool which can cause the same pointer
+		// to a slice being returned multiple times.
+		// Refer https://go.dev/blog/loopvar-preview and https://github.com/golang/go/discussions/56010 for more details.
+		timeBuffer := og[k]
+		rawTimestampsBufferPool.Put(&timeBuffer)
 	}
 }

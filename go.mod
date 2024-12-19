@@ -1,6 +1,6 @@
 module github.com/siglens/siglens
 
-go 1.19
+go 1.21
 
 require (
 	github.com/FastFilter/xorfilter v0.1.4

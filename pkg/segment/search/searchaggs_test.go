@@ -30,7 +30,7 @@ import (
 )
 
 func getMockRecsAndFinalCols(numRecs uint64) (map[string]map[string]interface{}, map[string]bool) {
-	rand.Seed(time.Now().UnixNano()) // Ensure random behavior is not repetitive.
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // Ensure random behavior is not repetitive.
 
 	recs := make(map[string]map[string]interface{}, numRecs)
 	finalCols := make(map[string]bool)
@@ -39,8 +39,8 @@ func getMockRecsAndFinalCols(numRecs uint64) (map[string]map[string]interface{},
 	for i := uint64(1); i <= numRecs; i++ {
 		recID := fmt.Sprintf("rec%d", i)
 		recData := map[string]interface{}{
-			"measure1": rand.Float64() * 100,     // Random float value
-			"measure2": rand.Intn(100),           // Random integer value
+			"measure1": rng.Float64() * 100,      // Random float value
+			"measure2": rng.Intn(100),            // Random integer value
 			"measure3": fmt.Sprintf("info%d", i), // Incremental info string
 		}
 		recs[recID] = recData

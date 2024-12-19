@@ -591,6 +591,8 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 		bi.uniqueWordCount = 0
 		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
+	default:
+		log.Errorf("initMicroIndices: unknown valType: %v", valType)
 	}
 }
 
@@ -1049,11 +1051,6 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 		fnamecsg := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
 		csgSize, _ := ssutils.GetFileSizeFromDisk(fnamecsg)
 		allColsSizes[cname] = &ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
-	}
-
-	err := utils.WriteValidityFile(segBaseDir)
-	if err != nil {
-		panic(fmt.Sprintf("WriteMockColSegFile: failed to write segment validity file; err=%v", err))
 	}
 
 	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBlockOffsets, allColsSizes
@@ -1631,6 +1628,8 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		inIntgrVal = int64(uintVal)
 	case SS_INT8, SS_INT16, SS_INT32, SS_INT64:
 		inIntgrVal = intVal
+	case SS_FLOAT64:
+		// Do nothing. We'll handle this later.
 	}
 
 	// we just use the Min stats for stored val comparison but apply the same

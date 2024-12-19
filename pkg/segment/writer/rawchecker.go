@@ -317,8 +317,9 @@ func fopOnString(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator,
 			return !regexp.Match(rec[sOff:]), nil
 		}
 		return !utils.PerformBytesEqualityCheck(isCaseInsensitive, rec[sOff:], qValDte.StringValBytes), nil
+	default:
+		return false, toputils.TeeErrorf("fopOnString: invalid operator: %v", fop)
 	}
-	return false, nil
 }
 
 func fopOnBool(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator) (bool, error) {
@@ -328,8 +329,9 @@ func fopOnBool(rec []byte, qValDte *DtypeEnclosure, fop FilterOperator) (bool, e
 		return rec[1] == qValDte.BoolVal, nil
 	case NotEquals:
 		return rec[1] != qValDte.BoolVal, nil
+	default:
+		return false, toputils.TeeErrorf("fopOnBool: invalid operator: %v", fop)
 	}
-	return false, nil
 }
 
 func getNumberRecDte(rec []byte, recDte *DtypeEnclosure) (bool, error) {
@@ -427,6 +429,8 @@ func compareNumberDte(recDte *DtypeEnclosure, qValDte *DtypeEnclosure, op Filter
 			return recDte.FloatVal > qValDte.FloatVal, nil
 		case GreaterThanOrEqualTo:
 			return recDte.FloatVal >= qValDte.FloatVal, nil
+		default:
+			return false, fmt.Errorf("compareNumberDte: unknown float op=%v", op)
 		}
 	case SS_DT_UNSIGNED_NUM:
 		switch op {
@@ -443,6 +447,8 @@ func compareNumberDte(recDte *DtypeEnclosure, qValDte *DtypeEnclosure, op Filter
 			return recDte.UnsignedVal > qValDte.UnsignedVal, nil
 		case GreaterThanOrEqualTo:
 			return recDte.UnsignedVal >= qValDte.UnsignedVal, nil
+		default:
+			return false, fmt.Errorf("compareNumberDte: unknown unsigned op=%v", op)
 		}
 	case SS_DT_SIGNED_NUM:
 		switch op {
@@ -458,8 +464,11 @@ func compareNumberDte(recDte *DtypeEnclosure, qValDte *DtypeEnclosure, op Filter
 			return recDte.SignedVal > qValDte.SignedVal, nil
 		case GreaterThanOrEqualTo:
 			return recDte.SignedVal >= qValDte.SignedVal, nil
+		default:
+			return false, fmt.Errorf("compareNumberDte: unknown signed op=%v", op)
 		}
+	default:
+		log.Errorf("compareNumberDte: unknown op=%v or recDte=%v, qValDte=%v", op, recDte, qValDte)
+		return false, errors.New("unknown op or dtype")
 	}
-	log.Errorf("CompareNumbers: unknown op=%v or recDte=%v, qValDte=%v", op, recDte, qValDte)
-	return false, errors.New("unknown op or dtype")
 }

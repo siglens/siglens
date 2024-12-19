@@ -36,6 +36,7 @@ type statisticExprProcessor struct {
 	qid                     uint64
 	finalAggregationResults map[string]*structs.AggregationResult
 	hasFinalResult          bool
+	setAsIqrStatsResults    bool
 }
 
 func NewStatisticExprProcessor(options *structs.QueryAggregators) *statisticExprProcessor {
@@ -49,15 +50,20 @@ func NewStatisticExprProcessor(options *structs.QueryAggregators) *statisticExpr
 	return processor
 }
 
+func (p *statisticExprProcessor) SetAsIqrStatsResults() {
+	p.statsProcessor.SetAsIqrStatsResults()
+	p.setAsIqrStatsResults = true
+}
+
 func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	if p.options == nil {
 		return nil, toputils.TeeErrorf("statisticExprProcessor.Process: options is nil")
 	}
 
 	// if the queryType is GroupByCMD, the AggregationResult is already set by the searcher
-	if p.options.AggregationResult != nil && inputIQR != nil {
+	if inputIQR != nil && inputIQR.GetStatsAggregationResult() != nil {
 		p.qid = inputIQR.GetQID()
-		return p.processAggregationResult(p.options.AggregationResult)
+		return p.processAggregationResult(inputIQR.GetStatsAggregationResult())
 	}
 
 	if inputIQR != nil {
@@ -69,6 +75,16 @@ func (p *statisticExprProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	if p.statsProcessor.searchResults == nil {
 		return nil, io.EOF
+	}
+
+	if p.setAsIqrStatsResults {
+		p.statsProcessor.searchResults.GetAggs().StatisticExpr = p.options
+		iqr, err := p.statsProcessor.extractFinalStatsResults()
+		if err != nil && err != io.EOF {
+			return nil, fmt.Errorf("statisticExprProcessor.Process: Error extracting stats as IqrStatsResults: %v", err)
+		}
+
+		return iqr, err
 	}
 
 	aggResults := p.statsProcessor.searchResults.GetBucketResults()

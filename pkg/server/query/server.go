@@ -262,10 +262,13 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.DELETE(server_utils.API_PREFIX+"/lookup-files/{lookupFilename}", hs.Recovery(deleteLookupFileHandler()))
 
 	hs.Router.GET(server_utils.API_PREFIX+"/system-info", tracing.TraceMiddleware(hs.Recovery(getSystemInfoHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/inode-stats", tracing.TraceMiddleware(hs.Recovery(getInodesStatsHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/query-stats", hs.Recovery(getQueryStatsHandler()))
 
 	hs.Router.POST(server_utils.API_PREFIX+"/update-query-timeout", hs.Recovery(UpdateQueryTimeoutHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/get-query-timeout", hs.Recovery(GetQueryTimeoutHandler()))
+
+	hs.Router.POST(server_utils.API_PREFIX+"/sort-columns", hs.Recovery(setSortColumnsHandler()))
 
 	if config.IsPProfEnabled() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)

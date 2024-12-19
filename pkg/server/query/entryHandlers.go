@@ -40,6 +40,7 @@ import (
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/sortindex"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	writer "github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -684,6 +685,12 @@ func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func getInodesStatsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		systemconfig.GetInodeStats(ctx)
+	}
+}
+
 func uploadLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		lookups.UploadLookupFile(ctx)
@@ -723,5 +730,11 @@ func GetQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
 func UpdateQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		cfghandler.UpdateQueryTimeout(ctx)
+	}
+}
+
+func setSortColumnsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		sortindex.SetSortColumnsAPI(ctx)
 	}
 }

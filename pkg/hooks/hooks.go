@@ -65,6 +65,9 @@ type Hooks struct {
 	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
 	AddMultiNodeIndexHook       func(orgId uint64) []string
 
+	AcquireOwnedSegmentRLockHook func()
+	ReleaseOwnedSegmentRLockHook func()
+
 	// Retention
 	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
@@ -87,6 +90,7 @@ type Hooks struct {
 	DownloadSegmentBlobExtrasHook       func(filename string) (bool, error)
 	GetFileSizeExtrasHook               func(filename string) (bool, uint64)
 	DoesMetaFileExistExtrasHook         func(filename string) (bool, bool, error)
+	UploadPQMRFilesExtrasHook           func(allFiles []string) error
 
 	// Server helpers
 	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)
@@ -94,14 +98,18 @@ type Hooks struct {
 	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
 
 	// Ingest server
-	IngestMiddlewareRecoveryHook   func(ctx *fasthttp.RequestCtx) error
-	KibanaIngestHandlerHook        func(ctx *fasthttp.RequestCtx)
-	EsBulkIngestInternalHook       func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
-	GetIdsConditionHook            func() (bool, []uint64)
-	ExtraIngestEndpointsHook       func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
-	OverrideIngestRequestHook      func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
-	OverrideDeleteIndexRequestHook func(ctx *fasthttp.RequestCtx, myid uint64, indexName string) bool
-	GetNextSuffixHook              func(uint64, func(uint64) string) (uint64, error)
+	IngestMiddlewareRecoveryHook           func(ctx *fasthttp.RequestCtx) error
+	KibanaIngestHandlerHook                func(ctx *fasthttp.RequestCtx)
+	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
+	GetIdsConditionHook                    func() (bool, []uint64)
+	ExtraIngestEndpointsHook               func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
+	OverrideIngestRequestHook              func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
+	OverrideDeleteIndexRequestHook         func(ctx *fasthttp.RequestCtx, myid uint64, indexName string) bool
+	GetNextSuffixHook                      func(uint64, func(uint64) string) (uint64, error)
+	GetOwnedSegmentsHook                   func() map[string]struct{}
+	AddUsageForRotatedSegmentsHook         func(qid uint64, rotatedSegments map[string]struct{})
+	RemoveUsageForRotatedSegmentsHook      func(qid uint64)
+	RemoveUsageForRotatedSegmentForQidHook func(qid uint64, segKey string)
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
@@ -113,7 +121,7 @@ type Hooks struct {
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}, distQueryId string, segKeyEnc uint32) interface{}
 	FilterQsrsHook                  func(qsrs interface{}, isRotated bool) (interface{}, error)
-	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) interface{}
+	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
 
 	// Handling ingestion
 	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid uint64) (bool, uint64)

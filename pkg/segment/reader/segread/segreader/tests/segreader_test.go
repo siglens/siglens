@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package segread
+package tests
 
 import (
 	"fmt"
@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -33,106 +33,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-func Test_segReader(t *testing.T) {
-
-	dataDir := t.TempDir()
-	config.InitializeTestingConfig(dataDir)
-	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
-	assert.Nil(t, err)
-
-	numBlocks := 10
-	numEntriesInBlock := 10
-	_, bsm, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
-
-	assert.Greater(t, len(cols), 1)
-	var queryCol string
-
-	colsToReadIndices := make(map[int]struct{})
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9, &structs.NodeResult{})
-	assert.Nil(t, foundErr)
-	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
-	assert.Equal(t, 3, sharedReader.numReaders)
-	multiReader := sharedReader.MultiColReaders[0]
-
-	for colName := range cols {
-		if colName == config.GetTimeStampKey() {
-			continue
-		}
-
-		cKeyidx, exists := multiReader.GetColKeyIndex(colName)
-		assert.True(t, exists)
-		colsToReadIndices[cKeyidx] = struct{}{}
-	}
-
-	// invalid block
-	err = multiReader.ValidateAndReadBlock(colsToReadIndices, uint16(numBlocks))
-	assert.NotNil(t, err)
-
-	err = multiReader.ValidateAndReadBlock(colsToReadIndices, 0)
-	assert.Nil(t, err)
-
-	// test across multiple columns types
-	for queryCol = range cols {
-		if queryCol == config.GetTimeStampKey() {
-			continue // ingore ts
-		}
-
-		colKeyIndex, exists := multiReader.GetColKeyIndex(queryCol)
-		assert.True(t, exists)
-		sfr := multiReader.allFileReaders[colKeyIndex]
-
-		// correct block, incorrect recordNum
-		_, err = sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock))
-		assert.NotNil(t, err, "col %s should not have %+v entries", queryCol, numEntriesInBlock+1)
-
-		// correct block, correct recordNum
-		arr, err := sfr.ReadRecordFromBlock(0, uint16(numEntriesInBlock-3))
-		assert.Nil(t, err)
-		assert.NotNil(t, arr)
-
-		var cVal segutils.CValueEnclosure
-		_, err = writer.GetCvalFromRec(arr, 23, &cVal)
-		assert.Nil(t, err)
-		assert.NotNil(t, cVal)
-		log.Infof("GetCvalFromRec: %+v for column %s", cVal, queryCol)
-
-		err = sfr.Close()
-		assert.Nil(t, err)
-	}
-
-	os.RemoveAll(dataDir)
-}
-
-func Test_timeReader(t *testing.T) {
-
-	dataDir := t.TempDir()
-	config.InitializeTestingConfig(dataDir)
-	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
-	assert.Nil(t, err)
-
-	numBlocks := 10
-	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
-
-	assert.Greater(t, len(cols), 1)
-	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
-	assert.Nil(t, err)
-
-	// test across multiple columns types
-	for blockNum := 0; blockNum < numBlocks; blockNum++ {
-		currRecs, err := timeReader.GetAllTimeStampsForBlock(uint16(blockNum))
-		assert.Nil(t, err)
-		assert.Len(t, currRecs, numEntriesInBlock)
-
-		startTs := uint64(1)
-		for _, readTs := range currRecs {
-			assert.Equal(t, startTs, readTs)
-			startTs++
-		}
-	}
-	os.RemoveAll(dataDir)
-}
 
 func Benchmark_readColumnarFile(b *testing.B) {
 	segKey := "/Users/ssubramanian/Desktop/SigLens/siglens/data/Sris-MacBook-Pro.local/final/2022/02/21/01/valtix2/10005995996882630313/0"
@@ -152,7 +52,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
+	fileReader, err := segreader.InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
 	assert.Nil(b, err)
 
 	b.ResetTimer()
@@ -162,7 +62,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	numRead := 0
 	for blkNum := range allBlockInfo {
 		for i := uint16(0); i < numRecsPerBlock[blkNum]; i++ {
-			rawRec, err := fileReader.ReadRecordFromBlock(blkNum, i)
+			rawRec, err := fileReader.ReadRecord(i)
 			numRead++
 			assert.Nil(b, err)
 			assert.NotNil(b, rawRec)
@@ -194,13 +94,8 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	allBlockSummaries := make([]*structs.BlockSummary, 1)
 	allBlockSummaries[0] = &structs.BlockSummary{RecCount: recCounts}
 
-	sfr := &SegmentFileReader{
-		blockSummaries: allBlockSummaries,
-		deTlv:          make([][]byte, 0),
-		deRecToTlv:     make([]uint16, 0),
-		currBlockNum:   0,
-		ColName:        cname,
-	}
+	sfr, err := segreader.InitNewSegFileReader(nil, cname, nil, 0, allBlockSummaries, segutils.INCONSISTENT_CVAL_SIZE)
+	assert.NoError(t, err)
 
 	recNum := uint16(0)
 	tempWipCbuf := make([]byte, 2_000_000)
@@ -232,7 +127,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	writer.PackDictEnc(colWip)
 	buf, idx := colWip.GetBufAndIdx()
 
-	err := sfr.readDictEnc(buf[0:idx], 0)
+	err = sfr.ReadDictEnc(buf[0:idx], 0)
 	assert.Nil(t, err)
 
 	orderedRecNums := make([]uint16, recCounts)
@@ -241,7 +136,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	}
 
 	results := make(map[uint16]map[string]interface{})
-	_ = sfr.deToResultOldPipeline(results, orderedRecNums)
+	_ = sfr.DeToResultOldPipeline(results, orderedRecNums)
 
 	for rn, val := range results {
 		dWord := val[cname]
@@ -278,19 +173,19 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 
 	block0RecordCount := uint16(8)
 	block1RecordCount := uint16(5)
-	segFileReader := &SegmentFileReader{
-		blockSummaries: []*structs.BlockSummary{{RecCount: block0RecordCount}, {RecCount: block1RecordCount}},
-	}
+	blockSummaries := []*structs.BlockSummary{{RecCount: block0RecordCount}, {RecCount: block1RecordCount}}
+	segFileReader, err := segreader.InitNewSegFileReader(nil, "", nil, 0, blockSummaries, 0)
+	assert.NoError(t, err)
 
 	block0Strings := []string{"apple", "banana", "cherry"}
-	err := segFileReader.readDictEnc(encodeDict(block0Strings, [][]uint16{[]uint16{0, 1, 2, 3}, []uint16{4, 5}, []uint16{6, 7}}), 0)
+	err = segFileReader.ReadDictEnc(encodeDict(block0Strings, [][]uint16{[]uint16{0, 1, 2, 3}, []uint16{4, 5}, []uint16{6, 7}}), 0)
 	assert.NoError(t, err)
-	assert.Equal(t, len(block0Strings), len(segFileReader.deTlv))
-	assert.Equal(t, uint16(len(segFileReader.deRecToTlv)), block0RecordCount)
+	assert.Equal(t, len(block0Strings), len(segFileReader.GetDeTlv()))
+	assert.Equal(t, uint16(len(segFileReader.GetDeRecToTlv())), block0RecordCount)
 
 	block1Strings := []string{"alphabet", "zebra"}
-	err = segFileReader.readDictEnc(encodeDict(block1Strings, [][]uint16{[]uint16{0, 3, 4}, []uint16{1, 2}}), 1)
+	err = segFileReader.ReadDictEnc(encodeDict(block1Strings, [][]uint16{[]uint16{0, 3, 4}, []uint16{1, 2}}), 1)
 	assert.NoError(t, err)
-	assert.Equal(t, len(block1Strings), len(segFileReader.deTlv))
-	assert.Equal(t, uint16(len(segFileReader.deRecToTlv)), block1RecordCount)
+	assert.Equal(t, len(block1Strings), len(segFileReader.GetDeTlv()))
+	assert.Equal(t, uint16(len(segFileReader.GetDeRecToTlv())), block1RecordCount)
 }

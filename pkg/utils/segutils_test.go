@@ -202,6 +202,29 @@ func Test_IsSubWordPresent(t *testing.T) {
 	}
 }
 
+func Test_GetSegBaseDirFromFilename(t *testing.T) {
+	expectedDir := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/"
+
+	segKey := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/3/abc.txt"
+	dir, err := GetSegBaseDirFromFilename(segKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDir, dir)
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/3"
+	dir, err = GetSegBaseDirFromFilename(segKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDir, dir)
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/"
+	dir, err = GetSegBaseDirFromFilename(segKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDir, dir)
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3"
+	_, err = GetSegBaseDirFromFilename(segKey)
+	assert.Error(t, err)
+}
+
 func Test_SegmentValidityFile_SimpleBase(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll("data") })
 
