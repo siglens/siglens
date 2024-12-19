@@ -493,6 +493,34 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		return nil, err
 	}
 
+	segInfo.checkpoint = checkpoint
+
+	if len(lines) == 0 {
+		// TODO: raw search this segment if we got no results because it has
+		// the cname but no sort index.
+		return nil, io.EOF
+	}
+
+	var iqr *iqr.IQR
+	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
+		queryRange := s.queryInfo.GetTimeRange()
+		segmentRange := qsr.GetTimeRange()
+
+		if queryRange.Encloses(segmentRange) {
+			var err error
+			iqr, err = s.handleSortIndexMatchAll(qsr, lines)
+			if err != nil {
+				return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to handle match all: err=%v", err)
+			}
+		}
+	} else {
+		var err error
+		iqr, err = s.handleSortIndexWithFilter(qsr, lines, pqmr)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	processedBlockMap := make(map[uint16]uint64)
 
 	for _, line := range lines {
@@ -512,33 +540,11 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		}
 	}
 
-	segInfo.checkpoint = checkpoint
-
-	if len(lines) == 0 {
-		// TODO: raw search this segment if we got no results because it has
-		// the cname but no sort index.
-		return nil, io.EOF
+	if sortindex.IsEOF(checkpoint) {
+		return iqr, io.EOF
 	}
 
-	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
-		queryRange := s.queryInfo.GetTimeRange()
-		segmentRange := qsr.GetTimeRange()
-
-		if queryRange.Encloses(segmentRange) {
-			iqr, err := s.handleSortIndexMatchAll(qsr, lines)
-			if err != nil {
-				return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to handle match all: err=%v", err)
-			}
-
-			if sortindex.IsEOF(checkpoint) {
-				return iqr, io.EOF
-			}
-
-			return iqr, nil
-		}
-	}
-
-	return s.handleSortIndexWithFilter(qsr, lines, pqmr)
+	return iqr, nil
 }
 
 func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
