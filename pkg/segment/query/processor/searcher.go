@@ -191,12 +191,12 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	}
 	subsearchers[0].qsrs = sortIndexQSRs
 	subsearchers[0].initUnprocessedQSRs()
-	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(sortIndexQSRs))), searcher.qid)
 	subsearchers[1].qsrs = otherQSRs
 	subsearchers[1].initUnprocessedQSRs()
 	subsearchers[1].sortIndexState.forceNormalSearch = true
 	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
-	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(otherQSRs))), searcher.qid)
+
+	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), searcher.qid)
 
 	merger := NewSortDP(searcher.sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
 	for _, searcher := range subsearchers {
@@ -277,6 +277,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
 			}
 			s.initUnprocessedQSRs()
+			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
@@ -519,31 +520,25 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		}
 	}()
 
-	var iqr *iqr.IQR
 	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
 		queryRange := s.queryInfo.GetTimeRange()
 		segmentRange := qsr.GetTimeRange()
 
 		if queryRange.Encloses(segmentRange) {
-			var err error
-			iqr, err = s.handleSortIndexMatchAll(qsr, lines)
+			iqr, err := s.handleSortIndexMatchAll(qsr, lines)
 			if err != nil {
 				return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to handle match all: err=%v", err)
 			}
-		}
-	} else {
-		var err error
-		iqr, err = s.handleSortIndexWithFilter(qsr, lines, pqmr, blockToRecNums)
-		if err != nil {
-			return nil, err
+
+			if sortindex.IsEOF(checkpoint) {
+				return iqr, io.EOF
+			}
+
+			return iqr, nil
 		}
 	}
 
-	if sortindex.IsEOF(checkpoint) {
-		return iqr, io.EOF
-	}
-
-	return iqr, nil
+	return s.handleSortIndexWithFilter(qsr, lines, pqmr, blockToRecNums)
 }
 
 func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
@@ -568,7 +563,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 }
 
 // TODO: read PQS if enabled.
-func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults, blockToRecNums map[uint16][]uint16) (*iqr.IQR, error) {
+func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults, blockToValidRecNums map[uint16][]uint16) (*iqr.IQR, error) {
 
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
@@ -599,7 +594,7 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 			return nil, err
 		}
 		canUsePQMR = true
-		for blkNum := range blockToRecNums {
+		for blkNum := range blockToValidRecNums {
 			if _, ok := blockToMetadata[blkNum]; !ok {
 				canUsePQMR = false
 				break
@@ -608,12 +603,12 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	}
 
 	if canUsePQMR {
-		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, blockToMetadata, blockSummaries, sizeLimit, aggs, blockToRecNums)
+		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, blockToMetadata, blockSummaries, sizeLimit, aggs, blockToValidRecNums)
 		if err != nil {
 			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply PQS, err: %v", err)
 		}
 	} else {
-		err = s.applyRawSearchForSortedIndex(qsr, searchResults, sizeLimit, aggs, blockToRecNums)
+		err = s.applyRawSearchForSortedIndex(qsr, searchResults, sizeLimit, aggs, blockToValidRecNums)
 		if err != nil {
 			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply raw search, err: %v", err)
 		}
