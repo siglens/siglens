@@ -67,6 +67,23 @@ var configFilePath string
 
 var parallelism int64
 
+var maxMemoryFilePaths = []string{
+	"/sys/fs/cgroup/memory.max",   // cgroup v2
+	"/sys/fs/cgroup/memory.limit", // cgroup v1
+}
+
+var usageMemoryFilePaths = []string{
+	"/sys/fs/cgroup/memory.current", // cgroup v2
+	"/sys/fs/cgroup/memory.usage",   // cgroup v1
+}
+
+type memoryValueType uint8
+
+const (
+	memoryValueMax memoryValueType = iota + 1
+	memoryValueUsage
+)
+
 var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
 var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
 
@@ -85,6 +102,43 @@ func init() {
 	}
 }
 
+func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
+	var memoryFilePaths []string
+
+	switch memoryValueType {
+	case memoryValueMax:
+		memoryFilePaths = maxMemoryFilePaths
+	case memoryValueUsage:
+		memoryFilePaths = usageMemoryFilePaths
+	default:
+		return 0, fmt.Errorf("getContainerMemory: Invalid memoryValueType: %v", memoryValueType)
+	}
+
+	var memory uint64
+
+	for _, path := range memoryFilePaths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return 0, err
+			}
+			continue
+		}
+
+		memory, err = strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("getContainerMemory: Error while converting memory limit: %v to uint64", string(data))
+		}
+		break
+	}
+
+	if memory == 0 {
+		return 0, fmt.Errorf("getContainerMemory: Memory limit not found")
+	}
+
+	return memory, nil
+}
+
 func GetTotalMemoryAvailable() uint64 {
 	var gogc uint64
 	v := os.Getenv("GOGC")
@@ -98,13 +152,52 @@ func GetTotalMemoryAvailable() uint64 {
 	} else {
 		gogc = 100
 	}
-	hostMemory := memory.TotalMemory() * runningConfig.MemoryConfig.MaxUsagePercent / 100
-	allowedMemory := hostMemory / (1 + gogc/100)
+
+	var totalMemoryOnHost uint64
+
+	// try to get the memory from the cgroup
+	totalMemoryOnHost, err := getContainerMemory(memoryValueMax)
+	if err != nil {
+		log.Debugf("GetTotalMemoryAvailable: Error while getting memory from cgroup: %v", err)
+		// if we can't get the memory from the cgroup, get it from the OS
+		totalMemoryOnHost = memory.TotalMemory()
+	}
+
+	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
+	allowedMemory := configuredMemory / (1 + gogc/100)
 	log.Infof("GetTotalMemoryAvailable: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
 		runningConfig.MemoryConfig.MaxUsagePercent,
-		segutils.ConvertUintBytesToMB(memory.TotalMemory()),
+		segutils.ConvertUintBytesToMB(totalMemoryOnHost),
 		segutils.ConvertUintBytesToMB(allowedMemory))
 	return allowedMemory
+}
+
+func GetTotalHostMemoryAvailable() uint64 {
+	var totalMemoryOnHost uint64
+
+	// try to get the memory from the cgroup
+	totalMemoryOnHost, err := getContainerMemory(memoryValueMax)
+	if err != nil {
+		log.Debugf("GetTotalHostMemoryAvailable: Error while getting memory from cgroup: %v", err)
+		// if we can't get the memory from the cgroup, get it from the OS
+		totalMemoryOnHost = memory.TotalMemory()
+	}
+
+	return totalMemoryOnHost
+}
+
+func GetTotalHostMemoryInUse() uint64 {
+	var memoryInUse uint64
+
+	// try to get the memory from the cgroup
+	memoryInUse, err := getContainerMemory(memoryValueUsage)
+	if err != nil {
+		log.Debugf("GetTotalHostMemoryInUse: Error while getting memory from cgroup: %v", err)
+		// if we can't get the memory from the cgroup, get it from the OS
+		memoryInUse = memory.TotalMemory() - memory.FreeMemory()
+	}
+
+	return memoryInUse
 }
 
 func GetMemoryConfig() common.MemoryConfig {

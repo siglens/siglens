@@ -63,6 +63,31 @@ type InodeStats struct {
 	FreeInodes  uint64 `json:"freeInodes"`
 }
 
+func getMemoryInfo() (*MemoryInfo, error) {
+	memoryInUse := config.GetTotalHostMemoryInUse()
+	if memoryInUse == 0 {
+		memInfo, err := mem.VirtualMemory()
+		if err != nil {
+			return nil, err
+		}
+
+		return &MemoryInfo{
+			Total:       memInfo.Total,
+			Free:        memInfo.Free,
+			UsedPercent: memInfo.UsedPercent,
+		}, nil
+	}
+
+	totalMemory := config.GetTotalHostMemoryAvailable()
+	freeMemory := totalMemory - memoryInUse
+
+	return &MemoryInfo{
+		Total:       totalMemory,
+		Free:        freeMemory,
+		UsedPercent: float64(memoryInUse) / float64(totalMemory) * 100,
+	}, nil
+}
+
 func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 	cpuInfo, err := cpu.Info()
 	if err != nil {
@@ -76,7 +101,7 @@ func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 		totalCores += int(info.Cores)
 	}
 
-	memInfo, err := mem.VirtualMemory()
+	memInfo, err := getMemoryInfo()
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		log.Errorf("GetSystemInfo: Failed to retrieve memory info: %v", err)
