@@ -153,15 +153,7 @@ func GetTotalMemoryAvailable() uint64 {
 		gogc = 100
 	}
 
-	var totalMemoryOnHost uint64
-
-	// try to get the memory from the cgroup
-	totalMemoryOnHost, err := getContainerMemory(memoryValueMax)
-	if err != nil {
-		log.Debugf("GetTotalMemoryAvailable: Error while getting memory from cgroup: %v", err)
-		// if we can't get the memory from the cgroup, get it from the OS
-		totalMemoryOnHost = memory.TotalMemory()
-	}
+	totalMemoryOnHost := GetMemoryMax()
 
 	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
 	allowedMemory := configuredMemory / (1 + gogc/100)
@@ -172,18 +164,18 @@ func GetTotalMemoryAvailable() uint64 {
 	return allowedMemory
 }
 
-func GetTotalHostMemoryAvailable() uint64 {
-	var totalMemoryOnHost uint64
+func GetMemoryMax() uint64 {
+	var memoryMax uint64
 
 	// try to get the memory from the cgroup
-	totalMemoryOnHost, err := getContainerMemory(memoryValueMax)
+	memoryMax, err := getContainerMemory(memoryValueMax)
 	if err != nil {
-		log.Debugf("GetTotalHostMemoryAvailable: Error while getting memory from cgroup: %v", err)
+		log.Debugf("GetMemoryMax: Error while getting memory from cgroup: %v", err)
 		// if we can't get the memory from the cgroup, get it from the OS
-		totalMemoryOnHost = memory.TotalMemory()
+		memoryMax = memory.TotalMemory()
 	}
 
-	return totalMemoryOnHost
+	return memoryMax
 }
 
 func GetContainerMemoryUsage() (uint64, error) {

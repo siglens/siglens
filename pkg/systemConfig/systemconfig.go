@@ -78,7 +78,7 @@ func getMemoryInfo() (*MemoryInfo, error) {
 		}, nil
 	}
 
-	totalMemory := config.GetTotalHostMemoryAvailable()
+	totalMemory := config.GetMemoryMax()
 	freeMemory := totalMemory - memoryInUse
 
 	return &MemoryInfo{
