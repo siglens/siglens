@@ -191,10 +191,12 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	}
 	subsearchers[0].qsrs = sortIndexQSRs
 	subsearchers[0].initUnprocessedQSRs()
+	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(sortIndexQSRs))), searcher.qid)
 	subsearchers[1].qsrs = otherQSRs
 	subsearchers[1].initUnprocessedQSRs()
 	subsearchers[1].sortIndexState.forceNormalSearch = true
 	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
+	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(otherQSRs))), searcher.qid)
 
 	merger := NewSortDP(searcher.sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
 	for _, searcher := range subsearchers {
@@ -275,7 +277,6 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 				return nil, toputils.TeeErrorf("qid=%v, searcher.Fetch: failed to get and set QSRs: %v", s.qid, err)
 			}
 			s.initUnprocessedQSRs()
-			query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(s.qsrs))), s.qid)
 		}
 		if !s.gotBlocks {
 			blocks, err := s.getBlocks()
@@ -338,10 +339,6 @@ func (s *Searcher) fetchColumnSortedRRCs() (*iqr.IQR, error) {
 		if s.sortExpr == nil {
 			return nil, toputils.TeeErrorf("qid=%v, searcher.fetchColumnSortedRRCs: sortExpr is nil", s.qid)
 		}
-
-		segKeys := getAllSegKeysInQSRS(qsrs)
-		totalBlocks := metadata.GetTotalBlocksInSegments(segKeys)
-		query.InitProgressForRRCCmd(totalBlocks, s.qid)
 
 		// This is chosen somewhat arbitrarily. We may want to tune this.
 		s.numRecordsPerBatch = max(100, int(s.sortExpr.Limit)/len(qsrs))
