@@ -186,18 +186,17 @@ func GetTotalHostMemoryAvailable() uint64 {
 	return totalMemoryOnHost
 }
 
-func GetTotalHostMemoryInUse() uint64 {
+func GetContainerMemoryUsage() (uint64, error) {
 	var memoryInUse uint64
 
 	// try to get the memory from the cgroup
 	memoryInUse, err := getContainerMemory(memoryValueUsage)
 	if err != nil {
-		log.Debugf("GetTotalHostMemoryInUse: Error while getting memory from cgroup: %v", err)
-		// if we can't get the memory from the cgroup, get it from the OS
-		memoryInUse = memory.TotalMemory() - memory.FreeMemory()
+		log.Debugf("GetContainerMemoryUsage: Error while getting memory from cgroup: %v", err)
+		return 0, err
 	}
 
-	return memoryInUse
+	return memoryInUse, nil
 }
 
 func GetMemoryConfig() common.MemoryConfig {

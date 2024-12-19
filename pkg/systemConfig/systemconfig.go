@@ -64,8 +64,8 @@ type InodeStats struct {
 }
 
 func getMemoryInfo() (*MemoryInfo, error) {
-	memoryInUse := config.GetTotalHostMemoryInUse()
-	if memoryInUse == 0 {
+	memoryInUse, err := config.GetContainerMemoryUsage()
+	if err != nil {
 		memInfo, err := mem.VirtualMemory()
 		if err != nil {
 			return nil, err
