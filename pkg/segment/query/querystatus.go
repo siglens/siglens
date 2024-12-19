@@ -1304,15 +1304,22 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
 }
 
 func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, scrollFrom uint64) *structs.PipeSearchWSUpdateResponse {
-	percCompleteBySearch := float64(0)
-	if progress.TotalUnits > 0 {
-		percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+	completion := float64(0)
+	// TODO: clean up completion percentage
+	if config.IsSortIndexEnabled() {
+		completion = (float64(progress.RecordsSearched) * 100) / float64(progress.TotalRecords)
+	} else {
+		percCompleteBySearch := float64(0)
+		if progress.TotalUnits > 0 {
+			percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+		}
+		percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
+		completion = math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent)
 	}
-	percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
 
 	return &structs.PipeSearchWSUpdateResponse{
 		State:               QUERY_UPDATE.String(),
-		Completion:          math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent),
+		Completion:          completion,
 		Qtype:               qType.String(),
 		TotalEventsSearched: humanize.Comma(int64(progress.RecordsSearched)),
 		TotalPossibleEvents: humanize.Comma(int64(progress.TotalRecords)),
