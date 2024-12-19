@@ -387,7 +387,7 @@ func GetNodeResultsFromQSRS(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Qu
 	}
 }
 
-func GetTotalRecordsToBeSearched(qsrs []*QuerySegmentRequest) uint64 {
+func getTotalRecordsToBeSearched(qsrs []*QuerySegmentRequest) uint64 {
 	var totalRecsToSearch uint64
 	for _, qsr := range qsrs {
 		if qsr.sType == structs.RAW_SEARCH || qsr.sType == structs.PQS || qsr.sType == structs.SEGMENT_STATS_SEARCH {
@@ -426,7 +426,7 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to set total segments to search! Error: %+v", queryInfo.qid, err)
 	}
-	totalRecsToBeSearched := GetTotalRecordsToBeSearched(sortedQSRSlice)
+	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
 		log.Errorf("qid=%d GetSortedQSRs: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
@@ -455,7 +455,7 @@ func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Ti
 			ErrList: []error{err},
 		}
 	}
-	totalRecsToBeSearched := GetTotalRecordsToBeSearched(sortedQSRSlice)
+	totalRecsToBeSearched := getTotalRecordsToBeSearched(sortedQSRSlice)
 	err = setTotalRecordsToBeSearched(queryInfo.qid, totalRecsToBeSearched)
 	if err != nil {
 		log.Errorf("qid=%d GetNodeResultsForSegmentStatsCmd: Failed to set total records to search! Error: %+v", queryInfo.qid, err)
