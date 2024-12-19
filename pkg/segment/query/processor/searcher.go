@@ -196,6 +196,8 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	subsearchers[1].sortIndexState.forceNormalSearch = true
 	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
 
+	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), searcher.qid)
+
 	merger := NewSortDP(searcher.sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
 	for _, searcher := range subsearchers {
 		merger.streams = append(merger.streams, NewCachedStream(searcher))
@@ -266,7 +268,6 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 	case structs.RRCCmd:
 		// Get blocks for the segment batch to process
 		if config.IsSortIndexEnabled() && s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
-			query.InitProgressForRRCCmd(0 /* TODO */, s.qid) // TODO: don't call on subsequent fetches.
 			return s.fetchColumnSortedRRCs()
 		}
 		// initialize QSRs if they don't exist
@@ -498,6 +499,27 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		return nil, io.EOF
 	}
 
+	blockToRecNums := make(map[uint16][]uint16)
+	processedRecordsInBatch := 0
+
+	for _, line := range lines {
+		for _, block := range line.Blocks {
+			if _, ok := blockToRecNums[block.BlockNum]; !ok {
+				blockToRecNums[block.BlockNum] = make([]uint16, 0)
+			}
+			blockToRecNums[block.BlockNum] = append(blockToRecNums[block.BlockNum], block.RecNums...)
+			processedRecordsInBatch += len(block.RecNums)
+		}
+	}
+
+	defer func() {
+		if processedRecordsInBatch > 0 {
+			if err := query.IncProgressForRRCCmd(uint64(processedRecordsInBatch), 1, s.qid); err != nil {
+				log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to update progress: %v", s.qid, err)
+			}
+		}
+	}()
+
 	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
 		queryRange := s.queryInfo.GetTimeRange()
 		segmentRange := qsr.GetTimeRange()
@@ -516,7 +538,7 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		}
 	}
 
-	return s.handleSortIndexWithFilter(qsr, lines, pqmr)
+	return s.handleSortIndexWithFilter(qsr, lines, pqmr, blockToRecNums)
 }
 
 func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines []sortindex.Line) (*iqr.IQR, error) {
@@ -541,7 +563,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 }
 
 // TODO: read PQS if enabled.
-func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults) (*iqr.IQR, error) {
+func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults, blockToValidRecNums map[uint16][]uint16) (*iqr.IQR, error) {
 
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
@@ -560,17 +582,6 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 		s.segEncToKey.Set(encoding, segkey)
 	}
 	searchResults.NextSegKeyEnc = encoding
-
-	blockToValidRecNums := make(map[uint16][]uint16)
-	for _, line := range lines {
-		for _, block := range line.Blocks {
-			if _, ok := blockToValidRecNums[block.BlockNum]; !ok {
-				blockToValidRecNums[block.BlockNum] = make([]uint16, 0)
-			}
-
-			blockToValidRecNums[block.BlockNum] = append(blockToValidRecNums[block.BlockNum], block.RecNums...)
-		}
-	}
 
 	canUsePQMR := false
 	var blockToMetadata map[uint16]*structs.BlockMetadataHolder
