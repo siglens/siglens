@@ -499,24 +499,21 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 	}
 
 	blockToRecNums := make(map[uint16][]uint16)
-	processedBlockMap := make(map[uint16]uint64)
+	processedRecordsInBatch := 0
+
 	for _, line := range lines {
 		for _, block := range line.Blocks {
 			if _, ok := blockToRecNums[block.BlockNum]; !ok {
 				blockToRecNums[block.BlockNum] = make([]uint16, 0)
 			}
 			blockToRecNums[block.BlockNum] = append(blockToRecNums[block.BlockNum], block.RecNums...)
-			processedBlockMap[block.BlockNum] += uint64(len(block.RecNums))
+			processedRecordsInBatch += len(block.RecNums)
 		}
 	}
 
 	defer func() {
-		if len(processedBlockMap) > 0 {
-			var totalRecords uint64
-			for _, records := range processedBlockMap {
-				totalRecords += records
-			}
-			if err := query.IncProgressForRRCCmd(totalRecords, uint64(len(processedBlockMap)), s.qid); err != nil {
+		if processedRecordsInBatch > 0 {
+			if err := query.IncProgressForRRCCmd(uint64(processedRecordsInBatch), 1, s.qid); err != nil {
 				log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to update progress: %v", s.qid, err)
 			}
 		}
