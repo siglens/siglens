@@ -501,6 +501,30 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		return nil, io.EOF
 	}
 
+	blockToRecNums := make(map[uint16][]uint16)
+	processedBlockMap := make(map[uint16]uint64)
+	for _, line := range lines {
+		for _, block := range line.Blocks {
+			if _, ok := blockToRecNums[block.BlockNum]; !ok {
+				blockToRecNums[block.BlockNum] = make([]uint16, 0)
+			}
+			blockToRecNums[block.BlockNum] = append(blockToRecNums[block.BlockNum], block.RecNums...)
+			processedBlockMap[block.BlockNum] += uint64(len(block.RecNums))
+		}
+	}
+
+	defer func() {
+		if len(processedBlockMap) > 0 {
+			var totalRecords uint64
+			for _, records := range processedBlockMap {
+				totalRecords += records
+			}
+			if err := query.IncProgressForRRCCmd(totalRecords, uint64(len(processedBlockMap)), s.qid); err != nil {
+				log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to update progress: %v", s.qid, err)
+			}
+		}
+	}()
+
 	var iqr *iqr.IQR
 	if s.queryInfo.GetSearchNodeType() == structs.MatchAllQuery {
 		queryRange := s.queryInfo.GetTimeRange()
@@ -515,28 +539,9 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 		}
 	} else {
 		var err error
-		iqr, err = s.handleSortIndexWithFilter(qsr, lines, pqmr)
+		iqr, err = s.handleSortIndexWithFilter(qsr, lines, pqmr, blockToRecNums)
 		if err != nil {
 			return nil, err
-		}
-	}
-
-	processedBlockMap := make(map[uint16]uint64)
-
-	for _, line := range lines {
-		for _, block := range line.Blocks {
-			processedBlockMap[block.BlockNum] += uint64(len(block.RecNums))
-		}
-	}
-
-	if len(processedBlockMap) > 0 {
-		var totalRecords uint64
-		for _, records := range processedBlockMap {
-			totalRecords += records
-		}
-		err = query.IncProgressForRRCCmd(totalRecords, uint64(len(processedBlockMap)), s.qid)
-		if err != nil {
-			log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to update progress: %v", s.qid, err)
 		}
 	}
 
@@ -569,7 +574,7 @@ func (s *Searcher) handleSortIndexMatchAll(qsr *query.QuerySegmentRequest, lines
 }
 
 // TODO: read PQS if enabled.
-func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults) (*iqr.IQR, error) {
+func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lines []sortindex.Line, pqmr *pqmr.SegmentPQMRResults, blockToRecNums map[uint16][]uint16) (*iqr.IQR, error) {
 
 	sizeLimit := uint64(math.MaxUint64)
 	aggs := s.queryInfo.GetAggregators()
@@ -589,17 +594,6 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	}
 	searchResults.NextSegKeyEnc = encoding
 
-	blockToValidRecNums := make(map[uint16][]uint16)
-	for _, line := range lines {
-		for _, block := range line.Blocks {
-			if _, ok := blockToValidRecNums[block.BlockNum]; !ok {
-				blockToValidRecNums[block.BlockNum] = make([]uint16, 0)
-			}
-
-			blockToValidRecNums[block.BlockNum] = append(blockToValidRecNums[block.BlockNum], block.RecNums...)
-		}
-	}
-
 	canUsePQMR := false
 	var blockToMetadata map[uint16]*structs.BlockMetadataHolder
 	var blockSummaries []*structs.BlockSummary
@@ -611,7 +605,7 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 			return nil, err
 		}
 		canUsePQMR = true
-		for blkNum := range blockToValidRecNums {
+		for blkNum := range blockToRecNums {
 			if _, ok := blockToMetadata[blkNum]; !ok {
 				canUsePQMR = false
 				break
@@ -620,12 +614,12 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	}
 
 	if canUsePQMR {
-		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, blockToMetadata, blockSummaries, sizeLimit, aggs, blockToValidRecNums)
+		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, blockToMetadata, blockSummaries, sizeLimit, aggs, blockToRecNums)
 		if err != nil {
 			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply PQS, err: %v", err)
 		}
 	} else {
-		err = s.applyRawSearchForSortedIndex(qsr, searchResults, sizeLimit, aggs, blockToValidRecNums)
+		err = s.applyRawSearchForSortedIndex(qsr, searchResults, sizeLimit, aggs, blockToRecNums)
 		if err != nil {
 			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply raw search, err: %v", err)
 		}
