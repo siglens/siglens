@@ -294,6 +294,10 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		startQueryServer(queryServer)
 	}
 
+	if config.IsLowMemoryModeEnabled() {
+		StdOutLogger.Infof("----- Low Memory Mode is enabled ----- \n")
+	}
+
 	instrumentation.InitMetrics()
 
 	go tracinghandler.MonitorSpansHealth()

@@ -95,11 +95,26 @@ function addSystemInfoTable(systemInfo, inodeInfo) {
     var cpuRow = createRow("vCPUs", systemInfo.v_cpu);
 
     var memoryUsage = systemInfo.memory.used_percent.toFixed(2);
-    var totalMemoryGB = (systemInfo.memory.total / Math.pow(1024, 3)).toFixed(2);
-    var availableMemoryGB = (systemInfo.memory.free / Math.pow(1024, 3)).toFixed(2);
-    var memoryInfo = `<div><b>Total:</b> ${totalMemoryGB} GB</div>
-                    <div><b>Available:</b> ${availableMemoryGB} GB</div>
+    var totalMemory = systemInfo.memory.total;
+    var availableMemory = systemInfo.memory.free;
+
+    var totalMemoryGB = (totalMemory / Math.pow(1024, 3)).toFixed(2);
+    var availableMemoryGB = (availableMemory / Math.pow(1024, 3)).toFixed(2);
+    var totalMemoryMB = (totalMemory / Math.pow(1024, 2)).toFixed(2);
+    var availableMemoryMB = (availableMemory / Math.pow(1024, 2)).toFixed(2);
+
+    var totalMemoryDisplay = totalMemoryGB >= 1 
+        ? `${totalMemoryGB} GB` 
+        : `${totalMemoryMB} MB`;
+
+    var availableMemoryDisplay = availableMemoryGB >= 1 
+        ? `${availableMemoryGB} GB` 
+        : `${availableMemoryMB} MB`;
+
+    var memoryInfo = `<div><b>Total:</b> ${totalMemoryDisplay}</div>
+                    <div><b>Available:</b> ${availableMemoryDisplay}</div>
                     <div><b>Used:</b> ${memoryUsage}%</div>`;
+
     var memoryRow = createRow("Memory Usage", memoryInfo);
 
     var diskUsage = systemInfo.disk.used_percent.toFixed(2);
