@@ -173,9 +173,9 @@ func GetMemoryMax() uint64 {
 		log.Warnf("GetMemoryMax: Error while getting memory from cgroup: %v", err)
 		// if we can't get the memory from the cgroup, get it from the OS
 		memoryMax = memory.TotalMemory()
-		log.Infof("GetMemoryMax: Memory from the OS in bytes: %v", memoryMax)
+		log.Infof("GetMemoryMax: Memory from the Host in MB: %v", segutils.ConvertUintBytesToMB(memoryMax))
 	} else {
-		log.Infof("GetMemoryMax: Memory from cgroup in bytes: %v", memoryMax)
+		log.Infof("GetMemoryMax: Memory from cgroup in MB: %v", segutils.ConvertUintBytesToMB(memoryMax))
 	}
 
 	return memoryMax
