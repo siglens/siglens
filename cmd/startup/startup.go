@@ -275,10 +275,13 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	fileutils.InitLogFiles()
 
 	siglensStartupLog := fmt.Sprintf("----- Siglens server type %s starting up ----- \n", nodeType)
+	siglensVersionLog := fmt.Sprintf("----- Siglens version %s ----- \n", config.SigLensVersion)
 	if config.GetLogPrefix() != "" {
 		StdOutLogger.Infof(siglensStartupLog)
+		StdOutLogger.Infof(siglensVersionLog)
 	}
 	log.Infof(siglensStartupLog)
+	log.Infof(siglensVersionLog)
 
 	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
 		err := hook(nodeID)
