@@ -444,12 +444,6 @@ func favoriteDashboardHandler() fasthttp.RequestHandler {
 	}
 }
 
-func getDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessListAllRequest, ctx)
-	}
-}
-
 func updateDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(dashboards.ProcessUpdateDashboardRequest, ctx)
@@ -465,6 +459,36 @@ func getDashboardIdHandler() func(ctx *fasthttp.RequestCtx) {
 func deleteDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgIdQuery(dashboards.ProcessDeleteDashboardRequest, ctx)
+	}
+}
+
+func listAllDashboardsHandler() fasthttp.RequestHandler {
+    return func(ctx *fasthttp.RequestCtx) {
+        dashboards.ProcessListAllDashboardsRequest(ctx)
+    }
+}
+
+func createFolderHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithOrgIdQuery(dashboards.ProcessCreateFolderRequest, ctx)
+	}
+}
+
+func getFolderContentsHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessGetFolderContentsRequest(ctx)
+	}
+}
+
+func updateFolderHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessUpdateFolderRequest(ctx)
+	}
+}
+
+func deleteFolderHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		dashboards.ProcessDeleteFolderRequest(ctx)
 	}
 }
 
