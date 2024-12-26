@@ -673,7 +673,7 @@ type DashboardListResponse struct {
 
 func getAllDashboardsWithPaths() (*DashboardListResponse, error) {
 	// Read folder structure
-	structure, err := readCombinedFolderStructure()
+	structure, err := readFolderStructure()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read folder structure: %v", err)
 	}

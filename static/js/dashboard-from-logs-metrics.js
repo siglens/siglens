@@ -202,13 +202,11 @@ $('#create-db').click(function () {
     if (newDashboardFlag) createPanelToNewDashboard();
 });
 
-const existingDashboards = [];
-
 // Display list of existing dashboards
 function displayExistingDashboards() {
     $.ajax({
         method: 'get',
-        url: 'api/dashboards/listall',
+        url: 'api/dashboards/list',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -218,21 +216,15 @@ function displayExistingDashboards() {
     }).then(function (res) {
         if (res) {
             let dropdown = $('#dashboard-options');
-            // Filtering default dashboards
-            let additionalDashboards = Object.keys(res).filter((id) => !defaultDashboardIds.includes(id) && !existingDashboards.includes(id));
-            if (additionalDashboards.length === 0 && existingDashboards.length === 0) {
-                // Add empty list item when there are no additional dashboards
-                dropdown.html(`<li class="dashboard"></li>`);
+            // Clear existing content first
+            dropdown.empty();
+
+            if (res.dashboards.length === 0) {
+                dropdown.html(`<li class="dashboard">No Dashboards</li>`);
             } else {
-                $.each(res, function (id, dashboardDetails) {
-                    // exclude default dashboards
-                    if (!defaultDashboardIds.includes(id) && !existingDashboards.includes(id)) {
-                        dropdown.append(`<li class="dashboard" id="${id}">${dashboardDetails.name}</li>`);
-                        existingDashboards.push(id);
-                    }
+                $.each(res.dashboards, function (id, dashboard) {
+                    dropdown.append(`<li class="dashboard" id="${dashboard.id}">${dashboard.fullPath}</li>`);
                 });
-                dropdown.off('click', '.dashboard');
-                dropdown.on('click', '.dashboard', selectDashboardHandler);
             }
         }
     });
