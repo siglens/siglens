@@ -1063,7 +1063,6 @@ input:checked + .slider:before {
   line-height: 14px;
   cursor: pointer;
   border-radius: 0 5px 5px 0 !important;
-  margin-top: -3px;
   width: auto;
   padding: 0 5px;
 }
