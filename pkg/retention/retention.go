@@ -435,14 +435,14 @@ func doInodeBasedDeletion(ingestNodeDir string, maxInodeUsagePercent uint64, del
 	usedInodes := totalInodes - freeInodes
 
 	if totalInodes == 0 {
-		log.Errorf("doInodeBasedDeletion: Invalid total inodes count")
+		log.Errorf("doInodeBasedDeletion: Invalid total inodes count: %d", totalInodes)
 		return
 	}
 
 	currentUsagePercent := (usedInodes * 100) / totalInodes
 
-	log.Infof("doInodeBasedDeletion: Current inode usage: %v%%, Max allowed: %v%%, IngestNodeDir: %v",
-		currentUsagePercent, maxInodeUsagePercent, ingestNodeDir)
+	log.Infof("doInodeBasedDeletion: Current inode usage: %v%% (%d used of %d total), Max allowed: %v%%, IngestNodeDir: %v",
+		currentUsagePercent, usedInodes, totalInodes, maxInodeUsagePercent, ingestNodeDir)
 
 	if currentUsagePercent <= maxInodeUsagePercent {
 		return
