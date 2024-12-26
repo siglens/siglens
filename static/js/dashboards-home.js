@@ -24,523 +24,429 @@ let initialDashboards = null;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
+    const addNew = new AddNewComponent('add-new-container');
 
-    initialDashboards = await getAllDashboards();
-    displayDashboards(initialDashboards);
+    const grid = new DashboardGrid('dashboard-grid');
+    const folderContents = await getFolderContents("root-folder");
+    grid.setData(folderContents.items);
 
-    $('#create-db-btn').click(createDashboard);
-    $('.search-db-input').on('input', searchDB);
-    $('.search-db-input').on('keyup', function (e) {
-        if (e.target.value === '') {
-            displayOriginalDashboards();
-        }
-    });
-
-    let stDate = 'now-1h';
-    let endDate = 'now';
-    datePickerHandler(stDate, endDate, stDate);
 });
 
-async function getAllDashboards() {
-    let serverResponse = [];
-    await $.ajax({
-        method: 'get',
-        url: 'api/dashboards/listall',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-    }).then(function (res) {
-        serverResponse = res;
-    });
-    return serverResponse;
-}
+// class btnRenderer {
+//     init(params) {
+//         const starOutlineURL = 'url("../assets/star-outline.svg")';
+//         const starFilledURL = 'url("../assets/star-filled.svg")';
 
-function createDashboard() {
-    $('.popupOverlay, .popupContent').addClass('active');
-    $('#new-dashboard-modal').show();
-    $('#delete-db-prompt').hide();
+//         this.eGui = document.createElement('span');
+//         this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;">
+//                 <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
+//                 <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
+//                 <button class="star-icon" id="favbutton" title="Mark as favorite"></button>
+//             </div>`;
 
-    function createDashboardWithInput() {
-        var inputdbname = $('#db-name').val();
-        var inputdbdescription = $('#db-description').val();
-        var timeRange = 'Last 1 Hour';
-        var refresh = '';
+//         this.dButton = this.eGui.querySelector('.btn-simple');
+//         this.dButton.style.marginRight = '5px';
+//         this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
+//         this.starIcon = this.eGui.querySelector('.star-icon');
+//         this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
 
-        if (!inputdbname) {
-            $('.error-tip').addClass('active');
-            $('.popupOverlay, .popupContent').addClass('active');
-            $('#new-dashboard-modal').show();
-        } else {
-            $('#save-dbbtn').off('click');
-            $(document).off('keypress');
+//         //Disable delete for default dashboards and show "Default" label
+//         if (params.data.isDefault) {
+//             const defaultLabel = document.createElement('span');
+//             defaultLabel.className = 'default-label';
+//             defaultLabel.innerText = 'Default';
+//             defaultLabel.style.textDecoration = 'none';
+//             this.dButton.style.display = 'none';
+//             this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
+//         }
 
-            $.ajax({
-                method: 'post',
-                url: 'api/dashboards/create',
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                data: JSON.stringify(inputdbname),
-                dataType: 'json',
-                crossDomain: true,
-            })
-                .then(function (res) {
-                    $('#db-name').val('');
-                    $('#db-description').val('');
-                    $('.error-tip').removeClass('active');
-                    $('.popupOverlay, .popupContent').removeClass('active');
+//         function deletedb() {
+//             $.ajax({
+//                 method: 'get',
+//                 url: 'api/dashboards/delete/' + params.data.uniqId,
+//                 headers: {
+//                     'Content-Type': 'application/json; charset=utf-8',
+//                     Accept: '*/*',
+//                 },
+//                 crossDomain: true,
+//             }).then(function () {
+//                 let deletedRowID = params.data.rowId;
+//                 dbgridOptions.api.applyTransaction({
+//                     remove: [{ rowId: deletedRowID }],
+//                 });
+//             });
+//         }
 
-                    var updateDashboard = {
-                        id: Object.keys(res)[0],
-                        name: Object.values(res)[0],
-                        details: {
-                            name: Object.values(res)[0],
-                            description: inputdbdescription,
-                            timeRange: timeRange,
-                            refresh: refresh,
-                        },
-                    };
+//         function duplicatedb() {
+//             $.ajax({
+//                 method: 'get',
+//                 url: 'api/dashboards/' + params.data.uniqId,
+//                 headers: {
+//                     'Content-Type': 'application/json; charset=utf-8',
+//                     Accept: '*/*',
+//                 },
+//                 crossDomain: true,
+//                 dataType: 'json',
+//             }).then(function (res) {
+//                 let duplicatedDBName = res.name + '-Copy';
+//                 let duplicatedDescription = res.description;
+//                 let duplicatedPanels = res.panels;
+//                 let duplicateTimeRange = res.timeRange;
+//                 let duplicateRefresh = res.refresh;
+//                 let uniqIDdb;
+//                 $.ajax({
+//                     method: 'post',
+//                     url: 'api/dashboards/create',
+//                     headers: {
+//                         'Content-Type': 'application/json; charset=utf-8',
+//                         Accept: '*/*',
+//                     },
+//                     data: JSON.stringify(duplicatedDBName),
+//                     dataType: 'json',
+//                     crossDomain: true,
+//                 })
+//                     .then((res) => {
+//                         uniqIDdb = Object.keys(res)[0];
+//                         $.ajax({
+//                             method: 'POST',
+//                             url: '/api/dashboards/update',
+//                             data: JSON.stringify({
+//                                 id: uniqIDdb,
+//                                 name: duplicatedDBName,
+//                                 details: {
+//                                     name: duplicatedDBName,
+//                                     description: duplicatedDescription,
+//                                     panels: duplicatedPanels.map((panel) => ({
+//                                         ...panel,
+//                                         style: {
+//                                             display: panel.style?.display || 'Line chart',
+//                                             color: panel.style?.color || 'Classic',
+//                                             lineStyle: panel.style?.lineStyle || 'Solid',
+//                                             lineStroke: panel.style?.lineStroke || 'Normal',
+//                                         },
+//                                     })),
+//                                     timeRange: duplicateTimeRange,
+//                                     refresh: duplicateRefresh,
+//                                 },
+//                             }),
+//                         });
+//                     })
+//                     .then(function () {
+//                         dbgridOptions.api.applyTransaction({
+//                             add: [
+//                                 {
+//                                     dbname: duplicatedDBName,
+//                                     uniqId: uniqIDdb,
+//                                     createdAt: Date.now(),
+//                                     favorite: false,
+//                                     isDefault: false,
+//                                 },
+//                             ],
+//                         });
+//                     });
+//             });
+//         }
 
-                    $.ajax({
-                        method: 'post',
-                        url: 'api/dashboards/update',
-                        headers: {
-                            'Content-Type': 'application/json; charset=utf-8',
-                            Accept: '*/*',
-                        },
-                        data: JSON.stringify(updateDashboard),
-                        dataType: 'json',
-                        crossDomain: true,
-                    }).then(function (msg) {
-                        console.log('done:', msg);
-                    });
+//         function toggleFavorite() {
+//             $.ajax({
+//                 method: 'put',
+//                 url: 'api/dashboards/favorite/' + params.data.uniqId,
+//                 headers: {
+//                     'Content-Type': 'application/json; charset=utf-8',
+//                     Accept: '*/*',
+//                 },
+//                 crossDomain: true,
+//             }).then((response) => {
+//                 params.data.favorite = response.isFavorite;
+//                 this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
+//             });
+//         }
 
-                    var queryString = '?id=' + Object.keys(res)[0];
-                    window.location.href = '../dashboard.html' + queryString;
-                })
-                .catch(function (updateError) {
-                    if (updateError.status === 409) {
-                        $('.error-tip').text('Dashboard name already exists!');
-                        $('.error-tip').addClass('active');
-                        $('.popupOverlay, .popupContent').addClass('active');
-                        attachEventHandlers();
-                    }
-                });
-        }
-    }
-    // method to attach event handlers to avoid redundant event handlers
-    function attachEventHandlers() {
-        $('#save-dbbtn').on('click', function () {
-            createDashboardWithInput();
-        });
+//         function showPrompt() {
+//             // $('#delete-db-prompt').css('display', 'flex');
+//             $('.popupOverlay, #delete-db-prompt').addClass('active');
+//             // $('#new-dashboard-modal').hide();
 
-        $(document).on('keypress', function (event) {
-            if (event.keyCode == '13') {
-                event.preventDefault();
-                createDashboardWithInput();
-            }
-        });
+//             $('#cancel-db-prompt, .popupOverlay').off('click');
+//             $('#delete-dbbtn').off('click');
 
-        $('#cancel-dbbtn, .popupOverlay').on('click', function () {
-            $('#db-name').val('');
-            $('#db-description').val('');
-            $('.popupOverlay, .popupContent').removeClass('active');
-            $('.error-tip').removeClass('active');
-        });
-    }
+//             $('#cancel-db-prompt, .popupOverlay').click(function () {
+//                 $('.popupOverlay, #delete-db-prompt').removeClass('active');
+//                 // $('#delete-db-prompt').hide();
+//             });
 
-    // Attach event handlers initially
-    attachEventHandlers();
-}
+//             $('#delete-dbbtn').click(function () {
+//                 deletedb();
+//                 $('.popupOverlay, #delete-db-prompt').removeClass('active');
+//                 // $('#delete-db-prompt').hide();
+//             });
+//         }
 
-class btnRenderer {
-    init(params) {
-        const starOutlineURL = 'url("../assets/star-outline.svg")';
-        const starFilledURL = 'url("../assets/star-filled.svg")';
+//         this.dButton.addEventListener('click', showPrompt);
+//         this.duplicateButton.addEventListener('click', duplicatedb);
+//         this.starIcon.addEventListener('click', toggleFavorite.bind(this));
+//     }
 
-        this.eGui = document.createElement('span');
-        this.eGui.innerHTML = `<div id="dashboard-grid-btn" style="margin-left: 20px;">
-                <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
-                <button class="btn-duplicate" id="duplicateButton" title="Duplicate dashboard"></button>
-                <button class="star-icon" id="favbutton" title="Mark as favorite"></button>
-            </div>`;
+//     getGui() {
+//         return this.eGui;
+//     }
 
-        this.dButton = this.eGui.querySelector('.btn-simple');
-        this.dButton.style.marginRight = '5px';
-        this.duplicateButton = this.eGui.querySelector('.btn-duplicate');
-        this.starIcon = this.eGui.querySelector('.star-icon');
-        this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
+//     refresh(params) {
+//         const starOutlineURL = 'url("../assets/star-outline.svg")';
+//         const starFilledURL = 'url("../assets/star-filled.svg")';
+//         this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
+//         return false;
+//     }
+// }
 
-        //Disable delete for default dashboards and show "Default" label
-        if (params.data.isDefault) {
-            const defaultLabel = document.createElement('span');
-            defaultLabel.className = 'default-label';
-            defaultLabel.innerText = 'Default';
-            defaultLabel.style.textDecoration = 'none';
-            this.dButton.style.display = 'none';
-            this.duplicateButton.parentNode.insertBefore(defaultLabel, this.duplicateButton);
-        }
+// let dashboardColumnDefs = [
+//     {
+//         field: 'rowId',
+//         hide: true,
+//     },
+//     {
+//         headerName: 'Name',
+//         field: 'name',
+//         sortable: true,
+//         flex: 2,
+//         cellRenderer: (params) => {
+//             // Calculate indentation level
+//             const getIndentLevel = (data) => {
+//                 let level = 0;
+//                 let currentData = data;
+//                 while (currentData.parentFolderId) {
+//                     level++;
+//                     currentData = this.gridOptions.api.getModel().rowsToDisplay.find((row) => row.data.uniqId === currentData.parentFolderId)?.data;
+//                     if (!currentData) break;
+//                 }
+//                 return level;
+//             };
 
-        function deletedb() {
-            $.ajax({
-                method: 'get',
-                url: 'api/dashboards/delete/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-            }).then(function () {
-                let deletedRowID = params.data.rowId;
-                dbgridOptions.api.applyTransaction({
-                    remove: [{ rowId: deletedRowID }],
-                });
-            });
-        }
+//             const indentLevel = getIndentLevel(params.data);
+//             const basePadding = 20; // Base padding for each level
+//             const indentPadding = indentLevel * basePadding;
 
-        function duplicatedb() {
-            $.ajax({
-                method: 'get',
-                url: 'api/dashboards/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-                dataType: 'json',
-            }).then(function (res) {
-                let duplicatedDBName = res.name + '-Copy';
-                let duplicatedDescription = res.description;
-                let duplicatedPanels = res.panels;
-                let duplicateTimeRange = res.timeRange;
-                let duplicateRefresh = res.refresh;
-                let uniqIDdb;
-                $.ajax({
-                    method: 'post',
-                    url: 'api/dashboards/create',
-                    headers: {
-                        'Content-Type': 'application/json; charset=utf-8',
-                        Accept: '*/*',
-                    },
-                    data: JSON.stringify(duplicatedDBName),
-                    dataType: 'json',
-                    crossDomain: true,
-                })
-                    .then((res) => {
-                        uniqIDdb = Object.keys(res)[0];
-                        $.ajax({
-                            method: 'POST',
-                            url: '/api/dashboards/update',
-                            data: JSON.stringify({
-                                id: uniqIDdb,
-                                name: duplicatedDBName,
-                                details: {
-                                    name: duplicatedDBName,
-                                    description: duplicatedDescription,
-                                    panels: duplicatedPanels.map((panel) => ({
-                                        ...panel,
-                                        style: {
-                                            display: panel.style?.display || 'Line chart',
-                                            color: panel.style?.color || 'Classic',
-                                            lineStyle: panel.style?.lineStyle || 'Solid',
-                                            lineStroke: panel.style?.lineStroke || 'Normal',
-                                        },
-                                    })),
-                                    timeRange: duplicateTimeRange,
-                                    refresh: duplicateRefresh,
-                                },
-                            }),
-                        });
-                    })
-                    .then(function () {
-                        dbgridOptions.api.applyTransaction({
-                            add: [
-                                {
-                                    dbname: duplicatedDBName,
-                                    uniqId: uniqIDdb,
-                                    createdAt: Date.now(),
-                                    favorite: false,
-                                    isDefault: false,
-                                },
-                            ],
-                        });
-                    });
-            });
-        }
+//             if (params.data.type === 'folder') {
+//                 const folderDiv = document.createElement('div');
+//                 folderDiv.className = 'folder-row';
+//                 folderDiv.innerHTML = `
+//                     <div style="display: flex; align-items: center; padding-left: ${indentPadding}px;">
+//                         <span class="folder-arrow" style="cursor: pointer">
+//                             ${params.data.expanded ? '<i class="fa fa-chevron-down"></i>' : '<i class="fa fa-chevron-right"></i>'}
+//                         </span>
+//                         <i class="fa fa-folder" style="color: #FFB84D; margin-right: 5px;"></i>
+//                         <a href="folder.html?id=${params.data.uniqId}" class="folder-name">${params.value}</a>
+//                     </div>`;
 
-        function toggleFavorite() {
-            $.ajax({
-                method: 'put',
-                url: 'api/dashboards/favorite/' + params.data.uniqId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    Accept: '*/*',
-                },
-                crossDomain: true,
-            }).then((response) => {
-                params.data.favorite = response.isFavorite;
-                this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
-            });
-        }
+//                 const arrowElement = folderDiv.querySelector('.folder-arrow');
+//                 arrowElement.addEventListener('click', async (event) => {
+//                     event.preventDefault();
+//                     event.stopPropagation();
+//                     await this.toggleFolder(params);
+//                 });
 
-        function showPrompt() {
-            $('#delete-db-prompt').css('display', 'flex');
-            $('.popupOverlay, .popupContent').addClass('active');
-            $('#new-dashboard-modal').hide();
+//                 return folderDiv;
+//             } else {
+//                 const dashDiv = document.createElement('div');
+//                 dashDiv.style.display = 'flex';
+//                 dashDiv.style.alignItems = 'center';
+//                 dashDiv.style.paddingLeft = `${indentPadding}px`; // Same padding as folders at same level
 
-            $('#cancel-db-prompt, .popupOverlay').off('click');
-            $('#delete-dbbtn').off('click');
+//                 const icon = document.createElement('i');
+//                 icon.className = 'fa fa-columns';
+//                 icon.style.color = '#6366f1';
+//                 icon.style.marginRight = '5px';
+//                 dashDiv.appendChild(icon);
 
-            $('#cancel-db-prompt, .popupOverlay').click(function () {
-                $('.popupOverlay, .popupContent').removeClass('active');
-                $('#delete-db-prompt').hide();
-            });
+//                 const link = document.createElement('a');
+//                 link.href = `dashboard.html?id=${params.data.uniqId}`;
+//                 link.innerText = params.value;
 
-            $('#delete-dbbtn').click(function () {
-                deletedb();
-                $('.popupOverlay, .popupContent').removeClass('active');
-                $('#delete-db-prompt').hide();
-            });
-        }
+//                 dashDiv.appendChild(link);
+//                 return dashDiv;
+//             }
+//         },
+//     },
+//     {
+//         headerName: 'Created At',
+//         field: 'createdAt',
+//         sortable: true,
+//         flex: 1,
+//         cellStyle: { justifyContent: 'flex-end' },
+//         headerClass: 'ag-right-aligned-header',
+//         cellRenderer: (params) => {
+//             if (!params.value || params.data.type === 'folder') return '-';
+//             const date = new Date(params.value);
+//             return date.toLocaleDateString([], {
+//                 year: 'numeric',
+//                 month: 'short',
+//                 day: 'numeric',
+//                 hour: '2-digit',
+//                 minute: '2-digit',
+//             });
+//         },
+//     },
+//     {
+//         cellRenderer: btnRenderer,
+//         width: 150,
+//     },
+// ];
 
-        this.dButton.addEventListener('click', showPrompt);
-        this.duplicateButton.addEventListener('click', duplicatedb);
-        this.starIcon.addEventListener('click', toggleFavorite.bind(this));
-    }
+// function view(dashboardId) {
+//     $.ajax({
+//         method: 'get',
+//         url: 'api/dashboards/' + dashboardId,
+//         headers: {
+//             'Content-Type': 'application/json; charset=utf-8',
+//             Accept: '*/*',
+//         },
+//         crossDomain: true,
+//         dataType: 'json',
+//     }).then(function (_res) {
+//         var queryString = '?id=' + dashboardId;
+//         window.location.href = '../dashboard.html' + queryString;
+//     });
+// }
 
-    getGui() {
-        return this.eGui;
-    }
+// // let the grid know which columns and what data to use
+// const dbgridOptions = {
+//     columnDefs: dashboardColumnDefs,
+//     rowData: dbRowData,
+//     animateRows: true,
+//     rowHeight: 54,
+//     defaultColDef: {
+//         icons: {
+//             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
+//             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
+//         },
+//     },
+//     enableCellTextSelection: true,
+//     suppressScrollOnNewData: true,
+//     suppressAnimationFrame: true,
+//     getRowId: (params) => params.data.rowId,
+//     onGridReady(params) {
+//         this.gridApi = params.api; // To access the grids API
+//     },
+// };
+// async function toggleFolder(params) {
+//     const folderId = params.data.uniqId;
+//     const currentData = dbgridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
 
-    refresh(params) {
-        const starOutlineURL = 'url("../assets/star-outline.svg")';
-        const starFilledURL = 'url("../assets/star-filled.svg")';
-        this.starIcon.style.backgroundImage = params.data.favorite ? starFilledURL : starOutlineURL;
-        return false;
-    }
-}
+//     // Toggle expanded state
+//     params.data.expanded = !params.data.expanded;
 
-let dashboardColumnDefs = [
-    {
-        field: 'rowId',
-        hide: true,
-    },
-    {
-        headerName: 'Dashboard Name',
-        field: 'dbname',
-        sortable: true,
-        cellClass: '',
-        cellRenderer: (params) => {
-            var link = document.createElement('a');
-            link.href = '#';
-            link.innerText = params.value;
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                view();
-            });
-            return link;
+//     // Update the folder's arrow in the grid
+//     const node = dbgridOptions.api.getRowNode(params.data.rowId);
+//     if (node) {
+//         node.setData({ ...params.data });
+//     }
 
-            function view() {
-                $.ajax({
-                    method: 'get',
-                    url: 'api/dashboards/' + params.data.uniqId,
-                    headers: {
-                        'Content-Type': 'application/json; charset=utf-8',
-                        Accept: '*/*',
-                    },
-                    crossDomain: true,
-                    dataType: 'json',
-                }).then(function (_res) {
-                    var queryString = '?id=' + params.data.uniqId;
-                    window.location.href = '../dashboard.html' + queryString;
-                });
-            }
-        },
-    },
-    {
-        headerName: 'Created At',
-        field: 'createdAt',
-        sortable: true,
-        cellStyle: { justifyContent: 'flex-end' },
-        headerClass: 'ag-right-aligned-header',
-        cellRenderer: (params) => {
-            if (!params.value) return '-';
-            const date = new Date(params.value);
-            return date.toLocaleDateString([], {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-            });
-        },
-        width: 50,
-    },
-    {
-        cellRenderer: btnRenderer,
-        width: 50,
-    },
-];
+//     if (!params.data.expanded) {
+//         // Recursively get all child IDs to remove
+//         const getAllChildIds = (parentId) => {
+//             const children = currentData.filter((row) => row.parentFolderId === parentId);
+//             let ids = children.map((child) => child.rowId);
 
-// let the grid know which columns and what data to use
-const dbgridOptions = {
-    columnDefs: dashboardColumnDefs,
-    rowData: dbRowData,
-    animateRows: true,
-    rowHeight: 54,
-    defaultColDef: {
-        icons: {
-            sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
-            sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-        },
-    },
-    enableCellTextSelection: true,
-    suppressScrollOnNewData: true,
-    suppressAnimationFrame: true,
-    getRowId: (params) => params.data.rowId,
-    onGridReady(params) {
-        this.gridApi = params.api; // To access the grids API
-    },
-};
+//             // Recursively get children of folders
+//             children.forEach((child) => {
+//                 if (child.type === 'folder') {
+//                     ids = [...ids, ...getAllChildIds(child.uniqId)];
+//                 }
+//             });
 
-function displayDashboards(res, flag) {
-    let favorites = [];
-    let nonFavorites = [];
+//             return ids;
+//         };
 
-    for (let [key, value] of Object.entries(res)) {
-        // Check if the dashboard is a favorite from the response itself
-        if (value.isFavorite) {
-            favorites.push([key, value]);
-        } else {
-            nonFavorites.push([key, value]);
-        }
-    }
+//         // Get all nested items to remove
+//         const idsToRemove = getAllChildIds(folderId);
+//         const newData = currentData.filter((row) => !idsToRemove.includes(row.rowId));
+//         dbgridOptions.api.setRowData(newData);
+//         return;
+//     }
 
-    // Sort favorites and non-favorites by creation time (newest first)
-    const sortByTime = (a, b) => {
-        const timeA = a[1].createdAt || 0;
-        const timeB = b[1].createdAt || 0;
-        return timeB - timeA;
-    };
+//     // Get folder contents from API
+//     const contents = await getFolderContents(folderId);
+//     if (!contents) return;
 
-    favorites.sort(sortByTime);
-    nonFavorites.sort(sortByTime);
+//     // Find the index of the folder
+//     const folderIndex = currentData.findIndex((row) => row.uniqId === folderId);
 
-    let resArray = [...favorites, ...nonFavorites];
+//     // If folder is empty, add "No items" row
+//     if (!contents.items || contents.items.length === 0) {
+//         const noItemsRow = {
+//             rowId: `${folderId}-no-items`,
+//             uniqId: `${folderId}-no-items`,
+//             name: 'No items',
+//             type: 'no-items',
+//             inFolder: true,
+//             parentFolderId: folderId,
+//             isNoItems: true,
+//         };
 
-    if (flag == -1) {
-        // Show search results
-        let dbFilteredRowData = [];
-        if (dbgridDiv === null) {
-            dbgridDiv = document.querySelector('#dashboard-grid');
-            //eslint-disable-next-line no-undef
-            new agGrid.Grid(dbgridDiv, dbgridOptions);
-        }
-        dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
+//         const newData = [...currentData.slice(0, folderIndex + 1), noItemsRow, ...currentData.slice(folderIndex + 1)];
+//         dbgridOptions.api.setRowData(newData);
+//         return;
+//     }
 
-        resArray.forEach((item, idx) => {
-            const [key, dashboardInfo] = item;
-            dbFilteredRowData.push({
-                rowId: idx,
-                uniqId: key,
-                dbname: dashboardInfo.name,
-                createdAt: dashboardInfo.createdAt,
-                favorite: dashboardInfo.isFavorite,
-                isDefault: dashboardInfo.isDefault,
-            });
-        });
+//     // Process folder contents normally
+//     const folderContents = contents.items.map((item, index) => ({
+//         rowId: `${folderId}-${index}`,
+//         uniqId: item.id,
+//         name: item.name,
+//         type: item.type,
+//         inFolder: true,
+//         parentFolderId: folderId,
+//         createdAt: item.type === 'dashboard' ? item.createdAt : null,
+//         favorite: item.type === 'dashboard' ? item.isFavorite : null,
+//         isDefault: item.isDefault,
+//         childCount: item.type === 'folder' ? item.childCount : null,
+//         expanded: false,
+//     }));
 
-        dbgridOptions.api.setRowData(dbFilteredRowData);
-        dbgridOptions.api.sizeColumnsToFit();
-    } else {
-        if (dbgridDiv === null) {
-            dbgridDiv = document.querySelector('#dashboard-grid');
-            //eslint-disable-next-line no-undef
-            new agGrid.Grid(dbgridDiv, dbgridOptions);
-        }
-        dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
+//     const newData = [...currentData.slice(0, folderIndex + 1), ...folderContents, ...currentData.slice(folderIndex + 1)];
 
-        dbRowData = resArray.map((item, idx) => {
-            const [key, dashboardInfo] = item;
-            return {
-                rowId: idx,
-                uniqId: key,
-                dbname: dashboardInfo.name,
-                createdAt: dashboardInfo.createdAt,
-                favorite: dashboardInfo.isFavorite,
-                isDefault: dashboardInfo.isDefault,
-            };
-        });
+//     dbgridOptions.api.setRowData(newData);
+// }
+// async function displayDashboards() {
+//     // Get root folder contents
+//     const response = await getFolderContents('root-folder');
+//     if (!response) return;
 
-        dbgridOptions.api.setRowData(dbRowData);
-        dbgridOptions.api.sizeColumnsToFit();
-    }
-}
+//     let rowData = [];
+//     let rowId = 0;
 
-function searchDB() {
-    let searchText = $('.search-db-input').val();
+//     // Process items from response
+//     response.items.forEach((item) => {
+//         if (item.type === 'folder') {
+//             rowData.push({
+//                 rowId: rowId++,
+//                 uniqId: item.id,
+//                 name: item.name,
+//                 type: 'folder',
+//                 expanded: false,
+//                 isDefault: item.isDefault,
+//                 childCount: item.childCount,
+//             });
+//         } else {
+//             rowData.push({
+//                 rowId: rowId++,
+//                 uniqId: item.id,
+//                 name: item.name,
+//                 type: 'dashboard',
+//                 // createdAt: item.createdAt,
+//                 favorite: item.isFavorite,
+//                 isDefault: item.isDefault,
+//             });
+//         }
+//     });
 
-    // If search is empty, restore original dashboards
-    if (!searchText.trim()) {
-        displayOriginalDashboards();
-        return;
-    }
+//     // Initialize or update grid
+//     if (dbgridDiv === null) {
+//         dbgridDiv = document.querySelector('#dashboard-grid');
+//         new agGrid.Grid(dbgridDiv, dbgridOptions);
+//     }
 
-    var tokens = searchText
-        .toLowerCase()
-        .split(' ')
-        .filter(function (token) {
-            return token.trim() !== '';
-        });
-
-    if (tokens.length) {
-        var searchTermRegex = new RegExp(tokens.join('|'), 'gi');
-
-        // Filter the original dbRowData
-        let filteredDashboards = {};
-        dbRowData.forEach((rowData) => {
-            if (rowData.dbname.match(searchTermRegex)) {
-                filteredDashboards[rowData.uniqId] = {
-                    name: rowData.dbname,
-                    createdAt: rowData.createdAt,
-                    isFavorite: rowData.favorite,
-                    isDefault: rowData.isDefault,
-                };
-            }
-        });
-
-        if (Object.keys(filteredDashboards).length === 0) {
-            displayDashboards(filteredDashboards, -1);
-            showDBNotFoundMsg();
-        } else {
-            $('#dashboard-grid-container').show();
-            $('#empty-response').hide();
-            displayDashboards(filteredDashboards, -1);
-        }
-    }
-}
-
-function displayOriginalDashboards() {
-    let searchText = $('.search-db-input').val();
-
-    if (searchText.length === 0) {
-        if (dbgridDiv === null) {
-            dbgridDiv = document.querySelector('#dashboard-grid');
-            //eslint-disable-next-line no-undef
-            new agGrid.Grid(dbgridDiv, dbgridOptions);
-        }
-        $('#dashboard-grid-container').show();
-        $('#empty-response').hide();
-
-        // Use the initial dashboard data to reset
-        displayDashboards(initialDashboards);
-    }
-}
-function showDBNotFoundMsg() {
-    $('#dashboard-grid-container').hide();
-    $('#empty-response').show();
-}
+//     dbgridOptions.api.setColumnDefs(dashboardColumnDefs);
+//     dbgridOptions.api.setRowData(rowData);
+//     dbgridOptions.api.sizeColumnsToFit();
+// }

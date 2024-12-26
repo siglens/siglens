@@ -805,7 +805,6 @@ body {
 #live-tail-btn,
 #add-icon,
 #add-icon-second,
-#create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
@@ -842,7 +841,6 @@ body {
 #date-picker-btn,
 #cancel-loading,
 #live-tail-btn,
-#create-db-btn,
 #logout-btn,
 #search-query-btn,
 #search-history-btn,
@@ -962,7 +960,6 @@ body {
 #live-tail-btn,
 #run-filter-btn,
 #cancel-loading,
-#create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
@@ -1842,7 +1839,7 @@ div.dts div.dataTables_scrollBody table {
     overflow-x: hidden;
 }
 
-#sq-search-container ,#db-search-container, #metrics-container{
+#sq-search-container {
     display: grid;
     grid-template-columns: 2fr auto auto;
     column-gap: 15px;
@@ -2141,6 +2138,7 @@ div.dts div.dataTables_scrollBody table {
     display: flex;
     justify-content: space-between;
     margin-top: 24px;
+    font-size: 14px;
 }
 
 .popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active,.mypopupContent.active{
@@ -3059,6 +3057,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 /*launch dashboard*/
+.launch-dashboard {
+    padding: 20px;
+}
+
 .launch-dashboard .popupContent{
     width: 464px !important;
     flex-direction: column;
@@ -3067,7 +3069,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .launch-dashboard .popupContent .input, input{
-    font-size: 1em;
+    font-size: 14px;
     background: var(--ui-widget-bg-color);
     padding: 13px 0 14px 14px;
     box-sizing: border-box;
@@ -3145,13 +3147,9 @@ float: right;
     color: var(--component-text-color);
     margin-top: 15px;
 }
-#delete-db-prompt {
-    display: none;
-}
 
 .dashboard-header {
-    margin-top: 8px;
-    margin-right: 39px;
+    margin-top: 10px;
     display: flex;
     justify-content: flex-end;
     margin-bottom: 5px;
@@ -3192,21 +3190,10 @@ float: right;
    align-items: center;
 }
 
-
-#dashboard-grid-container {
-    margin-left: 23px;
-    margin-bottom: 2%;
-    margin-right: 25px;
-    margin-top: 13px;
-    height: 100% !important;
-}
-
-
-
 /*dashboard*/
 #new-dashboard{
     overflow-x: hidden;
-    font-size: 20px;
+    /* font-size: 20px; */
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
     font-family: "DINpro", Arial, sans-serif;
@@ -3230,9 +3217,9 @@ float: right;
     background-color: var(--db-bg-color);
 }
 
-.dashboard-names{
+#breadcrumb{
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
 }
 
@@ -3243,7 +3230,7 @@ float: right;
     background-size: contain;
 }
 
-.all-dashboards{
+.all-dashboards, .folder-name{
     font-size: 16px;
     color: #6F6B7B;
     cursor: pointer;
@@ -3493,9 +3480,6 @@ float: right;
 
 /* dashboard Grid*/
 #dashboard-grid-container{
-    margin-left: 23px;
-    margin-bottom: 2%;
-    margin-right: 25px;
     margin-top: -3px;
     height: 100% !important;
 }
@@ -3531,7 +3515,6 @@ float: right;
 #dashboard-grid .ag-cell{
     display: flex !important;
     padding: 0px 0px 0px 15px !important;
-    cursor: pointer;
     font-size: 14px;
     text-decoration-line: none;
     border-bottom: var(--bg-color) 5px solid;
@@ -3539,6 +3522,11 @@ float: right;
 #dashboard-grid .ag-cell a{
     color: var(--dashboard-title-color) !important;
     text-decoration-line: underline;
+    text-decoration: none;
+}
+
+#dashboard-grid .ag-cell a:hover{
+    text-decoration: underline;
 }
 
 
@@ -3548,6 +3536,20 @@ float: right;
     
 }
 
+.folder-arrow {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    height: 29px;
+ }
+ 
+ .folder-arrow:hover {
+    background-color: var(--index-drop-down-item-hover-bg-color);
+ }
+
+.content-count{
+    font-weight: 600;
+}
 /*NAVBAR */
 .sidebar-icon{
     background-image: url("../assets/collapse-sidebar-icon.svg");
@@ -6278,7 +6280,7 @@ input.form-control {
     border: none;
     height: 30px;
     color: var(--button-text-color) !important;
-    background: var(--btn-regular-bg-color);
+    background: var(--btn-regular-bg-color) !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -6296,6 +6298,13 @@ input.form-control {
     justify-content: center;
 }
 
+.grey-dropdown-btn {
+    border: 1px solid var(--border-btn-color);
+    height: 30px;
+    display: flex;
+    align-items: center;
+}
+
 #file-input{
     height: 60px !important;
 }
@@ -6307,4 +6316,48 @@ input.form-control {
 
 #csvViewerModal{
     width: 60% !important;
+}
+
+
+/* DROPDOWN  */
+.dropdown-menu-style {
+    background: var(--index-drop-down-box-bg-color);
+    overflow: hidden;
+    border: 1px solid var(--timepicker-border-color);
+    padding: 0;
+}
+
+.dropdown-option{
+    background: var(--index-drop-down-item-inactive-bg-color);
+    color: var(--index-drop-down-item-inactive-text-color);
+    margin: 6px;
+    cursor: pointer;
+    padding: 6px 0;
+    padding-left: 12px;
+    font-weight: var(--fw-400);
+    font-family: "DINpro", Arial, sans-serif;
+    border-radius: 4px;
+}
+
+.dropdown-option:hover{
+    background: var(--index-drop-down-item-hover-bg-color);
+    color: var(--index-drop-down-item-hover-text-color);
+}
+
+.dropdown-option.active{
+    background: var(--index-drop-down-item-active-bg-color);
+    color: var(--index-drop-down-item-active-text-color);
+}
+
+.dd-width-150{
+    width: 150px;
+}
+
+/* PADDING */
+.p-20{
+    padding: 20px;
+}
+
+.breadcrumb-link{
+    text-decoration: none;
 }

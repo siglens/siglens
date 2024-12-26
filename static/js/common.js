@@ -1240,3 +1240,21 @@ function createTooltip(selector, content) {
         animation: 'fade',
     });
 }
+
+async function getFolderContents(folderId = 'root-folder') {
+    try {
+        const response = await $.ajax({
+            method: 'get',
+            url: `api/dashboards/folders/${folderId}`,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+        });
+        return response;
+    } catch (error) {
+        console.error('Error fetching folder contents:', error);
+        return null;
+    }
+}
