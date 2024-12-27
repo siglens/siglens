@@ -268,6 +268,7 @@ class DashboardGrid {
     }
 
     setData(items, isSearchResult = false) {
+        console.log("isSearchResult = " + isSearchResult);
         if (isSearchResult !== this.isSearchView) {
             this.isSearchView = isSearchResult;
             this.gridOptions.api.setColumnDefs(this.getColumnDefs());

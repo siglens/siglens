@@ -303,7 +303,6 @@ type Breadcrumb struct {
 func getFolderContents(folderID string, foldersOnly bool) (*FolderContentResponse, error) {
 	// Read combined folder structure
 	structure, err := readCombinedFolderStructure()
-	log.Errorf("Debug: structure contents: %+v\n", structure)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to read folder structure: %v", err)
@@ -311,7 +310,6 @@ func getFolderContents(folderID string, foldersOnly bool) (*FolderContentRespons
 
 	// Check if folder exists
 	folder, exists := structure.Items[folderID]
-	log.Errorf("Debug: folder %v exists", folderID)
 	if !exists {
 		return nil, fmt.Errorf("folder not found: %s", folderID)
 	}
@@ -335,7 +333,6 @@ func getFolderContents(folderID string, foldersOnly bool) (*FolderContentRespons
 		if !exists {
 			continue // Skip if item doesn't exist
 		}
-		log.Info("Debug: Checking childID %s, Item: %v ", childID, child)
 		// Skip if we only want folders and this is not a folder
 		if foldersOnly && child.Type != "folder" {
 			continue
@@ -361,7 +358,6 @@ func getFolderContents(folderID string, foldersOnly bool) (*FolderContentRespons
 	// Generate breadcrumbs
 	response.Breadcrumbs = generateBreadcrumbs(folderID, structure)
 
-	log.Errorf("Debug: structure contents: %+v\n", response)
 	return response, nil
 }
 
@@ -780,146 +776,147 @@ type ListItemsResponse struct {
 }
 
 func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
-    // Read folder structure
-    structure, err := readCombinedFolderStructure()
-    if err != nil {
-        return nil, fmt.Errorf("failed to read folder structure: %v", err)
-    }
+	// Read folder structure
+	structure, err := readCombinedFolderStructure()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read folder structure: %v", err)
+	}
 
-    items := make([]ItemMetadata, 0)
+	items := make([]ItemMetadata, 0)
 
-    // Helper function to get full path
-    getFullPath := func(itemID string) string {
-        path := []string{}
-        currentID := itemID
-        for currentID != "" && currentID != rootFolderID {
-            if item, exists := structure.Items[currentID]; exists {
-                path = append([]string{item.Name}, path...)
-                currentID = item.ParentID
-            } else {
-                break
-            }
-        }
-        return strings.Join(path, "/")
-    }
+	// Helper function to get full path
+	getFullPath := func(itemID string) string {
+		path := []string{}
+		currentID := itemID
+		for currentID != "" && currentID != rootFolderID {
+			if item, exists := structure.Items[currentID]; exists {
+				path = append([]string{item.Name}, path...)
+				currentID = item.ParentID
+			} else {
+				break
+			}
+		}
+		return strings.Join(path, "/")
+	}
 
-    // Collect items based on filters
-    for id, item := range structure.Items {
-        // Skip root folder
-        if id == rootFolderID {
-            continue
-        }
+	// Collect items based on filters
+	for id, item := range structure.Items {
+		// Skip root folder
+		if id == rootFolderID {
+			continue
+		}
 
-        // Apply folder filter
-        if req.FolderID != "" {
-            if req.FolderID == rootFolderID {
-                // For root folder, include all items at any level
-                // No filtering needed as we want to show everything
-            } else {
-                // For specific folder, show only immediate children
-                if item.ParentID != req.FolderID {
-                    continue
-                }
-            }
-        }
+		// Apply folder filter
+		if req.FolderID != "" {
+			if req.FolderID == rootFolderID {
+				// For root folder, include all items at any level
+				// No filtering needed as we want to show everything
+			} else {
+				// For specific folder, show only immediate children
+				if item.ParentID != req.FolderID {
+					continue
+				}
+			}
+		}
 
-        // Apply type filter
-        if req.Type != "" && req.Type != "all" && item.Type != req.Type {
-            continue
-        }
+		// Apply type filter
+		if req.Type != "" && req.Type != "all" && item.Type != req.Type {
+			continue
+		}
 
-        // Get item details
-        details, _ := getDashboard(id)
-        isStarred := false
-        createdAt := time.Now()
-        description := ""
-        if details != nil {
-            if starred, ok := details["isFavorite"].(bool); ok {
-                isStarred = starred
-            }
-            if created, ok := details["createdAt"].(int64); ok {
-                createdAt = time.UnixMilli(created)
-            }
-            if desc, ok := details["description"].(string); ok {
-                description = desc
-            }
-        }
+		// Get item details
+		details, _ := getDashboard(id)
+		isStarred := false
+		createdAt := time.Now()
+		description := ""
+		if details != nil {
+			if starred, ok := details["isFavorite"].(bool); ok {
+				isStarred = starred
+			}
+			if created, ok := details["createdAt"].(int64); ok {
+				createdAt = time.UnixMilli(created)
+			}
+			if desc, ok := details["description"].(string); ok {
+				description = desc
+			}
+		}
 
-        // Apply starred filter
-        if req.Starred && !isStarred {
-            continue
-        }
+		// Apply starred filter
+		if req.Starred && !isStarred {
+			continue
+		}
 
-        // Get paths
-        fullPath := getFullPath(id)
-        parentPath := getFullPath(item.ParentID)
+		// Get paths
+		fullPath := getFullPath(id)
+		parentPath := getFullPath(item.ParentID)
 
-        metadata := ItemMetadata{
-            ID:          id,
-            Name:        item.Name,
-            Type:        item.Type,
-            ParentID:    item.ParentID,
-            ParentPath:  parentPath,
-            FullPath:    fullPath,
-            IsStarred:   isStarred,
-            CreatedAt:   createdAt,
-            Description: description,
-        }
+		metadata := ItemMetadata{
+			ID:          id,
+			Name:        item.Name,
+			Type:        item.Type,
+			ParentID:    item.ParentID,
+			ParentPath:  parentPath,
+			FullPath:    fullPath,
+			IsStarred:   isStarred,
+			CreatedAt:   createdAt,
+			Description: description,
+		}
 
-        // Apply name-only search filter
-        if req.Query != "" {
-            query := strings.ToLower(req.Query)
-            if !strings.Contains(strings.ToLower(metadata.Name), query) {
-                continue
-            }
-        }
+		// Apply name-only search filter
+		if req.Query != "" {
+			query := strings.ToLower(req.Query)
+			if !strings.Contains(strings.ToLower(metadata.Name), query) {
+				continue
+			}
+		}
 
-        items = append(items, metadata)
-    }
+		items = append(items, metadata)
+	}
 
-    // Sort items
-    switch req.Sort {
-    case "alpha-asc":
-        sort.Slice(items, func(i, j int) bool {
-            return items[i].Name < items[j].Name
-        })
-    case "alpha-desc":
-        sort.Slice(items, func(i, j int) bool {
-            return items[i].Name > items[j].Name
-        })
-    case "created-asc":
-        sort.Slice(items, func(i, j int) bool {
-            return items[i].CreatedAt.Before(items[j].CreatedAt)
-        })
-    case "created-desc":
-        sort.Slice(items, func(i, j int) bool {
-            return items[i].CreatedAt.After(items[j].CreatedAt)
-        })
-    }
+	// Sort items
+	switch req.Sort {
+	case "alpha-asc":
+		sort.Slice(items, func(i, j int) bool {
+			return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
+		})
+	case "alpha-desc":
+		sort.Slice(items, func(i, j int) bool {
+			return strings.ToLower(items[i].Name) > strings.ToLower(items[j].Name)
+		})
+	case "created-asc":
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].CreatedAt.Before(items[j].CreatedAt)
+		})
+	case "created-desc":
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].CreatedAt.After(items[j].CreatedAt)
+		})
+	}
 
-    totalCount := len(items)
-	
-    return &ListItemsResponse{
-        Items:      items,
-        TotalCount: totalCount,
-    }, nil
+	totalCount := len(items)
+
+	return &ListItemsResponse{
+		Items:      items,
+		TotalCount: totalCount,
+	}, nil
 }
+
 // Update the ListItemsRequest struct
 type ListItemsRequest struct {
-	Sort      string `json:"sort"`      // alpha-asc, alpha-desc, created-asc, created-desc
-	Query     string `json:"query"`     // Search term (name only)
-	Type      string `json:"type"`      // dashboard, folder, or all
-	Starred   bool   `json:"starred"`   // Show only starred items
-	FolderID  string `json:"folderId"`  // Filter by folder (including subfolders)
+	Sort     string `json:"sort"`     // alpha-asc, alpha-desc, created-asc, created-desc
+	Query    string `json:"query"`    // Search term (name only)
+	Type     string `json:"type"`     // dashboard, folder, or all
+	Starred  bool   `json:"starred"`  // Show only starred items
+	FolderID string `json:"folderId"` // Filter by folder (including subfolders)
 }
 
 func ProcessListItemsRequest(ctx *fasthttp.RequestCtx) {
 	// Parse query parameters
 	req := &ListItemsRequest{
-		Sort:      string(ctx.QueryArgs().Peek("sort")),
-		Query:     string(ctx.QueryArgs().Peek("query")),
-		Type:      string(ctx.QueryArgs().Peek("type")),
-		FolderID:  string(ctx.QueryArgs().Peek("folderId")),
+		Sort:     string(ctx.QueryArgs().Peek("sort")),
+		Query:    string(ctx.QueryArgs().Peek("query")),
+		Type:     string(ctx.QueryArgs().Peek("type")),
+		FolderID: string(ctx.QueryArgs().Peek("folderId")),
 	}
 
 	// If no folder ID is specified, use root folder

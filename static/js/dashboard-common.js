@@ -55,13 +55,13 @@ async function getDashboardFolderList(folderId, params = {}) {
 
 // Setup search functionality
 function setupSearch(searchInput, grid, folderId) {
-    console.log("Setup Search");
+    console.log('Setup Search');
     let searchTimeout;
 
     searchInput.addEventListener('input', async (e) => {
         clearTimeout(searchTimeout);
         const query = e.target.value.trim();
-        console.log("query", query);
+        console.log('query', query);
         // Update URL
         updateUrl({ search: query });
 
@@ -97,30 +97,57 @@ function updateUrl(params = {}) {
     window.history.replaceState({}, '', url);
 }
 
-// Initialize page with URL parameters
-async function initializePage(grid, options = {}) {
-    const urlParams = new URLSearchParams(window.location.search);
+function initializeDashboardPage(options = {}) {
+    const addNew = new AddNewComponent('add-new-container');
+    const grid = new DashboardGrid('dashboard-grid');
     const folderId = getCurrentFolderId();
+
+    const urlParams = new URLSearchParams(window.location.search);
     const searchQuery = urlParams.get('search');
+    const sortValue = urlParams.get('sort');
 
-    if (searchQuery) {
-        // Set search input value if it exists
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.value = searchQuery;
-        }
+    // Initialize sort dropdown
+    const sortDropdown = new SortDropdown('sort-container', {
+        onSort: async (sortValue) => {
+            const results = await getDashboardFolderList(folderId, {
+                sort: sortValue,
+                query: searchInput?.value?.trim() || '',
+            });
+            if (results) {
+                grid.setData(results.items, true);
+            }
+        },
+        initialSort: sortValue,
+    });
 
-        // Perform search
-        const results = await getFolderContents(folderId, {
-            query: searchQuery,
-            sort: 'alpha-asc',
-        });
-        if (results) {
-            grid.setData(results.items, true);
+    // Load initial data
+    const loadData = async () => {
+        if (searchQuery || sortValue) {
+            const results = await getDashboardFolderList(folderId, {
+                query: searchQuery,
+                sort: sortValue,
+            });
+            if (results) {
+                grid.setData(results.items, true);
+            }
+
+            if (searchQuery) {
+                const searchInput = document.getElementById('search-input');
+                if (searchInput) {
+                    searchInput.value = searchQuery;
+                }
+            }
+        } else {
+            const folderContents = await getFolderContents(folderId);
+            grid.setData(folderContents.items);
         }
-    } else {
-        // Load normal folder view
-        const folderContents = await getFolderContents(folderId);
-        grid.setData(folderContents.items, false);
+    };
+
+    // Setup search
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        setupSearch(searchInput, grid, folderId);
     }
+
+    return { grid, folderId, loadData };
 }

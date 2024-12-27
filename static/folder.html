@@ -93,6 +93,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             placeholder="Search for dashboards and folders">
                     </div>
                 </div>
+                <div class="mt-2 d-flex align-items-center justify-content-end">
+                    <div id="sort-container"></div>
+                </div>
                 <div id="dashboard-grid-container">
                     <div id="dashboard-grid" class="ag-theme-mycustomtheme"></div>
                 </div>
@@ -138,7 +141,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/folder.js"></script>
     <script src="./component/dashboard/breadcrum.js"></script>
     <script src="./component/dashboard/add-new.js"></script>
-    <script src="./component/dashboard/dashboard-home-grid.js"></script>
+    <script src="./component/dashboard/dashboard-grid.js"></script>
+    <script src="./component/dashboard/sort-dropdown.js"></script>
 
 
     {{ .RunCheck2 | safeHTML }}
