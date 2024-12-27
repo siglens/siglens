@@ -23,16 +23,18 @@ let currentFolderParentId = null;
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
 
-    const urlParams = new URLSearchParams(window.location.search);
-    folderId = urlParams.get('id');
-
+    const folderId = getCurrentFolderId();
     await loadFolderContents(folderId);
 
     const addNew = new AddNewComponent('add-new-container');
-
     const grid = new DashboardGrid('dashboard-grid');
-    const folderContents = await getFolderContents(folderId);
-    grid.setData(folderContents.items);
+
+    await initializePage(grid);
+    
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        setupSearch(searchInput, grid, folderId);
+    }
 
     $('#move-folder').click(showMoveModal);
     $('#delete-folder').click(showDeleteModal);

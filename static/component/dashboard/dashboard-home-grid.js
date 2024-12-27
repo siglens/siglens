@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -18,8 +18,9 @@
  */
 
 class DashboardGrid {
-    constructor(containerId) {
+    constructor(containerId, options = {}) {
         this.gridDiv = document.querySelector(`#${containerId}`);
+        this.isSearchView = options.isSearchView || false;
         this.gridOptions = {
             columnDefs: this.getColumnDefs(),
             rowData: [],
@@ -48,115 +49,142 @@ class DashboardGrid {
     }
 
     getColumnDefs() {
-        return [
-            {
-                headerName: 'Name',
-                field: 'name',
-                sortable: true,
-                flex: 2,
-                cellRenderer: (params) => this.nameColumnRenderer(params),
-            },
-            // {
-            //     headerName: 'Created At',
-            //     field: 'createdAt',
-            //     sortable: true,
-            //     flex: 1,
-            //     cellStyle: { justifyContent: 'flex-end' },
-            //     headerClass: 'ag-right-aligned-header',
-            //     cellRenderer: (params) => this.dateCellRenderer(params)
-            // },
-            // {
-            //     cellRenderer: 'btnRenderer',
-            //     width: 150,
-            // }
-        ];
+        if (this.isSearchView) {
+            return [
+                {
+                    headerName: 'Name',
+                    field: 'name',
+                    flex: 2,
+                    cellRenderer: (params) => this.nameColumnRenderer(params, false), // false for no indentation
+                },
+                {
+                    headerName: 'Type',
+                    field: 'type',
+                    flex: 1,
+                    cellRenderer: (params) => {
+                        const icon = params.value === 'folder' ? '<i class="fa fa-folder" style="color: #FFB84D"></i>' : '<i class="fa fa-columns" style="color: #6366f1"></i>';
+                        return `<div style="display: flex; align-items: center; gap: 8px;">
+                            ${icon} 
+                            <span>${params.value.charAt(0).toUpperCase() + params.value.slice(1)}</span>
+                        </div>`;
+                    },
+                },
+                {
+                    headerName: 'Location',
+                    field: 'parentPath',
+                    flex: 2,
+                    cellRenderer: (params) => {
+                        if (!params.value) return 'Root';
+                        return params.value;
+                    },
+                },
+            ];
+        } else {
+            // Original tree view
+            return [
+                {
+                    headerName: 'Name',
+                    field: 'name',
+                    flex: 2,
+                    cellRenderer: (params) => this.nameColumnRenderer(params, true), // true for indentation
+                },
+            ];
+        }
     }
 
-    nameColumnRenderer(params) {
-        // Calculate indentation level
-        const getIndentLevel = (data) => {
-            let level = 0;
-            let currentData = data;
-            while (currentData.parentFolderId) {
-                level++;
-                currentData = this.gridOptions.api.getModel().rowsToDisplay.find((row) => row.data.uniqId === currentData.parentFolderId)?.data;
-                if (!currentData) break;
-            }
-            return level;
-        };
-
-        const indentLevel = getIndentLevel(params.data);
-        const basePadding = 20; // Base padding for each level
-        const indentPadding = indentLevel * basePadding;
-
+    nameColumnRenderer(params, useIndentation) {
         if (params.data.type === 'no-items') {
-            const noItemsDiv = document.createElement('div');
-            noItemsDiv.style.display = 'flex';
-            noItemsDiv.style.alignItems = 'center';
-            noItemsDiv.style.paddingLeft = `${indentPadding + 25}px`; // Indent + space for arrow
-            noItemsDiv.style.color = '#666'; // Grey color
-            noItemsDiv.style.fontStyle = 'italic';
-            noItemsDiv.textContent = params.value;
-            return noItemsDiv;
+            return this.renderNoItemsRow(params, useIndentation);
         }
 
-        if (params.data.type === 'folder') {
-            const folderDiv = document.createElement('div');
-            folderDiv.className = 'folder-row';
-            folderDiv.innerHTML = `
-                <div style="display: flex; align-items: center; padding-left: ${indentPadding}px;">
-                    <span class="folder-arrow" style="cursor: pointer">
-                        ${params.data.expanded ? '<i class="fa fa-chevron-down"></i>' : '<i class="fa fa-chevron-right"></i>'}
-                    </span>
-                    <i class="fa fa-folder" style="color: #FFB84D; margin-right: 8px; margin-left: 8px; cursor: auto"></i>
-                    <a href="folder.html?id=${params.data.uniqId}">${params.value}</a>
-                </div>`;
+        const baseDiv = document.createElement('div');
+        baseDiv.style.display = 'flex';
+        baseDiv.style.alignItems = 'center';
 
-            const arrowElement = folderDiv.querySelector('.folder-arrow');
-            arrowElement.addEventListener('click', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.toggleFolder(params);
-            });
+        if (useIndentation) {
+            // Add indentation for tree view
+            const indentLevel = this.getIndentLevel(params.data);
+            const indentPadding = indentLevel * 20;
+            baseDiv.style.paddingLeft = `${indentPadding}px`;
 
-            return folderDiv;
-        } else {
-            const dashDiv = document.createElement('div');
-            dashDiv.style.display = 'flex';
-            dashDiv.style.alignItems = 'center';
-            dashDiv.style.paddingLeft = `${indentPadding}px`;
+            if (params.data.type === 'folder') {
+                return this.renderFolderRow(params, baseDiv);
+            }
+        }
 
-            // Add empty space where arrow would be
+        // Render item (both for tree view dashboards and search view items)
+        const icon = document.createElement('i');
+        icon.className = params.data.type === 'folder' ? 'fa fa-folder' : 'fa fa-columns';
+        icon.style.color = params.data.type === 'folder' ? '#FFB84D' : '#6366f1';
+        icon.style.marginRight = '8px';
+
+        if (useIndentation) {
             const spacer = document.createElement('span');
             spacer.style.width = '33px'; // Same width as folder-arrow
             spacer.style.display = 'inline-block';
-            dashDiv.appendChild(spacer);
-
-            const icon = document.createElement('i');
-            icon.className = 'fa fa-columns';
-            icon.style.color = '#6366f1';
-            icon.style.marginRight = '8px';
-            dashDiv.appendChild(icon);
-
-            const link = document.createElement('a');
-            link.href = `dashboard.html?id=${params.data.uniqId}`;
-            link.innerText = params.value;
-            dashDiv.appendChild(link);
-
-            return dashDiv;
+            baseDiv.appendChild(spacer);
         }
+
+        const link = document.createElement('a');
+        link.href = params.data.type === 'folder' ? `folder.html?id=${params.data.uniqId}` : `dashboard.html?id=${params.data.uniqId}`;
+        link.innerText = params.value;
+
+        baseDiv.appendChild(icon);
+        baseDiv.appendChild(link);
+
+        return baseDiv;
     }
 
-    dateCellRenderer(params) {
-        if (!params.value || params.data.type === 'folder') return '-';
-        const date = new Date(params.value);
-        return date.toLocaleDateString([], {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
+    renderNoItemsRow(params, useIndentation) {
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        if (useIndentation) {
+            const indentLevel = this.getIndentLevel(params.data);
+            div.style.paddingLeft = `${indentLevel * 20 + 25}px`;
+        }
+        div.style.color = '#666';
+        div.style.fontStyle = 'italic';
+        div.textContent = params.value;
+        return div;
+    }
+
+    renderFolderRow(params, baseDiv) {
+        const arrowSpan = document.createElement('span');
+        arrowSpan.className = 'folder-arrow';
+        arrowSpan.style.cursor = 'pointer';
+        arrowSpan.innerHTML = params.data.expanded ? '<i class="fa fa-chevron-down"></i>' : '<i class="fa fa-chevron-right"></i>';
+        arrowSpan.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            this.toggleFolder(params);
         });
+
+        const icon = document.createElement('i');
+        icon.className = 'fa fa-folder';
+        icon.style.color = '#FFB84D';
+        icon.style.margin = '0 8px';
+
+        const link = document.createElement('a');
+        link.href = `folder.html?id=${params.data.uniqId}`;
+        link.innerText = params.value;
+
+        baseDiv.appendChild(arrowSpan);
+        baseDiv.appendChild(icon);
+        baseDiv.appendChild(link);
+
+        return baseDiv;
+    }
+
+    getIndentLevel(data) {
+        let level = 0;
+        let currentData = data;
+        while (currentData.parentFolderId) {
+            level++;
+            currentData = this.gridOptions.api.getModel().rowsToDisplay.find((row) => row.data.uniqId === currentData.parentFolderId)?.data;
+            if (!currentData) break;
+        }
+        return level;
     }
 
     async toggleFolder(params) {
@@ -239,7 +267,12 @@ class DashboardGrid {
         this.gridOptions.api.setRowData(newData);
     }
 
-    setData(items) {
+    setData(items, isSearchResult = false) {
+        if (isSearchResult !== this.isSearchView) {
+            this.isSearchView = isSearchResult;
+            this.gridOptions.api.setColumnDefs(this.getColumnDefs());
+        }
+
         let rowData = [];
         let rowId = 0;
 
@@ -249,18 +282,17 @@ class DashboardGrid {
                 uniqId: item.id,
                 name: item.name,
                 type: item.type,
-                createdAt: item.type === 'dashboard' ? item.createdAt : null,
-                favorite: item.type === 'dashboard' ? item.isFavorite : null,
+                parentPath: item.parentPath,
+                parentFolderId: item.parentId,
+                createdAt: item.createdAt,
+                favorite: item.isFavorite,
                 isDefault: item.isDefault,
                 childCount: item.type === 'folder' ? item.childCount : null,
                 expanded: false,
             });
         });
 
-        this.gridOptions.api.setColumnDefs(this.getColumnDefs());
         this.gridOptions.api.setRowData(rowData);
         this.gridOptions.api.sizeColumnsToFit();
     }
-
-    // Additional utility methods as needed
 }

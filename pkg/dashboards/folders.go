@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/siglens/siglens/pkg/blob"
@@ -671,92 +674,6 @@ type DashboardListResponse struct {
 	Dashboards []DashboardListItem `json:"dashboards"`
 }
 
-func getAllDashboardsWithPaths() (*DashboardListResponse, error) {
-	// Read folder structure
-	structure, err := readFolderStructure()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read folder structure: %v", err)
-	}
-
-	response := &DashboardListResponse{
-		Dashboards: make([]DashboardListItem, 0),
-	}
-
-	// Helper function to get full path of a folder
-	getFolderPath := func(folderID string) string {
-		if folderID == rootFolderID {
-			return "" // Return empty string for root level
-		}
-		path := ""
-		currentID := folderID
-		for currentID != "" && currentID != rootFolderID {
-			if item, exists := structure.Items[currentID]; exists {
-				if path == "" {
-					path = item.Name
-				} else {
-					path = item.Name + "/" + path
-				}
-				currentID = item.ParentID
-			} else {
-				break
-			}
-		}
-		return path
-	}
-
-	// Recursively process all items
-	var processFolder func(folderID string)
-	processFolder = func(folderID string) {
-		items := structure.Order[folderID]
-		for _, itemID := range items {
-			item, exists := structure.Items[itemID]
-			if !exists {
-				continue
-			}
-
-			if item.Type == "dashboard" {
-				parentPath := getFolderPath(item.ParentID)
-				var fullPath string
-
-				if parentPath == "" {
-					// Root level dashboard
-					fullPath = "Dashboards/" + item.Name
-				} else {
-					// Dashboard in a folder
-					fullPath = parentPath + "/" + item.Name
-				}
-
-				dashboardItem := DashboardListItem{
-					ID:         itemID,
-					Name:       item.Name,
-					FullPath:   fullPath,
-					ParentPath: parentPath,
-				}
-				response.Dashboards = append(response.Dashboards, dashboardItem)
-			} else if item.Type == "folder" {
-				processFolder(itemID) // Recursively process subfolders
-			}
-		}
-	}
-
-	// Start processing from root
-	processFolder(rootFolderID)
-
-	return response, nil
-}
-
-func ProcessListAllDashboardsRequest(ctx *fasthttp.RequestCtx) {
-	dashboards, err := getAllDashboardsWithPaths()
-	if err != nil {
-		log.Errorf("ProcessListAllDashboardsRequest: failed to list dashboards: %v", err)
-		utils.SetBadMsg(ctx, "")
-		return
-	}
-
-	utils.WriteJsonResponse(ctx, dashboards)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
 // TODO: After migration is complete :
 // 1. Remove getAllIdsFileName function
 // 3. Remove migration-related code from InitDashboards
@@ -841,4 +758,187 @@ func migrateToFolderStructure(orgid uint64) error {
 
 	// log.Info("Successfully migrated to folder structure")
 	return nil
+}
+
+type ItemMetadata struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"` // "dashboard" or "folder"
+	ParentID    string    `json:"parentId"`
+	ParentPath  string    `json:"parentPath"`
+	FullPath    string    `json:"fullPath"`
+	IsStarred   bool      `json:"isStarred"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Description string    `json:"description,omitempty"`
+}
+
+// ListItemsResponse represents the API response
+type ListItemsResponse struct {
+	Items         []ItemMetadata `json:"items"`
+	NextPageToken string         `json:"nextPageToken,omitempty"`
+	TotalCount    int            `json:"totalCount"`
+}
+
+func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
+    // Read folder structure
+    structure, err := readCombinedFolderStructure()
+    if err != nil {
+        return nil, fmt.Errorf("failed to read folder structure: %v", err)
+    }
+
+    items := make([]ItemMetadata, 0)
+
+    // Helper function to get full path
+    getFullPath := func(itemID string) string {
+        path := []string{}
+        currentID := itemID
+        for currentID != "" && currentID != rootFolderID {
+            if item, exists := structure.Items[currentID]; exists {
+                path = append([]string{item.Name}, path...)
+                currentID = item.ParentID
+            } else {
+                break
+            }
+        }
+        return strings.Join(path, "/")
+    }
+
+    // Collect items based on filters
+    for id, item := range structure.Items {
+        // Skip root folder
+        if id == rootFolderID {
+            continue
+        }
+
+        // Apply folder filter
+        if req.FolderID != "" {
+            if req.FolderID == rootFolderID {
+                // For root folder, include all items at any level
+                // No filtering needed as we want to show everything
+            } else {
+                // For specific folder, show only immediate children
+                if item.ParentID != req.FolderID {
+                    continue
+                }
+            }
+        }
+
+        // Apply type filter
+        if req.Type != "" && req.Type != "all" && item.Type != req.Type {
+            continue
+        }
+
+        // Get item details
+        details, _ := getDashboard(id)
+        isStarred := false
+        createdAt := time.Now()
+        description := ""
+        if details != nil {
+            if starred, ok := details["isFavorite"].(bool); ok {
+                isStarred = starred
+            }
+            if created, ok := details["createdAt"].(int64); ok {
+                createdAt = time.UnixMilli(created)
+            }
+            if desc, ok := details["description"].(string); ok {
+                description = desc
+            }
+        }
+
+        // Apply starred filter
+        if req.Starred && !isStarred {
+            continue
+        }
+
+        // Get paths
+        fullPath := getFullPath(id)
+        parentPath := getFullPath(item.ParentID)
+
+        metadata := ItemMetadata{
+            ID:          id,
+            Name:        item.Name,
+            Type:        item.Type,
+            ParentID:    item.ParentID,
+            ParentPath:  parentPath,
+            FullPath:    fullPath,
+            IsStarred:   isStarred,
+            CreatedAt:   createdAt,
+            Description: description,
+        }
+
+        // Apply name-only search filter
+        if req.Query != "" {
+            query := strings.ToLower(req.Query)
+            if !strings.Contains(strings.ToLower(metadata.Name), query) {
+                continue
+            }
+        }
+
+        items = append(items, metadata)
+    }
+
+    // Sort items
+    switch req.Sort {
+    case "alpha-asc":
+        sort.Slice(items, func(i, j int) bool {
+            return items[i].Name < items[j].Name
+        })
+    case "alpha-desc":
+        sort.Slice(items, func(i, j int) bool {
+            return items[i].Name > items[j].Name
+        })
+    case "created-asc":
+        sort.Slice(items, func(i, j int) bool {
+            return items[i].CreatedAt.Before(items[j].CreatedAt)
+        })
+    case "created-desc":
+        sort.Slice(items, func(i, j int) bool {
+            return items[i].CreatedAt.After(items[j].CreatedAt)
+        })
+    }
+
+    totalCount := len(items)
+	
+    return &ListItemsResponse{
+        Items:      items,
+        TotalCount: totalCount,
+    }, nil
+}
+// Update the ListItemsRequest struct
+type ListItemsRequest struct {
+	Sort      string `json:"sort"`      // alpha-asc, alpha-desc, created-asc, created-desc
+	Query     string `json:"query"`     // Search term (name only)
+	Type      string `json:"type"`      // dashboard, folder, or all
+	Starred   bool   `json:"starred"`   // Show only starred items
+	FolderID  string `json:"folderId"`  // Filter by folder (including subfolders)
+}
+
+func ProcessListItemsRequest(ctx *fasthttp.RequestCtx) {
+	// Parse query parameters
+	req := &ListItemsRequest{
+		Sort:      string(ctx.QueryArgs().Peek("sort")),
+		Query:     string(ctx.QueryArgs().Peek("query")),
+		Type:      string(ctx.QueryArgs().Peek("type")),
+		FolderID:  string(ctx.QueryArgs().Peek("folderId")),
+	}
+
+	// If no folder ID is specified, use root folder
+	if req.FolderID == "" {
+		req.FolderID = rootFolderID
+	}
+
+	// Parse boolean and numeric parameters
+	if string(ctx.QueryArgs().Peek("starred")) == "true" {
+		req.Starred = true
+	}
+
+	response, err := listItems(req)
+	if err != nil {
+		log.Errorf("ProcessListItemsRequest: failed to list items: %v", err)
+		utils.SetBadMsg(ctx, "Failed to list items")
+		return
+	}
+
+	utils.WriteJsonResponse(ctx, response)
+	ctx.SetStatusCode(fasthttp.StatusOK)
 }

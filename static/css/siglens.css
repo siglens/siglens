@@ -3480,7 +3480,7 @@ float: right;
 
 /* dashboard Grid*/
 #dashboard-grid-container{
-    margin-top: -3px;
+    margin-top: 16px;
     height: 100% !important;
 }
 

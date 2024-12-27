@@ -17,20 +17,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let dbgridDiv = null;
-let dbRowData = [];
-
-let initialDashboards = null;
-
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
+
     const addNew = new AddNewComponent('add-new-container');
-
     const grid = new DashboardGrid('dashboard-grid');
-    const folderContents = await getFolderContents("root-folder");
-    grid.setData(folderContents.items);
 
+    const folderId = getCurrentFolderId();
+    
+    await initializePage(grid);
+
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        setupSearch(searchInput, grid, folderId);
+    }
+    await initializeGrid();
 });
+
 
 // class btnRenderer {
 //     init(params) {

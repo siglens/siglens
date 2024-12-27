@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -67,17 +67,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="app-side-nav">
         </div>
         <div id="dashboard" class="launch-dashboard">
-            <div>
-                <h1 class="myOrg-heading">Dashboards</h1>
-            </div>
-            <div id="db-search-container">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <input type="text" class="form-control search-db-input" placeholder="Search dashboards by name"
-                        title="Search your dashboards">
+                    <h1 class="myOrg-heading">Dashboards</h1>
+                    <p class="caption">Create and manage dashboards to visualize your data</p>
+                </div>
+                <div class="dashboard-header">
+                    <div id="add-new-container"></div>
                 </div>
             </div>
-            <div class="dashboard-header">
-                <div id="add-new-container"></div>
+
+            <div id="db-search-container">
+                <div>
+                    <input type="text" id="search-input" class="form-control search-db-input" placeholder="Search for dashboards and folders">
+                </div>
             </div>
 
             <div id="empty-response">Dashboard Not Found</div>
