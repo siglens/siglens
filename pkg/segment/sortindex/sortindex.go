@@ -36,18 +36,17 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const SortColumnsConfigPath = "data/common/sort_columns.json"
+
 type Block struct {
 	BlockNum uint16   `json:"blockNum"`
 	RecNums  []uint16 `json:"recNums"`
 }
 
-type SortColumnConfig struct {
-	columns []string
-	mu      sync.RWMutex
-}
+var sortConfigMutex sync.RWMutex
 
-var sortConfig = &SortColumnConfig{
-	columns: make([]string, 0),
+type SortColumnsConfig struct {
+	Indexes map[string][]string `json:"indexes"`
 }
 
 var VERSION_SORT_INDEX = []byte{1}
@@ -658,37 +657,85 @@ func readMetadata(file *os.File) (*metadata, error) {
 	return meta, nil
 }
 
-func SetSortColumns(columnNames []string) error {
-	sortConfig.mu.Lock()
-	defer sortConfig.mu.Unlock()
+func SetSortColumns(indexName string, columnNames []string) error {
+	sortConfigMutex.Lock()
+	defer sortConfigMutex.Unlock()
 
-	// TODO: Persist sort column names to disk
+	dir := filepath.Dir(SortColumnsConfigPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create config directory: %v", err)
+	}
+
 	for _, col := range columnNames {
 		if col == "" {
 			return fmt.Errorf("SetSortColumns: column names must be non-empty strings")
 		}
 	}
 
-	sortConfig.columns = columnNames
+	config := SortColumnsConfig{
+		Indexes: make(map[string][]string),
+	}
+
+	data, err := os.ReadFile(SortColumnsConfigPath)
+	if err == nil {
+		if err := json.Unmarshal(data, &config); err != nil {
+			return fmt.Errorf("failed to parse sort columns config: %v", err)
+		}
+	}
+
+	config.Indexes[indexName] = columnNames
+
+	data, err = json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal sort columns config: %v", err)
+	}
+
+	err = os.WriteFile(SortColumnsConfigPath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write sort columns config: %v", err)
+	}
 
 	return nil
 }
 
-func GetSortColumns() []string {
-	sortConfig.mu.RLock()
-	defer sortConfig.mu.RUnlock()
-	return sortConfig.columns
+func GetSortColumnNamesForIndex(indexName string) []string {
+	sortConfigMutex.RLock()
+	defer sortConfigMutex.RUnlock()
+
+	data, err := os.ReadFile(SortColumnsConfigPath)
+	if err != nil {
+		log.Debugf("No sort columns config file found: %v", err)
+		return make([]string, 0)
+	}
+
+	var config SortColumnsConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.Errorf("Failed to parse sort columns config: %v", err)
+		return make([]string, 0)
+	}
+
+	return config.Indexes[indexName]
 }
 
 func SetSortColumnsAPI(ctx *fasthttp.RequestCtx) {
-	var columns []string
-	if err := json.Unmarshal(ctx.PostBody(), &columns); err != nil {
+	var request struct {
+		IndexName string   `json:"indexName"`
+		Columns   []string `json:"columns"`
+	}
+
+	if err := json.Unmarshal(ctx.PostBody(), &request); err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString("Invalid request body: " + err.Error())
 		return
 	}
 
-	if err := SetSortColumns(columns); err != nil {
+	if request.IndexName == "" {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetBodyString("missing index name")
+		return
+	}
+
+	if err := SetSortColumns(request.IndexName, request.Columns); err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("Failed to set sort columns: " + err.Error())
 		return
