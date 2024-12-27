@@ -421,17 +421,17 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 }
 
 func doInodeBasedDeletion(ingestNodeDir string, maxInodeUsagePercent uint64, deletionWarningCounter int) {
-	var stat syscall.Statfs_t
+	var fsStats syscall.Statfs_t
 	dataPath := config.GetDataPath()
 
-	err := syscall.Statfs(filepath.Clean(dataPath), &stat)
+	err := syscall.Statfs(filepath.Clean(dataPath), &fsStats)
 	if err != nil {
 		log.Errorf("doInodeBasedDeletion: Failed to get inode stats: %v", err)
 		return
 	}
 
-	totalInodes := stat.Files
-	freeInodes := stat.Ffree
+	totalInodes := fsStats.Files
+	freeInodes := fsStats.Ffree
 	usedInodes := totalInodes - freeInodes
 
 	if totalInodes == 0 {
@@ -479,6 +479,7 @@ func doInodeBasedDeletion(ingestNodeDir string, maxInodeUsagePercent uint64, del
 		} else if metricMeta, ok := allEntries[i].(*structs.MetricsMeta); ok {
 			timeI = uint64(metricMeta.LatestEpochSec * 1000)
 		} else {
+			log.Errorf("doInodeBasedDeletion: Unexpected entry type in allEntries: %T", allEntries[i])
 			return false
 		}
 
@@ -488,6 +489,7 @@ func doInodeBasedDeletion(ingestNodeDir string, maxInodeUsagePercent uint64, del
 		} else if metricMeta, ok := allEntries[j].(*structs.MetricsMeta); ok {
 			timeJ = uint64(metricMeta.LatestEpochSec * 1000)
 		} else {
+			log.Errorf("doInodeBasedDeletion: Unexpected entry type in allEntries: %T", allEntries[j])
 			return false
 		}
 		return timeI < timeJ
@@ -498,23 +500,13 @@ func doInodeBasedDeletion(ingestNodeDir string, maxInodeUsagePercent uint64, del
 	metricSegmentsToDelete := make(map[string]*structs.MetricsMeta)
 
 	for _, metaEntry := range allEntries {
-		// Check if we've deleted enough by getting fresh inode stats
-		err := syscall.Statfs(filepath.Clean(dataPath), &stat)
-		if err != nil {
-			log.Errorf("doInodeBasedDeletion: Failed to get updated inode stats: %v", err)
-			break
-		}
-
-		currentUsagePercent = ((stat.Files - stat.Ffree) * 100) / stat.Files
-		if currentUsagePercent <= maxInodeUsagePercent {
-			break
-		}
-
 		switch entry := metaEntry.(type) {
 		case *structs.MetricsMeta:
 			metricSegmentsToDelete[entry.MSegmentDir] = entry
 		case *structs.SegMeta:
 			segmentsToDelete[entry.SegmentKey] = entry
+		default:
+			log.Errorf("Unexpected entry type while marking for deletion: %T", metaEntry)
 		}
 	}
 
