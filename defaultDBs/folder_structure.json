@@ -13,19 +13,19 @@
       "isDefault": true
     },
     "10329b95-47a8-48df-8b1d-0a0a01ec6c42": {
-      "name": "Sigscalr Ingestion DB",
+      "name": "SigLens Ingestion DB",
       "type": "dashboard",
       "parentId": "siglens-folder",
       "isDefault": true
     },
     "a28f485c-4747-4024-bb6b-d230f101f852": {
-      "name": "Sigscalr Query DB",
+      "name": "SigLens Query DB",
       "type": "dashboard",
       "parentId": "siglens-folder",
       "isDefault": true
     },
     "bd74f11e-26c8-4827-bf65-c0b464e1f2a4": {
-      "name": "Sigscalr Data DB",
+      "name": "SigLens Data DB",
       "type": "dashboard",
       "parentId": "siglens-folder",
       "isDefault": true

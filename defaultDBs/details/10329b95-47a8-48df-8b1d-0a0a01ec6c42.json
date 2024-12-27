@@ -1,6 +1,6 @@
 {
-    "description": "Sigscalr Ingestion Dashboard",
-    "name": "Sigscalr Ingestion DB",
+    "description": "SigLens Ingestion Dashboard",
+    "name": "SigLens Ingestion DB",
     "panels": [
         {
             "chartType": "number",
@@ -51,7 +51,7 @@
                 "x": 0,
                 "y": 6
             },
-            "name": "SigScalr Storage Used",
+            "name": "SigLens Storage Used",
             "panelId": "060afc8a-2e14-41ff-9c43-90b9c20f0832",
             "panelIndex": 1,
             "queryData": {

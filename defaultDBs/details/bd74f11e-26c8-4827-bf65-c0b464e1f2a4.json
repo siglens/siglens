@@ -1,6 +1,6 @@
 {
-  "description": "Sigscalr Data Dashboard",
-  "name": "Sigscalr Data DB",
+  "description": "SigLens Data Dashboard",
+  "name": "SigLens Data DB",
   "panels": [
     {
       "chartType": "number",

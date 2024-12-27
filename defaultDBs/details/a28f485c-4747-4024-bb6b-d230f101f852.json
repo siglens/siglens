@@ -1,6 +1,6 @@
 {
-  "description": "Sigscalr Query Dashboard",
-  "name": "Sigscalr Query DB",
+  "description": "SigLens Query Dashboard",
+  "name": "SigLens Query DB",
   "panels": [
     {
       "chartType": "number",
