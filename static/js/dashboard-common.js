@@ -147,10 +147,16 @@ function initializeDashboardPage(options = {}) {
         });
         window.history.replaceState({}, '', `?${urlParams.toString()}`);
 
-        // Fetch and update grid
-        const results = await getDashboardFolderList(folderId, filters);
-        if (results) {
-            grid.setData(results.items, true);
+        const hasActiveFilters = filters.query || filters.sort || filters.starred;
+
+        if (hasActiveFilters) {
+            const results = await getDashboardFolderList(folderId, filters);
+            if (results) {
+                grid.setData(results.items, true); // List view for filters
+            }
+        } else {
+            const folderContents = await getFolderContents(folderId);
+            grid.setData(folderContents.items, false); // Tree view when no filters
         }
     }
 
@@ -164,8 +170,9 @@ function initializeDashboardPage(options = {}) {
             });
         } else {
             const folderContents = await getFolderContents(folderId);
-            grid.setData(folderContents.items);
+            grid.setData(folderContents.items, false);
         }
     };
+
     return { grid, folderId, loadData };
 }
