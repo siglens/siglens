@@ -105,43 +105,22 @@ function initializeDashboardPage(options = {}) {
     const urlParams = new URLSearchParams(window.location.search);
     const searchQuery = urlParams.get('search');
     const sortValue = urlParams.get('sort');
+    const isStarred = urlParams.get('starred') === 'true';
 
     // Initialize sort dropdown
     const sortDropdown = new SortDropdown('sort-container', {
-        onSort: async (sortValue) => {
-            const results = await getDashboardFolderList(folderId, {
-                sort: sortValue,
-                query: searchInput?.value?.trim() || '',
-            });
-            if (results) {
-                grid.setData(results.items, true);
-            }
-        },
+        onSort: async (sortValue) => handleFilters({ sort: sortValue }),
         initialSort: sortValue,
     });
 
-    // Load initial data
-    const loadData = async () => {
-        if (searchQuery || sortValue) {
-            const results = await getDashboardFolderList(folderId, {
-                query: searchQuery,
-                sort: sortValue,
-            });
-            if (results) {
-                grid.setData(results.items, true);
-            }
-
-            if (searchQuery) {
-                const searchInput = document.getElementById('search-input');
-                if (searchInput) {
-                    searchInput.value = searchQuery;
-                }
-            }
-        } else {
-            const folderContents = await getFolderContents(folderId);
-            grid.setData(folderContents.items);
-        }
-    };
+    // Setup starred checkbox
+    const starredCheckbox = document.getElementById('starred-filter');
+    if (starredCheckbox) {
+        starredCheckbox.checked = isStarred;
+        starredCheckbox.addEventListener('change', (e) => {
+            handleFilters({ starred: e.target.checked });
+        });
+    }
 
     // Setup search
     const searchInput = document.getElementById('search-input');
@@ -149,5 +128,44 @@ function initializeDashboardPage(options = {}) {
         setupSearch(searchInput, grid, folderId);
     }
 
+    async function handleFilters(newFilters = {}) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const filters = {
+            query: searchInput?.value?.trim() || '',
+            sort: urlParams.get('sort'),
+            starred: urlParams.get('starred') === 'true',
+            ...newFilters,
+        };
+
+        // Update URL
+        Object.entries(filters).forEach(([key, value]) => {
+            if (value) {
+                urlParams.set(key, value);
+            } else {
+                urlParams.delete(key);
+            }
+        });
+        window.history.replaceState({}, '', `?${urlParams.toString()}`);
+
+        // Fetch and update grid
+        const results = await getDashboardFolderList(folderId, filters);
+        if (results) {
+            grid.setData(results.items, true);
+        }
+    }
+
+    // Initial load
+    const loadData = async () => {
+        if (searchQuery || sortValue || isStarred) {
+            await handleFilters({
+                query: searchQuery,
+                sort: sortValue,
+                starred: isStarred,
+            });
+        } else {
+            const folderContents = await getFolderContents(folderId);
+            grid.setData(folderContents.items);
+        }
+    };
     return { grid, folderId, loadData };
 }
