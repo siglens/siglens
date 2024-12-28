@@ -30,6 +30,7 @@ class SortDropdown {
                     aria-haspopup="true" aria-expanded="true" data-bs-toggle="dropdown">
                     <span class="sort-text" style="margin-right: 6px;">Sort</span>
                     <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                    <span class="clear-sort" style="display: none; margin-left: 8px; cursor: pointer;">✕</span>
                 </button>
                 <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">
                     <li class="dropdown-option" data-sort="alpha-asc">Alphabetically (A-Z)</li>
@@ -70,10 +71,19 @@ class SortDropdown {
                 const sortText = e.target.textContent;
                 this.container.querySelector('.sort-text').textContent = sortText;
 
+                this.container.querySelector('.clear-sort').style.display = 'inline';
+
                 // Get sort value and trigger callback
                 const sortValue = e.target.dataset.sort;
                 await this.handleSort(sortValue);
             });
+        });
+
+        // Setup clear button handler
+        const clearBtn = this.container.querySelector('.clear-sort');
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent dropdown from opening
+            this.clearSort();
         });
     }
 
@@ -96,18 +106,24 @@ class SortDropdown {
     }
 
     setActiveSort(sortValue) {
-        // Update button text
-        const sortText = this.reverseMappings[sortValue] || 'Sort';
+        if (!sortValue) {
+            this.container.querySelector('.sort-text').textContent = 'Sort';
+            this.container.querySelector('.clear-sort').style.display = 'none';
+            this.container.querySelectorAll('.dropdown-option').forEach((opt) => opt.classList.remove('active'));
+            return;
+        }
+        const sortText = this.reverseMappings[sortValue];
         this.container.querySelector('.sort-text').textContent = sortText;
+        this.container.querySelector('.clear-sort').style.display = 'inline';
 
-        // Update active class
         const options = this.container.querySelectorAll('.dropdown-option');
         options.forEach((option) => {
-            if (option.dataset.sort === sortValue) {
-                option.classList.add('active');
-            } else {
-                option.classList.remove('active');
-            }
+            option.classList.toggle('active', option.dataset.sort === sortValue);
         });
+    }
+
+    clearSort() {
+        this.setActiveSort(null);
+        this.options.onSort(null);
     }
 }
