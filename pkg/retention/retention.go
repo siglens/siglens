@@ -498,13 +498,20 @@ func doInodeBasedDeletion(ingestNodeDir string, maxInodeUsagePercent uint64, del
 	// Delete oldest segments until we get below the threshold
 	segmentsToDelete := make(map[string]*structs.SegMeta)
 	metricSegmentsToDelete := make(map[string]*structs.MetricsMeta)
+	inodesToFree := usedInodes - (totalInodes * maxInodeUsagePercent / 100)
+	segmentsMarked := uint64(0)
 
 	for _, metaEntry := range allEntries {
+		if segmentsMarked >= inodesToFree {
+			break
+		}
 		switch entry := metaEntry.(type) {
 		case *structs.MetricsMeta:
 			metricSegmentsToDelete[entry.MSegmentDir] = entry
+			segmentsMarked++
 		case *structs.SegMeta:
 			segmentsToDelete[entry.SegmentKey] = entry
+			segmentsMarked++
 		default:
 			log.Errorf("Unexpected entry type while marking for deletion: %T", metaEntry)
 		}
