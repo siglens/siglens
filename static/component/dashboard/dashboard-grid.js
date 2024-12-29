@@ -69,10 +69,9 @@ class DashboardGrid {
             },
             {
                 headerName: 'Location',
-                field: 'parentPath',
+                field: 'parentName',
                 flex: 2,
                 cellRenderer: (params) => {
-                    if (!params.value) return 'Root';
                     return params.value;
                 },
             },
@@ -287,7 +286,7 @@ class DashboardGrid {
                 uniqId: item.id,
                 name: item.name,
                 type: item.type,
-                parentPath: item.parentPath,
+                parentName: item.parentName,
                 parentFolderId: item.parentId,
                 createdAt: item.createdAt,
                 favorite: item.isFavorite,

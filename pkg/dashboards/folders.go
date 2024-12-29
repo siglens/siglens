@@ -761,7 +761,7 @@ type ItemMetadata struct {
 	Name        string    `json:"name"`
 	Type        string    `json:"type"` // "dashboard" or "folder"
 	ParentID    string    `json:"parentId"`
-	ParentPath  string    `json:"parentPath"`
+	ParentName  string    `json:"parentName"` // Just the immediate parent folder name
 	FullPath    string    `json:"fullPath"`
 	IsStarred   bool      `json:"isStarred"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -827,7 +827,7 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		// Get item details
 		details, _ := getDashboard(id)
 		isStarred := false
-		createdAt := time.Now()
+		createdAt := time.Now() // TODO: fix this
 		description := ""
 		if details != nil {
 			if starred, ok := details["isFavorite"].(bool); ok {
@@ -848,14 +848,20 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 
 		// Get paths
 		fullPath := getFullPath(id)
-		parentPath := getFullPath(item.ParentID)
+		// Get parent folder name
+		parentName := ""
+		if item.ParentID != rootFolderID {
+			if parentFolder, exists := structure.Items[item.ParentID]; exists {
+				parentName = parentFolder.Name
+			}
+		}
 
 		metadata := ItemMetadata{
 			ID:          id,
 			Name:        item.Name,
 			Type:        item.Type,
 			ParentID:    item.ParentID,
-			ParentPath:  parentPath,
+			ParentName:  parentName,
 			FullPath:    fullPath,
 			IsStarred:   isStarred,
 			CreatedAt:   createdAt,
