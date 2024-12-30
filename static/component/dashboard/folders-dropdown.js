@@ -25,6 +25,7 @@ class FolderDropdown {
             excludeFolderId: options.excludeFolderId || null,
             showRoot: options.showRoot || false,
             placeholder: options.placeholder || 'Select Folder',
+            initialFolder: options.initialFolder || null,
         };
 
         // Store child folder IDs that need to be excluded
@@ -35,7 +36,9 @@ class FolderDropdown {
             this.loadExcludedFolders();
         }
 
-        this.selectedFolder = null;
+        this.selectedFolder = this.options.initialFolder;
+        console.log(this.selectedFolder);
+        console.log(this.selectedFolder.name);
         this.render();
         this.loadFolders();
     }
@@ -46,7 +49,9 @@ class FolderDropdown {
                 <button class="folder-select-btn grey-dropdown-btn btn">
                     <div>
                         <i class="fa fa-folder" style="color: #FFB84D; margin-right: 8px;"></i>
-                        <span class="selected-folder" style="margin-right: 6px;">Select Folder</span>
+                        <span class="selected-folder">
+                            ${this.selectedFolder ? this.selectedFolder.name : this.options.placeholder}
+                        </span>                   
                     </div>
                     <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">                
                 </button>
@@ -132,9 +137,9 @@ class FolderDropdown {
 
     renderFolderTree(folders, parentElement = null) {
         const listElement = parentElement || this.container.querySelector('.folder-tree');
-        listElement.innerHTML = ''; // Clear existing items
 
         if (!parentElement) {
+            listElement.innerHTML = ''; // Clear existing items
             if (this.options.showRoot) {
                 const rootLi = document.createElement('li');
                 rootLi.className = 'folder-item';

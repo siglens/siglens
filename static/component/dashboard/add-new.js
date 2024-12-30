@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -20,10 +20,30 @@
 class AddNewComponent {
     constructor(containerId) {
         this.container = $(`#${containerId}`);
+        this.selectedFolderId = this.getCurrentFolderId();
         this.init();
     }
 
     init() {
+        const dashboardModal = `
+        <div class="popupContent" id="new-dashboard-modal">
+            <h3 class="header">New Dashboard</h3>
+            <div>
+                <input type="text" placeholder="Name" class="input" id="db-name">
+                <p class="error-tip"></p>
+                <input type="text" placeholder="Description (Optional)" class="input mt-3" id="db-description">
+                <div class="mt-3">
+                    <label>Folder</label>
+                    <div id="dashboard-folder-selector"></div>
+                </div>
+            </div>
+            <div id="buttons-popupContent">
+                <button type="button" id="cancel-dbbtn">Cancel</button>
+                <button type="button" id="save-dbbtn">Save</button>
+            </div>
+        </div>
+    `;
+
         // Add dropdown button
         this.container.html(`
             <div class="dropdown">
@@ -39,19 +59,7 @@ class AddNewComponent {
                 </div>
             </div>
 
-            <!-- Dashboard Modal -->
-            <div class="popupContent" id="new-dashboard-modal">
-                <h3 class="header">New Dashboard</h3>
-                <div>
-                    <input type="text" placeholder="Name" class="input" id="db-name">
-                    <p class="error-tip"></p>
-                    <input type="text" placeholder="Description (Optional)" class="input mt-3" id="db-description">
-                </div>
-                <div id="buttons-popupContent">
-                    <button type="button" id="cancel-dbbtn">Cancel</button>
-                    <button type="button" id="save-dbbtn">Save</button>
-                </div>
-            </div>
+            ${dashboardModal}
 
             <!-- Folder Modal -->
             <div class="popupContent" id="new-folder-modal">
@@ -92,8 +100,24 @@ class AddNewComponent {
     showDashboardModal() {
         $('.popupOverlay, #new-dashboard-modal').addClass('active');
         $('.error-tip').removeClass('active');
-    }
 
+        // Initialize folder dropdown with current folder preselected
+        const currentFolderId = this.getCurrentFolderId();
+        const currentFolderName = currentFolderId === 'root-folder' ? 'Dashboards' : $('.name-dashboard').text().trim();
+        console.log(currentFolderId);
+        console.log(currentFolderName);
+        this.folderDropdown = new FolderDropdown('dashboard-folder-selector', {
+            placeholder: 'Select Folder',
+            showRoot: true,
+            initialFolder: {
+                id: currentFolderId,
+                name: currentFolderName,
+            },
+            onSelect: (folder) => {
+                this.selectedFolderId = folder.id;
+            },
+        });
+    }
     showFolderModal() {
         $('.popupOverlay, #new-folder-modal').addClass('active');
         $('.error-tip').removeClass('active');
@@ -109,7 +133,7 @@ class AddNewComponent {
         const dashboardData = {
             name: $('#db-name').val().trim(),
             description: $('#db-description').val().trim(),
-            parentId: this.getCurrentFolderId(),
+            parentId: this.selectedFolderId, // Use selected folder ID
         };
 
         if (!dashboardData.name) {

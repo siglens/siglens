@@ -75,6 +75,10 @@ async function showMoveModal() {
                 showToast('Failed to move folder. Please try again.', 'error');
             }
         });
+
+    $('.cancel-btn').click(function () {
+        $('.popupOverlay, .popupContent').removeClass('active');
+    });
 }
 
 async function showDeleteModal() {
@@ -104,6 +108,11 @@ async function showDeleteModal() {
                 }
             });
         }
+    });
+
+    $('.cancel-btn').click(function () {
+        $('.popupOverlay, .popupContent').removeClass('active');
+        $('.confirm-input').val('');
     });
 }
 
