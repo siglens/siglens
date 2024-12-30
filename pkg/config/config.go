@@ -84,8 +84,7 @@ const (
 type cgroupVersion uint8
 
 const (
-	noCgroupVersion cgroupVersion = iota
-	cgroupVersion1
+	cgroupVersion1 cgroupVersion = iota
 	cgroupVersion2
 )
 
@@ -113,37 +112,40 @@ func init() {
 		parallelism = 2
 	}
 
-	detectCgroupVersion()
+	cgroupVersionDetected = detectCgroupVersion()
 	initMemoryPaths()
 }
 
-func detectCgroupVersion() {
+func detectCgroupVersion() cgroupVersion {
+	// Detect non-Linux OS
+	if runtime.GOOS != "linux" {
+		log.Infof("Non-Linux OS detected. Assuming no cgroup support.")
+		return 0
+	}
+
 	data, err := os.ReadFile("/proc/mounts")
 	if err != nil {
 		log.Warnf("detectCgroupVersion: Error reading /proc/mounts: %v", err)
 	} else {
 		if strings.Contains(string(data), " cgroup2 ") {
 			log.Infof("detectCgroupVersion: Detected cgroup v2")
-			cgroupVersionDetected = cgroupVersion2
-			return
+			return cgroupVersion2
 		}
 
 		if strings.Contains(string(data), " cgroup ") {
 			log.Infof("detectCgroupVersion: Detected cgroup v1 through /proc/mounts")
-			cgroupVersionDetected = cgroupVersion1
-			return
+			return cgroupVersion1
 		}
 	}
 
 	data, err = os.ReadFile("/proc/self/cgroup")
 	if err == nil && strings.Contains(string(data), ":memory:") {
 		log.Infof("detectCgroupVersion: Detected cgroup v1 through /proc/self/cgroup")
-		cgroupVersionDetected = cgroupVersion1
-		return
+		return cgroupVersion1
 	}
 
 	log.Warn("detectCgroupVersion: Unable to detect cgroup version")
-	cgroupVersionDetected = noCgroupVersion
+	return 0
 }
 
 // Detect whether the system is using cgroup v2
@@ -152,28 +154,45 @@ func isCgroupVersion2() bool {
 }
 
 func initMemoryPaths() {
-	if isCgroupVersion2() {
+	switch cgroupVersionDetected {
+	case cgroupVersion2:
 		memoryFilePaths.MaxPaths = []string{cgroupV2MaxMemoryPath}
 		memoryFilePaths.UsagePaths = []string{cgroupV2UsageMemoryPath}
-	} else {
+	case cgroupVersion1:
 		memoryFilePaths.MaxPaths = []string{cgroupV1MaxMemoryPath}
 		memoryFilePaths.UsagePaths = []string{cgroupV1UsageMemoryPath}
 	}
 
-	// Add Kubernetes-specific paths only when inside Kubernetes
-	memoryFilePaths.MaxPaths = append(memoryFilePaths.MaxPaths,
-		"/sys/fs/cgroup/kubepods/memory.max",                 // Kubernetes cgroup v2
-		"/sys/fs/cgroup/kubepods.slice/memory.max",           // Kubernetes cgroup v2 with systemd
-		"/sys/fs/cgroup/kubepods/burstable/memory.max",       // Kubernetes burstable v2
-		"/sys/fs/cgroup/kubepods/burstable.slice/memory.max", // Kubernetes burstable v2 with systemd
-	)
+	if isRunningInKubernetes() {
+		// Add Kubernetes-specific paths
+		memoryFilePaths.MaxPaths = append(memoryFilePaths.MaxPaths,
+			"/sys/fs/cgroup/kubepods/memory.max",                 // Kubernetes cgroup v2
+			"/sys/fs/cgroup/kubepods.slice/memory.max",           // Kubernetes cgroup v2 with systemd
+			"/sys/fs/cgroup/kubepods/burstable/memory.max",       // Kubernetes burstable v2
+			"/sys/fs/cgroup/kubepods/burstable.slice/memory.max", // Kubernetes burstable v2 with systemd
+		)
 
-	memoryFilePaths.UsagePaths = append(memoryFilePaths.UsagePaths,
-		"/sys/fs/cgroup/kubepods/memory.current",                 // Kubernetes cgroup v2
-		"/sys/fs/cgroup/kubepods.slice/memory.current",           // Kubernetes cgroup v2 with systemd
-		"/sys/fs/cgroup/kubepods/burstable/memory.current",       // Kubernetes burstable v2
-		"/sys/fs/cgroup/kubepods/burstable.slice/memory.current", // Kubernetes burstable v2 with systemd
-	)
+		memoryFilePaths.UsagePaths = append(memoryFilePaths.UsagePaths,
+			"/sys/fs/cgroup/kubepods/memory.current",                 // Kubernetes cgroup v2
+			"/sys/fs/cgroup/kubepods.slice/memory.current",           // Kubernetes cgroup v2 with systemd
+			"/sys/fs/cgroup/kubepods/burstable/memory.current",       // Kubernetes burstable v2
+			"/sys/fs/cgroup/kubepods/burstable.slice/memory.current", // Kubernetes burstable v2 with systemd
+		)
+	}
+}
+
+func isRunningInKubernetes() bool {
+	// Check Kubernetes environment variables
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" && os.Getenv("KUBERNETES_SERVICE_PORT") != "" {
+		return true
+	}
+
+	// Check ServiceAccount token file
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		return true
+	}
+
+	return false
 }
 
 // Detect dynamic cgroup path (Kubernetes/Docker support)
@@ -184,14 +203,26 @@ func detectCgroupPath(basePath string) string {
 		return basePath // Fallback to static path
 	}
 
+	// Example content of /proc/self/cgroup:
+	// 11:memory:/kubepods.slice/kubepods-burstable.slice/pod1234
+	// 10:cpuset:/kubepods.slice/kubepods-burstable.slice/pod1234
+	// ...
+
+	// Split the data into lines
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
+		// <hierarchy-ID>:<subsystem>:<cgroup-path>
 		parts := strings.Split(line, ":")
 		if len(parts) < 3 {
 			continue
 		}
 
-		// Match memory cgroups or cgroup v2 unified hierarchy
+		// Example:
+		// parts[0] = "11"       // hierarchy ID
+		// parts[1] = "memory"   // subsystem
+		// parts[2] = "/kubepods.slice/kubepods-burstable.slice/pod1234" // cgroup path
+
+		// Check if it's a memory cgroup or a unified hierarchy (cgroup v2)
 		if isCgroupV2 || strings.Contains(parts[1], "memory") {
 			cgroupPath := strings.TrimSpace(parts[2])
 			if cgroupPath == "/" { // Root path
@@ -216,7 +247,7 @@ func detectCgroupPath(basePath string) string {
 }
 
 func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
-	if cgroupVersionDetected == noCgroupVersion {
+	if cgroupVersionDetected == 0 {
 		return 0, fmt.Errorf("getContainerMemory: Cgroup version not detected")
 	}
 
