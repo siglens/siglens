@@ -84,7 +84,8 @@ const (
 type cgroupVersion uint8
 
 const (
-	cgroupVersion1 cgroupVersion = iota
+	noCgroupVersion cgroupVersion = iota
+	cgroupVersion1
 	cgroupVersion2
 )
 
@@ -120,7 +121,7 @@ func detectCgroupVersion() cgroupVersion {
 	// Detect non-Linux OS
 	if runtime.GOOS != "linux" {
 		log.Infof("Non-Linux OS detected. Assuming no cgroup support.")
-		return 0
+		return noCgroupVersion
 	}
 
 	data, err := os.ReadFile("/proc/mounts")
@@ -145,7 +146,7 @@ func detectCgroupVersion() cgroupVersion {
 	}
 
 	log.Warn("detectCgroupVersion: Unable to detect cgroup version")
-	return 0
+	return noCgroupVersion
 }
 
 // Detect whether the system is using cgroup v2
@@ -155,6 +156,8 @@ func isCgroupVersion2() bool {
 
 func initMemoryPaths() {
 	switch cgroupVersionDetected {
+	case noCgroupVersion:
+		return
 	case cgroupVersion2:
 		memoryFilePaths.MaxPaths = []string{cgroupV2MaxMemoryPath}
 		memoryFilePaths.UsagePaths = []string{cgroupV2UsageMemoryPath}
@@ -247,7 +250,7 @@ func detectCgroupPath(basePath string) string {
 }
 
 func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
-	if cgroupVersionDetected == 0 {
+	if cgroupVersionDetected == noCgroupVersion {
 		return 0, fmt.Errorf("getContainerMemory: Cgroup version not detected")
 	}
 
