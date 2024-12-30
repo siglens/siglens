@@ -83,8 +83,41 @@ class DashboardGrid {
             {
                 headerName: 'Name',
                 field: 'name',
-                flex: 2,
                 cellRenderer: (params) => this.nameColumnRenderer(params, true),
+            },
+            {
+                headerName: 'Actions',
+                field: 'actions',
+                width: 100,
+                cellRenderer: (params) => {
+                    if (params.data.type === 'no-items') {
+                        return '';
+                    }
+
+                    const div = document.createElement('div');
+                    div.id = 'dashboard-grid-btn';
+
+                    if (params.data.isDefault) {
+                        div.innerHTML = `
+                            <span class="default-label" style="text-decoration: none;">
+                                Default
+                            </span>
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            <button class="btn-simple" id="delbutton" title="Delete dashboard"></button>
+                        `;
+
+                        const deleteButton = div.querySelector('.btn-simple');
+                        deleteButton.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.handleDelete(params.data);
+                        };
+                    }
+
+                    return div;
+                },
             },
         ];
     }
@@ -166,7 +199,7 @@ class DashboardGrid {
         div.style.alignItems = 'center';
         if (useIndentation) {
             const indentLevel = this.getIndentLevel(params.data);
-            const indentPadding = (indentLevel * 20) + 33;
+            const indentPadding = indentLevel * 20 + 33;
             div.style.paddingLeft = `${indentPadding}px`;
         }
         div.style.color = '#666';
@@ -303,5 +336,91 @@ class DashboardGrid {
         this.gridOptions.api.setColumnDefs(columnDefs);
         this.gridOptions.api.setRowData(rowData);
         this.gridOptions.api.sizeColumnsToFit();
+    }
+
+    async handleDelete(data) {
+        try {
+            // Get contents for the item (folder or dashboard)
+            if (data.type === 'folder') {
+                // For folders, get contents
+                const contents = await getFolderContents(data.uniqId);
+                const counts = countFolderContents(contents);
+                $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
+            } else {
+                // For dashboards, just show single item
+                $('.content-count').text('1 item: 1 dashboard');
+            }
+
+            $('.popupOverlay, #delete-folder-modal').addClass('active');
+
+            // Reset and setup input confirmation
+            $('.confirm-input')
+                .val('')
+                .off('input')
+                .on('input', function () {
+                    $('.delete-btn').prop('disabled', $(this).val() !== 'Delete');
+                });
+
+            // Setup delete button handler
+            $('.delete-btn')
+                .prop('disabled', true)
+                .off('click')
+                .on(
+                    'click',
+                    async function () {
+                        if ($('.confirm-input').val() === 'Delete') {
+                            try {
+                                if (data.type === 'folder') {
+                                    await deleteFolder(data.uniqId);
+
+                                    // Get all visible rows
+                                    const currentData = this.gridOptions.api.getModel().rowsToDisplay.map((row) => row.data);
+
+                                    // Recursively get all child IDs to remove
+                                    const getAllChildIds = (parentId) => {
+                                        const children = currentData.filter((row) => row.parentFolderId === parentId);
+                                        let ids = children.map((child) => child.rowId);
+
+                                        // Recursively get children of folders
+                                        children.forEach((child) => {
+                                            if (child.type === 'folder') {
+                                                ids = [...ids, ...getAllChildIds(child.uniqId)];
+                                            }
+                                        });
+
+                                        return ids;
+                                    };
+
+                                    // Get all items to remove
+                                    const idsToRemove = [data.rowId, ...getAllChildIds(data.uniqId)];
+
+                                    // Remove parent and all children
+                                    this.gridOptions.api.applyTransaction({
+                                        remove: idsToRemove.map((id) => ({ rowId: id })),
+                                    });
+                                } else {
+                                    await deleteDashboard(data.uniqId);
+                                    this.gridOptions.api.applyTransaction({
+                                        remove: [{ rowId: data.rowId }],
+                                    });
+                                }
+
+                                $('.popupOverlay, #delete-folder-modal').removeClass('active');
+                            } catch (error) {
+                                console.error('Error deleting:', error);
+                                alert('Failed to delete. Please try again.');
+                            }
+                        }
+                    }.bind(this)
+                );
+
+            $('.cancel-btn').click(function () {
+                $('.popupOverlay, .popupContent').removeClass('active');
+                $('.confirm-input').val('');
+            });
+        } catch (error) {
+            console.error('Error handling delete:', error);
+            alert('Failed to get item contents. Please try again.');
+        }
     }
 }

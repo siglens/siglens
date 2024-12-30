@@ -178,3 +178,45 @@ function initializeDashboardPage(options = {}) {
 
     return { grid, folderId, loadData };
 }
+
+function countFolderContents(res) {
+    const counts = {
+        total: 0,
+        folders: 0,
+        dashboards: 0,
+    };
+
+    res.items.forEach((item) => {
+        counts.total++;
+        if (item.type === 'folder') {
+            counts.folders++;
+        } else {
+            counts.dashboards++;
+        }
+    });
+
+    return counts;
+}
+
+function deleteFolder(folderId) {
+    return $.ajax({
+        method: 'delete',
+        url: `api/dashboards/folders/${folderId}`,
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: '*/*',
+        },
+    });
+}
+
+function deleteDashboard(dashboardId) {
+    $.ajax({
+        method: 'get',
+        url: `api/dashboards/delete/${dashboardId}`,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        crossDomain: true,
+    });
+}

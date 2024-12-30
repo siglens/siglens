@@ -116,25 +116,6 @@ async function showDeleteModal() {
     });
 }
 
-function countFolderContents(res) {
-    const counts = {
-        total: 0,
-        folders: 0,
-        dashboards: 0,
-    };
-
-    res.items.forEach((item) => {
-        counts.total++;
-        if (item.type === 'folder') {
-            counts.folders++;
-        } else {
-            counts.dashboards++;
-        }
-    });
-
-    return counts;
-}
-
 function moveFolder(folderId, newParentId) {
     return $.ajax({
         method: 'put',
@@ -148,16 +129,5 @@ function moveFolder(folderId, newParentId) {
         }),
     }).catch((error) => {
         throw error;
-    });
-}
-
-function deleteFolder(folderId) {
-    return $.ajax({
-        method: 'delete',
-        url: `api/dashboards/folders/${folderId}`,
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: '*/*',
-        },
     });
 }
