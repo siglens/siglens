@@ -35,7 +35,11 @@ $(document).ready(function () {
     $('#add-metrics-to-db-btn').on('click', openPopup);
 
     $('#cancel-dbbtn, .popupOverlay').on('click', closePopup);
-    $('#selected-dashboard').on('click', displayExistingDashboards);
+    $('#selected-dashboard').on('click', function(){
+        if(!$('#dashboard-options').hasClass('show')){
+            displayExistingDashboards();
+        }
+    });
 
     $('#alert-from-logs-btn').click(function () {
         $('.addrulepopupOverlay, .addrulepopupContent').addClass('active');
