@@ -112,7 +112,7 @@ class DashboardGrid {
 
         // For tree view
         if (params.data.type === 'no-items') {
-            return this.renderNoItemsRow(params);
+            return this.renderNoItemsRow(params, useIndentation);
         }
 
         const indentLevel = this.getIndentLevel(params.data);
@@ -166,7 +166,8 @@ class DashboardGrid {
         div.style.alignItems = 'center';
         if (useIndentation) {
             const indentLevel = this.getIndentLevel(params.data);
-            div.style.paddingLeft = `${indentLevel * 20 + 25}px`;
+            const indentPadding = (indentLevel * 20) + 33;
+            div.style.paddingLeft = `${indentPadding}px`;
         }
         div.style.color = '#666';
         div.style.fontStyle = 'italic';
