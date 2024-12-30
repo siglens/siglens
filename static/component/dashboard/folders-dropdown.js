@@ -32,13 +32,10 @@ class FolderDropdown {
         this.excludedFolderIds = new Set();
         if (this.options.excludeFolderId) {
             this.excludedFolderIds.add(this.options.excludeFolderId);
-            // Get child folders when initializing
             this.loadExcludedFolders();
         }
 
         this.selectedFolder = this.options.initialFolder;
-        console.log(this.selectedFolder);
-        console.log(this.selectedFolder.name);
         this.render();
         this.loadFolders();
     }
@@ -72,7 +69,6 @@ class FolderDropdown {
     async loadFolders(searchQuery = '') {
         try {
             if (searchQuery) {
-                // Use list API for search
                 const response = await getDashboardFolderList('root-folder', {
                     type: 'folder',
                     query: searchQuery,
@@ -83,7 +79,6 @@ class FolderDropdown {
                     this.renderSearchResults(filteredItems);
                 }
             } else {
-                // Use folders API for hierarchy
                 const response = await getFolderContents('root-folder', {
                     foldersOnly: true,
                 });
@@ -139,7 +134,7 @@ class FolderDropdown {
         const listElement = parentElement || this.container.querySelector('.folder-tree');
 
         if (!parentElement) {
-            listElement.innerHTML = ''; // Clear existing items
+            listElement.innerHTML = '';
             if (this.options.showRoot) {
                 const rootLi = document.createElement('li');
                 rootLi.className = 'folder-item';
@@ -160,7 +155,6 @@ class FolderDropdown {
             li.className = 'folder-item';
             li.dataset.folderId = folder.id;
 
-            // Add bullet point and appropriate icon/arrow
             let arrow = folder.childCount > 0 ? '<i class="fa fa-chevron-right folder-arrow"></i>' : '<span style="padding-left: 24px;"></span>';
 
             li.innerHTML = `
@@ -177,7 +171,6 @@ class FolderDropdown {
 
     async loadExcludedFolders() {
         try {
-            // Get all folders in the hierarchy of the excluded folder
             const response = await getDashboardFolderList(this.options.excludeFolderId, {
                 type: 'folder',
             });
@@ -195,13 +188,11 @@ class FolderDropdown {
     }
 
     attachEventListeners() {
-        // Toggle dropdown
         const btn = this.container.querySelector('.folder-select-btn');
         btn.addEventListener('click', (e) => {
             this.container.querySelector('.folder-dropdown-content').classList.toggle('show');
         });
 
-        // Search functionality
         const searchInput = this.container.querySelector('.folder-search');
         let searchTimeout;
         searchInput.addEventListener('input', (e) => {
@@ -213,7 +204,6 @@ class FolderDropdown {
             }, 300);
         });
 
-        // Folder click handler
         const folderTree = this.container.querySelector('.folder-tree');
         folderTree.addEventListener('click', async (e) => {
             const folderItem = e.target.closest('.folder-item');
@@ -243,7 +233,6 @@ class FolderDropdown {
             }
         });
 
-        // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!this.container.contains(e.target)) {
                 this.container.querySelector('.folder-dropdown-content').classList.remove('show');

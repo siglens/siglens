@@ -21,7 +21,7 @@ class DashboardGrid {
     constructor(containerId) {
         this.gridDiv = document.querySelector(`#${containerId}`);
         this.gridOptions = {
-            columnDefs: this.getTreeViewColumnDefs(), // Start with tree view by default
+            columnDefs: this.getTreeViewColumnDefs(), // tree view by default
             rowData: [],
             animateRows: true,
             rowHeight: 54,
@@ -175,7 +175,7 @@ class DashboardGrid {
             const dashDiv = document.createElement('div');
             dashDiv.style.display = 'flex';
             dashDiv.style.alignItems = 'center';
-            dashDiv.style.paddingLeft = `${indentPadding + 33}px`; // Add extra padding to align with folder items
+            dashDiv.style.paddingLeft = `${indentPadding + 33}px`;
 
             const icon = document.createElement('i');
             icon.className = 'fa fa-columns';
@@ -226,7 +226,6 @@ class DashboardGrid {
         // Toggle expanded state
         params.data.expanded = !params.data.expanded;
 
-        // Update the folder's arrow in the grid
         const node = this.gridOptions.api.getRowNode(params.data.rowId);
         if (node) {
             node.setData({ ...params.data });
@@ -255,7 +254,6 @@ class DashboardGrid {
             return;
         }
 
-        // Get folder contents from API
         const contents = await getFolderContents(folderId);
         if (!contents) return;
 
@@ -279,7 +277,6 @@ class DashboardGrid {
             return;
         }
 
-        // Process folder contents normally
         const folderContents = contents.items.map((item, index) => ({
             rowId: `${folderId}-${index}`,
             uniqId: item.id,
@@ -309,7 +306,7 @@ class DashboardGrid {
                 if (a.type !== b.type) {
                     return a.type === 'folder' ? -1 : 1;
                 }
-                // If same type, maintain original order or use another criteria
+                // If same type, maintain original order
                 return 0;
             });
         }
@@ -340,20 +337,16 @@ class DashboardGrid {
 
     async handleDelete(data) {
         try {
-            // Get contents for the item (folder or dashboard)
             if (data.type === 'folder') {
-                // For folders, get contents
                 const contents = await getFolderContents(data.uniqId);
                 const counts = countFolderContents(contents);
                 $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
             } else {
-                // For dashboards, just show single item
                 $('.content-count').text('1 item: 1 dashboard');
             }
 
             $('.popupOverlay, #delete-folder-modal').addClass('active');
 
-            // Reset and setup input confirmation
             $('.confirm-input')
                 .val('')
                 .off('input')
@@ -361,7 +354,6 @@ class DashboardGrid {
                     $('.delete-btn').prop('disabled', $(this).val() !== 'Delete');
                 });
 
-            // Setup delete button handler
             $('.delete-btn')
                 .prop('disabled', true)
                 .off('click')
@@ -419,8 +411,7 @@ class DashboardGrid {
                 $('.confirm-input').val('');
             });
         } catch (error) {
-            console.error('Error handling delete:', error);
-            alert('Failed to get item contents. Please try again.');
+            showToast('Failed to get item contents. Please try again.', 'error');
         }
     }
 }

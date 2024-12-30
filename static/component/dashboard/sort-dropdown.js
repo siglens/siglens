@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 class SortDropdown {
     constructor(containerId, options = {}) {
         this.container = document.getElementById(containerId);
@@ -61,43 +80,35 @@ class SortDropdown {
 
         dropdownOptions.forEach((option) => {
             option.addEventListener('click', async (e) => {
-                // Remove active class from all options
                 dropdownOptions.forEach((opt) => opt.classList.remove('active'));
 
-                // Add active class to clicked option
                 e.target.classList.add('active');
 
-                // Update button text
                 const sortText = e.target.textContent;
                 this.container.querySelector('.sort-text').textContent = sortText;
 
                 this.container.querySelector('.clear-sort').style.display = 'inline';
 
-                // Get sort value and trigger callback
                 const sortValue = e.target.dataset.sort;
                 await this.handleSort(sortValue);
             });
         });
 
-        // Setup clear button handler
         const clearBtn = this.container.querySelector('.clear-sort');
         clearBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Prevent dropdown from opening
+            e.stopPropagation();
             this.clearSort();
         });
     }
 
     async handleSort(sortValue) {
-        // Update URL with sort parameter
         const url = new URL(window.location.href);
         url.searchParams.set('sort', sortValue);
         window.history.replaceState({}, '', url);
 
-        // Call the onSort callback
         await this.options.onSort(sortValue);
     }
 
-    // Method to programmatically set sort
     setSort(sortValue) {
         const option = this.container.querySelector(`[data-sort="${sortValue}"]`);
         if (option) {

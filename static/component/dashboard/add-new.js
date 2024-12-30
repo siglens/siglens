@@ -44,7 +44,6 @@ class AddNewComponent {
         </div>
     `;
 
-        // Add dropdown button
         this.container.html(`
             <div class="dropdown">
                 <button class="btn dropdown-toggle primary-btn" data-toggle="dropdown" 
@@ -79,21 +78,17 @@ class AddNewComponent {
     }
 
     setupEventHandlers() {
-        // New Dashboard button
         $('#create-db-btn').on('click', () => this.showDashboardModal());
 
-        // New Folder button
         $('#create-folder-btn').on('click', () => this.showFolderModal());
 
-        // Cancel buttons and overlay
         $('.popupOverlay, #cancel-dbbtn').on('click', () => this.closeModals());
 
-        // Save handlers
         $('#save-dbbtn').on('click', () => this.createDashboard());
         $('#save-folder-btn').on('click', () => this.createFolder());
 
         $('#db-name, #folder-name').on('focus', function () {
-            $('.error-tip').removeClass('active').text(''); // Clear error on focus
+            $('.error-tip').removeClass('active').text('');
         });
     }
 
@@ -101,11 +96,9 @@ class AddNewComponent {
         $('.popupOverlay, #new-dashboard-modal').addClass('active');
         $('.error-tip').removeClass('active');
 
-        // Initialize folder dropdown with current folder preselected
         const currentFolderId = this.getCurrentFolderId();
         const currentFolderName = currentFolderId === 'root-folder' ? 'Dashboards' : $('.name-dashboard').text().trim();
-        console.log(currentFolderId);
-        console.log(currentFolderName);
+
         this.folderDropdown = new FolderDropdown('dashboard-folder-selector', {
             placeholder: 'Select Folder',
             showRoot: true,
@@ -133,7 +126,7 @@ class AddNewComponent {
         const dashboardData = {
             name: $('#db-name').val().trim(),
             description: $('#db-description').val().trim(),
-            parentId: this.selectedFolderId, // Use selected folder ID
+            parentId: this.selectedFolderId,
         };
 
         if (!dashboardData.name) {
@@ -184,17 +177,13 @@ class AddNewComponent {
             });
 
             this.closeModals();
-            // Refresh the current view
-            // window.location.reload();
             window.location.href = `folder.html?id=${response.id}`;
         } catch (error) {
-            console.log(error);
             $('#new-folder-modal .error-tip').text(`${error.responseJSON.message}`).addClass('active');
         }
     }
 
     getCurrentFolderId() {
-        // Get current folder ID from URL or default to root
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('id') || 'root-folder';
     }

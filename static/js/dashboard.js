@@ -516,10 +516,10 @@ async function getDashboardData() {
         dbData.isFavorite
     );
     breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
-    
+
     dbName = dbData.name;
     dbDescr = dbData.description;
-    dbFolder = dbData.folder.name
+    dbFolder = dbData.folder.name;
     dbRefresh = dbData.refresh;
     if (dbData.panels != undefined) {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
@@ -1372,7 +1372,6 @@ function parseInterval(interval) {
 
 // Favorite Handler
 function toggleFavorite() {
-    console.log("Toggle Favorite");
     $.ajax({
         method: 'put',
         url: 'api/dashboards/favorite/' + dbId,
