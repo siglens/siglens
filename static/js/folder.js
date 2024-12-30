@@ -27,7 +27,7 @@ $(document).ready(async function () {
 
     const { loadData } = initializeDashboardPage();
     await loadData();
-    
+
     await loadFolderContents(folderId);
 
     $('#move-folder').click(showMoveModal);
@@ -56,7 +56,26 @@ async function showMoveModal() {
     $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
     $('.popupOverlay, #move-folder-modal').addClass('active');
 
-    // populateTargetFolders();
+    const folderDropdown = new FolderDropdown('folder-selector', {
+        placeholder: 'Select Folder',
+        excludeFolderId: folderId,
+        showRoot: true,
+        onSelect: (folder) => {
+            $('.move-btn').prop('disabled', false);
+        },
+    });
+
+    $('.move-btn')
+        .prop('disabled', true)
+        .off('click')
+        .on('click', async function () {
+            const selectedFolder = folderDropdown.getSelectedFolder();
+            if (selectedFolder) {
+                await moveFolder(folderId, selectedFolder.id === 'root-folder' ? 'root-folder' : selectedFolder.id);
+                $('.popupOverlay, #move-folder-modal').removeClass('active');
+                window.location.reload();
+            }
+        });
 }
 
 async function showDeleteModal() {

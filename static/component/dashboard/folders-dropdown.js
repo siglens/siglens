@@ -22,9 +22,20 @@ class FolderDropdown {
         this.container = document.getElementById(containerId);
         this.options = {
             onSelect: options.onSelect || (() => {}),
-            initialFolderId: options.initialFolderId || 'root-folder',
+            excludeFolderId: options.excludeFolderId || null,
+            showRoot: options.showRoot || false,
+            placeholder: options.placeholder || 'Select Folder',
         };
 
+        // Store child folder IDs that need to be excluded
+        this.excludedFolderIds = new Set();
+        if (this.options.excludeFolderId) {
+            this.excludedFolderIds.add(this.options.excludeFolderId);
+            // Get child folders when initializing
+            this.loadExcludedFolders();
+        }
+
+        this.selectedFolder = null;
         this.render();
         this.loadFolders();
     }
@@ -62,7 +73,9 @@ class FolderDropdown {
                     query: searchQuery,
                 });
                 if (response && response.items) {
-                    this.renderSearchResults(response.items);
+                    // Filter out the current folder and its children
+                    const filteredItems = response.items.filter((item) => !this.excludedFolderIds.has(item.id));
+                    this.renderSearchResults(filteredItems);
                 }
             } else {
                 // Use folders API for hierarchy
@@ -70,12 +83,31 @@ class FolderDropdown {
                     foldersOnly: true,
                 });
                 if (response && response.items) {
-                    this.renderFolderTree(response.items);
+                    // Filter out the current folder and its children
+                    const filteredItems = response.items.filter((item) => !this.excludedFolderIds.has(item.id));
+                    this.renderFolderTree(filteredItems);
                 }
             }
         } catch (error) {
             console.error('Error loading folders:', error);
         }
+    }
+
+    getSelectedFolder() {
+        return this.selectedFolder;
+    }
+
+    selectFolder(folderItem) {
+        const folderName = folderItem.querySelector('.folder-name').textContent;
+        this.container.querySelector('.selected-folder').textContent = folderName;
+        this.container.querySelector('.folder-dropdown-content').classList.remove('show');
+
+        this.selectedFolder = {
+            id: folderItem.dataset.folderId,
+            name: folderName,
+        };
+
+        this.options.onSelect(this.selectedFolder);
     }
 
     renderSearchResults(folders) {
@@ -101,7 +133,19 @@ class FolderDropdown {
     renderFolderTree(folders, parentElement = null) {
         const listElement = parentElement || this.container.querySelector('.folder-tree');
         listElement.innerHTML = ''; // Clear existing items
+        if (this.options.showRoot) {
+            const rootLi = document.createElement('li');
+            rootLi.className = 'folder-item';
+            rootLi.dataset.folderId = 'root-folder';
 
+            rootLi.innerHTML = `
+                <div class="folder-item-row">
+                    <i class="fa fa-folder" style="color: #FFB84D"></i>
+                    <span class="folder-name">Dashboards</span>
+                </div>
+            `;
+            listElement.appendChild(rootLi);
+        }
         folders.forEach((folder) => {
             const li = document.createElement('li');
             li.className = 'folder-item';
@@ -120,6 +164,25 @@ class FolderDropdown {
 
             listElement.appendChild(li);
         });
+    }
+
+    async loadExcludedFolders() {
+        try {
+            // Get all folders in the hierarchy of the excluded folder
+            const response = await getDashboardFolderList(this.options.excludeFolderId, {
+                type: 'folder',
+            });
+
+            if (response && response.items) {
+                response.items.forEach((item) => {
+                    if (item.parentId === this.options.excludeFolderId) {
+                        this.excludedFolderIds.add(item.id);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error loading excluded folders:', error);
+        }
     }
 
     attachEventListeners() {
@@ -176,17 +239,6 @@ class FolderDropdown {
             if (!this.container.contains(e.target)) {
                 this.container.querySelector('.folder-dropdown-content').classList.remove('show');
             }
-        });
-    }
-
-    selectFolder(folderItem) {
-        const folderName = folderItem.querySelector('.folder-name').textContent;
-        this.container.querySelector('.selected-folder').textContent = folderName;
-        this.container.querySelector('.folder-dropdown-content').classList.remove('show');
-
-        this.options.onSelect({
-            id: folderItem.dataset.folderId,
-            name: folderName,
         });
     }
 }
