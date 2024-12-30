@@ -79,7 +79,7 @@ class FolderDropdown {
                 });
                 if (response && response.items) {
                     // Filter out the current folder and its children
-                    const filteredItems = response.items.filter((item) => !this.excludedFolderIds.has(item.id));
+                    const filteredItems = response.items.filter((item) => !this.excludedFolderIds.has(item.id) && !item.isDefault);
                     this.renderSearchResults(filteredItems);
                 }
             } else {
@@ -89,7 +89,7 @@ class FolderDropdown {
                 });
                 if (response && response.items) {
                     // Filter out the current folder and its children
-                    const filteredItems = response.items.filter((item) => !this.excludedFolderIds.has(item.id));
+                    const filteredItems = response.items.filter((item) => !this.excludedFolderIds.has(item.id) && !item.isDefault);
                     this.renderFolderTree(filteredItems);
                 }
             }
