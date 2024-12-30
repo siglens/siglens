@@ -2144,7 +2144,6 @@ div.dts div.dataTables_scrollBody table {
 .popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active,.mypopupContent.active{
   visibility: visible;
   position: fixed;
-  overflow: hidden;
 }
 
 #delete-btn ,
@@ -3541,7 +3540,8 @@ float: right;
     display: inline-block;
     padding: 4px 8px;
     border-radius: 4px;
-    height: 29px;
+    transition: transform 0.2s;
+    color: var(--table-or-regular-text-color);
  }
  
  .folder-arrow:hover {

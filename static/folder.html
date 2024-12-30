@@ -45,6 +45,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./component/dashboard/folders-dropdown.css?v={{ CSSVersion }}" />
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -110,10 +111,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="popupOverlay"></div>
 
             <div class="popupContent" id="move-folder-modal">
-                <h3 class="header">Move Folder</h3>
+                <h3 class="header">Move</h3>
                 <div>
-                    <p class="mb-2">This action will delete the following content:</p>
+                    <p class="mb-2">This action will move the following content:</p>
                     <p class="content-count"></p>
+                </div>
+                <div class="w-100">
+                    <div>Folder Name</div>
+                    <div id="folder-selector"></div>
                 </div>
                 <div id="buttons-popupContent">
                     <button class="cancel-btn">Cancel</button>
@@ -149,6 +154,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./component/dashboard/add-new.js"></script>
     <script src="./component/dashboard/dashboard-grid.js"></script>
     <script src="./component/dashboard/sort-dropdown.js"></script>
+    <script src="./component/dashboard/folders-dropdown.js"></script>
 
 
     {{ .RunCheck2 | safeHTML }}

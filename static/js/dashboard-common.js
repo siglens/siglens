@@ -1,14 +1,44 @@
+/*
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 // Get folder ID from URL or use root-folder as default
 function getCurrentFolderId() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('id') || 'root-folder';
 }
 
-async function getFolderContents(folderId = 'root-folder') {
+async function getFolderContents(folderId = 'root-folder', params = {}) {
     try {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                queryParams.set(key, value);
+            }
+        });
+
+        // Add query string if params exist
+        const queryString = queryParams.toString();
+        const url = `api/dashboards/folders/${folderId}${queryString ? `?${queryString}` : ''}`;
+
         const response = await $.ajax({
             method: 'get',
-            url: `api/dashboards/folders/${folderId}`,
+            url: url,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
