@@ -19,6 +19,7 @@
 
 let folderId;
 let currentFolderParentId = null;
+let currentFolderContents = null;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
@@ -28,31 +29,25 @@ $(document).ready(async function () {
     const { loadData } = initializeDashboardPage();
     await loadData();
 
-    await loadFolderContents(folderId);
+    currentFolderContents = await getFolderContents(folderId);
+    await loadFolderContents(currentFolderContents);
 
     $('#move-folder').click(showMoveModal);
     $('#delete-folder').click(showDeleteModal);
 });
 
-async function loadFolderContents(folderId) {
-    return await getFolderContents(folderId).then((response) => {
-        // Find parent from breadcrumbs (second to last item)
-        const breadcrumbs = response.breadcrumbs || [];
-        const parentBreadcrumb = breadcrumbs[breadcrumbs.length - 2];
-        currentFolderParentId = parentBreadcrumb ? parentBreadcrumb.id : 'root-folder';
+async function loadFolderContents(response) {
+    // Find parent from breadcrumbs (second to last item)
+    const breadcrumbs = response.breadcrumbs || [];
+    const parentBreadcrumb = breadcrumbs[breadcrumbs.length - 2];
+    currentFolderParentId = parentBreadcrumb ? parentBreadcrumb.id : 'root-folder';
 
-        const breadcrumb = new Breadcrumb();
-        breadcrumb.render(
-            response.breadcrumbs,
-            response.folder.name,
-            false // Don't show favorite button for folders
-        );
-    });
+    const breadcrumb = new Breadcrumb();
+    breadcrumb.render(response.breadcrumbs, response.folder.name, false);
 }
 
 async function showMoveModal() {
-    const response = await getFolderContents(folderId);
-    const counts = countFolderContents(response);
+    const counts = countFolderContents(currentFolderContents);
     $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
     $('.popupOverlay, #move-folder-modal').addClass('active');
 
@@ -69,18 +64,21 @@ async function showMoveModal() {
         .prop('disabled', true)
         .off('click')
         .on('click', async function () {
-            const selectedFolder = folderDropdown.getSelectedFolder();
-            if (selectedFolder) {
-                await moveFolder(folderId, selectedFolder.id === 'root-folder' ? 'root-folder' : selectedFolder.id);
-                $('.popupOverlay, #move-folder-modal').removeClass('active');
-                window.location.reload();
+            try {
+                const selectedFolder = folderDropdown.getSelectedFolder();
+                if (selectedFolder) {
+                    await moveFolder(folderId, selectedFolder.id === 'root-folder' ? 'root-folder' : selectedFolder.id);
+                    $('.popupOverlay, #move-folder-modal').removeClass('active');
+                    window.location.reload();
+                }
+            } catch (error) {
+                showToast('Failed to move folder. Please try again.', 'error');
             }
         });
 }
 
 async function showDeleteModal() {
-    const response = await getFolderContents(folderId);
-    const counts = countFolderContents(response);
+    const counts = countFolderContents(currentFolderContents);
     $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
 
     $('.popupOverlay, #delete-folder-modal').addClass('active');
@@ -139,6 +137,8 @@ function moveFolder(folderId, newParentId) {
         data: JSON.stringify({
             parentId: newParentId,
         }),
+    }).catch((error) => {
+        throw error;
     });
 }
 

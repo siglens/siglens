@@ -133,19 +133,23 @@ class FolderDropdown {
     renderFolderTree(folders, parentElement = null) {
         const listElement = parentElement || this.container.querySelector('.folder-tree');
         listElement.innerHTML = ''; // Clear existing items
-        if (this.options.showRoot) {
-            const rootLi = document.createElement('li');
-            rootLi.className = 'folder-item';
-            rootLi.dataset.folderId = 'root-folder';
 
-            rootLi.innerHTML = `
-                <div class="folder-item-row">
-                    <i class="fa fa-folder" style="color: #FFB84D"></i>
-                    <span class="folder-name">Dashboards</span>
-                </div>
-            `;
-            listElement.appendChild(rootLi);
+        if (!parentElement) {
+            if (this.options.showRoot) {
+                const rootLi = document.createElement('li');
+                rootLi.className = 'folder-item';
+                rootLi.dataset.folderId = 'root-folder';
+
+                rootLi.innerHTML = `
+                    <div class="folder-item-row">
+                        <i class="fa fa-folder" style="color: #FFB84D"></i>
+                        <span class="folder-name">Dashboards</span>
+                    </div>
+                `;
+                listElement.appendChild(rootLi);
+            }
         }
+
         folders.forEach((folder) => {
             const li = document.createElement('li');
             li.className = 'folder-item';
