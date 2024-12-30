@@ -5140,7 +5140,7 @@ color: #C8C7CC;
     overflow: hidden;
     padding: 0px 10px 0px 0px;
     border: 1px solid var(--timepicker-border-color);
-    max-height: 102px;
+    max-height: 180px;
     overflow-y: scroll;
 }
 

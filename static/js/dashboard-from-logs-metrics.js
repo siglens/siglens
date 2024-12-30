@@ -219,10 +219,10 @@ function displayExistingDashboards() {
             // Clear existing content first
             dropdown.empty();
 
-            if (res.dashboards.length === 0) {
+            if (res.items.length === 0) {
                 dropdown.html(`<li class="dashboard">No Dashboards</li>`);
             } else {
-                $.each(res.dashboards, function (id, dashboard) {
+                $.each(res.items, function (id, dashboard) {
                     dropdown.append(`<li class="dashboard" id="${dashboard.id}">${dashboard.fullPath}</li>`);
                 });
             }
