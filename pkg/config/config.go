@@ -283,7 +283,7 @@ func GetTotalMemoryAvailableToUse() uint64 {
 	if totalMemoryOnHost == 0 {
 		totalMemoryOnHost = GetMemoryMax()
 	} else {
-		log.Infof("GetTotalMemoryAvailableToUse: Using the total memory value set in the config.")
+		log.Infof("GetTotalMemoryAvailableToUse: Using the total memory value set in the config. Memory: %v MB", segutils.ConvertUintBytesToMB(totalMemoryOnHost))
 	}
 
 	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
