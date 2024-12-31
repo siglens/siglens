@@ -79,11 +79,14 @@ func InitDashboards() error {
 		if os.IsNotExist(err) {
 			// If folder structure doesn't exist, migrate from allids.json
 			if err := migrateToFolderStructure(0); err != nil {
-				log.Errorf("Failed to migrate to folder structure: %v", err)
-				return err
+				log.Warnf("Migration failed: %v, creating new folder structure", err)
+				// Create basic structure even if migration fails
+				if err := InitFolderStructure(); err != nil {
+					return fmt.Errorf("failed to create folder structure: %v", err)
+				}
 			}
 		} else {
-			log.Errorf("Error checking folder structure: %v", err)
+			log.Errorf("InitDashboards: Error checking folder structure: %v", err)
 			return err
 		}
 	}
