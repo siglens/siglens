@@ -35,8 +35,8 @@ $(document).ready(function () {
     $('#add-metrics-to-db-btn').on('click', openPopup);
 
     $('#cancel-dbbtn, .popupOverlay').on('click', closePopup);
-    $('#selected-dashboard').on('click', function(){
-        if(!$('#dashboard-options').hasClass('show')){
+    $('#selected-dashboard').on('click', function () {
+        if (!$('#dashboard-options').hasClass('show')) {
             displayExistingDashboards();
         }
     });
