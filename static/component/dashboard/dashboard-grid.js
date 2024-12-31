@@ -340,7 +340,11 @@ class DashboardGrid {
             if (data.type === 'folder') {
                 const contents = await getFolderContents(data.uniqId);
                 const counts = countFolderContents(contents);
-                $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
+                if (counts.total) {
+                    $('.content-count').text(`${counts.total} items: ${counts.folders} folders, ${counts.dashboards} dashboards`);
+                } else {
+                    $('.content-count').text(`1 item: 1 folder`);
+                }
             } else {
                 $('.content-count').text('1 item: 1 dashboard');
             }
