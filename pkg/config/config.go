@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -67,15 +68,11 @@ var configFilePath string
 
 var parallelism int64
 
-var maxMemoryFilePaths = []string{
-	"/sys/fs/cgroup/memory.max",   // cgroup v2
-	"/sys/fs/cgroup/memory.limit", // cgroup v1
-}
+const cgroupV1MaxMemoryPath = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+const cgroupV2MaxMemoryPath = "/sys/fs/cgroup/memory.max"
 
-var usageMemoryFilePaths = []string{
-	"/sys/fs/cgroup/memory.current", // cgroup v2
-	"/sys/fs/cgroup/memory.usage",   // cgroup v1
-}
+const cgroupV1UsageMemoryPath = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+const cgroupV2UsageMemoryPath = "/sys/fs/cgroup/memory.current"
 
 type memoryValueType uint8
 
@@ -83,6 +80,21 @@ const (
 	memoryValueMax memoryValueType = iota + 1
 	memoryValueUsage
 )
+
+type cgroupVersion uint8
+
+const (
+	noCgroupVersion cgroupVersion = iota
+	cgroupVersion1
+	cgroupVersion2
+)
+
+var cgroupVersionDetected cgroupVersion
+
+var memoryFilePaths struct {
+	MaxPaths   []string
+	UsagePaths []string
+}
 
 var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
 var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
@@ -100,23 +112,168 @@ func init() {
 	if parallelism <= 1 {
 		parallelism = 2
 	}
+
+	cgroupVersionDetected = detectCgroupVersion()
+	initMemoryPaths()
+}
+
+func detectCgroupVersion() cgroupVersion {
+	// Detect non-Linux OS
+	if runtime.GOOS != "linux" {
+		log.Infof("Non-Linux OS detected. Assuming no cgroup support.")
+		return noCgroupVersion
+	}
+
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		log.Warnf("detectCgroupVersion: Error reading /proc/mounts: %v", err)
+	} else {
+		if strings.Contains(string(data), " cgroup2 ") {
+			log.Infof("detectCgroupVersion: Detected cgroup v2")
+			return cgroupVersion2
+		}
+
+		if strings.Contains(string(data), " cgroup ") {
+			log.Infof("detectCgroupVersion: Detected cgroup v1 through /proc/mounts")
+			return cgroupVersion1
+		}
+	}
+
+	data, err = os.ReadFile("/proc/self/cgroup")
+	if err == nil && strings.Contains(string(data), ":memory:") {
+		log.Infof("detectCgroupVersion: Detected cgroup v1 through /proc/self/cgroup")
+		return cgroupVersion1
+	}
+
+	log.Warn("detectCgroupVersion: Unable to detect cgroup version")
+	return noCgroupVersion
+}
+
+// Detect whether the system is using cgroup v2
+func isCgroupVersion2() bool {
+	return cgroupVersionDetected == cgroupVersion2
+}
+
+func initMemoryPaths() {
+	switch cgroupVersionDetected {
+	case noCgroupVersion:
+		return
+	case cgroupVersion2:
+		memoryFilePaths.MaxPaths = []string{cgroupV2MaxMemoryPath}
+		memoryFilePaths.UsagePaths = []string{cgroupV2UsageMemoryPath}
+	case cgroupVersion1:
+		memoryFilePaths.MaxPaths = []string{cgroupV1MaxMemoryPath}
+		memoryFilePaths.UsagePaths = []string{cgroupV1UsageMemoryPath}
+	}
+
+	if isRunningInKubernetes() {
+		// Add Kubernetes-specific paths
+		memoryFilePaths.MaxPaths = append(memoryFilePaths.MaxPaths,
+			"/sys/fs/cgroup/kubepods/memory.max",                 // Kubernetes cgroup v2
+			"/sys/fs/cgroup/kubepods.slice/memory.max",           // Kubernetes cgroup v2 with systemd
+			"/sys/fs/cgroup/kubepods/burstable/memory.max",       // Kubernetes burstable v2
+			"/sys/fs/cgroup/kubepods/burstable.slice/memory.max", // Kubernetes burstable v2 with systemd
+		)
+
+		memoryFilePaths.UsagePaths = append(memoryFilePaths.UsagePaths,
+			"/sys/fs/cgroup/kubepods/memory.current",                 // Kubernetes cgroup v2
+			"/sys/fs/cgroup/kubepods.slice/memory.current",           // Kubernetes cgroup v2 with systemd
+			"/sys/fs/cgroup/kubepods/burstable/memory.current",       // Kubernetes burstable v2
+			"/sys/fs/cgroup/kubepods/burstable.slice/memory.current", // Kubernetes burstable v2 with systemd
+		)
+	}
+}
+
+func isRunningInKubernetes() bool {
+	// Check Kubernetes environment variables
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" && os.Getenv("KUBERNETES_SERVICE_PORT") != "" {
+		return true
+	}
+
+	// Check ServiceAccount token file
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		return true
+	}
+
+	return false
+}
+
+// Detect dynamic cgroup path (Kubernetes/Docker support)
+func detectCgroupPath(basePath string) string {
+	isCgroupV2 := isCgroupVersion2()
+	data, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return basePath // Fallback to static path
+	}
+
+	// Example content of /proc/self/cgroup:
+	// 11:memory:/kubepods.slice/kubepods-burstable.slice/pod1234
+	// 10:cpuset:/kubepods.slice/kubepods-burstable.slice/pod1234
+	// ...
+
+	// Split the data into lines
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		// <hierarchy-ID>:<subsystem>:<cgroup-path>
+		parts := strings.Split(line, ":")
+		if len(parts) < 3 {
+			continue
+		}
+
+		// Example:
+		// parts[0] = "11"       // hierarchy ID
+		// parts[1] = "memory"   // subsystem
+		// parts[2] = "/kubepods.slice/kubepods-burstable.slice/pod1234" // cgroup path
+
+		// Check if it's a memory cgroup or a unified hierarchy (cgroup v2)
+		if isCgroupV2 || strings.Contains(parts[1], "memory") {
+			cgroupPath := strings.TrimSpace(parts[2])
+			if cgroupPath == "/" { // Root path
+				return basePath
+			}
+
+			// Build dynamic path by replacing the base directory
+			newPath := fmt.Sprintf("/sys/fs/cgroup%s/%s", cgroupPath, path.Base(basePath))
+			if _, err := os.Stat(newPath); err == nil { // Check if path exists
+				return newPath
+			}
+
+			// Check one level deeper (common in Kubernetes)
+			nestedPath := fmt.Sprintf("/sys/fs/cgroup%s/%s", cgroupPath, path.Base(path.Dir(basePath)))
+			if _, err := os.Stat(nestedPath); err == nil {
+				return nestedPath
+			}
+		}
+	}
+
+	return basePath
 }
 
 func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
-	var memoryFilePaths []string
+	if cgroupVersionDetected == noCgroupVersion {
+		return 0, fmt.Errorf("getContainerMemory: Cgroup version not detected")
+	}
+
+	var memFilePaths []string
 
 	switch memoryValueType {
 	case memoryValueMax:
-		memoryFilePaths = maxMemoryFilePaths
+		memFilePaths = memoryFilePaths.MaxPaths
 	case memoryValueUsage:
-		memoryFilePaths = usageMemoryFilePaths
+		memFilePaths = memoryFilePaths.UsagePaths
 	default:
 		return 0, fmt.Errorf("getContainerMemory: Invalid memoryValueType: %v", memoryValueType)
 	}
 
+	resolvedPath := detectCgroupPath(memFilePaths[0])
+	if resolvedPath != memFilePaths[0] {
+		log.Infof("getContainerMemory: Detected dynamic cgroup path: %v", resolvedPath)
+		memFilePaths = append([]string{resolvedPath}, memFilePaths...)
+	}
+
 	var memory uint64
 
-	for _, path := range memoryFilePaths {
+	for _, path := range memFilePaths {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -129,6 +286,9 @@ func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
 		if err != nil {
 			return 0, fmt.Errorf("getContainerMemory: Error while converting memory limit: %v to uint64", string(data))
 		}
+
+		log.Infof("getContainerMemory: Fetching memory from cgroup file: %v", path)
+
 		break
 	}
 
@@ -153,7 +313,12 @@ func GetTotalMemoryAvailableToUse() uint64 {
 		gogc = 100
 	}
 
-	totalMemoryOnHost := GetMemoryMax()
+	totalMemoryOnHost := getMaxMemoryAllowedToUseInBytesFromConfig()
+	if totalMemoryOnHost == 0 {
+		totalMemoryOnHost = GetMemoryMax()
+	} else {
+		log.Infof("GetTotalMemoryAvailableToUse: Using the total memory value set in the config. Memory: %v MB", segutils.ConvertUintBytesToMB(totalMemoryOnHost))
+	}
 
 	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
 	allowedMemory := configuredMemory / (1 + gogc/100)
@@ -196,6 +361,10 @@ func GetContainerMemoryUsage() (uint64, error) {
 
 func GetMemoryConfig() common.MemoryConfig {
 	return runningConfig.MemoryConfig
+}
+
+func getMaxMemoryAllowedToUseInBytesFromConfig() uint64 {
+	return runningConfig.MemoryConfig.MaxMemoryAllowedToUseInBytes
 }
 
 func GetMaxOpenColumns() uint64 {
@@ -979,8 +1148,15 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	memoryLimits := config.MemoryConfig
+	totalMemory := memory.TotalMemory()
 
-	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
+	if memoryLimits.MaxMemoryAllowedToUseInBytes > totalMemory {
+		log.Warnf("ExtractConfigData: MaxMemoryAllowedToUseInBytes is set to %v, greater than host memory: %v. setting it to host memory",
+			memoryLimits.MaxMemoryAllowedToUseInBytes, totalMemory)
+		memoryLimits.MaxMemoryAllowedToUseInBytes = totalMemory
+	}
+
+	if segutils.ConvertUintBytesToMB(totalMemory) < SIZE_8GB_IN_MB {
 		if memoryLimits.MaxUsagePercent > 50 {
 			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
 			memoryLimits.MaxUsagePercent = 50

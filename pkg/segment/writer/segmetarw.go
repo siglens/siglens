@@ -367,55 +367,16 @@ func GetVTableCountsForAll(orgid uint64, allSegmetas []*structs.SegMeta) map[str
 	return allvtables
 }
 
-func addNewRotatedSegmeta(segmeta structs.SegMeta) {
-	if hook := hooks.GlobalHooks.AddSegMeta; hook != nil {
-		alreadyHandled, err := hook(&segmeta)
-		if err != nil {
-			log.Errorf("AddNewRotatedSegmeta: hook failed, err=%v", err)
-			return
-		}
-
-		if alreadyHandled {
-			return
-		}
-	}
-
-	addSegmeta(segmeta)
-}
-
 func AddOrReplaceRotatedSegmeta(segmeta structs.SegMeta) {
 	removeSegmetas(map[string]struct{}{segmeta.SegmentKey: struct{}{}}, "")
 	addSegmeta(segmeta)
 }
 
-func BulkAddRotatedSegmetas(segmetas []*structs.SegMeta, shouldWriteSfm bool) {
-	finalSegmetas := make([]*structs.SegMeta, 0, len(segmetas))
-
-	hook := hooks.GlobalHooks.AddSegMeta
-	if hook != nil {
-		for _, segmeta := range segmetas {
-			alreadyHandled, err := hook(segmeta)
-			if err != nil {
-				log.Errorf("BulkAddRotatedSegmetas: hook failed, err=%v", err)
-				continue
-			}
-
-			if !alreadyHandled {
-				finalSegmetas = append(finalSegmetas, segmeta)
-			}
-		}
-	} else {
-		finalSegmetas = segmetas
-	}
-
-	bulkAddSegmetas(finalSegmetas, shouldWriteSfm)
-}
-
 func addSegmeta(segmeta structs.SegMeta) {
-	bulkAddSegmetas([]*structs.SegMeta{&segmeta}, true)
+	BulkAddRotatedSegmetas([]*structs.SegMeta{&segmeta}, true)
 }
 
-func bulkAddSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm bool) {
+func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm bool) {
 	if len(finalSegmetas) == 0 {
 		return
 	}

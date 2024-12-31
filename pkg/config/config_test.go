@@ -20,6 +20,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/pbnjay/memory"
@@ -88,6 +89,7 @@ func Test_ExtractConfigData(t *testing.T) {
    compressLogFile: false
  compressStatic: false
  memoryLimits:
+   maxMemoryAllowedToUseInBytes: 200000
    maxUsagePercent: 80
    lowMemoryMode: true
    searchPercent: 50
@@ -141,13 +143,14 @@ func Test_ExtractConfigData(t *testing.T) {
 				EnableSortIndex:             utils.DefaultValue(false).Set(true),
 				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
-					MaxUsagePercent: 80,
-					LowMemoryMode:   utils.DefaultValue(false).Set(true),
-					SearchPercent:   50,
-					CMIPercent:      20,
-					MetadataPercent: 20,
-					MetricsPercent:  10,
-					BytesPerQuery:   100,
+					MaxMemoryAllowedToUseInBytes: 200000,
+					MaxUsagePercent:              80,
+					LowMemoryMode:                utils.DefaultValue(false).Set(true),
+					SearchPercent:                50,
+					CMIPercent:                   20,
+					MetadataPercent:              20,
+					MetricsPercent:               10,
+					BytesPerQuery:                100,
 				},
 				MaxOpenColumns: 42,
 			},
@@ -196,6 +199,8 @@ func Test_ExtractConfigData(t *testing.T) {
    compressLogFile: true
  compressStatic: bad string
  enableSortIndex: bad string
+ memoryLimits:
+   maxMemoryAllowedToUseInBytes: 10000000000
  `),
 
 			common.Configuration{
@@ -241,13 +246,14 @@ func Test_ExtractConfigData(t *testing.T) {
 				UseNewPipelineConverted:     true,
 				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
-					MaxUsagePercent: 80,
-					LowMemoryMode:   utils.DefaultValue(false),
-					SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
-					CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
-					MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
-					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
-					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
+					MaxMemoryAllowedToUseInBytes: uint64(math.Min(10_000_000_000, float64(memory.TotalMemory()))),
+					MaxUsagePercent:              80,
+					LowMemoryMode:                utils.DefaultValue(false),
+					SearchPercent:                DEFAULT_SEG_SEARCH_MEM_PERCENT,
+					CMIPercent:                   DEFAULT_ROTATED_CMI_MEM_PERCENT,
+					MetadataPercent:              DEFAULT_METADATA_MEM_PERCENT,
+					MetricsPercent:               DEFAULT_METRICS_MEM_PERCENT,
+					BytesPerQuery:                DEFAULT_BYTES_PER_QUERY,
 				},
 				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
 				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
