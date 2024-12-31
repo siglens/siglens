@@ -20,7 +20,6 @@ import (
 )
 
 func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, myid uint64) {
-
 	r := bytes.NewReader(ctx.PostBody())
 	indexNameIn := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 	tsNow := utils.GetCurrentTimeInMs()
@@ -29,7 +28,7 @@ func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, my
 	idInUrl := utils.ExtractParamAsString(ctx.UserValue("_id"))
 	idVal, err := url.QueryUnescape(idInUrl)
 	if err != nil {
-		log.Errorf("ProcessSingleDocGetRequest: could not decode idVal=%v, err=%v", idInUrl, err)
+		log.Errorf("ProcessPutPostSingleDocRequest: could not decode idVal=%v, err=%v", idInUrl, err)
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		utils.SetBadMsg(ctx, "")
 		return
@@ -38,7 +37,7 @@ func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, my
 	docTypeInUrl := utils.ExtractParamAsString(ctx.UserValue("docType"))
 	docType, err := url.QueryUnescape(docTypeInUrl)
 	if err != nil {
-		log.Errorf("ProcessSingleDocGetRequest: could not decode docTypeInUrl=%v, err=%v", docTypeInUrl, err)
+		log.Errorf("ProcessPutPostSingleDocRequest: could not decode docTypeInUrl=%v, err=%v", docTypeInUrl, err)
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		utils.SetBadMsg(ctx, "")
 		return
@@ -68,13 +67,13 @@ func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, my
 	decoder.UseNumber()
 	err = decoder.Decode(&request)
 	if err != nil {
-		log.Errorf("error un-marshalling JSON: %v", err)
+		log.Errorf("ProcessPutPostSingleDocRequest: error un-marshalling JSON: %v", err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
 
 	if indexNameIn == "" {
-		log.Error("error processing request: IndexName is a required parameter.")
+		log.Error("ProcessPutPostSingleDocRequest: error processing request: IndexName is a required parameter.")
 		utils.SetBadMsg(ctx, "")
 		return
 	} else if !vtable.IsVirtualTablePresent(&indexNameIn, myid) {
