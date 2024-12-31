@@ -84,6 +84,8 @@ type DatabaseConfig struct {
 }
 
 type MemoryConfig struct {
+	MaxMemoryAllowedToUseInBytes uint64 `yaml:"maxMemoryAllowedToUseInBytes"` // Max memory allowed to use in bytes. The value is ignored if set to 0.
+
 	MaxUsagePercent uint64                  `yaml:"maxUsagePercent"`
 	BytesPerQuery   uint64                  `yaml:"bytesPerQuery"`
 	LowMemoryMode   utils.WithDefault[bool] `yaml:"lowMemoryMode"`
