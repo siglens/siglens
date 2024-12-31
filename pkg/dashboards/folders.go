@@ -556,7 +556,6 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 
 	items := make([]ItemMetadata, 0)
 
-	// Helper function to get full path
 	getFullPath := func(itemID string) string {
 		path := []string{}
 		currentID := itemID
@@ -571,7 +570,6 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		return strings.Join(path, "/")
 	}
 
-	// Collect items based on filters
 	for id, item := range structure.Items {
 		// Skip root folder
 		if id == rootFolderID {
@@ -626,7 +624,6 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 			continue
 		}
 
-		// Get paths
 		fullPath := getFullPath(id)
 		// Get parent folder name
 		parentName := ""
@@ -686,10 +683,10 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 	}, nil
 }
 
-// TODO: After migration is complete :
+// TODO: After migration is complete:
 // 1. Remove getAllIdsFileName function
-// 3. Remove migration-related code from InitDashboards
-// 4. Remove migrateToFolderStructure function
+// 2. Remove migration-related code from InitDashboards
+// 3. Remove migrateToFolderStructure function
 
 func getAllIdsFileName(orgid uint64) string {
 	baseDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
