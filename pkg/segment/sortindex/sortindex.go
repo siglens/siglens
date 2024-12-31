@@ -29,14 +29,13 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
-
-const SortColumnsConfigPath = "data/common/sort_columns.json"
 
 type Block struct {
 	BlockNum uint16   `json:"blockNum"`
@@ -65,6 +64,10 @@ const (
 )
 
 var AllSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
+
+func getSortColumnsConfigPath() string {
+	return filepath.Join(config.GetDataPath(), "common", "sort_columns.json")
+}
 
 func (sm SortMode) String() string {
 	switch sm {
@@ -658,12 +661,14 @@ func readMetadata(file *os.File) (*metadata, error) {
 }
 
 func SetSortColumns(indexName string, columnNames []string) error {
+	configPath := getSortColumnsConfigPath()
+
 	sortConfigMutex.Lock()
 	defer sortConfigMutex.Unlock()
 
-	dir := filepath.Dir(SortColumnsConfigPath)
+	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %v", err)
+		return fmt.Errorf("SetSortColumns: failed to create config directory: %v", err)
 	}
 
 	for _, col := range columnNames {
@@ -676,10 +681,10 @@ func SetSortColumns(indexName string, columnNames []string) error {
 		Indexes: make(map[string][]string),
 	}
 
-	data, err := os.ReadFile(SortColumnsConfigPath)
+	data, err := os.ReadFile(configPath)
 	if err == nil {
 		if err := json.Unmarshal(data, &config); err != nil {
-			return fmt.Errorf("failed to parse sort columns config: %v", err)
+			return fmt.Errorf("SetSortColumns: failed to parse sort columns config: %v", err)
 		}
 	}
 
@@ -687,30 +692,36 @@ func SetSortColumns(indexName string, columnNames []string) error {
 
 	data, err = json.MarshalIndent(config, "", "    ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal sort columns config: %v", err)
+		return fmt.Errorf("SetSortColumns: failed to marshal sort columns config: %v", err)
 	}
 
-	err = os.WriteFile(SortColumnsConfigPath, data, 0644)
+	err = os.WriteFile(configPath, data, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to write sort columns config: %v", err)
+		return fmt.Errorf("SetSortColumns: failed to write sort columns config: %v", err)
 	}
 
 	return nil
 }
 
 func GetSortColumnNamesForIndex(indexName string) []string {
+	configPath := getSortColumnsConfigPath()
+
 	sortConfigMutex.RLock()
 	defer sortConfigMutex.RUnlock()
 
-	data, err := os.ReadFile(SortColumnsConfigPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Debugf("No sort columns config file found: %v", err)
+		if os.IsNotExist(err) {
+			log.Debugf("GetSortColumnNamesForIndex: no sort columns config file found: %v", err)
+		} else {
+			log.Errorf("GetSortColumnNamesForIndex: error reading config file: %v", err)
+		}
 		return make([]string, 0)
 	}
 
 	var config SortColumnsConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		log.Errorf("Failed to parse sort columns config: %v", err)
+		log.Errorf("GetSortColumnNamesForIndex: failed to parse sort columns config: %v", err)
 		return make([]string, 0)
 	}
 
@@ -731,7 +742,7 @@ func SetSortColumnsAPI(ctx *fasthttp.RequestCtx) {
 
 	if request.IndexName == "" {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.SetBodyString("missing index name")
+		ctx.SetBodyString("Missing index name")
 		return
 	}
 
