@@ -25,9 +25,10 @@ type FolderItem struct {
 	Type      string `json:"type"` // "folder" or "dashboard"
 	ParentID  string `json:"parentId"`
 	IsDefault bool   `json:"isDefault"` // True for default items
+	CreatedAt int64  `json:"createdAt"`
 }
 
-// FolderStructure represents the complete folder hierarchy
+// FolderStructure repsresents the complete folder hierarchy
 type FolderStructure struct {
 	Items map[string]FolderItem `json:"items"` // uuid -> item
 	Order map[string][]string   `json:"order"` // parentId -> ordered child IDs
@@ -230,9 +231,10 @@ func createFolder(req *CreateFolderRequest, orgID uint64) (string, error) {
 
 	// Add new folder to structure
 	structure.Items[folderID] = FolderItem{
-		Name:     req.Name,
-		Type:     "folder",
-		ParentID: req.ParentID,
+		Name:      req.Name,
+		Type:      "folder",
+		ParentID:  req.ParentID,
+		CreatedAt: time.Now().UnixMilli(),
 	}
 
 	// Initialize order array for new folder
@@ -827,17 +829,25 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		// Get item details
 		details, _ := getDashboard(id)
 		isStarred := false
-		createdAt := time.Now() // TODO: fix this
+		var createdAt time.Time
 		description := ""
-		if details != nil {
-			if starred, ok := details["isFavorite"].(bool); ok {
-				isStarred = starred
+		if item.Type == "dashboard" {
+			if details != nil {
+				if starred, ok := details["isFavorite"].(bool); ok {
+					isStarred = starred
+				}
+				if created, ok := details["createdAt"].(float64); ok && created > 0 {
+					createdAt = time.UnixMilli(int64(created))
+				} else if created, ok := details["createdAt"].(int64); ok && created > 0 {
+					createdAt = time.UnixMilli(created)
+				}
+				if desc, ok := details["description"].(string); ok {
+					description = desc
+				}
 			}
-			if created, ok := details["createdAt"].(int64); ok {
-				createdAt = time.UnixMilli(created)
-			}
-			if desc, ok := details["description"].(string); ok {
-				description = desc
+		} else if item.Type == "folder" {
+			if item.CreatedAt > 0 {
+				createdAt = time.UnixMilli(item.CreatedAt)
 			}
 		}
 
@@ -916,7 +926,7 @@ type ListItemsRequest struct {
 	FolderID string `json:"folderId"` // Filter by folder (including subfolders)
 }
 
-func ProcessListItemsRequest(ctx *fasthttp.RequestCtx) {
+func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx) {
 	// Parse query parameters
 	req := &ListItemsRequest{
 		Sort:     string(ctx.QueryArgs().Peek("sort")),
@@ -937,7 +947,7 @@ func ProcessListItemsRequest(ctx *fasthttp.RequestCtx) {
 
 	response, err := listItems(req)
 	if err != nil {
-		log.Errorf("ProcessListItemsRequest: failed to list items: %v", err)
+		log.Errorf("ProcessListAllItemsRequest: failed to list items: %v", err)
 		utils.SetBadMsg(ctx, "Failed to list items")
 		return
 	}

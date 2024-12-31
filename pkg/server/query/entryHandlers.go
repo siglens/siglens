@@ -462,14 +462,9 @@ func deleteDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-// func listAllDashboardsHandler() fasthttp.RequestHandler {
-//     return func(ctx *fasthttp.RequestCtx) {
-//         dashboards.ProcessListAllDashboardsRequest(ctx)
-//     }
-// }
-func listDashboardsHandler() fasthttp.RequestHandler {
+func listAllDashboardsHandler() fasthttp.RequestHandler {
     return func(ctx *fasthttp.RequestCtx) {
-        dashboards.ProcessListItemsRequest(ctx)
+        dashboards.ProcessListAllItemsRequest(ctx)
     }
 }
 

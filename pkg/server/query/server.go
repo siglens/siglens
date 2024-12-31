@@ -224,8 +224,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(getDashboardIdHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(deleteDashboardHandler())))
 	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(favoriteDashboardHandler())))
-	// hs.Router.GET(server_utils.API_PREFIX+"/dashboards/list", tracing.TraceMiddleware(hs.Recovery(listAllDashboardsHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/list", tracing.TraceMiddleware(hs.Recovery(listDashboardsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/list", tracing.TraceMiddleware(hs.Recovery(listAllDashboardsHandler())))
 	// folders api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/folders/create", tracing.TraceMiddleware(hs.Recovery(createFolderHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(getFolderContentsHandler())))

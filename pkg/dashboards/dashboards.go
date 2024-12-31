@@ -123,9 +123,11 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 
 	// Add dashboard to folder structure
 	structure.Items[newId] = FolderItem{
-		Name:     req.Name,
-		Type:     "dashboard",
-		ParentID: req.ParentID,
+		Name:      req.Name,
+		Type:      "dashboard",
+		ParentID:  req.ParentID,
+		CreatedAt: time.Now().UnixMilli(),
+		IsDefault: false,
 	}
 	structure.Order[req.ParentID] = append(structure.Order[req.ParentID], newId)
 
