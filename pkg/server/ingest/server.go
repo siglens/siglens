@@ -19,6 +19,7 @@ package ingestserver
 
 import (
 	"net"
+	"strings"
 	"time"
 
 	"github.com/siglens/siglens/pkg/hooks"
@@ -87,6 +88,37 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/_xpack", hs.Recovery(esGreetHandler()))
 	hs.router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(EsPutIndexHandler()))
+	hs.router.HEAD(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(EsPutIndexHandler()))
+
+	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_mapping", hs.Recovery(EsPutIndexHandler()))
+	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_mapping/{docType}", hs.Recovery(EsPutIndexHandler()))
+
+	// without the doctype (>7.x format)
+	if strings.HasPrefix(*config.GetESVersion(), "7.") {
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_doc/{_id}", hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_doc/{_id?}", hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_create/{_id}", hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_create/{_id}", hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_update/{_id}", hs.Recovery(esPutPostSingleDocHandler(true)))
+
+	} else {
+		// with the doctype (<7.x format)
+
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id?}",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}/_create",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}/_create",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}/_update",
+			hs.Recovery(esPutPostSingleDocHandler(true)))
+	}
 
 	// Loki endpoints
 	hs.router.POST(server_utils.LOKI_PREFIX+"/api/v1/push", hs.Recovery(lokiPostBulkHandler()))

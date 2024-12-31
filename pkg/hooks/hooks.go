@@ -100,6 +100,7 @@ type Hooks struct {
 	// Ingest server
 	IngestMiddlewareRecoveryHook           func(ctx *fasthttp.RequestCtx) error
 	KibanaIngestHandlerHook                func(ctx *fasthttp.RequestCtx)
+	KibanaIngestSingleDocHook              func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
 	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
 	GetIdsConditionHook                    func() (bool, []uint64)
 	ExtraIngestEndpointsHook               func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
