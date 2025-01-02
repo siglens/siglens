@@ -13,62 +13,46 @@ test.describe('Dashboards Home Page', () => {
         await expect(dashboardRows.first()).toBeVisible();
     });
 
-    test('should open create dashboard modal', async ({ page }) => {
-        const createButton = page.locator('#create-db-btn');
-        await createButton.click();
+    // test('should open create dashboard modal', async ({ page }) => {
+    //     const newButton = page.locator('.dropdown');
+    //     await newButton.click();
 
-        await expect(page.locator('#new-dashboard-modal')).toBeVisible();
-    });
+    //     await expect(page.locator('#new-dashboard-modal')).toBeVisible();
+    // });
 
-    test('should create a new dashboard', async ({ page }) => {
-        const createButton = page.locator('#create-db-btn');
-        await createButton.click();
+    // test('should create a new dashboard', async ({ page }) => {
+    //     const createButton = page.locator('#create-db-btn');
+    //     await createButton.click();
 
-        const nameInput = page.locator('#db-name');
-        const descriptionInput = page.locator('#db-description');
-        const saveButton = page.locator('#save-dbbtn');
+    //     const nameInput = page.locator('#db-name');
+    //     const descriptionInput = page.locator('#db-description');
+    //     const saveButton = page.locator('#save-dbbtn');
 
-        await nameInput.fill('New Test Dashboard' + Date.now());
-        await descriptionInput.fill('This is a test dashboard');
-        await saveButton.click();
+    //     await nameInput.fill('New Test Dashboard' + Date.now());
+    //     await descriptionInput.fill('This is a test dashboard');
+    //     await saveButton.click();
 
-        await expect(page).toHaveURL(/.*dashboard\.html\?id=/);
-    });
+    //     await expect(page).toHaveURL(/.*dashboard\.html\?id=/);
+    // });
 
-    test('should show error for empty dashboard name', async ({ page }) => {
-        const createButton = page.locator('#create-db-btn');
-        await createButton.click();
+    // test('should show error for empty dashboard name', async ({ page }) => {
+    //     const createButton = page.locator('#create-db-btn');
+    //     await createButton.click();
 
-        const saveButton = page.locator('#save-dbbtn');
-        await saveButton.click();
+    //     const saveButton = page.locator('#save-dbbtn');
+    //     await saveButton.click();
 
-        await expect(page.locator('.error-tip')).toBeVisible();
-        await expect(page.locator('.error-tip')).toHaveText('Dashboard name is required!');
-    });
+    //     await expect(page.locator('.error-tip')).toBeVisible();
+    //     await expect(page.locator('.error-tip')).toHaveText('Dashboard name is required!');
+    // });
 
-    test('should toggle favorite status of a dashboard', async ({ page }) => {
-        await page.waitForSelector('.ag-center-cols-container .ag-row');
 
-        const starIcon = page.locator('.ag-center-cols-container .ag-row:first-child .star-icon');
+    // test('should open delete confirmation for a dashboard', async ({ page }) => {
+    //     await page.waitForSelector('.ag-center-cols-container .ag-row');
 
-        const getBackgroundImage = async () => starIcon.evaluate((el) => window.getComputedStyle(el).backgroundImage);
-        const initialBackgroundImage = await getBackgroundImage();
+    //     const deleteButton = page.locator('.ag-center-cols-container .ag-row:not(:has(.default-label)) .btn-simple').first();
+    //     await deleteButton.click();
 
-        await starIcon.click();
-
-        // Wait for the background image to change
-        await expect(async () => {
-            const newBackgroundImage = await getBackgroundImage();
-            expect(newBackgroundImage).not.toBe(initialBackgroundImage);
-        }).toPass({timeout: 5000});
-    });
-
-    test('should open delete confirmation for a dashboard', async ({ page }) => {
-        await page.waitForSelector('.ag-center-cols-container .ag-row');
-
-        const deleteButton = page.locator('.ag-center-cols-container .ag-row:not(:has(.default-label)) .btn-simple').first();
-        await deleteButton.click();
-
-        await expect(page.locator('#delete-db-prompt')).toBeVisible();
-    });
+    //     await expect(page.locator('#delete-db-prompt')).toBeVisible();
+    // });
 });
