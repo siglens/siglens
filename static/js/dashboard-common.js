@@ -83,8 +83,9 @@ async function getDashboardFolderList(folderId, params = {}) {
     }
 }
 
-function initializeDashboardPage(options = {}) {
-    const addNew = new AddNewComponent('add-new-container');
+// eslint-disable-next-line no-unused-vars
+function initializeDashboardPage() {
+    const _addNew = new AddNewComponent('add-new-container');
     const grid = new DashboardGrid('dashboard-grid');
     const folderId = getCurrentFolderId();
 
@@ -94,7 +95,7 @@ function initializeDashboardPage(options = {}) {
     const isStarred = urlParams.get('starred') === 'true';
 
     // Initialize sort dropdown
-    const sortDropdown = new SortDropdown('sort-container', {
+    const _sortDropdown = new SortDropdown('sort-container', {
         onSort: async (sortValue) => handleFilters({ sort: sortValue }),
         initialSort: sortValue,
     });
@@ -111,13 +112,13 @@ function initializeDashboardPage(options = {}) {
     // Setup search
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
-        setupSearch(searchInput, grid, folderId);
+        setupSearch(searchInput);
         if (searchQuery) {
             searchInput.value = searchQuery;
         }
     }
 
-    function setupSearch(searchInput, grid, folderId) {
+    function setupSearch(searchInput) {
         let searchTimeout;
 
         searchInput.addEventListener('input', async (e) => {
@@ -179,6 +180,7 @@ function initializeDashboardPage(options = {}) {
     return { grid, folderId, loadData };
 }
 
+// eslint-disable-next-line no-unused-vars
 function countFolderContents(res) {
     const counts = {
         total: 0,
@@ -198,6 +200,7 @@ function countFolderContents(res) {
     return counts;
 }
 
+// eslint-disable-next-line no-unused-vars
 function deleteFolder(folderId) {
     return $.ajax({
         method: 'delete',
@@ -209,6 +212,7 @@ function deleteFolder(folderId) {
     });
 }
 
+// eslint-disable-next-line no-unused-vars
 function deleteDashboard(dashboardId) {
     $.ajax({
         method: 'get',

@@ -59,7 +59,7 @@ async function showMoveModal() {
         placeholder: 'Select Folder',
         excludeFolderId: folderId,
         showRoot: true,
-        onSelect: (folder) => {
+        onSelect: () => {
             $('.move-btn').prop('disabled', false);
         },
     });

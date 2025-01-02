@@ -210,7 +210,7 @@ $('#create-db').click(function () {
 function displayExistingDashboards() {
     $.ajax({
         method: 'get',
-        url: 'api/dashboards/list',
+        url: 'api/dashboards/list?type=dashboard',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -230,6 +230,8 @@ function displayExistingDashboards() {
                     dropdown.append(`<li class="dashboard" id="${dashboard.id}">${dashboard.fullPath}</li>`);
                 });
             }
+            dropdown.off('click', '.dashboard');
+            dropdown.on('click', '.dashboard', selectDashboardHandler);
         }
     });
 }
