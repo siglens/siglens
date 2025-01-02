@@ -116,6 +116,13 @@ func EsPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func esPutPostSingleDocHandler(update bool) func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
+		eswriter.ProcessPutPostSingleDocRequest(ctx, update, 0)
+	}
+}
+
 func otsdbPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithOrgId(otsdbwriter.PutMetrics, ctx)
