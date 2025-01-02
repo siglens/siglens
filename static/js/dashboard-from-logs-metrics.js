@@ -131,6 +131,11 @@ function closePopup() {
 function createPanelToNewDashboard() {
     var inputdbname = $('#db-name').val();
     var inputdbdescription = $('#db-description').val();
+    const dashboardData = {
+        name: inputdbname,
+        description: inputdbdescription,
+        parentId: 'root-folder',
+    };
     var timeRange;
     //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
@@ -158,9 +163,7 @@ function createPanelToNewDashboard() {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
             },
-            data: JSON.stringify(inputdbname),
-            dataType: 'json',
-            crossDomain: true,
+            data: JSON.stringify(dashboardData),
         })
             .then(function (res) {
                 $('#db-name').val('');
