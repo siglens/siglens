@@ -40,6 +40,8 @@ type CreateDashboardRequest struct {
 	ParentID    string `json:"parentId"`
 }
 
+const ErrDashboardNameExists = "dashboard name already exists in this folder"
+
 func isDefaultDashboard(id string) bool {
 	defaultStructure, err := readDefaultFolderStructure()
 	if err != nil {
@@ -82,7 +84,7 @@ func InitDashboards() error {
 				log.Warnf("Migration failed: %v, creating new folder structure", err)
 				// Create basic structure even if migration fails
 				if err := InitFolderStructure(); err != nil {
-					return fmt.Errorf("failed to create folder structure: %v", err)
+					return fmt.Errorf("InitDashboard: failed to create folder structure: %v", err)
 				}
 			}
 		} else {
@@ -106,14 +108,14 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 
 	structure, err := readFolderStructure()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read folder structure: %v", err)
+		return nil, fmt.Errorf("createDashboard: failed to read folder structure: %v", err)
 	}
 
 	parent, exists := structure.Items[req.ParentID]
 	if !exists {
 		return nil, errors.New("parent folder not found")
 	}
-	if parent.Type != "folder" {
+	if parent.Type != ItemTypeFolder {
 		return nil, errors.New("parent must be a folder")
 	}
 
@@ -121,7 +123,7 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 	for _, itemID := range structure.Order[req.ParentID] {
 		if item, exists := structure.Items[itemID]; exists {
 			if item.Type == "dashboard" && item.Name == req.Name {
-				return nil, errors.New("dashboard name already exists in this folder")
+				return nil, errors.New(ErrDashboardNameExists)
 			}
 		}
 	}
@@ -129,17 +131,17 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 	newId := uuid.New().String()
 
 	// Add dashboard to folder structure
-	structure.Items[newId] = FolderItem{
-		Name:      req.Name,
-		Type:      "dashboard",
-		ParentID:  req.ParentID,
-		IsDefault: false,
-		CreatedAt: time.Now().UnixMilli(),
+	structure.Items[newId] = StoredFolderItem{
+		Name:        req.Name,
+		Type:        "dashboard",
+		ParentID:    req.ParentID,
+		IsDefault:   false,
+		CreatedAtMs: time.Now().UnixMilli(),
 	}
 	structure.Order[req.ParentID] = append(structure.Order[req.ParentID], newId)
 
 	if err := writeFolderStructure(structure); err != nil {
-		return nil, fmt.Errorf("failed to update folder structure: %v", err)
+		return nil, fmt.Errorf("createDashboard: failed to update folder structure: %v", err)
 	}
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + newId + ".json"
@@ -168,7 +170,7 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 	details := map[string]interface{}{
 		"name":        req.Name,
 		"description": req.Description,
-		"createdAt":   time.Now().UnixMilli(),
+		"createdAtMs": time.Now().UnixMilli(),
 		"isFavorite":  false,
 		"folder": map[string]interface{}{
 			"id":          req.ParentID,
@@ -180,11 +182,11 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 
 	detailsData, err := json.MarshalIndent(details, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal dashboard details: %v", err)
+		return nil, fmt.Errorf("createDashboard: failed to marshal dashboard details: %v", err)
 	}
 
 	if err := os.WriteFile(dashboardDetailsFname, detailsData, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write dashboard details: %v", err)
+		return nil, fmt.Errorf("createDashboard: failed to write dashboard details: %v", err)
 	}
 
 	if err := blob.UploadQueryNodeDir(); err != nil {
@@ -264,12 +266,12 @@ func getDashboard(id string) (map[string]interface{}, error) {
 func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, orgid uint64) error {
 
 	if isDefaultDashboard(id) {
-		return errors.New("cannot update default dashboard")
+		return errors.New("updateDashboard: cannot update default dashboard")
 	}
 
 	structure, err := readFolderStructure()
 	if err != nil {
-		return fmt.Errorf("failed to read folder structure: %v", err)
+		return fmt.Errorf("updateDashboard: failed to read folder structure: %v", err)
 	}
 
 	item, exists := structure.Items[id]
@@ -294,7 +296,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 		if !exists {
 			return errors.New("new parent folder not found")
 		}
-		if newParent.Type != "folder" {
+		if newParent.Type != ItemTypeFolder {
 			return errors.New("new parent must be a folder")
 		}
 
@@ -328,7 +330,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 			for _, siblingID := range structure.Order[currentParentID] {
 				if sibling, exists := structure.Items[siblingID]; exists {
 					if sibling.Type == "dashboard" && sibling.Name == dName && siblingID != id {
-						return errors.New("dashboard name already exists in this folder")
+						return errors.New(ErrDashboardNameExists)
 					}
 				}
 			}
@@ -342,7 +344,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	}
 
 	if err := writeFolderStructure(structure); err != nil {
-		return fmt.Errorf("failed to update folder structure: %v", err)
+		return fmt.Errorf("updateDashboard: failed to update folder structure: %v", err)
 	}
 
 	// Get folder path for metadata
@@ -373,15 +375,15 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
 	detailsData, err := json.MarshalIndent(dashboardDetails, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal dashboard details: %v", err)
+		return fmt.Errorf("updateDashboard: failed to marshal dashboard details: %v", err)
 	}
 
 	if err := os.WriteFile(dashboardDetailsFname, detailsData, 0644); err != nil {
-		return fmt.Errorf("failed to write dashboard details: %v", err)
+		return fmt.Errorf("updateDashboard: failed to write dashboard details: %v", err)
 	}
 
 	if err := blob.UploadQueryNodeDir(); err != nil {
-		return fmt.Errorf("failed to upload query nodes dir: %v", err)
+		return fmt.Errorf("updateDashboard: failed to upload query nodes dir: %v", err)
 	}
 
 	return nil
@@ -390,21 +392,21 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 func deleteDashboard(id string, orgid uint64) error {
 
 	if isDefaultDashboard(id) {
-		return errors.New("cannot delete default dashboard")
+		return errors.New("deleteDashboard: cannot delete default dashboard")
 	}
 
 	structure, err := readFolderStructure()
 	if err != nil {
-		return fmt.Errorf("failed to read folder structure: %v", err)
+		return fmt.Errorf("deleteDashboard: failed to read folder structure: %v", err)
 	}
 
 	item, exists := structure.Items[id]
 	if !exists {
-		return errors.New("dashboard not found")
+		return errors.New("deleteDashboard: dashboard not found")
 	}
 
 	if item.Type != "dashboard" {
-		return errors.New("specified ID is not a dashboard")
+		return errors.New("deleteDashboard: specified ID is not a dashboard")
 	}
 
 	// Remove from parent folder's order
@@ -423,17 +425,17 @@ func deleteDashboard(id string, orgid uint64) error {
 	delete(structure.Items, id)
 
 	if err := writeFolderStructure(structure); err != nil {
-		return fmt.Errorf("failed to update folder structure: %v", err)
+		return fmt.Errorf("deleteDashboard: failed to update folder structure: %v", err)
 	}
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
 	if err := os.Remove(dashboardDetailsFname); err != nil && !os.IsNotExist(err) {
 		log.Errorf("deleteDashboard: Error deleting dashboard file %s: %v", dashboardDetailsFname, err)
-		return fmt.Errorf("failed to delete dashboard file: %v", err)
+		return fmt.Errorf("deleteDashboard: failed to delete dashboard file: %v", err)
 	}
 
 	if err := blob.UploadQueryNodeDir(); err != nil {
-		return fmt.Errorf("failed to upload query nodes dir: %v", err)
+		return fmt.Errorf("deleteDashboard: failed to upload query nodes dir: %v", err)
 	}
 
 	return nil
@@ -451,19 +453,19 @@ func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, strin
 	// Get dashboard ID
 	dId, ok := readJSON["id"].(string)
 	if !ok {
-		return "", "", nil, errors.New("id field is missing or not a string")
+		return "", "", nil, errors.New("parseUpdateDashboardRequest: id field is missing or not a string")
 	}
 
 	// Get details object
 	details, ok := readJSON["details"].(map[string]interface{})
 	if !ok {
-		return "", "", nil, errors.New("details field is missing or not an object")
+		return "", "", nil, errors.New("parseUpdateDashboardRequest: details field is missing or not an object")
 	}
 
 	// Get name from details
 	dName, ok := details["name"].(string)
 	if !ok {
-		return "", "", nil, errors.New("name field is missing or not a string in details")
+		return "", "", nil, errors.New("parseUpdateDashboardRequest: name field is missing or not a string in details")
 	}
 
 	return dId, dName, details, nil
@@ -479,7 +481,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	dashboardInfo, err := createDashboard(&req, myid)
 	if err != nil {
-		if err.Error() == "dashboard name already exists in this folder" {
+		if err.Error() == ErrDashboardNameExists {
 			setConflictMsg(ctx)
 			return
 		}
@@ -557,17 +559,13 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	// Update the dashboard
-	err = updateDashboard(dId, dName, dashboardDetails, myid)
-	if err != nil {
-		switch err.Error() {
-		case "dashboard name already exists in this folder":
+	if err := updateDashboard(dId, dName, dashboardDetails, myid); err != nil {
+		log.Errorf("ProcessUpdateDashboardRequest: failed to update dashboard %s: %v", dId, err)
+		if err.Error() == ErrDashboardNameExists {
 			setConflictMsg(ctx)
-		case "new parent folder not found":
-			utils.SetBadMsg(ctx, "Target folder not found")
-		default:
-			log.Errorf("ProcessUpdateDashboardRequest: could not update Dashboard, dId: %v, myid: %v, err: %v", dId, myid, err)
-			utils.SetBadMsg(ctx, "")
+			return
 		}
+		utils.SetBadMsg(ctx, err.Error())
 		return
 	}
 

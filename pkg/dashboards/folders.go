@@ -19,18 +19,24 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const (
+	ItemTypeFolder    = "folder"
+	ItemTypeDashboard = "dashboard"
+	ItemTypeAll       = "all"
+)
+
 // item in the folder structure
-type FolderItem struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	ParentID  string `json:"parentId"`
-	IsDefault bool   `json:"isDefault"`
-	CreatedAt int64  `json:"createdAt"`
+type StoredFolderItem struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	ParentID    string `json:"parentId"`
+	IsDefault   bool   `json:"isDefault"`
+	CreatedAtMs int64  `json:"createdAtMsMs"`
 }
 
 type FolderStructure struct {
-	Items map[string]FolderItem `json:"items"` // uuid -> item
-	Order map[string][]string   `json:"order"` // parentId -> ordered child IDs
+	Items map[string]StoredFolderItem `json:"items"` // uuid -> item
+	Order map[string][]string         `json:"order"` // parentId -> ordered child IDs
 }
 
 type CreateFolderRequest struct {
@@ -39,12 +45,12 @@ type CreateFolderRequest struct {
 }
 
 type FolderContentResponse struct {
-	Folder      FolderItemInfo   `json:"folder"`
-	Items       []FolderItemInfo `json:"items"`
-	Breadcrumbs []Breadcrumb     `json:"breadcrumbs"`
+	Folder      FolderItemResponse   `json:"folder"`
+	Items       []FolderItemResponse `json:"items"`
+	Breadcrumbs []Breadcrumb         `json:"breadcrumbs"`
 }
 
-type FolderItemInfo struct {
+type FolderItemResponse struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Type       string `json:"type"`
@@ -78,7 +84,7 @@ type ItemMetadata struct {
 	ParentName  string    `json:"parentName"`
 	FullPath    string    `json:"fullPath"`
 	IsStarred   bool      `json:"isStarred"`
-	CreatedAt   time.Time `json:"createdAt"`
+	CreatedAtMs time.Time `json:"createdAtMs"`
 	Description string    `json:"description,omitempty"`
 }
 
@@ -107,7 +113,7 @@ func isDefaultFolder(id string) bool {
 	}
 
 	item, exists := defaultStructure.Items[id]
-	return exists && item.Type == "folder"
+	return exists && item.Type == ItemTypeFolder
 }
 
 func InitFolderStructure() error {
@@ -121,10 +127,10 @@ func InitFolderStructure() error {
 	}
 
 	structure := FolderStructure{
-		Items: map[string]FolderItem{
+		Items: map[string]StoredFolderItem{
 			rootFolderID: {
 				Name:     "Root",
-				Type:     "folder",
+				Type:     ItemTypeFolder,
 				ParentID: "",
 			},
 		},
@@ -135,11 +141,11 @@ func InitFolderStructure() error {
 
 	data, err := json.MarshalIndent(structure, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal initial folder structure: %v", err)
+		return fmt.Errorf("InitFolderStructure: failed to marshal initial folder structure: %v", err)
 	}
 
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write initial folder structure: %v", err)
+		return fmt.Errorf("InitFolderStructure: failed to write initial folder structure: %v", err)
 	}
 
 	return nil
@@ -149,7 +155,7 @@ func readCombinedFolderStructure() (*FolderStructure, error) {
 
 	userStructure, err := readFolderStructure()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read user folder structure: %v", err)
+		return nil, fmt.Errorf("readCombinedFolderStructure: failed to read user folder structure: %v", err)
 	}
 
 	// Read default folder structure
@@ -158,12 +164,12 @@ func readCombinedFolderStructure() (*FolderStructure, error) {
 		if os.IsNotExist(err) {
 			return userStructure, nil
 		}
-		return nil, fmt.Errorf("failed to read default folder structure: %v", err)
+		return nil, fmt.Errorf("readCombinedFolderStructure: failed to read default folder structure: %v", err)
 	}
 
 	var defaultStructure FolderStructure
 	if err := json.Unmarshal(defaultData, &defaultStructure); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal default folder structure: %v", err)
+		return nil, fmt.Errorf("readCombinedFolderStructure: failed to unmarshal default folder structure: %v", err)
 	}
 
 	// Merge default items into user structure
@@ -197,12 +203,12 @@ func readCombinedFolderStructure() (*FolderStructure, error) {
 func readDefaultFolderStructure() (*FolderStructure, error) {
 	data, err := os.ReadFile(getDefaultFolderStructureFilePath())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read default folder structure: %v", err)
+		return nil, fmt.Errorf("readDefaultFolderStructure: failed to read default folder structure: %v", err)
 	}
 
 	var structure FolderStructure
 	if err := json.Unmarshal(data, &structure); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal default folder structure: %v", err)
+		return nil, fmt.Errorf("readDefaultFolderStructure: failed to unmarshal default folder structure: %v", err)
 	}
 
 	return &structure, nil
@@ -214,12 +220,12 @@ func readFolderStructure() (*FolderStructure, error) {
 
 	data, err := os.ReadFile(getFolderStructureFilePath())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read folder structure: %v", err)
+		return nil, fmt.Errorf("readFolderStructure: failed to read folder structure: %v", err)
 	}
 
 	var structure FolderStructure
 	if err := json.Unmarshal(data, &structure); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal folder structure: %v", err)
+		return nil, fmt.Errorf("readFolderStructure: failed to unmarshal folder structure: %v", err)
 	}
 
 	return &structure, nil
@@ -231,11 +237,11 @@ func writeFolderStructure(structure *FolderStructure) error {
 
 	data, err := json.MarshalIndent(structure, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal folder structure: %v", err)
+		return fmt.Errorf("writeFolderStructure: failed to marshal folder structure: %v", err)
 	}
 
 	if err := os.WriteFile(getFolderStructureFilePath(), data, 0644); err != nil {
-		return fmt.Errorf("failed to write folder structure: %v", err)
+		return fmt.Errorf("writeFolderStructure: failed to write folder structure: %v", err)
 	}
 
 	return nil
@@ -260,24 +266,26 @@ func createFolder(req *CreateFolderRequest, orgID uint64) (string, error) {
 	if !exists {
 		return "", errors.New("Parent folder not found")
 	}
-	if parent.Type != "folder" {
+	if parent.Type != ItemTypeFolder {
 		return "", errors.New("Parent must be a folder")
 	}
 
 	for _, childID := range structure.Order[req.ParentID] {
-		if child, exists := structure.Items[childID]; exists && child.Name == req.Name {
-			return "", errors.New("Folder with same name already exists in this location!")
+		if child, exists := structure.Items[childID]; exists {
+			if child.Type == ItemTypeFolder && child.Name == req.Name {
+				return "", errors.New("Folder with same name already exists in this location!")
+			}
 		}
 	}
 
 	folderID := uuid.New().String()
 
-	structure.Items[folderID] = FolderItem{
-		Name:      req.Name,
-		Type:      "folder",
-		ParentID:  req.ParentID,
-		CreatedAt: time.Now().UnixMilli(),
-		IsDefault: false,
+	structure.Items[folderID] = StoredFolderItem{
+		Name:        req.Name,
+		Type:        ItemTypeFolder,
+		ParentID:    req.ParentID,
+		CreatedAtMs: time.Now().UnixMilli(),
+		IsDefault:   false,
 	}
 
 	structure.Order[folderID] = []string{}
@@ -295,22 +303,22 @@ func getFolderContents(folderID string, foldersOnly bool) (*FolderContentRespons
 	structure, err := readCombinedFolderStructure()
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to read folder structure: %v", err)
+		return nil, fmt.Errorf("getFolderContents: failed to read folder structure: %v", err)
 	}
 
 	folder, exists := structure.Items[folderID]
 	if !exists {
-		return nil, fmt.Errorf("folder not found: %s", folderID)
+		return nil, fmt.Errorf("getFolderContents: folder not found: %s", folderID)
 	}
 
 	response := &FolderContentResponse{
-		Folder: FolderItemInfo{
+		Folder: FolderItemResponse{
 			ID:        folderID,
 			Name:      folder.Name,
 			Type:      folder.Type,
 			IsDefault: folder.IsDefault,
 		},
-		Items: make([]FolderItemInfo, 0),
+		Items: make([]FolderItemResponse, 0),
 	}
 
 	childIDs := structure.Order[folderID]
@@ -320,11 +328,11 @@ func getFolderContents(folderID string, foldersOnly bool) (*FolderContentRespons
 			continue
 		}
 		// Skip if we only want folders and this is not a folder
-		if foldersOnly && child.Type != "folder" {
+		if foldersOnly && child.Type != ItemTypeFolder {
 			continue
 		}
 
-		item := FolderItemInfo{
+		item := FolderItemResponse{
 			ID:        childID,
 			Name:      child.Name,
 			Type:      child.Type,
@@ -332,7 +340,7 @@ func getFolderContents(folderID string, foldersOnly bool) (*FolderContentRespons
 		}
 
 		// If it's a folder, count its children
-		if child.Type == "folder" {
+		if child.Type == ItemTypeFolder {
 			if children, exists := structure.Order[childID]; exists {
 				item.ChildCount = len(children)
 			}
@@ -369,21 +377,21 @@ func generateBreadcrumbs(folderID string, structure *FolderStructure) []Breadcru
 
 func updateFolder(folderID string, req *UpdateFolderRequest) error {
 	if folderID == rootFolderID {
-		return fmt.Errorf("cannot update root folder")
+		return fmt.Errorf("updateFolder: cannot update root folder")
 	}
 
 	if isDefaultFolder(folderID) {
-		return fmt.Errorf("cannot update default folder")
+		return fmt.Errorf("updateFolder: cannot update default folder")
 	}
 
 	structure, err := readFolderStructure()
 	if err != nil {
-		return fmt.Errorf("failed to read folder structure: %v", err)
+		return fmt.Errorf("updateFolder: failed to read folder structure: %v", err)
 	}
 
 	folder, exists := structure.Items[folderID]
 	if !exists {
-		return fmt.Errorf("folder not found: %s", folderID)
+		return fmt.Errorf("updateFolder: folder not found: %s", folderID)
 	}
 
 	// If moving to new parent
@@ -391,15 +399,15 @@ func updateFolder(folderID string, req *UpdateFolderRequest) error {
 		// Validate new parent exists and is a folder
 		newParent, exists := structure.Items[req.ParentID]
 		if !exists {
-			return fmt.Errorf("new parent folder not found: %s", req.ParentID)
+			return fmt.Errorf("updateFolder: new parent folder not found: %s", req.ParentID)
 		}
-		if newParent.Type != "folder" {
-			return fmt.Errorf("new parent must be a folder")
+		if newParent.Type != ItemTypeFolder {
+			return fmt.Errorf("updateFolder: new parent must be a folder")
 		}
 
 		// Check for circular reference
 		if wouldCreateCircularReference(folderID, req.ParentID, structure) {
-			return fmt.Errorf("cannot move folder: would create circular reference")
+			return fmt.Errorf("updateFolder: cannot move folder: would create circular reference")
 		}
 
 		// Remove from old parent's order
@@ -431,7 +439,7 @@ func updateFolder(folderID string, req *UpdateFolderRequest) error {
 		for _, siblingID := range structure.Order[parentID] {
 			if sibling, exists := structure.Items[siblingID]; exists {
 				if sibling.Name == req.Name && siblingID != folderID {
-					return fmt.Errorf("folder with name %s already exists in this location", req.Name)
+					return fmt.Errorf("updateFolder: folder with name %s already exists in this location", req.Name)
 				}
 			}
 		}
@@ -441,44 +449,66 @@ func updateFolder(folderID string, req *UpdateFolderRequest) error {
 	structure.Items[folderID] = folder
 
 	if err := writeFolderStructure(structure); err != nil {
-		return fmt.Errorf("failed to write folder structure: %v", err)
+		return fmt.Errorf("updateFolder: failed to write folder structure: %v", err)
 	}
 
 	return nil
 }
 
+// Uses Floyd's cycle-finding algorithm (tortoise and hare) to detect circular references
 func wouldCreateCircularReference(folderID, newParentID string, structure *FolderStructure) bool {
-	current := newParentID
-	for current != "" {
-		if current == folderID {
+	slow, fast := newParentID, newParentID
+	for {
+		if slow == "" {
+			return false
+		}
+		if slow == folderID {
 			return true
 		}
-		if item, exists := structure.Items[current]; exists {
-			current = item.ParentID
+		// Move slow pointer one step
+		if item, exists := structure.Items[slow]; exists {
+			slow = item.ParentID
 		} else {
-			break
+			return false
+		}
+		// Move fast pointer two steps
+		for i := 0; i < 2; i++ {
+			if fast == "" {
+				return false
+			}
+			if fast == folderID {
+				return true
+			}
+			if item, exists := structure.Items[fast]; exists {
+				fast = item.ParentID
+			} else {
+				return false
+			}
+		}
+
+		if slow == fast {
+			return true
 		}
 	}
-	return false
 }
 
 func deleteFolder(folderID string) error {
 	if folderID == rootFolderID {
-		return fmt.Errorf("cannot delete root folder")
+		return fmt.Errorf("deleteFolder: cannot delete root folder")
 	}
 
 	if isDefaultFolder(folderID) {
-		return fmt.Errorf("cannot delete default folder")
+		return fmt.Errorf("deleteFolder: cannot delete default folder")
 	}
 
 	structure, err := readFolderStructure()
 	if err != nil {
-		return fmt.Errorf("failed to read folder structure: %v", err)
+		return fmt.Errorf("deleteFolder: failed to read folder structure: %v", err)
 	}
 
 	folder, exists := structure.Items[folderID]
 	if !exists {
-		return fmt.Errorf("folder not found: %s", folderID)
+		return fmt.Errorf("deleteFolder: folder not found: %s", folderID)
 	}
 
 	// Get all items to be deleted (recursive)
@@ -488,7 +518,7 @@ func deleteFolder(folderID string) error {
 	// Delete all dashboard files
 	for _, itemID := range itemsToDelete {
 		item := structure.Items[itemID]
-		if item.Type == "dashboard" {
+		if item.Type == ItemTypeDashboard {
 			if err := deleteDashboardFile(itemID); err != nil {
 				log.Errorf("deleteFolder: failed to delete dashboard file %s: %v", itemID, err)
 			}
@@ -513,7 +543,7 @@ func deleteFolder(folderID string) error {
 	}
 
 	if err := writeFolderStructure(structure); err != nil {
-		return fmt.Errorf("failed to write folder structure: %v", err)
+		return fmt.Errorf("deleteFolder: failed to write folder structure: %v", err)
 	}
 
 	if err := blob.UploadQueryNodeDir(); err != nil {
@@ -532,7 +562,7 @@ func collectItemsToDelete(folderID string, structure *FolderStructure, itemsToDe
 	if childIDs, exists := structure.Order[folderID]; exists {
 		for _, childID := range childIDs {
 			if child, exists := structure.Items[childID]; exists {
-				if child.Type == "folder" {
+				if child.Type == ItemTypeFolder {
 					collectItemsToDelete(childID, structure, itemsToDelete)
 				} else {
 					*itemsToDelete = append(*itemsToDelete, childID)
@@ -551,7 +581,7 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 	// Read folder structure
 	structure, err := readCombinedFolderStructure()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read folder structure: %v", err)
+		return nil, fmt.Errorf("listItems: failed to read folder structure: %v", err)
 	}
 
 	items := make([]ItemMetadata, 0)
@@ -590,32 +620,32 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		}
 
 		// Apply type filter
-		if req.Type != "" && req.Type != "all" && item.Type != req.Type {
+		if req.Type != "" && req.Type != ItemTypeAll && item.Type != req.Type {
 			continue
 		}
 
 		// Get item details
 		details, _ := getDashboard(id)
 		isStarred := false
-		var createdAt time.Time
+		var createdAtMs time.Time
 		description := ""
-		if item.Type == "dashboard" {
+		if item.Type == ItemTypeDashboard {
 			if details != nil {
 				if starred, ok := details["isFavorite"].(bool); ok {
 					isStarred = starred
 				}
-				if created, ok := details["createdAt"].(float64); ok && created > 0 {
-					createdAt = time.UnixMilli(int64(created))
-				} else if created, ok := details["createdAt"].(int64); ok && created > 0 {
-					createdAt = time.UnixMilli(created)
+				if created, ok := details["createdAtMs"].(float64); ok && created > 0 {
+					createdAtMs = time.UnixMilli(int64(created))
+				} else if created, ok := details["createdAtMs"].(int64); ok && created > 0 {
+					createdAtMs = time.UnixMilli(created)
 				}
 				if desc, ok := details["description"].(string); ok {
 					description = desc
 				}
 			}
-		} else if item.Type == "folder" {
-			if item.CreatedAt > 0 {
-				createdAt = time.UnixMilli(item.CreatedAt)
+		} else if item.Type == ItemTypeFolder {
+			if item.CreatedAtMs > 0 {
+				createdAtMs = time.UnixMilli(item.CreatedAtMs)
 			}
 		}
 
@@ -641,7 +671,7 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 			ParentName:  parentName,
 			FullPath:    fullPath,
 			IsStarred:   isStarred,
-			CreatedAt:   createdAt,
+			CreatedAtMs: createdAtMs,
 			Description: description,
 		}
 
@@ -667,11 +697,11 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		})
 	case "created-asc":
 		sort.Slice(items, func(i, j int) bool {
-			return items[i].CreatedAt.Before(items[j].CreatedAt)
+			return items[i].CreatedAtMs.Before(items[j].CreatedAtMs)
 		})
 	case "created-desc":
 		sort.Slice(items, func(i, j int) bool {
-			return items[i].CreatedAt.After(items[j].CreatedAt)
+			return items[i].CreatedAtMs.After(items[j].CreatedAtMs)
 		})
 	}
 
@@ -709,10 +739,10 @@ func migrateToFolderStructure(orgid uint64) error {
 	}
 
 	structure := FolderStructure{
-		Items: map[string]FolderItem{
+		Items: map[string]StoredFolderItem{
 			rootFolderID: {
 				Name:     "Root",
-				Type:     "folder",
+				Type:     ItemTypeFolder,
 				ParentID: "",
 			},
 		},
@@ -727,7 +757,7 @@ func migrateToFolderStructure(orgid uint64) error {
 	if len(data) > 0 {
 		var existingDashboards map[string]string
 		if err := json.Unmarshal(data, &existingDashboards); err != nil {
-			return fmt.Errorf("failed to unmarshal allids.json: %v", err)
+			return fmt.Errorf("migrateToFolderStructure: failed to unmarshal allids.json: %v", err)
 		}
 
 		for dashID, dashName := range existingDashboards {
@@ -736,9 +766,9 @@ func migrateToFolderStructure(orgid uint64) error {
 				continue
 			}
 
-			structure.Items[dashID] = FolderItem{
+			structure.Items[dashID] = StoredFolderItem{
 				Name:     dashName,
-				Type:     "dashboard",
+				Type:     ItemTypeDashboard,
 				ParentID: rootFolderID,
 			}
 			structure.Order[rootFolderID] = append(structure.Order[rootFolderID], dashID)
@@ -747,17 +777,17 @@ func migrateToFolderStructure(orgid uint64) error {
 
 	newData, err := json.MarshalIndent(structure, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal folder structure: %v", err)
+		return fmt.Errorf("migrateToFolderStructure: failed to marshal folder structure: %v", err)
 	}
 
 	if err := os.WriteFile(folderFile, newData, 0644); err != nil {
-		return fmt.Errorf("failed to write folder structure: %v", err)
+		return fmt.Errorf("migrateToFolderStructure: failed to write folder structure: %v", err)
 	}
 
 	// After successful migration, we can remove allids.json
 	if len(data) > 0 {
 		if err := os.Remove(allidsFname); err != nil {
-			log.Warnf("Failed to remove allids.json after migration: %v", err)
+			log.Warnf("migrateToFolderStructure: Failed to remove allids.json after migration: %v", err)
 		}
 	}
 

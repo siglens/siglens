@@ -3193,7 +3193,6 @@ float: right;
 /*dashboard*/
 #new-dashboard{
     overflow-x: hidden;
-    /* font-size: 20px; */
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
     font-family: "DINpro", Arial, sans-serif;

@@ -102,17 +102,17 @@
         type: dashboard, folder, all
         starred: true/false
         folderId: filter by folder
-        query: search term
+        query: filter items by name. For example, `query=sales` will return dashboards and folders with "sales" in their name.
 
     Example:
-    request: http://localhost:5122/api/dashboards/list?sort=created-desc&type=dashboard&starred=true&folderId=folder-id&query=1
+    request: http://localhost:5122/api/dashboards/list?sort=created-desc&type=dashboard&starred=true&folderId=folder-id&query=sales
 
     response:
     {
         "items": [
             {
                 "id": "uuid",
-                "name": "Name",
+                "name": "sales-dashboard",
                 "type": "dashboard",
                 "parentId": "folder-id",
                 "parentName": "Folder",
