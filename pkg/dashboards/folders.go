@@ -69,11 +69,11 @@ type UpdateFolderRequest struct {
 }
 
 type ListItemsRequest struct {
-	Sort     string `json:"sort"`     // alpha-asc, alpha-desc, created-asc, created-desc
-	Query    string `json:"query"`    // Search term (name only)
-	Type     string `json:"type"`     // dashboard, folder, or all
-	Starred  bool   `json:"starred"`  // Show only starred items
-	FolderID string `json:"folderId"` // Filter by folder
+	Sort        string `json:"sort"`     // alpha-asc, alpha-desc, created-asc, created-desc
+	Query       string `json:"query"`    // Search term (name only)
+	Type        string `json:"type"`     // dashboard, folder, or all
+	StarredOnly bool   `json:"starred"`  // When true, show only starred items. When false, show all items
+	FolderID    string `json:"folderId"` // Filter by folder
 }
 
 type ItemMetadata struct {
@@ -650,7 +650,7 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		}
 
 		// Apply starred filter
-		if req.Starred && !isStarred {
+		if req.StarredOnly && !isStarred {
 			continue
 		}
 
@@ -898,7 +898,7 @@ func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	if string(ctx.QueryArgs().Peek("starred")) == "true" {
-		req.Starred = true
+		req.StarredOnly = true
 	}
 
 	response, err := listItems(req)
