@@ -12,6 +12,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/fasthttp/router v1.4.1
 	github.com/fasthttp/websocket v1.5.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
 	github.com/google/gofuzz v1.2.0
