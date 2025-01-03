@@ -393,8 +393,14 @@ type Checkpoint struct {
 	eof         bool
 }
 
+//   - If fromCheckpoint is nil, it reads from the start of the file;
+//     otherwise it picks up from the checkpoint.
+//   - If readFullLine is false, it will exit after reading maxRecordsToRead
+//     records (or reaching the end of the file); otherwise, once it reads
+//     maxRecordsToRead, it will continue reading the rest of the line and then
+//     return.
 func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
-	maxRecordsToRead int, fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
+	maxRecordsToRead int, readFullLine bool, fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
 
 	if IsEOF(fromCheckpoint) {
 		return nil, fromCheckpoint, nil
@@ -440,7 +446,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	finalCheckpoint := &Checkpoint{}
 	totalUniqueColValues := int64(len(metadata.valueOffsets))
 	for maxRecordsToRead > 0 && finalCheckpoint.lineNum < totalUniqueColValues {
-		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint, reverse, metadata)
+		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, readFullLine, fromCheckpoint, reverse, metadata)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading line: %v", err)
 		}
@@ -485,7 +491,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 // The file should already be positioned at the start of the line specified by
 // the checkpoint.
-func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
+func readLine(file *os.File, maxRecordsToRead int, readFullLine bool, fromCheckpoint *Checkpoint,
 	reverse bool, meta *metadata) (int, *Line, *Checkpoint, error) {
 
 	gotToEndOfLine := true
@@ -533,7 +539,7 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 
 		numRecords := uint32(0)
 		recNums := make([]uint16, 0)
-		for numRecords < totalRecordsInBlock && totalRecordsRead < uint64(maxRecordsToRead) {
+		for numRecords < totalRecordsInBlock && (readFullLine || totalRecordsRead < uint64(maxRecordsToRead)) {
 			// Read recNum
 			var recNum uint16
 			err = binary.Read(file, binary.LittleEndian, &recNum)
@@ -555,8 +561,10 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 		numBlocks++
 
 		if totalRecordsRead >= uint64(maxRecordsToRead) {
-			done = true
 			gotToEndOfLine = (numBlocks == totalBlocks && numRecords == totalRecordsInBlock)
+			if gotToEndOfLine || !readFullLine {
+				done = true
+			}
 		} else if numRecords != totalRecordsInBlock {
 			return 0, nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecordsInBlock)
 		}
