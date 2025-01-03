@@ -109,6 +109,21 @@
       "unit": ""
     }
   ],
+  "folder": {
+    "breadcrumbs": [
+      {
+        "id": "root-folder",
+        "name": "Root"
+      },
+      {
+        "id": "siglens-folder",
+        "name": "SigLens Dashboards"
+      }
+    ],
+    "id": "siglens-folder",
+    "name": "SigLens Dashboards",
+    "path": "SigLens Dashboards"
+  },
   "refresh": "",
   "timeRange": "Last 1 Hr"
 }
