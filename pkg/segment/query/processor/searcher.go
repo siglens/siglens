@@ -440,8 +440,14 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 	numRecordsToSend := numRecords
 	if numRecordsToSend > numRemainingRecords {
-		numRecordsToSend = numRemainingRecords
-		s.sortIndexState.didEarlyExit = true
+		// If we reach the limit, we can stop immediately if we're only
+		// searching on one column. But if we're searching on multiple columns,
+		// we need to finish reading the records with the value we're on.
+		requiresFullLine := (len(s.sortExpr.SortEles) > 1)
+		if !requiresFullLine {
+			numRecordsToSend = numRemainingRecords
+			s.sortIndexState.didEarlyExit = true
+		}
 	}
 
 	err := result.DiscardAfter(numRecordsToSend)
