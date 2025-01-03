@@ -112,7 +112,9 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	}
 
 	// TODO: Replace the sort with a head if the sort is fully handled by the
-	// searcher.
+	// searcher. This is only the case for single-column sorts; for multi-column
+	// sorts, the searcher will return results sorted by only first specified
+	// column, so we still need the sort processor.
 	sortExpr := sorterAgg.SortExpr
 
 	return sortExpr
