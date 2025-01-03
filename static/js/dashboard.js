@@ -22,6 +22,7 @@ let localPanels = [],
     dbName,
     dbDescr,
     dbId,
+    dbFolder,
     allResultsDisplayed = 0;
 let panelIndex;
 //eslint-disable-next-line no-unused-vars
@@ -506,9 +507,19 @@ async function getDashboardData() {
         .then((data) => {
             dbData = data;
         });
-    $('.name-dashboard').text(dbData.name);
+
+    const breadcrumb = new Breadcrumb();
+    breadcrumb.render(
+        dbData.folder?.breadcrumbs,
+        dbData.name,
+        true, // Show favorite button for dashboard
+        dbData.isFavorite
+    );
+    breadcrumb.onFavoriteClick(() => toggleFavorite(dbId));
+
     dbName = dbData.name;
     dbDescr = dbData.description;
+    dbFolder = dbData.folder.name;
     dbRefresh = dbData.refresh;
     if (dbData.panels != undefined) {
         localPanels = JSON.parse(JSON.stringify(dbData.panels));
@@ -1138,6 +1149,7 @@ function handleDbSettings() {
     $('.dbSet-name').html(dbName);
     $('.dbSet-dbName').val(dbName);
     $('.dbSet-dbDescr').val(dbDescr);
+    $('.dbSet-dbFolder').val(dbFolder);
     $('.dbSet-jsonModelData').val(
         JSON.stringify(
             JSON.unflatten({

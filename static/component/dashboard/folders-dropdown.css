@@ -1,0 +1,87 @@
+/* 
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+.folder-select-dropdown {
+    position: relative;
+    width: 100%;
+    font-size: 14px;
+}
+
+.folder-dropdown-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--index-drop-down-box-bg-color);
+    border: 1px solid var(--timepicker-border-color);
+    border-radius: 4px;
+    margin-top: 4px;
+    box-shadow: var(--box-shadow);
+    z-index: 1000;
+    padding: 8px;
+}
+
+.folder-dropdown-content.show {
+    display: block;
+}
+
+.folder-tree {
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    margin-top: 8px;
+}
+
+.folder-dropdown-content .folder-name{
+    font-size: 14px !important;
+}
+
+.folder-item {
+    cursor: pointer;
+}
+
+.folder-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 5px;
+}
+
+.folder-item-row:hover {
+    background: var(--index-drop-down-item-inactive-bg-color);
+}
+
+.folder-tree ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    margin-left: 24px;
+}
+
+.launch-dashboard .popupContent .folder-select-btn{
+    background-color: var(--drop-down-btn-bg-regular) !important;
+    width: 100% !important;
+    border: 1px solid var(--border-btn-color) !important;
+    display: flex;
+    justify-content: space-between;
+}
