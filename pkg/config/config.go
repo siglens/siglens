@@ -622,7 +622,7 @@ func SetNewQueryPipelineEnabled(enabled bool) {
 }
 
 func IsSortIndexEnabled() bool {
-	return runningConfig.EnableSortIndex.Value()
+	return true
 }
 
 func IsLowMemoryModeEnabled() bool {
@@ -957,7 +957,6 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	config := common.Configuration{
-		EnableSortIndex: utils.DefaultValue(false),
 		MemoryConfig: common.MemoryConfig{
 			LowMemoryMode: utils.DefaultValue(false),
 		},
