@@ -43,12 +43,6 @@ func InitMetrics() {
 		return
 	}
 	log.Info("InitMetrics: Initializing metrics package...")
-
-	err := initGauges()
-	if err != nil {
-		log.Errorf("InitMetrics: Failed to initialize gauges; err=%v", err)
-	}
-
 	exporter, err := prometheus.New()
 	if err != nil {
 		log.Errorf("InitMetrics: Failed to initialize prometheus exporter with error: %v", err)

@@ -115,6 +115,13 @@ var (
 	SetTotalEventsMatched          = makeGaugeSetter(TotalEventsMatched)
 )
 
+func init() {
+	err := initGauges()
+	if err != nil {
+		log.Fatalf("init: failed to initialize gauges; err=%v", err)
+	}
+}
+
 func initGauges() error {
 	// Finish setting up each gauge.
 	for key, simpleGauge := range allSimpleGauges {
