@@ -61,6 +61,10 @@ const (
 	TotalEventCount Gauge = iota + 1
 	TotalBytesReceived
 	TotalOnDiskBytes
+	TotalSegstoreCount
+	TotalSegmentMicroindexCount
+	TotalEventsSearched
+	TotalEventsMatched
 )
 
 var allSimpleGauges = map[Gauge]simpleInt64Guage{
@@ -78,6 +82,26 @@ var allSimpleGauges = map[Gauge]simpleInt64Guage{
 		name:        "ss.current.on.disk.bytes",
 		unit:        "bytes",
 		description: "Current number of bytes on disk",
+	},
+	TotalSegstoreCount: {
+		name:        "ss.current.segstore.count",
+		unit:        "count",
+		description: "Current number of segstores",
+	},
+	TotalSegmentMicroindexCount: {
+		name:        "ss.current.segment.microindex.count",
+		unit:        "count",
+		description: "Current number of segment microindexes",
+	},
+	TotalEventsSearched: {
+		name:        "ss.current.events.searched",
+		unit:        "count",
+		description: "Current number of events searched",
+	},
+	TotalEventsMatched: {
+		name:        "ss.current.events.matched",
+		unit:        "count",
+		description: "Current number of events matched",
 	},
 }
 
@@ -110,6 +134,9 @@ func initGauges() error {
 			return utils.TeeErrorf("initGuages: failed to register callback for guage %v; err=%v", simpleGauge.name, err)
 		}
 	}
+
+	// Register the callbacks for the other gauges.
+	registerOtherGaugeCallbacks()
 
 	return nil
 }
@@ -147,32 +174,6 @@ func SetQueryLatencyMs(val int64, labelkey string, labelval string) {
 	}
 	mentry.sum += val
 	mentry.count++
-}
-
-var writerSegstoreCountGauge int64
-var writerSegstoreCountLock sync.RWMutex
-var WRITER_SEGSTORE_COUNT, _ = meter.Int64ObservableGauge(
-	"ss.writer.segstore.count",
-	metric.WithUnit("count"),
-	metric.WithDescription("writer segstore count"))
-
-func SetWriterSegstoreCountGauge(val int64) {
-	writerSegstoreCountLock.Lock()
-	writerSegstoreCountGauge = val
-	writerSegstoreCountLock.Unlock()
-}
-
-var segmentMicroindexCountGauge int64
-var segmentMicroindexCountLock sync.RWMutex
-var SEGMENT_MICROINDEX_COUNT, _ = meter.Int64ObservableGauge(
-	"ss.segment.microindex.count",
-	metric.WithUnit("count"),
-	metric.WithDescription("segment microindex count"))
-
-func SetSegmentMicroindexCountGauge(val int64) {
-	segmentMicroindexCountLock.Lock()
-	segmentMicroindexCountGauge = val
-	segmentMicroindexCountLock.Unlock()
 }
 
 var eventCountPerIndexMap = map[string]*sumcount{}
@@ -233,32 +234,6 @@ func SetOnDiskBytesPerIndex(val int64, labelkey string, labelval string) {
 	}
 	mentry.sum += val
 	mentry.count++
-}
-
-var eventsSearchedGauge int64
-var eventsSearchedGaugeLock sync.RWMutex
-var EVENTS_SEARCHED, _ = meter.Int64ObservableGauge(
-	"ss.events.searched",
-	metric.WithUnit("count"),
-	metric.WithDescription("events searched"))
-
-func SetEventsSearchedGauge(val int64) {
-	eventsSearchedGaugeLock.Lock()
-	eventsSearchedGauge = val
-	eventsSearchedGaugeLock.Unlock()
-}
-
-var eventsMatchedGauge int64
-var eventsMatchedGaugeLock sync.RWMutex
-var EVENTS_MATCHED, _ = meter.Int64ObservableGauge(
-	"ss.events.matched",
-	metric.WithUnit("count"),
-	metric.WithDescription("events matched"))
-
-func SetEventsMatchedGauge(val int64) {
-	eventsMatchedGaugeLock.Lock()
-	eventsMatchedGauge = val
-	eventsMatchedGaugeLock.Unlock()
 }
 
 var segmentLatencyMinMsMap = map[string]*sumcount{}
@@ -341,33 +316,13 @@ func SetSegmentLatencyP95Ms(val int64, labelkey string, labelval string) {
 	mentry.count++
 }
 
-func registerGaugeCallbacks() {
+func registerOtherGaugeCallbacks() {
 	_, err := meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
 		emitQueryLatencyMs(ctx, o)
 		return nil
 	}, QUERY_LATENCY_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge QUERY_LATENCY_MS, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		writerSegstoreCountLock.RLock()
-		defer writerSegstoreCountLock.RUnlock()
-		o.ObserveInt64(WRITER_SEGSTORE_COUNT, int64(writerSegstoreCountGauge))
-		return nil
-	}, WRITER_SEGSTORE_COUNT)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge WRITER_SEGSTORE_COUNT, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		segmentMicroindexCountLock.RLock()
-		defer segmentMicroindexCountLock.RUnlock()
-		o.ObserveInt64(SEGMENT_MICROINDEX_COUNT, int64(segmentMicroindexCountGauge))
-		return nil
-	}, SEGMENT_MICROINDEX_COUNT)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_MICROINDEX_COUNT, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge QUERY_LATENCY_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -375,7 +330,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, EVENT_COUNT_PER_INDEX)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge EVENT_COUNT_PER_INDEX, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge EVENT_COUNT_PER_INDEX, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -383,7 +338,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, BYTES_COUNT_PER_INDEX)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge BYTES_COUNT_PER_INDEX, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge BYTES_COUNT_PER_INDEX, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -391,23 +346,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, ON_DISK_BYTES_PER_INDEX)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge ON_DISK_BYTES_PER_INDEX, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		o.ObserveInt64(EVENTS_SEARCHED, int64(eventsSearchedGauge))
-		return nil
-	}, EVENTS_SEARCHED)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge EVENTS_SEARCHED, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		o.ObserveInt64(EVENTS_MATCHED, int64(eventsMatchedGauge))
-		return nil
-	}, EVENTS_MATCHED)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge EVENTS_MATCHED, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge ON_DISK_BYTES_PER_INDEX, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -415,7 +354,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_MIN_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MIN_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MIN_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -423,7 +362,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_MAX_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MAX_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MAX_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -431,7 +370,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_AVG_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_AVG_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_AVG_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -439,9 +378,8 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_P95_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_P95_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_P95_MS, err %v", err)
 	}
-
 }
 
 func emitQueryLatencyMs(ctx context.Context, o metric.Observer) {

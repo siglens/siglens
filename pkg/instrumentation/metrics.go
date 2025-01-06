@@ -44,7 +44,10 @@ func InitMetrics() {
 	}
 	log.Info("InitMetrics: Initializing metrics package...")
 
-	initGauges()
+	err := initGauges()
+	if err != nil {
+		log.Errorf("InitMetrics: Failed to initialize gauges; err=%v", err)
+	}
 
 	exporter, err := prometheus.New()
 	if err != nil {
@@ -55,7 +58,6 @@ func InitMetrics() {
 
 	commonAttributes = append(commonAttributes, attribute.String("hostname", conf.GetHostID()))
 	log.Infof("InitMetrics: Added hostname %s as a common attribute to all metrics", conf.GetHostID())
-	registerGaugeCallbacks()
 
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
