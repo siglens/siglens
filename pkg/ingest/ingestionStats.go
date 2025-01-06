@@ -63,8 +63,8 @@ func ingestionMetricsLooper() {
 			instrumentation.SetOnDiskBytesPerIndex(currentOnDiskBytes, "indexname", indexName)
 		}
 
-		instrumentation.SetGaugeCurrentEventCount(currentEventCount)
-		instrumentation.SetGaugeCurrentBytesReceivedGauge(currentBytesReceived)
-		instrumentation.SetGaugeOnDiskBytesGauge(currentOnDiskBytes)
+		instrumentation.SetGauge(instrumentation.TotalEventCount, currentEventCount)
+		instrumentation.SetGauge(instrumentation.TotalBytesReceived, currentBytesReceived)
+		instrumentation.SetGauge(instrumentation.TotalOnDiskBytes, currentOnDiskBytes)
 	}
 }
