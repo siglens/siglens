@@ -67,7 +67,7 @@ const (
 	TotalEventsMatched
 )
 
-var allSimpleGauges = map[Gauge]simpleInt64Guage{
+var allSimpleGauges = map[Gauge]*simpleInt64Guage{
 	TotalEventCount: {
 		name:        "ss.current.event.count",
 		unit:        "count",
@@ -124,7 +124,7 @@ func init() {
 
 func initGauges() error {
 	// Finish setting up each gauge.
-	for key, simpleGauge := range allSimpleGauges {
+	for _, simpleGauge := range allSimpleGauges {
 		guage, err := meter.Int64ObservableGauge(
 			simpleGauge.name,
 			metric.WithUnit(simpleGauge.unit),
@@ -136,12 +136,12 @@ func initGauges() error {
 
 		simpleGauge.gauge = guage
 		simpleGauge.lock = &sync.RWMutex{}
-		allSimpleGauges[key] = simpleGauge
 	}
 
 	// Register the callbacks for each gauge.
-	for _, sg := range allSimpleGauges {
-		simpleGauge := sg
+	for key := range allSimpleGauges {
+		simpleGauge := allSimpleGauges[key]
+
 		_, err := meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
 			simpleGauge.lock.RLock()
 			defer simpleGauge.lock.RUnlock()
@@ -169,8 +169,6 @@ func makeGaugeSetter(gauge Gauge) func(int64) {
 		simpleGauge.lock.Lock()
 		simpleGauge.value = value
 		simpleGauge.lock.Unlock()
-
-		allSimpleGauges[gauge] = simpleGauge
 	}
 }
 
