@@ -20,14 +20,16 @@ package ingest
 import (
 	"time"
 
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/instrumentation"
+	"github.com/siglens/siglens/pkg/segment/query"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
-
 	log "github.com/sirupsen/logrus"
 )
 
 func InitIngestionMetrics() {
 	go ingestionMetricsLooper()
+	go metricsLooper()
 }
 
 func ingestionMetricsLooper() {
@@ -67,4 +69,23 @@ func ingestionMetricsLooper() {
 		instrumentation.SetTotalBytesReceived(currentBytesReceived)
 		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
 	}
+}
+
+func metricsLooper() {
+	for {
+		time.Sleep(1 * time.Minute)
+
+		setNumMetricNames()
+	}
+}
+
+func setNumMetricNames() {
+	allTime := &dtu.MetricsTimeRange{}
+	names, err := query.GetAllMetricNamesOverTheTimeRange(allTime, 0)
+	if err != nil {
+		log.Errorf("setNumMetricNames: failed to get all metric names: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalMetricNames(int64(len(names)))
 }
