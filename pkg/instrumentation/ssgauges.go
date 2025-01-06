@@ -105,6 +105,16 @@ var allSimpleGauges = map[Gauge]simpleInt64Guage{
 	},
 }
 
+var (
+	SetTotalEventCount             = makeGaugeSetter(TotalEventCount)
+	SetTotalBytesReceived          = makeGaugeSetter(TotalBytesReceived)
+	SetTotalOnDiskBytes            = makeGaugeSetter(TotalOnDiskBytes)
+	SetTotalSegstoreCount          = makeGaugeSetter(TotalSegstoreCount)
+	SetTotalSegmentMicroindexCount = makeGaugeSetter(TotalSegmentMicroindexCount)
+	SetTotalEventsSearched         = makeGaugeSetter(TotalEventsSearched)
+	SetTotalEventsMatched          = makeGaugeSetter(TotalEventsMatched)
+)
+
 func initGauges() error {
 	// Finish setting up each gauge.
 	for key, simpleGauge := range allSimpleGauges {
@@ -141,18 +151,20 @@ func initGauges() error {
 	return nil
 }
 
-func SetGauge(gauge Gauge, value int64) {
-	simpleGauge, ok := allSimpleGauges[gauge]
-	if !ok {
-		log.Errorf("SetGauge: invalid gauge %v", gauge)
-		return
+func makeGaugeSetter(gauge Gauge) func(int64) {
+	return func(value int64) {
+		simpleGauge, ok := allSimpleGauges[gauge]
+		if !ok {
+			log.Errorf("makeGaugeSetter: invalid gauge: %v", gauge)
+			return
+		}
+
+		simpleGauge.lock.Lock()
+		simpleGauge.value = value
+		simpleGauge.lock.Unlock()
+
+		allSimpleGauges[gauge] = simpleGauge
 	}
-
-	simpleGauge.lock.Lock()
-	simpleGauge.value = value
-	simpleGauge.lock.Unlock()
-
-	allSimpleGauges[gauge] = simpleGauge
 }
 
 // map[labelkey-value] --> sumcount struct

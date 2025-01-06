@@ -774,7 +774,7 @@ func createSegStore(streamid string, table string, orgId uint64) (*SegStore, err
 	}
 
 	allSegStores[streamid] = segstore
-	instrumentation.SetGauge(instrumentation.TotalSegstoreCount, int64(len(allSegStores)))
+	instrumentation.SetTotalSegstoreCount(int64(len(allSegStores)))
 
 	return segstore, nil
 }

@@ -99,7 +99,7 @@ func queryMetricsLooper() {
 	for {
 		time.Sleep(1 * time.Minute)
 		go func() {
-			instrumentation.SetGauge(instrumentation.TotalSegmentMicroindexCount, segmetadata.GetTotalSMICount())
+			instrumentation.SetTotalSegmentMicroindexCount(segmetadata.GetTotalSMICount())
 		}()
 	}
 }
