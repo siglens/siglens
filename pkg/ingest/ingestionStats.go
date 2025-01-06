@@ -22,7 +22,9 @@ import (
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/instrumentation"
+	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
@@ -77,6 +79,7 @@ func metricsLooper() {
 
 		setNumMetricNames()
 		setNumSeries()
+		setNumKeysAndValues()
 	}
 }
 
@@ -106,4 +109,35 @@ func setNumSeries() {
 	}
 
 	instrumentation.SetTotalTimeSeries(int64(numSeries))
+}
+
+func setNumKeysAndValues() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	myid := uint64(0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, myid, querySummary)
+	if err != nil {
+		log.Errorf("setNumKeysAndValues: failed to get tags trees: %v", err)
+		return
+	}
+
+	keys := make(map[string]struct{})
+	values := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+
+		for key, valueSet := range segmentTagPairs {
+			keys[key] = struct{}{}
+			for value := range valueSet {
+				values[value] = struct{}{}
+			}
+		}
+	}
+
+	instrumentation.SetTotalTagKeyCount(int64(len(keys)))
+	instrumentation.SetTotalTagValueCount(int64(len(values)))
 }
