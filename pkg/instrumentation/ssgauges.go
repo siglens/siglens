@@ -64,11 +64,17 @@ type Gauge int
 const (
 	TotalEventCount Gauge = iota + 1
 	TotalBytesReceived
-	TotalOnDiskBytes
+	TotalLogOnDiskBytes
+	TotalMetricOnDiskBytes
 	TotalSegstoreCount
 	TotalSegmentMicroindexCount
 	TotalEventsSearched
 	TotalEventsMatched
+	TotalMetricNames
+	TotalTimeSeries
+	PastMinuteNumDataPoints
+	TotalTagKeyCount
+	TotalTagValueCount
 )
 
 var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
@@ -82,10 +88,15 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		unit:        "bytes",
 		description: "Current count of bytes received",
 	},
-	TotalOnDiskBytes: {
+	TotalLogOnDiskBytes: {
 		name:        "ss.current.on.disk.bytes",
 		unit:        "bytes",
 		description: "Current number of bytes on disk",
+	},
+	TotalMetricOnDiskBytes: {
+		name:        "ss.total.metric.on.disk.bytes",
+		unit:        "bytes",
+		description: "Total number of metric bytes on disk",
 	},
 	TotalSegstoreCount: {
 		name:        "ss.current.segstore.count",
@@ -107,16 +118,47 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		unit:        "count",
 		description: "Current number of events matched",
 	},
+	TotalMetricNames: {
+		name:        "ss.total.metric.names",
+		unit:        "count",
+		description: "Total number of metric names",
+	},
+	TotalTimeSeries: {
+		name:        "ss.total.time.series",
+		unit:        "count",
+		description: "Total number of time series",
+	},
+	PastMinuteNumDataPoints: {
+		name:        "ss.past.minute.num.data.points",
+		unit:        "count",
+		description: "Number of metric data points ingested in the past minute",
+	},
+	TotalTagKeyCount: {
+		name:        "ss.total.tag.key.count",
+		unit:        "count",
+		description: "Total number of tag keys",
+	},
+	TotalTagValueCount: {
+		name:        "ss.total.tag.value.count",
+		unit:        "count",
+		description: "Total number of tag values",
+	},
 }
 
 var (
 	SetTotalEventCount             = makeGaugeSetter(TotalEventCount)
 	SetTotalBytesReceived          = makeGaugeSetter(TotalBytesReceived)
-	SetTotalOnDiskBytes            = makeGaugeSetter(TotalOnDiskBytes)
+	SetTotalLogOnDiskBytes         = makeGaugeSetter(TotalLogOnDiskBytes)
+	SetTotalMetricOnDiskBytes      = makeGaugeSetter(TotalMetricOnDiskBytes)
 	SetTotalSegstoreCount          = makeGaugeSetter(TotalSegstoreCount)
 	SetTotalSegmentMicroindexCount = makeGaugeSetter(TotalSegmentMicroindexCount)
 	SetTotalEventsSearched         = makeGaugeSetter(TotalEventsSearched)
 	SetTotalEventsMatched          = makeGaugeSetter(TotalEventsMatched)
+	SetTotalMetricNames            = makeGaugeSetter(TotalMetricNames)
+	SetTotalTimeSeries             = makeGaugeSetter(TotalTimeSeries)
+	SetPastMinuteNumDataPoints     = makeGaugeSetter(PastMinuteNumDataPoints)
+	SetTotalTagKeyCount            = makeGaugeSetter(TotalTagKeyCount)
+	SetTotalTagValueCount          = makeGaugeSetter(TotalTagValueCount)
 )
 
 func init() {

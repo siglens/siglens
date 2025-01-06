@@ -65,6 +65,6 @@ func ingestionMetricsLooper() {
 
 		instrumentation.SetTotalEventCount(currentEventCount)
 		instrumentation.SetTotalBytesReceived(currentBytesReceived)
-		instrumentation.SetTotalOnDiskBytes(currentOnDiskBytes)
+		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
 	}
 }
