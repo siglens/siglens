@@ -38,7 +38,7 @@ import (
 	For a gauge with labels:
    1. create a var int64
    2. create a rwlock
-   3. create meter.async.guage
+   3. create meter.async.gauge
    4. create SetXXX method for the gauge
    5. register a callback in registerOtherGaugeCallbacks()
 */
@@ -50,7 +50,7 @@ type sumcount struct {
 	labelval string
 }
 
-type simpleInt64Guage struct {
+type simpleInt64Gauge struct {
 	name        string
 	value       int64
 	unit        string
@@ -71,7 +71,7 @@ const (
 	TotalEventsMatched
 )
 
-var allSimpleGauges = map[Gauge]*simpleInt64Guage{
+var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 	TotalEventCount: {
 		name:        "ss.current.event.count",
 		unit:        "count",
@@ -129,16 +129,16 @@ func init() {
 func initGauges() error {
 	// Finish setting up each gauge.
 	for _, simpleGauge := range allSimpleGauges {
-		guage, err := meter.Int64ObservableGauge(
+		gauge, err := meter.Int64ObservableGauge(
 			simpleGauge.name,
 			metric.WithUnit(simpleGauge.unit),
 			metric.WithDescription(simpleGauge.description),
 		)
 		if err != nil {
-			return utils.TeeErrorf("initGuages: failed to create guage %s; err=%v", simpleGauge.name, err)
+			return utils.TeeErrorf("initGauges: failed to create gauge %s; err=%v", simpleGauge.name, err)
 		}
 
-		simpleGauge.gauge = guage
+		simpleGauge.gauge = gauge
 		simpleGauge.lock = &sync.RWMutex{}
 	}
 
@@ -153,7 +153,7 @@ func initGauges() error {
 			return nil
 		}, simpleGauge.gauge)
 		if err != nil {
-			return utils.TeeErrorf("initGuages: failed to register callback for guage %v; err=%v", simpleGauge.name, err)
+			return utils.TeeErrorf("initGauges: failed to register callback for gauge %v; err=%v", simpleGauge.name, err)
 		}
 	}
 
