@@ -76,16 +76,34 @@ func metricsLooper() {
 		time.Sleep(1 * time.Minute)
 
 		setNumMetricNames()
+		setNumSeries()
 	}
 }
 
 func setNumMetricNames() {
-	allTime := &dtu.MetricsTimeRange{}
-	names, err := query.GetAllMetricNamesOverTheTimeRange(allTime, 0)
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	names, err := query.GetAllMetricNamesOverTheTimeRange(allPreviousTime, 0)
 	if err != nil {
 		log.Errorf("setNumMetricNames: failed to get all metric names: %v", err)
 		return
 	}
 
 	instrumentation.SetTotalMetricNames(int64(len(names)))
+}
+
+func setNumSeries() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	numSeries, err := query.GetSeriesCardinalityOverTimeRange(allPreviousTime, 0)
+	if err != nil {
+		log.Errorf("setNumSeries: failed to get all series: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalTimeSeries(int64(numSeries))
 }

@@ -955,36 +955,13 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 		return
 	}
 
-	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
-	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	cardinality, err := query.GetSeriesCardinalityOverTimeRange(timeRange, myid)
 	if err != nil {
-		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
-		return
-	}
-
-	tagKeys := make(map[string]struct{})
-	for _, segmentTagTreeReader := range tagsTreeReaders {
-		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
-	}
-
-	allTsids := structs.CreateNewHll()
-	for _, segmentTagTreeReader := range tagsTreeReaders {
-		for tagKey := range tagKeys {
-			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
-			if err != nil {
-				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
-				return
-			}
-
-			for tsid := range tsids {
-				allTsids.AddRaw(tsid)
-			}
-		}
+		utils.SendInternalError(ctx, "Failed to compute cardinality", "", err)
 	}
 
 	output := outputStruct{
-		SeriesCardinality: allTsids.Cardinality(),
+		SeriesCardinality: cardinality,
 	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
