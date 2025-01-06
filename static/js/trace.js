@@ -139,7 +139,6 @@ function getParameterFromUrl(param) {
 }
 
 function getTraceInformation(traceId) {
-    console.log('traceId: ' + traceId);
     $.ajax({
         method: 'POST',
         url: 'api/traces/ganttchart',
