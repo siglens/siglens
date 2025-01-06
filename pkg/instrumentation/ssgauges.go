@@ -140,7 +140,8 @@ func initGauges() error {
 	}
 
 	// Register the callbacks for each gauge.
-	for _, simpleGauge := range allSimpleGauges {
+	for _, sg := range allSimpleGauges {
+		simpleGauge := sg
 		_, err := meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
 			simpleGauge.lock.RLock()
 			defer simpleGauge.lock.RUnlock()
@@ -152,7 +153,6 @@ func initGauges() error {
 		}
 	}
 
-	// Register the callbacks for the other gauges.
 	registerOtherGaugeCallbacks()
 
 	return nil
