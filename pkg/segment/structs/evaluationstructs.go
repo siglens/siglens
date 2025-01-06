@@ -428,10 +428,16 @@ func (self *DedupExpr) ReleaseProcessedSegmentsLock() {
 }
 
 func (self *DedupExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	return append(self.FieldList, GetFieldsFromSortElements(self.DedupSortEles)...)
 }
 
 func (self *SortExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	return GetFieldsFromSortElements(self.SortEles)
 }
 
@@ -989,6 +995,9 @@ func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueEx
 }
 
 func (self *BoolExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	if self.IsTerminal {
 		fields := make([]string, 0)
 
@@ -1303,6 +1312,9 @@ func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string
 }
 
 func (self *ValueExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	switch self.ValueExprMode {
 	case VEMNumericExpr:
 		return self.NumericExpr.GetFields()
@@ -1320,6 +1332,9 @@ func (self *ValueExpr) GetFields() []string {
 }
 
 func (self *MultiValueExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	fields := make([]string, 0)
 	for _, stringExpr := range self.StringExprParams {
 		fields = append(fields, stringExpr.GetFields()...)
@@ -1344,12 +1359,18 @@ func (self *MultiValueExpr) GetFields() []string {
 }
 
 func (self *RexExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	var fields []string
 	fields = append(fields, self.FieldName)
 	return fields
 }
 
 func (self *RenameExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	fields := make([]string, 0)
 
 	switch self.RenameExprMode {
@@ -1364,6 +1385,9 @@ func (self *RenameExpr) GetFields() []string {
 }
 
 func (self *StringExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	switch self.StringExprMode {
 	case SEMConcatExpr:
 		return self.ConcatExpr.GetFields()
@@ -1408,6 +1432,9 @@ func (self *ConcatExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure) 
 }
 
 func (self *ConcatExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	fields := make([]string, 0)
 	for _, atom := range self.Atoms {
 		if atom.IsField {
@@ -1688,6 +1715,9 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
 }
 
 func (self *StatisticExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	return append(self.FieldList, self.ByClause...)
 }
 
@@ -2694,6 +2724,9 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
 }
 
 func (self *TextExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	fields := make([]string, 0)
 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
 		if self.Param != nil {
@@ -2726,6 +2759,9 @@ func (self *TextExpr) GetFields() []string {
 
 // Append all the fields in ConditionExpr
 func (self *ConditionExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	fields := make([]string, 0)
 	if self.BoolExpr != nil {
 		fields = append(fields, self.BoolExpr.GetFields()...)
@@ -2752,6 +2788,9 @@ func round(number float64, precision int) float64 {
 }
 
 func (self *NumericExpr) GetFields() []string {
+	if self == nil {
+		return nil
+	}
 	fields := make([]string, 0)
 	if self.Val != nil {
 		return append(fields, self.Val.GetFields()...)

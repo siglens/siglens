@@ -621,10 +621,6 @@ func SetNewQueryPipelineEnabled(enabled bool) {
 	runningConfig.UseNewPipelineConverted = enabled
 }
 
-func IsSortIndexEnabled() bool {
-	return true
-}
-
 func IsLowMemoryModeEnabled() bool {
 	return runningConfig.MemoryConfig.LowMemoryMode.Value()
 }

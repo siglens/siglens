@@ -76,7 +76,6 @@ func Test_ExtractConfigData(t *testing.T) {
  analyticsEnabled: false
  agileAggsEnabled: false
  isNewQueryPipelineEnabled: false
- enableSortIndex: true
  queryTimeoutSecs: 600
  safeMode: true
  tracing:
@@ -140,7 +139,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
 				UseNewQueryPipeline:         "false",
 				UseNewPipelineConverted:     false,
-				EnableSortIndex:             utils.DefaultValue(false).Set(true),
 				QueryTimeoutSecs:            600,
 				MemoryConfig: common.MemoryConfig{
 					MaxMemoryAllowedToUseInBytes: 200000,
@@ -198,7 +196,6 @@ func Test_ExtractConfigData(t *testing.T) {
    logFileRotationSizeMB: 1000
    compressLogFile: true
  compressStatic: bad string
- enableSortIndex: bad string
  memoryLimits:
    maxMemoryAllowedToUseInBytes: 10000000000
  `),
@@ -244,7 +241,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
-				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxMemoryAllowedToUseInBytes: uint64(math.Min(10_000_000_000, float64(memory.TotalMemory()))),
 					MaxUsagePercent:              80,
@@ -301,7 +297,6 @@ invalid input, we should error out
 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
 				UseNewQueryPipeline:        "true",
 				UseNewPipelineConverted:    true,
-				EnableSortIndex:            utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
 					LowMemoryMode:   utils.DefaultValue(false),
@@ -360,7 +355,6 @@ a: b
 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
 				UseNewQueryPipeline:         "true",
 				UseNewPipelineConverted:     true,
-				EnableSortIndex:             utils.DefaultValue(false),
 				MemoryConfig: common.MemoryConfig{
 					MaxUsagePercent: 80,
 					LowMemoryMode:   utils.DefaultValue(false),

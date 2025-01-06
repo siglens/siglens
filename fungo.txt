@@ -1,0 +1,380 @@
+diff --git a/pkg/config/common/common.go b/pkg/config/common/common.go
+index 527811c4..d3ed442f 100644
+--- a/pkg/config/common/common.go
++++ b/pkg/config/common/common.go
+@@ -150,9 +150,8 @@ type Configuration struct {
+ 	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
+ 	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
+ 	UseNewPipelineConverted     bool
+-	UseNewQueryPipeline         string                  `yaml:"isNewQueryPipelineEnabled"`
+-	EnableSortIndex             utils.WithDefault[bool] `yaml:"enableSortIndex"`
+-	QueryTimeoutSecs            int                     `yaml:"queryTimeoutSecs"`
++	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
++	QueryTimeoutSecs            int    `yaml:"queryTimeoutSecs"`
+ }
+ 
+ type RunModConfig struct {
+diff --git a/pkg/config/config.go b/pkg/config/config.go
+index 7432161d..0f472a03 100644
+--- a/pkg/config/config.go
++++ b/pkg/config/config.go
+@@ -621,10 +621,6 @@ func SetNewQueryPipelineEnabled(enabled bool) {
+ 	runningConfig.UseNewPipelineConverted = enabled
+ }
+ 
+-func IsSortIndexEnabled() bool {
+-	return true
+-}
+-
+ func IsLowMemoryModeEnabled() bool {
+ 	return runningConfig.MemoryConfig.LowMemoryMode.Value()
+ }
+diff --git a/pkg/config/config_test.go b/pkg/config/config_test.go
+index 299d506d..a842c1e2 100644
+--- a/pkg/config/config_test.go
++++ b/pkg/config/config_test.go
+@@ -76,7 +76,6 @@ func Test_ExtractConfigData(t *testing.T) {
+  analyticsEnabled: false
+  agileAggsEnabled: false
+  isNewQueryPipelineEnabled: false
+- enableSortIndex: true
+  queryTimeoutSecs: 600
+  safeMode: true
+  tracing:
+@@ -140,7 +139,6 @@ func Test_ExtractConfigData(t *testing.T) {
+ 				Tracing:                     common.TracingConfig{Endpoint: "http://localhost:4317", ServiceName: "siglens", SamplingPercentage: 100},
+ 				UseNewQueryPipeline:         "false",
+ 				UseNewPipelineConverted:     false,
+-				EnableSortIndex:             utils.DefaultValue(false).Set(true),
+ 				QueryTimeoutSecs:            600,
+ 				MemoryConfig: common.MemoryConfig{
+ 					MaxMemoryAllowedToUseInBytes: 200000,
+@@ -198,7 +196,6 @@ func Test_ExtractConfigData(t *testing.T) {
+    logFileRotationSizeMB: 1000
+    compressLogFile: true
+  compressStatic: bad string
+- enableSortIndex: bad string
+  memoryLimits:
+    maxMemoryAllowedToUseInBytes: 10000000000
+  `),
+@@ -244,7 +241,6 @@ func Test_ExtractConfigData(t *testing.T) {
+ 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
+ 				UseNewQueryPipeline:         "true",
+ 				UseNewPipelineConverted:     true,
+-				EnableSortIndex:             utils.DefaultValue(false),
+ 				MemoryConfig: common.MemoryConfig{
+ 					MaxMemoryAllowedToUseInBytes: uint64(math.Min(10_000_000_000, float64(memory.TotalMemory()))),
+ 					MaxUsagePercent:              80,
+@@ -301,7 +297,6 @@ invalid input, we should error out
+ 				Tracing:                    common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 1},
+ 				UseNewQueryPipeline:        "true",
+ 				UseNewPipelineConverted:    true,
+-				EnableSortIndex:            utils.DefaultValue(false),
+ 				MemoryConfig: common.MemoryConfig{
+ 					MaxUsagePercent: 80,
+ 					LowMemoryMode:   utils.DefaultValue(false),
+@@ -360,7 +355,6 @@ a: b
+ 				Tracing:                     common.TracingConfig{Endpoint: "", ServiceName: "siglens", SamplingPercentage: 0},
+ 				UseNewQueryPipeline:         "true",
+ 				UseNewPipelineConverted:     true,
+-				EnableSortIndex:             utils.DefaultValue(false),
+ 				MemoryConfig: common.MemoryConfig{
+ 					MaxUsagePercent: 80,
+ 					LowMemoryMode:   utils.DefaultValue(false),
+diff --git a/pkg/segment/query/colusage/tests/sortsearcher_test.go b/pkg/segment/query/colusage/tests/sortsearcher_test.go
+index 390627bd..63f09a17 100644
+--- a/pkg/segment/query/colusage/tests/sortsearcher_test.go
++++ b/pkg/segment/query/colusage/tests/sortsearcher_test.go
+@@ -5,14 +5,12 @@ import (
+ 
+ 	"github.com/siglens/siglens/pkg/config"
+ 	"github.com/siglens/siglens/pkg/segment/query/processor"
+-	"github.com/siglens/siglens/pkg/utils"
+ 	"github.com/stretchr/testify/assert"
+ )
+ 
+ func Test_SearchSorter(t *testing.T) {
+ 	runningConfig := config.GetTestConfig(t.TempDir())
+ 	runningConfig.SSInstanceName = "test"
+-	runningConfig.EnableSortIndex = utils.DefaultValue(false).Set(true)
+ 	config.SetConfig(runningConfig)
+ 	config.SetNewQueryPipelineEnabled(true)
+ 	err := config.InitDerivedConfig("test")
+diff --git a/pkg/segment/query/processor/queryprocessor.go b/pkg/segment/query/processor/queryprocessor.go
+index 11c6c758..94ff003e 100644
+--- a/pkg/segment/query/processor/queryprocessor.go
++++ b/pkg/segment/query/processor/queryprocessor.go
+@@ -24,7 +24,6 @@ import (
+ 	"time"
+ 
+ 	"github.com/dustin/go-humanize"
+-	"github.com/siglens/siglens/pkg/config"
+ 	"github.com/siglens/siglens/pkg/hooks"
+ 	"github.com/siglens/siglens/pkg/segment/aggregations"
+ 	"github.com/siglens/siglens/pkg/segment/query"
+@@ -80,10 +79,6 @@ func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
+ }
+ 
+ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr {
+-	if !config.IsSortIndexEnabled() {
+-		return nil
+-	}
+-
+ 	if queryAgg == nil {
+ 		return nil
+ 	}
+diff --git a/pkg/segment/query/processor/queryprocessor_test.go b/pkg/segment/query/processor/queryprocessor_test.go
+index 1f1a5a8e..a4bce04b 100644
+--- a/pkg/segment/query/processor/queryprocessor_test.go
++++ b/pkg/segment/query/processor/queryprocessor_test.go
+@@ -158,7 +158,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
+ 	agg1.Next = &agg2
+ 
+ 	queryInfo := &query.QueryInformation{}
+-	querySummary := &summary.QuerySummary{}
++	querySummary := summary.InitQuerySummary(summary.LOGS, 0)
+ 	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now(), false)
+ 	assert.NoError(t, err)
+ 	assert.NotNil(t, queryProcessor)
+@@ -202,7 +202,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
+ 	}
+ 
+ 	queryInfo := &query.QueryInformation{}
+-	querySummary := &summary.QuerySummary{}
++	querySummary := summary.InitQuerySummary(summary.LOGS, 0)
+ 	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now(), false)
+ 	assert.NoError(t, err)
+ 	assert.NotNil(t, queryProcessor)
+diff --git a/pkg/segment/query/processor/searcher.go b/pkg/segment/query/processor/searcher.go
+index 2c8da5a0..ccb0a13f 100644
+--- a/pkg/segment/query/processor/searcher.go
++++ b/pkg/segment/query/processor/searcher.go
+@@ -26,7 +26,6 @@ import (
+ 	"sort"
+ 	"time"
+ 
+-	"github.com/siglens/siglens/pkg/config"
+ 	"github.com/siglens/siglens/pkg/segment/metadata"
+ 	"github.com/siglens/siglens/pkg/segment/pqmr"
+ 	"github.com/siglens/siglens/pkg/segment/query"
+@@ -151,7 +150,7 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
+ }
+ 
+ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
+-	if searcher == nil || searcher.sortExpr == nil {
++	if searcher == nil || searcher.sortExpr == nil || len(searcher.sortExpr.SortEles) == 0 {
+ 		return nil, nil
+ 	}
+ 
+@@ -267,7 +266,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
+ 		return s.fetchStatsResults()
+ 	case structs.RRCCmd:
+ 		// Get blocks for the segment batch to process
+-		if config.IsSortIndexEnabled() && s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
++		if s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
+ 			return s.fetchColumnSortedRRCs()
+ 		}
+ 		// initialize QSRs if they don't exist
+diff --git a/pkg/segment/query/querystatus.go b/pkg/segment/query/querystatus.go
+index 4ce632f3..1e16c0d8 100644
+--- a/pkg/segment/query/querystatus.go
++++ b/pkg/segment/query/querystatus.go
+@@ -1306,17 +1306,7 @@ func IncRecordsSent(qid uint64, recordsSent uint64) error {
+ func CreateWSUpdateResponseWithProgress(qid uint64, qType structs.QueryType, progress *structs.Progress, scrollFrom uint64) *structs.PipeSearchWSUpdateResponse {
+ 	completion := float64(0)
+ 	// TODO: clean up completion percentage
+-	if config.IsSortIndexEnabled() {
+-		completion = (float64(progress.RecordsSearched) * 100) / float64(progress.TotalRecords)
+-	} else {
+-		percCompleteBySearch := float64(0)
+-		if progress.TotalUnits > 0 {
+-			percCompleteBySearch = (float64(progress.UnitsSearched) * 100) / float64(progress.TotalUnits)
+-		}
+-		percCompleteByRecordsSent := (float64(progress.RecordsSent) * 100) / float64(scrollFrom+utils.QUERY_EARLY_EXIT_LIMIT)
+-		completion = math.Max(float64(percCompleteBySearch), percCompleteByRecordsSent)
+-	}
+-
++	completion = (float64(progress.RecordsSearched) * 100) / float64(progress.TotalRecords)
+ 	return &structs.PipeSearchWSUpdateResponse{
+ 		State:               QUERY_UPDATE.String(),
+ 		Completion:          completion,
+diff --git a/pkg/segment/query/segquery.go b/pkg/segment/query/segquery.go
+index 3ba5f7d7..daaa2ac0 100644
+--- a/pkg/segment/query/segquery.go
++++ b/pkg/segment/query/segquery.go
+@@ -1039,10 +1039,12 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
+ 	numRawSearch += rotatedRawCount
+ 	numPQS += rotatedPQS
+ 
+-	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
+-	if err != nil {
+-		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
+-		return nil, 0, 0, 0, err
++	if queryInfo.dqs != nil {
++		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
++		if err != nil {
++			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
++			return nil, 0, 0, 0, err
++		}
+ 	}
+ 
+ 	// Sort query segment results depending on aggs
+diff --git a/pkg/segment/structs/evaluationstructs.go b/pkg/segment/structs/evaluationstructs.go
+index 35a0fe1f..e76b8a3c 100644
+--- a/pkg/segment/structs/evaluationstructs.go
++++ b/pkg/segment/structs/evaluationstructs.go
+@@ -428,10 +428,16 @@ func (self *DedupExpr) ReleaseProcessedSegmentsLock() {
+ }
+ 
+ func (self *DedupExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	return append(self.FieldList, GetFieldsFromSortElements(self.DedupSortEles)...)
+ }
+ 
+ func (self *SortExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	return GetFieldsFromSortElements(self.SortEles)
+ }
+ 
+@@ -989,6 +995,9 @@ func isInValueList(fieldToValue map[string]utils.CValueEnclosure, value *ValueEx
+ }
+ 
+ func (self *BoolExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	if self.IsTerminal {
+ 		fields := make([]string, 0)
+ 
+@@ -1303,6 +1312,9 @@ func (expr *ValueExpr) EvaluateValueExprToNumberOrString(fieldToValue map[string
+ }
+ 
+ func (self *ValueExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	switch self.ValueExprMode {
+ 	case VEMNumericExpr:
+ 		return self.NumericExpr.GetFields()
+@@ -1320,6 +1332,9 @@ func (self *ValueExpr) GetFields() []string {
+ }
+ 
+ func (self *MultiValueExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	fields := make([]string, 0)
+ 	for _, stringExpr := range self.StringExprParams {
+ 		fields = append(fields, stringExpr.GetFields()...)
+@@ -1344,12 +1359,18 @@ func (self *MultiValueExpr) GetFields() []string {
+ }
+ 
+ func (self *RexExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	var fields []string
+ 	fields = append(fields, self.FieldName)
+ 	return fields
+ }
+ 
+ func (self *RenameExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	fields := make([]string, 0)
+ 
+ 	switch self.RenameExprMode {
+@@ -1364,6 +1385,9 @@ func (self *RenameExpr) GetFields() []string {
+ }
+ 
+ func (self *StringExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	switch self.StringExprMode {
+ 	case SEMConcatExpr:
+ 		return self.ConcatExpr.GetFields()
+@@ -1408,6 +1432,9 @@ func (self *ConcatExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure)
+ }
+ 
+ func (self *ConcatExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	fields := make([]string, 0)
+ 	for _, atom := range self.Atoms {
+ 		if atom.IsField {
+@@ -1688,6 +1715,9 @@ func (self *StatisticExpr) RemoveFieldsNotInExprForBucketRes(bucketResult *Bucke
+ }
+ 
+ func (self *StatisticExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	return append(self.FieldList, self.ByClause...)
+ }
+ 
+@@ -2694,6 +2724,9 @@ func (expr *ConditionExpr) EvaluateCondition(fieldToValue map[string]utils.CValu
+ }
+ 
+ func (self *TextExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	fields := make([]string, 0)
+ 	if self.IsTerminal || (self.Op != "max" && self.Op != "min") {
+ 		if self.Param != nil {
+@@ -2726,6 +2759,9 @@ func (self *TextExpr) GetFields() []string {
+ 
+ // Append all the fields in ConditionExpr
+ func (self *ConditionExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	fields := make([]string, 0)
+ 	if self.BoolExpr != nil {
+ 		fields = append(fields, self.BoolExpr.GetFields()...)
+@@ -2752,6 +2788,9 @@ func round(number float64, precision int) float64 {
+ }
+ 
+ func (self *NumericExpr) GetFields() []string {
++	if self == nil {
++		return nil
++	}
+ 	fields := make([]string, 0)
+ 	if self.Val != nil {
+ 		return append(fields, self.Val.GetFields()...)
+diff --git a/pkg/segment/writer/segstore.go b/pkg/segment/writer/segstore.go
+index 40bd0667..83b43776 100644
+--- a/pkg/segment/writer/segstore.go
++++ b/pkg/segment/writer/segstore.go
+@@ -848,17 +848,14 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
+ }
+ 
+ func writeSortIndexes(segkey string, indexName string) {
++	sortedIndexWG.Add(1)
++	defer sortedIndexWG.Done()
+ 
+-	if config.IsSortIndexEnabled() {
+-		sortedIndexWG.Add(1)
+-		defer sortedIndexWG.Done()
+-
+-		for _, cname := range sortindex.GetSortColumnNamesForIndex(indexName) {
+-			err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
+-			if err != nil {
+-				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
+-					segkey, cname, err)
+-			}
++	for _, cname := range sortindex.GetSortColumnNamesForIndex(indexName) {
++		err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
++		if err != nil {
++			log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
++				segkey, cname, err)
+ 		}
+ 	}
+ }
