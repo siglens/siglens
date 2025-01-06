@@ -205,7 +205,6 @@ $('#saveTimeout').on('click', function() {
     const originalText = button.text();
 
     button.prop('disabled', true).text('Saving...');
-    console.log(newTimeout * 60);
     $.ajax({
         url: '/api/update-query-timeout',
         method: 'POST',

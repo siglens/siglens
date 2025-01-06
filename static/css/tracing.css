@@ -94,10 +94,6 @@
     font-size: 14px;
 }
 
-.p-20{
-    padding: 20px;
-}
-
 /* Dependency Graph */
 #dependency-graph-container,#error-msg-container,#dependency-graph-canvas {
     margin-top: 20px;

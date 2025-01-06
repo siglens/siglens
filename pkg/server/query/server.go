@@ -220,11 +220,17 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs", tracing.TraceMiddleware(hs.Recovery(getPqsHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", tracing.TraceMiddleware(hs.Recovery(getPqsByIdHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", tracing.TraceMiddleware(hs.Recovery(createDashboardHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listall", tracing.TraceMiddleware(hs.Recovery(getDashboardIdsHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/update", tracing.TraceMiddleware(hs.Recovery(updateDashboardHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(getDashboardIdHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(deleteDashboardHandler())))
 	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(favoriteDashboardHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/list", tracing.TraceMiddleware(hs.Recovery(listAllDashboardsHandler())))
+	// folders api endpoints
+	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/folders/create", tracing.TraceMiddleware(hs.Recovery(createFolderHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(getFolderContentsHandler())))
+	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(updateFolderHandler())))
+	hs.Router.DELETE(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(deleteFolderHandler())))
+
 	hs.Router.GET(server_utils.API_PREFIX+"/version/info", tracing.TraceMiddleware(hs.Recovery(getVersionHandler())))
 
 	// alerting api endpoints

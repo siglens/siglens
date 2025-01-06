@@ -439,8 +439,14 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 	numRecordsToSend := numRecords
 	if numRecordsToSend > numRemainingRecords {
-		numRecordsToSend = numRemainingRecords
-		s.sortIndexState.didEarlyExit = true
+		// If we reach the limit, we can stop immediately if we're only
+		// searching on one column. But if we're searching on multiple columns,
+		// we need to finish reading the records with the value we're on.
+		requiresFullLine := (len(s.sortExpr.SortEles) > 1)
+		if !requiresFullLine {
+			numRecordsToSend = numRemainingRecords
+			s.sortIndexState.didEarlyExit = true
+		}
 	}
 
 	err := result.DiscardAfter(numRecordsToSend)
@@ -483,8 +489,15 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 			s.qid, s.sortExpr.SortEles[0].Op)
 	}
 
+	// For a multicolumn sort, we only read the first column from the sort
+	// index, but once we read enough records, we have to continue reading the
+	// rest of the records with that value; otherwise we can get incorrect
+	// results when sorting those last few records on the subsequent sort
+	// columns.
+	multiColSort := (len(s.sortExpr.SortEles) > 1)
+	readFullLine := multiColSort
 	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode,
-		reverse, s.numRecordsPerBatch, checkpoint)
+		reverse, s.numRecordsPerBatch, readFullLine, checkpoint)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
