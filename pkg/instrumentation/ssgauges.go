@@ -30,13 +30,17 @@ import (
 )
 
 /* Adding a new Gauge
+	For a gauge with no labels:
+	1. Create a new Gauge enum value
+	2. Add a new entry in allSimpleGauges map
+	3. Create a new setter method by calling makeGaugeSetter()
+
+	For a gauge with labels:
    1. create a var int64
    2. create a rwlock
    3. create meter.async.guage
    4. create SetXXX method for the gauge
-   5. register a callback.
-
-   // Anotated example below
+   5. register a callback in registerOtherGaugeCallbacks()
 */
 
 type sumcount struct {
