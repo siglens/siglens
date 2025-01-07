@@ -621,12 +621,12 @@ func ProcessDeleteDashboardsByOrgId(orgid uint64) error {
 
 	// Delete dashboard details directory
 	if err := os.RemoveAll(dashboardsDir + "/details"); err != nil {
-		log.Errorf("ProcessDeleteOrgData: Failed to delete dashboard details directory: %v", err)
+		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete dashboard details directory: %v", err)
 	}
 
 	// Delete folder structure file
 	if err := os.Remove(dashboardsDir + "/folder_structure.json"); err != nil && !os.IsNotExist(err) {
-		log.Errorf("ProcessDeleteOrgData: Failed to delete folder structure file: %v", err)
+		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete folder structure file: %v", err)
 	}
 
 	if err := blob.UploadQueryNodeDir(); err != nil {
