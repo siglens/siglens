@@ -330,7 +330,9 @@ func logStatSummary(orgid uint64) {
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalMetricsDatapointsCount),
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalBytesCount))
 
+		instrumentation.SetTotalLogOnDiskBytes(int64(ustats[orgid].LogsBytesCount))
 		instrumentation.SetPastMinuteNumDataPoints(int64(ustats[orgid].MetricsDatapointsCount))
+		instrumentation.SetTotalMetricOnDiskBytes(int64(ustats[orgid].MetricsBytesCount))
 	}
 }
 

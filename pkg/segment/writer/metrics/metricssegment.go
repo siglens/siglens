@@ -356,7 +356,7 @@ func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
 /*
 Returns <<dataDir>>/<<hostname>>/final/<<mid>>/suffix
 */
-func getFinalMetricsDir(mId string, suffix uint64) string {
+func GetFinalMetricsDir(mId string, suffix uint64) string {
 	// TODO: use filepath.Join
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
@@ -1124,7 +1124,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		log.Errorf("rotateSegment: failed to flush metric names for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
 		return err
 	}
-	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
+	finalDir := GetFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
 	if err != nil {

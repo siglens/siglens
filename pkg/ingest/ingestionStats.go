@@ -18,9 +18,12 @@
 package ingest
 
 import (
+	"path/filepath"
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -80,6 +83,7 @@ func metricsLooper() {
 		setNumMetricNames()
 		setNumSeries()
 		setNumKeysAndValues()
+		setMetricOnDiskBytes()
 	}
 }
 
@@ -140,4 +144,22 @@ func setNumKeysAndValues() {
 
 	instrumentation.SetTotalTagKeyCount(int64(len(keys)))
 	instrumentation.SetTotalTagValueCount(int64(len(values)))
+}
+
+func setMetricOnDiskBytes() {
+	tagsTreeHolderDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "tth")
+	tagsTreeHolderSize, err := fileutils.GetDirSize(tagsTreeHolderDir)
+	if err != nil {
+		log.Errorf("setMetricOnDiskBytes: failed to get tags tree holder size: %v", err)
+		return
+	}
+
+	timeSeriesDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "ts")
+	timeSeriesSize, err := fileutils.GetDirSize(timeSeriesDir)
+	if err != nil {
+		log.Errorf("setMetricOnDiskBytes: failed to get time series size: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalMetricOnDiskBytes(int64(tagsTreeHolderSize + timeSeriesSize))
 }
