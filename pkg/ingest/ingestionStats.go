@@ -77,13 +77,17 @@ func ingestionMetricsLooper() {
 }
 
 func metricsLooper() {
+	oneMinuteTicker := time.NewTicker(1 * time.Minute)
+	fifteenMinuteTicker := time.NewTicker(15 * time.Minute)
 	for {
-		time.Sleep(1 * time.Minute)
-
-		setNumMetricNames()
-		setNumSeries()
-		setNumKeysAndValues()
-		setMetricOnDiskBytes()
+		select {
+		case <-oneMinuteTicker.C:
+			setNumMetricNames()
+			setMetricOnDiskBytes()
+		case <-fifteenMinuteTicker.C:
+			setNumSeries()
+			setNumKeysAndValues()
+		}
 	}
 }
 
