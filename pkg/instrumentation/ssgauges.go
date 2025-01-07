@@ -79,22 +79,22 @@ const (
 
 var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 	TotalEventCount: {
-		name:        "ss.current.event.count",
+		name:        "ss.total.event.count",
 		unit:        "count",
-		description: "Current total number of events",
+		description: "Total number of events",
 	},
 	TotalBytesReceived: {
-		name:        "ss.current.bytes.received",
+		name:        "ss.total.bytes.received",
 		unit:        "bytes",
-		description: "Current count of bytes received",
+		description: "Total number of bytes received",
 	},
 	TotalLogOnDiskBytes: {
-		name:        "ss.current.on.disk.bytes",
+		name:        "ss.total.logs.on.disk.bytes",
 		unit:        "bytes",
-		description: "Current number of bytes on disk",
+		description: "Total number of bytes on disk for log data",
 	},
 	TotalMetricOnDiskBytes: {
-		name:        "ss.total.metric.on.disk.bytes",
+		name:        "ss.total.metrics.on.disk.bytes",
 		unit:        "bytes",
 		description: "Total number of metric bytes on disk",
 	},

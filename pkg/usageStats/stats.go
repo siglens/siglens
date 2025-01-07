@@ -329,10 +329,6 @@ func logStatSummary(orgid uint64) {
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalLogLinesCount),
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalMetricsDatapointsCount),
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalBytesCount))
-
-		instrumentation.SetTotalLogOnDiskBytes(int64(ustats[orgid].LogsBytesCount))
-		instrumentation.SetPastMinuteNumDataPoints(int64(ustats[orgid].MetricsDatapointsCount))
-		instrumentation.SetTotalMetricOnDiskBytes(int64(ustats[orgid].MetricsBytesCount))
 	}
 }
 
@@ -365,6 +361,8 @@ func FlushStatsToFile(orgid uint64) error {
 
 	if _, ok := ustats[orgid]; ok {
 		logStatSummary(orgid)
+		instrumentation.SetPastMinuteNumDataPoints(int64(ustats[orgid].MetricsDatapointsCount))
+
 		if ustats[orgid].BytesCount > 0 {
 			filename := getStatsFilename(GetBaseStatsDir(orgid))
 			fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
