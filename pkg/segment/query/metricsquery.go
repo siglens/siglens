@@ -26,6 +26,7 @@ import (
 	"github.com/cespare/xxhash"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
@@ -36,6 +37,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -412,4 +414,36 @@ func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, reg
 	}
 
 	return metricNames, nil
+}
+
+func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64) (uint64, error) {
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get tags trees within time range %+v; err=%v", timeRange, err)
+		return 0, err
+	}
+
+	tagKeys := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		tagKeys = toputils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+	}
+
+	allTsids := structs.CreateNewHll()
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		for tagKey := range tagKeys {
+			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			if err != nil {
+				log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get tsids for key %v; err=%v", tagKey, err)
+				return 0, err
+			}
+
+			for tsid := range tsids {
+				allTsids.AddRaw(tsid)
+			}
+		}
+	}
+
+	return allTsids.Cardinality(), nil
 }

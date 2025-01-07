@@ -18,16 +18,23 @@
 package ingest
 
 import (
+	"path/filepath"
 	"time"
 
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
+	rutils "github.com/siglens/siglens/pkg/readerUtils"
+	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
-
 	log "github.com/sirupsen/logrus"
 )
 
 func InitIngestionMetrics() {
 	go ingestionMetricsLooper()
+	go metricsLooper()
 }
 
 func ingestionMetricsLooper() {
@@ -65,6 +72,98 @@ func ingestionMetricsLooper() {
 
 		instrumentation.SetTotalEventCount(currentEventCount)
 		instrumentation.SetTotalBytesReceived(currentBytesReceived)
-		instrumentation.SetTotalOnDiskBytes(currentOnDiskBytes)
+		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
 	}
+}
+
+func metricsLooper() {
+	oneMinuteTicker := time.NewTicker(1 * time.Minute)
+	fifteenMinuteTicker := time.NewTicker(15 * time.Minute)
+	for {
+		select {
+		case <-oneMinuteTicker.C:
+			setNumMetricNames()
+			setMetricOnDiskBytes()
+		case <-fifteenMinuteTicker.C:
+			setNumSeries()
+			setNumKeysAndValues()
+		}
+	}
+}
+
+func setNumMetricNames() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	names, err := query.GetAllMetricNamesOverTheTimeRange(allPreviousTime, 0)
+	if err != nil {
+		log.Errorf("setNumMetricNames: failed to get all metric names: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalMetricNames(int64(len(names)))
+}
+
+func setNumSeries() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	numSeries, err := query.GetSeriesCardinalityOverTimeRange(allPreviousTime, 0)
+	if err != nil {
+		log.Errorf("setNumSeries: failed to get all series: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalTimeSeries(int64(numSeries))
+}
+
+func setNumKeysAndValues() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	myid := uint64(0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, myid, querySummary)
+	if err != nil {
+		log.Errorf("setNumKeysAndValues: failed to get tags trees: %v", err)
+		return
+	}
+
+	keys := make(map[string]struct{})
+	values := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+
+		for key, valueSet := range segmentTagPairs {
+			keys[key] = struct{}{}
+			for value := range valueSet {
+				values[value] = struct{}{}
+			}
+		}
+	}
+
+	instrumentation.SetTotalTagKeyCount(int64(len(keys)))
+	instrumentation.SetTotalTagValueCount(int64(len(values)))
+}
+
+func setMetricOnDiskBytes() {
+	tagsTreeHolderDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "tth")
+	tagsTreeHolderSize, err := fileutils.GetDirSize(tagsTreeHolderDir)
+	if err != nil {
+		log.Errorf("setMetricOnDiskBytes: failed to get tags tree holder size: %v", err)
+		return
+	}
+
+	timeSeriesDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "ts")
+	timeSeriesSize, err := fileutils.GetDirSize(timeSeriesDir)
+	if err != nil {
+		log.Errorf("setMetricOnDiskBytes: failed to get time series size: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalMetricOnDiskBytes(int64(tagsTreeHolderSize + timeSeriesSize))
 }
