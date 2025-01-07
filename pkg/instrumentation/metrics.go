@@ -52,7 +52,6 @@ func InitMetrics() {
 
 	commonAttributes = append(commonAttributes, attribute.String("hostname", conf.GetHostID()))
 	log.Infof("InitMetrics: Added hostname %s as a common attribute to all metrics", conf.GetHostID())
-	registerGaugeCallbacks()
 
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {

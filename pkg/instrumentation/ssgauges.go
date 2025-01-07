@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -29,13 +30,17 @@ import (
 )
 
 /* Adding a new Gauge
+	For a gauge with no labels:
+	1. Create a new Gauge enum value
+	2. Add a new entry in allSimpleGauges map
+	3. Create a new setter method by calling makeGaugeSetter()
+
+	For a gauge with labels:
    1. create a var int64
    2. create a rwlock
-   3. create meter.async.guage
+   3. create meter.async.gauge
    4. create SetXXX method for the gauge
-   5. register a callback.
-
-   // Anotated example below
+   5. register a callback in registerOtherGaugeCallbacks()
 */
 
 type sumcount struct {
@@ -45,43 +50,130 @@ type sumcount struct {
 	labelval string
 }
 
-var currentEventCountGauge int64                         // 1
-var currentEventCountGaugeLock sync.RWMutex              // 2
-var CURRENT_EVENT_COUNT, _ = meter.Int64ObservableGauge( // 3
-	"ss.current.event.count",
-	metric.WithUnit("count"),
-	metric.WithDescription("Current Count of total num of events"))
-
-func SetGaugeCurrentEventCount(val int64) { // 4
-	currentEventCountGaugeLock.Lock()
-	currentEventCountGauge = val
-	currentEventCountGaugeLock.Unlock()
+type simpleInt64Gauge struct {
+	name        string
+	value       int64
+	unit        string
+	description string
+	gauge       metric.Int64ObservableGauge
+	lock        *sync.RWMutex
 }
 
-var currentBytesReceivedGauge int64
-var currentBytesReceivedGaugeLock sync.RWMutex
-var CURRENT_BYTES_RECEIVED, _ = meter.Int64ObservableGauge(
-	"ss.current.bytes.received",
-	metric.WithUnit("bytes"),
-	metric.WithDescription("current count of bytes received"))
+type Gauge int
 
-func SetGaugeCurrentBytesReceivedGauge(val int64) {
-	currentBytesReceivedGaugeLock.Lock()
-	currentBytesReceivedGauge = val
-	currentBytesReceivedGaugeLock.Unlock()
+const (
+	TotalEventCount Gauge = iota + 1
+	TotalBytesReceived
+	TotalOnDiskBytes
+	TotalSegstoreCount
+	TotalSegmentMicroindexCount
+	TotalEventsSearched
+	TotalEventsMatched
+)
+
+var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
+	TotalEventCount: {
+		name:        "ss.current.event.count",
+		unit:        "count",
+		description: "Current total number of events",
+	},
+	TotalBytesReceived: {
+		name:        "ss.current.bytes.received",
+		unit:        "bytes",
+		description: "Current count of bytes received",
+	},
+	TotalOnDiskBytes: {
+		name:        "ss.current.on.disk.bytes",
+		unit:        "bytes",
+		description: "Current number of bytes on disk",
+	},
+	TotalSegstoreCount: {
+		name:        "ss.current.segstore.count",
+		unit:        "count",
+		description: "Current number of segstores",
+	},
+	TotalSegmentMicroindexCount: {
+		name:        "ss.current.segment.microindex.count",
+		unit:        "count",
+		description: "Current number of segment microindexes",
+	},
+	TotalEventsSearched: {
+		name:        "ss.current.events.searched",
+		unit:        "count",
+		description: "Current number of events searched",
+	},
+	TotalEventsMatched: {
+		name:        "ss.current.events.matched",
+		unit:        "count",
+		description: "Current number of events matched",
+	},
 }
 
-var currentOnDiskBytesGauge int64
-var currentOnDiskBytesGaugeLock sync.RWMutex
-var CURRENT_ON_DISK_BYTES, _ = meter.Int64ObservableGauge(
-	"ss.current.on.disk.bytes",
-	metric.WithUnit("bytes"),
-	metric.WithDescription("current on disk bytes"))
+var (
+	SetTotalEventCount             = makeGaugeSetter(TotalEventCount)
+	SetTotalBytesReceived          = makeGaugeSetter(TotalBytesReceived)
+	SetTotalOnDiskBytes            = makeGaugeSetter(TotalOnDiskBytes)
+	SetTotalSegstoreCount          = makeGaugeSetter(TotalSegstoreCount)
+	SetTotalSegmentMicroindexCount = makeGaugeSetter(TotalSegmentMicroindexCount)
+	SetTotalEventsSearched         = makeGaugeSetter(TotalEventsSearched)
+	SetTotalEventsMatched          = makeGaugeSetter(TotalEventsMatched)
+)
 
-func SetGaugeOnDiskBytesGauge(val int64) {
-	currentOnDiskBytesGaugeLock.Lock()
-	currentOnDiskBytesGauge = val
-	currentOnDiskBytesGaugeLock.Unlock()
+func init() {
+	err := initGauges()
+	if err != nil {
+		log.Fatalf("init: failed to initialize gauges; err=%v", err)
+	}
+}
+
+func initGauges() error {
+	// Finish setting up each gauge.
+	for _, simpleGauge := range allSimpleGauges {
+		gauge, err := meter.Int64ObservableGauge(
+			simpleGauge.name,
+			metric.WithUnit(simpleGauge.unit),
+			metric.WithDescription(simpleGauge.description),
+		)
+		if err != nil {
+			return utils.TeeErrorf("initGauges: failed to create gauge %s; err=%v", simpleGauge.name, err)
+		}
+
+		simpleGauge.gauge = gauge
+		simpleGauge.lock = &sync.RWMutex{}
+	}
+
+	// Register the callbacks for each gauge.
+	for key := range allSimpleGauges {
+		simpleGauge := allSimpleGauges[key]
+
+		_, err := meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+			simpleGauge.lock.RLock()
+			defer simpleGauge.lock.RUnlock()
+			o.ObserveInt64(simpleGauge.gauge, simpleGauge.value)
+			return nil
+		}, simpleGauge.gauge)
+		if err != nil {
+			return utils.TeeErrorf("initGauges: failed to register callback for gauge %v; err=%v", simpleGauge.name, err)
+		}
+	}
+
+	registerOtherGaugeCallbacks()
+
+	return nil
+}
+
+func makeGaugeSetter(gauge Gauge) func(int64) {
+	return func(value int64) {
+		simpleGauge, ok := allSimpleGauges[gauge]
+		if !ok {
+			log.Errorf("makeGaugeSetter: invalid gauge: %v", gauge)
+			return
+		}
+
+		simpleGauge.lock.Lock()
+		simpleGauge.value = value
+		simpleGauge.lock.Unlock()
+	}
 }
 
 // map[labelkey-value] --> sumcount struct
@@ -103,32 +195,6 @@ func SetQueryLatencyMs(val int64, labelkey string, labelval string) {
 	}
 	mentry.sum += val
 	mentry.count++
-}
-
-var writerSegstoreCountGauge int64
-var writerSegstoreCountLock sync.RWMutex
-var WRITER_SEGSTORE_COUNT, _ = meter.Int64ObservableGauge(
-	"ss.writer.segstore.count",
-	metric.WithUnit("count"),
-	metric.WithDescription("writer segstore count"))
-
-func SetWriterSegstoreCountGauge(val int64) {
-	writerSegstoreCountLock.Lock()
-	writerSegstoreCountGauge = val
-	writerSegstoreCountLock.Unlock()
-}
-
-var segmentMicroindexCountGauge int64
-var segmentMicroindexCountLock sync.RWMutex
-var SEGMENT_MICROINDEX_COUNT, _ = meter.Int64ObservableGauge(
-	"ss.segment.microindex.count",
-	metric.WithUnit("count"),
-	metric.WithDescription("segment microindex count"))
-
-func SetSegmentMicroindexCountGauge(val int64) {
-	segmentMicroindexCountLock.Lock()
-	segmentMicroindexCountGauge = val
-	segmentMicroindexCountLock.Unlock()
 }
 
 var eventCountPerIndexMap = map[string]*sumcount{}
@@ -189,32 +255,6 @@ func SetOnDiskBytesPerIndex(val int64, labelkey string, labelval string) {
 	}
 	mentry.sum += val
 	mentry.count++
-}
-
-var eventsSearchedGauge int64
-var eventsSearchedGaugeLock sync.RWMutex
-var EVENTS_SEARCHED, _ = meter.Int64ObservableGauge(
-	"ss.events.searched",
-	metric.WithUnit("count"),
-	metric.WithDescription("events searched"))
-
-func SetEventsSearchedGauge(val int64) {
-	eventsSearchedGaugeLock.Lock()
-	eventsSearchedGauge = val
-	eventsSearchedGaugeLock.Unlock()
-}
-
-var eventsMatchedGauge int64
-var eventsMatchedGaugeLock sync.RWMutex
-var EVENTS_MATCHED, _ = meter.Int64ObservableGauge(
-	"ss.events.matched",
-	metric.WithUnit("count"),
-	metric.WithDescription("events matched"))
-
-func SetEventsMatchedGauge(val int64) {
-	eventsMatchedGaugeLock.Lock()
-	eventsMatchedGauge = val
-	eventsMatchedGaugeLock.Unlock()
 }
 
 var segmentLatencyMinMsMap = map[string]*sumcount{}
@@ -297,63 +337,13 @@ func SetSegmentLatencyP95Ms(val int64, labelkey string, labelval string) {
 	mentry.count++
 }
 
-func registerGaugeCallbacks() {
+func registerOtherGaugeCallbacks() {
 	_, err := meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		currentEventCountGaugeLock.RLock()
-		defer currentEventCountGaugeLock.RUnlock()
-		o.ObserveInt64(CURRENT_EVENT_COUNT, int64(currentEventCountGauge))
-		return nil
-	}, CURRENT_EVENT_COUNT)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge CURRENT_EVENT_COUNT, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		currentBytesReceivedGaugeLock.RLock()
-		defer currentBytesReceivedGaugeLock.RUnlock()
-		o.ObserveInt64(CURRENT_BYTES_RECEIVED, int64(currentBytesReceivedGauge))
-		return nil
-	}, CURRENT_BYTES_RECEIVED)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge CURRENT_BYTES_RECEIVED, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		currentOnDiskBytesGaugeLock.RLock()
-		defer currentOnDiskBytesGaugeLock.RUnlock()
-		o.ObserveInt64(CURRENT_ON_DISK_BYTES, int64(currentOnDiskBytesGauge))
-		return nil
-	}, CURRENT_ON_DISK_BYTES)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge CURRENT_ON_DISK_BYTES, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
 		emitQueryLatencyMs(ctx, o)
 		return nil
 	}, QUERY_LATENCY_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge QUERY_LATENCY_MS, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		writerSegstoreCountLock.RLock()
-		defer writerSegstoreCountLock.RUnlock()
-		o.ObserveInt64(WRITER_SEGSTORE_COUNT, int64(writerSegstoreCountGauge))
-		return nil
-	}, WRITER_SEGSTORE_COUNT)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge WRITER_SEGSTORE_COUNT, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		segmentMicroindexCountLock.RLock()
-		defer segmentMicroindexCountLock.RUnlock()
-		o.ObserveInt64(SEGMENT_MICROINDEX_COUNT, int64(segmentMicroindexCountGauge))
-		return nil
-	}, SEGMENT_MICROINDEX_COUNT)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_MICROINDEX_COUNT, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge QUERY_LATENCY_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -361,7 +351,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, EVENT_COUNT_PER_INDEX)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge EVENT_COUNT_PER_INDEX, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge EVENT_COUNT_PER_INDEX, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -369,7 +359,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, BYTES_COUNT_PER_INDEX)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge BYTES_COUNT_PER_INDEX, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge BYTES_COUNT_PER_INDEX, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -377,23 +367,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, ON_DISK_BYTES_PER_INDEX)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge ON_DISK_BYTES_PER_INDEX, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		o.ObserveInt64(EVENTS_SEARCHED, int64(eventsSearchedGauge))
-		return nil
-	}, EVENTS_SEARCHED)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge EVENTS_SEARCHED, err %v", err)
-	}
-
-	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
-		o.ObserveInt64(EVENTS_MATCHED, int64(eventsMatchedGauge))
-		return nil
-	}, EVENTS_MATCHED)
-	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge EVENTS_MATCHED, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge ON_DISK_BYTES_PER_INDEX, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -401,7 +375,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_MIN_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MIN_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MIN_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -409,7 +383,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_MAX_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MAX_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_MAX_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -417,7 +391,7 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_AVG_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_AVG_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_AVG_MS, err %v", err)
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
@@ -425,9 +399,8 @@ func registerGaugeCallbacks() {
 		return nil
 	}, SEGMENT_LATENCY_P95_MS)
 	if err != nil {
-		log.Errorf("registerGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_P95_MS, err %v", err)
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge SEGMENT_LATENCY_P95_MS, err %v", err)
 	}
-
 }
 
 func emitQueryLatencyMs(ctx context.Context, o metric.Observer) {
