@@ -524,8 +524,8 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 
 	if !containsKibana {
 		instrumentation.SetQueryLatencyMs(int64(qs.getQueryTotalTime()/1_000_000), "pqid", pqid)
-		instrumentation.SetEventsSearchedGauge(int64(qs.getTotNumRecordsSearched()))
-		instrumentation.SetEventsMatchedGauge(int64(qs.getTotNumRecordsMatched()))
+		instrumentation.SetTotalEventsSearched(int64(qs.getTotNumRecordsSearched()))
+		instrumentation.SetTotalEventsMatched(int64(qs.getTotNumRecordsMatched()))
 	}
 
 	if len(qs.allQuerySummaries[RAW].searchTimeHistory) <= 25 {
