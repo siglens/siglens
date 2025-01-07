@@ -32,6 +32,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/instrumentation"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -328,6 +329,8 @@ func logStatSummary(orgid uint64) {
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalLogLinesCount),
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalMetricsDatapointsCount),
 			msgPrinter.Sprintf("%v", ustats[orgid].TotalBytesCount))
+
+		instrumentation.SetPastMinuteNumDataPoints(int64(ustats[orgid].MetricsDatapointsCount))
 	}
 }
 
