@@ -41,6 +41,7 @@ func ingestionMetricsLooper() {
 	for {
 		time.Sleep(1 * time.Minute)
 
+		uniqueIndexes := make(map[string]struct{})
 		currentEventCount := int64(0)
 		currentBytesReceived := int64(0)
 		currentOnDiskBytes := int64(0)
@@ -57,6 +58,8 @@ func ingestionMetricsLooper() {
 				continue
 			}
 
+			uniqueIndexes[indexName] = struct{}{}
+
 			totalEventsForIndex := uint64(cnts.RecordCount)
 			currentEventCount += int64(totalEventsForIndex)
 			instrumentation.SetEventCountPerIndex(currentEventCount, "indexname", indexName)
@@ -69,7 +72,8 @@ func ingestionMetricsLooper() {
 			currentOnDiskBytes += int64(totalOnDiskBytesForIndex)
 			instrumentation.SetOnDiskBytesPerIndex(currentOnDiskBytes, "indexname", indexName)
 		}
-
+		
+		instrumentation.SetTotalIndexCount(int64(len(uniqueIndexes)))
 		instrumentation.SetTotalEventCount(currentEventCount)
 		instrumentation.SetTotalBytesReceived(currentBytesReceived)
 		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)

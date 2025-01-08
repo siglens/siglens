@@ -75,6 +75,7 @@ const (
 	PastMinuteNumDataPoints
 	TotalTagKeyCount
 	TotalTagValueCount
+	TotalIndexCount
 )
 
 var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
@@ -143,6 +144,11 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		unit:        "count",
 		description: "Total number of tag values",
 	},
+	TotalIndexCount: {
+		name:        "ss.total.index.count",
+		unit:        "count",
+		description: "Total number of indexes",
+	},
 }
 
 var (
@@ -159,6 +165,7 @@ var (
 	SetPastMinuteNumDataPoints     = makeGaugeSetter(PastMinuteNumDataPoints)
 	SetTotalTagKeyCount            = makeGaugeSetter(TotalTagKeyCount)
 	SetTotalTagValueCount          = makeGaugeSetter(TotalTagValueCount)
+	SetTotalIndexCount = makeGaugeSetter(TotalIndexCount)
 )
 
 func init() {
