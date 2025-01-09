@@ -1559,28 +1559,6 @@ func runRefreshConfigLoop() {
 	}
 }
 
-func extractStrArray(inputValueParam interface{}) ([]string, error) {
-	switch inputValueParam.(type) {
-	case []interface{}:
-		break
-	default:
-		err := fmt.Errorf("extractStrArray: inputValueParam of type = %T not accepted", inputValueParam)
-		return nil, err
-	}
-	evArray := []string{}
-	for _, element := range inputValueParam.([]interface{}) {
-		switch element := element.(type) {
-		case string:
-			str := element
-			evArray = append(evArray, str)
-		default:
-			err := fmt.Errorf("extractStrArray: element of type = %T not accepted", element)
-			return nil, err
-		}
-	}
-	return evArray, nil
-}
-
 func GetQueryServerBaseUrl() string {
 	hostname := GetQueryHostname()
 	if IsTlsEnabled() {
