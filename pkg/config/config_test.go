@@ -41,7 +41,6 @@ func Test_ExtractConfigData(t *testing.T) {
  ingestListenIP: "0.0.0.0"
  queryListenIP: "0.0.0.0"
  ingestPort: 9090
- eventTypeKeywords: ["utm_content"]
  baseLogDir: "./pkg/ingestor/httpserver/"
  queryNode: true
  ingestNode: true
@@ -105,7 +104,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				IngestPort:                  9090,
 				IngestUrl:                   "http://localhost:9090",
 				QueryPort:                   5122,
-				EventTypeKeywords:           []string{"utm_content"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    5,
@@ -161,7 +159,6 @@ func Test_ExtractConfigData(t *testing.T) {
  queryListenIP: "0.0.0.0"
  ingestPort: 9090
  queryPort: 9000
- eventTypeKeywords: ["utm_content"]
  queryNode: true
  ingestNode: true
  seedNode: true
@@ -209,7 +206,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				IngestPort:                  9090,
 				QueryPort:                   9000,
 				IngestUrl:                   "http://localhost:9090",
-				EventTypeKeywords:           []string{"utm_content"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    60,
@@ -270,7 +266,6 @@ invalid input, we should error out
 				IngestPort:                  8081,
 				QueryPort:                   0,
 				IngestUrl:                   "http://localhost:8081",
-				EventTypeKeywords:           []string{"eventType"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    5,
@@ -325,7 +320,6 @@ a: b
 				IngestPort:                  8081,
 				QueryPort:                   5122,
 				IngestUrl:                   "http://localhost:8081",
-				EventTypeKeywords:           []string{"eventType"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    5,

@@ -171,12 +171,6 @@ func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func postSetconfigHandler(persistent bool) func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		config.ProcessSetConfig(persistent, ctx)
-	}
-}
-
 func getConfigHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		config.ProcessGetConfigAsJson(ctx)

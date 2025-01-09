@@ -390,10 +390,6 @@ func GetSSInstanceName() string {
 	return runningConfig.SSInstanceName
 }
 
-func GetEventTypeKeywords() *[]string {
-	return &runningConfig.EventTypeKeywords
-}
-
 func GetRetentionHours() int {
 	return runningConfig.RetentionHours
 }
@@ -669,10 +665,6 @@ func IsQueryNode() bool {
 	return retVal
 }
 
-func SetEventTypeKeywords(val []string) {
-	runningConfig.EventTypeKeywords = val
-}
-
 func SetIdleWipFlushIntervalSecs(val int) {
 	if val < idleWipFlushRange.Min {
 		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than %vs", idleWipFlushRange.Min)
@@ -830,7 +822,6 @@ func GetTestConfig(dataPath string) common.Configuration {
 		IngestPort:                  8081,
 		QueryPort:                   5122,
 		IngestUrl:                   "",
-		EventTypeKeywords:           []string{"eventType"},
 		QueryNode:                   "true",
 		IngestNode:                  "true",
 		IdleWipFlushIntervalSecs:    5,
@@ -983,9 +974,6 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.QueryPort = 5122
 	}
 
-	if len(config.EventTypeKeywords) <= 0 {
-		config.EventTypeKeywords = []string{"eventType"}
-	}
 	if config.IdleWipFlushIntervalSecs <= 0 {
 		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Default
 	}
@@ -1249,10 +1237,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
-	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
-		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
+	if os.Getenv("TRACE_SAMPLING_PERCENTAGE") != "" {
+		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PERCENTAGE"), 64)
 		if err != nil {
-			log.Errorf("ExtractConfigData: Error parsing TRACE_SAMPLING_PRECENTAGE err: %v", err)
+			log.Errorf("ExtractConfigData: Error parsing TRACE_SAMPLING_PERCENTAGE err: %v", err)
 			log.Info("ExtractConfigData: Setting Trace Sampling Percentage to 1")
 			config.Tracing.SamplingPercentage = 1
 		} else {
@@ -1569,53 +1557,6 @@ func runRefreshConfigLoop() {
 		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
 		refreshConfig()
 	}
-}
-
-func ProcessSetConfig(persistent bool, ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	var reqBodyMap map[string]interface{}
-	reqBodyStr := ctx.PostBody()
-	err := json.Unmarshal([]byte(reqBodyStr), &reqBodyMap)
-	if err != nil {
-		log.Printf("Error = %v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		httpResp.Message = "Bad request"
-		httpResp.StatusCode = fasthttp.StatusBadRequest
-		utils.WriteResponse(ctx, httpResp)
-		return
-	}
-	err = setConfigParams(reqBodyMap)
-	if err == nil {
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		httpResp.Message = "All OK"
-		httpResp.StatusCode = fasthttp.StatusOK
-		utils.WriteResponse(ctx, httpResp)
-		if persistent {
-			WriteToYamlConfig()
-		}
-	} else {
-		ctx.SetStatusCode(fasthttp.StatusForbidden)
-		httpResp.Message = err.Error()
-		httpResp.StatusCode = fasthttp.StatusForbidden
-		utils.WriteResponse(ctx, httpResp)
-	}
-}
-
-func setConfigParams(reqBodyMap map[string]interface{}) error {
-	for inputCfgParam := range reqBodyMap {
-		if inputCfgParam == "eventTypeKeywords" {
-			inputValueParam := reqBodyMap["eventTypeKeywords"]
-			evArray, err := extractStrArray(inputValueParam)
-			if err != nil {
-				return err
-			}
-			SetEventTypeKeywords(evArray)
-		} else {
-			err := fmt.Errorf("key = %v not allowed to update", inputCfgParam)
-			return err
-		}
-	}
-	return nil
 }
 
 func extractStrArray(inputValueParam interface{}) ([]string, error) {
