@@ -59,7 +59,7 @@ const DEFAULT_SEG_SEARCH_MEM_PERCENT = 30 // minimum percent allocated for segse
 const DEFAULT_METRICS_MEM_PERCENT = 2
 const DEFAULT_BYTES_PER_QUERY = 200 * 1024 * 1024 // 200MB
 
-const DEFAULT_MAX_ALLOWED_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
+const DEFAULT_MAX_OPEN_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
@@ -367,8 +367,8 @@ func getMaxMemoryAllowedToUseInBytesFromConfig() uint64 {
 	return runningConfig.MemoryConfig.MaxMemoryAllowedToUseInBytes
 }
 
-func GetMaxAllowedColumns() uint64 {
-	return runningConfig.MaxAllowedColumns
+func GetMaxOpenColumns() uint64 {
+	return runningConfig.MaxOpenColumns
 }
 
 /*
@@ -867,7 +867,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 			BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 		},
-		MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
 	}
 
 	return testConfig
@@ -1185,8 +1185,8 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	config.MemoryConfig = memoryLimits
 
-	if config.MaxAllowedColumns == 0 {
-		config.MaxAllowedColumns = DEFAULT_MAX_ALLOWED_COLUMNS
+	if config.MaxOpenColumns == 0 {
+		config.MaxOpenColumns = DEFAULT_MAX_OPEN_COLUMNS
 	}
 
 	if len(config.S3IngestQueueName) <= 0 {

@@ -147,7 +147,7 @@ type Configuration struct {
 	EmailConfig                 EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig              DatabaseConfig `yaml:"minionSearch"`
 	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
-	MaxAllowedColumns              uint64         `yaml:"maxAllowedColumns"`
+	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string                  `yaml:"isNewQueryPipelineEnabled"`
 	EnableSortIndex             utils.WithDefault[bool] `yaml:"enableSortIndex"`

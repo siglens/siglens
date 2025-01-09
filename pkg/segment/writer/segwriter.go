@@ -253,7 +253,7 @@ func GetInMemorySize() uint64 {
 		s.Lock.Unlock()
 	}
 
-	maxOpenCols := config.GetMaxAllowedColumns()
+	maxOpenCols := config.GetMaxOpenColumns()
 	if numOpenCols > int(maxOpenCols) {
 		log.Errorf("GetInMemorySize: numOpenCols=%v exceeds maxOpenCols=%v", numOpenCols, maxOpenCols)
 	} else if numOpenCols > 0 {
