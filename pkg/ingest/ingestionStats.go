@@ -30,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,24 +48,84 @@ func ingestionMetricsLooper() {
 	for {
 		time.Sleep(1 * time.Minute)
 
-		uniqueIndexes := make(map[string]struct{})
 		currentEventCount := int64(0)
 		currentBytesReceived := int64(0)
 		currentOnDiskBytes := int64(0)
+		totalSegments := int64(0)
+		var totalCmiSize uint64 = 0
+		var totalCsgSize uint64 = 0
+		uniqueIndexes := make(map[string]struct{})
+		totalColumns := make(map[string]struct{})
+		segmentCounts := make(map[string]int)
 
 		allSegmetas := segwriter.ReadGlobalSegmetas()
 
-		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
+		for _, segmeta := range allSegmetas {
+			if segmeta == nil || segmeta.VirtualTableName == "" {
+				continue
+			}
+			uniqueIndexes[segmeta.VirtualTableName] = struct{}{}
 
+			for col := range segmeta.ColumnNames {
+				totalColumns[col] = struct{}{}
+			}
+
+			totalSegments++
+		}
+
+		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
 		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+		for indexName := range allCnts {
+			if indexName != "" {
+				uniqueIndexes[indexName] = struct{}{}
+			}
+		}
+
+		indexStats := make(map[string]*utils.IndexStats)
+
+		for indexName := range uniqueIndexes {
+			stats, err := segwriter.GetIndexSizeStats(indexName, 0)
+			if err != nil {
+				log.Errorf("ingestionMetricsLooper: failed to get stats for index=%v err=%v", indexName, err)
+				continue
+			}
+			indexStats[indexName] = stats
+			totalCmiSize += stats.TotalCmiSize
+			totalCsgSize += stats.TotalCsgSize
+
+			_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, 0)
+			for col := range columnNamesSet {
+				totalColumns[col] = struct{}{}
+			}
+
+			if len(columnNamesSet) > 0 {
+				totalSegments++
+			}
+
+			totalSegments += int64(segmentCounts[indexName])
+
+			for _, segmeta := range allSegmetas {
+				if segmeta != nil && segmeta.VirtualTableName == indexName {
+					for col := range segmeta.ColumnNames {
+						totalColumns[col] = struct{}{}
+					}
+				}
+			}
+
+			if stats.NumBlocks > 0 {
+				instrumentation.SetBlocksPerIndex(int64(stats.NumBlocks), "indexname", indexName)
+			}
+			if stats.NumIndexFiles > 0 {
+				instrumentation.SetFilesPerIndex(int64(stats.NumIndexFiles), "indexname", indexName)
+			}
+		}
 
 		for indexName, cnts := range allCnts {
 			if indexName == "" {
 				log.Errorf("ingestionMetricsLooper: skipping an empty index name len(indexName)=%v", len(indexName))
 				continue
 			}
-
-			uniqueIndexes[indexName] = struct{}{}
 
 			totalEventsForIndex := uint64(cnts.RecordCount)
 			currentEventCount += int64(totalEventsForIndex)
@@ -91,6 +152,10 @@ func ingestionMetricsLooper() {
 		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
 		instrumentation.SetEventCountPerMinute(eventCountPerMinute)
 		instrumentation.SetEventVolumePerMinute(eventVolumePerMinute)
+		instrumentation.SetTotalSegmentCount(totalSegments)
+		instrumentation.SetTotalColumnCount(int64(len(totalColumns)))
+		instrumentation.SetTotalCMISize(int64(totalCmiSize))
+		instrumentation.SetTotalCSGSize(int64(totalCsgSize))
 	}
 }
 
