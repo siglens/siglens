@@ -937,9 +937,11 @@ function setIndexDisplayValue(selectedSearchIndex) {
         selectedIndexes.forEach(function (index) {
             addSelectedIndex(index);
             // Remove the selectedSearchIndex from indexValues
-            const indexIndex = indexValues.indexOf(index);
-            if (indexIndex !== -1) {
-                indexValues.splice(indexIndex, 1);
+            if(indexValues && indexValues.length > 0){
+                const indexIndex = indexValues.indexOf(index);
+                if (indexIndex !== -1) {
+                    indexValues.splice(indexIndex, 1);
+                }
             }
         });
     }
