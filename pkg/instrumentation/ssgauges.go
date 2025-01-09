@@ -76,6 +76,8 @@ const (
 	TotalTagKeyCount
 	TotalTagValueCount
 	TotalIndexCount
+	EventCountPerMinute
+	EventVolumePerMinute
 )
 
 var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
@@ -149,6 +151,16 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		unit:        "count",
 		description: "Total number of indexes",
 	},
+	EventCountPerMinute: {
+		name:        "ss.event.count.per.minute",
+		unit:        "count",
+		description: "Number of events ingested in the current minute",
+	},
+	EventVolumePerMinute: {
+		name:        "ss.event.volume.per.minute",
+		unit:        "bytes",
+		description: "Volume of events ingested in the current minute",
+	},
 }
 
 var (
@@ -165,7 +177,9 @@ var (
 	SetPastMinuteNumDataPoints     = makeGaugeSetter(PastMinuteNumDataPoints)
 	SetTotalTagKeyCount            = makeGaugeSetter(TotalTagKeyCount)
 	SetTotalTagValueCount          = makeGaugeSetter(TotalTagValueCount)
-	SetTotalIndexCount = makeGaugeSetter(TotalIndexCount)
+	SetTotalIndexCount             = makeGaugeSetter(TotalIndexCount)
+	SetEventCountPerMinute         = makeGaugeSetter(EventCountPerMinute)
+	SetEventVolumePerMinute        = makeGaugeSetter(EventVolumePerMinute)
 )
 
 func init() {

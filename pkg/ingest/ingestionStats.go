@@ -19,6 +19,7 @@ package ingest
 
 import (
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -30,6 +31,11 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
+)
+
+var (
+	previousEventCount    int64
+	previousBytesReceived int64
 )
 
 func InitIngestionMetrics() {
@@ -72,11 +78,19 @@ func ingestionMetricsLooper() {
 			currentOnDiskBytes += int64(totalOnDiskBytesForIndex)
 			instrumentation.SetOnDiskBytesPerIndex(currentOnDiskBytes, "indexname", indexName)
 		}
-		
+
+		eventCountPerMinute := currentEventCount - atomic.LoadInt64(&previousEventCount)
+		eventVolumePerMinute := currentBytesReceived - atomic.LoadInt64(&previousBytesReceived)
+
+		atomic.StoreInt64(&previousEventCount, currentEventCount)
+		atomic.StoreInt64(&previousBytesReceived, currentBytesReceived)
+
 		instrumentation.SetTotalIndexCount(int64(len(uniqueIndexes)))
 		instrumentation.SetTotalEventCount(currentEventCount)
 		instrumentation.SetTotalBytesReceived(currentBytesReceived)
 		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
+		instrumentation.SetEventCountPerMinute(eventCountPerMinute)
+		instrumentation.SetEventVolumePerMinute(eventVolumePerMinute)
 	}
 }
 
