@@ -96,7 +96,7 @@ func Test_ExtractConfigData(t *testing.T) {
    metadataPercent: 20
    metricsPercent: 10
    bytesPerQuery: 100
- maxOpenColumns: 42
+ maxAllowedColumns: 42
  `),
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
@@ -150,7 +150,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetricsPercent:               10,
 					BytesPerQuery:                100,
 				},
-				MaxOpenColumns: 42,
+				MaxAllowedColumns: 42,
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -251,8 +251,8 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetricsPercent:               DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:                DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -306,8 +306,8 @@ invalid input, we should error out
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -364,8 +364,8 @@ a: b
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 	}
