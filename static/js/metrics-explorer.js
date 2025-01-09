@@ -927,10 +927,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         .autocomplete({
             source: availableMetrics.sort(),
             minLength: 0,
-            focus: function (event, ui) {
-                $(this).val(ui.item.value);
-                return false;
-            },
             select: async function (event, ui) {
                 queryDetails.metrics = ui.item.value;
                 getQueryDetails(queryName, queryDetails);
