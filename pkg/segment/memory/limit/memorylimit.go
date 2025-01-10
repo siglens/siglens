@@ -147,8 +147,8 @@ func rebalanceMemoryAllocation() {
 	}
 
 	if memory.GlobalMemoryTracker.SegSearchRequestedBytes > memoryAvailable {
-		memoryAvailable = 0
 		memory.GlobalMemoryTracker.SegSearchRequestedBytes = memoryAvailable
+		memoryAvailable = 0
 	} else {
 		memoryAvailable = memoryAvailable - memory.GlobalMemoryTracker.SegSearchRequestedBytes
 	}
