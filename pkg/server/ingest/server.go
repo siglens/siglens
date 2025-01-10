@@ -18,12 +18,14 @@
 package ingestserver
 
 import (
+	"crypto/tls"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/server"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/fasthttp/router"
@@ -165,8 +167,21 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	var g run.Group
 
 	if config.IsTlsEnabled() {
+		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+		if err != nil {
+			// log.Fatalf("Run: error in loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			log.Errorf("Run: error in loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			// return err
+		}
+
+		cfg := &tls.Config{
+			GetCertificate: certReloader.GetCertificate,
+		}
+
+		hs.ln = tls.NewListener(hs.ln, cfg)
+
 		g.Add(func() error {
-			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+			return s.Serve(hs.ln)
 		}, func(e error) {
 			log.Errorf("ingestionServerCfg.Run: Failed to serve TLS on %s, err=%v", hs.Addr, e)
 			_ = hs.ln.Close()
