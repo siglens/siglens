@@ -37,15 +37,13 @@ func NewCertReloader(certPath string, privateKeyPath string) (*CertReloader, err
 
 	if err := reloader.reload(); err != nil {
 		log.Errorf("NewCertReloader: Error loading certificate: %v", err)
-		return reloader, err
-		// return nil, err
+		return nil, err
 	}
 
 	return reloader, nil
 }
 
 func (cr *CertReloader) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-	log.Errorf("andrew inside GetCertificate ===============================")
 	cr.mu.RLock()
 	defer cr.mu.RUnlock()
 

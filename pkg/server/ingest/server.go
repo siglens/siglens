@@ -169,9 +169,8 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	if config.IsTlsEnabled() {
 		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 		if err != nil {
-			// log.Fatalf("Run: error in loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
-			log.Errorf("Run: error in loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
-			// return err
+			log.Fatalf("Run: error loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			return err
 		}
 
 		cfg := &tls.Config{
