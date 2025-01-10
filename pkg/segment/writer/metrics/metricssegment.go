@@ -89,17 +89,17 @@ var totalSeriesCount int
 var totalSortedTSIDCount int
 var totalTSIDLookupCount int
 var totalAllMSegmentsEncodedSizeInBytes uint64
-var totalInMemoryMSegEncodedSizeInBytes uint64
+var totalMSegBlocksEncodedSizeInBytes uint64
 
 type MetricsEncodedSizeInfo struct {
-	TotalTagTreesCount                  int
-	TotalLeafNodesCount                 int
-	TotalTagsTreeSizeInBytes            uint64
-	TotalSeriesCount                    int
-	TotalSortedTSIDCount                int
-	TotalTSIDLookupCount                int
-	TotalMSegmentsEncodedSizeInBytes    uint64
-	TotalInMemoryMSegEncodedSizeInBytes uint64
+	TotalTagTreesCount                int
+	TotalLeafNodesCount               int
+	TotalTagsTreeSizeInBytes          uint64
+	TotalSeriesCount                  int
+	TotalSortedTSIDCount              int
+	TotalTSIDLookupCount              int
+	TotalMSegmentsEncodedSizeInBytes  uint64
+	TotalMSegBlocksEncodedSizeInBytes uint64
 }
 
 /*
@@ -117,20 +117,20 @@ A metrics segment generate the following set of files:
 TODO: this metrics segment should reject samples not in 2hr window
 */
 type MetricsSegment struct {
-	metricsKeyBase string             // base string of this metric segment's key
-	Suffix         uint64             // current suffix
-	Mid            string             // metrics id for this metric segment
-	highTS         uint32             // highest epoch timestamp seen across this segment
-	lowTS          uint32             // lowest epoch timestamp seen across this segment
-	mBlock         *MetricsBlock      // current in memory block
-	currBlockNum   uint16             // current block number
-	mNamesBloom    *bloom.BloomFilter // all metric names bloom across segment
-	mNamesMap      map[string]bool    // all metric names seen across segment
-	mSegEncodeSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
-	bytesReceived  uint64             // total size of incoming data
-	rwLock         *sync.RWMutex      // read write lock for access
-	datapointCount uint64             // total number of datapoints across all series in the block
-	Orgid          uint64
+	metricsKeyBase  string             // base string of this metric segment's key
+	Suffix          uint64             // current suffix
+	Mid             string             // metrics id for this metric segment
+	highTS          uint32             // highest epoch timestamp seen across this segment
+	lowTS           uint32             // lowest epoch timestamp seen across this segment
+	mBlock          *MetricsBlock      // current in memory block
+	currBlockNum    uint16             // current block number
+	mNamesBloom     *bloom.BloomFilter // all metric names bloom across segment
+	mNamesMap       map[string]bool    // all metric names seen across segment
+	mSegEncodedSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
+	bytesReceived   uint64             // total size of incoming data
+	rwLock          *sync.RWMutex      // read write lock for access
+	datapointCount  uint64             // total number of datapoints across all series in the block
+	Orgid           uint64
 }
 
 /*
@@ -236,7 +236,7 @@ Returns the total incoming bytes, total on disk bytes, approx number of datapoin
 */
 func GetUnrotatedMetricStats(orgid uint64) (uint64, uint64, uint64) {
 	totalIncoming := uint64(0)
-	totalOnDisk := uint64(0)
+	totalMSegEncodedSize := uint64(0)
 	totalDPS := uint64(0)
 
 	orgMetricsAndTagsLock.RLock()
@@ -248,10 +248,10 @@ func GetUnrotatedMetricStats(orgid uint64) (uint64, uint64, uint64) {
 
 	for _, m := range orgMetrics {
 		totalIncoming += m.bytesReceived
-		totalOnDisk += m.mSegEncodeSize
+		totalMSegEncodedSize += m.mSegEncodedSize
 		totalDPS += m.datapointCount
 	}
-	return totalIncoming, totalOnDisk, totalDPS
+	return totalIncoming, totalMSegEncodedSize, totalDPS
 }
 
 func getNumberOfSegmentsFromMemory(mem uint64) uint64 {
@@ -349,14 +349,14 @@ func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
 			},
 			blkEncodedSize: 0,
 		},
-		rwLock:         &sync.RWMutex{},
-		metricsKeyBase: mKey,
-		Suffix:         suffix,
-		Mid:            mId,
-		mSegEncodeSize: 0,
-		highTS:         0,
-		lowTS:          math.MaxUint32,
-		Orgid:          orgid,
+		rwLock:          &sync.RWMutex{},
+		metricsKeyBase:  mKey,
+		Suffix:          suffix,
+		Mid:             mId,
+		mSegEncodedSize: 0,
+		highTS:          0,
+		lowTS:           math.MaxUint32,
+		Orgid:           orgid,
 	}, nil
 }
 
@@ -521,7 +521,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	mSeg.updateTimeRange(timestamp)
 	mSeg.mBlock.mBlockSummary.UpdateTimeRange(timestamp)
 	atomic.AddUint64(&mSeg.mBlock.blkEncodedSize, bytesWritten)
-	atomic.AddUint64(&mSeg.mSegEncodeSize, bytesWritten)
+	atomic.AddUint64(&mSeg.mSegEncodedSize, bytesWritten)
 	atomic.AddUint64(&mSeg.bytesReceived, nBytes)
 	atomic.AddUint64(&mSeg.datapointCount, 1)
 
@@ -963,7 +963,7 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		}
 	}
 
-	totalEncSize := atomic.LoadUint64(&ms.mSegEncodeSize)
+	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	if totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
 		if err != nil {
@@ -1160,7 +1160,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
-	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.mSegEncodeSize, ms.currBlockNum+1, finalDir)
+	log.Infof("rotating segment of size %v that created %v metrics blocks to %+v", ms.mSegEncodedSize, ms.currBlockNum+1, finalDir)
 	if !forceRotate {
 		nextSuffix, err := suffix.GetNextSuffix(ms.Mid, "ts")
 		if err != nil {
@@ -1183,7 +1183,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
 		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001)
-		ms.mSegEncodeSize = 0
+		ms.mSegEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
 		ms.mBlock.mBlockSummary.Reset()
@@ -1310,7 +1310,7 @@ func (ms *MetricsSegment) getMetaEntry(finalDir string, suffix uint64) *structs.
 		MSegmentDir:        fmt.Sprintf("%s%d", finalDir, suffix),
 		NumBlocks:          ms.currBlockNum,
 		BytesReceivedCount: ms.bytesReceived,
-		OnDiskBytes:        ms.mSegEncodeSize,
+		OnDiskBytes:        ms.mSegEncodedSize,
 		TagKeys:            tKeys,
 		EarliestEpochSec:   ms.lowTS,
 		LatestEpochSec:     ms.highTS,
@@ -1322,7 +1322,7 @@ func (ms *MetricsSegment) getMetaEntry(finalDir string, suffix uint64) *structs.
 func ForceFlushMetricsBlock() {
 	wg := sync.WaitGroup{}
 	for _, mSegment := range GetAllMetricsSegments() {
-		if mSegment.mSegEncodeSize == 0 {
+		if mSegment.mSegEncodedSize == 0 {
 			continue
 		}
 		wg.Add(1)
@@ -1464,20 +1464,20 @@ func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid uint64) (ma
 
 func GetMetricsEncodedSizeInfo() *MetricsEncodedSizeInfo {
 	return &MetricsEncodedSizeInfo{
-		TotalMSegmentsEncodedSizeInBytes:    totalAllMSegmentsEncodedSizeInBytes,
-		TotalInMemoryMSegEncodedSizeInBytes: totalInMemoryMSegEncodedSizeInBytes,
-		TotalTagsTreeSizeInBytes:            totalTagsTreeSizeInBytes,
-		TotalTagTreesCount:                  totalTagTreesCount,
-		TotalLeafNodesCount:                 totalLeafNodesCount,
-		TotalSeriesCount:                    totalSeriesCount,
-		TotalSortedTSIDCount:                totalSortedTSIDCount,
-		TotalTSIDLookupCount:                totalTSIDLookupCount,
+		TotalMSegmentsEncodedSizeInBytes:  totalAllMSegmentsEncodedSizeInBytes,
+		TotalMSegBlocksEncodedSizeInBytes: totalMSegBlocksEncodedSizeInBytes,
+		TotalTagsTreeSizeInBytes:          totalTagsTreeSizeInBytes,
+		TotalTagTreesCount:                totalTagTreesCount,
+		TotalLeafNodesCount:               totalLeafNodesCount,
+		TotalSeriesCount:                  totalSeriesCount,
+		TotalSortedTSIDCount:              totalSortedTSIDCount,
+		TotalTSIDLookupCount:              totalTSIDLookupCount,
 	}
 }
 
 func GetTotalEncodedSize() uint64 {
 	allMsegEncodedSize := uint64(0)
-	inMemoryMSegEncodedSize := uint64(0)
+	totalMSegsBlkEncodedSize := uint64(0)
 	totalTagsTreeSize := uint64(0)
 	totalLeafNodes := 0
 	totaltsidlookup := 0
@@ -1495,8 +1495,8 @@ func GetTotalEncodedSize() uint64 {
 		totaltsidlookup += len(mBuf.tsidLookup)
 		totalSeries += len(mBuf.allSeries)
 		numSeries := len(mBuf.allSeries)
-		allMsegEncodedSize += mSeg.mSegEncodeSize
-		inMemoryMSegEncodedSize += mBuf.blkEncodedSize
+		allMsegEncodedSize += mSeg.mSegEncodedSize
+		totalMSegsBlkEncodedSize += mBuf.blkEncodedSize
 		tt := GetTagsTreeHolder(mSeg.Orgid, mSeg.Mid)
 		if tt == nil {
 			continue
@@ -1510,7 +1510,7 @@ func GetTotalEncodedSize() uint64 {
 	}
 
 	totalAllMSegmentsEncodedSizeInBytes = allMsegEncodedSize
-	totalInMemoryMSegEncodedSizeInBytes = inMemoryMSegEncodedSize
+	totalMSegBlocksEncodedSizeInBytes = totalMSegsBlkEncodedSize
 	totalTagsTreeSizeInBytes = totalTagsTreeSize
 	totalTagTreesCount = totalTagTrees
 	totalLeafNodesCount = totalLeafNodes
@@ -1518,7 +1518,7 @@ func GetTotalEncodedSize() uint64 {
 	totalSortedTSIDCount = totalSortedTSID
 	totalTSIDLookupCount = totaltsidlookup
 
-	return inMemoryMSegEncodedSize + totalTagsTreeSize
+	return totalMSegsBlkEncodedSize + totalTagsTreeSize
 }
 
 func GetMetricSegments(orgid uint64) []*MetricsSegment {
