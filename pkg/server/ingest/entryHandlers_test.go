@@ -19,7 +19,6 @@ package ingestserver
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -364,85 +363,5 @@ func Test_HealthHandler(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode())
 
 	assert.Equal(t, payload, resp.Body())
-	cleanupOutDir()
-}
-
-func Test_updateConfigParams(t *testing.T) {
-	_ = vtable.InitVTable()
-	// setup listener , it's fasthttp in memory listener for TESTING only
-	ln := fasthttputil.NewInmemoryListener()
-	// now running fasthttp server in a goroutine
-	handler := postSetconfigHandler(false)
-	go func() {
-		err := fasthttp.Serve(ln, handler)
-		if err != nil {
-			log.Panicf("failed to serve: %v", err)
-		}
-	}()
-
-	defer func() {
-		_ = ln.Close()
-	}()
-
-	//Client
-	client := &fasthttp.Client{
-		Dial: func(addr string) (net.Conn, error) {
-			return ln.Dial()
-		},
-		DisableHeaderNamesNormalizing: true,
-	}
-
-	req := fasthttp.AcquireRequest()
-	resp := fasthttp.AcquireResponse()
-	defer func() {
-		fasthttp.ReleaseResponse(resp)
-		fasthttp.ReleaseRequest(req)
-	}()
-
-	cases := []struct {
-		input      string
-		output     string
-		statusCode int
-	}{
-		{ // case#1 Happy case
-			`{
-			   "eventTypeKeywords": ["key2","key1"]
-			 }`,
-			`{"message":"All OK","status":200}`,
-			fasthttp.StatusOK,
-		},
-		{ // case#4 When bad json is provided
-			`{
-			   "eventTypeKeywords": ["key2","key1"],"excludeBloomItems": ["bloom3","bloom4"], "streamIdFieldNames":
-			 }`,
-			`{"message":"Bad request","status":400}`,
-			fasthttp.StatusBadRequest,
-		},
-		{ // case#5 When a key that is not allowed to be updated is provided
-			`{
-			   "port":"9090", "eventTypeKeywords": ["key2","key1"]
-			 }`,
-			`{"message":"key = port not allowed to update","status":403}`,
-			fasthttp.StatusForbidden,
-		},
-	}
-
-	for i, test := range cases {
-
-		postPayloadByte := []byte(test.input)
-
-		req.SetHost("localhost:8080")
-		req.Header.Add("Accept", "application/json")
-		req.Header.SetMethod("POST")
-
-		req.SetBody(postPayloadByte)
-
-		err := client.Do(req, resp)
-		assert.NoError(t, err)
-
-		payload := []byte(test.output)
-		assert.Equal(t, test.statusCode, resp.StatusCode(), fmt.Sprintf("Status code comparison failed, test=%v", i+1))
-		assert.Equal(t, payload, resp.Body(), fmt.Sprintf("Body compare failed, test=%v", i+1))
-	}
 	cleanupOutDir()
 }

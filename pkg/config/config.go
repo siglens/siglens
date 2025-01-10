@@ -59,7 +59,7 @@ const DEFAULT_SEG_SEARCH_MEM_PERCENT = 30 // minimum percent allocated for segse
 const DEFAULT_METRICS_MEM_PERCENT = 2
 const DEFAULT_BYTES_PER_QUERY = 200 * 1024 * 1024 // 200MB
 
-const DEFAULT_MAX_OPEN_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
+const DEFAULT_MAX_ALLOWED_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
@@ -367,8 +367,8 @@ func getMaxMemoryAllowedToUseInBytesFromConfig() uint64 {
 	return runningConfig.MemoryConfig.MaxMemoryAllowedToUseInBytes
 }
 
-func GetMaxOpenColumns() uint64 {
-	return runningConfig.MaxOpenColumns
+func GetMaxAllowedColumns() uint64 {
+	return runningConfig.MaxAllowedColumns
 }
 
 /*
@@ -388,10 +388,6 @@ func GetRunningConfig() *common.Configuration {
 
 func GetSSInstanceName() string {
 	return runningConfig.SSInstanceName
-}
-
-func GetEventTypeKeywords() *[]string {
-	return &runningConfig.EventTypeKeywords
 }
 
 func GetRetentionHours() int {
@@ -669,10 +665,6 @@ func IsQueryNode() bool {
 	return retVal
 }
 
-func SetEventTypeKeywords(val []string) {
-	runningConfig.EventTypeKeywords = val
-}
-
 func SetIdleWipFlushIntervalSecs(val int) {
 	if val < idleWipFlushRange.Min {
 		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than %vs", idleWipFlushRange.Min)
@@ -830,7 +822,6 @@ func GetTestConfig(dataPath string) common.Configuration {
 		IngestPort:                  8081,
 		QueryPort:                   5122,
 		IngestUrl:                   "",
-		EventTypeKeywords:           []string{"eventType"},
 		QueryNode:                   "true",
 		IngestNode:                  "true",
 		IdleWipFlushIntervalSecs:    5,
@@ -876,7 +867,7 @@ func GetTestConfig(dataPath string) common.Configuration {
 			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 			BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 		},
-		MaxOpenColumns: DEFAULT_MAX_OPEN_COLUMNS,
+		MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 	}
 
 	return testConfig
@@ -983,9 +974,6 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.QueryPort = 5122
 	}
 
-	if len(config.EventTypeKeywords) <= 0 {
-		config.EventTypeKeywords = []string{"eventType"}
-	}
 	if config.IdleWipFlushIntervalSecs <= 0 {
 		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Default
 	}
@@ -1197,8 +1185,8 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	config.MemoryConfig = memoryLimits
 
-	if config.MaxOpenColumns == 0 {
-		config.MaxOpenColumns = DEFAULT_MAX_OPEN_COLUMNS
+	if config.MaxAllowedColumns == 0 {
+		config.MaxAllowedColumns = DEFAULT_MAX_ALLOWED_COLUMNS
 	}
 
 	if len(config.S3IngestQueueName) <= 0 {
@@ -1249,10 +1237,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
-	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
-		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
+	if os.Getenv("TRACE_SAMPLING_PERCENTAGE") != "" {
+		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PERCENTAGE"), 64)
 		if err != nil {
-			log.Errorf("ExtractConfigData: Error parsing TRACE_SAMPLING_PRECENTAGE err: %v", err)
+			log.Errorf("ExtractConfigData: Error parsing TRACE_SAMPLING_PERCENTAGE err: %v", err)
 			log.Info("ExtractConfigData: Setting Trace Sampling Percentage to 1")
 			config.Tracing.SamplingPercentage = 1
 		} else {
@@ -1569,75 +1557,6 @@ func runRefreshConfigLoop() {
 		time.Sleep(MINUTES_REREAD_CONFIG * time.Minute)
 		refreshConfig()
 	}
-}
-
-func ProcessSetConfig(persistent bool, ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	var reqBodyMap map[string]interface{}
-	reqBodyStr := ctx.PostBody()
-	err := json.Unmarshal([]byte(reqBodyStr), &reqBodyMap)
-	if err != nil {
-		log.Printf("Error = %v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		httpResp.Message = "Bad request"
-		httpResp.StatusCode = fasthttp.StatusBadRequest
-		utils.WriteResponse(ctx, httpResp)
-		return
-	}
-	err = setConfigParams(reqBodyMap)
-	if err == nil {
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		httpResp.Message = "All OK"
-		httpResp.StatusCode = fasthttp.StatusOK
-		utils.WriteResponse(ctx, httpResp)
-		if persistent {
-			WriteToYamlConfig()
-		}
-	} else {
-		ctx.SetStatusCode(fasthttp.StatusForbidden)
-		httpResp.Message = err.Error()
-		httpResp.StatusCode = fasthttp.StatusForbidden
-		utils.WriteResponse(ctx, httpResp)
-	}
-}
-
-func setConfigParams(reqBodyMap map[string]interface{}) error {
-	for inputCfgParam := range reqBodyMap {
-		if inputCfgParam == "eventTypeKeywords" {
-			inputValueParam := reqBodyMap["eventTypeKeywords"]
-			evArray, err := extractStrArray(inputValueParam)
-			if err != nil {
-				return err
-			}
-			SetEventTypeKeywords(evArray)
-		} else {
-			err := fmt.Errorf("key = %v not allowed to update", inputCfgParam)
-			return err
-		}
-	}
-	return nil
-}
-
-func extractStrArray(inputValueParam interface{}) ([]string, error) {
-	switch inputValueParam.(type) {
-	case []interface{}:
-		break
-	default:
-		err := fmt.Errorf("extractStrArray: inputValueParam of type = %T not accepted", inputValueParam)
-		return nil, err
-	}
-	evArray := []string{}
-	for _, element := range inputValueParam.([]interface{}) {
-		switch element := element.(type) {
-		case string:
-			str := element
-			evArray = append(evArray, str)
-		default:
-			err := fmt.Errorf("extractStrArray: element of type = %T not accepted", element)
-			return nil, err
-		}
-	}
-	return evArray, nil
 }
 
 func GetQueryServerBaseUrl() string {
