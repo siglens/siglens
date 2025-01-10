@@ -30,16 +30,19 @@ func Test_OnFileChange(t *testing.T) {
 	err = os.WriteFile(file1, []byte("new content"), 0644)
 	require.NoError(t, err)
 	readChannelOrFail(t, updateChan)
+	drainChannel(updateChan)
 
 	// Ensure another change triggers it again
 	err = os.WriteFile(file1, []byte("hello world"), 0644)
 	require.NoError(t, err)
 	readChannelOrFail(t, updateChan)
+	drainChannel(updateChan)
 
 	// Write to the other file.
 	err = os.WriteFile(file2, []byte("new content"), 0644)
 	require.NoError(t, err)
 	readChannelOrFail(t, updateChan)
+	drainChannel(updateChan)
 
 	// There should be no more updates.
 	assert.Equal(t, 0, len(updateChan), "unexpected updates")
@@ -53,5 +56,11 @@ func readChannelOrFail(t *testing.T, updateChan chan struct{}) {
 		// Do nothing.
 	case <-time.After(time.Second):
 		t.Fatal("reached timeout")
+	}
+}
+
+func drainChannel(ch chan struct{}) {
+	for len(ch) > 0 {
+		<-ch
 	}
 }
