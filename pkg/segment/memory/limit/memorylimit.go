@@ -33,7 +33,7 @@ import (
 
 const MINUTES_UPDATE_METADATA_MEM_ALLOC = 1
 
-var AllocatedSegSearchBytes uint64 // Should not be changed after initialization
+var SegSearchAllocatedBytes uint64 // Should not be changed after initialization
 
 var LOG_GLOBAL_MEM_FREQUENCY = 5
 
@@ -43,7 +43,7 @@ func InitMemoryLimiter() {
 
 	memLimits := config.GetMemoryConfig()
 
-	AllocatedSegSearchBytes = uint64(float64(totalAvailableSizeBytes*memLimits.SearchPercent) / 100)
+	SegSearchAllocatedBytes = uint64(float64(totalAvailableSizeBytes*memLimits.SearchPercent) / 100)
 	rotatedCMIBytes := uint64(float64(totalAvailableSizeBytes*memLimits.CMIPercent) / 100)
 	metricsInMemory := uint64(float64(totalAvailableSizeBytes*memLimits.MetricsPercent) / 100)
 
@@ -54,7 +54,7 @@ func InitMemoryLimiter() {
 	memory.GlobalMemoryTracker = &structs.MemoryTracker{
 		TotalAllocatableBytes:   totalAvailableSizeBytes,
 		RotatedCMIBytesInMemory: rotatedCMIBytes,
-		SegSearchRequestedBytes: AllocatedSegSearchBytes,
+		SegSearchRequestedBytes: SegSearchAllocatedBytes,
 		MetricsSegmentMaxSize:   metricsInMemory,
 
 		SegWriterUsageBytes: 0,
@@ -135,9 +135,9 @@ func rebalanceMemoryAllocation() {
 	totalSsmMemory := uint64(float64(memoryAvailable*memLimits.MetadataPercent) / 100)
 	segmetadata.RebalanceInMemorySsm(totalSsmMemory)
 
-	if memory.GlobalMemoryTracker.SegSearchRequestedBytes < AllocatedSegSearchBytes {
+	if memory.GlobalMemoryTracker.SegSearchRequestedBytes < SegSearchAllocatedBytes {
 		// reset the allocatedSegSearchBytes as we may have freed up memory
-		atomic.StoreUint64(&memory.GlobalMemoryTracker.SegSearchRequestedBytes, AllocatedSegSearchBytes)
+		atomic.StoreUint64(&memory.GlobalMemoryTracker.SegSearchRequestedBytes, SegSearchAllocatedBytes)
 	}
 
 	if memory.GlobalMemoryTracker.SegSearchRequestedBytes > memoryAvailable {
