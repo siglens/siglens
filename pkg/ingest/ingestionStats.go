@@ -29,8 +29,8 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
-	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,72 +51,13 @@ func ingestionMetricsLooper() {
 		currentEventCount := int64(0)
 		currentBytesReceived := int64(0)
 		currentOnDiskBytes := int64(0)
-		totalSegments := int64(0)
-		var totalCmiSize uint64 = 0
-		var totalCsgSize uint64 = 0
-		uniqueIndexes := make(map[string]struct{})
-		uniqueColumns := make(map[string]struct{})
 
 		allSegmetas := segwriter.ReadGlobalSegmetas()
-
-		for _, segmeta := range allSegmetas {
-			if segmeta == nil || segmeta.VirtualTableName == "" {
-				continue
-			}
-			uniqueIndexes[segmeta.VirtualTableName] = struct{}{}
-
-			for col := range segmeta.ColumnNames {
-				uniqueColumns[col] = struct{}{}
-			}
-
-			totalSegments++
-		}
 
 		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
 		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
 
-		for indexName := range allCnts {
-			if indexName != "" {
-				uniqueIndexes[indexName] = struct{}{}
-			}
-		}
-
-		indexStats := make(map[string]*utils.IndexStats)
-
-		for indexName := range uniqueIndexes {
-			stats, err := segwriter.GetIndexSizeStats(indexName, 0)
-			if err != nil {
-				log.Errorf("ingestionMetricsLooper: failed to get stats for index=%v err=%v", indexName, err)
-				continue
-			}
-			indexStats[indexName] = stats
-			totalCmiSize += stats.TotalCmiSize
-			totalCsgSize += stats.TotalCsgSize
-
-			_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, 0)
-			for col := range columnNamesSet {
-				uniqueColumns[col] = struct{}{}
-			}
-
-			if len(columnNamesSet) > 0 {
-				totalSegments++
-			}
-
-			for _, segmeta := range allSegmetas {
-				if segmeta != nil && segmeta.VirtualTableName == indexName {
-					for col := range segmeta.ColumnNames {
-						uniqueColumns[col] = struct{}{}
-					}
-				}
-			}
-
-			if stats.NumBlocks > 0 {
-				instrumentation.SetBlocksPerIndex(int64(stats.NumBlocks), "indexname", indexName)
-			}
-			if stats.NumIndexFiles > 0 {
-				instrumentation.SetFilesPerIndex(int64(stats.NumIndexFiles), "indexname", indexName)
-			}
-		}
+		uniqueIndexes, uniqueColumns, totalCmiSize, totalCsgSize, totalSegments := processSegmentAndIndexStats(allSegmetas, allCnts)
 
 		for indexName, cnts := range allCnts {
 			if indexName == "" {
@@ -154,6 +95,59 @@ func ingestionMetricsLooper() {
 		instrumentation.SetTotalCMISize(int64(totalCmiSize))
 		instrumentation.SetTotalCSGSize(int64(totalCsgSize))
 	}
+}
+
+func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[string]*structs.VtableCounts) (map[string]struct{}, map[string]struct{}, uint64, uint64, int64) {
+	uniqueIndexes := make(map[string]struct{})
+	uniqueColumns := make(map[string]struct{})
+	var totalCmiSize, totalCsgSize uint64
+	var totalSegments int64
+
+	for _, segmeta := range allSegmetas {
+		if segmeta == nil || segmeta.VirtualTableName == "" {
+			continue
+		}
+		uniqueIndexes[segmeta.VirtualTableName] = struct{}{}
+		for col := range segmeta.ColumnNames {
+			uniqueColumns[col] = struct{}{}
+		}
+		totalSegments++
+	}
+
+	for indexName := range allCnts {
+		if indexName != "" {
+			uniqueIndexes[indexName] = struct{}{}
+		}
+	}
+
+	for indexName := range uniqueIndexes {
+		stats, err := segwriter.GetIndexSizeStats(indexName, 0)
+		if err != nil {
+			log.Errorf("processSegmentAndIndexStats: failed to get stats for index=%v err=%v", indexName, err)
+			continue
+		}
+
+		totalCmiSize += stats.TotalCmiSize
+		totalCsgSize += stats.TotalCsgSize
+
+		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, 0)
+		for col := range columnNamesSet {
+			uniqueColumns[col] = struct{}{}
+		}
+
+		if len(columnNamesSet) > 0 {
+			totalSegments++
+		}
+
+		if stats.NumBlocks > 0 {
+			instrumentation.SetBlocksPerIndex(int64(stats.NumBlocks), "indexname", indexName)
+		}
+		if stats.NumIndexFiles > 0 {
+			instrumentation.SetFilesPerIndex(int64(stats.NumIndexFiles), "indexname", indexName)
+		}
+	}
+
+	return uniqueIndexes, uniqueColumns, totalCmiSize, totalCsgSize, totalSegments
 }
 
 func metricsLooper() {
