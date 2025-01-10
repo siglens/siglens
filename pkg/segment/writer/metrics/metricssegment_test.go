@@ -220,7 +220,7 @@ func initFakeMetricsBlock() *MetricsBlock {
 			HighTs: 1676089340,
 			LowTs:  1676089310,
 		},
-		encodedSize: 0,
+		blkEncodedSize: 0,
 	}
 	return mb
 }
