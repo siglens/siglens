@@ -41,7 +41,6 @@ func Test_ExtractConfigData(t *testing.T) {
  ingestListenIP: "0.0.0.0"
  queryListenIP: "0.0.0.0"
  ingestPort: 9090
- eventTypeKeywords: ["utm_content"]
  baseLogDir: "./pkg/ingestor/httpserver/"
  queryNode: true
  ingestNode: true
@@ -96,7 +95,7 @@ func Test_ExtractConfigData(t *testing.T) {
    metadataPercent: 20
    metricsPercent: 10
    bytesPerQuery: 100
- maxOpenColumns: 42
+ maxAllowedColumns: 42
  `),
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
@@ -104,7 +103,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				IngestPort:                  9090,
 				IngestUrl:                   "http://localhost:9090",
 				QueryPort:                   5122,
-				EventTypeKeywords:           []string{"utm_content"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    5,
@@ -150,7 +148,7 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetricsPercent:               10,
 					BytesPerQuery:                100,
 				},
-				MaxOpenColumns: 42,
+				MaxAllowedColumns: 42,
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -159,7 +157,6 @@ func Test_ExtractConfigData(t *testing.T) {
  queryListenIP: "0.0.0.0"
  ingestPort: 9090
  queryPort: 9000
- eventTypeKeywords: ["utm_content"]
  queryNode: true
  ingestNode: true
  seedNode: true
@@ -206,7 +203,6 @@ func Test_ExtractConfigData(t *testing.T) {
 				IngestPort:                  9090,
 				QueryPort:                   9000,
 				IngestUrl:                   "http://localhost:9090",
-				EventTypeKeywords:           []string{"utm_content"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    60,
@@ -251,8 +247,8 @@ func Test_ExtractConfigData(t *testing.T) {
 					MetricsPercent:               DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:                DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -266,7 +262,6 @@ invalid input, we should error out
 				IngestPort:                  8081,
 				QueryPort:                   0,
 				IngestUrl:                   "http://localhost:8081",
-				EventTypeKeywords:           []string{"eventType"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    5,
@@ -306,8 +301,8 @@ invalid input, we should error out
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -320,7 +315,6 @@ a: b
 				IngestPort:                  8081,
 				QueryPort:                   5122,
 				IngestUrl:                   "http://localhost:8081",
-				EventTypeKeywords:           []string{"eventType"},
 				QueryNode:                   "true",
 				IngestNode:                  "true",
 				IdleWipFlushIntervalSecs:    5,
@@ -364,8 +358,8 @@ a: b
 					MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 					BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 				},
-				MaxOpenColumns:   DEFAULT_MAX_OPEN_COLUMNS,
-				QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
 			},
 		},
 	}

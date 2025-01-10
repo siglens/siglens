@@ -1219,6 +1219,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func ApplyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		return fmt.Errorf("ApplyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)

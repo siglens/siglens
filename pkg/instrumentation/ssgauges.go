@@ -64,28 +64,46 @@ type Gauge int
 const (
 	TotalEventCount Gauge = iota + 1
 	TotalBytesReceived
-	TotalOnDiskBytes
+	TotalLogOnDiskBytes
+	TotalMetricOnDiskBytes
 	TotalSegstoreCount
 	TotalSegmentMicroindexCount
 	TotalEventsSearched
 	TotalEventsMatched
+	TotalMetricNames
+	TotalTimeSeries
+	PastMinuteNumDataPoints
+	TotalTagKeyCount
+	TotalTagValueCount
+	TotalIndexCount
+	PastMinuteEventCount
+	PastMinuteEventVolume
+	TotalSegmentCount
+	TotalColumnCount
+	TotalCMISize
+	TotalCSGSize
 )
 
 var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 	TotalEventCount: {
-		name:        "ss.current.event.count",
+		name:        "ss.total.event.count",
 		unit:        "count",
-		description: "Current total number of events",
+		description: "Total number of events",
 	},
 	TotalBytesReceived: {
-		name:        "ss.current.bytes.received",
+		name:        "ss.total.bytes.received",
 		unit:        "bytes",
-		description: "Current count of bytes received",
+		description: "Total number of bytes received",
 	},
-	TotalOnDiskBytes: {
-		name:        "ss.current.on.disk.bytes",
+	TotalLogOnDiskBytes: {
+		name:        "ss.total.logs.on.disk.bytes",
 		unit:        "bytes",
-		description: "Current number of bytes on disk",
+		description: "Total number of bytes on disk for log data",
+	},
+	TotalMetricOnDiskBytes: {
+		name:        "ss.total.metrics.on.disk.bytes",
+		unit:        "bytes",
+		description: "Total number of metric bytes on disk",
 	},
 	TotalSegstoreCount: {
 		name:        "ss.current.segstore.count",
@@ -107,16 +125,89 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		unit:        "count",
 		description: "Current number of events matched",
 	},
+	TotalMetricNames: {
+		name:        "ss.total.metric.names",
+		unit:        "count",
+		description: "Total number of metric names",
+	},
+	TotalTimeSeries: {
+		name:        "ss.total.time.series",
+		unit:        "count",
+		description: "Total number of time series",
+	},
+	PastMinuteNumDataPoints: {
+		name:        "ss.past.minute.num.data.points",
+		unit:        "count",
+		description: "Number of metric data points ingested in the past minute",
+	},
+	TotalTagKeyCount: {
+		name:        "ss.total.tag.key.count",
+		unit:        "count",
+		description: "Total number of tag keys",
+	},
+	TotalTagValueCount: {
+		name:        "ss.total.tag.value.count",
+		unit:        "count",
+		description: "Total number of tag values",
+	},
+	TotalIndexCount: {
+		name:        "ss.total.index.count",
+		unit:        "count",
+		description: "Total number of indexes",
+	},
+	PastMinuteEventCount: {
+		name:        "ss.past.minute.event.count",
+		unit:        "count",
+		description: "Number of events ingested in the past minute",
+	},
+	PastMinuteEventVolume: {
+		name:        "ss.past.minute.event.volume",
+		unit:        "bytes",
+		description: "Volume of events ingested in the past minute",
+	},
+	TotalSegmentCount: {
+		name:        "ss.total.segment.count",
+		unit:        "count",
+		description: "Total number of segments across all indexes",
+	},
+	TotalColumnCount: {
+		name:        "ss.total.column.count",
+		unit:        "count",
+		description: "Total number of unique columns across all indexes",
+	},
+	TotalCMISize: {
+		name:        "ss.total.cmi.size",
+		unit:        "bytes",
+		description: "Total size of CMI files",
+	},
+	TotalCSGSize: {
+		name:        "ss.total.csg.size",
+		unit:        "bytes",
+		description: "Total size of CSG files",
+	},
 }
 
 var (
 	SetTotalEventCount             = makeGaugeSetter(TotalEventCount)
 	SetTotalBytesReceived          = makeGaugeSetter(TotalBytesReceived)
-	SetTotalOnDiskBytes            = makeGaugeSetter(TotalOnDiskBytes)
+	SetTotalLogOnDiskBytes         = makeGaugeSetter(TotalLogOnDiskBytes)
+	SetTotalMetricOnDiskBytes      = makeGaugeSetter(TotalMetricOnDiskBytes)
 	SetTotalSegstoreCount          = makeGaugeSetter(TotalSegstoreCount)
 	SetTotalSegmentMicroindexCount = makeGaugeSetter(TotalSegmentMicroindexCount)
 	SetTotalEventsSearched         = makeGaugeSetter(TotalEventsSearched)
 	SetTotalEventsMatched          = makeGaugeSetter(TotalEventsMatched)
+	SetTotalMetricNames            = makeGaugeSetter(TotalMetricNames)
+	SetTotalTimeSeries             = makeGaugeSetter(TotalTimeSeries)
+	SetPastMinuteNumDataPoints     = makeGaugeSetter(PastMinuteNumDataPoints)
+	SetTotalTagKeyCount            = makeGaugeSetter(TotalTagKeyCount)
+	SetTotalTagValueCount          = makeGaugeSetter(TotalTagValueCount)
+	SetTotalIndexCount             = makeGaugeSetter(TotalIndexCount)
+	SetPastMinuteEventCount        = makeGaugeSetter(PastMinuteEventCount)
+	SetPastMinuteEventVolume       = makeGaugeSetter(PastMinuteEventVolume)
+	SetTotalSegmentCount           = makeGaugeSetter(TotalSegmentCount)
+	SetTotalColumnCount            = makeGaugeSetter(TotalColumnCount)
+	SetTotalCMISize                = makeGaugeSetter(TotalCMISize)
+	SetTotalCSGSize                = makeGaugeSetter(TotalCSGSize)
 )
 
 func init() {
@@ -257,6 +348,46 @@ func SetOnDiskBytesPerIndex(val int64, labelkey string, labelval string) {
 	mentry.count++
 }
 
+var filesPerIndexMap = map[string]*sumcount{}
+var filesPerIndexLock sync.RWMutex
+var FILES_COUNT_PER_INDEX, _ = meter.Int64ObservableGauge(
+	"ss.files.per.index",
+	metric.WithUnit("count"),
+	metric.WithDescription("Number of files per index"))
+
+func SetFilesPerIndex(val int64, labelkey string, labelval string) {
+	keystr := fmt.Sprintf("%v:%v", labelkey, labelval)
+	filesPerIndexLock.Lock()
+	defer filesPerIndexLock.Unlock()
+	mentry, ok := filesPerIndexMap[keystr]
+	if !ok {
+		mentry = &sumcount{labelkey: labelkey, labelval: labelval}
+		filesPerIndexMap[keystr] = mentry
+	}
+	mentry.sum = val
+	mentry.count = 1
+}
+
+var blocksPerIndexMap = map[string]*sumcount{}
+var blocksPerIndexLock sync.RWMutex
+var BLOCKS_COUNT_PER_INDEX, _ = meter.Int64ObservableGauge(
+	"ss.blocks.per.index",
+	metric.WithUnit("count"),
+	metric.WithDescription("Number of blocks per index"))
+
+func SetBlocksPerIndex(val int64, labelkey string, labelval string) {
+	keystr := fmt.Sprintf("%v:%v", labelkey, labelval)
+	blocksPerIndexLock.Lock()
+	defer blocksPerIndexLock.Unlock()
+	mentry, ok := blocksPerIndexMap[keystr]
+	if !ok {
+		mentry = &sumcount{labelkey: labelkey, labelval: labelval}
+		blocksPerIndexMap[keystr] = mentry
+	}
+	mentry.sum = val
+	mentry.count = 1
+}
+
 var segmentLatencyMinMsMap = map[string]*sumcount{}
 var segmentLatencyMinMsLock sync.RWMutex
 var SEGMENT_LATENCY_MIN_MS, _ = meter.Int64ObservableGauge(
@@ -371,6 +502,22 @@ func registerOtherGaugeCallbacks() {
 	}
 
 	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		emitFilesPerIndexMap(ctx, o)
+		return nil
+	}, FILES_COUNT_PER_INDEX)
+	if err != nil {
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge FILES_COUNT_PER_INDEX, err %v", err)
+	}
+
+	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		emitBlocksPerIndexMap(ctx, o)
+		return nil
+	}, BLOCKS_COUNT_PER_INDEX)
+	if err != nil {
+		log.Errorf("registerOtherGaugeCallbacks: failed to register callback for gauge BLOCKS_COUNT_PER_INDEX, err %v", err)
+	}
+
+	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
 		emitSegmentLatencyMinMsMap(ctx, o)
 		return nil
 	}, SEGMENT_LATENCY_MIN_MS)
@@ -456,6 +603,34 @@ func emitOnDiskBytesPerIndexMap(ctx context.Context, o metric.Observer) {
 			o.ObserveInt64(ON_DISK_BYTES_PER_INDEX, int64(mentry.sum/mentry.count), metric.WithAttributes(attrs...))
 		}
 		delete(onDiskBytesPerIndexMap, mkey)
+	}
+}
+
+func emitFilesPerIndexMap(ctx context.Context, o metric.Observer) {
+	filesPerIndexLock.Lock()
+	defer filesPerIndexLock.Unlock()
+	for mkey, mentry := range filesPerIndexMap {
+		if mentry.count != 0 {
+			attrs := []attribute.KeyValue{
+				attribute.String(mentry.labelkey, mentry.labelval),
+			}
+			o.ObserveInt64(FILES_COUNT_PER_INDEX, mentry.sum, metric.WithAttributes(attrs...))
+		}
+		delete(filesPerIndexMap, mkey)
+	}
+}
+
+func emitBlocksPerIndexMap(ctx context.Context, o metric.Observer) {
+	blocksPerIndexLock.Lock()
+	defer blocksPerIndexLock.Unlock()
+	for mkey, mentry := range blocksPerIndexMap {
+		if mentry.count != 0 {
+			attrs := []attribute.KeyValue{
+				attribute.String(mentry.labelkey, mentry.labelval),
+			}
+			o.ObserveInt64(BLOCKS_COUNT_PER_INDEX, mentry.sum, metric.WithAttributes(attrs...))
+		}
+		delete(blocksPerIndexMap, mkey)
 	}
 }
 

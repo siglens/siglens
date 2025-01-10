@@ -104,34 +104,33 @@ assignment in the following functions
 
 // If you add a new config parameters to the Configuration struct below, make sure to add a descriptive info in server.yaml
 type Configuration struct {
-	IngestListenIP              string   `yaml:"ingestListenIP"`              // Listen IP used for ingestion server
-	QueryListenIP               string   `yaml:"queryListenIP"`               // Listen IP used for query server
-	IngestPort                  uint64   `yaml:"ingestPort"`                  // Port for ingestion server
-	QueryPort                   uint64   `yaml:"queryPort"`                   // Port used for query server
-	EventTypeKeywords           []string `yaml:"eventTypeKeywords"`           //Required event type keyword
-	QueryNode                   string   `yaml:"queryNode"`                   //Node to enable/disable all query endpoints
-	IngestNode                  string   `yaml:"ingestNode"`                  //Node to enable/disable all ingest endpoints
-	IdleWipFlushIntervalSecs    int      `yaml:"idleWipFlushIntervalSecs"`    // Time interval after which to write to segfile, given no new data
-	MaxWaitWipFlushIntervalSecs int      `yaml:"maxWaitWipFlushIntervalSecs"` // Max time to wait for wip flush, regardless of data
-	DataPath                    string   `yaml:"dataPath"`
-	RetentionHours              int      `yaml:"retentionHours"`
-	TimeStampKey                string   `yaml:"timestampKey"`
-	MaxSegFileSize              uint64   `yaml:"maxSegFileSize"` // segment file size (in bytes)
-	LicenseKeyPath              string   `yaml:"licenseKeyPath"`
-	ESVersion                   string   `yaml:"esVersion"`
-	Debug                       bool     `yaml:"debug"`        // debug logging
-	PProfEnabled                string   `yaml:"pprofEnabled"` // enable pprof
-	PProfEnabledConverted       bool     // converted bool value of PprofEnabled yaml
-	DataDiskThresholdPercent    uint64   `yaml:"dataDiskThresholdPercent"`
-	S3IngestQueueName           string   `yaml:"s3IngestQueueName"`
-	S3IngestQueueRegion         string   `yaml:"s3IngestQueueRegion"`
-	S3IngestBufferSize          uint64   `yaml:"s3IngestBufferSize"`
-	MaxParallelS3IngestBuffers  uint64   `yaml:"maxParallelS3IngestBuffers"`
-	SSInstanceName              string   `yaml:"ssInstanceName"`
-	PQSEnabled                  string   `yaml:"pqsEnabled"` // is pqs enabled?
-	PQSEnabledConverted         bool     // converted bool value of PQSEnabled yaml
-	SafeServerStart             bool     `yaml:"safeMode"`         // if set to true, siglens will start a mock webserver with a custom health handler. Actual server will NOT be started
-	AnalyticsEnabled            string   `yaml:"analyticsEnabled"` // is analytics enabled?
+	IngestListenIP              string `yaml:"ingestListenIP"`              // Listen IP used for ingestion server
+	QueryListenIP               string `yaml:"queryListenIP"`               // Listen IP used for query server
+	IngestPort                  uint64 `yaml:"ingestPort"`                  // Port for ingestion server
+	QueryPort                   uint64 `yaml:"queryPort"`                   // Port used for query server
+	QueryNode                   string `yaml:"queryNode"`                   //Node to enable/disable all query endpoints
+	IngestNode                  string `yaml:"ingestNode"`                  //Node to enable/disable all ingest endpoints
+	IdleWipFlushIntervalSecs    int    `yaml:"idleWipFlushIntervalSecs"`    // Time interval after which to write to segfile, given no new data
+	MaxWaitWipFlushIntervalSecs int    `yaml:"maxWaitWipFlushIntervalSecs"` // Max time to wait for wip flush, regardless of data
+	DataPath                    string `yaml:"dataPath"`
+	RetentionHours              int    `yaml:"retentionHours"`
+	TimeStampKey                string `yaml:"timestampKey"`
+	MaxSegFileSize              uint64 `yaml:"maxSegFileSize"` // segment file size (in bytes)
+	LicenseKeyPath              string `yaml:"licenseKeyPath"`
+	ESVersion                   string `yaml:"esVersion"`
+	Debug                       bool   `yaml:"debug"`        // debug logging
+	PProfEnabled                string `yaml:"pprofEnabled"` // enable pprof
+	PProfEnabledConverted       bool   // converted bool value of PprofEnabled yaml
+	DataDiskThresholdPercent    uint64 `yaml:"dataDiskThresholdPercent"`
+	S3IngestQueueName           string `yaml:"s3IngestQueueName"`
+	S3IngestQueueRegion         string `yaml:"s3IngestQueueRegion"`
+	S3IngestBufferSize          uint64 `yaml:"s3IngestBufferSize"`
+	MaxParallelS3IngestBuffers  uint64 `yaml:"maxParallelS3IngestBuffers"`
+	SSInstanceName              string `yaml:"ssInstanceName"`
+	PQSEnabled                  string `yaml:"pqsEnabled"` // is pqs enabled?
+	PQSEnabledConverted         bool   // converted bool value of PQSEnabled yaml
+	SafeServerStart             bool   `yaml:"safeMode"`         // if set to true, siglens will start a mock webserver with a custom health handler. Actual server will NOT be started
+	AnalyticsEnabled            string `yaml:"analyticsEnabled"` // is analytics enabled?
 	AnalyticsEnabledConverted   bool
 	AgileAggsEnabled            string `yaml:"agileAggsEnabled"` // should we read/write AgileAggsTrees?
 	AgileAggsEnabledConverted   bool
@@ -148,7 +147,7 @@ type Configuration struct {
 	EmailConfig                 EmailConfig    `yaml:"emailConfig"`
 	DatabaseConfig              DatabaseConfig `yaml:"minionSearch"`
 	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
-	MaxOpenColumns              uint64         `yaml:"maxOpenColumns"`
+	MaxAllowedColumns           uint64         `yaml:"maxAllowedColumns"`
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
 	QueryTimeoutSecs            int    `yaml:"queryTimeoutSecs"`

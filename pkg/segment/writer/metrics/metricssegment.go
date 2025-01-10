@@ -80,6 +80,26 @@ var dateTimeLayouts = []string{
 	time.RFC850,
 }
 
+// The following variables should only be updated in the GetTotalEncodedSize() function
+// These track the Metrics Size info and will be used while printing the Global MemorySummary
+var totalTagTreesCount int
+var totalLeafNodesCount int
+var totalTagsTreeSizeInBytes uint64
+var totalSeriesCount int
+var totalSortedTSIDCount int
+var totalTSIDLookupCount int
+var totalMSegmentsEncodedSizeInBytes uint64
+
+type MetricsEncodedSizeInfo struct {
+	TotalTagTreesCount               int
+	TotalLeafNodesCount              int
+	TotalTagsTreeSizeInBytes         uint64
+	TotalSeriesCount                 int
+	TotalSortedTSIDCount             int
+	TotalTSIDLookupCount             int
+	TotalMSegmentsEncodedSizeInBytes uint64
+}
+
 /*
 A metrics segment represents a 2hr window and consists of many metrics blocks and tagTrees.
 
@@ -356,7 +376,7 @@ func getBaseMetricsKey(suffix uint64, mId string) (string, error) {
 /*
 Returns <<dataDir>>/<<hostname>>/final/<<mid>>/suffix
 */
-func getFinalMetricsDir(mId string, suffix uint64) string {
+func GetFinalMetricsDir(mId string, suffix uint64) string {
 	// TODO: use filepath.Join
 	var sb strings.Builder
 	sb.WriteString(config.GetRunningConfig().DataPath)
@@ -1124,7 +1144,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		log.Errorf("rotateSegment: failed to flush metric names for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
 		return err
 	}
-	finalDir := getFinalMetricsDir(ms.Mid, ms.Suffix)
+	finalDir := GetFinalMetricsDir(ms.Mid, ms.Suffix)
 	metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
 	err = os.MkdirAll(path.Dir(path.Dir(finalDir)), 0764)
 	if err != nil {
@@ -1440,6 +1460,18 @@ func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid uint64) (ma
 	return uniqueTagKeys, nil
 }
 
+func GetMetricsEncodedSizeInfo() *MetricsEncodedSizeInfo {
+	return &MetricsEncodedSizeInfo{
+		TotalMSegmentsEncodedSizeInBytes: totalMSegmentsEncodedSizeInBytes,
+		TotalTagsTreeSizeInBytes:         totalTagsTreeSizeInBytes,
+		TotalTagTreesCount:               totalTagTreesCount,
+		TotalLeafNodesCount:              totalLeafNodesCount,
+		TotalSeriesCount:                 totalSeriesCount,
+		TotalSortedTSIDCount:             totalSortedTSIDCount,
+		TotalTSIDLookupCount:             totalTSIDLookupCount,
+	}
+}
+
 func GetTotalEncodedSize() uint64 {
 	totalSize := uint64(0)
 	totalTagsTreeSize := uint64(0)
@@ -1472,14 +1504,13 @@ func GetTotalEncodedSize() uint64 {
 		}
 	}
 
-	if config.IsDebugMode() {
-		log.Errorf("------------------------------------------")
-		log.Errorf("There are %d tagTrees. Total leaf nodes:%d. Estimated size: %.4fMB", totalTagTrees, totalLeafNodes,
-			utils.ConvertFloatBytesToMB(float64(totalTagsTreeSize)))
-		log.Errorf("There are %d series in the buffer. %d TSIDs. %d entries in reverse index. Encoded size: %.4fMB", totalSeries,
-			totalSortedTSID, totaltsidlookup, utils.ConvertFloatBytesToMB(float64(totalSize)))
-		log.Errorf("------------------------------------------")
-	}
+	totalMSegmentsEncodedSizeInBytes = totalSize
+	totalTagsTreeSizeInBytes = totalTagsTreeSize
+	totalTagTreesCount = totalTagTrees
+	totalLeafNodesCount = totalLeafNodes
+	totalSeriesCount = totalSeries
+	totalSortedTSIDCount = totalSortedTSID
+	totalTSIDLookupCount = totaltsidlookup
 
 	return totalSize + totalTagsTreeSize
 }

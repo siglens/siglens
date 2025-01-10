@@ -684,6 +684,7 @@ func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, search
 
 func (s *Searcher) applyRawSearchForSortedIndex(qsr *query.QuerySegmentRequest, searchResults *segresults.SearchResults,
 	sizeLimit uint64, aggs *structs.QueryAggregators, blockToValidRecNums map[uint16][]uint16) error {
+
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
 		return fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)

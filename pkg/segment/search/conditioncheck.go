@@ -193,10 +193,30 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 	dictEncColNames := make(map[string]bool)
 
+	var validRecords []uint
+	if searchReq.BlockToValidRecNums != nil {
+		records, ok := searchReq.BlockToValidRecNums[blockNum]
+		if !ok {
+			return false, nil, fmt.Errorf("applyColumnarSearchUsingDictEnc: block %v not found in searchReq.BlockToValidRecNums", blockNum)
+		}
+
+		validRecords = make([]uint, len(records))
+		for i, recNum := range records {
+			validRecords[i] = uint(recNum)
+		}
+
+		bsh.SetValidRecords(validRecords)
+	} else {
+		validRecords = make([]uint, bri.AllRecLen)
+		for i := uint16(0); i < bri.AllRecLen; i++ {
+			validRecords[i] = uint(i)
+		}
+	}
+
 	switch sq.SearchType {
 	case MatchAll:
-		for i := uint(0); i < uint(bri.AllRecLen); i++ {
-			bsh.AddMatchedRecord(i)
+		for _, recNum := range validRecords {
+			bsh.AddMatchedRecord(uint(recNum))
 		}
 		return false, dictEncColNames, nil
 
