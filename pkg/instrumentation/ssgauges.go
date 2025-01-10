@@ -76,8 +76,8 @@ const (
 	TotalTagKeyCount
 	TotalTagValueCount
 	TotalIndexCount
-	EventCountPerMinute
-	EventVolumePerMinute
+	PastMinuteEventCount
+	PastMinuteEventVolume
 	TotalSegmentCount
 	TotalColumnCount
 	TotalCMISize
@@ -155,15 +155,15 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		unit:        "count",
 		description: "Total number of indexes",
 	},
-	EventCountPerMinute: {
-		name:        "ss.event.count.per.minute",
+	PastMinuteEventCount: {
+		name:        "ss.past.minute.event.count",
 		unit:        "count",
-		description: "Number of events ingested in the current minute",
+		description: "Number of events ingested in the past minute",
 	},
-	EventVolumePerMinute: {
-		name:        "ss.event.volume.per.minute",
+	PastMinuteEventVolume: {
+		name:        "ss.past.minute.event.volume",
 		unit:        "bytes",
-		description: "Volume of events ingested in the current minute",
+		description: "Volume of events ingested in the past minute",
 	},
 	TotalSegmentCount: {
 		name:        "ss.total.segment.count",
@@ -202,8 +202,8 @@ var (
 	SetTotalTagKeyCount            = makeGaugeSetter(TotalTagKeyCount)
 	SetTotalTagValueCount          = makeGaugeSetter(TotalTagValueCount)
 	SetTotalIndexCount             = makeGaugeSetter(TotalIndexCount)
-	SetEventCountPerMinute         = makeGaugeSetter(EventCountPerMinute)
-	SetEventVolumePerMinute        = makeGaugeSetter(EventVolumePerMinute)
+	SetPastMinuteEventCount        = makeGaugeSetter(PastMinuteEventCount)
+	SetPastMinuteEventVolume       = makeGaugeSetter(PastMinuteEventVolume)
 	SetTotalSegmentCount           = makeGaugeSetter(TotalSegmentCount)
 	SetTotalColumnCount            = makeGaugeSetter(TotalColumnCount)
 	SetTotalCMISize                = makeGaugeSetter(TotalCMISize)

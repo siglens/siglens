@@ -55,8 +55,7 @@ func ingestionMetricsLooper() {
 		var totalCmiSize uint64 = 0
 		var totalCsgSize uint64 = 0
 		uniqueIndexes := make(map[string]struct{})
-		totalColumns := make(map[string]struct{})
-		segmentCounts := make(map[string]int)
+		uniqueColumns := make(map[string]struct{})
 
 		allSegmetas := segwriter.ReadGlobalSegmetas()
 
@@ -67,7 +66,7 @@ func ingestionMetricsLooper() {
 			uniqueIndexes[segmeta.VirtualTableName] = struct{}{}
 
 			for col := range segmeta.ColumnNames {
-				totalColumns[col] = struct{}{}
+				uniqueColumns[col] = struct{}{}
 			}
 
 			totalSegments++
@@ -96,19 +95,17 @@ func ingestionMetricsLooper() {
 
 			_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, 0)
 			for col := range columnNamesSet {
-				totalColumns[col] = struct{}{}
+				uniqueColumns[col] = struct{}{}
 			}
 
 			if len(columnNamesSet) > 0 {
 				totalSegments++
 			}
 
-			totalSegments += int64(segmentCounts[indexName])
-
 			for _, segmeta := range allSegmetas {
 				if segmeta != nil && segmeta.VirtualTableName == indexName {
 					for col := range segmeta.ColumnNames {
-						totalColumns[col] = struct{}{}
+						uniqueColumns[col] = struct{}{}
 					}
 				}
 			}
@@ -150,10 +147,10 @@ func ingestionMetricsLooper() {
 		instrumentation.SetTotalEventCount(currentEventCount)
 		instrumentation.SetTotalBytesReceived(currentBytesReceived)
 		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
-		instrumentation.SetEventCountPerMinute(eventCountPerMinute)
-		instrumentation.SetEventVolumePerMinute(eventVolumePerMinute)
+		instrumentation.SetPastMinuteEventCount(eventCountPerMinute)
+		instrumentation.SetPastMinuteEventVolume(eventVolumePerMinute)
 		instrumentation.SetTotalSegmentCount(totalSegments)
-		instrumentation.SetTotalColumnCount(int64(len(totalColumns)))
+		instrumentation.SetTotalColumnCount(int64(len(uniqueColumns)))
 		instrumentation.SetTotalCMISize(int64(totalCmiSize))
 		instrumentation.SetTotalCSGSize(int64(totalCsgSize))
 	}
