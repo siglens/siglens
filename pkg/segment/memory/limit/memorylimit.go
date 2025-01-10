@@ -91,7 +91,7 @@ func printMemoryManagerSummary() {
 	metricsSizeInfo := metrics.GetMetricsEncodedSizeInfo()
 	log.Infof("GlobalMemoryTracker: MetricsEncodedSizeInfo: TotalTagTrees: %d, TotalLeafNodes: %d, TotalTagsTreeSize: %.4f MB. TotalSeriesCount: %d, TotalTSIDs: %d, TotalTSIDLookup (reverse Index): %d, TotalMSegmentsEncodedSize(AllBlocks): %.4f MB, TotalInMemoryMSegEncodedSize: %.4f MB, InMemoryMSegEncSize + TotalTagsTreeSize: %.4f MB",
 		metricsSizeInfo.TotalTagTreesCount, metricsSizeInfo.TotalLeafNodesCount, utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalTagsTreeSizeInBytes)),
-		metricsSizeInfo.TotalSeriesCount, metricsSizeInfo.TotalSortedTSIDCount, metricsSizeInfo.TotalTSIDLookupCount, utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalMSegmentsEncodedSizeInBytes)),
+		metricsSizeInfo.TotalSeriesCount, metricsSizeInfo.TotalSortedTSIDCount, metricsSizeInfo.TotalTSIDLookupCount, utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalAllMSegmentsEncodedSizeInBytes)),
 		utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalMSegBlocksEncodedSizeInBytes)), utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalMSegBlocksEncodedSizeInBytes+metricsSizeInfo.TotalTagsTreeSizeInBytes)))
 
 	log.Infof("GlobalMemoryTracker: Unrotated metadata has %v total segKeys. %+v have loaded metadata in memory. This accounts for %v MB",

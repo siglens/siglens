@@ -88,18 +88,18 @@ var totalTagsTreeSizeInBytes uint64
 var totalSeriesCount int
 var totalSortedTSIDCount int
 var totalTSIDLookupCount int
-var totalAllMSegmentsEncodedSizeInBytes uint64
-var totalMSegBlocksEncodedSizeInBytes uint64
+var totalAllMSegmentsEncodedSizeInBytes uint64 // Size of all blocks in all metrics segments including the blocks that are rotated
+var totalMSegBlocksEncodedSizeInBytes uint64   // Size of blocks in all metrics segments that are in memory. Unrotated blocks
 
 type MetricsEncodedSizeInfo struct {
-	TotalTagTreesCount                int
-	TotalLeafNodesCount               int
-	TotalTagsTreeSizeInBytes          uint64
-	TotalSeriesCount                  int
-	TotalSortedTSIDCount              int
-	TotalTSIDLookupCount              int
-	TotalMSegmentsEncodedSizeInBytes  uint64
-	TotalMSegBlocksEncodedSizeInBytes uint64
+	TotalTagTreesCount                  int
+	TotalLeafNodesCount                 int
+	TotalTagsTreeSizeInBytes            uint64
+	TotalSeriesCount                    int
+	TotalSortedTSIDCount                int
+	TotalTSIDLookupCount                int
+	TotalAllMSegmentsEncodedSizeInBytes uint64
+	TotalMSegBlocksEncodedSizeInBytes   uint64
 }
 
 /*
@@ -1464,14 +1464,14 @@ func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid uint64) (ma
 
 func GetMetricsEncodedSizeInfo() *MetricsEncodedSizeInfo {
 	return &MetricsEncodedSizeInfo{
-		TotalMSegmentsEncodedSizeInBytes:  totalAllMSegmentsEncodedSizeInBytes,
-		TotalMSegBlocksEncodedSizeInBytes: totalMSegBlocksEncodedSizeInBytes,
-		TotalTagsTreeSizeInBytes:          totalTagsTreeSizeInBytes,
-		TotalTagTreesCount:                totalTagTreesCount,
-		TotalLeafNodesCount:               totalLeafNodesCount,
-		TotalSeriesCount:                  totalSeriesCount,
-		TotalSortedTSIDCount:              totalSortedTSIDCount,
-		TotalTSIDLookupCount:              totalTSIDLookupCount,
+		TotalAllMSegmentsEncodedSizeInBytes: totalAllMSegmentsEncodedSizeInBytes,
+		TotalMSegBlocksEncodedSizeInBytes:   totalMSegBlocksEncodedSizeInBytes,
+		TotalTagsTreeSizeInBytes:            totalTagsTreeSizeInBytes,
+		TotalTagTreesCount:                  totalTagTreesCount,
+		TotalLeafNodesCount:                 totalLeafNodesCount,
+		TotalSeriesCount:                    totalSeriesCount,
+		TotalSortedTSIDCount:                totalSortedTSIDCount,
+		TotalTSIDLookupCount:                totalTSIDLookupCount,
 	}
 }
 
