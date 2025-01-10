@@ -1158,7 +1158,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 	if segutils.ConvertUintBytesToMB(totalMemory) < SIZE_8GB_IN_MB {
 		if memoryLimits.MaxUsagePercent > 50 {
-			log.Infof("ExtractConfigData: MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
+			log.Infof("ExtractConfigData: MaxUsagePercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
 			memoryLimits.MaxUsagePercent = 50
 		} else if memoryLimits.MaxUsagePercent == 0 {
 			memoryLimits.MaxUsagePercent = 50
