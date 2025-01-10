@@ -33,6 +33,8 @@ import (
 
 const MINUTES_UPDATE_METADATA_MEM_ALLOC = 1
 
+var SegSearchAllocatedBytes uint64 // Should not be changed after initialization
+
 var LOG_GLOBAL_MEM_FREQUENCY = 5
 
 func InitMemoryLimiter() {
@@ -41,7 +43,7 @@ func InitMemoryLimiter() {
 
 	memLimits := config.GetMemoryConfig()
 
-	segSearchBytes := uint64(float64(totalAvailableSizeBytes*memLimits.SearchPercent) / 100)
+	SegSearchAllocatedBytes = uint64(float64(totalAvailableSizeBytes*memLimits.SearchPercent) / 100)
 	rotatedCMIBytes := uint64(float64(totalAvailableSizeBytes*memLimits.CMIPercent) / 100)
 	metricsInMemory := uint64(float64(totalAvailableSizeBytes*memLimits.MetricsPercent) / 100)
 
@@ -52,7 +54,7 @@ func InitMemoryLimiter() {
 	memory.GlobalMemoryTracker = &structs.MemoryTracker{
 		TotalAllocatableBytes:   totalAvailableSizeBytes,
 		RotatedCMIBytesInMemory: rotatedCMIBytes,
-		SegSearchRequestedBytes: segSearchBytes,
+		SegSearchRequestedBytes: SegSearchAllocatedBytes,
 		MetricsSegmentMaxSize:   metricsInMemory,
 
 		SegWriterUsageBytes: 0,
@@ -66,7 +68,7 @@ func InitMemoryLimiter() {
 func printMemoryManagerSummary() {
 	numLoadedUnrotated, totalUnrotated := writer.GetUnrotatedMetadataInfo()
 	unrotaedSize := writer.GetSizeOfUnrotatedMetadata()
-	log.Infof("GlobalMemoryTracker: Total memory: %+v MB", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
+	log.Infof("GlobalMemoryTracker: Total allocatable Memory: %+v MB", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
 	log.Infof("GlobalMemoryTracker: segCount: %v, indexCount: %v, CmiInMemoryAllocated: %+v MB",
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalSegmentCount,
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalTableCount,
@@ -88,7 +90,7 @@ func printMemoryManagerSummary() {
 	log.Infof("GlobalMemoryTracker: Unrotated metadata has %v total segKeys. %+v have loaded metadata in memory. This accounts for %v MB",
 		totalUnrotated, numLoadedUnrotated, utils.ConvertUintBytesToMB(unrotaedSize))
 	log.Infof("GlobalMemoryTracker: SegSearch has been allocated %v MB.", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.SegSearchRequestedBytes))
-	log.Infof("GlobalMemoryTracker: SegWriter has been allocated %v MB. MetricsWriter has been allocated %v MB.",
+	log.Infof("GlobalMemoryTracker: SegWriterUsageBytes %v MB. MetricsWriter has been allocated %v MB.",
 		utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.SegWriterUsageBytes), utils.ConvertUintBytesToMB(memory.GetAvailableMetricsIngestMemory()))
 }
 
@@ -132,6 +134,11 @@ func rebalanceMemoryAllocation() {
 	memLimits := config.GetMemoryConfig()
 	totalSsmMemory := uint64(float64(memoryAvailable*memLimits.MetadataPercent) / 100)
 	segmetadata.RebalanceInMemorySsm(totalSsmMemory)
+
+	if memory.GlobalMemoryTracker.SegSearchRequestedBytes < SegSearchAllocatedBytes {
+		// reset the allocatedSegSearchBytes as we may have freed up memory
+		atomic.StoreUint64(&memory.GlobalMemoryTracker.SegSearchRequestedBytes, SegSearchAllocatedBytes)
+	}
 
 	if memory.GlobalMemoryTracker.SegSearchRequestedBytes > memoryAvailable {
 		memoryAvailable = 0
