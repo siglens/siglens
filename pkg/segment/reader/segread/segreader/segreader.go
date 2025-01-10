@@ -552,10 +552,10 @@ func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
 	return dWord, nil
 }
 
-// If validRecords is nil, then all records are considered valid; otherwise,
-// only those in validRecords can be added to the results.
-func (sfr *SegmentFileReader) AddRecNumsToMr(dwordIdx uint16, bsh *structs.BlockSearchHelper,
-	validRecords []uint) {
+func (sfr *SegmentFileReader) AddRecNumsToMr(dwordIdx uint16, bsh *structs.BlockSearchHelper) {
+	// If validRecords is nil, then all records are considered valid;
+	// otherwise, only those in validRecords can be added to the results.
+	validRecords := bsh.GetValidRecords()
 
 	if validRecords == nil {
 		for i := uint16(0); i < sfr.blockSummaries[sfr.currBlockNum].RecCount; i++ {

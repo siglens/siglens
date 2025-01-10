@@ -411,7 +411,7 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
-	bsh *structs.BlockSearchHelper, cname string, isCaseInsensitive bool, validRecords []uint) (bool, error) {
+	bsh *structs.BlockSearchHelper, cname string, isCaseInsensitive bool) (bool, error) {
 
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
@@ -419,12 +419,12 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *struct
 	}
 
 	fileReader := mcsr.allFileReaders[keyIndex]
-	return ApplySearchToMatchFilterDictCsg(fileReader, match, bsh, isCaseInsensitive, validRecords)
+	return ApplySearchToMatchFilterDictCsg(fileReader, match, bsh, isCaseInsensitive)
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,
 	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper,
-	cname string, isCaseInsensitive bool, validRecords []uint) (bool, error) {
+	cname string, isCaseInsensitive bool) (bool, error) {
 
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
@@ -432,7 +432,7 @@ func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte 
 	}
 
 	fileReader := mcsr.allFileReaders[keyIndex]
-	return ApplySearchToExpressionFilterDictCsg(fileReader, qValDte, fop, isRegexSearch, bsh, isCaseInsensitive, validRecords)
+	return ApplySearchToExpressionFilterDictCsg(fileReader, qValDte, fop, isRegexSearch, bsh, isCaseInsensitive)
 }
 
 func (mcsr *MultiColSegmentReader) IsColPresent(cname string) bool {
