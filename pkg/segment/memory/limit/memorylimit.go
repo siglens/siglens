@@ -28,6 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -86,6 +87,11 @@ func printMemoryManagerSummary() {
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalMetricsSegmentCount,
 		memory.GlobalMemoryTracker.SegStoreSummary.InMemoryMetricsSearchMetadataCount,
 		memory.GlobalMemoryTracker.SegStoreSummary.InMemoryMetricsBSumSizeMB)
+
+	metricsSizeInfo := metrics.GetMetricsEncodedSizeInfo()
+	log.Infof("GlobalMemoryTracker: MetricsEncodedSizeInfo: TotalTagTrees: %d, TotalLeafNodes: %d, TotalTagsTreeSize: %.4f MB. TotalSeriesCount: %d, TotalTSIDs: %d, TotalTSIDLookup (reverse Index): %d, TotalEncodedSize: %.4f MB",
+		metricsSizeInfo.TotalTagTreesCount, metricsSizeInfo.TotalLeafNodesCount, utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalTagsTreeSizeInBytes)),
+		metricsSizeInfo.TotalSeriesCount, metricsSizeInfo.TotalSortedTSIDCount, metricsSizeInfo.TotalTSIDLookupCount, utils.ConvertFloatBytesToMB(float64(metricsSizeInfo.TotalMSegmentsEncodedSizeInBytes)))
 
 	log.Infof("GlobalMemoryTracker: Unrotated metadata has %v total segKeys. %+v have loaded metadata in memory. This accounts for %v MB",
 		totalUnrotated, numLoadedUnrotated, utils.ConvertUintBytesToMB(unrotaedSize))
