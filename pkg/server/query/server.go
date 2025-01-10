@@ -114,8 +114,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	// common routes
 
 	hs.Router.GET(server_utils.API_PREFIX+"/health", tracing.TraceMiddleware(hs.Recovery(getHealthHandler())))
-	hs.Router.POST(server_utils.API_PREFIX+"/setconfig/transient", hs.Recovery(postSetconfigHandler(false)))
-	hs.Router.POST(server_utils.API_PREFIX+"/setconfig/persistent", hs.Recovery(postSetconfigHandler(true)))
 	hs.Router.GET(server_utils.API_PREFIX+"/config", tracing.TraceMiddleware(hs.Recovery(getConfigHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/config/reload", tracing.TraceMiddleware(hs.Recovery(getConfigReloadHandler())))
 
