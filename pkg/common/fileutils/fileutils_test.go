@@ -3,6 +3,7 @@ package fileutils
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,4 +90,40 @@ func Test_GetAllFilesWithSpecificExtensions(t *testing.T) {
 	}
 	assert.Equal(t, 4, len(retVal))
 	assert.ElementsMatch(t, expectedPaths, retVal)
+}
+
+func Test_GetDirSize_empty(t *testing.T) {
+	tmpDir := t.TempDir()
+	size, err := GetDirSize(tmpDir)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), int64(size))
+}
+
+func Test_GetDirSize_nonExistent(t *testing.T) {
+	size, err := GetDirSize("non-existent")
+	assert.Error(t, err)
+	assert.Equal(t, int64(0), int64(size))
+}
+
+func Test_GetDirSize(t *testing.T) {
+	tmpDir := t.TempDir()
+	file1Size := 100
+	file2Size := 200
+	file3Size := 300
+	expectedSize := int64(file1Size + file2Size + file3Size)
+
+	rootFile := filepath.Join(tmpDir, "root.txt")
+	assert.NoError(t, os.WriteFile(rootFile, []byte(strings.Repeat("a", file1Size)), 0644))
+
+	nestedDir := filepath.Join(tmpDir, "nested")
+	assert.NoError(t, os.Mkdir(nestedDir, 0755))
+
+	file1 := filepath.Join(nestedDir, "file1.txt")
+	file2 := filepath.Join(nestedDir, "file2.txt")
+	assert.NoError(t, os.WriteFile(file1, []byte(strings.Repeat("b", file2Size)), 0644))
+	assert.NoError(t, os.WriteFile(file2, []byte(strings.Repeat("c", file3Size)), 0644))
+
+	size, err := GetDirSize(tmpDir)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedSize, int64(size))
 }
