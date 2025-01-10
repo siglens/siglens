@@ -66,7 +66,7 @@ func InitMemoryLimiter() {
 func printMemoryManagerSummary() {
 	numLoadedUnrotated, totalUnrotated := writer.GetUnrotatedMetadataInfo()
 	unrotaedSize := writer.GetSizeOfUnrotatedMetadata()
-	log.Infof("GlobalMemoryTracker: Total memory: %+v MB", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
+	log.Infof("GlobalMemoryTracker: Total allocatable Memory: %+v MB", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.TotalAllocatableBytes))
 	log.Infof("GlobalMemoryTracker: segCount: %v, indexCount: %v, CmiInMemoryAllocated: %+v MB",
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalSegmentCount,
 		memory.GlobalMemoryTracker.SegStoreSummary.TotalTableCount,
@@ -88,7 +88,7 @@ func printMemoryManagerSummary() {
 	log.Infof("GlobalMemoryTracker: Unrotated metadata has %v total segKeys. %+v have loaded metadata in memory. This accounts for %v MB",
 		totalUnrotated, numLoadedUnrotated, utils.ConvertUintBytesToMB(unrotaedSize))
 	log.Infof("GlobalMemoryTracker: SegSearch has been allocated %v MB.", utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.SegSearchRequestedBytes))
-	log.Infof("GlobalMemoryTracker: SegWriter has been allocated %v MB. MetricsWriter has been allocated %v MB.",
+	log.Infof("GlobalMemoryTracker: SegWriterUsageBytes %v MB. MetricsWriter has been allocated %v MB.",
 		utils.ConvertUintBytesToMB(memory.GlobalMemoryTracker.SegWriterUsageBytes), utils.ConvertUintBytesToMB(memory.GetAvailableMetricsIngestMemory()))
 }
 
