@@ -40,7 +40,7 @@ returns:
 	err
 */
 func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *structs.MatchFilter,
-	bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
+	bsh *structs.BlockSearchHelper, isCaseInsensitive bool, validRecords []uint) (bool, error) {
 	var compiledRegex *regexp.Regexp
 	var err error
 
@@ -62,7 +62,7 @@ func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *st
 			return false, err
 		}
 		if matched {
-			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh)
+			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh, validRecords)
 		}
 	}
 
@@ -83,7 +83,7 @@ returns:
 	err
 */
 func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qValDte *utils.DtypeEnclosure,
-	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
+	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool, validRecords []uint) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
@@ -100,7 +100,7 @@ func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qVal
 			return false, err
 		}
 		if matched {
-			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh)
+			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh, validRecords)
 		}
 	}
 

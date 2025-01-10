@@ -193,10 +193,29 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 	dictEncColNames := make(map[string]bool)
 
+	var validRecords []uint
+	if searchReq.BlockToValidRecNums != nil {
+		records, ok := searchReq.BlockToValidRecNums[blockNum]
+		if !ok {
+			// TODO: do this check in the caller.
+			return false, dictEncColNames, fmt.Errorf("applyColumnarSearchUsingDictEnc: block %v not found in searchReq.BlockToValidRecNums", blockNum)
+		}
+
+		validRecords = make([]uint, len(records))
+		for i, recNum := range records {
+			validRecords[i] = uint(recNum)
+		}
+	} else {
+		validRecords = make([]uint, bri.AllRecLen)
+		for i := uint16(0); i < bri.AllRecLen; i++ {
+			validRecords[i] = uint(i)
+		}
+	}
+
 	switch sq.SearchType {
 	case MatchAll:
-		for i := uint(0); i < uint(bri.AllRecLen); i++ {
-			bsh.AddMatchedRecord(i)
+		for _, recNum := range validRecords {
+			bsh.AddMatchedRecord(uint(recNum))
 		}
 		return false, dictEncColNames, nil
 
@@ -210,7 +229,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			return true, dictEncColNames, nil
 		}
 
-		found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
+		found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive, validRecords)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: matchwords dict search failed, err=%v", err)
 			return false, dictEncColNames, err
@@ -230,7 +249,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 			}
 
 			dictEncColNames[cname] = true
-			found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, cname, sq.FilterIsCaseInsensitive)
+			found, err := mcr.ApplySearchToMatchFilterDictCsg(sq.MatchFilter, bsh, cname, sq.FilterIsCaseInsensitive, validRecords)
 			if err != nil {
 				continue
 			}
@@ -254,7 +273,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 		}
 
 		found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
-			sq.ExpressionFilter.FilterOp, regex, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive)
+			sq.ExpressionFilter.FilterOp, regex, bsh, sq.QueryInfo.ColName, sq.FilterIsCaseInsensitive, validRecords)
 		if err != nil {
 			log.Errorf("applyColumnarSearchUsingDictEnc: simpleexp/wildrexp dict search failed, err=%v", err)
 			return false, dictEncColNames, err
@@ -275,7 +294,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 			dictEncColNames[cname] = true
 			found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
-				sq.ExpressionFilter.FilterOp, true, bsh, cname, sq.FilterIsCaseInsensitive)
+				sq.ExpressionFilter.FilterOp, true, bsh, cname, sq.FilterIsCaseInsensitive, validRecords)
 			if err != nil {
 				continue
 			}
@@ -299,7 +318,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 
 			dictEncColNames[cname] = true
 			found, err := mcr.ApplySearchToExpressionFilterDictCsg(sq.QueryInfo.QValDte,
-				sq.ExpressionFilter.FilterOp, false, bsh, cname, sq.FilterIsCaseInsensitive)
+				sq.ExpressionFilter.FilterOp, false, bsh, cname, sq.FilterIsCaseInsensitive, validRecords)
 			if err != nil {
 				continue
 			}
