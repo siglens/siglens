@@ -19,7 +19,6 @@ package queryserver
 
 import (
 	"crypto/tls"
-	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -31,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/server"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	tracing "github.com/siglens/siglens/pkg/tracing"
 	"github.com/siglens/siglens/pkg/utils"
@@ -327,15 +327,15 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	var g run.Group
 
 	if config.IsTlsEnabled() {
-		cfg := &tls.Config{
-			Certificates: make([]tls.Certificate, 1),
+		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+		if err != nil {
+			// log.Fatalf("Run: error in loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			log.Errorf("Run: error in loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			// return err
 		}
 
-		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
-
-		if err != nil {
-			fmt.Println("Run: error in loading TLS certificate: ", err)
-			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+		cfg := &tls.Config{
+			GetCertificate: certReloader.GetCertificate,
 		}
 
 		hs.lnTls = tls.NewListener(hs.ln, cfg)
