@@ -43,6 +43,7 @@ type UnrotatedSegmentInfo struct {
 	TableName           string
 	searchMetadataSize  uint64 // size of blockSummaries & blockInfo
 	cmiSize             uint64 // size of UnrotatedBlockCmis
+	removedCmiSize      uint64 // size of removed CMI due to memory rebalance
 	isCmiLoaded         bool   // is UnrotatedBlockCmis loaded?
 	RecordCount         int
 	orgid               uint64
@@ -55,7 +56,7 @@ var recentlyRotatedSegmentFilesLock sync.RWMutex = sync.RWMutex{}
 var TotalUnrotatedMetadataSizeBytes uint64
 
 func GetSizeOfUnrotatedMetadata() uint64 {
-	return TotalUnrotatedMetadataSizeBytes
+	return atomic.LoadUint64(&TotalUnrotatedMetadataSizeBytes)
 }
 
 // Removed unrotated metadata from in memory based on the available size and return the new in memory size
@@ -76,7 +77,7 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 	}
 
 	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].cmiSize < ss[j].cmiSize
+		return ss[i].cmiSize-ss[i].removedCmiSize < ss[j].cmiSize-ss[j].removedCmiSize
 	})
 	removedSize := uint64(0)
 	count := 0
@@ -84,9 +85,9 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 		if removedSize >= sizeToRemove {
 			break
 		}
-
-		if ss[i].isCmiLoaded {
-			removedSize += ss[i].removeInMemoryMetadata()
+		sizeToRemove = ss[i].removeInMemoryMetadata()
+		if sizeToRemove > 0 {
+			removedSize += sizeToRemove
 			count++
 		}
 	}
@@ -482,13 +483,11 @@ Only usi.UnrotatedBlockCmis will be removed from in memory
 Returns the size removed
 */
 func (usi *UnrotatedSegmentInfo) removeInMemoryMetadata() uint64 {
-
-	if usi.isCmiLoaded {
-		usi.isCmiLoaded = false
-		usi.unrotatedBlockCmis = make([]map[string]*structs.CmiContainer, 0)
-		return usi.cmiSize
-	}
-	return 0
+	usi.isCmiLoaded = false
+	currentSizeToRemove := usi.cmiSize - usi.removedCmiSize
+	usi.removedCmiSize += currentSizeToRemove
+	usi.unrotatedBlockCmis = make([]map[string]*structs.CmiContainer, 0)
+	return currentSizeToRemove
 }
 
 /*
@@ -497,9 +496,7 @@ Returns the in memory size of a UnrotatedSegmentInfo
 func (usi *UnrotatedSegmentInfo) getInMemorySize() uint64 {
 
 	size := uint64(0)
-	if usi.isCmiLoaded {
-		size += usi.cmiSize
-	}
+	size += usi.cmiSize - usi.removedCmiSize
 	size += usi.searchMetadataSize
 
 	return size
