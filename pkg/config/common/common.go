@@ -149,9 +149,8 @@ type Configuration struct {
 	MemoryConfig                MemoryConfig   `yaml:"memoryLimits"`
 	MaxAllowedColumns           uint64         `yaml:"maxAllowedColumns"`
 	UseNewPipelineConverted     bool
-	UseNewQueryPipeline         string                  `yaml:"isNewQueryPipelineEnabled"`
-	EnableSortIndex             utils.WithDefault[bool] `yaml:"enableSortIndex"`
-	QueryTimeoutSecs            int                     `yaml:"queryTimeoutSecs"`
+	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
+	QueryTimeoutSecs            int    `yaml:"queryTimeoutSecs"`
 }
 
 type RunModConfig struct {

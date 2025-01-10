@@ -848,17 +848,14 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 }
 
 func writeSortIndexes(segkey string, indexName string) {
+	sortedIndexWG.Add(1)
+	defer sortedIndexWG.Done()
 
-	if config.IsSortIndexEnabled() {
-		sortedIndexWG.Add(1)
-		defer sortedIndexWG.Done()
-
-		for _, cname := range sortindex.GetSortColumnNamesForIndex(indexName) {
-			err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
-			if err != nil {
-				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
-					segkey, cname, err)
-			}
+	for _, cname := range sortindex.GetSortColumnNamesForIndex(indexName) {
+		err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
+		if err != nil {
+			log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
+				segkey, cname, err)
 		}
 	}
 }

@@ -5,14 +5,12 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/processor"
-	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_SearchSorter(t *testing.T) {
 	runningConfig := config.GetTestConfig(t.TempDir())
 	runningConfig.SSInstanceName = "test"
-	runningConfig.EnableSortIndex = utils.DefaultValue(false).Set(true)
 	config.SetConfig(runningConfig)
 	config.SetNewQueryPipelineEnabled(true)
 	err := config.InitDerivedConfig("test")
