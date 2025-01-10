@@ -77,8 +77,6 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.GET(server_utils.API_PREFIX+"/health", hs.Recovery(getHealthHandler()))
 	hs.router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
 
-	hs.router.POST("/setconfig/transient", hs.Recovery(postSetconfigHandler(false)))
-	hs.router.POST("/setconfig/persistent", hs.Recovery(postSetconfigHandler(true)))
 	hs.router.GET("/config", hs.Recovery(getConfigHandler()))
 	hs.router.POST("/config/reload", hs.Recovery(getConfigReloadHandler()))
 

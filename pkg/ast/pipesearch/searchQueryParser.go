@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/siglens/siglens/pkg/ast"
-	"github.com/siglens/siglens/pkg/ast/logql"
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -175,8 +174,6 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	switch queryLanguage {
 	case "Pipe QL":
 		res, err = Parse("", []byte(searchText))
-	case "Log QL":
-		res, err = logql.Parse("", []byte(searchText))
 	case "Splunk QL":
 		res, err = spl.Parse("", []byte(searchText))
 		forceCaseSensitive = false
