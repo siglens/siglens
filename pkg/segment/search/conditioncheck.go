@@ -197,8 +197,7 @@ func applyColumnarSearchUsingDictEnc(sq *SearchQuery, mcr *segread.MultiColSegme
 	if searchReq.BlockToValidRecNums != nil {
 		records, ok := searchReq.BlockToValidRecNums[blockNum]
 		if !ok {
-			// TODO: do this check in the caller.
-			return false, dictEncColNames, fmt.Errorf("applyColumnarSearchUsingDictEnc: block %v not found in searchReq.BlockToValidRecNums", blockNum)
+			return false, nil, fmt.Errorf("applyColumnarSearchUsingDictEnc: block %v not found in searchReq.BlockToValidRecNums", blockNum)
 		}
 
 		validRecords = make([]uint, len(records))
