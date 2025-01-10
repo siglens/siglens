@@ -2104,7 +2104,7 @@ div.dts div.dataTables_scrollBody table {
     color: var(--text-color);
     font-size: 1em;
     height: fit-content;
-    width: 464px !important;
+    width: 436px !important;
     z-index: 10;
 }
 .delete-dialog{
@@ -2129,7 +2129,7 @@ div.dts div.dataTables_scrollBody table {
 
 .popupContent .header,.delete-dialog .header ,.mypopupContent .header{
   color: var(--text-color);
-  margin-bottom: 25px;
+  margin-bottom: 16px;
   font-weight: bold;
   font-size: 18px;
 }
@@ -2469,7 +2469,7 @@ input[type="text"].active {
 
 .saveqButton,
 .cancelqButton {
-    width: 195px !important;
+    width: 183px !important;
     height: 32px !important;
     border-radius: 5px;
     border: none;
