@@ -44,7 +44,6 @@ type queryserverCfg struct {
 	Addr   string
 	//	Log    *zap.Logger //ToDo implement debug logger
 	ln            net.Listener
-	lnTls         net.Listener
 	Router        *router.Router
 	staticHandler fasthttp.RequestHandler
 	debug         bool
@@ -324,7 +323,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		MaxRequestBodySize: hs.Config.MaxRequestBodySize, //  100 << 20, // 100MB // 1000 * 4, // MaxRequestBodySize:
 		Concurrency:        hs.Config.Concurrency,
 	}
-	var g run.Group
 
 	if config.IsTlsEnabled() {
 		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
@@ -337,23 +335,17 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			GetCertificate: certReloader.GetCertificate,
 		}
 
-		hs.lnTls = tls.NewListener(hs.ln, cfg)
-
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.lnTls)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
-
-	} else {
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
+		hs.ln = tls.NewListener(hs.ln, cfg)
 	}
+
+	var g run.Group
+	g.Add(func() error {
+		return s.Serve(hs.ln)
+	}, func(e error) {
+		log.Errorf("queryServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
+		_ = hs.ln.Close()
+	})
+
 	return g.Run()
 }
 

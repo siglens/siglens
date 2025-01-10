@@ -163,9 +163,6 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		Concurrency:        hs.Config.Concurrency,
 	}
 
-	// run fasthttp server
-	var g run.Group
-
 	if config.IsTlsEnabled() {
 		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 		if err != nil {
@@ -178,21 +175,16 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		}
 
 		hs.ln = tls.NewListener(hs.ln, cfg)
-
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			log.Errorf("ingestionServerCfg.Run: Failed to serve TLS on %s, err=%v", hs.Addr, e)
-			_ = hs.ln.Close()
-		})
-	} else {
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			log.Errorf("ingestionServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
-			_ = hs.ln.Close()
-		})
 	}
+
+	var g run.Group
+	g.Add(func() error {
+		return s.Serve(hs.ln)
+	}, func(e error) {
+		log.Errorf("ingestionServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
+		_ = hs.ln.Close()
+	})
+
 	return g.Run()
 }
 
