@@ -23,8 +23,11 @@ let systemInfo, inodeInfo;
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
-    systemInfo,inodeInfo  = await getSystemAndInodeInfo();
-    console.log("systemInfo", systemInfo, inodeInfo);
+    const result = await getSystemAndInodeInfo();
+    if (result) {
+        systemInfo = result.systemInfo;
+        inodeInfo = result.inodeInfo;
+    }
     fetchQueryTimeout()
     {{ .SettingsExtraOnReadySetup }}
     {{ .Button1Function }}
