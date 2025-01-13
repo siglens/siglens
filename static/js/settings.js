@@ -18,11 +18,13 @@
  */
 
 let currentTimeout = 0;
+let systemInfo, inodeInfo;
 
-$(document).ready(function () {
+$(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
-    getSystemAndInodeInfo();
+    systemInfo,inodeInfo  = await getSystemAndInodeInfo();
+    console.log("systemInfo", systemInfo, inodeInfo);
     fetchQueryTimeout()
     {{ .SettingsExtraOnReadySetup }}
     {{ .Button1Function }}

@@ -136,7 +136,7 @@ let navbarComponent = `
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
-    { name: 'Settings', url: './org-settings.html', class: 'org-settings' },
+    { name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
     { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
     { name: 'Version', url: './application-version.html', class: 'application-version' },
