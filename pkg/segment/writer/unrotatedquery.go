@@ -85,9 +85,9 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 		if removedSize >= sizeToRemove {
 			break
 		}
-		sizeToRemove = ss[i].removeInMemoryMetadata()
-		if sizeToRemove > 0 {
-			removedSize += sizeToRemove
+		size := ss[i].removeInMemoryMetadata()
+		if size > 0 {
+			removedSize += size
 			count++
 		}
 	}
