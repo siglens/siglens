@@ -1039,10 +1039,12 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	numRawSearch += rotatedRawCount
 	numPQS += rotatedPQS
 
-	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-	if err != nil {
-		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-		return nil, 0, 0, 0, err
+	if queryInfo.dqs != nil {
+		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
+		if err != nil {
+			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
+			return nil, 0, 0, 0, err
+		}
 	}
 
 	// Sort query segment results depending on aggs
