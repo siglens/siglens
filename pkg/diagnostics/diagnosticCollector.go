@@ -64,12 +64,12 @@ func CollectDiagnosticsAPI(ctx *fasthttp.RequestCtx) {
 			}
 		}
 	}
-    
-    if err := zipWriter.Close(); err != nil {
-        ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-        ctx.SetBodyString("Failed to close zip file: " + err.Error())
-        return
-    }
+
+	if err := zipWriter.Close(); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.SetBodyString("Failed to close zip file: " + err.Error())
+		return
+	}
 
 	ctx.SetContentType("application/zip")
 	ctx.Response.Header.Set("Content-Disposition",
