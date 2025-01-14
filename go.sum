@@ -55,6 +55,8 @@ github.com/fasthttp/router v1.4.1 h1:3xPUO+hy/HAkgGDSd5sX5w18cyGDIFbC7vip8KwPDk8
 github.com/fasthttp/router v1.4.1/go.mod h1:4P0Kq4C882tA2evBKDW7De7hGfWmvV8FN+zqt8Lu49Q=
 github.com/fasthttp/websocket v1.5.0 h1:B4zbe3xXyvIdnqjOZrafVFklCUq5ZLo/TqCt5JA1wLE=
 github.com/fasthttp/websocket v1.5.0/go.mod h1:n0BlOQvJdPbTuBkZT0O5+jk/sp/1/VCzquR1BehI2F4=
+github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
+github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
 github.com/go-co-op/gocron v1.31.1 h1:LZAuBlU0t3SPGUMJGhrJ6VuCc3CsrYzkzicygvVWlfA=
 github.com/go-co-op/gocron v1.31.1/go.mod h1:39f6KNSGVOU1LO/ZOoZfcSxwlsJDQOKSu8erN0SH48Y=
 github.com/go-kit/log v0.2.1 h1:MRVx0/zhvdseW+Gza6N9rVzU/IVzaeE1SFI4raAhmBU=
