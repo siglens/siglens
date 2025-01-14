@@ -2066,6 +2066,21 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 0px;
 }
 
+.white-download-icon{
+    background-image: url(../assets/download-icon-dark.svg);
+    height: 13px;
+    background-repeat: no-repeat;
+    width: 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+    margin-left: 0px;
+    padding-bottom: 0;
+    background-size: contain;
+    background-position: center;
+    margin-right: 2px;
+}
+
 /* Delete confimation popup */
 .popupOverlay,.mypopupOverlay {
   visibility: hidden;
