@@ -158,7 +158,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	agg1.Next = &agg2
 
 	queryInfo := &query.QueryInformation{}
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.LOGS, 0)
 	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
@@ -202,7 +202,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 	}
 
 	queryInfo := &query.QueryInformation{}
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.LOGS, 0)
 	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)

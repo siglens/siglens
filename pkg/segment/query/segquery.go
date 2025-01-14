@@ -1039,10 +1039,12 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	numRawSearch += rotatedRawCount
 	numPQS += rotatedPQS
 
-	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-	if err != nil {
-		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-		return nil, 0, 0, 0, err
+	if queryInfo.dqs != nil {
+		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
+		if err != nil {
+			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
+			return nil, 0, 0, 0, err
+		}
 	}
 
 	// Sort query segment results depending on aggs
@@ -1217,6 +1219,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func ApplyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		return fmt.Errorf("ApplyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)

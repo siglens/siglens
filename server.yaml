@@ -21,9 +21,6 @@ esVersion: "7.9.3"
 ## Number of hours data will be stored/retained on persistent storage.
 # retentionHours: 360
 
-## Percent of available RAM that siglens will occupy
-# memoryThresholdPercent: 80
-
 ## For ephemeral servers (docker, k8s) set this variable to unique container name to persist data across restarts:
 # the default ssInstanceName is "sigsingle"
 ssInstanceName: "sigsingle"
@@ -47,3 +44,7 @@ tls:
 queryHostname: ""
 
 queryTimeoutSecs: 300  # 5 minutes default
+
+# memoryLimits:
+#   lowMemoryMode: true  # Set to true to enable low memory mode
+#   maxUsagePercent: 80  # Percent of available RAM that siglens will occupy

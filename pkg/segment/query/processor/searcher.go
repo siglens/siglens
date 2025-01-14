@@ -26,7 +26,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -151,7 +150,7 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 }
 
 func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
-	if searcher == nil || searcher.sortExpr == nil {
+	if searcher == nil || searcher.sortExpr == nil || len(searcher.sortExpr.SortEles) == 0 {
 		return nil, nil
 	}
 
@@ -267,7 +266,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
 		// Get blocks for the segment batch to process
-		if config.IsSortIndexEnabled() && s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
+		if s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
 			return s.fetchColumnSortedRRCs()
 		}
 		// initialize QSRs if they don't exist
@@ -685,6 +684,7 @@ func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, search
 
 func (s *Searcher) applyRawSearchForSortedIndex(qsr *query.QuerySegmentRequest, searchResults *segresults.SearchResults,
 	sizeLimit uint64, aggs *structs.QueryAggregators, blockToValidRecNums map[uint16][]uint16) error {
+
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
 		return fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)

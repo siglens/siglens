@@ -18,12 +18,14 @@
 package ingestserver
 
 import (
+	"crypto/tls"
 	"net"
 	"strings"
 	"time"
 
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/server"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/fasthttp/router"
@@ -77,8 +79,6 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.GET(server_utils.API_PREFIX+"/health", hs.Recovery(getHealthHandler()))
 	hs.router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
 
-	hs.router.POST("/setconfig/transient", hs.Recovery(postSetconfigHandler(false)))
-	hs.router.POST("/setconfig/persistent", hs.Recovery(postSetconfigHandler(true)))
 	hs.router.GET("/config", hs.Recovery(getConfigHandler()))
 	hs.router.POST("/config/reload", hs.Recovery(getConfigReloadHandler()))
 
@@ -163,24 +163,28 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		Concurrency:        hs.Config.Concurrency,
 	}
 
-	// run fasthttp server
-	var g run.Group
-
 	if config.IsTlsEnabled() {
-		g.Add(func() error {
-			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
-		}, func(e error) {
-			log.Errorf("ingestionServerCfg.Run: Failed to serve TLS on %s, err=%v", hs.Addr, e)
-			_ = hs.ln.Close()
-		})
-	} else {
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			log.Errorf("ingestionServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
-			_ = hs.ln.Close()
-		})
+		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+		if err != nil {
+			log.Fatalf("Run: error loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			return err
+		}
+
+		cfg := &tls.Config{
+			GetCertificate: certReloader.GetCertificate,
+		}
+
+		hs.ln = tls.NewListener(hs.ln, cfg)
 	}
+
+	var g run.Group
+	g.Add(func() error {
+		return s.Serve(hs.ln)
+	}, func(e error) {
+		log.Errorf("ingestionServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
+		_ = hs.ln.Close()
+	})
+
 	return g.Run()
 }
 
