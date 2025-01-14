@@ -19,7 +19,6 @@ package queryserver
 
 import (
 	"crypto/tls"
-	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -31,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/server"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	tracing "github.com/siglens/siglens/pkg/tracing"
 	"github.com/siglens/siglens/pkg/utils"
@@ -44,7 +44,6 @@ type queryserverCfg struct {
 	Addr   string
 	//	Log    *zap.Logger //ToDo implement debug logger
 	ln            net.Listener
-	lnTls         net.Listener
 	Router        *router.Router
 	staticHandler fasthttp.RequestHandler
 	debug         bool
@@ -326,37 +325,29 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		MaxRequestBodySize: hs.Config.MaxRequestBodySize, //  100 << 20, // 100MB // 1000 * 4, // MaxRequestBodySize:
 		Concurrency:        hs.Config.Concurrency,
 	}
-	var g run.Group
 
 	if config.IsTlsEnabled() {
-		cfg := &tls.Config{
-			Certificates: make([]tls.Certificate, 1),
-		}
-
-		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
-
+		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 		if err != nil {
-			fmt.Println("Run: error in loading TLS certificate: ", err)
-			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+			log.Fatalf("Run: error loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			return err
 		}
 
-		hs.lnTls = tls.NewListener(hs.ln, cfg)
+		cfg := &tls.Config{
+			GetCertificate: certReloader.GetCertificate,
+		}
 
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.lnTls)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
-
-	} else {
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
+		hs.ln = tls.NewListener(hs.ln, cfg)
 	}
+
+	var g run.Group
+	g.Add(func() error {
+		return s.Serve(hs.ln)
+	}, func(e error) {
+		log.Errorf("queryServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
+		_ = hs.ln.Close()
+	})
+
 	return g.Run()
 }
 
