@@ -78,6 +78,7 @@ type Hooks struct {
 	WriteUsageStatsIfConditionHook    func() bool
 	WriteUsageStatsElseExtraLogicHook func()
 	ForceFlushIfConditionHook         func() bool
+	GetWaitingQueriesHook             func() (interface{}, error)
 
 	// Blobstore
 	InitBlobStoreExtrasHook             func() (bool, error)
