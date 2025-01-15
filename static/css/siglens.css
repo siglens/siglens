@@ -2435,7 +2435,7 @@ div#download-info {
     display: none;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus, input[type="number"]:focus {
     color: var(--search-bar-text-color-active);
     border-radius: 5px;
     background: var(--search-bar-bg);
@@ -3088,7 +3088,6 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     background: var(--ui-widget-bg-color);
     padding: 13px 0 14px 14px;
     box-sizing: border-box;
-    color: var(--search-bar-text-color-regular-or-hover);
     border: 1px solid var(--ui-widget-border-color);
     width: 100%;
     height: 32px;
