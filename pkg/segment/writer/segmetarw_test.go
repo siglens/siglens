@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"os"
 	"path/filepath"
@@ -160,4 +161,73 @@ func Test_ReplaceMiddleSegMeta(t *testing.T) {
 	assert.Equal(t, segMeta2V2.RecordCount, segMetas[newTestSegKey(2)].RecordCount)
 	assert.Equal(t, segMeta3.SegmentKey, segMetas[newTestSegKey(3)].SegmentKey)
 	assert.Equal(t, segMeta3.RecordCount, segMetas[newTestSegKey(3)].RecordCount)
+}
+
+func Test_removeSegmetas_byIndex(t *testing.T) {
+	t.Cleanup(cleanupSfmFiles)
+
+	config.InitializeDefaultConfig(t.TempDir())
+	initSmr()
+
+	segMeta1 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(1),
+		VirtualTableName: "ind-0",
+	}
+	segMeta2 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(2),
+		VirtualTableName: "ind-0",
+	}
+	segMeta3 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(3),
+		VirtualTableName: "ind-1",
+	}
+
+	AddOrReplaceRotatedSegmeta(segMeta1)
+	AddOrReplaceRotatedSegmeta(segMeta2)
+	AddOrReplaceRotatedSegmeta(segMeta3)
+
+	segMetasArr := ReadLocalSegmeta(false)
+	require.Len(t, segMetasArr, 3)
+
+	removeSegmetas(nil, "ind-0")
+
+	segMetasArr = ReadLocalSegmeta(false)
+	assert.Len(t, segMetasArr, 1)
+	assert.Equal(t, segMeta3.SegmentKey, segMetasArr[0].SegmentKey)
+}
+
+func Test_removeSegmetas_bySegkey(t *testing.T) {
+	t.Cleanup(cleanupSfmFiles)
+
+	config.InitializeDefaultConfig(t.TempDir())
+	initSmr()
+
+	segMeta1 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(1),
+		VirtualTableName: "ind-0",
+	}
+	segMeta2 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(2),
+		VirtualTableName: "ind-0",
+	}
+	segMeta3 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(3),
+		VirtualTableName: "ind-1",
+	}
+
+	AddOrReplaceRotatedSegmeta(segMeta1)
+	AddOrReplaceRotatedSegmeta(segMeta2)
+	AddOrReplaceRotatedSegmeta(segMeta3)
+
+	segMetasArr := ReadLocalSegmeta(false)
+	require.Len(t, segMetasArr, 3)
+
+	removeSegmetas(map[string]struct{}{
+		newTestSegKey(1): {},
+		newTestSegKey(3): {},
+	}, "")
+
+	segMetasArr = ReadLocalSegmeta(false)
+	assert.Len(t, segMetasArr, 1)
+	assert.Equal(t, segMeta2.SegmentKey, segMetasArr[0].SegmentKey)
 }
