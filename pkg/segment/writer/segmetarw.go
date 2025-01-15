@@ -449,6 +449,16 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 	segbaseDirs := make(map[string]struct{})
 	preservedSmEntries := make([]*structs.SegMeta, 0)
 
+	for segkey := range segkeysToRemove {
+		baseDir, err := utils.GetSegBaseDirFromFilename(segkey)
+		if err != nil {
+			log.Errorf("removeSegmetas: Cannot get segbaseDir from segkey=%v; err=%v", segkey, err)
+			continue
+		}
+
+		segbaseDirs[baseDir] = struct{}{}
+	}
+
 	smrLock.Lock()
 	defer smrLock.Unlock()
 
@@ -484,8 +494,6 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 				continue
 			}
 		}
-
-		segbaseDirs[segMetaData.SegbaseDir] = struct{}{}
 	}
 	err = reader.Err()
 	if err != nil {
