@@ -179,6 +179,8 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 		}
 	}
 
+	// Make two subsearchers. One handles segments that have the required sort
+	// index files; the other handles the segments lacking them.
 	subsearchers := make([]*Searcher, 2)
 	for i := 0; i < 2; i++ {
 		subsearchers[i], err = newSearcherHelper(searcher.queryInfo, searcher.querySummary,
@@ -193,7 +195,7 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	subsearchers[1].qsrs = otherQSRs
 	subsearchers[1].initUnprocessedQSRs()
 	subsearchers[1].sortIndexState.forceNormalSearch = true
-	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
+	subsearchers[1].segEncToKeyBaseValue += uint32(len(sortIndexQSRs))
 
 	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), searcher.qid)
 
