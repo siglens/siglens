@@ -439,9 +439,11 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 	}
 }
 
-// Removes segmetas based on given segkeys and returns the segbasedirs for those segkeys
+// If indexName is provided, remove all segmetas for that index. Otherwise,
+// remove the segmetas for the specified segkeys.
+//
+// Returns the segbaseDirs for the segkeys that were removed
 func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[string]struct{} {
-
 	if segkeysToRemove == nil && indexName == "" {
 		return nil
 	}
@@ -485,6 +487,8 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 			if segMetaData.VirtualTableName != indexName {
 				preservedSmEntries = append(preservedSmEntries, &segMetaData)
 				continue
+			} else {
+				segbaseDirs[segMetaData.SegbaseDir] = struct{}{}
 			}
 		} else {
 			// check if based on segmetas
