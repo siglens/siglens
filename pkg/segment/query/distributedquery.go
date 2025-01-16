@@ -27,6 +27,7 @@ type DistributedQueryServiceInterface interface {
 	DistributeQuery(qI *QueryInformation) (uint64, error)
 	IsDistributed() bool
 	GetSegEncToKeyBaseValue() uint32
+	GetNumNodesDistributedTo() uint64
 }
 
 type DistributedQueryService struct {
@@ -65,5 +66,9 @@ func (d *DistributedQueryService) IsDistributed() bool {
 }
 
 func (d *DistributedQueryService) GetSegEncToKeyBaseValue() uint32 {
+	return 0
+}
+
+func (d *DistributedQueryService) GetNumNodesDistributedTo() uint64 {
 	return 0
 }
