@@ -170,7 +170,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		case qscd, ok := <-eventC:
 			switch qscd.StateName {
 			case query.RUNNING:
-				processRunningUpdate(conn, qid)
+				processQueryStateUpdate(conn, qid, qscd.StateName)
 			case query.QUERY_UPDATE:
 				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs, includeNulls)
 			case query.TIMEOUT:
@@ -204,7 +204,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
 	websocketR := make(chan map[string]interface{})
-	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc, scrollFrom)
+	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc, scrollFrom, nil, false)
 	if err != nil {
 		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
@@ -213,6 +213,8 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 		}
 		return
 	}
+
+	var lastQueryState query.QueryState
 
 	go listenToConnection(qid, websocketR, conn)
 	for {
@@ -224,9 +226,20 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 				query.DeleteQuery(qid)
 				return
 			}
+
+			if lastQueryState == query.PAUSED && queryStateChanData.StateName != query.RESTARTED {
+				continue
+			}
+
+			if queryStateChanData.Qid != qid {
+				continue
+			}
+
+			lastQueryState = queryStateChanData.StateName
+
 			switch queryStateChanData.StateName {
 			case query.RUNNING:
-				processRunningUpdate(conn, qid)
+				processQueryStateUpdate(conn, qid, queryStateChanData.StateName)
 			case query.TIMEOUT:
 				processTimeoutUpdate(conn, qid)
 				query.DeleteQuery(qid)
@@ -250,6 +263,11 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 				}
 				query.DeleteQuery(qid)
 				return
+			case query.PAUSED:
+				processQueryStateUpdate(conn, qid, query.PAUSED)
+			case query.RESTARTED:
+				qid = queryStateChanData.Qid
+				processQueryStateUpdate(conn, qid, query.RESTARTED)
 			default:
 				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got unknown state: %v", qid, queryStateChanData.StateName)
 			}
@@ -324,15 +342,15 @@ func processCancelQuery(conn *websocket.Conn, qid uint64) {
 	}
 }
 
-func processRunningUpdate(conn *websocket.Conn, qid uint64) {
+func processQueryStateUpdate(conn *websocket.Conn, qid uint64, queryState query.QueryState) {
 
 	e := map[string]interface{}{
-		"state": query.RUNNING.String(),
+		"state": queryState.String(),
 		"qid":   qid,
 	}
 	wErr := conn.WriteJSON(e)
 	if wErr != nil {
-		log.Errorf("qid=%d, processRunningUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
+		log.Errorf("qid=%d, processQueryStateUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 	}
 }
 

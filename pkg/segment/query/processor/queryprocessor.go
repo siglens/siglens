@@ -444,6 +444,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				StateName:       query.QUERY_UPDATE,
 				PercentComplete: result.Completion,
 				UpdateWSResp:    result,
+				Qid:             qp.qid,
 			}
 		}
 	}
@@ -478,6 +479,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	stateChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		CompleteWSResp: completeResp,
+		Qid:            qp.qid,
 	}
 
 	return nil

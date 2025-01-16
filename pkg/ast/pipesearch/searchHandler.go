@@ -318,33 +318,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		rQuery, err := query.StartQuery(qid, false, nil)
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-
-		signal := <-rQuery.StateChan
-		if signal.StateName != query.READY {
-			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: Did not receive ready state, received: %v", qid, signal.StateName)
-		}
-
-		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc, scrollFrom)
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-
-		httpResponse, err := queryProcessor.GetFullResult()
-		if err != nil {
-			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
-		}
-
-		query.SetQidAsFinishedForPipeRespQuery(qid)
-
-		query.DeleteQuery(qid)
-
-		return httpResponse, false, simpleNode.TimeRange, nil
+		return segment.ExecuteQueryForNewPipeline(qid, simpleNode, aggs, qc, false)
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)

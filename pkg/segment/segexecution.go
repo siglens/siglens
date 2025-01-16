@@ -40,7 +40,7 @@ import (
 func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-	rQuery, err := query.StartQuery(qid, false, nil)
+	rQuery, err := query.StartQuery(qid, false, nil, false)
 
 	if err != nil {
 		return &mresults.MetricsResult{
@@ -73,7 +73,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		}
 		querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 		defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
-		rQuery, err := query.StartQuery(qid, false, nil)
+		rQuery, err := query.StartQuery(qid, false, nil, false)
 		if err != nil {
 			return &mresults.MetricsResult{
 				ErrList: []error{toputils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
@@ -439,7 +439,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
-	rQuery, err := query.StartQuery(qid, false, nil)
+	rQuery, err := query.StartQuery(qid, false, nil, false)
 	if err != nil {
 		return &structs.NodeResult{
 			ErrList: []error{toputils.TeeErrorf("ExecuteQuery: Error initializing query status! %v", err)},
@@ -474,8 +474,43 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 	return res
 }
 
-func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext, scrollFrom int) (chan *query.QueryStateChanData, error) {
-	rQuery, err := query.StartQuery(qid, true, nil)
+func ExecuteQueryForNewPipeline(qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
+	qc *structs.QueryContext, forceRun bool) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+
+	rQuery, _, err := query.StartQueryAsCoordinator(qid, false, nil, root, aggs, qc, nil, forceRun)
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
+		return nil, false, nil, err
+	}
+
+	scrollFrom := qc.Scroll
+
+	signal := <-rQuery.StateChan
+	if signal.StateName != query.READY {
+		return nil, false, nil, toputils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: Did not receive ready state, received: %v", qid, signal.StateName)
+	}
+
+	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, scrollFrom)
+	if err != nil {
+		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
+		return nil, false, nil, err
+	}
+
+	httpResponse, err := queryProcessor.GetFullResult()
+	if err != nil {
+		return nil, false, nil, toputils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
+	}
+
+	query.SetQidAsFinishedForPipeRespQuery(qid)
+
+	query.DeleteQuery(qid)
+
+	return httpResponse, false, root.TimeRange, nil
+}
+
+func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext,
+	scrollFrom int, queryStateChan chan *query.QueryStateChanData, forceRun bool) (chan *query.QueryStateChanData, error) {
+	rQuery, _, err := query.StartQueryAsCoordinator(qid, true, nil, root, aggs, qc, queryStateChan, forceRun)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to start query, err: %v", qid, err)
 		return nil, err
@@ -507,10 +542,37 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 	return rQuery.StateChan, nil
 }
 
+func ResubmitPausedQueries(queries map[uint64]*query.RunningQueryState) {
+	for oldQid, rQuery := range queries {
+		isAsync, isCoordinator, astNode, qc, aggs := rQuery.GetQueryInitiationInfo()
+		if !isCoordinator {
+			// This case should not happen.
+			log.Errorf("qid=%v, ResubmitPausedQueries: query is not a coordinator query", oldQid)
+			continue
+		}
+
+		// forceRun queries that are paused
+		if isAsync {
+			qid := rutils.GetNextQid()
+			log.Infof("qid=%v, ResubmitPausedQueries: Resubmitting query with new qid=%v", oldQid, qid)
+			go func(rq *query.RunningQueryState) {
+				_, err := ExecuteAsyncQueryForNewPipeline(astNode, aggs, qid, qc, qc.Scroll, rq.StateChan, true)
+				if err != nil {
+					log.Errorf("qid=%v, ResubmitPausedQueries: error while running query, err: %v", qid, err)
+				}
+			}(rQuery)
+		}
+		// TODO: Implement for Http (non-async) queries
+
+	}
+
+	log.Infof("ResubmitPausedQueries: Successfully resubmitted %d queries", len(queries))
+}
+
 // The caller of this function is responsible for calling query.DeleteQuery(qid) to remove the qid info from memory.
 // Returns a channel that will have events for query status or any error. An error means the query was not successfully started
 func ExecuteAsyncQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) (chan *query.QueryStateChanData, error) {
-	rQuery, err := query.StartQuery(qid, true, nil)
+	rQuery, err := query.StartQuery(qid, true, nil, false)
 	if err != nil {
 		log.Errorf("ExecuteAsyncQuery: Error initializing query status! %+v", err)
 		return nil, err
