@@ -439,15 +439,27 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 	}
 }
 
-// Removes segmetas based on given segkeys and returns the segbasedirs for those segkeys
+// If indexName is provided, remove all segmetas for that index. Otherwise,
+// remove the segmetas for the specified segkeys.
+//
+// Returns the segbaseDirs for the segkeys that were removed
 func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[string]struct{} {
-
 	if segkeysToRemove == nil && indexName == "" {
 		return nil
 	}
 
 	segbaseDirs := make(map[string]struct{})
 	preservedSmEntries := make([]*structs.SegMeta, 0)
+
+	for segkey := range segkeysToRemove {
+		baseDir, err := utils.GetSegBaseDirFromFilename(segkey)
+		if err != nil {
+			log.Errorf("removeSegmetas: Cannot get segbaseDir from segkey=%v; err=%v", segkey, err)
+			continue
+		}
+
+		segbaseDirs[baseDir] = struct{}{}
+	}
 
 	smrLock.Lock()
 	defer smrLock.Unlock()
@@ -475,6 +487,8 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 			if segMetaData.VirtualTableName != indexName {
 				preservedSmEntries = append(preservedSmEntries, &segMetaData)
 				continue
+			} else {
+				segbaseDirs[segMetaData.SegbaseDir] = struct{}{}
 			}
 		} else {
 			// check if based on segmetas
@@ -484,8 +498,6 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 				continue
 			}
 		}
-
-		segbaseDirs[segMetaData.SegbaseDir] = struct{}{}
 	}
 	err = reader.Err()
 	if err != nil {

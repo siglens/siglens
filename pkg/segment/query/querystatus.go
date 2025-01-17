@@ -1512,12 +1512,16 @@ func getActiveQueriesInfo() []ActiveQueryInfo {
 	return activeQueries
 }
 
-func getWaitingQueriesInfo() []WaitingQueryInfo {
+func GetWaitingQueries() []*WaitStateData {
 	waitingQueriesLock.Lock()
 	queries := make([]*WaitStateData, len(waitingQueries))
 	copy(queries, waitingQueries)
 	waitingQueriesLock.Unlock()
 
+	return queries
+}
+
+func GetWaitingInfoFor(queries []*WaitStateData) []WaitingQueryInfo {
 	waitingQueriesInfo := make([]WaitingQueryInfo, 0, len(queries))
 
 	for _, wQuery := range queries {
@@ -1530,4 +1534,24 @@ func getWaitingQueriesInfo() []WaitingQueryInfo {
 	}
 
 	return waitingQueriesInfo
+}
+
+func getWaitingQueriesInfo() []WaitingQueryInfo {
+	if hook := hooks.GlobalHooks.GetWaitingQueriesHook; hook != nil {
+		resultAsAny, err := hook()
+		if err != nil {
+			log.Errorf("getWaitingQueriesInfo: error in hook: %v", err)
+			return nil
+		}
+
+		result, ok := resultAsAny.([]WaitingQueryInfo)
+		if !ok {
+			log.Errorf("getWaitingQueriesInfo: hook returned %T instead of []*WaitStateData", resultAsAny)
+			return nil
+		}
+
+		return result
+	}
+
+	return GetWaitingInfoFor(GetWaitingQueries())
 }

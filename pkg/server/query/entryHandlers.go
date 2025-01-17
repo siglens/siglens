@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
+	"github.com/siglens/siglens/pkg/diagnostics"
 	esreader "github.com/siglens/siglens/pkg/es/reader"
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
@@ -754,5 +755,11 @@ func UpdateQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
 func setSortColumnsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		sortindex.SetSortColumnsAPI(ctx)
+	}
+}
+
+func collectDiagnosticsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		diagnostics.CollectDiagnosticsAPI(ctx)
 	}
 }

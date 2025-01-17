@@ -43,7 +43,7 @@ import (
 
 const MAXIMUM_WARNINGS_COUNT = 5
 
-const RETENTION_LOOP_SLEEP_TIMER = 30
+const RETENTION_LOOP_SLEEP_MINUTES = 30
 
 const MAX_INODE_USAGE_PERCENT = 85
 
@@ -70,7 +70,7 @@ func internalRetentionCleaner() {
 
 	deletionWarningCounter := 0
 	for {
-		time.Sleep(RETENTION_LOOP_SLEEP_TIMER * time.Minute)
+		time.Sleep(RETENTION_LOOP_SLEEP_MINUTES * time.Minute)
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
