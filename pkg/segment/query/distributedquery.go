@@ -18,6 +18,7 @@
 package query
 
 import (
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 )
@@ -28,6 +29,7 @@ type DistributedQueryServiceInterface interface {
 	IsDistributed() bool
 	GetSegEncToKeyBaseValue() uint32
 	GetNumNodesDistributedTo() uint64
+	GetOwnedSegments(orgId uint64) (map[string]struct{}, error)
 }
 
 type DistributedQueryService struct {
@@ -71,4 +73,8 @@ func (d *DistributedQueryService) GetSegEncToKeyBaseValue() uint32 {
 
 func (d *DistributedQueryService) GetNumNodesDistributedTo() uint64 {
 	return 0
+}
+
+func (d *DistributedQueryService) GetOwnedSegments(orgId uint64) (map[string]struct{}, error) {
+	return metadata.GetAllSegKeysForOrg(orgId), nil
 }
