@@ -37,8 +37,6 @@ func Test_InitFolderStructure(t *testing.T) {
 	assert.True(t, exists)
 	assert.Equal(t, "Root", rootFolder.Name)
 	assert.Equal(t, ItemTypeFolder, rootFolder.Type)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_CreateFolder(t *testing.T) {
@@ -77,8 +75,6 @@ func Test_CreateFolder(t *testing.T) {
 	}
 	_, err = createFolder(&invalidParentReq, 0)
 	assert.NotNil(t, err)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_CreateDashboard(t *testing.T) {
@@ -119,8 +115,6 @@ func Test_CreateDashboard(t *testing.T) {
 	}
 	_, err = createDashboard(&invalidReq, 0)
 	assert.NotNil(t, err)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_DeleteFolder(t *testing.T) {
@@ -158,8 +152,6 @@ func Test_DeleteFolder(t *testing.T) {
 	// Test case 3: Try to delete non-existent folder
 	err = deleteFolder("non-existent-id")
 	assert.NotNil(t, err)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_ListItems(t *testing.T) {
@@ -201,8 +193,6 @@ func Test_ListItems(t *testing.T) {
 	result, err = listItems(&req)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, result.TotalCount) // Only dashboard matches
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_UpdateDashboard(t *testing.T) {
@@ -233,8 +223,6 @@ func Test_UpdateDashboard(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "Updated Dashboard", dashboard["name"])
 	assert.Equal(t, "Updated Description", dashboard["description"])
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_ToggleFavorite(t *testing.T) {
@@ -266,8 +254,6 @@ func Test_ToggleFavorite(t *testing.T) {
 	isFavorite, err = toggleFavorite(dashID)
 	assert.Nil(t, err)
 	assert.False(t, isFavorite)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_UpdateFolder(t *testing.T) {
@@ -315,8 +301,6 @@ func Test_UpdateFolder(t *testing.T) {
 	}
 	err = updateFolder(folder2ID, &circularReq)
 	assert.NotNil(t, err)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_GenerateBreadcrumbs(t *testing.T) {
@@ -362,8 +346,6 @@ func Test_GenerateBreadcrumbs(t *testing.T) {
 	// Test case 3: Invalid folder ID
 	breadcrumbs = generateBreadcrumbs("invalid-id", structure)
 	assert.Empty(t, breadcrumbs)
-
-	os.RemoveAll(config.GetDataPath())
 }
 
 func Test_GetFolderContents(t *testing.T) {
@@ -404,6 +386,4 @@ func Test_GetFolderContents(t *testing.T) {
 	// Test case 4: Invalid folder ID
 	_, err = getFolderContents("invalid-id", false)
 	assert.NotNil(t, err)
-
-	os.RemoveAll(config.GetDataPath())
 }
