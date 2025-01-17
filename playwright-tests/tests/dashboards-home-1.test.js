@@ -57,12 +57,12 @@ test.describe('Dashboard Search and Sort Tests', () => {
         await page.waitForLoadState('networkidle');
 
         // Search for "Dashboard"
-        await page.fill('#search-input', 'Dashboard');
+        await page.fill('#search-input', 'Dashboard B');
         await page.waitForTimeout(1000);
 
         // Verify dashboard items
         const dashboardRows = await page.locator('.ag-center-cols-container .ag-row').count();
-        expect(dashboardRows).toBe(3); // Should show Dashboard B
+        expect(dashboardRows).toBe(1); // Should show Dashboard B
 
         // Clear search
         await page.fill('#search-input', '');
