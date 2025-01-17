@@ -141,13 +141,13 @@ func initGlobalMetadataRefresh(getMyIds func() []uint64) {
 	}
 
 	ownedSegments := getOwnedSegments()
-	err = RefreshGlobalMetadata(getMyIds, ownedSegments)
+	err = RefreshGlobalMetadata(getMyIds, ownedSegments, true)
 	if err != nil {
 		log.Errorf("initGlobalMetadataRefresh: Error in refreshing global metadata, err:%v", err)
 	}
 }
 
-func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]struct{}) error {
+func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]struct{}, shouldDiscardUnownedSegments bool) error {
 	ingestNodes := make([]string, 0)
 	ingestNodePath := config.GetDataPath() + "ingestnodes"
 
@@ -196,7 +196,9 @@ func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]str
 		}(n)
 	}
 	wg.Wait()
-	segmetadata.DiscardUnownedSegments(ownedSegments)
+	if shouldDiscardUnownedSegments {
+		segmetadata.DiscardUnownedSegments(ownedSegments)
+	}
 
 	return err
 }
