@@ -273,6 +273,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	hs.Router.POST(server_utils.API_PREFIX+"/sort-columns", hs.Recovery(setSortColumnsHandler()))
 
+	hs.Router.GET(server_utils.API_PREFIX+"/collect-diagnostics", hs.Recovery(collectDiagnosticsHandler()))
+
 	if config.IsPProfEnabled() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}

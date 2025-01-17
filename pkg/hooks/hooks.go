@@ -78,6 +78,7 @@ type Hooks struct {
 	WriteUsageStatsIfConditionHook    func() bool
 	WriteUsageStatsElseExtraLogicHook func()
 	ForceFlushIfConditionHook         func() bool
+	GetWaitingQueriesHook             func() (interface{}, error)
 
 	// Blobstore
 	InitBlobStoreExtrasHook             func() (bool, error)
@@ -138,6 +139,7 @@ type HtmlSnippets struct {
 	RunCheck3 string
 	Button1   string
 	Popup1    string
+	Dropdown2 string
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
