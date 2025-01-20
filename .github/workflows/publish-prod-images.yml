@@ -2,7 +2,7 @@ name: siglens-docker-release
 on:
   push:
     branches:
-      - 'auto-tag'
+      - 'main'
 jobs:
   create-tag:
     runs-on: ubuntu-latest
