@@ -21,12 +21,12 @@ jobs:
           git config user.email "actions@github.com"
 
           # Check if tag already exists
-          if ! git rev-parse "v${{ steps.version.outputs.VERSION }}" >/dev/null 2>&1; then
-            git tag "v${{ steps.version.outputs.VERSION }}"
-            git push origin "v${{ steps.version.outputs.VERSION }}"
-            echo "Created and pushed tag v${{ steps.version.outputs.VERSION }}"
+          if ! git rev-parse "${{ steps.version.outputs.VERSION }}" >/dev/null 2>&1; then
+            git tag "${{ steps.version.outputs.VERSION }}"
+            git push origin "${{ steps.version.outputs.VERSION }}"
+            echo "Created and pushed tag ${{ steps.version.outputs.VERSION }}"
           else
-            echo "Tag v${{ steps.version.outputs.VERSION }} already exists"
+            echo "Tag ${{ steps.version.outputs.VERSION }} already exists"
           fi
   siglens-docker:
     runs-on: ubuntu-latest
