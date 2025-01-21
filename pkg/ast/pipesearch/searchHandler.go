@@ -621,8 +621,13 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 		case query.ERROR:
 			if utils.IsRPCUnavailableError(queryStateData.Error) {
-				queryRestarted := listenToRestartQuery(&qid, &rQuery, isAsync, conn)
-				if queryRestarted {
+				newRQuery, newQid, err := listenToRestartQuery(qid, rQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query for rpc failure, err: %v", qid, err)
+				} else {
+					rQuery = newRQuery
+					qid = newQid
+
 					continue
 				}
 			}
@@ -638,7 +643,15 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 				return nil, false, root.TimeRange, queryStateData.Error
 			}
 		case query.QUERY_RESTART:
-			handleRestartQuery(&qid, &rQuery, isAsync, conn)
+			newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
+			if err != nil {
+				log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
+				continue
+			}
+
+			rQuery = newRQuery
+			qid = newQid
+
 		case query.TIMEOUT:
 			defer query.DeleteQuery(qid)
 			if isAsync {
@@ -652,56 +665,51 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 	}
 }
 
-func listenToRestartQuery(qidPtr *uint64, rQueryPtr **query.RunningQueryState, isAsync bool, conn *websocket.Conn) bool {
-	if qidPtr == nil || rQueryPtr == nil {
-		log.Errorf("listenToRestartQuery: qidPtr or rQueryPtr is nil. qidPtr: %v, rQueryPtr: %v", qidPtr, rQueryPtr)
-		return false
+func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
+	if rQuery == nil {
+		return nil, 0, fmt.Errorf("listenToRestartQuery: rQuery is nil")
 	}
 
 	timeout := time.After(10 * time.Second) // wait for 10 seconds for query restart before timing out
 
 	for {
 		select {
-		case queryStateData, ok := <-(*rQueryPtr).StateChan:
+		case queryStateData, ok := <-rQuery.StateChan:
 			if !ok {
-				log.Errorf("qid=%v, listenToRestartQuery: Got non ok, state: %v", *qidPtr, queryStateData.StateName)
-				query.LogGlobalSearchErrors(*qidPtr)
-				query.DeleteQuery(*qidPtr)
-				return false
+				query.LogGlobalSearchErrors(qid)
+				query.DeleteQuery(qid)
+				return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: Got non ok, state: %v", qid, queryStateData.StateName)
 			}
 
-			if queryStateData.Qid != *qidPtr {
+			if queryStateData.Qid != qid {
 				continue
 			}
 
 			if queryStateData.StateName == query.QUERY_RESTART {
-				handleRestartQuery(qidPtr, rQueryPtr, isAsync, conn)
-				return true
+				return handleRestartQuery(qid, rQuery, isAsync, conn)
 			}
 		case <-timeout:
-			log.Errorf("qid=%v, listenToRestartQuery: timed out waiting for query restart", *qidPtr)
-			return false
+			return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: timed out waiting for query restart", qid)
 		}
 	}
 }
 
-func handleRestartQuery(qidPtr *uint64, rQueryPtr **query.RunningQueryState, isAsync bool, conn *websocket.Conn) {
-	newRQuery, newQid, err := (*rQueryPtr).RestartQuery(true)
+func handleRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
+	newRQuery, newQid, err := rQuery.RestartQuery(true)
 	if err != nil {
 		errorState := &query.QueryStateChanData{
-			Qid:       *qidPtr,
+			Qid:       qid,
 			StateName: query.ERROR,
 			Error:     err,
 		}
-		(*rQueryPtr).StateChan <- errorState
+		rQuery.StateChan <- errorState
 
-		return
+		return nil, 0, err
 	}
-
-	*rQueryPtr = newRQuery
-	*qidPtr = newQid
 
 	if isAsync {
-		processQueryStateUpdate(conn, *qidPtr, query.QUERY_RESTART)
+		processQueryStateUpdate(conn, qid, query.QUERY_RESTART)
 	}
+
+	return newRQuery, newQid, nil
 }
