@@ -58,7 +58,7 @@ type VersionResponse struct {
 
 func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessVersionInfo(ctx)
+		systemconfig.ProcessVersionInfo(ctx)
 	}
 }
 

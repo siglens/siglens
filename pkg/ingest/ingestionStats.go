@@ -18,6 +18,7 @@
 package ingest
 
 import (
+	"os"
 	"path/filepath"
 	"sync/atomic"
 	"time"
@@ -227,14 +228,18 @@ func setNumKeysAndValues() {
 func setMetricOnDiskBytes() {
 	tagsTreeHolderDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "tth")
 	tagsTreeHolderSize, err := fileutils.GetDirSize(tagsTreeHolderDir)
-	if err != nil {
+	if os.IsNotExist(err) {
+		tagsTreeHolderSize = 0
+	} else if err != nil {
 		log.Errorf("setMetricOnDiskBytes: failed to get tags tree holder size: %v", err)
 		return
 	}
 
 	timeSeriesDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "ts")
 	timeSeriesSize, err := fileutils.GetDirSize(timeSeriesDir)
-	if err != nil {
+	if os.IsNotExist(err) {
+		timeSeriesSize = 0
+	} else if err != nil {
 		log.Errorf("setMetricOnDiskBytes: failed to get time series size: %v", err)
 		return
 	}
