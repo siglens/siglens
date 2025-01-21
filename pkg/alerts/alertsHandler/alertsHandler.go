@@ -27,7 +27,6 @@ import (
 	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"gorm.io/gorm"
 
@@ -93,14 +92,6 @@ func Disconnect() {
 	}
 	databaseObj.CloseDb()
 }
-
-func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
-	responseBody := make(map[string]interface{})
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	responseBody["version"] = config.SigLensVersion
-	utils.WriteJsonResponse(ctx, responseBody)
-}
-
 func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
 	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
 		_, queryAggs, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)

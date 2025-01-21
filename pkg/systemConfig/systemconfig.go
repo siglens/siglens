@@ -30,6 +30,7 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 
@@ -181,4 +182,15 @@ func GetInodeStats(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetContentType("application/json")
 	ctx.SetBody(response)
+}
+
+func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
+	if hook := hooks.GlobalHooks.ProcessVersionInfoHook; hook != nil {
+		hook(ctx)
+	} else {
+		responseBody := make(map[string]interface{})
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		responseBody["version"] = config.SigLensVersion
+		utils.WriteJsonResponse(ctx, responseBody)
+	}
 }
