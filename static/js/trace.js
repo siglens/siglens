@@ -346,8 +346,8 @@ function displayTimeline(data) {
                 .attr('y', y + 12)
                 .text(`${nsToMs(node.duration)}ms`)
                 .style('font-size', '10px')
-                .attr('class', 'normal-node')
-            }
+                .attr('class', 'normal-node');
+        }
 
         colorIndex = (colorIndex + 1) % colorArray.length;
         // Increment y for the next node
