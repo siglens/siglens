@@ -212,6 +212,12 @@ func (rQuery *RunningQueryState) GetStartTime() time.Time {
 	return rQuery.startTime
 }
 
+func (rQuery *RunningQueryState) IsCoordinator() bool {
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	return rQuery.isCoordinator
+}
+
 func GetQueryStartTime(qid uint64) (time.Time, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]

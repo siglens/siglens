@@ -620,7 +620,7 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 				return httpRespOuter, false, root.TimeRange, nil
 			}
 		case query.ERROR:
-			if utils.IsRPCUnavailableError(queryStateData.Error) {
+			if rQuery.IsCoordinator() && utils.IsRPCUnavailableError(queryStateData.Error) {
 				newRQuery, newQid, err := listenToRestartQuery(qid, rQuery, isAsync, conn)
 				if err != nil {
 					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query for rpc failure, err: %v", qid, err)
