@@ -544,12 +544,6 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 
 func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, rQuery *query.RunningQueryState) {
-	runningState := &query.QueryStateChanData{
-		StateName: query.RUNNING,
-		Qid:       qid,
-	}
-	rQuery.StateChan <- runningState
-
 	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, qc.Scroll)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteQueryInternalNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)

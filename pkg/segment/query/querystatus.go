@@ -473,6 +473,7 @@ func withLockRunQuery(wsData *WaitStateData) {
 	wsData.rQuery.startTime = time.Now()
 
 	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: READY, Qid: wsData.qid}
+	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: RUNNING, Qid: wsData.qid}
 }
 
 func RunQuery(wsData WaitStateData) {

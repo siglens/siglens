@@ -646,6 +646,8 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			} else {
 				return nil, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: query timed out", qid)
 			}
+		case query.CANCELLED:
+			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
 		}
 	}
 }
