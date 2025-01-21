@@ -244,10 +244,47 @@ function displayTimeline(data) {
 
     // recursively render the timeline
     let y = 100;
+    let firstSpan = null;
+
+    function showSpanDetails(node) {
+        let spanDetailsContainer = d3.select('.span-details-container');
+        spanDetailsContainer.style('display', 'block');
+        spanDetailsContainer.html(
+            `
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="operation-name"><strong>${node.operation_name}</strong></div>
+                <div class="close-btn"></div>
+            </div>
+            <hr>
+            <div class="details-container">
+                <div><strong>SpanId</strong>: ${node.span_id} </div>
+                <div><strong>Service</strong>: ${node.service_name}</div>
+                <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
+                <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
+                <div><strong>Tags</strong>:</div>
+                <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
+                  ${Object.entries(node.tags)
+                      .map(
+                          ([key, value]) => `
+                    <tr>
+                      <td ><em>${key}</em></td>
+                      <td style="word-break: break-all;"><em>${value}</em></td>
+                    </tr>`
+                      )
+                      .join('')}
+                </table>
+            </div>
+            `
+        );
+
+        spanDetailsContainer.select('.close-btn').on('click', function () {
+            spanDetailsContainer.style('display', 'none');
+        });
+    }
 
     function renderTimeline(node, level = 0) {
         if (node.children) {
-            node.children.sort((a, b) => a.start_time - b.start_time); // sort by start time
+            node.children.sort((a, b) => a.start_time - b.start_time);
         }
         // Add node labels
         //eslint-disable-next-line no-unused-vars
@@ -262,6 +299,11 @@ function displayTimeline(data) {
             .classed('error-node', node.status === 'STATUS_CODE_ERROR');
 
         if (!node.is_anomalous) {
+            // Store the first non-anomalous span
+            if (firstSpan === null) {
+                firstSpan = node;
+            }
+
             const rect = svg
                 .append('rect')
                 .attr('x', xScale(nsToMs(node.start_time)))
@@ -293,44 +335,8 @@ function displayTimeline(data) {
                 })
                 .on('click', () => {
                     d3.selectAll('.span-details-box').remove();
-                    showSpanDetails(node); // Function to show details
+                    showSpanDetails(node);
                 });
-
-            function showSpanDetails(node) {
-                let spanDetailsContainer = d3.select('.span-details-container');
-                spanDetailsContainer.style('display', 'block');
-                spanDetailsContainer.html(
-                    `
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="operation-name"><strong>${node.operation_name}</strong></div>
-                        <div class="close-btn"></div>
-                    </div>
-                    <hr>
-                    <div class="details-container">
-                        <div><strong>SpanId</strong>: ${node.span_id} </div>
-                        <div><strong>Service</strong>: ${node.service_name}</div>
-                        <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
-                        <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
-                        <div><strong>Tags</strong>:</div>
-                        <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
-                          ${Object.entries(node.tags)
-                              .map(
-                                  ([key, value]) => `
-                            <tr>
-                              <td ><em>${key}</em></td>
-                              <td style="word-break: break-all;"><em>${value}</em></td>
-                            </tr>`
-                              )
-                              .join('')}
-                        </table>
-                    </div>
-                    `
-                );
-
-                spanDetailsContainer.select('.close-btn').on('click', function () {
-                    spanDetailsContainer.style('display', 'none');
-                });
-            }
         }
 
         colorIndex = (colorIndex + 1) % colorArray.length;
@@ -347,6 +353,11 @@ function displayTimeline(data) {
     const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt');
 
     renderTimeline(data);
+
+    // Show details for the first span by default
+    if (firstSpan) {
+        showSpanDetails(firstSpan);
+    }
 }
 
 function calculateTotalHeight(node) {
