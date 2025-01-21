@@ -431,11 +431,6 @@ a.warn-box-anchor {
 #app-container{
     height: 100vh;
 }
-
-/* #dashboard{
-    overflow-y: auto;
-} */
-
 /* Trace Timeline View */
 
 #timeline-container{
