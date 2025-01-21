@@ -229,7 +229,8 @@ function displayTimeline(data) {
         .attr('x1', (d) => xScale(d))
         .attr('x2', (d) => xScale(d))
         .attr('y1', 50)
-        .attr('y2', 100 + totalHeight);
+        .attr('y2', 100 + totalHeight)
+        .attr('stroke-dasharray', '2,2');
 
     // Add time labels
     svg.selectAll('.time-label')
@@ -310,6 +311,8 @@ function displayTimeline(data) {
                 .attr('y', y)
                 .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
                 .attr('height', 14)
+                .attr('rx', 2)
+                .attr('ry', 2)
                 .attr('fill', colorArray[colorIndex])
                 .on('mouseover', () => {
                     rect.style('cursor', 'pointer');
@@ -337,7 +340,14 @@ function displayTimeline(data) {
                     d3.selectAll('.span-details-box').remove();
                     showSpanDetails(node);
                 });
-        }
+
+            svg.append('text')
+                .attr('x', xScale(nsToMs(node.end_time)) + 5)
+                .attr('y', y + 12)
+                .text(`${nsToMs(node.duration)}ms`)
+                .style('font-size', '10px')
+                .attr('class', 'normal-node')
+            }
 
         colorIndex = (colorIndex + 1) % colorArray.length;
         // Increment y for the next node
