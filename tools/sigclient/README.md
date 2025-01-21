@@ -5,7 +5,7 @@
 ### ES Bulk
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ go run main.go ingest esbulk -t 10_000 -d http://localhost:8081/elastic -p 2
+go run main.go ingest esbulk -t 10_000 -d http://localhost:8081/elastic -p 2
 ```
 Options:
 ```
@@ -53,7 +53,7 @@ go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic 
 ### OTSDB
 To send ingestion traffic to a server using OTSDB:
 ```bash
-$ go run main.go ingest metrics -d http://localhost:8081/otsdb -t 10_000  -m 5 -p 1
+go run main.go ingest metrics -d http://localhost:8081/otsdb -t 10_000  -m 5 -p 1
 ```
 Options:
 ```
@@ -72,7 +72,7 @@ Options:
 ### OTSDB
 To send queries using OTSDB and measure responses to a server:
 ```bash
-$ go run main.go otsdb -d http://localhost:8081/otsdb -v
+go run main.go otsdb -d http://localhost:8081/otsdb -v
 ```
 
 
@@ -88,7 +88,7 @@ Options:
 ### ESDSL
 To send queries using ESDSL and measure responses to a server:
 ```bash
-$ go run main.go query -d http://localhost:8081/elastic -v
+go run main.go query -d http://localhost:8081/elastic -v
 ```
 
 
@@ -121,7 +121,7 @@ min(latency),now-1d,now,*,group:min(latency):*,eq,110,Pipe QL
 ## Generating traces
 To generate synthetic traces: 
 ```bash
-$ go run main.go traces -f test_traces -t 1000 -s 10
+go run main.go traces -f test_traces -t 1000 -s 10
 ```
 
 Options:
@@ -133,8 +133,8 @@ Options:
 
 To send ingestion traffic to a server using ES Bulk API:
 ```bash
-$ go run main.go ingest esbulk -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
-$ go run main.go ingest esbulk -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM-DD
+go run main.go ingest esbulk -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_services.json --indexName jaeger-service-YYYY-MM-DD
+go run main.go ingest esbulk -t 1000 -d http://localhost:8081/elastic -g file -x {filePrefix}_spans.json --indexName jaeger-span-YYYY-MM-DD
 ```
 
 Options:
@@ -152,7 +152,7 @@ Options:
 **Run E2E Tests For Alerting**
 
 ```bash
-$ go run main.go alerts e2e -d http://localhost:5122
+go run main.go alerts e2e -d http://localhost:5122
 ```
 
 Options:
@@ -165,7 +165,7 @@ Options:
 
 To convert a TSV to a JSON file that can be ingested via `-f file`:
 ```bash
-$ go run cmd/utils/converter.go --input {input file name} --output {output file name}
+go run cmd/utils/converter.go --input {input file name} --output {output file name}
 ```
 
 ## Functional Test
