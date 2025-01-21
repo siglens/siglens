@@ -72,7 +72,7 @@ Options:
 ### OTSDB
 To send queries using OTSDB and measure responses to a server:
 ```bash
-go run main.go otsdb -d http://localhost:8081/otsdb -v
+go run main.go otsdb -d http://localhost:5122/otsdb -v
 ```
 
 
@@ -88,7 +88,7 @@ Options:
 ### ESDSL
 To send queries using ESDSL and measure responses to a server:
 ```bash
-go run main.go query -d http://localhost:8081/elastic -v
+go run main.go query esbulk -d http://localhost:5122/elastic -v
 ```
 
 
