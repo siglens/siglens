@@ -201,7 +201,7 @@ function convertNanosecondsToDateTime(timestamp) {
 
 function displayTimeline(data) {
     const totalHeight = calculateTotalHeight(data);
-    const padding = { top: 20, right: 20, bottom: 20, left: 20 };
+    const padding = { top: 0, right: 10, bottom: 10, left: 20 };
 
     const svg = d3
         .select('#timeline-container')
@@ -243,7 +243,7 @@ function displayTimeline(data) {
         .text((d) => `${d}ms`);
 
     // recursively render the timeline
-    let y = 100;
+    let y = 60;
     let firstSpan = null;
 
     function showSpanDetails(node) {
@@ -309,7 +309,7 @@ function displayTimeline(data) {
                 .attr('x', xScale(nsToMs(node.start_time)))
                 .attr('y', y)
                 .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
-                .attr('height', 20)
+                .attr('height', 14)
                 .attr('fill', colorArray[colorIndex])
                 .on('mouseover', () => {
                     rect.style('cursor', 'pointer');
@@ -341,7 +341,7 @@ function displayTimeline(data) {
 
         colorIndex = (colorIndex + 1) % colorArray.length;
         // Increment y for the next node
-        y += 50;
+        y += 40;
 
         if (node.children && node.children.length > 0) {
             node.children.forEach((child) => {
@@ -363,13 +363,13 @@ function displayTimeline(data) {
 function calculateTotalHeight(node) {
     let totalHeight = 0;
     function calculateHeight(node) {
-        totalHeight += 50;
+        totalHeight += 40;
         if (node.children !== null) {
             node.children.forEach(calculateHeight);
         }
     }
     calculateHeight(node);
-    return totalHeight + 100;
+    return totalHeight + 40;
 }
 
 $('.section-button').click(function () {
