@@ -43,7 +43,7 @@ import (
 
 type QueryState int
 
-var numStates = 8
+var queryStateChanSize = 10
 
 const MAX_GRP_BUCKS = 3000
 
@@ -242,7 +242,7 @@ func withLockInitializeQuery(qid uint64, async bool, cleanupCallback func(), sta
 	}
 
 	if stateChan == nil {
-		stateChan = make(chan *QueryStateChanData, numStates)
+		stateChan = make(chan *QueryStateChanData, queryStateChanSize)
 	}
 
 	runningState := &RunningQueryState{
@@ -270,9 +270,9 @@ func addToWaitingQueriesQueue(wsData *WaitStateData) error {
 	return nil
 }
 
-// Starts tracking the query state. RunningQueryState.StateChan will be defined & can be used to be sent query updates
-// if forceRun is true, the query will be run immediately, otherwise it will be added to the waiting queue
-// Caller is responsible to call DeleteQuery
+// Starts tracking the query state. RunningQueryState.StateChan will be defined & can be used to send query updates.
+// If forceRun is true, the query will be run immediately, otherwise it will be added to the waiting queue.
+// Caller is responsible to call DeleteQuery.
 func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (*RunningQueryState, error) {
 	arqMapLock.Lock()
 	defer arqMapLock.Unlock()
@@ -298,8 +298,8 @@ func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (
 
 // Starts tracking the query state and sets the query as a coordinator.
 // If StateChan is nil, a new channel will be created, otherwise the provided channel will be used for sending query updates.
-// if forceRun is true, the query will be run immediately, otherwise it will be added to the waiting queue
-// Caller is responsible to call DeleteQuery
+// If forceRun is true, the query will be run immediately, otherwise it will be added to the waiting queue.
+// Caller is responsible to call DeleteQuery.
 func StartQueryAsCoordinator(qid uint64, async bool, cleanupCallback func(), astNode *structs.ASTNode,
 	aggs *structs.QueryAggregators, qc *structs.QueryContext, StateChan chan *QueryStateChanData, forceRun bool) (*RunningQueryState, error) {
 	arqMapLock.Lock()
