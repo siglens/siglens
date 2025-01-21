@@ -477,7 +477,7 @@ func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uin
 func ExecuteQueryForNewPipeline(qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, forceRun bool) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
 
-	rQuery, _, err := query.StartQueryAsCoordinator(qid, false, nil, root, aggs, qc, nil, forceRun)
+	rQuery, err := query.StartQueryAsCoordinator(qid, false, nil, root, aggs, qc, nil, forceRun)
 	if err != nil {
 		log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
 		return nil, false, nil, err
@@ -510,7 +510,7 @@ func ExecuteQueryForNewPipeline(qid uint64, root *structs.ASTNode, aggs *structs
 
 func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext,
 	scrollFrom int, queryStateChan chan *query.QueryStateChanData, forceRun bool) (chan *query.QueryStateChanData, error) {
-	rQuery, _, err := query.StartQueryAsCoordinator(qid, true, nil, root, aggs, qc, queryStateChan, forceRun)
+	rQuery, err := query.StartQueryAsCoordinator(qid, true, nil, root, aggs, qc, queryStateChan, forceRun)
 	if err != nil {
 		log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to start query, err: %v", qid, err)
 		return nil, err
@@ -542,31 +542,65 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 	return rQuery.StateChan, nil
 }
 
-func ResubmitPausedQueries(queries map[uint64]*query.RunningQueryState) {
-	for oldQid, rQuery := range queries {
-		isAsync, isCoordinator, astNode, qc, aggs := rQuery.GetQueryInitiationInfo()
-		if !isCoordinator {
-			// This case should not happen.
-			log.Errorf("qid=%v, ResubmitPausedQueries: query is not a coordinator query", oldQid)
-			continue
-		}
+func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.ASTNode, aggs *structs.QueryAggregators,
+	qc *structs.QueryContext, rQuery *query.RunningQueryState) {
+	runningState := &query.QueryStateChanData{
+		StateName: query.RUNNING,
+		Qid:       qid,
+	}
+	rQuery.StateChan <- runningState
 
-		// forceRun queries that are paused
-		if isAsync {
-			qid := rutils.GetNextQid()
-			log.Infof("qid=%v, ResubmitPausedQueries: Resubmitting query with new qid=%v", oldQid, qid)
-			go func(rq *query.RunningQueryState) {
-				_, err := ExecuteAsyncQueryForNewPipeline(astNode, aggs, qid, qc, qc.Scroll, rq.StateChan, true)
-				if err != nil {
-					log.Errorf("qid=%v, ResubmitPausedQueries: error while running query, err: %v", qid, err)
-				}
-			}(rQuery)
-		}
-		// TODO: Implement for Http (non-async) queries
+	queryProcessor, err := SetupPipeResQuery(root, aggs, qid, qc, qc.Scroll)
+	if err != nil {
+		log.Errorf("qid=%v, ExecuteQueryInternalNewPipeline: failed to SetupPipeResQuery, err: %v", qid, err)
 
+		errorState := query.QueryStateChanData{
+			StateName: query.ERROR,
+			Error:     err,
+			Qid:       qid,
+		}
+		rQuery.StateChan <- &errorState
+		return
 	}
 
-	log.Infof("ResubmitPausedQueries: Successfully resubmitted %d queries", len(queries))
+	if isAsync {
+		err := queryProcessor.GetStreamedResult(rQuery.StateChan)
+		if err != nil {
+			log.Errorf("qid=%v, ExecuteQueryInternalNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
+		}
+
+		errorState := query.QueryStateChanData{
+			StateName: query.ERROR,
+			Error:     err,
+			Qid:       qid,
+		}
+
+		rQuery.StateChan <- &errorState
+
+		return
+	} else {
+		httpResponse, err := queryProcessor.GetFullResult()
+		if err != nil {
+			errorState := query.QueryStateChanData{
+				StateName: query.ERROR,
+				Error:     err,
+				Qid:       qid,
+			}
+			rQuery.StateChan <- &errorState
+			return
+		}
+
+		completeState := &query.QueryStateChanData{
+			StateName:    query.COMPLETE,
+			Qid:          qid,
+			HttpResponse: httpResponse,
+		}
+		rQuery.StateChan <- completeState
+
+		query.SetQidAsFinishedForPipeRespQuery(qid)
+
+		return
+	}
 }
 
 // The caller of this function is responsible for calling query.DeleteQuery(qid) to remove the qid info from memory.

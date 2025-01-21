@@ -31,6 +31,7 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -42,7 +43,7 @@ import (
 
 type QueryState int
 
-var numStates = 4
+var numStates = 9
 
 const MAX_GRP_BUCKS = 3000
 
@@ -71,6 +72,7 @@ type QueryStateChanData struct {
 	PercentComplete float64
 	UpdateWSResp    *structs.PipeSearchWSUpdateResponse
 	CompleteWSResp  *structs.PipeSearchCompleteResponse
+	HttpResponse    *structs.PipeSearchResponseOuter
 	Error           error // Only used when the state is ERROR
 }
 
@@ -87,8 +89,7 @@ const (
 	CANCELLED
 	TIMEOUT
 	ERROR
-	PAUSED
-	RESTARTED
+	QUERY_RESTART
 )
 
 func InitMaxRunningQueries() {
@@ -120,10 +121,8 @@ func (qs QueryState) String() string {
 		return "TIMEOUT"
 	case ERROR:
 		return "ERROR"
-	case PAUSED:
-		return "PAUSED"
-	case RESTARTED:
-		return "RESTARTED"
+	case QUERY_RESTART:
+		return "QUERY_RESTARTED"
 	default:
 		return fmt.Sprintf("UNKNOWN_QUERYSTATE_%d", qs)
 	}
@@ -231,17 +230,14 @@ func GetActiveQueryCount() int {
 	return len(allRunningQueries)
 }
 
-// Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates
-// If async, updates will be sent for any update to RunningQueryState. Caller is responsible to call DeleteQuery
-func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (*RunningQueryState, error) {
-	arqMapLock.Lock()
-	defer arqMapLock.Unlock()
+func withLockInitializeQuery(qid uint64, async bool, cleanupCallback func(), stateChan chan *QueryStateChanData) (*RunningQueryState, error) {
 	if _, ok := allRunningQueries[qid]; ok {
-		log.Errorf("StartQuery: qid %+v already exists!", qid)
-		return nil, fmt.Errorf("qid has already been started")
+		return nil, fmt.Errorf("withLockInitializeQuery: qid %+v already exists", qid)
 	}
 
-	stateChan := make(chan *QueryStateChanData, numStates)
+	if stateChan == nil {
+		stateChan = make(chan *QueryStateChanData, numStates)
+	}
 
 	runningState := &RunningQueryState{
 		qid:               qid,
@@ -254,34 +250,54 @@ func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (
 		batchError:        putils.NewBatchErrorWithQid(qid),
 	}
 
+	return runningState, nil
+}
+
+func addToWaitingQueriesQueue(wsData *WaitStateData) error {
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+	if len(waitingQueries) >= MAX_WAITING_QUERIES {
+		return fmt.Errorf("addToWaitingQueriesQueue: qid=%v cannot be started, Max number of waiting queries reached", wsData.qid)
+	}
+	waitingQueries = append(waitingQueries, wsData)
+
+	return nil
+}
+
+// Starts tracking the query state. If async is true, the RunningQueryState.StateChan will be defined & will be sent updates
+// If async, updates will be sent for any update to RunningQueryState. Caller is responsible to call DeleteQuery
+func StartQuery(qid uint64, async bool, cleanupCallback func(), forceRun bool) (*RunningQueryState, error) {
+	arqMapLock.Lock()
+	defer arqMapLock.Unlock()
+
+	runningState, err := withLockInitializeQuery(qid, async, cleanupCallback, nil)
+	if err != nil {
+		return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be initialized, %v", qid, err)
+	}
+
 	wsData := &WaitStateData{qid, runningState}
 
-	if !forceRun {
-		waitingQueriesLock.Lock()
-		defer waitingQueriesLock.Unlock()
-		if len(waitingQueries) >= MAX_WAITING_QUERIES {
-			return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be started, Max number of waiting queries reached", qid)
+	if forceRun {
+		withLockRunQuery(wsData)
+	} else {
+		err := addToWaitingQueriesQueue(wsData)
+		if err != nil {
+			return nil, putils.TeeErrorf("StartQuery: qid=%v cannot be added to waiting queue, %v", qid, err)
 		}
-		waitingQueries = append(waitingQueries, wsData)
 	}
 
 	return runningState, nil
 }
 
 func StartQueryAsCoordinator(qid uint64, async bool, cleanupCallback func(), astNode *structs.ASTNode,
-	aggs *structs.QueryAggregators, qc *structs.QueryContext, StateChan chan *QueryStateChanData, forceRun bool) (*RunningQueryState, *WaitStateData, error) {
-	rQuery, err := StartQuery(qid, async, cleanupCallback, forceRun)
+	aggs *structs.QueryAggregators, qc *structs.QueryContext, StateChan chan *QueryStateChanData, forceRun bool) (*RunningQueryState, error) {
+	arqMapLock.Lock()
+	defer arqMapLock.Unlock()
+
+	rQuery, err := withLockInitializeQuery(qid, async, cleanupCallback, StateChan)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	var wsData *WaitStateData
-
-	defer func() {
-		if forceRun && wsData != nil {
-			go RunQuery(*wsData)
-		}
-	}()
 
 	rQuery.rqsLock.Lock()
 	defer rQuery.rqsLock.Unlock()
@@ -290,29 +306,56 @@ func StartQueryAsCoordinator(qid uint64, async bool, cleanupCallback func(), ast
 	rQuery.astNode = astNode
 	rQuery.qc = qc
 	rQuery.aggs = aggs
-	if StateChan != nil {
-		// check if the existing channel is not closed
-		if putils.IsChannelClosed(StateChan) {
-			if async {
-				// This means that the user has cancelled the query and we do need to run the query.
-				log.Infof("qid=%v, Query is cancelled, not running the query again.", qid)
-				DeleteQuery(qid)
-				return nil, nil, fmt.Errorf("qid=%v, query is cancelled", qid)
-			}
-		} else {
-			// close the new channel if old one exists
-			close(rQuery.StateChan)
-			rQuery.StateChan = StateChan
 
-			rQuery.StateChan <- &QueryStateChanData{StateName: RESTARTED, Qid: qid}
+	wsData := &WaitStateData{qid, rQuery}
+
+	if forceRun {
+		withLockRunQuery(wsData)
+	} else {
+		err := addToWaitingQueriesQueue(wsData)
+		if err != nil {
+			return nil, putils.TeeErrorf("StartQueryAsCoordinator: qid=%v cannot be added to waiting queue, %v", qid, err)
 		}
 	}
 
-	if forceRun {
-		wsData = &WaitStateData{qid, rQuery}
+	return rQuery, nil
+}
+
+func (rQuery *RunningQueryState) RestartQuery(forceRun bool) (*RunningQueryState, uint64, error) {
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+
+	if rQuery.isCancelled {
+		return nil, 0, fmt.Errorf("qid=%v, RestartQuery: query is cancelled", rQuery.qid)
 	}
 
-	return rQuery, wsData, nil
+	arqMapLock.Lock()
+	rQuery.withLockDeleteQuery()
+	arqMapLock.Unlock()
+
+	if !rQuery.isCoordinator {
+		return nil, 0, fmt.Errorf("qid=%v, RestartQuery: query is not a coordinator", rQuery.qid)
+	}
+
+	newQid := rutils.GetNextQid()
+
+	newRQuery, err := StartQueryAsCoordinator(newQid, rQuery.isAsync, nil, rQuery.astNode, rQuery.aggs, rQuery.qc, rQuery.StateChan, forceRun)
+	if err != nil {
+		return nil, 0, err
+	}
+	log.Infof("qid=%v, Restarted query as qid=%v", rQuery.qid, newQid)
+
+	return newRQuery, newQid, nil
+}
+
+func RestartAllRunningQueries() {
+	arqMapLock.RLock()
+	defer arqMapLock.RUnlock()
+
+	for _, rQuery := range allRunningQueries {
+		restartState := &QueryStateChanData{StateName: QUERY_RESTART, Qid: rQuery.qid}
+		rQuery.StateChan <- restartState
+	}
 }
 
 // Removes reference to qid. If qid does not exist this is a noop
@@ -419,9 +462,7 @@ func setupTimeoutCancelFunc(qid uint64) context.CancelFunc {
 	return timeoutCancelFunc
 }
 
-func RunQuery(wsData WaitStateData) {
-	arqMapLock.Lock()
-	defer arqMapLock.Unlock()
+func withLockRunQuery(wsData *WaitStateData) {
 	if wsData.rQuery.isCancelled {
 		return
 	}
@@ -432,56 +473,13 @@ func RunQuery(wsData WaitStateData) {
 	wsData.rQuery.startTime = time.Now()
 
 	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: READY, Qid: wsData.qid}
-	wsData.rQuery.StateChan <- &QueryStateChanData{StateName: RUNNING, Qid: wsData.qid}
 }
 
-func PauseAllRunningQueries() map[uint64]*RunningQueryState {
-
-	waitingQueriesLock.Lock()
-	defer waitingQueriesLock.Unlock()
-
+func RunQuery(wsData WaitStateData) {
 	arqMapLock.Lock()
 	defer arqMapLock.Unlock()
 
-	queries := map[uint64]*RunningQueryState{}
-
-	for qid, rQuery := range allRunningQueries {
-		rQuery.StateChan <- &QueryStateChanData{StateName: PAUSED, Qid: qid}
-
-		rQuery.withLockDeleteQuery()
-
-		log.Infof("qid=%v, Paused query", qid)
-
-		queries[qid] = &RunningQueryState{
-			isAsync:       rQuery.isAsync,
-			isCoordinator: rQuery.isCoordinator,
-			astNode:       rQuery.astNode,
-			qc:            rQuery.qc,
-			aggs:          rQuery.aggs,
-			StateChan:     rQuery.StateChan,
-			rqsLock:       rQuery.rqsLock,
-		}
-	}
-
-	// remove any queries in waiting queue that are do not have a coordinator set
-	newWaitingQueries := make([]*WaitStateData, 0, len(waitingQueries))
-	for _, wsData := range waitingQueries {
-		if wsData.rQuery.isCoordinator {
-			newWaitingQueries = append(newWaitingQueries, wsData)
-		} else {
-			wsData.rQuery.withLockDeleteQuery()
-		}
-	}
-
-	waitingQueries = newWaitingQueries
-
-	return queries
-}
-
-func (rQuery *RunningQueryState) GetQueryInitiationInfo() (bool, bool, *structs.ASTNode, *structs.QueryContext, *structs.QueryAggregators) {
-	rQuery.rqsLock.Lock()
-	defer rQuery.rqsLock.Unlock()
-	return rQuery.isAsync, rQuery.isCoordinator, rQuery.astNode, rQuery.qc, rQuery.aggs
+	withLockRunQuery(&wsData)
 }
 
 func AssociateSearchInfoWithQid(qid uint64, result *segresults.SearchResults, aggs *structs.QueryAggregators, dqs DistributedQueryServiceInterface,
