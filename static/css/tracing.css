@@ -68,6 +68,7 @@
     align-items: center;
     justify-content: center;
     margin: 0px;
+    font-size: 12px;
 }
 
 .section-button a{
@@ -430,41 +431,61 @@ a.warn-box-anchor {
 #app-container{
     height: 100vh;
 }
-
-#dashboard{
-    overflow-y: auto;
-}
-
 /* Trace Timeline View */
 
 #timeline-container{
-    margin-top: 14px;
+    margin-top: 12px;
     box-shadow: var(--box-shadow);
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
-    padding-bottom: 40px;
-    overflow: auto; 
     width: 100%;
-    height: 50vh; 
+    height: calc(100vh - 350px);
     transition: height 0.3s ease; 
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.labels-container{
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex-shrink: 0;
+}
+
+.labels-container svg {
+    overflow: visible;
+    border-right: 1px solid var(--time-tick);
+}
+
+.header-div{
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    width: 100%;
+    height: 35px;
+    display: flex;
+    flex: none;
+    border-bottom: 1px solid var(--time-tick);
 }
 
 .back-to-search-traces{
     cursor: pointer;
-    padding: 0.25rem 0.5rem;
+    padding-right: 4px;
     color: var(--purple-1);
     font-weight: 600;
 }
 
 .trace-name{
-    font-size: 18px;
+    font-size: 14px;
     font-weight: bold;
 }
 
 .trace-details{
-    margin-top: 8px;
-    font-size: 14px;
+    margin-top: 2px;
+    font-size: 12px;
     color: var(--subsection-border);
     font-weight: normal !important;
 
@@ -472,7 +493,7 @@ a.warn-box-anchor {
 
 .trace-name .trace-id{
     margin-left: 10px;
-    font-size: 16px !important;
+    font-size: 12px !important;
 }
 
 .trace-details div{
@@ -486,7 +507,7 @@ a.warn-box-anchor {
 }
 
 .time-label {
-    font-size: 14px;
+    font-size: 12px;
     fill: var(--text-color);
     margin-bottom: 10px;
 }
@@ -498,7 +519,7 @@ a.warn-box-anchor {
 }
 
 .node-label {
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .anomalous-node {
@@ -514,7 +535,7 @@ a.warn-box-anchor {
 }
 
 .gantt-chart-heading{
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     fill: var(--text-color);
 }
@@ -528,7 +549,7 @@ a.warn-box-anchor {
     background-color: var(--ui-widget-bg-color) !important;
     padding: 5px;
     border-radius: 5px;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .tooltip-design {
@@ -547,18 +568,18 @@ circle:hover{
     height: 160px !important;
 }
 .span-details-container{
-    margin-top: 14px;
+    margin-top: 12px;
     box-shadow: var(--box-shadow);
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
-    padding-bottom: 40px;
     overflow: auto;
-    height: 50vh;
-    padding: 20px;
+    height: calc(100vh - 350px);
+    padding: 14px;
     margin-left: 10px;
     min-width: 450px;
     transition: height 0.3s ease; 
+    font-size: 12px;
 }
 
 .span-details-container .close-btn{
@@ -570,7 +591,7 @@ circle:hover{
 }
 
 .details-container div{
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .details-container table th,.details-container table td{
@@ -586,7 +607,7 @@ circle:hover{
     border-radius: 10px;
     padding-bottom: 40px;
     overflow: auto;
-    height: 100%;
+    height: 250px;
     padding: 10px;
 }
 .logs-metrics-container .section-button,.max-min-btn {
@@ -594,16 +615,22 @@ circle:hover{
 }
 #timeline-container.expanded,
 .span-details-container.expanded{
-    height: 75vh;
+    height: calc(100vh - 150px);
 }
 .max-min-btn{
-    font-size: 17px;
+    font-size: 14px;
     font-weight: bolder;
-    transform: rotate(-45deg);
+    transform: rotate(-90deg);
+    margin-bottom: 10px;
 }
 .max-min-btn.minimized{
-    transform: rotate(135deg);
+    transform: rotate(-270deg);
 }
 .logs-metrics-container.minimized{
     height: 50px;
+}
+
+#timeline-container svg {
+    display: block;
+    background-color: var(--black1-to-white0);
 }
