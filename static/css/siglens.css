@@ -4932,7 +4932,7 @@ color: #C8C7CC;
     float: right;
 }
 .card {
-    width: 210px;
+    width: fit-content;
     height: 40px;
     border-radius: 8px;
     box-sizing: border-box;
