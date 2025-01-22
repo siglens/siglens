@@ -202,50 +202,168 @@ function convertNanosecondsToDateTime(timestamp) {
 function displayTimeline(data) {
     const totalHeight = calculateTotalHeight(data);
     const padding = { top: 0, right: 10, bottom: 10, left: 20 };
+    const labelWidth = 400;
 
-    const svg = d3
-        .select('#timeline-container')
-        .append('svg')
-        .attr('width', svgWidth + padding.left + padding.right - 50)
-        .attr('height', totalHeight + padding.top + padding.bottom)
-        .append('g')
-        .attr('transform', 'translate(' + padding.left + ',' + padding.top + ')');
+    d3.select('#timeline-container').selectAll('*').remove();
 
-    // Add title
-    svg.append('text').attr('x', 0).attr('y', 40).attr('class', 'gantt-chart-heading').text('Service and Operation');
+    const containerDiv = d3.select('#timeline-container');
 
+    // Create fixed header container
+    const headerDiv = containerDiv.append('div').style('position', 'sticky').style('top', '0').style('z-index', '3').style('width', '100%').style('height', '45px').style('display', 'flex').style('flex', 'none').style('border-bottom', '1px solid #eee');
+
+    // Service and Operation header (fixed)
+    headerDiv.append('div').style('min-width', `${labelWidth}px`).style('padding-left', `${padding.left}px`).style('padding-top', '22px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
+
+    // Time labels container (scrolls horizontally with chart)
+    const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1');
+
+    const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px');
+
+    // Main scrollable container
+    const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)'); // Subtract header height
+
+    // Labels container (Service and Operation)
+    const labelsContainer = scrollContainer.append('div').style('position', 'sticky').style('left', '0').style('z-index', '2').style('min-width', `${labelWidth}px`).style('flex-shrink', '0');
+
+    const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
+
+    // Timeline container (scrolls both directions)
+    const timelineContainer = scrollContainer.append('div').style('overflow', 'visible').style('flex-grow', '1');
+
+    const timelineSvg = timelineContainer.append('svg').attr('width', svgWidth).attr('height', totalHeight);
+
+    // Setup scales
     const xScale = d3
         .scaleLinear()
         .domain([nsToMs(data.start_time), nsToMs(data.end_time)])
-        .range([400, svgWidth - 100]);
+        .range([0, svgWidth - 100]);
 
-    // Add a time grid
-    const timeTicks = xScale.ticks(4); // number of ticks
-    svg.selectAll('.time-tick')
+    // Add time labels
+    const timeTicks = xScale.ticks(4);
+    timeHeaderSvg
+        .selectAll('.time-label')
+        .data(timeTicks)
+        .enter()
+        .append('text')
+        .attr('class', 'time-label')
+        .attr('x', (d) => xScale(d) + 14)
+        .attr('y', 40)
+        .attr('text-anchor', 'middle')
+        .text((d) => `${d}ms`);
+
+    // Add time grid
+    timelineSvg
+        .selectAll('.time-tick')
         .data(timeTicks)
         .enter()
         .append('line')
         .attr('class', 'time-tick')
         .attr('x1', (d) => xScale(d))
         .attr('x2', (d) => xScale(d))
-        .attr('y1', 50)
-        .attr('y2', 100 + totalHeight)
+        .attr('y1', 0)
+        .attr('y2', totalHeight)
+        .attr('stroke', '#eee')
         .attr('stroke-dasharray', '2,2');
 
-    // Add time labels
-    svg.selectAll('.time-label')
-        .data(timeTicks)
-        .enter()
-        .append('text')
-        .attr('class', 'time-label')
-        .attr('x', (d) => xScale(d))
-        .attr('y', 40)
-        .attr('text-anchor', 'middle')
-        .text((d) => `${d}ms`);
+    // Sync horizontal scrolling between time header and timeline
+    scrollContainer.on('scroll', function () {
+        const scrollLeft = this.scrollLeft;
+        timeHeaderDiv.node().scrollLeft = scrollLeft;
+    });
 
-    // recursively render the timeline
-    let y = 60;
+    let y = 20;
     let firstSpan = null;
+    let colorIndex = 0;
+
+    function renderTimeline(node, level = 0) {
+        // Add node labels
+        //eslint-disable-next-line no-unused-vars
+        const label = labelsSvg
+            .append('text')
+            .attr('x', 10 * level)
+            .attr('y', y + 12)
+            .text(`${node.service_name}:${node.operation_name}`)
+            .attr('class', 'node-label')
+            .classed('anomalous-node', node.is_anomalous)
+            .classed('normal-node', !node.is_anomalous)
+            .classed('error-node', node.status === 'STATUS_CODE_ERROR')
+            .style('cursor', 'pointer')
+            .on('click', () => showSpanDetails(node));
+
+        if (!node.is_anomalous) {
+            // Store the first non-anomalous span
+            if (firstSpan === null) {
+                firstSpan = node;
+            }
+
+            const rect = timelineSvg
+                .append('rect')
+                .attr('x', xScale(nsToMs(node.start_time)))
+                .attr('y', y)
+                .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
+                .attr('height', 14)
+                .attr('rx', 2)
+                .attr('ry', 2)
+                .attr('fill', colorArray[colorIndex])
+                .on('mouseover', function (event) {
+                    d3.select(this).style('cursor', 'pointer');
+                    showTooltip(event, node);
+                })
+                .on('mouseout', hideTooltip)
+                .on('click', () => showSpanDetails(node));
+
+            timelineSvg
+                .append('text')
+                .attr('x', xScale(nsToMs(node.end_time)) + 5)
+                .attr('y', y + 12)
+                .text(`${nsToMs(node.duration)}ms`)
+                .style('font-size', '10px')
+                .attr('class', 'normal-node')
+                .style('cursor', 'pointer')
+                .on('click', () => showSpanDetails(node));
+        }
+
+        colorIndex = (colorIndex + 1) % colorArray.length;
+        // Increment y for the next node
+        y += 40;
+
+        if (node.children && node.children.length > 0) {
+            node.children.forEach((child) => renderTimeline(child, level + 1));
+        }
+    }
+
+    const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt').style('display', 'none');
+
+    function showTooltip(event, node) {
+        tooltip
+            .style('display', 'block')
+            .html(
+                `
+                <strong>${node.service_name} : ${node.operation_name}</strong><br>
+                <strong>SpanId</strong>: ${node.span_id}<br>
+                <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
+                <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
+                <strong>Duration</strong>: ${nsToMs(node.duration)}ms<br>
+                <strong>Tags</strong>: ${Object.entries(node.tags)
+                    .map(([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`)
+                    .join('')}
+            `
+            )
+            .style('left', event.pageX + 10 + 'px')
+            .style('top', event.pageY - 28 + 'px');
+    }
+
+    function hideTooltip() {
+        tooltip.style('display', 'none');
+    }
+
+    // Render the timeline
+    renderTimeline(data);
+
+    // Show details for the first span by default
+    if (firstSpan) {
+        showSpanDetails(firstSpan);
+    }
 
     function showSpanDetails(node) {
         let spanDetailsContainer = d3.select('.span-details-container');
@@ -281,92 +399,6 @@ function displayTimeline(data) {
         spanDetailsContainer.select('.close-btn').on('click', function () {
             spanDetailsContainer.style('display', 'none');
         });
-    }
-
-    function renderTimeline(node, level = 0) {
-        if (node.children) {
-            node.children.sort((a, b) => a.start_time - b.start_time);
-        }
-        // Add node labels
-        //eslint-disable-next-line no-unused-vars
-        const label = svg
-            .append('text')
-            .attr('x', 10 * level)
-            .attr('y', y + 12)
-            .text(`${node.service_name}:${node.operation_name}`)
-            .attr('class', 'node-label')
-            .classed('anomalous-node', node.is_anomalous)
-            .classed('normal-node', !node.is_anomalous)
-            .classed('error-node', node.status === 'STATUS_CODE_ERROR');
-
-        if (!node.is_anomalous) {
-            // Store the first non-anomalous span
-            if (firstSpan === null) {
-                firstSpan = node;
-            }
-
-            const rect = svg
-                .append('rect')
-                .attr('x', xScale(nsToMs(node.start_time)))
-                .attr('y', y)
-                .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
-                .attr('height', 14)
-                .attr('rx', 2)
-                .attr('ry', 2)
-                .attr('fill', colorArray[colorIndex])
-                .on('mouseover', () => {
-                    rect.style('cursor', 'pointer');
-                    tooltip.style('display', 'block').html(
-                        `
-                        <strong> ${node.service_name} : ${node.operation_name}</strong><br>
-                        <strong>SpanId</strong>: ${node.span_id} <br>
-                        <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
-                        <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
-                        <strong>Duration</strong>: ${nsToMs(node.duration)}ms <br>
-                        <strong>Tags</strong>: ${Object.entries(node.tags)
-                            .map(([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`)
-                            .join('')}
-                      `
-                    );
-                })
-                .on('mousemove', (event) => {
-                    tooltip.style('left', event.pageX + 10 + 'px').style('top', event.pageY - 28 + 'px');
-                })
-                .on('mouseout', () => {
-                    rect.style('cursor', 'default');
-                    tooltip.style('display', 'none');
-                })
-                .on('click', () => {
-                    d3.selectAll('.span-details-box').remove();
-                    showSpanDetails(node);
-                });
-
-            svg.append('text')
-                .attr('x', xScale(nsToMs(node.end_time)) + 5)
-                .attr('y', y + 12)
-                .text(`${nsToMs(node.duration)}ms`)
-                .style('font-size', '10px')
-                .attr('class', 'normal-node');
-        }
-
-        colorIndex = (colorIndex + 1) % colorArray.length;
-        // Increment y for the next node
-        y += 40;
-
-        if (node.children && node.children.length > 0) {
-            node.children.forEach((child) => {
-                renderTimeline(child, level + 1);
-            });
-        }
-    }
-
-    const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt');
-
-    renderTimeline(data);
-
-    // Show details for the first span by default
-    if (firstSpan) {
-        showSpanDetails(firstSpan);
     }
 }
 
