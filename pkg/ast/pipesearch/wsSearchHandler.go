@@ -170,7 +170,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 		case qscd, ok := <-eventC:
 			switch qscd.StateName {
 			case query.RUNNING:
-				processRunningUpdate(conn, qid)
+				processQueryStateUpdate(conn, qid, qscd.StateName)
 			case query.QUERY_UPDATE:
 				processQueryUpdate(conn, qid, sizeLimit, scrollFrom, qscd, aggs, includeNulls)
 			case query.TIMEOUT:
@@ -204,7 +204,27 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthtt
 func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
 	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
 	websocketR := make(chan map[string]interface{})
-	eventC, err := segment.ExecuteAsyncQueryForNewPipeline(simpleNode, aggs, qid, qc, scrollFrom)
+
+	go listenToConnection(qid, websocketR, conn)
+
+	go func() {
+		for {
+			readMsg := <-websocketR
+
+			if readMsg["state"] == "cancel" {
+				log.Infof("qid=%d, RunAsyncQueryForNewPipeline: Got message from websocket: %+v", qid, readMsg)
+				query.CancelQuery(qid)
+			} else if readMsg["state"] == "exit" {
+				return
+			}
+		}
+	}()
+
+	defer func() {
+		websocketR <- map[string]interface{}{"state": "exit"}
+	}()
+
+	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, qc)
 	if err != nil {
 		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
@@ -212,55 +232,6 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 			log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write error response to websocket! err: %+v", qid, wErr)
 		}
 		return
-	}
-
-	go listenToConnection(qid, websocketR, conn)
-	for {
-		select {
-		case queryStateChanData, ok := <-eventC:
-			if !ok {
-				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got non ok, state: %v", qid, queryStateChanData.StateName)
-				query.LogGlobalSearchErrors(qid)
-				query.DeleteQuery(qid)
-				return
-			}
-			switch queryStateChanData.StateName {
-			case query.RUNNING:
-				processRunningUpdate(conn, qid)
-			case query.TIMEOUT:
-				processTimeoutUpdate(conn, qid)
-				query.DeleteQuery(qid)
-				return
-			case query.QUERY_UPDATE:
-				wErr := conn.WriteJSON(queryStateChanData.UpdateWSResp)
-				if wErr != nil {
-					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write update response to websocket! err: %+v", qid, wErr)
-				}
-			case query.COMPLETE:
-				wErr := conn.WriteJSON(queryStateChanData.CompleteWSResp)
-				if wErr != nil {
-					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write complete response to websocket! err: %+v", qid, wErr)
-				}
-				query.DeleteQuery(qid)
-				return
-			case query.ERROR:
-				wErr := conn.WriteJSON(createErrorResponse(queryStateChanData.Error.Error()))
-				if wErr != nil {
-					log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to write error response; err: %+v", qid, wErr)
-				}
-				query.DeleteQuery(qid)
-				return
-			default:
-				log.Errorf("qid=%v, RunAsyncQueryForNewPipeline: Got unknown state: %v", qid, queryStateChanData.StateName)
-			}
-		case readMsg := <-websocketR:
-			log.Infof("qid=%d, RunAsyncQueryForNewPipeline: Got message from websocket: %+v", qid, readMsg)
-			if readMsg["state"] == "cancel" {
-				query.CancelQuery(qid)
-				processCancelQuery(conn, qid)
-				query.DeleteQuery(qid)
-			}
-		}
 	}
 }
 
@@ -324,15 +295,15 @@ func processCancelQuery(conn *websocket.Conn, qid uint64) {
 	}
 }
 
-func processRunningUpdate(conn *websocket.Conn, qid uint64) {
+func processQueryStateUpdate(conn *websocket.Conn, qid uint64, queryState query.QueryState) {
 
 	e := map[string]interface{}{
-		"state": query.RUNNING.String(),
+		"state": queryState.String(),
 		"qid":   qid,
 	}
 	wErr := conn.WriteJSON(e)
 	if wErr != nil {
-		log.Errorf("qid=%d, processRunningUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
+		log.Errorf("qid=%d, processQueryStateUpdate: failed to write error response to websocket! err: %+v", qid, wErr)
 	}
 }
 
