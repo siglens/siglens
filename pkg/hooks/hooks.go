@@ -116,6 +116,7 @@ type Hooks struct {
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
 	ExtraQueryEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx)) error
+	LogQLParse                  func(filename string, b []byte) (interface{}, error)
 
 	// Query summary
 	ShouldAddDistributedInfoHook func() bool
