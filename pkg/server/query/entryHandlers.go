@@ -58,7 +58,7 @@ type VersionResponse struct {
 
 func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessVersionInfo(ctx)
+		systemconfig.ProcessVersionInfo(ctx)
 	}
 }
 
@@ -760,6 +760,6 @@ func setSortColumnsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func collectDiagnosticsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		diagnostics.CollectDiagnosticsAPI(ctx)
+		serverutils.CallWithOrgIdQuery(diagnostics.CollectDiagnosticsAPI, ctx)
 	}
 }

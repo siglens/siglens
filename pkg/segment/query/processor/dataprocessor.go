@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type processor interface {
@@ -152,7 +153,8 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 			// if the processor doesn't have a final result, fetch it from the input streams.
 			input, err := dp.getStreamInput()
 			if err != nil && err != io.EOF {
-				return nil, utils.TeeErrorf("DP.Fetch: failed to fetch input: %v", err)
+				log.Errorf("DP.Fetch: failed to fetch input: %v", err)
+				return nil, utils.WrapErrorf(err, "DP.Fetch: failed to fetch input: %v", err)
 			}
 
 			dp.processorLock.Lock()
@@ -165,7 +167,8 @@ func (dp *DataProcessor) Fetch() (*iqr.IQR, error) {
 			if err == io.EOF {
 				gotEOF = true
 			} else if err != nil {
-				return nil, utils.TeeErrorf("DP.Fetch: failed to process input: %v", err)
+				log.Errorf("DP.Fetch: failed to process input: %v", err)
+				return nil, utils.WrapErrorf(err, "DP.Fetch: failed to process input: %v", err)
 			}
 		}
 
@@ -274,7 +277,7 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 	default:
 		iqrs, streamIndices, err := dp.fetchFromAllStreamsWithData()
 		if err != nil {
-			return nil, utils.TeeErrorf("DP.getStreamInput: failed to fetch from all streams: %v", err)
+			return nil, utils.WrapErrorf(err, "DP.getStreamInput: failed to fetch from all streams: %v", err)
 		}
 
 		if len(iqrs) == 0 {
@@ -283,7 +286,7 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 
 		iqr, exhaustedIQRIndex, err := iqr.MergeIQRs(iqrs, dp.less)
 		if err != nil && err != io.EOF {
-			return nil, utils.TeeErrorf("DP.getStreamInput: failed to merge IQRs: %v", err)
+			return nil, utils.WrapErrorf(err, "DP.getStreamInput: failed to merge IQRs: %v", err)
 		}
 
 		if exhaustedIQRIndex == -1 {
@@ -320,12 +323,12 @@ func (dp *DataProcessor) fetchFromAllStreamsWithData() ([]*iqr.IQR, []int, error
 
 		iqr, err := stream.Fetch()
 		if err != nil && err != io.EOF {
-			return nil, nil, utils.TeeErrorf("DP.fetchFromAllStreamsWithData: failed to fetch from stream %d: %v", i, err)
+			return nil, nil, utils.WrapErrorf(err, "DP.fetchFromAllStreamsWithData: failed to fetch from stream %d: %v", i, err)
 		}
 
 		if iqr == nil {
 			if err != io.EOF {
-				return nil, nil, utils.TeeErrorf("DP.fetchFromAllStreamsWithData: stream %d returned nil IQR without EOF", i)
+				return nil, nil, utils.WrapErrorf(err, "DP.fetchFromAllStreamsWithData: stream %d returned nil IQR without EOF", i)
 			}
 
 			continue

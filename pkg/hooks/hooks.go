@@ -132,6 +132,9 @@ type Hooks struct {
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)
 	AfterSegmentRotation      func(segmeta interface{}) error
+
+	//Version
+	ProcessVersionInfoHook func(ctx *fasthttp.RequestCtx)
 }
 
 type HtmlSnippets struct {

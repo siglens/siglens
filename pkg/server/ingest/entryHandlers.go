@@ -160,7 +160,7 @@ func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		otlp.ProcessTraceIngest(ctx)
+		serverutils.CallWithOrgId(otlp.ProcessTraceIngest, ctx)
 	}
 }
 
