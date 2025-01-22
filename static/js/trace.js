@@ -272,7 +272,6 @@ function displayTimeline(data) {
 
     let y = 20;
     let firstSpan = null;
-    let colorIndex = 0;
 
     function renderTimeline(node, level = 0) {
         const labelGroup = labelsSvg.append('g').attr('transform', `translate(${10 * level}, ${y})`);
@@ -307,7 +306,7 @@ function displayTimeline(data) {
             if (firstSpan === null) {
                 firstSpan = node;
             }
-
+            //eslint-disable-next-line no-unused-vars
             const rect = timelineSvg
                 .append('rect')
                 .attr('x', xScale(nsToMs(node.start_time)))
