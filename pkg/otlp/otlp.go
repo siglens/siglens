@@ -41,9 +41,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
+func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid uint64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_OTLP_TRACES, false)
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTLP_TRACES, false)
 		if alreadyHandled {
 			return
 		}
@@ -86,7 +86,6 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 	indexName := "traces"
 	shouldFlush := false
 	localIndexMap := make(map[string]string)
-	orgId := uint64(0)
 	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)
@@ -132,7 +131,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx) {
 		}
 	}
 
-	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	if err != nil {
 		log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
 		numFailedSpans += len(pleArray)
