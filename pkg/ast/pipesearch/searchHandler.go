@@ -25,9 +25,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fasthttp/websocket"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
@@ -318,33 +320,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		rQuery, err := query.StartQuery(qid, false, nil)
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to start query, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-
-		signal := <-rQuery.StateChan
-		if signal.StateName != query.READY {
-			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: Did not receive ready state, received: %v", qid, signal.StateName)
-		}
-
-		queryProcessor, err := segment.SetupPipeResQuery(simpleNode, aggs, qid, qc, scrollFrom)
-		if err != nil {
-			log.Errorf("qid=%v, ParseAndExecutePipeRequest: failed to SetupPipeResQuery, err: %v", qid, err)
-			return nil, false, nil, err
-		}
-
-		httpResponse, err := queryProcessor.GetFullResult()
-		if err != nil {
-			return nil, false, nil, utils.TeeErrorf("qid=%v, ParseAndExecutePipeRequest: failed to get full result, err: %v", qid, err)
-		}
-
-		query.SetQidAsFinishedForPipeRespQuery(qid)
-
-		query.DeleteQuery(qid)
-
-		return httpResponse, false, simpleNode.TimeRange, nil
+		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, qc)
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
@@ -589,4 +565,157 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
+}
+
+func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
+	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+	isAsync := conn != nil
+
+	rQuery, err := query.StartQueryAsCoordinator(qid, isAsync, nil, root, aggs, qc, nil, false)
+	if err != nil {
+		log.Errorf("qid=%v, RunQueryForNewPipeline: failed to start query, err: %v", qid, err)
+		return nil, false, nil, err
+	}
+
+	var httpRespOuter *structs.PipeSearchResponseOuter
+
+	for {
+		queryStateData, ok := <-rQuery.StateChan
+		if !ok {
+			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+			query.LogGlobalSearchErrors(qid)
+			query.DeleteQuery(qid)
+			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+		}
+
+		if queryStateData.Qid != qid {
+			continue
+		}
+
+		switch queryStateData.StateName {
+		case query.READY:
+			go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+		case query.RUNNING:
+			if isAsync {
+				processQueryStateUpdate(conn, qid, queryStateData.StateName)
+			}
+		case query.QUERY_UPDATE:
+			if isAsync {
+				wErr := conn.WriteJSON(queryStateData.UpdateWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
+				}
+			}
+		case query.COMPLETE:
+			defer query.DeleteQuery(qid)
+
+			if isAsync {
+				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
+				}
+				return nil, false, root.TimeRange, nil
+			} else {
+				httpRespOuter = queryStateData.HttpResponse
+				return httpRespOuter, false, root.TimeRange, nil
+			}
+		case query.ERROR:
+			if rQuery.IsCoordinator() && utils.IsRPCUnavailableError(queryStateData.Error) {
+				newRQuery, newQid, err := listenToRestartQuery(qid, rQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query for rpc failure, err: %v", qid, err)
+				} else {
+					rQuery = newRQuery
+					qid = newQid
+
+					continue
+				}
+			}
+
+			defer query.DeleteQuery(qid)
+			if isAsync {
+				wErr := conn.WriteJSON(createErrorResponse(queryStateData.Error.Error()))
+				if wErr != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
+				}
+				return nil, false, root.TimeRange, nil
+			} else {
+				return nil, false, root.TimeRange, queryStateData.Error
+			}
+		case query.QUERY_RESTART:
+			newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
+			if err != nil {
+				log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
+				continue
+			}
+
+			rQuery = newRQuery
+			qid = newQid
+
+		case query.TIMEOUT:
+			defer query.DeleteQuery(qid)
+			if isAsync {
+				processTimeoutUpdate(conn, qid)
+			} else {
+				return nil, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: query timed out", qid)
+			}
+		case query.CANCELLED:
+			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
+			defer query.DeleteQuery(qid)
+
+			if isAsync {
+				processCancelQuery(conn, qid)
+			}
+			return nil, false, root.TimeRange, nil
+		}
+	}
+}
+
+func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
+	if rQuery == nil {
+		return nil, 0, fmt.Errorf("listenToRestartQuery: rQuery is nil")
+	}
+
+	timeout := time.After(10 * time.Second) // wait for 10 seconds for query restart before timing out
+
+	for {
+		select {
+		case queryStateData, ok := <-rQuery.StateChan:
+			if !ok {
+				query.LogGlobalSearchErrors(qid)
+				query.DeleteQuery(qid)
+				return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: Got non ok, state: %v", qid, queryStateData.StateName)
+			}
+
+			if queryStateData.Qid != qid {
+				continue
+			}
+
+			if queryStateData.StateName == query.QUERY_RESTART {
+				return handleRestartQuery(qid, rQuery, isAsync, conn)
+			}
+		case <-timeout:
+			return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: timed out waiting for query restart", qid)
+		}
+	}
+}
+
+func handleRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
+	newRQuery, newQid, err := rQuery.RestartQuery(true)
+	if err != nil {
+		errorState := &query.QueryStateChanData{
+			Qid:       qid,
+			StateName: query.ERROR,
+			Error:     err,
+		}
+		rQuery.StateChan <- errorState
+
+		return nil, 0, err
+	}
+
+	if isAsync {
+		processQueryStateUpdate(conn, qid, query.QUERY_RESTART)
+	}
+
+	return newRQuery, newQid, nil
 }

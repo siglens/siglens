@@ -352,7 +352,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
-			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
+			log.Errorf("GetFullResult: failed to fetch iqr; err=%v", err)
+			return nil, utils.WrapErrorf(err, "GetFullResult: failed to fetch; err=%v", err)
 		}
 
 		if finalIQR == nil {
@@ -416,7 +417,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
-			return utils.TeeErrorf("GetStreamedResult: failed to fetch iqr, err: %v", err)
+			log.Errorf("GetStreamedResult: failed to fetch iqr; err=%v", err)
+			return utils.WrapErrorf(err, "GetStreamedResult: failed to fetch iqr, err: %v", err)
 		}
 		if iqr == nil {
 			break
@@ -444,6 +446,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				StateName:       query.QUERY_UPDATE,
 				PercentComplete: result.Completion,
 				UpdateWSResp:    result,
+				Qid:             qp.qid,
 			}
 		}
 	}
@@ -478,6 +481,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	stateChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		CompleteWSResp: completeResp,
+		Qid:            qp.qid,
 	}
 
 	return nil

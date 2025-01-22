@@ -214,3 +214,11 @@ func IsConversionError(err error) bool {
 func IsNonNilValueError(err error) bool {
 	return err != nil && !IsNilValueError(err)
 }
+
+func IsRPCUnavailableError(err error) bool {
+	if ewc, ok := err.(*ErrorWithCode); ok {
+		return ewc.code == "RPC__Unavailable"
+	}
+
+	return false
+}
