@@ -209,8 +209,7 @@ function displayTimeline(data) {
     const containerDiv = d3.select('#timeline-container');
 
     // Create fixed header container
-    const headerDiv = containerDiv.append('div').style('position', 'sticky').style('top', '0').style('z-index', '3').style('width', '100%').style('height', '45px').style('display', 'flex').style('flex', 'none').style('border-bottom', '1px solid #eee');
-
+    const headerDiv = containerDiv.append('div').attr('class', 'header-div');
     // Service and Operation header (fixed)
     headerDiv.append('div').style('min-width', `${labelWidth}px`).style('padding-left', `${padding.left}px`).style('padding-top', '22px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
 
@@ -220,7 +219,7 @@ function displayTimeline(data) {
     const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px');
 
     // Main scrollable container
-    const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)'); // Subtract header height
+    const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)');
 
     // Labels container (Service and Operation)
     const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', `${labelWidth}px`);
@@ -276,12 +275,25 @@ function displayTimeline(data) {
     let colorIndex = 0;
 
     function renderTimeline(node, level = 0) {
+        const labelGroup = labelsSvg.append('g').attr('transform', `translate(${10 * level}, ${y})`);
+
+        // Add status circle for error nodes
+        if (node.is_anomalous) {
+            const errorGroup = labelGroup.append('g').attr('transform', 'translate(-20, 4)').style('cursor', 'pointer');
+
+            // Add red circle
+            errorGroup.append('circle').attr('cx', 8).attr('cy', 5).attr('r', 8).attr('fill', '#ef4444');
+
+            // Add exclamation mark
+            errorGroup.append('text').attr('x', 8).attr('y', 6).attr('text-anchor', 'middle').attr('fill', 'white').attr('font-size', '12px').attr('font-weight', 'bold').style('dominant-baseline', 'middle').text('!');
+            errorGroup.on('click', () => showSpanDetails(node));
+        }
+
         // Add node labels
-        //eslint-disable-next-line no-unused-vars
-        const label = labelsSvg
+        labelGroup
             .append('text')
-            .attr('x', 10 * level)
-            .attr('y', y + 12)
+            .attr('x', 0)
+            .attr('y', 12)
             .text(`${node.service_name}:${node.operation_name}`)
             .attr('class', 'node-label')
             .classed('anomalous-node', node.is_anomalous)
@@ -324,7 +336,6 @@ function displayTimeline(data) {
         }
 
         colorIndex = (colorIndex + 1) % colorArray.length;
-        // Increment y for the next node
         y += 40;
 
         if (node.children && node.children.length > 0) {
