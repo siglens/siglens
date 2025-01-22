@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/buger/jsonparser"
 )
 
 func TestJson(t *testing.T) {
@@ -275,6 +277,102 @@ func TestFlatten(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Flatten(tt.args.m); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Flatten() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractJsonValueBuffered(t *testing.T) {
+	// Test data with various types
+	jsonData := []byte(`{
+		"name": "John",
+		"age": 30,
+		"active": true,
+		"address": {"city": "New York", "zip": "10001"},
+		"tags": ["tag1", "tag2"]
+	}`)
+
+	tests := []struct {
+		name         string
+		keys         []string
+		expectedVal  []byte
+		expectedType jsonparser.ValueType
+		expectedErr  bool
+	}{
+		{
+			name:         "Extract string field",
+			keys:         []string{"name"},
+			expectedVal:  []byte("John"),
+			expectedType: jsonparser.String,
+			expectedErr:  false,
+		},
+		{
+			name:         "Extract number field",
+			keys:         []string{"age"},
+			expectedVal:  []byte("30"),
+			expectedType: jsonparser.Number,
+			expectedErr:  false,
+		},
+		{
+			name:         "Extract boolean field",
+			keys:         []string{"active"},
+			expectedVal:  []byte("true"),
+			expectedType: jsonparser.Boolean,
+			expectedErr:  false,
+		},
+		{
+			name:         "Extract nested field",
+			keys:         []string{"address", "city"},
+			expectedVal:  []byte("New York"),
+			expectedType: jsonparser.String,
+			expectedErr:  false,
+		},
+		{
+			name:         "Extract non-existing key",
+			keys:         []string{"nonexistent"},
+			expectedVal:  nil,
+			expectedType: jsonparser.NotExist,
+			expectedErr:  true,
+		},
+		{
+			name:         "Extract from array",
+			keys:         []string{"tags", "[0]"},
+			expectedVal:  []byte("tag1"),
+			expectedType: jsonparser.String,
+			expectedErr:  false,
+		},
+		{
+			name:         "Invalid key path",
+			keys:         []string{"address", "nonexistent"},
+			expectedVal:  nil,
+			expectedType: jsonparser.NotExist,
+			expectedErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create an empty work buffer
+			workBuf := make([]byte, 0)
+
+			// Call the function under test
+			val, valType, err := ExtractJsonValueBuffered(jsonData, workBuf, tt.keys...)
+
+			// Check the returned value and type
+			if tt.expectedErr {
+				if err == nil {
+					t.Errorf("expected error for test '%v', but got none", tt.name)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for test '%v': %v", tt.name, err)
+				}
+				if string(val) != string(tt.expectedVal) {
+					t.Errorf("for test '%v', expected value %s, but got %s", tt.name, string(tt.expectedVal), string(val))
+				}
+				if valType != tt.expectedType {
+					t.Errorf("for test '%v', expected value type %v, but got %v", tt.name, tt.expectedType, valType)
+				}
 			}
 		})
 	}

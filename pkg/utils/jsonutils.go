@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"github.com/buger/jsonparser"
 )
 
 // Flatten takes a map and returns a new one where nested maps are replaced
@@ -57,4 +58,26 @@ func FlattenSingleValue(key string, m map[string]interface{}, child interface{})
 	default:
 		m[key] = child
 	}
+}
+
+// ExtractJsonValueBuffered extracts the value of the given keys from the JSON data and returns it in a buffer.
+func ExtractJsonValueBuffered(data []byte, workBuf []byte, keys ...string) ([]byte, jsonparser.ValueType, error) {
+	// Extract the value using the given keys
+	value, valueType, _, err := jsonparser.Get(data, keys...)
+	if err != nil {
+		return nil, jsonparser.NotExist, fmt.Errorf("key path %v not found: %v", keys, err)
+	}
+
+	// Extend the existing workBuf if necessary
+	requiredLen := len(value)
+	if requiredLen > cap(workBuf) {
+
+		newBuf := make([]byte, len(workBuf), requiredLen)
+		copy(newBuf, workBuf)
+		workBuf = newBuf
+	}
+
+	workBuf = append(workBuf[:0], value...)
+
+	return workBuf, valueType, nil
 }
