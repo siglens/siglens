@@ -7,31 +7,26 @@ import (
 	"fmt"
 	"time"
 
-	server_utils "github.com/siglens/siglens/pkg/server/utils"
+	"github.com/siglens/siglens/pkg/health"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/valyala/fasthttp"
 )
 
-func CollectDiagnosticsAPI(ctx *fasthttp.RequestCtx) {
+func CollectDiagnosticsAPI(ctx *fasthttp.RequestCtx, orgid uint64) {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
-	req := fasthttp.AcquireRequest()
-	resp := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(resp)
+	respCtx := &fasthttp.RequestCtx{}
+	respCtx.SetUserValue("originalContext", ctx)
 
-	serverAddr := ctx.URI().Host()
-	req.SetRequestURI(fmt.Sprintf("http://%s%s/clusterStats", serverAddr, server_utils.API_PREFIX))
-	req.Header.SetMethod("GET")
-
-	if err := fasthttp.Do(req, resp); err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.SetBodyString("Failed to get cluster stats: " + err.Error())
-		return
+	if hook := hooks.GlobalHooks.StatsHandlerHook; hook != nil {
+		hook(respCtx, orgid)
+	} else {
+		health.ProcessClusterStatsHandler(respCtx, orgid)
 	}
 
 	var clusterStats map[string]interface{}
-	if err := json.Unmarshal(resp.Body(), &clusterStats); err != nil {
+	if err := json.Unmarshal(respCtx.Response.Body(), &clusterStats); err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("Failed to parse cluster stats: " + err.Error())
 		return
