@@ -448,6 +448,18 @@ a.warn-box-anchor {
     flex-direction: column;
 }
 
+.labels-container{
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex-shrink: 0;
+}
+
+.labels-container svg {
+    overflow: visible;
+    border-right: 1px solid var(--time-tick);
+}
+
 .back-to-search-traces{
     cursor: pointer;
     padding-right: 4px;
@@ -597,11 +609,11 @@ circle:hover{
 .max-min-btn{
     font-size: 14px;
     font-weight: bolder;
-    transform: rotate(-45deg);
+    transform: rotate(-90deg);
     margin-bottom: 10px;
 }
 .max-min-btn.minimized{
-    transform: rotate(135deg);
+    transform: rotate(-270deg);
 }
 .logs-metrics-container.minimized{
     height: 50px;

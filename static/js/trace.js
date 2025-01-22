@@ -223,7 +223,7 @@ function displayTimeline(data) {
     const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)'); // Subtract header height
 
     // Labels container (Service and Operation)
-    const labelsContainer = scrollContainer.append('div').style('position', 'sticky').style('left', '0').style('z-index', '2').style('min-width', `${labelWidth}px`).style('flex-shrink', '0');
+    const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', `${labelWidth}px`);
 
     const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
@@ -364,42 +364,42 @@ function displayTimeline(data) {
     if (firstSpan) {
         showSpanDetails(firstSpan);
     }
+}
 
-    function showSpanDetails(node) {
-        let spanDetailsContainer = d3.select('.span-details-container');
-        spanDetailsContainer.style('display', 'block');
-        spanDetailsContainer.html(
-            `
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="operation-name"><strong>${node.operation_name}</strong></div>
-                <div class="close-btn"></div>
-            </div>
-            <hr>
-            <div class="details-container">
-                <div><strong>SpanId</strong>: ${node.span_id} </div>
-                <div><strong>Service</strong>: ${node.service_name}</div>
-                <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
-                <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
-                <div><strong>Tags</strong>:</div>
-                <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
-                  ${Object.entries(node.tags)
-                      .map(
-                          ([key, value]) => `
-                    <tr>
-                      <td ><em>${key}</em></td>
-                      <td style="word-break: break-all;"><em>${value}</em></td>
-                    </tr>`
-                      )
-                      .join('')}
-                </table>
-            </div>
-            `
-        );
+function showSpanDetails(node) {
+    let spanDetailsContainer = d3.select('.span-details-container');
+    spanDetailsContainer.style('display', 'block');
+    spanDetailsContainer.html(
+        `
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="operation-name"><strong>${node.operation_name}</strong></div>
+            <div class="close-btn"></div>
+        </div>
+        <hr>
+        <div class="details-container">
+            <div><strong>SpanId</strong>: ${node.span_id} </div>
+            <div><strong>Service</strong>: ${node.service_name}</div>
+            <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
+            <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
+            <div><strong>Tags</strong>:</div>
+            <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
+              ${Object.entries(node.tags)
+                  .map(
+                      ([key, value]) => `
+                <tr>
+                  <td ><em>${key}</em></td>
+                  <td style="word-break: break-all;"><em>${value}</em></td>
+                </tr>`
+                  )
+                  .join('')}
+            </table>
+        </div>
+        `
+    );
 
-        spanDetailsContainer.select('.close-btn').on('click', function () {
-            spanDetailsContainer.style('display', 'none');
-        });
-    }
+    spanDetailsContainer.select('.close-btn').on('click', function () {
+        spanDetailsContainer.style('display', 'none');
+    });
 }
 
 function calculateTotalHeight(node) {
