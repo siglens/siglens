@@ -211,7 +211,7 @@ function displayTimeline(data) {
     // Create fixed header container
     const headerDiv = containerDiv.append('div').attr('class', 'header-div');
     // Service and Operation header (fixed)
-    headerDiv.append('div').style('min-width', `${labelWidth}px`).style('padding-left', `${padding.left}px`).style('padding-top', '22px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
+    headerDiv.append('div').style('min-width', `${labelWidth}px`).style('padding-left', `${padding.left}px`).style('padding-top', '10px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
 
     // Time labels container (scrolls horizontally with chart)
     const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1');
@@ -246,7 +246,7 @@ function displayTimeline(data) {
         .append('text')
         .attr('class', 'time-label')
         .attr('x', (d) => xScale(d) + 14)
-        .attr('y', 40)
+        .attr('y', 26)
         .attr('text-anchor', 'middle')
         .text((d) => `${d}ms`);
 
