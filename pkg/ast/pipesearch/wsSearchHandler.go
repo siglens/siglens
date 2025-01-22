@@ -214,9 +214,6 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 			if readMsg["state"] == "cancel" {
 				log.Infof("qid=%d, RunAsyncQueryForNewPipeline: Got message from websocket: %+v", qid, readMsg)
 				query.CancelQuery(qid)
-				processCancelQuery(conn, qid)
-				query.DeleteQuery(qid)
-				return
 			} else if readMsg["state"] == "exit" {
 				return
 			}

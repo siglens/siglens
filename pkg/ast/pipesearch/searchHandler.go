@@ -661,6 +661,12 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 		case query.CANCELLED:
 			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
+			defer query.DeleteQuery(qid)
+
+			if isAsync {
+				processCancelQuery(conn, qid)
+			}
+			return nil, false, root.TimeRange, nil
 		}
 	}
 }

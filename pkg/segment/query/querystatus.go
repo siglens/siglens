@@ -812,6 +812,8 @@ func CancelQuery(qid uint64) {
 			break
 		}
 	}
+
+	rQuery.StateChan <- &QueryStateChanData{StateName: CANCELLED, Qid: qid}
 }
 
 func GetBucketsForQid(qid uint64) (map[string]*structs.AggregationResult, error) {
