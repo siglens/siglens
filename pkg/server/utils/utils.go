@@ -36,7 +36,7 @@ const METRIC_PREFIX string = "/metrics-explorer"
 
 // This function reduces some boilerplate code by handling the logic for
 // injecting orgId if necessary, or using the default.
-func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
+func CallWithMyIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
 	orgId := uint64(0)
 	var err error
 	if hook := hooks.GlobalHooks.GetOrgIdHookQuery; hook != nil {
@@ -50,7 +50,7 @@ func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthtt
 	handler(ctx, orgId)
 }
 
-func CallWithOrgId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
+func CallWithMyId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
 	orgId := uint64(0)
 	var err error
 	if hook := hooks.GlobalHooks.GetOrgIdHook; hook != nil {
