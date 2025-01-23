@@ -374,9 +374,9 @@ func DeleteAllUserSavedQueries(orgid uint64) error {
 	return nil
 }
 
-func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx) {
+func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, orgid uint64) {
 	queryName := utils.ExtractParamAsString(ctx.UserValue("qname"))
-	deleted, err := deleteUsq(queryName, 0)
+	deleted, err := deleteUsq(queryName, orgid)
 	if err != nil {
 		log.Errorf("DeleteUserSavedQuery: Failed to delete user saved query %v, err=%v", queryName, err)
 		utils.SetBadMsg(ctx, "")
@@ -395,9 +395,9 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
+func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx, orgid uint64) {
 	httpResp := make(utils.AllSavedQueries)
-	found, savedQueriesAll, err := getUsqAll(0)
+	found, savedQueriesAll, err := getUsqAll(orgid)
 	if err != nil {
 		log.Errorf("GetUserSavedQueriesAll: Failed to read user saved queries, err=%v", err)
 		utils.SetBadMsg(ctx, "")
@@ -413,7 +413,7 @@ func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func SaveUserQueries(ctx *fasthttp.RequestCtx) {
+func SaveUserQueries(ctx *fasthttp.RequestCtx, orgid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("SaveUserQueries: received empty user query. Postbody is nil")
@@ -488,7 +488,7 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
-	err = writeUsq(qname, usQueryMap, 0)
+	err = writeUsq(qname, usQueryMap, orgid)
 	if err != nil {
 		log.Errorf("SaveUserQueries: could not write query with query name=%v, to file err=%v", qname, err)
 		utils.SetBadMsg(ctx, "")
@@ -525,10 +525,10 @@ func ReadExternalUSQInfo(fName string, orgid uint64) error {
 	return nil
 }
 
-func SearchUserSavedQuery(ctx *fasthttp.RequestCtx) {
+func SearchUserSavedQuery(ctx *fasthttp.RequestCtx, orgid uint64) {
 	queryName := utils.ExtractParamAsString(ctx.UserValue("qname"))
 
-	found, usqInfo, err := getUsqOne(queryName, 0)
+	found, usqInfo, err := getUsqOne(queryName, orgid)
 
 	log.Infof("SearchUserSavedQuery: Found=%v, usqInfo=%v", found, usqInfo)
 	if err != nil {

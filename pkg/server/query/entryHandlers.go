@@ -358,25 +358,25 @@ func getClusterIngestStatsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func saveUserSavedQueriesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.SaveUserQueries(ctx)
+		serverutils.CallWithOrgIdQuery(usq.SaveUserQueries, ctx)
 	}
 }
 
 func getUserSavedQueriesAllHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.GetUserSavedQueriesAll(ctx)
+		serverutils.CallWithOrgIdQuery(usq.GetUserSavedQueriesAll, ctx)
 	}
 }
 
 func deleteUserSavedQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.DeleteUserSavedQuery(ctx)
+		serverutils.CallWithOrgIdQuery(usq.DeleteUserSavedQuery, ctx)
 	}
 }
 
 func SearchUserSavedQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.SearchUserSavedQuery(ctx)
+		serverutils.CallWithOrgIdQuery(usq.SearchUserSavedQuery, ctx)
 	}
 }
 
