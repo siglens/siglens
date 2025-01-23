@@ -178,12 +178,18 @@ type JsSnippets struct {
 	OrgUpperNavUrls string
 
 	OrgAllSlos string
-	PanelFlag  bool
+
+	PanelFlag         bool
+	ShowSLO           bool
+	EnterpriseEnabled bool
 }
 
 var GlobalHooks = Hooks{
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
 		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
 		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
+	},
+	JsSnippets: JsSnippets{
+		ShowSLO: true,
 	},
 }

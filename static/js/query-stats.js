@@ -149,6 +149,10 @@ function processQueryStats(res) {
         if (key === 'queryStats') {
             let table = $('#query-table');
             _.forEach(value, (v, k) => {
+                if (k === 'Query Count Since Restart' && !{{ .ShowSLO }}) {
+                    return;
+                }
+
                 let tr = $('<tr>');
                 tr.append('<td>' + k + '</td>');
 
