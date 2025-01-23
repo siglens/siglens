@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast/sql"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	segment "github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
@@ -177,6 +178,10 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 	case "Splunk QL":
 		res, err = spl.Parse("", []byte(searchText))
 		forceCaseSensitive = false
+	case "Log QL":
+		if hook := hooks.GlobalHooks.LogQLParse; hook != nil {
+			res, err = hook("", []byte(searchText))
+		}
 	default:
 		log.Errorf("qid=%d, parsePipeSearch: Unknown queryLanguage: %v", qid, queryLanguage)
 	}

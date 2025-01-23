@@ -106,13 +106,13 @@ func getSafeHealthHandler() func(ctx *fasthttp.RequestCtx) {
 func splunkHecIngestHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(splunk.ProcessSplunkHecIngestRequest, ctx)
+		serverutils.CallWithMyId(splunk.ProcessSplunkHecIngestRequest, ctx)
 	}
 }
 
 func EsPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(eswriter.ProcessPutIndex, ctx)
+		serverutils.CallWithMyId(eswriter.ProcessPutIndex, ctx)
 	}
 }
 
@@ -125,25 +125,25 @@ func esPutPostSingleDocHandler(update bool) func(ctx *fasthttp.RequestCtx) {
 
 func otsdbPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(otsdbwriter.PutMetrics, ctx)
+		serverutils.CallWithMyId(otsdbwriter.PutMetrics, ctx)
 	}
 }
 
 func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxwriter.PutMetrics, ctx)
+		serverutils.CallWithMyId(influxwriter.PutMetrics, ctx)
 	}
 }
 
 func influxQueryGetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxquery.GetQueryHandler, ctx)
+		serverutils.CallWithMyId(influxquery.GetQueryHandler, ctx)
 	}
 }
 
 func influxQueryPostHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxquery.PostQueryHandler, ctx)
+		serverutils.CallWithMyId(influxquery.PostQueryHandler, ctx)
 	}
 }
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
@@ -160,14 +160,14 @@ func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(otlp.ProcessTraceIngest, ctx)
+		serverutils.CallWithMyId(otlp.ProcessTraceIngest, ctx)
 	}
 }
 
 func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(sampledataset.ProcessSyntheicDataRequest, ctx)
+		serverutils.CallWithMyId(sampledataset.ProcessSyntheicDataRequest, ctx)
 	}
 }
 
@@ -186,6 +186,6 @@ func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(loki.ProcessLokiLogsIngestRequest, ctx)
+		serverutils.CallWithMyId(loki.ProcessLokiLogsIngestRequest, ctx)
 	}
 }
