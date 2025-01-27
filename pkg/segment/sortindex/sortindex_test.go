@@ -54,7 +54,8 @@ func readAndAssert(t *testing.T, segkey, cname string, sortMode SortMode, revers
 	maxRecords int, checkpoint *Checkpoint, expected []Line) *Checkpoint {
 
 	t.Helper()
-	actual, checkpoint, err := ReadSortIndex(segkey, cname, sortMode, reverse, maxRecords, checkpoint)
+	readFullLine := false
+	actual, checkpoint, err := ReadSortIndex(segkey, cname, sortMode, reverse, maxRecords, readFullLine, checkpoint)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 

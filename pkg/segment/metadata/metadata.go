@@ -416,6 +416,19 @@ func DeleteVirtualTable(vTable string, orgid uint64) {
 	globalMetadata.deleteTable(vTable, orgid)
 }
 
+func GetAllSegKeysForOrg(orgid uint64) map[string]struct{} {
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+
+	segKeys := make(map[string]struct{})
+	for _, smi := range globalMetadata.allSegmentMicroIndex {
+		if smi.OrgId == orgid {
+			segKeys[smi.SegmentKey] = struct{}{}
+		}
+	}
+	return segKeys
+}
+
 func RebalanceInMemorySsm(ssmSizeBytes uint64) {
 	logsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_LOGS_MEM_PERCENT / 100)
 	metricsSSM := uint64(float64(ssmSizeBytes) * utils.METADATA_METRICS_MEM_PERCENT / 100)

@@ -35,7 +35,11 @@ $(document).ready(function () {
     $('#add-metrics-to-db-btn').on('click', openPopup);
 
     $('#cancel-dbbtn, .popupOverlay').on('click', closePopup);
-    $('#selected-dashboard').on('click', displayExistingDashboards);
+    $('#selected-dashboard').on('click', function () {
+        if (!$('#dashboard-options').hasClass('show')) {
+            displayExistingDashboards();
+        }
+    });
 
     $('#alert-from-logs-btn').click(function () {
         $('.addrulepopupOverlay, .addrulepopupContent').addClass('active');
@@ -127,6 +131,11 @@ function closePopup() {
 function createPanelToNewDashboard() {
     var inputdbname = $('#db-name').val();
     var inputdbdescription = $('#db-description').val();
+    const dashboardData = {
+        name: inputdbname,
+        description: inputdbdescription,
+        parentId: 'root-folder',
+    };
     var timeRange;
     //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
@@ -154,9 +163,7 @@ function createPanelToNewDashboard() {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
             },
-            data: JSON.stringify(inputdbname),
-            dataType: 'json',
-            crossDomain: true,
+            data: JSON.stringify(dashboardData),
         })
             .then(function (res) {
                 $('#db-name').val('');
@@ -202,13 +209,11 @@ $('#create-db').click(function () {
     if (newDashboardFlag) createPanelToNewDashboard();
 });
 
-const existingDashboards = [];
-
 // Display list of existing dashboards
 function displayExistingDashboards() {
     $.ajax({
         method: 'get',
-        url: 'api/dashboards/listall',
+        url: 'api/dashboards/list?type=dashboard',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -218,22 +223,18 @@ function displayExistingDashboards() {
     }).then(function (res) {
         if (res) {
             let dropdown = $('#dashboard-options');
-            // Filtering default dashboards
-            let additionalDashboards = Object.keys(res).filter((id) => !defaultDashboardIds.includes(id) && !existingDashboards.includes(id));
-            if (additionalDashboards.length === 0 && existingDashboards.length === 0) {
-                // Add empty list item when there are no additional dashboards
-                dropdown.html(`<li class="dashboard"></li>`);
+            // Clear existing content first
+            dropdown.empty();
+
+            if (res.items.length === 0) {
+                dropdown.html(`<li class="dashboard">No Dashboards</li>`);
             } else {
-                $.each(res, function (id, dashboardDetails) {
-                    // exclude default dashboards
-                    if (!defaultDashboardIds.includes(id) && !existingDashboards.includes(id)) {
-                        dropdown.append(`<li class="dashboard" id="${id}">${dashboardDetails.name}</li>`);
-                        existingDashboards.push(id);
-                    }
+                $.each(res.items, function (id, dashboard) {
+                    dropdown.append(`<li class="dashboard" id="${dashboard.id}">${dashboard.fullPath}</li>`);
                 });
-                dropdown.off('click', '.dashboard');
-                dropdown.on('click', '.dashboard', selectDashboardHandler);
             }
+            dropdown.off('click', '.dashboard');
+            dropdown.on('click', '.dashboard', selectDashboardHandler);
         }
     });
 }

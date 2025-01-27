@@ -154,7 +154,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                                 </button>
                                 <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                    <li id="option-2" class="query-language-option">Log QL</li>
+                                    {{ .Dropdown2 | safeHTML }}
                                     <li id="option-3" class="query-language-option active">Splunk QL</li>
                                 </div>
                             </div>
@@ -296,7 +296,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <div id="views-container">
                         <label id="hide-null-column-box">
-                            <input type="checkbox" id="hide-null-columns-checkbox" checked="" class="active">Hide Null Columns
+                            <input type="checkbox" id="hide-null-columns-checkbox" checked="" class="active checkbox">Hide Null Columns
                         </label>
                         <div class="btn-group" role="group" id="log-view">
                             <button class="btn log-opt-single-btn" id="log-opt-single-btn">

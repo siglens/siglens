@@ -1,104 +1,207 @@
 # APIs
 
-## Dashboard APIs
+## Dashboard & Folder Management API Documentation
 
-### Get all dashboards
-    endpoint: api/dashboards/listall
-    method: GET
-
-    Example:
-    request: http://localhost:5122/api/dashboards/listall
-    response: 
-        {
-            "53cb3dde-fd78-4253-808c-18e4077ef0f1": {
-                "createdAt": 0,
-                "isDefault": true,
-                "isFavorite": false,
-                "name": "Sample Dashboard"
-            },
-            "634674be-84f9-493c-b1b4-be23909b09d4": {
-                "createdAt": 1731994980586,
-                "isDefault": false,
-                "isFavorite": true,
-                "name": "2"
-            }
-        }
-
-### Get dashboard by id
-    endpoint: api/dashboards/{id}
-    method: GET
-
-    Example:
-    request: http://localhost:5122/api/dashboards/9352623799225230043
-    response:   
-        {
-            "description": "this is test dashboard",
-            "name": "test",
-            "panels": [
-                {
-                    "chartType": "line",
-                    "gridpos": {
-                        "h": 23,
-                        "w": 35,
-                        "x": 23,
-                        "y": 44
-                    },
-                    "querySrr": "batch AND iOS...",
-                    "queryType": "logs"
-                }
-            ]
-        }
-
-
-### Create dashboard
-    endpoint: api/dashboards/create
+### Create Dashboard
+    endpoints: /api/dashboards/create
     method: POST
 
     Example:
     request: http://localhost:5122/api/dashboards/create
-    body: test-new
-    response: 
-        {
-            "5902803467278423946": "db-1"
-        }
+    body:
+    {
+        "name": "My Dashboard",
+        "description": "Description",
+        "parentId": "folder-id" // Optional, defaults to root
+    }
 
+    response:
+    {
+        "dashboard-uuid": "Dashboard Name"
+    }
 
-### Update dashboard
-    endpoint: api/dashboards/update
+### Update Dashboard
+    endpoints: /api/dashboards/update
     method: POST
 
     Example:
     request: http://localhost:5122/api/dashboards/update
-    body: 
-        {
-        "id": "9089097379643921334",
+    body:
+    {
+        "id": "dashboard-id",
         "details": {
-                "name": "test",
-                "description": "this is test dashboard",
-                "panels": [ {
-                                    "queryType" : "logs",
-                                    "querySrr" : "batch AND iOS...",
-                                    "gridpos" : {
-                                                "h": 23,
-                                                "w": 35,
-                                                "x": 23,
-                                                "y": 44
-                                                },
-                                    "chartType": "line"
-                            }
-                ]                        
-                }
+            "name": "Updated Name",
+            "description": "Updated description",
+            "panels": [],
+            "folder": {
+                "id": "new-folder-id"
+            }
+        }
     }
 
-    response: "Dashboard updated successfully"
+    response:
+    {
+        "message": "Dashboard updated successfully",
+        "dashboard": {
+            // Updated dashboard details
+        }
+    }
 
-### Delete dashboard
-    endpoint: api/dashboards/delete/{id}
+### Get Dashboard
+    endpoints: /api/dashboards/{dashboard-id}
     method: GET
 
     Example:
-    request: http://localhost:5122/api/dashboards/delete/9352623799225230043
-    response: "Dashboard deleted successfully"
+    request: http://localhost:5122/api/dashboards/5790dd5e-6738-48e3-87cc-6b037d6e0849
+
+    response:
+    {
+        "name": "Dashboard Name",
+        "description": "Description",
+        "createdAt": 1731994980586,
+        "isFavorite": false,
+        "panels": [],
+        "folder": {
+            "id": "folder-id",
+            "name": "Folder Name",
+            "path": "Parent/Folder",
+            "breadcrumbs": []
+        }
+    }
+
+### Delete Dashboard
+    endpoints: /api/dashboards/delete/{dashboard-id}
+    method: GET
+
+    Example:
+    request: http://localhost:5122/api/dashboards/delete/5790dd5e-6738-48e3-87cc-6b037d6e0849
+
+    response:
+    {
+        "message": "Dashboard deleted successfully",
+        "status": 200
+    }
+
+### Toggle Favorite
+    endpoints: /api/dashboards/favorite/{dashboard-id}
+    method: PUT
+
+    Example:
+    request: http://localhost:5122/api/dashboards/favorite/5790dd5e-6738-48e3-87cc-6b037d6e0849
+
+    response:
+    {
+        "isFavorite": true
+    }
+
+### List All Items
+    endpoints: /api/dashboards/list?sort=created-desc&type=dashboard&starred=true&folderId=folder-id&query=search
+    method: GET
+    query parameters:
+        sort: alpha-asc, alpha-desc, created-asc, created-desc
+        type: dashboard, folder, all
+        starred: true/false
+        folderId: filter by folder
+        query: filter items by name. For example, `query=sales` will return dashboards and folders with "sales" in their name.
+
+    Example:
+    request: http://localhost:5122/api/dashboards/list?sort=created-desc&type=dashboard&starred=true&folderId=folder-id&query=sales
+
+    response:
+    {
+        "items": [
+            {
+                "id": "uuid",
+                "name": "sales-dashboard",
+                "type": "dashboard",
+                "parentId": "folder-id",
+                "parentName": "Folder",
+                "fullPath": "Path/To/Item",
+                "isStarred": false,
+                "createdAt": "2024-12-31T00:00:00Z",
+                "description": "Description"
+            }
+        ],
+        "totalCount": 1
+    }
+
+### Create Folder
+    endpoints: /api/dashboards/folders/create
+    method: POST
+
+    Example:
+    request: http://localhost:5122/api/dashboards/folders/create
+    body:
+    {
+        "name": "New Folder",
+        "parentId": "parent-folder-id" // Optional
+    }
+    response:
+    {
+        "id": "folder-uuid",
+        "message": "Folder created successfully"
+    }
+
+### Update Folder
+    endpoints: /api/dashboards/folders/{folder-id}
+    method: PUT
+
+    Example:
+    request: http://localhost:5122/api/dashboards/folders/5790dd5e-6738-48e3-87cc-6b037d6e0849
+    body:
+    {
+        "name": "Updated Name",
+        "parentId": "new-parent-id"
+    }
+    response:
+    {
+		"message": "Folder updated successfully",
+	}
+
+### Get Folder
+    endpoints: /api/dashboards/folders/{folder-id}
+    method: GET
+        query parameters:
+        foldersOnly: true // Include only folders
+
+    Example:
+    request: http://localhost:5122/api/dashboards/folders/5790dd5e-6738-48e3-87cc-6b037d6e0849
+    response:
+    {
+        "folder": {
+            "id": "folder-id",
+            "name": "Folder Name",
+            "type": "folder"
+        },
+        "items": [
+            {
+                "id": "item-id",
+                "name": "Item Name",
+                "type": "dashboard/folder",
+                "childCount": 0,
+                "isDefault": false
+            }
+        ],
+        "breadcrumbs": [
+            {
+                "id": "folder-id",
+                "name": "Folder Name"
+            }
+        ]
+    }
+
+### Delete Folder
+    endpoints: /api/dashboards/folders/{folder-id}
+    method: DELETE
+
+    Example:
+    request: http://localhost:5122/api/dashboards/folders/5790dd5e-6738-48e3-87cc-6b037d6e0849
+    response:
+    {
+        "message": "Folder and its contents deleted successfully"
+    }
+
+
 
 ## Alerting APIs
 ### Create a Contact Point

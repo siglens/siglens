@@ -18,11 +18,16 @@
  */
 
 let currentTimeout = 0;
+let systemInfo, inodeInfo;
 
-$(document).ready(function () {
+$(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
     getRetentionDataFromConfig();
-    getSystemAndInodeInfo();
+    const result = await getSystemAndInodeInfo();
+    if (result) {
+        systemInfo = result.systemInfo;
+        inodeInfo = result.inodeInfo;
+    }
     fetchQueryTimeout()
     {{ .SettingsExtraOnReadySetup }}
     {{ .Button1Function }}
@@ -205,7 +210,6 @@ $('#saveTimeout').on('click', function() {
     const originalText = button.text();
 
     button.prop('disabled', true).text('Saving...');
-    console.log(newTimeout * 60);
     $.ajax({
         url: '/api/update-query-timeout',
         method: 'POST',

@@ -32,6 +32,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/instrumentation"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -360,6 +361,8 @@ func FlushStatsToFile(orgid uint64) error {
 
 	if _, ok := ustats[orgid]; ok {
 		logStatSummary(orgid)
+		instrumentation.SetPastMinuteNumDataPoints(int64(ustats[orgid].MetricsDatapointsCount))
+
 		if ustats[orgid].BytesCount > 0 {
 			filename := getStatsFilename(GetBaseStatsDir(orgid))
 			fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)

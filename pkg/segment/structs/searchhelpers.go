@@ -18,6 +18,9 @@
 package structs
 
 import (
+	"slices"
+	"sort"
+
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 )
 
@@ -26,7 +29,8 @@ import (
 // it is important to know that the slice is re-used, so callers would need to copy the values if needed
 // else, will leak memory
 type BlockSearchHelper struct {
-	matchedRecs *pqmr.PQMatchResults
+	matchedRecs        *pqmr.PQMatchResults
+	sortedValidRecords []uint // If not nil, only these record numbers can be added to matchedRecs
 }
 
 func InitBlockSearchHelper() *BlockSearchHelper {
@@ -47,6 +51,7 @@ func InitAllBlockSearchHelpers(fileParallelism int64) []*BlockSearchHelper {
 // keep allocated slice
 func (h *BlockSearchHelper) ResetBlockHelper() {
 	h.matchedRecs.ResetAll()
+	h.sortedValidRecords = nil
 }
 
 func (h *BlockSearchHelper) GetAllMatchedRecords() *pqmr.PQMatchResults {
@@ -54,6 +59,12 @@ func (h *BlockSearchHelper) GetAllMatchedRecords() *pqmr.PQMatchResults {
 }
 
 func (h *BlockSearchHelper) AddMatchedRecord(recNum uint) {
+	if h.sortedValidRecords != nil {
+		if _, isValid := slices.BinarySearch(h.sortedValidRecords, recNum); !isValid {
+			return
+		}
+	}
+
 	h.matchedRecs.AddMatchedRecord(recNum)
 }
 
@@ -63,4 +74,16 @@ func (h *BlockSearchHelper) ClearBit(recNum uint) {
 
 func (h *BlockSearchHelper) DoesRecordMatch(recNum uint) bool {
 	return h.matchedRecs.DoesRecordMatch(recNum)
+}
+
+func (h *BlockSearchHelper) SetValidRecords(validRecords []uint) {
+	sort.Slice(validRecords, func(i, j int) bool {
+		return validRecords[i] < validRecords[j]
+	})
+
+	h.sortedValidRecords = validRecords
+}
+
+func (h *BlockSearchHelper) GetValidRecords() []uint {
+	return h.sortedValidRecords
 }

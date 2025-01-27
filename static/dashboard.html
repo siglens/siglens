@@ -80,12 +80,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
         <div id="new-dashboard">
             <div class="header-container">
-                <div class="dashboard-names">
-                    <h4 class="all-dashboards" id="all-dashboards-text">All Dashboards</h4>
-                    <span class="dashboard-arrow"></span>
-                    <h3 class="name-dashboard"></h3>
-                    <button class="star-icon" id="favbutton" title="Mark as favorite" ></button>
-                </div>
+                <div id="breadcrumb"></div>
                 <div class="btn-container">
                     <div class="dropdown">
                         <button class="btn dropdown-toggle btn-top index-btn-show" type="button" id="date-picker-btn" data-toggle="dropdown"
@@ -420,7 +415,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
                                                             </button>
                                                             <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                                                <li id="option-2" class="query-language-option">Log QL</li>
                                                                 <li id="option-3" class="query-language-option active">Splunk QL</li>
                                                             </div>
                                                         </div>
@@ -801,6 +795,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <label for="dbSet-dbDescr">Description</label>
                         <textarea class="dbSet-dbDescr" id="dbSet-dbDescr" placeholder="Description"></textarea>
                     </div>
+
+                    <div class="dbSet-inputContainer" id="dbSet-descrContainer">
+                        <label for="dbSet-dbFolder">Folder</label>
+                        <input class="dbSet-dbFolder" id="dbSet-dbFolder" readonly></input>
+                    </div>
                     <div class="dbSet-saveBtnContainer">
                     </div>
                 </div>
@@ -843,6 +842,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/edit-panel-screen.js?cb=1_1_10"></script>
     <script src="./js/dashboard-logs-results-grid.js?cb=1_1_10"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
+    <script src="./component/dashboard/breadcrum.js"></script>
     <script src="./js/metrics-explorer.js"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="./js/query-builder.js?cb=1_1_10"></script>

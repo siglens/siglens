@@ -52,7 +52,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 
 	go query.PullQueriesToRun()
 	qid := uint64(0)
-	rQuery, err := query.StartQuery(qid, true, nil)
+	rQuery, err := query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
 
@@ -98,7 +98,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 
 	go query.PullQueriesToRun()
 	qid := uint64(0)
-	rQuery, err := query.StartQuery(qid, true, nil)
+	rQuery, err := query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
 
@@ -145,7 +145,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	assert.NoError(t, err)
 
 	go query.PullQueriesToRun()
-	_, err = query.StartQuery(0, true, nil)
+	_, err = query.StartQuery(0, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
 
@@ -158,7 +158,7 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	agg1.Next = &agg2
 
 	queryInfo := &query.QueryInformation{}
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.LOGS, 0)
 	queryProcessor, err := NewQueryProcessor(&agg1, queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)
@@ -171,7 +171,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 	assert.NoError(t, err)
 
 	go query.PullQueriesToRun()
-	_, err = query.StartQuery(0, true, nil)
+	_, err = query.StartQuery(0, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
 
@@ -202,7 +202,7 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 	}
 
 	queryInfo := &query.QueryInformation{}
-	querySummary := &summary.QuerySummary{}
+	querySummary := summary.InitQuerySummary(summary.LOGS, 0)
 	queryProcessor, err := NewQueryProcessor(&aggs[0], queryInfo, querySummary, 0, false, time.Now(), false)
 	assert.NoError(t, err)
 	assert.NotNil(t, queryProcessor)

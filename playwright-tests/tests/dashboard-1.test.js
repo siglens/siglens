@@ -2,29 +2,32 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Dashboard Page Tests', () => {
     let page;
-    let dashboardId;
     let uniqueName;
     let createdDashboardNames = [];
-
+    let createdDashboardIds = [];
     test.beforeEach(async ({ browser }) => {
         page = await browser.newPage();
 
         // Create dashboard
         await page.goto('http://localhost:5122/dashboards-home.html');
-        await page.click('#create-db-btn');
-        uniqueName = `Test Dashboard Playwright ${Date.now()}`;
-        await page.fill('#db-name', uniqueName);
-        await page.fill('#db-description', 'This is a test dashboard');
-        await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('#save-dbbtn')]);
+        await page.click('#add-new-container .dropdown .btn');
+        await expect(page.locator('#add-new-container .dropdown .dropdown-menu ')).toBeVisible();
 
+        await page.click('#create-db-btn');
+        await expect(page.locator('#new-dashboard-modal')).toBeVisible();
+        uniqueName = `Test Dashboard Playwright ${Date.now()}`;
+
+        await page.fill('#db-name', uniqueName);
+
+        const navigationPromise = page.waitForResponse((response) => response.url().includes('/api/dashboards/create') && response.status() === 200);
         createdDashboardNames.push(uniqueName);
+        await page.click('#save-dbbtn');
+        await navigationPromise;
+
+        await expect(page).toHaveURL(/.*dashboard\.html\?id=/, { timeout: 10000 });
 
         const url = page.url();
-        dashboardId = url.split('id=')[1];
-        if (!dashboardId) throw new Error('Failed to extract dashboard ID from URL');
-
-        // Navigate to the created dashboard
-        await page.goto(`http://localhost:5122/dashboard.html?id=${dashboardId}`);
+        createdDashboardIds.push(url.split('id=')[1]);
 
         // Create a new panel
         await expect(page.locator('#add-widget-options .editPanelMenu')).toBeVisible();
@@ -115,28 +118,28 @@ test.describe('Dashboard Page Tests', () => {
 
     test.afterAll(async ({ browser }) => {
         const cleanupPage = await browser.newPage();
-        await cleanupPage.goto('http://localhost:5122/dashboards-home.html');
 
-        for (const dashboardName of createdDashboardNames) {
-            try {
-                await cleanupPage.waitForSelector('.ag-center-cols-container .ag-row');
+        try {
+            // Delete dashboards using API calls
+            for (const id of createdDashboardIds) {
+                try {
+                    const response = await cleanupPage.request.get(`http://localhost:5122/api/dashboards/delete/${id}`, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: '*/*',
+                        },
+                    });
 
-                // Find the row with the dashboard name
-                const row = cleanupPage.locator(`.ag-center-cols-container .ag-row:has-text("${dashboardName}")`);
-
-                // Click the delete button for this row
-                await row.locator('.btn-simple').click();
-
-                // Wait for and click on the confirm delete button in the prompt
-                await cleanupPage.waitForSelector('#delete-db-prompt');
-                await cleanupPage.click('#delete-dbbtn');
-
-                // Wait for the row to disappear
-                await cleanupPage.waitForSelector(`.ag-center-cols-container .ag-row:has-text("${dashboardName}")`, { state: 'detached' });
-            } catch (error) {
-                console.error(`Failed to delete dashboard: ${dashboardName}`, error);
+                    if (!response.ok()) {
+                        console.error(`Failed to delete dashboard ${id}: ${response.statusText()}`);
+                    }
+                } catch (error) {
+                    console.error(`Error deleting dashboard ${id}:`, error);
+                }
             }
+        } finally {
+            await cleanupPage.close();
         }
-        await cleanupPage.close();
+        createdDashboardIds = [];
     });
 });

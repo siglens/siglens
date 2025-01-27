@@ -828,7 +828,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
-		go writeSortIndexes(segstore.SegmentKey)
+		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)
 
 		if blobErr == nil {
 			// upload ingest node dir to s3
@@ -847,18 +847,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	return nil
 }
 
-func writeSortIndexes(segkey string) {
+func writeSortIndexes(segkey string, indexName string) {
+	sortedIndexWG.Add(1)
+	defer sortedIndexWG.Done()
 
-	if config.IsSortIndexEnabled() {
-		sortedIndexWG.Add(1)
-		defer sortedIndexWG.Done()
-
-		for _, cname := range sortindex.GetSortColumns() {
-			err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
-			if err != nil {
-				log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
-					segkey, cname, err)
-			}
+	for _, cname := range sortindex.GetSortColumnNamesForIndex(indexName) {
+		err := sortindex.WriteSortIndex(segkey, cname, sortindex.AllSortModes)
+		if err != nil {
+			log.Errorf("writeSortIndexes: failed to write sort index for segkey=%v, cname=%v; err=%v",
+				segkey, cname, err)
 		}
 	}
 }

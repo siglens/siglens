@@ -99,7 +99,7 @@ func queryMetricsLooper() {
 	for {
 		time.Sleep(1 * time.Minute)
 		go func() {
-			instrumentation.SetSegmentMicroindexCountGauge(segmetadata.GetTotalSMICount())
+			instrumentation.SetTotalSegmentMicroindexCount(segmetadata.GetTotalSMICount())
 		}()
 	}
 }
@@ -774,7 +774,7 @@ func getAllUnrotatedSegments(queryInfo *QueryInformation, sTime time.Time) ([]*Q
 	var err error
 
 	qsrs, raw, pqs := filterUnrotatedSegKeysToQueryRequests(queryInfo, allUnrotatedKeys)
-	qsrs, err = applyQsrsFilterHook(qsrs, false)
+	qsrs, err = applyQsrsFilterHook(queryInfo, qsrs, false)
 	if err != nil {
 		log.Errorf("getAllUnrotatedSegments: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
 		return nil, 0, 0, err
@@ -820,10 +820,14 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 	finalQsrs = append(finalQsrs, rotatedQSR...)
 	numRawSearch += rotatedRawCount
 
-	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-	if err != nil {
-		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-		return nil, 0, 0, err
+	if config.IsNewQueryPipelineEnabled() {
+		numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
+	} else {
+		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
+		if err != nil {
+			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
+			return nil, 0, 0, err
+		}
 	}
 
 	return finalQsrs, numRawSearch, numDistributed, nil
@@ -837,7 +841,7 @@ func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Qu
 	var err error
 
 	qsrs, rawSearch := FilterAggSegKeysToQueryResults(queryInfo, allUnrotatedKeys, aggs, structs.UNROTATED_SEGMENT_STATS_SEARCH)
-	qsrs, err = applyQsrsFilterHook(qsrs, false)
+	qsrs, err = applyQsrsFilterHook(queryInfo, qsrs, false)
 	if err != nil {
 		log.Errorf("getAllUnrotatedSegmentsInAggs: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
 		return nil, 0, err
@@ -855,7 +859,7 @@ func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Quer
 
 	qsrs, totalQsr := FilterAggSegKeysToQueryResults(queryInfo, allPossibleKeys, aggs, structs.SEGMENT_STATS_SEARCH)
 
-	qsrs, err := applyQsrsFilterHook(qsrs, true)
+	qsrs, err := applyQsrsFilterHook(queryInfo, qsrs, true)
 	if err != nil {
 		log.Errorf("getAllRotatedSegmentsInAggs: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
 		return nil, 0, err
@@ -1039,10 +1043,14 @@ func getAllSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) ([]*Que
 	numRawSearch += rotatedRawCount
 	numPQS += rotatedPQS
 
-	numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
-	if err != nil {
-		log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
-		return nil, 0, 0, 0, err
+	if config.IsNewQueryPipelineEnabled() {
+		numDistributed = queryInfo.dqs.GetNumNodesDistributedTo()
+	} else if queryInfo.dqs != nil {
+		numDistributed, err = queryInfo.dqs.DistributeQuery(queryInfo)
+		if err != nil {
+			log.Errorf("qid=%d, Error in distributing query %+v", queryInfo.qid, err)
+			return nil, 0, 0, 0, err
+		}
 	}
 
 	// Sort query segment results depending on aggs
@@ -1061,7 +1069,7 @@ func getAllRotatedSegmentsInQuery(queryInfo *QueryInformation, sTime time.Time) 
 	var err error
 	qsrs := ConvertSegKeysToQueryRequests(queryInfo, allPossibleKeys)
 
-	qsrs, err = applyQsrsFilterHook(qsrs, true)
+	qsrs, err = applyQsrsFilterHook(queryInfo, qsrs, true)
 	if err != nil {
 		log.Errorf("getAllRotatedSegmentsInQuery: qid=%d, failed to apply hook: %v", queryInfo.qid, err)
 		return nil, 0, 0, err
@@ -1217,6 +1225,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 func ApplyFilterOperatorInternal(allSegFileResults *segresults.SearchResults, allSegRequests map[string]*structs.SegmentSearchRequest,
 	parallelismPerFile int64, searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
 	qid uint64, qs *summary.QuerySummary) error {
+
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
 		return fmt.Errorf("ApplyFilterOperatorInternal: Failed to get or create query search node result! Error: %v", err)
@@ -1437,9 +1446,9 @@ func checkAggTypes(aggs *structs.QueryAggregators) (bool, bool) {
 	return nonTime, timeAgg
 }
 
-func applyQsrsFilterHook(qsrs []*QuerySegmentRequest, isRotated bool) ([]*QuerySegmentRequest, error) {
+func applyQsrsFilterHook(queryInfo *QueryInformation, qsrs []*QuerySegmentRequest, isRotated bool) ([]*QuerySegmentRequest, error) {
 	if hook := hooks.GlobalHooks.FilterQsrsHook; hook != nil {
-		qsrsAsAny, err := hook(qsrs, isRotated)
+		qsrsAsAny, err := hook(qsrs, queryInfo, isRotated)
 		if err != nil {
 			log.Errorf("applyQsrsFilterHook: failed to apply hook: %v", err)
 			return nil, err

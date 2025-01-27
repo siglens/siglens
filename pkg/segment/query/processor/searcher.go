@@ -26,7 +26,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -151,7 +150,7 @@ func newSearcherHelper(queryInfo *query.QueryInformation, querySummary *summary.
 }
 
 func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
-	if searcher == nil || searcher.sortExpr == nil {
+	if searcher == nil || searcher.sortExpr == nil || len(searcher.sortExpr.SortEles) == 0 {
 		return nil, nil
 	}
 
@@ -180,6 +179,8 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 		}
 	}
 
+	// Make two subsearchers. One handles segments that have the required sort
+	// index files; the other handles the segments lacking them.
 	subsearchers := make([]*Searcher, 2)
 	for i := 0; i < 2; i++ {
 		subsearchers[i], err = newSearcherHelper(searcher.queryInfo, searcher.querySummary,
@@ -194,7 +195,7 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 	subsearchers[1].qsrs = otherQSRs
 	subsearchers[1].initUnprocessedQSRs()
 	subsearchers[1].sortIndexState.forceNormalSearch = true
-	subsearchers[1].segEncToKeyBaseValue = uint32(len(sortIndexQSRs))
+	subsearchers[1].segEncToKeyBaseValue += uint32(len(sortIndexQSRs))
 
 	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), searcher.qid)
 
@@ -267,7 +268,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 		return s.fetchStatsResults()
 	case structs.RRCCmd:
 		// Get blocks for the segment batch to process
-		if config.IsSortIndexEnabled() && s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
+		if s.sortExpr != nil && !s.sortIndexState.forceNormalSearch {
 			return s.fetchColumnSortedRRCs()
 		}
 		// initialize QSRs if they don't exist
@@ -440,8 +441,14 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 	numRecordsToSend := numRecords
 	if numRecordsToSend > numRemainingRecords {
-		numRecordsToSend = numRemainingRecords
-		s.sortIndexState.didEarlyExit = true
+		// If we reach the limit, we can stop immediately if we're only
+		// searching on one column. But if we're searching on multiple columns,
+		// we need to finish reading the records with the value we're on.
+		requiresFullLine := (len(s.sortExpr.SortEles) > 1)
+		if !requiresFullLine {
+			numRecordsToSend = numRemainingRecords
+			s.sortIndexState.didEarlyExit = true
+		}
 	}
 
 	err := result.DiscardAfter(numRecordsToSend)
@@ -484,8 +491,15 @@ func (s *Searcher) fetchSortedRRCsForQSR(qsr *query.QuerySegmentRequest, pqmr *p
 			s.qid, s.sortExpr.SortEles[0].Op)
 	}
 
+	// For a multicolumn sort, we only read the first column from the sort
+	// index, but once we read enough records, we have to continue reading the
+	// rest of the records with that value; otherwise we can get incorrect
+	// results when sorting those last few records on the subsequent sort
+	// columns.
+	multiColSort := (len(s.sortExpr.SortEles) > 1)
+	readFullLine := multiColSort
 	lines, checkpoint, err := sortindex.ReadSortIndex(qsr.GetSegKey(), cname, sortMode,
-		reverse, s.numRecordsPerBatch, checkpoint)
+		reverse, s.numRecordsPerBatch, readFullLine, checkpoint)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchSortedRRCsForQSR: failed to read sort index: err=%v", s.qid, err)
 		return nil, err
@@ -672,6 +686,7 @@ func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, search
 
 func (s *Searcher) applyRawSearchForSortedIndex(qsr *query.QuerySegmentRequest, searchResults *segresults.SearchResults,
 	sizeLimit uint64, aggs *structs.QueryAggregators, blockToValidRecNums map[uint16][]uint16) error {
+
 	allSSRs, err := query.GetSSRsFromQSR(qsr, s.querySummary)
 	if err != nil {
 		return fmt.Errorf("fetchSortedRRCsForQSR: failed to get SSRs from QSR: err=%v", err)

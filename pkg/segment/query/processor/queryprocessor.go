@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/query"
@@ -80,10 +79,6 @@ func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {
 }
 
 func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr {
-	if !config.IsSortIndexEnabled() {
-		return nil
-	}
-
 	if queryAgg == nil {
 		return nil
 	}
@@ -112,7 +107,9 @@ func MutateForSearchSorter(queryAgg *structs.QueryAggregators) *structs.SortExpr
 	}
 
 	// TODO: Replace the sort with a head if the sort is fully handled by the
-	// searcher.
+	// searcher. This is only the case for single-column sorts; for multi-column
+	// sorts, the searcher will return results sorted by only first specified
+	// column, so we still need the sort processor.
 	sortExpr := sorterAgg.SortExpr
 
 	return sortExpr
@@ -355,7 +352,8 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
-			return nil, utils.TeeErrorf("GetFullResult: failed to fetch; err=%v", err)
+			log.Errorf("GetFullResult: failed to fetch iqr; err=%v", err)
+			return nil, utils.WrapErrorf(err, "GetFullResult: failed to fetch; err=%v", err)
 		}
 
 		if finalIQR == nil {
@@ -419,7 +417,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	for err != io.EOF {
 		iqr, err = qp.DataProcessor.Fetch()
 		if err != nil && err != io.EOF {
-			return utils.TeeErrorf("GetStreamedResult: failed to fetch iqr, err: %v", err)
+			log.Errorf("GetStreamedResult: failed to fetch iqr; err=%v", err)
+			return utils.WrapErrorf(err, "GetStreamedResult: failed to fetch iqr, err: %v", err)
 		}
 		if iqr == nil {
 			break
@@ -447,6 +446,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				StateName:       query.QUERY_UPDATE,
 				PercentComplete: result.Completion,
 				UpdateWSResp:    result,
+				Qid:             qp.qid,
 			}
 		}
 	}
@@ -481,6 +481,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	stateChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		CompleteWSResp: completeResp,
+		Qid:            qp.qid,
 	}
 
 	return nil

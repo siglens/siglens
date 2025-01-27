@@ -289,6 +289,7 @@ async function editAlert(alertId) {
         crossDomain: true,
     });
     if (window.location.href.includes('alert-details.html')) {
+        $('.alert-name').empty().text(res.alert.alert_name);
         fetchAlertProperties(res);
         fetchAlertHistory();
         return false;
@@ -542,9 +543,9 @@ async function displayAlert(res) {
     $(`.alert-condition-options #option-${res.condition}`).addClass('active');
 
     $('#alert-condition span').text(conditionType);
-    $('#threshold-value').val(res.value);
-    $('#evaluate-every').val(res.eval_interval);
-    $('#evaluate-for').val(res.eval_for);
+    $('#threshold-value').val(res.value || 0);
+    $('#evaluate-every').val(res.eval_interval || 1);
+    $('#evaluate-for').val(res.eval_for || 1);
     $('.message').val(res.message);
 
     if (alertEditFlag && !alertFromMetricsExplorerFlag) {

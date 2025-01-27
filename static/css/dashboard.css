@@ -716,11 +716,11 @@
 }
 
 #dbSet-descrContainer{
-  margin-top: 2rem;
-  height: 40vh;
+  margin-top: 24px;
+  height: 120px;
 }
 
-.dbSet-dbName {
+.dbSet-dbName, .dbSet-dbFolder {
   border: 1px solid var(--white-4);
   outline: none;
   padding: 0.8rem 1.25rem;
@@ -733,11 +733,11 @@
 .dbSet-dbDescr {
   border: 1px solid var(--white-4);
   outline: none;
-  padding: 1rem 1.25rem;
+  padding: 10px 20px;
   width: 80%;
   background: transparent;
   border-radius: 5px;
-  height: 40%;
+  height: 100%;
   resize: none;
   margin-top: 10px;
 }
@@ -1063,7 +1063,6 @@ input:checked + .slider:before {
   line-height: 14px;
   cursor: pointer;
   border-radius: 0 5px 5px 0 !important;
-  margin-top: -3px;
   width: auto;
   padding: 0 5px;
 }

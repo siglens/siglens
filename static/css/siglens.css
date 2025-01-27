@@ -805,7 +805,6 @@ body {
 #live-tail-btn,
 #add-icon,
 #add-icon-second,
-#create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
@@ -842,7 +841,6 @@ body {
 #date-picker-btn,
 #cancel-loading,
 #live-tail-btn,
-#create-db-btn,
 #logout-btn,
 #search-query-btn,
 #search-history-btn,
@@ -962,7 +960,6 @@ body {
 #live-tail-btn,
 #run-filter-btn,
 #cancel-loading,
-#create-db-btn,
 #run-metrics-query-btn,
 #logout-btn,
 #search-query-btn,
@@ -1842,7 +1839,7 @@ div.dts div.dataTables_scrollBody table {
     overflow-x: hidden;
 }
 
-#sq-search-container ,#db-search-container, #metrics-container{
+#sq-search-container {
     display: grid;
     grid-template-columns: 2fr auto auto;
     column-gap: 15px;
@@ -2069,6 +2066,21 @@ div.dts div.dataTables_scrollBody table {
     margin-left: 0px;
 }
 
+.white-download-icon{
+    background-image: url(../assets/download-icon-dark.svg);
+    height: 13px;
+    background-repeat: no-repeat;
+    width: 20px;
+    cursor: pointer;
+    background-color: transparent;
+    border-width: 0;
+    margin-left: 0px;
+    padding-bottom: 0;
+    background-size: contain;
+    background-position: center;
+    margin-right: 2px;
+}
+
 /* Delete confimation popup */
 .popupOverlay,.mypopupOverlay {
   visibility: hidden;
@@ -2107,7 +2119,7 @@ div.dts div.dataTables_scrollBody table {
     color: var(--text-color);
     font-size: 1em;
     height: fit-content;
-    width: 464px !important;
+    width: 436px !important;
     z-index: 10;
 }
 .delete-dialog{
@@ -2132,7 +2144,7 @@ div.dts div.dataTables_scrollBody table {
 
 .popupContent .header,.delete-dialog .header ,.mypopupContent .header{
   color: var(--text-color);
-  margin-bottom: 25px;
+  margin-bottom: 16px;
   font-weight: bold;
   font-size: 18px;
 }
@@ -2141,12 +2153,12 @@ div.dts div.dataTables_scrollBody table {
     display: flex;
     justify-content: space-between;
     margin-top: 24px;
+    font-size: 14px;
 }
 
 .popupOverlay.active ,.popupContent.active,.delete-dialog.active,.mypopupOverlay.active,.mypopupContent.active{
   visibility: visible;
   position: fixed;
-  overflow: hidden;
 }
 
 #delete-btn ,
@@ -2423,7 +2435,7 @@ div#download-info {
     display: none;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus, input[type="number"]:focus {
     color: var(--search-bar-text-color-active);
     border-radius: 5px;
     background: var(--search-bar-bg);
@@ -2472,7 +2484,7 @@ input[type="text"].active {
 
 .saveqButton,
 .cancelqButton {
-    width: 195px !important;
+    width: 183px !important;
     height: 32px !important;
     border-radius: 5px;
     border: none;
@@ -2509,12 +2521,13 @@ input[type="submit" i] {
 
 /* end save query dialog  */
 
-#hide-null-column-box{
+#hide-null-column-box, .starred-filter{
     display: flex;
     align-items: center;
+    margin-right: 16px;
 }
 
-#hide-null-columns-checkbox{
+.checkbox{
     color: var(--select-unselect-header-text-color);
     font-size: 14px;
     position: relative;
@@ -2524,33 +2537,33 @@ input[type="submit" i] {
     width: 18px;
 }
 
-#hide-null-columns-checkbox[type="checkbox"] {
+.checkbox[type="checkbox"] {
     width: 16px;
     height: 16px;
     accent-color: var(--purple-1);
 } 
 
-#hide-null-columns-checkbox[type="checkbox"] {
+.checkbox[type="checkbox"] {
     appearance: none;
     -webkit-appearance: none;
     display: flex;
     align-content: center;
     justify-content: center;
     padding: 0.1rem;
-    background-color: white; 
+    background-color: var(--hits-summary-bg-regular);
     border: 1.5px solid var(--purple-1);
     border-radius: 2px;
 } 
 
-#hide-null-columns-checkbox[type="checkbox"]:not(:checked)::before {
+.checkbox[type="checkbox"]:not(:checked)::before {
     content: '';
 }
 
-#hide-null-columns-checkbox[type="checkbox"]:checked {
+.checkbox[type="checkbox"]:checked {
     background-color: var(--purple-1);
 }
 
-#hide-null-columns-checkbox[type="checkbox"]:checked::before {
+.checkbox[type="checkbox"]:checked::before {
     content: '\2713'; /* Unicode for checkmark */
     color: white;
     font-size: 13px;
@@ -2560,7 +2573,7 @@ input[type="submit" i] {
     transform: scale(1);
 }
 
-#hide-null-columns-checkbox[type="checkbox"]:hover {
+.checkbox[type="checkbox"]:hover {
     cursor: pointer;
 }
       
@@ -3059,6 +3072,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 /*launch dashboard*/
+.launch-dashboard {
+    padding: 20px;
+}
+
 .launch-dashboard .popupContent{
     width: 464px !important;
     flex-direction: column;
@@ -3067,11 +3084,10 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
 }
 
 .launch-dashboard .popupContent .input, input{
-    font-size: 1em;
+    font-size: 14px;
     background: var(--ui-widget-bg-color);
     padding: 13px 0 14px 14px;
     box-sizing: border-box;
-    color: var(--search-bar-text-color-regular-or-hover);
     border: 1px solid var(--ui-widget-border-color);
     width: 100%;
     height: 32px;
@@ -3145,13 +3161,9 @@ float: right;
     color: var(--component-text-color);
     margin-top: 15px;
 }
-#delete-db-prompt {
-    display: none;
-}
 
 .dashboard-header {
-    margin-top: 8px;
-    margin-right: 39px;
+    margin-top: 10px;
     display: flex;
     justify-content: flex-end;
     margin-bottom: 5px;
@@ -3192,21 +3204,9 @@ float: right;
    align-items: center;
 }
 
-
-#dashboard-grid-container {
-    margin-left: 23px;
-    margin-bottom: 2%;
-    margin-right: 25px;
-    margin-top: 13px;
-    height: 100% !important;
-}
-
-
-
 /*dashboard*/
 #new-dashboard{
     overflow-x: hidden;
-    font-size: 20px;
     color: var(--cstats-header-text-color);
     font-weight: var(--fw-500) !important;
     font-family: "DINpro", Arial, sans-serif;
@@ -3230,9 +3230,9 @@ float: right;
     background-color: var(--db-bg-color);
 }
 
-.dashboard-names{
+#breadcrumb{
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
 }
 
@@ -3243,7 +3243,7 @@ float: right;
     background-size: contain;
 }
 
-.all-dashboards{
+.all-dashboards, .folder-name{
     font-size: 16px;
     color: #6F6B7B;
     cursor: pointer;
@@ -3493,10 +3493,6 @@ float: right;
 
 /* dashboard Grid*/
 #dashboard-grid-container{
-    margin-left: 23px;
-    margin-bottom: 2%;
-    margin-right: 25px;
-    margin-top: -3px;
     height: 100% !important;
 }
 
@@ -3531,7 +3527,6 @@ float: right;
 #dashboard-grid .ag-cell{
     display: flex !important;
     padding: 0px 0px 0px 15px !important;
-    cursor: pointer;
     font-size: 14px;
     text-decoration-line: none;
     border-bottom: var(--bg-color) 5px solid;
@@ -3539,6 +3534,11 @@ float: right;
 #dashboard-grid .ag-cell a{
     color: var(--dashboard-title-color) !important;
     text-decoration-line: underline;
+    text-decoration: none;
+}
+
+#dashboard-grid .ag-cell a:hover{
+    text-decoration: underline;
 }
 
 
@@ -3548,6 +3548,21 @@ float: right;
     
 }
 
+.folder-arrow {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: transform 0.2s;
+    color: var(--table-or-regular-text-color);
+ }
+ 
+ .folder-arrow:hover {
+    background-color: var(--index-drop-down-item-hover-bg-color);
+ }
+
+.content-count{
+    font-weight: 600;
+}
 /*NAVBAR */
 .sidebar-icon{
     background-image: url("../assets/collapse-sidebar-icon.svg");
@@ -4917,7 +4932,7 @@ color: #C8C7CC;
     float: right;
 }
 .card {
-    width: 210px;
+    width: fit-content;
     height: 40px;
     border-radius: 8px;
     box-sizing: border-box;
@@ -5138,7 +5153,7 @@ color: #C8C7CC;
     overflow: hidden;
     padding: 0px 10px 0px 0px;
     border: 1px solid var(--timepicker-border-color);
-    max-height: 102px;
+    max-height: 180px;
     overflow-y: scroll;
 }
 
@@ -6278,7 +6293,7 @@ input.form-control {
     border: none;
     height: 30px;
     color: var(--button-text-color) !important;
-    background: var(--btn-regular-bg-color);
+    background: var(--btn-regular-bg-color) !important;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -6296,6 +6311,13 @@ input.form-control {
     justify-content: center;
 }
 
+.grey-dropdown-btn {
+    border: 1px solid var(--border-btn-color);
+    height: 30px;
+    display: flex;
+    align-items: center;
+}
+
 #file-input{
     height: 60px !important;
 }
@@ -6307,4 +6329,48 @@ input.form-control {
 
 #csvViewerModal{
     width: 60% !important;
+}
+
+
+/* DROPDOWN  */
+.dropdown-menu-style {
+    background: var(--index-drop-down-box-bg-color);
+    overflow: hidden;
+    border: 1px solid var(--timepicker-border-color);
+    padding: 0;
+}
+
+.dropdown-option{
+    background: var(--index-drop-down-item-inactive-bg-color);
+    color: var(--index-drop-down-item-inactive-text-color);
+    margin: 6px;
+    cursor: pointer;
+    padding: 6px 0;
+    padding-left: 12px;
+    font-weight: var(--fw-400);
+    font-family: "DINpro", Arial, sans-serif;
+    border-radius: 4px;
+}
+
+.dropdown-option:hover{
+    background: var(--index-drop-down-item-hover-bg-color);
+    color: var(--index-drop-down-item-hover-text-color);
+}
+
+.dropdown-option.active{
+    background: var(--index-drop-down-item-active-bg-color);
+    color: var(--index-drop-down-item-active-text-color);
+}
+
+.dd-width-150{
+    width: 150px;
+}
+
+/* PADDING */
+.p-20{
+    padding: 20px;
+}
+
+.breadcrumb-link{
+    text-decoration: none;
 }

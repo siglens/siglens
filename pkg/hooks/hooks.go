@@ -78,6 +78,7 @@ type Hooks struct {
 	WriteUsageStatsIfConditionHook    func() bool
 	WriteUsageStatsElseExtraLogicHook func()
 	ForceFlushIfConditionHook         func() bool
+	GetWaitingQueriesHook             func() (interface{}, error)
 
 	// Blobstore
 	InitBlobStoreExtrasHook             func() (bool, error)
@@ -115,13 +116,14 @@ type Hooks struct {
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error
 	ExtraQueryEndpointsHook     func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx)) error
+	LogQLParse                  func(filename string, b []byte) (interface{}, error)
 
 	// Query summary
 	ShouldAddDistributedInfoHook func() bool
 
 	// Distributed query
 	InitDistributedQueryServiceHook func(querySummary interface{}, allSegFileResults interface{}, distQueryId string, segKeyEnc uint32) interface{}
-	FilterQsrsHook                  func(qsrs interface{}, isRotated bool) (interface{}, error)
+	FilterQsrsHook                  func(qsrs interface{}, queryInfoAsAny interface{}, isRotated bool) (interface{}, error)
 	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
 
 	// Handling ingestion
@@ -130,6 +132,9 @@ type Hooks struct {
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)
 	AfterSegmentRotation      func(segmeta interface{}) error
+
+	//Version
+	ProcessVersionInfoHook func(ctx *fasthttp.RequestCtx)
 }
 
 type HtmlSnippets struct {
@@ -138,6 +143,7 @@ type HtmlSnippets struct {
 	RunCheck3 string
 	Button1   string
 	Popup1    string
+	Dropdown2 string
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
@@ -172,12 +178,18 @@ type JsSnippets struct {
 	OrgUpperNavUrls string
 
 	OrgAllSlos string
-	PanelFlag  bool
+
+	PanelFlag         bool
+	ShowSLO           bool
+	EnterpriseEnabled bool
 }
 
 var GlobalHooks = Hooks{
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
 		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
 		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
+	},
+	JsSnippets: JsSnippets{
+		ShowSLO: true,
 	},
 }

@@ -29,6 +29,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -41,13 +42,10 @@ type Block struct {
 	RecNums  []uint16 `json:"recNums"`
 }
 
-type SortColumnConfig struct {
-	columns []string
-	mu      sync.RWMutex
-}
+var sortConfigMutex sync.RWMutex
 
-var sortConfig = &SortColumnConfig{
-	columns: make([]string, 0),
+type SortColumnsConfig struct {
+	Indexes map[string][]string `json:"indexes"`
 }
 
 var VERSION_SORT_INDEX = []byte{1}
@@ -66,6 +64,10 @@ const (
 )
 
 var AllSortModes = []SortMode{SortAsAuto, SortAsNumeric, SortAsString}
+
+func getSortColumnsConfigPath() string {
+	return filepath.Join(config.GetDataPath(), "common", "sort_columns.json")
+}
 
 func (sm SortMode) String() string {
 	switch sm {
@@ -391,8 +393,14 @@ type Checkpoint struct {
 	eof         bool
 }
 
+//   - If fromCheckpoint is nil, it reads from the start of the file;
+//     otherwise it picks up from the checkpoint.
+//   - If readFullLine is false, it will exit after reading maxRecordsToRead
+//     records (or reaching the end of the file); otherwise, once it reads
+//     maxRecordsToRead, it will continue reading the rest of the line and then
+//     return.
 func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
-	maxRecordsToRead int, fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
+	maxRecordsToRead int, readFullLine bool, fromCheckpoint *Checkpoint) ([]Line, *Checkpoint, error) {
 
 	if IsEOF(fromCheckpoint) {
 		return nil, fromCheckpoint, nil
@@ -438,7 +446,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 	finalCheckpoint := &Checkpoint{}
 	totalUniqueColValues := int64(len(metadata.valueOffsets))
 	for maxRecordsToRead > 0 && finalCheckpoint.lineNum < totalUniqueColValues {
-		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, fromCheckpoint, reverse, metadata)
+		numRecords, line, checkpoint, err := readLine(file, maxRecordsToRead, readFullLine, fromCheckpoint, reverse, metadata)
 		if err != nil {
 			return nil, nil, fmt.Errorf("ReadSortIndex: failed reading line: %v", err)
 		}
@@ -483,7 +491,7 @@ func ReadSortIndex(segkey string, cname string, sortMode SortMode, reverse bool,
 
 // The file should already be positioned at the start of the line specified by
 // the checkpoint.
-func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
+func readLine(file *os.File, maxRecordsToRead int, readFullLine bool, fromCheckpoint *Checkpoint,
 	reverse bool, meta *metadata) (int, *Line, *Checkpoint, error) {
 
 	gotToEndOfLine := true
@@ -531,7 +539,7 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 
 		numRecords := uint32(0)
 		recNums := make([]uint16, 0)
-		for numRecords < totalRecordsInBlock && totalRecordsRead < uint64(maxRecordsToRead) {
+		for numRecords < totalRecordsInBlock && (readFullLine || totalRecordsRead < uint64(maxRecordsToRead)) {
 			// Read recNum
 			var recNum uint16
 			err = binary.Read(file, binary.LittleEndian, &recNum)
@@ -553,8 +561,10 @@ func readLine(file *os.File, maxRecordsToRead int, fromCheckpoint *Checkpoint,
 		numBlocks++
 
 		if totalRecordsRead >= uint64(maxRecordsToRead) {
-			done = true
 			gotToEndOfLine = (numBlocks == totalBlocks && numRecords == totalRecordsInBlock)
+			if gotToEndOfLine || !readFullLine {
+				done = true
+			}
 		} else if numRecords != totalRecordsInBlock {
 			return 0, nil, nil, fmt.Errorf("ReadSortIndex: sort file seems to be corrupted, numRecords(%v) != totalRecords(%v)", numRecords, totalRecordsInBlock)
 		}
@@ -658,37 +668,93 @@ func readMetadata(file *os.File) (*metadata, error) {
 	return meta, nil
 }
 
-func SetSortColumns(columnNames []string) error {
-	sortConfig.mu.Lock()
-	defer sortConfig.mu.Unlock()
+func SetSortColumns(indexName string, columnNames []string) error {
+	configPath := getSortColumnsConfigPath()
 
-	// TODO: Persist sort column names to disk
+	sortConfigMutex.Lock()
+	defer sortConfigMutex.Unlock()
+
+	dir := filepath.Dir(configPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("SetSortColumns: failed to create config directory: %v", err)
+	}
+
 	for _, col := range columnNames {
 		if col == "" {
 			return fmt.Errorf("SetSortColumns: column names must be non-empty strings")
 		}
 	}
 
-	sortConfig.columns = columnNames
+	config := SortColumnsConfig{
+		Indexes: make(map[string][]string),
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err == nil {
+		if err := json.Unmarshal(data, &config); err != nil {
+			return fmt.Errorf("SetSortColumns: failed to parse sort columns config: %v", err)
+		}
+	}
+
+	config.Indexes[indexName] = columnNames
+
+	data, err = json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return fmt.Errorf("SetSortColumns: failed to marshal sort columns config: %v", err)
+	}
+
+	err = os.WriteFile(configPath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("SetSortColumns: failed to write sort columns config: %v", err)
+	}
 
 	return nil
 }
 
-func GetSortColumns() []string {
-	sortConfig.mu.RLock()
-	defer sortConfig.mu.RUnlock()
-	return sortConfig.columns
+func GetSortColumnNamesForIndex(indexName string) []string {
+	configPath := getSortColumnsConfigPath()
+
+	sortConfigMutex.RLock()
+	defer sortConfigMutex.RUnlock()
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Debugf("GetSortColumnNamesForIndex: no sort columns config file found: %v", err)
+		} else {
+			log.Errorf("GetSortColumnNamesForIndex: error reading config file: %v", err)
+		}
+		return make([]string, 0)
+	}
+
+	var config SortColumnsConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.Errorf("GetSortColumnNamesForIndex: failed to parse sort columns config: %v", err)
+		return make([]string, 0)
+	}
+
+	return config.Indexes[indexName]
 }
 
 func SetSortColumnsAPI(ctx *fasthttp.RequestCtx) {
-	var columns []string
-	if err := json.Unmarshal(ctx.PostBody(), &columns); err != nil {
+	var request struct {
+		IndexName string   `json:"indexName"`
+		Columns   []string `json:"columns"`
+	}
+
+	if err := json.Unmarshal(ctx.PostBody(), &request); err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		ctx.SetBodyString("Invalid request body: " + err.Error())
 		return
 	}
 
-	if err := SetSortColumns(columns); err != nil {
+	if request.IndexName == "" {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.SetBodyString("Missing index name")
+		return
+	}
+
+	if err := SetSortColumns(request.IndexName, request.Columns); err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		ctx.SetBodyString("Failed to set sort columns: " + err.Error())
 		return

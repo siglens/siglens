@@ -18,7 +18,10 @@
 package writer
 
 import (
+	"fmt"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"os"
 	"path/filepath"
@@ -51,6 +54,10 @@ func cleanupSfmFiles() {
 	}
 }
 
+func newTestSegKey(suffix int) string {
+	return fmt.Sprintf("test-data/hostid/final/index/streamid/%d/%d", suffix, suffix)
+}
+
 func Test_ReplaceSingleSegMeta(t *testing.T) {
 	t.Cleanup(cleanupSfmFiles)
 
@@ -60,7 +67,7 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	segMetasArr := ReadLocalSegmeta(false)
 	segMetas := make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
-		if smentry.SegmentKey == "key1" {
+		if smentry.SegmentKey == newTestSegKey(1) {
 			segMetas[smentry.SegmentKey] = smentry
 			break
 		}
@@ -68,7 +75,7 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	assert.Empty(t, segMetas)
 
 	segMetaV1 := structs.SegMeta{
-		SegmentKey:  "key1",
+		SegmentKey:  newTestSegKey(1),
 		RecordCount: 20,
 	}
 
@@ -77,18 +84,18 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	segMetasArr = ReadLocalSegmeta(false)
 	segMetas = make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
-		if smentry.SegmentKey == "key1" {
+		if smentry.SegmentKey == newTestSegKey(1) {
 			segMetas[smentry.SegmentKey] = smentry
 			break
 		}
 	}
 
 	assert.Len(t, segMetas, 1)
-	assert.Equal(t, segMetaV1.SegmentKey, segMetas["key1"].SegmentKey)
-	assert.Equal(t, segMetaV1.RecordCount, segMetas["key1"].RecordCount)
+	assert.Equal(t, segMetaV1.SegmentKey, segMetas[newTestSegKey(1)].SegmentKey)
+	assert.Equal(t, segMetaV1.RecordCount, segMetas[newTestSegKey(1)].RecordCount)
 
 	segMetaV2 := structs.SegMeta{
-		SegmentKey:  "key1",
+		SegmentKey:  newTestSegKey(1),
 		RecordCount: 50,
 	}
 
@@ -97,15 +104,15 @@ func Test_ReplaceSingleSegMeta(t *testing.T) {
 	segMetasArr = ReadLocalSegmeta(false)
 	segMetas = make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
-		if smentry.SegmentKey == "key1" {
+		if smentry.SegmentKey == newTestSegKey(1) {
 			segMetas[smentry.SegmentKey] = smentry
 			break
 		}
 	}
 
 	assert.Len(t, segMetas, 1)
-	assert.Equal(t, segMetaV2.SegmentKey, segMetas["key1"].SegmentKey)
-	assert.Equal(t, segMetaV2.RecordCount, segMetas["key1"].RecordCount)
+	assert.Equal(t, segMetaV2.SegmentKey, segMetas[newTestSegKey(1)].SegmentKey)
+	assert.Equal(t, segMetaV2.RecordCount, segMetas[newTestSegKey(1)].RecordCount)
 }
 
 func Test_ReplaceMiddleSegMeta(t *testing.T) {
@@ -115,15 +122,15 @@ func Test_ReplaceMiddleSegMeta(t *testing.T) {
 	initSmr()
 
 	segMeta1 := structs.SegMeta{
-		SegmentKey:  "key1",
+		SegmentKey:  newTestSegKey(1),
 		RecordCount: 20,
 	}
 	segMeta2V1 := structs.SegMeta{
-		SegmentKey:  "key2",
+		SegmentKey:  newTestSegKey(2),
 		RecordCount: 50,
 	}
 	segMeta3 := structs.SegMeta{
-		SegmentKey:  "key3",
+		SegmentKey:  newTestSegKey(3),
 		RecordCount: 100,
 	}
 
@@ -132,7 +139,7 @@ func Test_ReplaceMiddleSegMeta(t *testing.T) {
 	AddOrReplaceRotatedSegmeta(segMeta3)
 
 	segMeta2V2 := structs.SegMeta{
-		SegmentKey:  "key2",
+		SegmentKey:  newTestSegKey(2),
 		RecordCount: 80,
 	}
 	AddOrReplaceRotatedSegmeta(segMeta2V2)
@@ -140,18 +147,87 @@ func Test_ReplaceMiddleSegMeta(t *testing.T) {
 	segMetasArr := ReadLocalSegmeta(false)
 	segMetas := make(map[string]*structs.SegMeta)
 	for _, smentry := range segMetasArr {
-		if smentry.SegmentKey == "key1" ||
-			smentry.SegmentKey == "key2" ||
-			smentry.SegmentKey == "key3" {
+		if smentry.SegmentKey == newTestSegKey(1) ||
+			smentry.SegmentKey == newTestSegKey(2) ||
+			smentry.SegmentKey == newTestSegKey(3) {
 			segMetas[smentry.SegmentKey] = smentry
 		}
 	}
 
 	assert.Len(t, segMetas, 3)
-	assert.Equal(t, segMeta1.SegmentKey, segMetas["key1"].SegmentKey)
-	assert.Equal(t, segMeta1.RecordCount, segMetas["key1"].RecordCount)
-	assert.Equal(t, segMeta2V2.SegmentKey, segMetas["key2"].SegmentKey)
-	assert.Equal(t, segMeta2V2.RecordCount, segMetas["key2"].RecordCount)
-	assert.Equal(t, segMeta3.SegmentKey, segMetas["key3"].SegmentKey)
-	assert.Equal(t, segMeta3.RecordCount, segMetas["key3"].RecordCount)
+	assert.Equal(t, segMeta1.SegmentKey, segMetas[newTestSegKey(1)].SegmentKey)
+	assert.Equal(t, segMeta1.RecordCount, segMetas[newTestSegKey(1)].RecordCount)
+	assert.Equal(t, segMeta2V2.SegmentKey, segMetas[newTestSegKey(2)].SegmentKey)
+	assert.Equal(t, segMeta2V2.RecordCount, segMetas[newTestSegKey(2)].RecordCount)
+	assert.Equal(t, segMeta3.SegmentKey, segMetas[newTestSegKey(3)].SegmentKey)
+	assert.Equal(t, segMeta3.RecordCount, segMetas[newTestSegKey(3)].RecordCount)
+}
+
+func Test_removeSegmetas_byIndex(t *testing.T) {
+	t.Cleanup(cleanupSfmFiles)
+
+	config.InitializeDefaultConfig(t.TempDir())
+	initSmr()
+
+	segMeta1 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(1),
+		VirtualTableName: "ind-0",
+	}
+	segMeta2 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(2),
+		VirtualTableName: "ind-0",
+	}
+	segMeta3 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(3),
+		VirtualTableName: "ind-1",
+	}
+
+	AddOrReplaceRotatedSegmeta(segMeta1)
+	AddOrReplaceRotatedSegmeta(segMeta2)
+	AddOrReplaceRotatedSegmeta(segMeta3)
+
+	segMetasArr := ReadLocalSegmeta(false)
+	require.Len(t, segMetasArr, 3)
+
+	removeSegmetas(nil, "ind-0")
+
+	segMetasArr = ReadLocalSegmeta(false)
+	assert.Len(t, segMetasArr, 1)
+	assert.Equal(t, segMeta3.SegmentKey, segMetasArr[0].SegmentKey)
+}
+
+func Test_removeSegmetas_bySegkey(t *testing.T) {
+	t.Cleanup(cleanupSfmFiles)
+
+	config.InitializeDefaultConfig(t.TempDir())
+	initSmr()
+
+	segMeta1 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(1),
+		VirtualTableName: "ind-0",
+	}
+	segMeta2 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(2),
+		VirtualTableName: "ind-0",
+	}
+	segMeta3 := structs.SegMeta{
+		SegmentKey:       newTestSegKey(3),
+		VirtualTableName: "ind-1",
+	}
+
+	AddOrReplaceRotatedSegmeta(segMeta1)
+	AddOrReplaceRotatedSegmeta(segMeta2)
+	AddOrReplaceRotatedSegmeta(segMeta3)
+
+	segMetasArr := ReadLocalSegmeta(false)
+	require.Len(t, segMetasArr, 3)
+
+	removeSegmetas(map[string]struct{}{
+		newTestSegKey(1): {},
+		newTestSegKey(3): {},
+	}, "")
+
+	segMetasArr = ReadLocalSegmeta(false)
+	assert.Len(t, segMetasArr, 1)
+	assert.Equal(t, segMeta2.SegmentKey, segMetasArr[0].SegmentKey)
 }

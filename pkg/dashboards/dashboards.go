@@ -22,9 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
@@ -35,116 +34,36 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var defaultDashboardIds map[string]struct{}
-var defaultDashboardNames map[string]struct{}
-
-var allidsBaseFname string
-var allDashIdsLock map[uint64]*sync.Mutex = make(map[uint64]*sync.Mutex)
-var latestDashboardReadTimeMillis map[uint64]uint64
-
-// map of "orgid" => "dashboardId" ==> "dashboardName"
-// e.g. "1234567890" => "11812083241622924684" => "dashboard-1"
-var allDashboardsIds map[uint64]map[string]string = make(map[uint64]map[string]string)
-var allDashboardsIdsLock *sync.RWMutex = &sync.RWMutex{}
-
-type DashboardMetadata struct {
-	Name       string `json:"name"`
-	IsFavorite bool   `json:"isFavorite"`
-	IsDefault  bool   `json:"isDefault"`
-	CreatedAt  int64  `json:"createdAt"`
+type CreateDashboardRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ParentID    string `json:"parentId"`
 }
 
-func readSavedDashboards(orgid uint64) ([]byte, error) {
-	var dashboardData []byte
-	allidsFname := getAllIdsFileName(orgid)
-	_, err := os.Stat(allidsFname)
+const ErrDashboardNameExists = "dashboard name already exists in this folder"
+
+func isDefaultDashboard(id string) bool {
+	defaultStructure, err := readDefaultFolderStructure()
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
+		return false
 	}
 
-	dashboardData, err = os.ReadFile(allidsFname)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		log.Errorf("readSavedDashboards: Failed to read allidsFname file fname=%v, err=%v", allidsFname, err)
-		return nil, err
-	}
-
-	allDashboardsIdsLock.Lock()
-	if _, ok := allDashboardsIds[orgid]; !ok {
-		allDashboardsIds[orgid] = make(map[string]string)
-	}
-	var allDashboardNames map[string]string
-	err = json.Unmarshal(dashboardData, &allDashboardNames)
-	if err != nil {
-		allDashboardsIdsLock.Unlock()
-		log.Errorf("readSavedDashboards: Failed to unmarshall allidsFname file fname=%v, err=%v", allidsFname, err)
-		return nil, err
-	}
-	allDashboardsIds[orgid] = allDashboardNames
-	latestDashboardReadTimeMillis[orgid] = utils.GetCurrentTimeInMs()
-	allDashboardsIdsLock.Unlock()
-	return dashboardData, nil
+	item, exists := defaultStructure.Items[id]
+	return exists && item.Type == "dashboard"
 }
 
-func getAllIdsFileName(orgid uint64) string {
-	var allidsFname string
-	if orgid == 0 {
-		allidsFname = allidsBaseFname + ".json"
-	} else {
-		allidsFname = allidsBaseFname + "-" + strconv.FormatUint(orgid, 10) + ".json"
+func getDashboardDetailsPath(id string) string {
+	if isDefaultDashboard(id) {
+		return fmt.Sprintf("defaultDBs/details/%s.json", id)
 	}
-	return allidsFname
-}
-
-func getDefaultDashboardFileName() string {
-	var allidsFname string
-	var defaultDBsAllidsBaseFname string = "defaultDBs/allids"
-	allidsFname = defaultDBsAllidsBaseFname + ".json"
-	return allidsFname
+	return fmt.Sprintf("%squerynodes/%s/dashboards/details/%s.json", config.GetDataPath(), config.GetHostID(), id)
 }
 
 func InitDashboards() error {
-	var sb strings.Builder
+	// Create base directories
+	baseDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
 
-	defaultDashboardNames = make(map[string]struct{})
-
-	// Read the JSON file
-	jsonData, err := os.ReadFile(getDefaultDashboardFileName())
-	if err != nil {
-		log.Errorf("InitDashboard: Failed to read default dashboards file, err=%v", err)
-		return err
-	}
-
-	// Parse the JSON data
-	var dashboards map[string]string
-	err = json.Unmarshal(jsonData, &dashboards)
-	if err != nil {
-		log.Errorf("InitDashboard: Failed to unmarshal default dashboards, err=%v", err)
-		return err
-	}
-
-	// Iterate over the parsed data and save dashboard names
-	for _, name := range dashboards {
-		defaultDashboardNames[name] = struct{}{}
-	}
-
-	defaultDashboardIds = make(map[string]struct{})
-
-	defaultDashboardIds["10329b95-47a8-48df-8b1d-0a0a01ec6c42"] = struct{}{}
-	defaultDashboardIds["a28f485c-4747-4024-bb6b-d230f101f852"] = struct{}{}
-	defaultDashboardIds["bd74f11e-26c8-4827-bf65-c0b464e1f2a4"] = struct{}{}
-	defaultDashboardIds["53cb3dde-fd78-4253-808c-18e4077ef0f1"] = struct{}{}
-
-	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards")
-	baseDir := sb.String()
-	allidsBaseFname = baseDir + "/allids"
-	latestDashboardReadTimeMillis = make(map[uint64]uint64)
-
-	err = os.MkdirAll(baseDir, 0764)
+	err := os.MkdirAll(baseDir, 0764)
 	if err != nil {
 		log.Errorf("InitDashboard: failed to create basedir=%v, err=%v", baseDir, err)
 		return err
@@ -156,164 +75,140 @@ func InitDashboards() error {
 		return err
 	}
 
-	createOrAcquireLock(0)
-	_, err = readSavedDashboards(0)
-	if err != nil {
-		releaseLock(0)
-		log.Errorf("InitDashboard: failed to read saved dashboards, err=%v", err)
-		return err
+	// Check if folder structure exists
+	folderFile := getFolderStructureFilePath()
+	if _, err := os.Stat(folderFile); err != nil {
+		if os.IsNotExist(err) {
+			// If folder structure doesn't exist, migrate from allids.json
+			if err := migrateToFolderStructure(0); err != nil {
+				log.Warnf("Migration failed: %v, creating new folder structure", err)
+				// Create basic structure even if migration fails
+				if err := InitFolderStructure(); err != nil {
+					return fmt.Errorf("InitDashboard: failed to create folder structure: %v", err)
+				}
+			}
+		} else {
+			log.Errorf("InitDashboards: Error checking folder structure: %v", err)
+			return err
+		}
 	}
-	releaseLock(0)
 
 	return nil
 }
 
-func createOrAcquireLock(orgid uint64) {
-	if _, ok := allDashIdsLock[orgid]; !ok {
-		allDashIdsLock[orgid] = &sync.Mutex{}
+func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]string, error) {
+	if req.Name == "" {
+		return nil, errors.New("dashboard name cannot be empty")
 	}
-	allDashIdsLock[orgid].Lock()
-}
 
-func releaseLock(orgid uint64) {
-	allDashIdsLock[orgid].Unlock()
-}
+	// If no parent ID specified, use root folder
+	if req.ParentID == "" {
+		req.ParentID = rootFolderID
+	}
 
-func getAllDashboardIds(orgid uint64) (map[string]string, error) {
-	createOrAcquireLock(orgid)
-	_, err := readSavedDashboards(orgid)
+	structure, err := readFolderStructure()
 	if err != nil {
-		releaseLock(orgid)
-		log.Errorf("getAllDashboardIds: failed to read, orgid=%v, err=%v", orgid, err)
-		return nil, err
+		return nil, fmt.Errorf("createDashboard: failed to read folder structure: %v", err)
 	}
-	releaseLock(orgid)
-	allDashboardsIdsLock.RLock()
-	defer allDashboardsIdsLock.RUnlock()
-	return allDashboardsIds[orgid], nil
-}
 
-// Generate the uniq uuid for the dashboard
-func createUniqId(dname string) string {
+	parent, exists := structure.Items[req.ParentID]
+	if !exists {
+		return nil, errors.New("parent folder not found")
+	}
+	if parent.Type != ItemTypeFolder {
+		return nil, errors.New("parent must be a folder")
+	}
+
+	// Check if dashboard name already exists in the same folder
+	for _, itemID := range structure.Order[req.ParentID] {
+		if item, exists := structure.Items[itemID]; exists {
+			if item.Type == "dashboard" && item.Name == req.Name {
+				return nil, errors.New(ErrDashboardNameExists)
+			}
+		}
+	}
+
 	newId := uuid.New().String()
-	return newId
-}
 
-// method to check if the dashboard name already exists
-func dashboardNameExists(dname string, orgid uint64) bool {
-	allDashboardIds, err := getAllDashboardIds(orgid)
-	if err != nil {
-		log.Errorf("dashboardNameExists: Error getting all dashboard IDs: %v", err)
-		return false
+	// Add dashboard to folder structure
+	structure.Items[newId] = StoredFolderItem{
+		Name:        req.Name,
+		Type:        "dashboard",
+		ParentID:    req.ParentID,
+		IsDefault:   false,
+		CreatedAtMs: time.Now().UnixMilli(),
 	}
-	for _, name := range allDashboardIds {
-		if name == dname {
-			return true
-		}
-	}
-	return false
-}
+	structure.Order[req.ParentID] = append(structure.Order[req.ParentID], newId)
 
-func createDashboard(dname string, orgid uint64) (map[string]string, error) {
-	if dname == "" {
-		log.Errorf("createDashboard: failed to create Dashboard, with empty dashboard name")
-		return nil, errors.New("createDashboard: failed to create Dashboard, with empty dashboard name")
-	}
-
-	// Check if the dashboard name is a default name
-	if _, isDefault := defaultDashboardNames[dname]; isDefault {
-		log.Errorf("createDashboard: Dashboard with name %s is a default dashboard name and cannot be used", dname)
-		return nil, errors.New("dashboard name already exists")
-	}
-
-	newId := createUniqId(dname)
-
-	if dashboardNameExists(dname, orgid) {
-		log.Errorf("createDashboard: Dashboard with name %s already exists", dname)
-		return nil, errors.New("dashboard name already exists")
-	}
-
-	dashBoardIds, err := getAllDashboardIds(orgid)
-	if err != nil {
-		log.Errorf("createDashboard: Failed to get all dashboard ids err=%v", err)
-		return nil, err
-	}
-	for _, dId := range dashBoardIds {
-		if dId == newId {
-			log.Errorf("createDashboard: Failed to create dashboard, dashboard id: %v already exists dname: %v", newId, dname)
-			return nil, errors.New("createDashboard: Failed to create dashboard, dashboard id already exists")
-		}
-	}
-
-	allDashboardsIdsLock.Lock()
-	if _, ok := allDashboardsIds[orgid]; !ok {
-		allDashboardsIds[orgid] = make(map[string]string)
-	}
-	allDashboardsIds[orgid][newId] = dname
-	orgDashboards := allDashboardsIds[orgid]
-	jdata, err := json.Marshal(&orgDashboards)
-	allDashboardsIdsLock.Unlock()
-	if err != nil {
-		log.Errorf("createDashboard: Failed to marshall allDashboardids, dname: %v err=%v", dname, err)
-		return nil, err
-	}
-
-	allidsFname := getAllIdsFileName(orgid)
-	err = os.WriteFile(allidsFname, jdata, 0644)
-	if err != nil {
-		log.Errorf("createDashboard: Failed to write file=%v, err=%v", allidsFname, err)
-		return nil, err
+	if err := writeFolderStructure(structure); err != nil {
+		return nil, fmt.Errorf("createDashboard: failed to update folder structure: %v", err)
 	}
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + newId + ".json"
 
-	dData := []byte(fmt.Sprintf("{\"name\": \"%s\"}", dname))
+	folderPath := ""
+	if req.ParentID != rootFolderID {
+		currentID := req.ParentID
+		folderNames := []string{}
 
-	err = os.WriteFile(dashboardDetailsFname, dData, 0644)
-	if err != nil {
-		log.Errorf("createDashboard: Error creating empty local file %s: for dname: %v, err: %v",
-			dashboardDetailsFname, dname, err)
-		return nil, err
+		// Build folder path
+		for currentID != "" && currentID != rootFolderID {
+			if item, exists := structure.Items[currentID]; exists {
+				folderNames = append([]string{item.Name}, folderNames...)
+				currentID = item.ParentID
+			} else {
+				break
+			}
+		}
+		if len(folderNames) > 0 {
+			folderPath = strings.Join(folderNames, "/")
+		}
 	}
 
-	log.Infof("createDashboard: Successfully created file %v, for dname: %v", dashboardDetailsFname, dname)
-	err = blob.UploadQueryNodeDir()
+	breadcrumbs := generateBreadcrumbs(req.ParentID, structure)
+
+	details := map[string]interface{}{
+		"name":        req.Name,
+		"description": req.Description,
+		"createdAtMs": time.Now().UnixMilli(),
+		"isFavorite":  false,
+		"folder": map[string]interface{}{
+			"id":          req.ParentID,
+			"name":        structure.Items[req.ParentID].Name,
+			"path":        folderPath,
+			"breadcrumbs": breadcrumbs,
+		},
+	}
+
+	detailsData, err := json.MarshalIndent(details, "", "  ")
 	if err != nil {
-		log.Errorf("createDashboard: Failed to upload query nodes dir, dname: %v  err=%v", dname, err)
+		return nil, fmt.Errorf("createDashboard: failed to marshal dashboard details: %v", err)
+	}
+
+	if err := os.WriteFile(dashboardDetailsFname, detailsData, 0644); err != nil {
+		return nil, fmt.Errorf("createDashboard: failed to write dashboard details: %v", err)
+	}
+
+	if err := blob.UploadQueryNodeDir(); err != nil {
+		log.Errorf("createDashboard: Failed to upload query nodes dir, err=%v", err)
 		return nil, err
 	}
 
 	retval := make(map[string]string)
-	allDashboardsIdsLock.RLock()
-	orgDashboardsIds := allDashboardsIds[orgid]
-	allDashboardsIdsLock.RUnlock()
-
-	retval[newId] = orgDashboardsIds[newId]
-
+	retval[newId] = req.Name
 	return retval, nil
-}
-
-func isDefaultDashboard(id string) bool {
-
-	_, exists := defaultDashboardIds[id]
-	return exists
 }
 
 func toggleFavorite(id string) (bool, error) {
 	// Load the dashboard JSON file
-	var dashboardDetailsFname string
-	if isDefaultDashboard(id) {
-		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
-	} else {
-		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
-	}
+	dashboardDetailsFname := getDashboardDetailsPath(id)
+
 	dashboardJson, err := os.ReadFile(dashboardDetailsFname)
 	if err != nil {
 		log.Errorf("toggleFavorite: Failed to read file=%v, err=%v", dashboardDetailsFname, err)
 		return false, err
 	}
 
-	// Unmarshal JSON file into a map
 	var dashboard map[string]interface{}
 	err = json.Unmarshal(dashboardJson, &dashboard)
 	if err != nil {
@@ -322,22 +217,18 @@ func toggleFavorite(id string) (bool, error) {
 		return false, err
 	}
 
-	// Toggle the "isFavorite" field
 	isFavorite, ok := dashboard["isFavorite"].(bool)
 	if !ok {
-		// If the "isFavorite" field does not exist or is not a bool, treat the dashboard as not favorited
 		isFavorite = false
 	}
 	dashboard["isFavorite"] = !isFavorite
 
-	// Marshal the updated dashboard back into JSON
 	updatedDashboardJson, err := json.Marshal(dashboard)
 	if err != nil {
 		log.Errorf("toggleFavorite: Failed to marshal json, err=%v", err)
 		return false, err
 	}
 
-	// Save the updated dashboard back to the JSON file
 	err = os.WriteFile(dashboardDetailsFname, updatedDashboardJson, 0644)
 	if err != nil {
 		log.Errorf("toggleFavorite: Failed to write file=%v, err=%v", dashboardDetailsFname, err)
@@ -346,13 +237,11 @@ func toggleFavorite(id string) (bool, error) {
 
 	return !isFavorite, nil
 }
+
 func getDashboard(id string) (map[string]interface{}, error) {
-	var dashboardDetailsFname string
-	if isDefaultDashboard(id) {
-		dashboardDetailsFname = "defaultDBs/details/" + id + ".json"
-	} else {
-		dashboardDetailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
-	}
+
+	dashboardDetailsFname := getDashboardDetailsPath(id)
+
 	rdata, err := os.ReadFile(dashboardDetailsFname)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -376,83 +265,125 @@ func getDashboard(id string) (map[string]interface{}, error) {
 
 func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, orgid uint64) error {
 
-	// Check if the dashboard exists
-	allDashboards, err := getAllDashboardIds(orgid)
+	if isDefaultDashboard(id) {
+		return errors.New("updateDashboard: cannot update default dashboard")
+	}
+
+	structure, err := readFolderStructure()
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to get all dashboard ids err=%v", err)
-		return err
-	}
-	_, ok := allDashboards[id]
-	if !ok {
-		log.Errorf("updateDashboard: Dashboard id %v does not exist, dname: %v", id, dName)
-		return errors.New("updateDashboard: Dashboard id does not exist")
+		return fmt.Errorf("updateDashboard: failed to read folder structure: %v", err)
 	}
 
-	currentDashboardDetails, err := getDashboard(id)
-	if err != nil {
-		log.Errorf("updateDashboard: could not get id: %v, dname: %v, err=%v", id, dName, err)
-		return errors.New("updateDashboard: Error fetching dashboard details")
+	item, exists := structure.Items[id]
+	if !exists {
+		return errors.New("dashboard not found")
 	}
 
-	if currentCreatedAt, exists := currentDashboardDetails["createdAt"]; exists {
-		dashboardDetails["createdAt"] = currentCreatedAt
-	}
+	currentParentID := item.ParentID
+	var newParentID string
 
-	// Check if isFavorite is provided in the update
-	if _, exists := currentDashboardDetails["isFavorite"]; !exists {
-		// If isFavorite does not exist in currentDashboardDetails, set it to false
-		dashboardDetails["isFavorite"] = false
-		currentDashboardDetails["isFavorite"] = false
-	} else if _, ok := dashboardDetails["isFavorite"].(bool); !ok {
-		// If isFavorite is not provided in the update, keep the current value
-		dashboardDetails["isFavorite"] = currentDashboardDetails["isFavorite"]
-	}
-	// Update the dashboard name if it is different
-	if allDashboards[id] != dName {
-		if dashboardNameExists(dName, orgid) {
-			log.Errorf("Dashboard with name %s already exists", dName)
-			return errors.New("dashboard name already exists")
-		} else {
-			allDashboardsIds[orgid][id] = dName
+	// Check if folder is being changed
+	if folder, ok := dashboardDetails["folder"].(map[string]interface{}); ok {
+		if newFolderID, ok := folder["id"].(string); ok {
+			newParentID = newFolderID
 		}
 	}
-	allDashboardsIdsLock.RLock()
-	orgDashboards := allDashboardsIds[orgid]
-	allDashboardsIdsLock.RUnlock()
-	jdata, err := json.Marshal(&orgDashboards)
-	if err != nil {
-		log.Errorf("updateDashboard: Failed to marshall id: %v, dName: %v, data: %v, err=%v", id, dName, orgDashboards, err)
-		return err
+
+	// If folder is changing
+	if newParentID != "" && newParentID != currentParentID {
+		// Validate new parent exists and is a folder
+		newParent, exists := structure.Items[newParentID]
+		if !exists {
+			return errors.New("new parent folder not found")
+		}
+		if newParent.Type != ItemTypeFolder {
+			return errors.New("new parent must be a folder")
+		}
+
+		// Check for name conflicts in new folder
+		for _, siblingID := range structure.Order[newParentID] {
+			if sibling, exists := structure.Items[siblingID]; exists {
+				if sibling.Type == "dashboard" && sibling.Name == dName && siblingID != id {
+					return errors.New("dashboard name already exists in target folder")
+				}
+			}
+		}
+
+		// Remove from old parent's order
+		newOrder := make([]string, 0)
+		for _, itemID := range structure.Order[currentParentID] {
+			if itemID != id {
+				newOrder = append(newOrder, itemID)
+			}
+		}
+		structure.Order[currentParentID] = newOrder
+
+		// Add to new parent's order
+		structure.Order[newParentID] = append(structure.Order[newParentID], id)
+
+		// Update parent ID in items
+		item.ParentID = newParentID
+		structure.Items[id] = item
+	} else {
+		// If not changing folders, still check for name conflicts in current folder
+		if item.Name != dName {
+			for _, siblingID := range structure.Order[currentParentID] {
+				if sibling, exists := structure.Items[siblingID]; exists {
+					if sibling.Type == "dashboard" && sibling.Name == dName && siblingID != id {
+						return errors.New(ErrDashboardNameExists)
+					}
+				}
+			}
+		}
 	}
 
-	allidsFname := getAllIdsFileName(orgid)
-	err = os.WriteFile(allidsFname, jdata, 0644)
-	if err != nil {
-		log.Errorf("updateDashboard: Failed to write file=%v, id: %v, dName: %v, err=%v", allidsFname, id, dName, err)
-		return err
+	// Update name in folder structure if changed
+	if item.Name != dName {
+		item.Name = dName
+		structure.Items[id] = item
+	}
+
+	if err := writeFolderStructure(structure); err != nil {
+		return fmt.Errorf("updateDashboard: failed to update folder structure: %v", err)
+	}
+
+	// Get folder path for metadata
+	folderPath := ""
+	if item.ParentID != rootFolderID {
+		currentID := item.ParentID
+		folderNames := []string{}
+
+		for currentID != "" && currentID != rootFolderID {
+			if folderItem, exists := structure.Items[currentID]; exists {
+				folderNames = append([]string{folderItem.Name}, folderNames...)
+				currentID = folderItem.ParentID
+			} else {
+				break
+			}
+		}
+		if len(folderNames) > 0 {
+			folderPath = strings.Join(folderNames, "/")
+		}
+	}
+
+	dashboardDetails["folder"] = map[string]interface{}{
+		"id":   item.ParentID,
+		"name": structure.Items[item.ParentID].Name,
+		"path": folderPath,
 	}
 
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
-
-	jdata, err = json.Marshal(&dashboardDetails)
+	detailsData, err := json.MarshalIndent(dashboardDetails, "", "  ")
 	if err != nil {
-		log.Errorf("updateDashboard: Failed to marshall id: %v, dName: %v, data: %v,  err: %v", id, dName, dashboardDetails, err)
-		return err
+		return fmt.Errorf("updateDashboard: failed to marshal dashboard details: %v", err)
 	}
 
-	err = os.WriteFile(dashboardDetailsFname, jdata, 0644)
-	if err != nil {
-		log.Errorf("updateDashboard: Failed to writefile fname: %v, id: %v, dName: %v, err: %v", dashboardDetailsFname, id,
-			dName, err)
-		return err
+	if err := os.WriteFile(dashboardDetailsFname, detailsData, 0644); err != nil {
+		return fmt.Errorf("updateDashboard: failed to write dashboard details: %v", err)
 	}
-	log.Infof("updateDashboard: Successfully updated dashboard details in file %v", dashboardDetailsFname)
 
-	// Update the query node dir
-	err = blob.UploadQueryNodeDir()
-	if err != nil {
-		log.Errorf("updateDashboard: Failed to upload query nodes dir, id: %v, dName: %v, err: %v", id, dName, err)
-		return err
+	if err := blob.UploadQueryNodeDir(); err != nil {
+		return fmt.Errorf("updateDashboard: failed to upload query nodes dir: %v", err)
 	}
 
 	return nil
@@ -460,64 +391,56 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 
 func deleteDashboard(id string, orgid uint64) error {
 
-	createOrAcquireLock(orgid)
-	dashboardData, err := readSavedDashboards(orgid)
-	if err != nil {
-		releaseLock(orgid)
-		log.Errorf("deleteDashboard: failed to read saved dashboards, err=%v", err)
-		return err
-	}
-	releaseLock(orgid)
-
-	var dashboardDetails map[string]string
-	err = json.Unmarshal(dashboardData, &dashboardDetails)
-	if err != nil {
-		log.Errorf("deleteDashboard: Failed to unmarshall dashboard file for orgid=%v,dashboardData: %v, err=%v", orgid,
-			dashboardData, err)
-		return err
+	if isDefaultDashboard(id) {
+		return errors.New("deleteDashboard: cannot delete default dashboard")
 	}
 
-	// Delete entry from dashboardInfo and write to file allids.json
-	allDashboardsIdsLock.Lock()
-	delete(allDashboardsIds[orgid], id)
-	allDashboardsIdsLock.Unlock()
-
-	// Update the file with latest dashboard info
-	allDashboardsIdsLock.RLock()
-	orgDashboardIds := allDashboardsIds[orgid]
-	allDashboardsIdsLock.RUnlock()
-	jdata, err := json.Marshal(&orgDashboardIds)
+	structure, err := readFolderStructure()
 	if err != nil {
-		log.Errorf("deleteDashboard: Failed to marshall, id: %v, data: %v err=%v", id, orgDashboardIds, err)
-		return err
+		return fmt.Errorf("deleteDashboard: failed to read folder structure: %v", err)
 	}
 
-	allidsFname := getAllIdsFileName(orgid)
-	err = os.WriteFile(allidsFname, jdata, 0644)
-	if err != nil {
-		log.Errorf("deleteDashboard: Failed to write file: %v, err: %v", allidsFname, err)
-		return err
+	item, exists := structure.Items[id]
+	if !exists {
+		return errors.New("deleteDashboard: dashboard not found")
 	}
 
-	// Delete dashboard details file
+	if item.Type != "dashboard" {
+		return errors.New("deleteDashboard: specified ID is not a dashboard")
+	}
+
+	// Remove from parent folder's order
+	parentID := item.ParentID
+	if parentOrder, exists := structure.Order[parentID]; exists {
+		newOrder := make([]string, 0)
+		for _, itemID := range parentOrder {
+			if itemID != id {
+				newOrder = append(newOrder, itemID)
+			}
+		}
+		structure.Order[parentID] = newOrder
+	}
+
+	// Remove from items
+	delete(structure.Items, id)
+
+	if err := writeFolderStructure(structure); err != nil {
+		return fmt.Errorf("deleteDashboard: failed to update folder structure: %v", err)
+	}
+
 	dashboardDetailsFname := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
-	err = os.Remove(dashboardDetailsFname)
-	if err != nil {
-		log.Errorf("deleteDashboard:  Error deleting file %s: %v", dashboardDetailsFname, err)
-		return err
+	if err := os.Remove(dashboardDetailsFname); err != nil && !os.IsNotExist(err) {
+		log.Errorf("deleteDashboard: Error deleting dashboard file %s: %v", dashboardDetailsFname, err)
+		return fmt.Errorf("deleteDashboard: failed to delete dashboard file: %v", err)
 	}
 
-	// Update the query node dir
-	err = blob.UploadQueryNodeDir()
-	if err != nil {
-		log.Errorf("deleteDashboard: Failed to upload query nodes dir  err=%v", err)
-		return err
+	if err := blob.UploadQueryNodeDir(); err != nil {
+		return fmt.Errorf("deleteDashboard: failed to upload query nodes dir: %v", err)
 	}
 
 	return nil
 }
 
-// method to set conflict message and 409 status code
 func setConflictMsg(ctx *fasthttp.RequestCtx) {
 	var httpResp utils.HttpServerResponse
 	ctx.SetStatusCode(fasthttp.StatusConflict)
@@ -526,36 +449,60 @@ func setConflictMsg(ctx *fasthttp.RequestCtx) {
 	utils.WriteResponse(ctx, httpResp)
 }
 
+func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, string, map[string]interface{}, error) {
+	// Get dashboard ID
+	dId, ok := readJSON["id"].(string)
+	if !ok {
+		return "", "", nil, errors.New("parseUpdateDashboardRequest: id field is missing or not a string")
+	}
+
+	// Get details object
+	details, ok := readJSON["details"].(map[string]interface{})
+	if !ok {
+		return "", "", nil, errors.New("parseUpdateDashboardRequest: details field is missing or not an object")
+	}
+
+	// Get name from details
+	dName, ok := details["name"].(string)
+	if !ok {
+		return "", "", nil, errors.New("parseUpdateDashboardRequest: name field is missing or not a string in details")
+	}
+
+	return dId, dName, details, nil
+}
+
 func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	rawJSON := ctx.PostBody()
-	if rawJSON == nil {
-		log.Errorf("ProcessCreateDashboardRequest: received empty body id request")
-		utils.SetBadMsg(ctx, "")
+	var req CreateDashboardRequest
+	if err := json.Unmarshal(ctx.PostBody(), &req); err != nil {
+		log.Errorf("ProcessCreateDashboardRequest: could not unmarshal body: %v, err=%v", ctx.PostBody(), err)
+		utils.SetBadMsg(ctx, "Invalid request body")
 		return
 	}
 
-	var dname string
-
-	err := json.Unmarshal(rawJSON, &dname)
+	dashboardInfo, err := createDashboard(&req, myid)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall body: %v, err=%v", rawJSON, err)
-		utils.SetBadMsg(ctx, "")
-		return
-	}
-	dashboardInfo, err := createDashboard(dname, myid)
-
-	if err != nil {
-		if err.Error() == "dashboard name already exists" {
+		if err.Error() == ErrDashboardNameExists {
 			setConflictMsg(ctx)
 			return
-		} else {
-			log.Errorf("ProcessCreateDashboardRequest: could not create dname: %v, id: %v, err=%v", dname, myid, err)
-			utils.SetBadMsg(ctx, "")
-			return
 		}
+		log.Errorf("ProcessCreateDashboardRequest: could not create dashboard: %v", err)
+		utils.SetBadMsg(ctx, "")
+		return
 	}
 
 	utils.WriteJsonResponse(ctx, dashboardInfo)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx) {
+	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
+	dashboardDetails, err := getDashboard(dId)
+	if err != nil {
+		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard, id: %v, err: %v", dId, err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
+	utils.WriteJsonResponse(ctx, dashboardDetails)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
@@ -579,228 +526,112 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessListAllRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	dIds, err := getDashboardsWithMetadata(myid)
-
-	if err != nil {
-		log.Errorf("ProcessListAllRequest: could not get dashboard ids, err=%v", err)
-		utils.SetBadMsg(ctx, "")
-		return
-	}
-	utils.WriteJsonResponse(ctx, dIds)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func checkAndReturnFieldInMapIfExists(mapData map[string]interface{}, fieldName string) (interface{}, error) {
-	value, exists := mapData[fieldName]
-	if !exists {
-		return nil, errors.New(fieldName + " field not found")
-	}
-	return value, nil
-}
-
-func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, string, map[string]interface{}, error) {
-
-	value, err := checkAndReturnFieldInMapIfExists(readJSON, "id")
-	if err != nil {
-		return "", "", nil, err
-	}
-
-	dId, ok := value.(string)
-	if !ok {
-		return "", "", nil, errors.New("id field is not a string")
-	}
-
-	value, err = checkAndReturnFieldInMapIfExists(readJSON, "name")
-	if err != nil {
-		return "", "", nil, err
-	}
-	dName, ok := value.(string)
-	if !ok {
-		return "", "", nil, errors.New("name field is not a string")
-	}
-
-	value, err = checkAndReturnFieldInMapIfExists(readJSON, "details")
-	if err != nil {
-		return "", "", nil, err
-	}
-	dashboardDetails, ok := value.(map[string]interface{})
-	if !ok {
-		return "", "", nil, errors.New("details field is not a map")
-	}
-	return dId, dName, dashboardDetails, nil
-}
-
 func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("ProcessCreateDashboardRequest: received empty user query")
+		log.Errorf("ProcessUpdateDashboardRequest: received empty request body")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
 
 	readJSON := make(map[string]interface{})
-
-	err := json.Unmarshal(rawJSON, &readJSON)
-	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: could not unmarshall body: %v, err=%v", rawJSON, err)
-		utils.SetBadMsg(ctx, "")
+	if err := json.Unmarshal(rawJSON, &readJSON); err != nil {
+		log.Errorf("ProcessUpdateDashboardRequest: could not unmarshal body: %v, err=%v", rawJSON, err)
+		utils.SetBadMsg(ctx, "Invalid request body")
 		return
 	}
 
 	dId, dName, dashboardDetails, err := parseUpdateDashboardRequest(readJSON)
 	if err != nil {
-		log.Errorf("ProcessCreateDashboardRequest: parseUpdateDashboardRequest failed, readJSON: %v, err: %v", readJSON, err)
-		utils.SetBadMsg(ctx, "")
+		log.Errorf("ProcessUpdateDashboardRequest: parseUpdateDashboardRequest failed, readJSON: %v, err: %v", readJSON, err)
+		utils.SetBadMsg(ctx, "Invalid request format")
 		return
 	}
+
+	// Panel validation if needed
 	if panels, ok := dashboardDetails["panels"].([]interface{}); ok {
 		if pflag, ok := dashboardDetails["panelFlag"]; ok {
 			if pflag == "false" && len(panels) > 10 {
+				utils.SetBadMsg(ctx, "Too many panels for free tier")
 				return
 			}
 		}
 	}
-	err = updateDashboard(dId, dName, dashboardDetails, myid)
-	if err != nil {
-		if err.Error() == "dashboard name already exists" {
+
+	// Update the dashboard
+	if err := updateDashboard(dId, dName, dashboardDetails, myid); err != nil {
+		log.Errorf("ProcessUpdateDashboardRequest: failed to update dashboard %s: %v", dId, err)
+		if err.Error() == ErrDashboardNameExists {
 			setConflictMsg(ctx)
 			return
-		} else {
-			log.Errorf("ProcessCreateDashboardRequest: could not create Dashboard, dId: %v, myid: %v, err: %v", dId, myid, err)
-			utils.SetBadMsg(ctx, "")
-			return
 		}
-	}
-	response := "Dashboard updated successfully"
-	utils.WriteJsonResponse(ctx, response)
-	ctx.SetStatusCode(fasthttp.StatusOK)
-}
-
-func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx) {
-	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
-	dashboardDetails, err := getDashboard(dId)
-	if err != nil {
-		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard, id: %v, err: %v", dId, err)
-		utils.SetBadMsg(ctx, "")
+		utils.SetBadMsg(ctx, err.Error())
 		return
 	}
-	utils.WriteJsonResponse(ctx, dashboardDetails)
+
+	// Get updated dashboard details for response
+	updatedDashboard, err := getDashboard(dId)
+	if err != nil {
+		log.Errorf("ProcessUpdateDashboardRequest: failed to get updated dashboard: %v", err)
+		utils.WriteJsonResponse(ctx, map[string]string{"message": "Dashboard updated successfully"})
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message":   "Dashboard updated successfully",
+		"dashboard": updatedDashboard,
+	}
+
+	utils.WriteJsonResponse(ctx, response)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
+	if dId == "" {
+		utils.SetBadMsg(ctx, "Dashboard ID is required")
+		return
+	}
+
 	err := deleteDashboard(dId, myid)
 	if err != nil {
 		log.Errorf("ProcessDeleteDashboardRequest: Failed to delete dashboard, id: %v, err=%v", dId, err)
+		if err.Error() == "dashboard not found" {
+			ctx.SetStatusCode(fasthttp.StatusNotFound)
+			utils.WriteJsonResponse(ctx, map[string]interface{}{
+				"message": "Dashboard not found",
+				"status":  fasthttp.StatusNotFound,
+			})
+			return
+		}
 		utils.SetBadMsg(ctx, "")
 		return
 	}
 
-	log.Infof("ProcessDeleteDashboardRequest: Successfully deleted dashboard id: %v", dId)
-	err = blob.UploadQueryNodeDir()
-	if err != nil {
-		log.Errorf("ProcessDeleteDashboardRequest: Failed to upload query nodes dir  err=%v", err)
-		return
-	}
-	response := "Dashboard deleted successfully"
-	utils.WriteJsonResponse(ctx, response)
+	utils.WriteJsonResponse(ctx, map[string]interface{}{
+		"message": "Dashboard deleted successfully",
+		"status":  fasthttp.StatusOK,
+	})
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessDeleteDashboardsByOrgId(orgid uint64) error {
-	dIds, err := getAllDashboardIds(orgid)
-	if err != nil {
-		log.Errorf("ProcessDeleteDashboardsByOrgId: Failed to get all dashboard ids err=%v", err)
-		return err
-	}
-	for dId := range dIds {
-		err = deleteDashboard(dId, orgid)
-		if err != nil {
-			log.Errorf("ProcessDeleteDashboardsByOrgId: Failed to delete dashboard, id: %v, err: %v", dId, err)
-		}
+	dashboardsDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
 
-		log.Infof("ProcessDeleteDashboardsByOrgId: Successfully deleted dashboard %v", dId)
-		err = blob.UploadQueryNodeDir()
-		if err != nil {
-			log.Errorf("ProcessDeleteDashboardsByOrgId: Failed to upload query nodes dir, err=%v", err)
-			// Move on to the next dashboard for now
-		}
+	// Delete dashboard details directory
+	if err := os.RemoveAll(dashboardsDir + "/details"); err != nil {
+		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete dashboard details directory: %v", err)
 	}
 
-	dashboardAllIdsFilename := config.GetDataPath() + "querynodes/" + config.GetHostname() + "/dashboards/allids-" + fmt.Sprint(orgid) + ".json"
-
-	err = os.Remove(dashboardAllIdsFilename)
-	if err != nil {
-		log.Warnf("ProcessDeleteDashboardsByOrgId: Failed to delete the dashboard allids file: %v", dashboardAllIdsFilename)
+	// Delete folder structure file
+	if err := os.Remove(dashboardsDir + "/folder_structure.json"); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete folder structure file: %v", err)
 	}
+
+	if err := blob.UploadQueryNodeDir(); err != nil {
+		return fmt.Errorf("ProcessDeleteOrgData: failed to upload query nodes dir: %v", err)
+	}
+
 	return nil
-}
-
-func getDashboardsWithMetadata(orgid uint64) (map[string]interface{}, error) {
-	dashboardIds, err := getAllDashboardIds(orgid)
-	if err != nil {
-		return nil, err
-	}
-
-	dashboardDetails := make(map[string]interface{})
-	for id, name := range dashboardIds {
-		dashboardInfo, err := getDashboardMetadata(id, name)
-		if err != nil {
-			log.Errorf("Error getting metadata for dashboard %s: %v", id, err)
-			continue
-		}
-		dashboardDetails[id] = dashboardInfo
-	}
-
-	return dashboardDetails, nil
-}
-
-func getDashboardMetadata(id string, name string) (*DashboardMetadata, error) {
-	dashboardInfo := &DashboardMetadata{
-		Name:       name,
-		IsFavorite: false,
-		IsDefault:  isDefaultDashboard(id),
-	}
-
-	var detailsFname string
-	if dashboardInfo.IsDefault {
-		detailsFname = "defaultDBs/details/" + id + ".json"
-		dashboardInfo.CreatedAt = 0 // Default dashboards always have 0
-	} else {
-		detailsFname = config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
-	}
-
-	details, err := os.ReadFile(detailsFname)
-	if err != nil {
-		return dashboardInfo, nil
-	}
-
-	var dashboardDetails map[string]interface{}
-	if err := json.Unmarshal(details, &dashboardDetails); err != nil {
-		return dashboardInfo, nil
-	}
-
-	// For non-default dashboards
-	if !dashboardInfo.IsDefault {
-		if createdAt, exists := dashboardDetails["createdAt"]; exists {
-			if createdAtFloat, ok := createdAt.(float64); ok {
-				dashboardInfo.CreatedAt = int64(createdAtFloat)
-			}
-		} else {
-			// Legacy case only
-			if fileInfo, err := os.Stat(detailsFname); err == nil {
-				dashboardInfo.CreatedAt = fileInfo.ModTime().UnixMilli()
-			}
-		}
-	}
-
-	if favorite, exists := dashboardDetails["isFavorite"]; exists {
-		if favoriteBool, ok := favorite.(bool); ok {
-			dashboardInfo.IsFavorite = favoriteBool
-		}
-	}
-
-	return dashboardInfo, nil
 }
