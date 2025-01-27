@@ -160,7 +160,9 @@ func metricsLooper() {
 			setNumMetricNames()
 			setMetricOnDiskBytes()
 		case <-fifteenMinuteTicker.C:
-			setNumSeries()
+			// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
+			// keep it disabled until the panic is fixed
+			// setNumSeries()
 			setNumKeysAndValues()
 		}
 	}
