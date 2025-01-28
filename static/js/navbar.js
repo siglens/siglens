@@ -50,10 +50,12 @@ let navbarComponent = `
                 <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
             </ul>
         </div>
+        {{ if .ShowSLO }}        
         <div class="menu nav-slos">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
         </div>
+        {{ end }}
         <div class="menu nav-alerts">
             <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
         </div>
@@ -61,10 +63,12 @@ let navbarComponent = `
             <a href="../dashboards-home.html" class="nav-links">
                 <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
         </div>
+        {{ if not .EnterpriseEnabled }}
         <div class="menu nav-minion">
             <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
                     class="nav-link-text">Minion</span></a>
         </div>
+        {{ end }}
         <div class="menu nav-usq">
             <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
                     class="nav-link-text">Saved Queries</span></a>

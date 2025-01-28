@@ -33,7 +33,7 @@ jobs:
     environment: build-environment
     permissions:
         id-token: write
-        contents: read
+        contents: write
     steps:
       -
         name: Checkout
@@ -106,7 +106,7 @@ jobs:
       needs: create-tag
       permissions:
         id-token: write
-        contents: read
+        contents: write
       steps:
         -
           name: Checkout
@@ -131,13 +131,13 @@ jobs:
               release_name: ${{ env.RELEASE_TAG }}
               tag_name: ${{ env.RELEASE_TAG }}
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
         - name: Upload Release Asset - server.yaml
           id: upload-release-asset-serverConfig
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: server.yaml
@@ -147,7 +147,7 @@ jobs:
           id: upload-release-asset-playgroundConfig
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: playground.yaml
@@ -157,7 +157,7 @@ jobs:
           id: upload-release-asset-InstallDockerScripts
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: install_with_docker.sh
@@ -167,7 +167,7 @@ jobs:
           id: upload-release-asset-InstallDockerPodmanScripts
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: install.sh
@@ -177,7 +177,7 @@ jobs:
           id: upload-release-asset-DockerCompose
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: docker-compose.yml
@@ -187,7 +187,7 @@ jobs:
           id: upload-release-asset-SigLensMetricsOtelCollector
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: ssmetrics-otel-collector-config.yaml
@@ -197,7 +197,7 @@ jobs:
           id: upload-release-asset-PodmanCompose
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: podman-compose.yml
@@ -207,7 +207,7 @@ jobs:
           id: upload-release-asset-Podman-Network_SigLens
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: podman-network_siglens.conflist
