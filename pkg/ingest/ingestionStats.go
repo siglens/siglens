@@ -160,7 +160,9 @@ func metricsLooper() {
 			setNumMetricNames()
 			setMetricOnDiskBytes()
 		case <-fifteenMinuteTicker.C:
-			setNumSeries()
+			// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
+			// keep it disabled until the panic is fixed
+			// setNumSeries()
 			setNumKeysAndValues()
 		}
 	}
@@ -180,6 +182,10 @@ func setNumMetricNames() {
 	instrumentation.SetTotalMetricNames(int64(len(names)))
 }
 
+/*
+// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
+// keep it disabled until the panic is fixed
+
 func setNumSeries() {
 	allPreviousTime := &dtu.MetricsTimeRange{
 		StartEpochSec: 0,
@@ -193,6 +199,7 @@ func setNumSeries() {
 
 	instrumentation.SetTotalTimeSeries(int64(numSeries))
 }
+*/
 
 func setNumKeysAndValues() {
 	allPreviousTime := &dtu.MetricsTimeRange{

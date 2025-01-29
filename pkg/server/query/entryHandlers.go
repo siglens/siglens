@@ -433,9 +433,9 @@ func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func favoriteDashboardHandler() fasthttp.RequestHandler {
+func favoriteDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessFavoriteRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessFavoriteRequest, ctx)
 	}
 }
 
@@ -447,7 +447,7 @@ func updateDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getDashboardIdHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessGetDashboardRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessGetDashboardRequest, ctx)
 	}
 }
 
@@ -457,9 +457,9 @@ func deleteDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func listAllDashboardsHandler() fasthttp.RequestHandler {
+func listAllDashboardsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessListAllItemsRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessListAllItemsRequest, ctx)
 	}
 }
 
@@ -469,21 +469,21 @@ func createFolderHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func getFolderContentsHandler() fasthttp.RequestHandler {
+func getFolderContentsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessGetFolderContentsRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessGetFolderContentsRequest, ctx)
 	}
 }
 
-func updateFolderHandler() fasthttp.RequestHandler {
+func updateFolderHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessUpdateFolderRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessUpdateFolderRequest, ctx)
 	}
 }
 
-func deleteFolderHandler() fasthttp.RequestHandler {
+func deleteFolderHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessDeleteFolderRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessDeleteFolderRequest, ctx)
 	}
 }
 

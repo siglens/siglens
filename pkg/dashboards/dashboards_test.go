@@ -17,7 +17,7 @@ func initializeTestEnv(t *testing.T) {
 	err := os.MkdirAll(detailsDir, 0764)
 	assert.Nil(t, err)
 
-	err = InitFolderStructure()
+	err = InitFolderStructure(0)
 	assert.Nil(t, err)
 }
 
@@ -25,7 +25,7 @@ func Test_InitFolderStructure(t *testing.T) {
 	initializeTestEnv(t)
 
 	// Verify the folder structure file exists and contains correct data
-	data, err := os.ReadFile(getFolderStructureFilePath())
+	data, err := os.ReadFile(getFolderStructureFilePath(0))
 	assert.Nil(t, err)
 
 	var structure FolderStructure
@@ -51,7 +51,7 @@ func Test_CreateFolder(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotEmpty(t, folderID)
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(0)
 	assert.Nil(t, err)
 
 	folder, exists := structure.Items[folderID]
@@ -91,7 +91,7 @@ func Test_CreateDashboard(t *testing.T) {
 	assert.NotEmpty(t, result)
 
 	for id := range result {
-		dashboard, err := getDashboard(id)
+		dashboard, err := getDashboard(id, 0)
 		assert.Nil(t, err)
 		assert.Equal(t, req.Name, dashboard["name"])
 		assert.Equal(t, req.Description, dashboard["description"])
@@ -136,21 +136,21 @@ func Test_DeleteFolder(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test case 1: Delete folder with contents
-	err = deleteFolder(folderID)
+	err = deleteFolder(folderID, 0)
 	assert.Nil(t, err)
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(0)
 	assert.Nil(t, err)
 
 	_, exists := structure.Items[folderID]
 	assert.False(t, exists)
 
 	// Test case 2: Try to delete root folder
-	err = deleteFolder(rootFolderID)
+	err = deleteFolder(rootFolderID, 0)
 	assert.NotNil(t, err)
 
 	// Test case 3: Try to delete non-existent folder
-	err = deleteFolder("non-existent-id")
+	err = deleteFolder("non-existent-id", 0)
 	assert.NotNil(t, err)
 }
 
@@ -177,20 +177,20 @@ func Test_ListItems(t *testing.T) {
 		Type:     ItemTypeAll,
 		FolderID: rootFolderID,
 	}
-	result, err := listItems(&req)
+	result, err := listItems(&req, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, result.TotalCount) // Folder and Dashboard
 
 	// Test case 2: List only folders
 	req.Type = ItemTypeFolder
-	result, err = listItems(&req)
+	result, err = listItems(&req, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, result.TotalCount) // Only folder
 
 	// Test case 3: Search by name
 	req.Type = ItemTypeAll
 	req.Query = "Dashboard"
-	result, err = listItems(&req)
+	result, err = listItems(&req, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, result.TotalCount) // Only dashboard matches
 }
@@ -219,7 +219,7 @@ func Test_UpdateDashboard(t *testing.T) {
 	err = updateDashboard(dashID, "Updated Dashboard", updatedDetails, 0)
 	assert.Nil(t, err)
 
-	dashboard, err := getDashboard(dashID)
+	dashboard, err := getDashboard(dashID, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, "Updated Dashboard", dashboard["name"])
 	assert.Equal(t, "Updated Description", dashboard["description"])
@@ -242,16 +242,16 @@ func Test_ToggleFavorite(t *testing.T) {
 	}
 
 	// Test case 1: Toggle favorite on
-	isFavorite, err := toggleFavorite(dashID)
+	isFavorite, err := toggleFavorite(dashID, 0)
 	assert.Nil(t, err)
 	assert.True(t, isFavorite)
 
-	dashboard, err := getDashboard(dashID)
+	dashboard, err := getDashboard(dashID, 0)
 	assert.Nil(t, err)
 	assert.True(t, dashboard["isFavorite"].(bool))
 
 	// Test case 2: Toggle favorite off
-	isFavorite, err = toggleFavorite(dashID)
+	isFavorite, err = toggleFavorite(dashID, 0)
 	assert.Nil(t, err)
 	assert.False(t, isFavorite)
 }
@@ -277,10 +277,10 @@ func Test_UpdateFolder(t *testing.T) {
 	updateReq := UpdateFolderRequest{
 		Name: "Updated Folder 1",
 	}
-	err = updateFolder(folder1ID, &updateReq)
+	err = updateFolder(folder1ID, &updateReq, 0)
 	assert.Nil(t, err)
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(0)
 	assert.Nil(t, err)
 	assert.Equal(t, "Updated Folder 1", structure.Items[folder1ID].Name)
 
@@ -288,10 +288,10 @@ func Test_UpdateFolder(t *testing.T) {
 	moveReq := UpdateFolderRequest{
 		ParentID: folder2ID,
 	}
-	err = updateFolder(folder1ID, &moveReq)
+	err = updateFolder(folder1ID, &moveReq, 0)
 	assert.Nil(t, err)
 
-	structure, err = readFolderStructure()
+	structure, err = readFolderStructure(0)
 	assert.Nil(t, err)
 	assert.Equal(t, folder2ID, structure.Items[folder1ID].ParentID)
 
@@ -299,7 +299,7 @@ func Test_UpdateFolder(t *testing.T) {
 	circularReq := UpdateFolderRequest{
 		ParentID: folder1ID,
 	}
-	err = updateFolder(folder2ID, &circularReq)
+	err = updateFolder(folder2ID, &circularReq, 0)
 	assert.NotNil(t, err)
 }
 
@@ -329,7 +329,7 @@ func Test_GenerateBreadcrumbs(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test case 1: Deep nested breadcrumbs
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(0)
 	assert.Nil(t, err)
 
 	breadcrumbs := generateBreadcrumbs(folder3ID, structure)
@@ -352,7 +352,7 @@ func Test_GetFolderContents(t *testing.T) {
 	initializeTestEnv(t)
 
 	// Test case 1: Empty folder contents
-	contents, err := getFolderContents(rootFolderID, false)
+	contents, err := getFolderContents(rootFolderID, false, 0)
 	assert.Nil(t, err)
 	assert.Empty(t, contents.Items)
 
@@ -372,18 +372,18 @@ func Test_GetFolderContents(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test case 2: Get all contents
-	contents, err = getFolderContents(folder1ID, false)
+	contents, err = getFolderContents(folder1ID, false, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(contents.Items))
 	assert.Equal(t, "Dashboard 1", contents.Items[0].Name)
 
 	// Test case 3: Get folders only
-	contents, err = getFolderContents(rootFolderID, true)
+	contents, err = getFolderContents(rootFolderID, true, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(contents.Items))
 	assert.Equal(t, ItemTypeFolder, contents.Items[0].Type)
 
 	// Test case 4: Invalid folder ID
-	_, err = getFolderContents("invalid-id", false)
+	_, err = getFolderContents("invalid-id", false, 0)
 	assert.NotNil(t, err)
 }
