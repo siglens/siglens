@@ -31,7 +31,7 @@ type StoredFolderItem struct {
 	Type        string `json:"type"`
 	ParentID    string `json:"parentId"`
 	IsDefault   bool   `json:"isDefault"`
-	CreatedAtMs int64  `json:"createdAtMsMs"`
+	CreatedAtMs int64  `json:"createdAtMs"`
 }
 
 type FolderStructure struct {
@@ -98,8 +98,11 @@ var (
 	rootFolderID        = "root-folder"
 )
 
-func getFolderStructureFilePath() string {
-	return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure.json"
+func getFolderStructureFilePath(myid uint64) string {
+	if myid == 0 {
+		return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure.json"
+	}
+	return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure-" + strconv.FormatUint(myid, 10) + ".json"
 }
 
 func getDefaultFolderStructureFilePath() string {
@@ -116,11 +119,11 @@ func isDefaultFolder(id string) bool {
 	return exists && item.Type == ItemTypeFolder
 }
 
-func InitFolderStructure() error {
+func InitFolderStructure(myid uint64) error {
 	folderStructureLock.Lock()
 	defer folderStructureLock.Unlock()
 
-	filePath := getFolderStructureFilePath()
+	filePath := getFolderStructureFilePath(myid)
 
 	if _, err := os.Stat(filePath); err == nil {
 		return nil
@@ -151,9 +154,9 @@ func InitFolderStructure() error {
 	return nil
 }
 
-func readCombinedFolderStructure() (*FolderStructure, error) {
+func readCombinedFolderStructure(myid uint64) (*FolderStructure, error) {
 
-	userStructure, err := readFolderStructure()
+	userStructure, err := readFolderStructure(myid)
 	if err != nil {
 		return nil, fmt.Errorf("readCombinedFolderStructure: failed to read user folder structure: %v", err)
 	}
@@ -214,11 +217,11 @@ func readDefaultFolderStructure() (*FolderStructure, error) {
 	return &structure, nil
 }
 
-func readFolderStructure() (*FolderStructure, error) {
+func readFolderStructure(myid uint64) (*FolderStructure, error) {
 	folderStructureLock.RLock()
 	defer folderStructureLock.RUnlock()
 
-	data, err := os.ReadFile(getFolderStructureFilePath())
+	data, err := os.ReadFile(getFolderStructureFilePath(myid))
 	if err != nil {
 		return nil, fmt.Errorf("readFolderStructure: failed to read folder structure: %v", err)
 	}
@@ -231,7 +234,7 @@ func readFolderStructure() (*FolderStructure, error) {
 	return &structure, nil
 }
 
-func writeFolderStructure(structure *FolderStructure) error {
+func writeFolderStructure(structure *FolderStructure, myid uint64) error {
 	folderStructureLock.Lock()
 	defer folderStructureLock.Unlock()
 
@@ -240,14 +243,14 @@ func writeFolderStructure(structure *FolderStructure) error {
 		return fmt.Errorf("writeFolderStructure: failed to marshal folder structure: %v", err)
 	}
 
-	if err := os.WriteFile(getFolderStructureFilePath(), data, 0644); err != nil {
+	if err := os.WriteFile(getFolderStructureFilePath(myid), data, 0644); err != nil {
 		return fmt.Errorf("writeFolderStructure: failed to write folder structure: %v", err)
 	}
 
 	return nil
 }
 
-func createFolder(req *CreateFolderRequest, orgID uint64) (string, error) {
+func createFolder(req *CreateFolderRequest, myid uint64) (string, error) {
 	if req.Name == "" {
 		return "", errors.New("folder name cannot be empty")
 	}
@@ -256,7 +259,7 @@ func createFolder(req *CreateFolderRequest, orgID uint64) (string, error) {
 		req.ParentID = rootFolderID
 	}
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(myid)
 	if err != nil {
 		return "", err
 	}
@@ -292,18 +295,24 @@ func createFolder(req *CreateFolderRequest, orgID uint64) (string, error) {
 
 	structure.Order[req.ParentID] = append(structure.Order[req.ParentID], folderID)
 
-	if err := writeFolderStructure(structure); err != nil {
+	if err := writeFolderStructure(structure, myid); err != nil {
 		return "", err
 	}
 
 	return folderID, nil
 }
 
-func getFolderContents(folderID string, foldersOnly bool) (*FolderContentResponse, error) {
-	structure, err := readCombinedFolderStructure()
+func getFolderContents(folderID string, foldersOnly bool, myid uint64) (*FolderContentResponse, error) {
+	structure, err := readCombinedFolderStructure(myid)
 
 	if err != nil {
-		return nil, fmt.Errorf("getFolderContents: failed to read folder structure: %v", err)
+		if err := InitDashboards(myid); err != nil {
+			return nil, fmt.Errorf("getFolderContents: failed to initialize dashboards: %v", err)
+		}
+		structure, err = readCombinedFolderStructure(myid)
+		if err != nil {
+			return nil, fmt.Errorf("getFolderContents: failed to read folder structure: %v", err)
+		}
 	}
 
 	folder, exists := structure.Items[folderID]
@@ -375,7 +384,7 @@ func generateBreadcrumbs(folderID string, structure *FolderStructure) []Breadcru
 	return breadcrumbs
 }
 
-func updateFolder(folderID string, req *UpdateFolderRequest) error {
+func updateFolder(folderID string, req *UpdateFolderRequest, myid uint64) error {
 	if folderID == rootFolderID {
 		return fmt.Errorf("updateFolder: cannot update root folder")
 	}
@@ -384,7 +393,7 @@ func updateFolder(folderID string, req *UpdateFolderRequest) error {
 		return fmt.Errorf("updateFolder: cannot update default folder")
 	}
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(myid)
 	if err != nil {
 		return fmt.Errorf("updateFolder: failed to read folder structure: %v", err)
 	}
@@ -448,7 +457,7 @@ func updateFolder(folderID string, req *UpdateFolderRequest) error {
 
 	structure.Items[folderID] = folder
 
-	if err := writeFolderStructure(structure); err != nil {
+	if err := writeFolderStructure(structure, myid); err != nil {
 		return fmt.Errorf("updateFolder: failed to write folder structure: %v", err)
 	}
 
@@ -492,7 +501,7 @@ func wouldCreateCircularReference(folderID, newParentID string, structure *Folde
 	}
 }
 
-func deleteFolder(folderID string) error {
+func deleteFolder(folderID string, myid uint64) error {
 	if folderID == rootFolderID {
 		return fmt.Errorf("deleteFolder: cannot delete root folder")
 	}
@@ -501,7 +510,7 @@ func deleteFolder(folderID string) error {
 		return fmt.Errorf("deleteFolder: cannot delete default folder")
 	}
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(myid)
 	if err != nil {
 		return fmt.Errorf("deleteFolder: failed to read folder structure: %v", err)
 	}
@@ -542,7 +551,7 @@ func deleteFolder(folderID string) error {
 		delete(structure.Order, itemID)
 	}
 
-	if err := writeFolderStructure(structure); err != nil {
+	if err := writeFolderStructure(structure, myid); err != nil {
 		return fmt.Errorf("deleteFolder: failed to write folder structure: %v", err)
 	}
 
@@ -577,9 +586,9 @@ func deleteDashboardFile(dashboardID string) error {
 	return os.Remove(dashboardDetailsFname)
 }
 
-func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
+func listItems(req *ListItemsRequest, myid uint64) (*ListItemsResponse, error) {
 	// Read folder structure
-	structure, err := readCombinedFolderStructure()
+	structure, err := readCombinedFolderStructure(myid)
 	if err != nil {
 		return nil, fmt.Errorf("listItems: failed to read folder structure: %v", err)
 	}
@@ -625,7 +634,7 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 		}
 
 		// Get item details
-		details, _ := getDashboard(id)
+		details, _ := getDashboard(id, myid)
 		isStarred := false
 		var createdAtMs time.Time
 		description := ""
@@ -718,21 +727,21 @@ func listItems(req *ListItemsRequest) (*ListItemsResponse, error) {
 // 2. Remove migration-related code from InitDashboards
 // 3. Remove migrateToFolderStructure function
 
-func getAllIdsFileName(orgid uint64) string {
+func getAllIdsFileName(myid uint64) string {
 	baseDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
 	allidsBaseFname := baseDir + "/allids"
 
-	if orgid == 0 {
+	if myid == 0 {
 		return allidsBaseFname + ".json"
 	}
-	return allidsBaseFname + "-" + strconv.FormatUint(orgid, 10) + ".json"
+	return allidsBaseFname + "-" + strconv.FormatUint(myid, 10) + ".json"
 }
 
-func migrateToFolderStructure(orgid uint64) error {
+func migrateToFolderStructure(myid uint64) error {
 	folderStructureLock.Lock()
 	defer folderStructureLock.Unlock()
 
-	folderFile := getFolderStructureFilePath()
+	folderFile := getFolderStructureFilePath(myid)
 
 	if _, err := os.Stat(folderFile); err == nil {
 		return nil
@@ -751,7 +760,7 @@ func migrateToFolderStructure(orgid uint64) error {
 		},
 	}
 
-	allidsFname := getAllIdsFileName(orgid)
+	allidsFname := getAllIdsFileName(myid)
 	data, _ := os.ReadFile(allidsFname)
 
 	if len(data) > 0 {
@@ -794,7 +803,7 @@ func migrateToFolderStructure(orgid uint64) error {
 	return nil
 }
 
-func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, orgID uint64) {
+func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var req CreateFolderRequest
 	if err := json.Unmarshal(ctx.PostBody(), &req); err != nil {
 		log.Errorf("ProcessCreateFolderRequest: failed to unmarshal request: %v", err)
@@ -802,7 +811,7 @@ func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, orgID uint64) {
 		return
 	}
 
-	folderID, err := createFolder(&req, orgID)
+	folderID, err := createFolder(&req, myid)
 	if err != nil {
 		log.Errorf("ProcessCreateFolderRequest: failed to create folder: %v", err)
 		utils.SetBadMsg(ctx, err.Error())
@@ -818,7 +827,7 @@ func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, orgID uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx) {
+func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
 	if folderID == "" {
 		folderID = rootFolderID
@@ -827,7 +836,7 @@ func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx) {
 	// Check if we only want folders
 	foldersOnly := string(ctx.QueryArgs().Peek("foldersOnly")) == "true"
 
-	contents, err := getFolderContents(folderID, foldersOnly)
+	contents, err := getFolderContents(folderID, foldersOnly, myid)
 	if err != nil {
 		log.Errorf("ProcessGetFolderContentsRequest: failed to get folder contents: %v", err)
 		utils.SetBadMsg(ctx, "")
@@ -838,7 +847,7 @@ func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx) {
+func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
 	if folderID == "" {
 		utils.SetBadMsg(ctx, "Folder ID is required")
@@ -852,7 +861,7 @@ func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	if err := updateFolder(folderID, &req); err != nil {
+	if err := updateFolder(folderID, &req, myid); err != nil {
 		log.Errorf("ProcessUpdateFolderRequest: failed to update folder: %v", err)
 		utils.SetBadMsg(ctx, err.Error())
 		return
@@ -865,14 +874,14 @@ func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx) {
+func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
 	if folderID == "" {
 		utils.SetBadMsg(ctx, "Folder ID is required")
 		return
 	}
 
-	if err := deleteFolder(folderID); err != nil {
+	if err := deleteFolder(folderID, myid); err != nil {
 		log.Errorf("ProcessDeleteFolderRequest: failed to delete folder: %v", err)
 		utils.SetBadMsg(ctx, err.Error())
 		return
@@ -885,7 +894,7 @@ func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx) {
+func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	req := &ListItemsRequest{
 		Sort:     string(ctx.QueryArgs().Peek("sort")),
 		Query:    string(ctx.QueryArgs().Peek("query")),
@@ -901,7 +910,7 @@ func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx) {
 		req.StarredOnly = true
 	}
 
-	response, err := listItems(req)
+	response, err := listItems(req, myid)
 	if err != nil {
 		log.Errorf("ProcessListAllItemsRequest: failed to list items: %v", err)
 		utils.SetBadMsg(ctx, "Failed to list items")

@@ -59,7 +59,7 @@ func getDashboardDetailsPath(id string) string {
 	return fmt.Sprintf("%squerynodes/%s/dashboards/details/%s.json", config.GetDataPath(), config.GetHostID(), id)
 }
 
-func InitDashboards() error {
+func InitDashboards(myid uint64) error {
 	// Create base directories
 	baseDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
 
@@ -76,14 +76,14 @@ func InitDashboards() error {
 	}
 
 	// Check if folder structure exists
-	folderFile := getFolderStructureFilePath()
+	folderFile := getFolderStructureFilePath(myid)
 	if _, err := os.Stat(folderFile); err != nil {
 		if os.IsNotExist(err) {
 			// If folder structure doesn't exist, migrate from allids.json
-			if err := migrateToFolderStructure(0); err != nil {
+			if err := migrateToFolderStructure(myid); err != nil {
 				log.Warnf("Migration failed: %v, creating new folder structure", err)
 				// Create basic structure even if migration fails
-				if err := InitFolderStructure(); err != nil {
+				if err := InitFolderStructure(myid); err != nil {
 					return fmt.Errorf("InitDashboard: failed to create folder structure: %v", err)
 				}
 			}
@@ -96,7 +96,7 @@ func InitDashboards() error {
 	return nil
 }
 
-func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]string, error) {
+func createDashboard(req *CreateDashboardRequest, myid uint64) (map[string]string, error) {
 	if req.Name == "" {
 		return nil, errors.New("dashboard name cannot be empty")
 	}
@@ -106,7 +106,7 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 		req.ParentID = rootFolderID
 	}
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(myid)
 	if err != nil {
 		return nil, fmt.Errorf("createDashboard: failed to read folder structure: %v", err)
 	}
@@ -140,7 +140,7 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 	}
 	structure.Order[req.ParentID] = append(structure.Order[req.ParentID], newId)
 
-	if err := writeFolderStructure(structure); err != nil {
+	if err := writeFolderStructure(structure, myid); err != nil {
 		return nil, fmt.Errorf("createDashboard: failed to update folder structure: %v", err)
 	}
 
@@ -199,7 +199,7 @@ func createDashboard(req *CreateDashboardRequest, orgid uint64) (map[string]stri
 	return retval, nil
 }
 
-func toggleFavorite(id string) (bool, error) {
+func toggleFavorite(id string, myid uint64) (bool, error) {
 	// Load the dashboard JSON file
 	dashboardDetailsFname := getDashboardDetailsPath(id)
 
@@ -238,7 +238,7 @@ func toggleFavorite(id string) (bool, error) {
 	return !isFavorite, nil
 }
 
-func getDashboard(id string) (map[string]interface{}, error) {
+func getDashboard(id string, myid uint64) (map[string]interface{}, error) {
 
 	dashboardDetailsFname := getDashboardDetailsPath(id)
 
@@ -263,13 +263,13 @@ func getDashboard(id string) (map[string]interface{}, error) {
 	return detailDashboardInfo, nil
 }
 
-func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, orgid uint64) error {
+func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid uint64) error {
 
 	if isDefaultDashboard(id) {
 		return errors.New("updateDashboard: cannot update default dashboard")
 	}
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(myid)
 	if err != nil {
 		return fmt.Errorf("updateDashboard: failed to read folder structure: %v", err)
 	}
@@ -343,7 +343,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 		structure.Items[id] = item
 	}
 
-	if err := writeFolderStructure(structure); err != nil {
+	if err := writeFolderStructure(structure, myid); err != nil {
 		return fmt.Errorf("updateDashboard: failed to update folder structure: %v", err)
 	}
 
@@ -389,13 +389,13 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	return nil
 }
 
-func deleteDashboard(id string, orgid uint64) error {
+func deleteDashboard(id string, myid uint64) error {
 
 	if isDefaultDashboard(id) {
 		return errors.New("deleteDashboard: cannot delete default dashboard")
 	}
 
-	structure, err := readFolderStructure()
+	structure, err := readFolderStructure(myid)
 	if err != nil {
 		return fmt.Errorf("deleteDashboard: failed to read folder structure: %v", err)
 	}
@@ -424,7 +424,7 @@ func deleteDashboard(id string, orgid uint64) error {
 	// Remove from items
 	delete(structure.Items, id)
 
-	if err := writeFolderStructure(structure); err != nil {
+	if err := writeFolderStructure(structure, myid); err != nil {
 		return fmt.Errorf("deleteDashboard: failed to update folder structure: %v", err)
 	}
 
@@ -494,9 +494,9 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx) {
+func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
-	dashboardDetails, err := getDashboard(dId)
+	dashboardDetails, err := getDashboard(dId, myid)
 	if err != nil {
 		log.Errorf("ProcessGetDashboardRequest: could not get Dashboard, id: %v, err: %v", dId, err)
 		utils.SetBadMsg(ctx, "")
@@ -506,7 +506,7 @@ func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx) {
+func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	if dId == "" {
 		log.Errorf("ProcessFavoriteRequest: received empty dashboard id")
@@ -514,7 +514,7 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	isFavorite, err := toggleFavorite(dId)
+	isFavorite, err := toggleFavorite(dId, myid)
 	if err != nil {
 		log.Errorf("ProcessFavoriteRequest: could not toggle favorite status for Dashboard=%v, err=%v", dId, err)
 		utils.SetBadMsg(ctx, "")
@@ -570,7 +570,7 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	// Get updated dashboard details for response
-	updatedDashboard, err := getDashboard(dId)
+	updatedDashboard, err := getDashboard(dId, myid)
 	if err != nil {
 		log.Errorf("ProcessUpdateDashboardRequest: failed to get updated dashboard: %v", err)
 		utils.WriteJsonResponse(ctx, map[string]string{"message": "Dashboard updated successfully"})
@@ -616,16 +616,25 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessDeleteDashboardsByOrgId(orgid uint64) error {
-	dashboardsDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
-
-	// Delete dashboard details directory
-	if err := os.RemoveAll(dashboardsDir + "/details"); err != nil {
-		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete dashboard details directory: %v", err)
+func ProcessDeleteDashboardsByOrgId(myid uint64) error {
+	structure, err := readFolderStructure(myid)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("ProcessDeleteOrgData: Failed to read folder structure: %v", err)
 	}
 
-	// Delete folder structure file
-	if err := os.Remove(dashboardsDir + "/folder_structure.json"); err != nil && !os.IsNotExist(err) {
+	for id := range structure.Items {
+		dashboardPath := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/details/" + id + ".json"
+		if err := os.Remove(dashboardPath); err != nil && !os.IsNotExist(err) {
+			log.Warnf("ProcessDeleteOrgData: Failed to delete dashboard file %s: %v", dashboardPath, err)
+		}
+
+	}
+
+	folderStructurePath := getFolderStructureFilePath(myid)
+	if err := os.Remove(folderStructurePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete folder structure file: %v", err)
 	}
 
