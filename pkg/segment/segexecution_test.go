@@ -1291,7 +1291,7 @@ func asyncQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileC
 		},
 	}
 	ti := structs.InitTableInfo("evts", 0, false)
-	qid := uint64(10101)
+	qid := int64(10101)
 	scroll := 0
 	sizeLimit := uint64(50)
 	totalPossible := uint64(numBuffers * numEntriesForBuffer * fileCount)
@@ -1733,7 +1733,7 @@ func Benchmark_agileTreeQueryReader(t *testing.B) {
 	}
 
 	agileTreeBuf := make([]byte, 300_000_000)
-	qid := uint64(67)
+	qid := int64(67)
 	qType := structs.QueryType(structs.RRCCmd)
 
 	allSearchResults, err1 := segresults.InitSearchResults(0, aggs, qType, qid)

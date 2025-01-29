@@ -230,7 +230,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
 func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
-	orgid := uint64(0)
+	orgid := int64(0)
 	dbPanelId := "-1"
 	queryStart := time.Now()
 

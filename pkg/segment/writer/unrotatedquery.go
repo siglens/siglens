@@ -46,7 +46,7 @@ type UnrotatedSegmentInfo struct {
 	removedCmiSize      uint64 // size of removed CMI due to memory rebalance
 	isCmiLoaded         bool   // is UnrotatedBlockCmis loaded?
 	RecordCount         int
-	orgid               uint64
+	orgid               int64
 }
 
 var UnrotatedInfoLock sync.RWMutex = sync.RWMutex{}

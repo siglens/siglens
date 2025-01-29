@@ -49,7 +49,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 			},
 		},
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
@@ -67,7 +67,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 	}
 
 	assert.Equal(t, series.GetIdx(), 10)
-	tsid := uint64(100)
+	tsid := int64(100)
 	metricsResults.AddSeries(series, tsid, tsGroupId)
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -119,7 +119,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 			},
 		},
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
@@ -138,7 +138,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	finalAvg := avg // because we have 1 series, with a 1h-sum:avg, the avg does nothing
 
 	assert.Equal(t, series.GetIdx(), 10)
-	tsid := uint64(100)
+	tsid := int64(100)
 	metricsResults.AddSeries(series, tsid, tsGroupId)
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -343,7 +343,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 		},
 	}
 
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 	dsSec := mQuery.Downsampler.GetIntervalTimeInSeconds()
@@ -403,7 +403,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 			},
 		},
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
@@ -421,7 +421,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 	}
 
 	assert.Equal(t, series.GetIdx(), 10)
-	tsid := uint64(100)
+	tsid := int64(100)
 	metricsResults.AddSeries(series, tsid, tsGroupId)
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -473,7 +473,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 			},
 		},
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
@@ -491,7 +491,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	}
 
 	assert.Equal(t, series.GetIdx(), 10)
-	tsid := uint64(100)
+	tsid := int64(100)
 	metricsResults.AddSeries(series, tsid, tsGroupId)
 	assert.Len(t, metricsResults.AllSeries, 1)
 	assert.Len(t, metricsResults.DsResults, 0)
@@ -1164,7 +1164,7 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 		HashedMName: 1,
 		Downsampler: downsampler,
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
@@ -1327,11 +1327,11 @@ func initialize_Single_Metric_Results(t *testing.T, timeSeriesMap map[string]map
 		SelectAllSeries: true,
 		Aggregator:      aggregator,
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
 	assert.NotNil(t, metricsResults)
 
-	tsid := uint64(100)
+	tsid := int64(100)
 	for grpID, entry := range timeSeriesMap {
 		var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 		defer bytebufferpool.Put(tsGroupId)
@@ -1358,11 +1358,11 @@ func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32
 		SelectAllSeries: true,
 		Aggregator:      aggregator,
 	}
-	qid := uint64(0)
+	qid := int64(0)
 	metricsResults1 := mresults.InitMetricResults(mQuery1, qid)
 	assert.NotNil(t, metricsResults1)
 
-	tsid := uint64(100)
+	tsid := int64(100)
 	for _, labelStr := range labelStrs1 {
 		var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
 		defer bytebufferpool.Put(tsGroupId)

@@ -48,15 +48,15 @@ var vTableBaseFileName string
 var globalTableAccessLock sync.RWMutex = sync.RWMutex{}
 var vTableRawFileAccessLock sync.RWMutex = sync.RWMutex{}
 
-var aliasToIndexNames map[uint64]map[string]map[string]bool = make(map[uint64]map[string]map[string]bool)
+var aliasToIndexNames map[int64]map[string]map[string]bool = make(map[int64]map[string]map[string]bool)
 
 // holds all the tables for orgid -> tname -> bool
-var allVirtualTables map[uint64]map[string]bool
+var allVirtualTables map[int64]map[string]bool
 
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
 func InitVTable() error {
-	allVirtualTables = make(map[uint64]map[string]bool)
+	allVirtualTables = make(map[int64]map[string]bool)
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "ingestnodes/" + config.GetHostID() + "/vtabledata")
 	VTableBaseDir = sb.String()
@@ -89,7 +89,7 @@ func getVirtualTableFileName(orgid int64) string {
 	if orgid == 0 {
 		vTableFileName = vTableBaseFileName + VIRTUAL_TAB_FILE_EXT
 	} else {
-		vTableFileName = vTableBaseFileName + "-" + strconv.FormatUint(orgid, 10) + VIRTUAL_TAB_FILE_EXT
+		vTableFileName = vTableBaseFileName + "-" + strconv.FormatInt(orgid, 10) + VIRTUAL_TAB_FILE_EXT
 	}
 	return vTableFileName
 }
@@ -101,7 +101,7 @@ func refreshInMemoryTable() {
 			log.Errorf("refreshInMemoryTable: Failed to get virtual table names! err=%v", err)
 		} else {
 			globalTableAccessLock.Lock()
-			allVirtualTables[uint64(0)] = allReadTables
+			allVirtualTables[int64(0)] = allReadTables
 			globalTableAccessLock.Unlock()
 		}
 		time.Sleep(1 * time.Minute)
@@ -113,7 +113,7 @@ func GetFilePathForRemoteNode(node string, orgid int64) string {
 	vFile.WriteString(config.GetDataPath() + "ingestnodes/" + node + "/vtabledata")
 	vFile.WriteString(VIRTUAL_TAB_FILENAME)
 	if orgid != 0 {
-		vFile.WriteString("-" + strconv.FormatUint(orgid, 10) + VIRTUAL_TAB_FILE_EXT)
+		vFile.WriteString("-" + strconv.FormatInt(orgid, 10) + VIRTUAL_TAB_FILE_EXT)
 	} else {
 		vFile.WriteString(VIRTUAL_TAB_FILE_EXT)
 	}
@@ -234,7 +234,7 @@ func AddMapping(tname *string, mapping *string, orgid int64) error {
 	var sb1 strings.Builder
 	sb1.WriteString(VTableMappingsDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(*tname)
@@ -361,7 +361,7 @@ func GetAliases(indexName string, orgid int64) (map[string]bool, error) {
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(indexName)
@@ -398,7 +398,7 @@ func writeAliasFile(indexName *string, allnames map[string]bool, orgid int64) er
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(*indexName)
@@ -431,7 +431,7 @@ func initializeAliasToIndexMap() error {
 	for _, dir := range dirs {
 		if dir.IsDir() {
 			orgid := dir.Name()
-			orgIdNumber, _ := strconv.ParseUint(orgid, 10, 64)
+			orgIdNumber, _ := strconv.ParseInt(orgid, 10, 64)
 			files, err := os.ReadDir(VTableAliasesDir + dir.Name())
 			if err != nil {
 				log.Errorf("initializeAliasToIndexMap: Failed to read directory=%v, for org =%v, err=%v", VTableAliasesDir+dir.Name(), orgid, err)
@@ -562,7 +562,7 @@ func removeAliasFile(indexName *string, orgid int64) error {
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(*indexName)

@@ -39,15 +39,15 @@ import (
 var usqBaseFilename string
 
 // map of orgid => usq lock
-var usqLock map[uint64]*sync.Mutex
-var usqLastReadTime map[uint64]uint64
+var usqLock map[int64]*sync.Mutex
+var usqLastReadTime map[int64]uint64
 var localUSQInfoLock *sync.RWMutex = &sync.RWMutex{}
 var externalUSQInfoLock *sync.RWMutex = &sync.RWMutex{}
 
 // map of "orgid" => queryName" ==> fieldname => fieldvalue
 // e.g. "123456789" => mysave1" => {"searchText":"...", "indexName": "..."}
-var localUSQInfo map[uint64]map[string]map[string]interface{} = make(map[uint64]map[string]map[string]interface{})
-var externalUSQInfo map[uint64]map[string]map[string]interface{} = make(map[uint64]map[string]map[string]interface{})
+var localUSQInfo map[int64]map[string]map[string]interface{} = make(map[int64]map[string]map[string]interface{})
+var externalUSQInfo map[int64]map[string]map[string]interface{} = make(map[int64]map[string]map[string]interface{})
 
 func InitUsq() error {
 	var sb strings.Builder
@@ -59,8 +59,8 @@ func InitUsq() error {
 		log.Errorf("InitUsq: failed to create basedir=%v, err=%v", baseDir, err)
 		return err
 	}
-	usqLock = make(map[uint64]*sync.Mutex)
-	usqLastReadTime = make(map[uint64]uint64)
+	usqLock = make(map[int64]*sync.Mutex)
+	usqLastReadTime = make(map[int64]uint64)
 
 	acquireOrCreateLock(0)
 	err = readSavedQueries(0)
@@ -323,7 +323,7 @@ func readSavedQueries(myid int64) error {
 
 func getUsqFileName(myid int64) string {
 	if myid != 0 {
-		usqFilename := usqBaseFilename + "-" + strconv.FormatUint(myid, 10) + ".bin"
+		usqFilename := usqBaseFilename + "-" + strconv.FormatInt(myid, 10) + ".bin"
 		return usqFilename
 	} else {
 		return usqBaseFilename + ".bin"

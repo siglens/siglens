@@ -47,7 +47,7 @@ type QueryInformation struct {
 	qid                uint64
 	sNodeType          structs.SearchNodeType
 	qType              structs.QueryType
-	orgId              uint64
+	orgId              int64
 	alreadyDistributed bool
 	containsKibana     bool
 	batchErr           *toputils.BatchError
@@ -133,7 +133,7 @@ func (qi *QueryInformation) GetQid() uint64 {
 	return qi.qid
 }
 
-func (qi *QueryInformation) GetOrgId() uint64 {
+func (qi *QueryInformation) GetOrgId() int64 {
 	return qi.orgId
 }
 

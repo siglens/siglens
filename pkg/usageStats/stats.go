@@ -67,7 +67,7 @@ type Stats struct {
 	TraceSpanCount              uint64
 }
 
-var ustats = make(map[uint64]*Stats)
+var ustats = make(map[int64]*Stats)
 
 var msgPrinter *message.Printer
 
@@ -80,7 +80,7 @@ type QueryStats struct {
 	mu                        sync.Mutex
 }
 
-var QueryStatsMap = make(map[uint64]*QueryStats)
+var QueryStatsMap = make(map[int64]*QueryStats)
 
 type ReadStats struct {
 	TotalBytesCount        uint64
@@ -165,7 +165,7 @@ func GetBaseStatsDir(orgid int64) string {
 	timeNow := uint64(time.Now().UnixNano()) / uint64(time.Millisecond)
 	sb.WriteString(config.GetDataPath() + "ingestnodes/" + config.GetHostID() + "/usageStats/")
 	if orgid != 0 {
-		sb.WriteString(strconv.FormatUint(orgid, 10))
+		sb.WriteString(strconv.FormatInt(orgid, 10))
 		sb.WriteString("/")
 	}
 	t1 := time.Unix(int64(timeNow/1000), int64((timeNow%1000)*1000))
@@ -180,7 +180,7 @@ func getBaseQueryStatsDir(orgid int64) string {
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/")
 	if orgid != 0 {
-		sb.WriteString(strconv.FormatUint(orgid, 10))
+		sb.WriteString(strconv.FormatInt(orgid, 10))
 		sb.WriteString("/")
 	}
 	basedir := sb.String()
@@ -220,7 +220,7 @@ func getBaseStatsDirs(startTime, endTime time.Time, orgid int64) []string {
 			sb.WriteString(mDir)
 			sb.WriteString("/")
 			if orgid != 0 {
-				sb.WriteString(strconv.FormatUint(orgid, 10))
+				sb.WriteString(strconv.FormatInt(orgid, 10))
 			}
 			sb.WriteString("/")
 			timeNow := uint64(fileStartTime.UnixNano()) / uint64(time.Millisecond)

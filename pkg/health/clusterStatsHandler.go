@@ -43,6 +43,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const siglensId = -7828473396868711293
+
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
 // GetTraceStatsForAllSegments retrieves all trace-related statistics.
@@ -381,7 +383,7 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 		if segMeta == nil {
 			continue
 		}
-		if segMeta.OrgId != myid && myid != 10618270676840840323 { //orgid for siglens
+		if segMeta.OrgId != myid && myid != siglensId {
 			continue
 		}
 		indexName := segMeta.VirtualTableName

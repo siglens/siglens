@@ -102,7 +102,7 @@ func getFolderStructureFilePath(myid int64) string {
 	if myid == 0 {
 		return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure.json"
 	}
-	return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure-" + strconv.FormatUint(myid, 10) + ".json"
+	return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure-" + strconv.FormatInt(myid, 10) + ".json"
 }
 
 func getDefaultFolderStructureFilePath() string {
@@ -734,7 +734,7 @@ func getAllIdsFileName(myid int64) string {
 	if myid == 0 {
 		return allidsBaseFname + ".json"
 	}
-	return allidsBaseFname + "-" + strconv.FormatUint(myid, 10) + ".json"
+	return allidsBaseFname + "-" + strconv.FormatInt(myid, 10) + ".json"
 }
 
 func migrateToFolderStructure(myid int64) error {

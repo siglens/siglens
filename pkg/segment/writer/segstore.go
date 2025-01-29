@@ -89,7 +89,7 @@ type SegStore struct {
 	timeCreated           time.Time
 	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
 	stbHolder             *STBHolder
-	OrgId                 uint64
+	OrgId                 int64
 	firstTime             bool
 	stbDictEncWorkBuf     [][]string
 	segStatsWorkBuf       []byte

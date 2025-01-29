@@ -43,6 +43,8 @@ const PQS_TICKER = 10 // seconds
 const PQS_FLUSH_SIZE = 100
 const PQS_CHAN_SIZE = 1000
 
+const siglensID = -7828473396868711293
+
 var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
@@ -352,7 +354,7 @@ func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[stri
 		if segmeta == nil {
 			continue
 		}
-		if segmeta.OrgId != orgid && orgid != 10618270676840840323 { //orgid for siglens
+		if segmeta.OrgId != orgid && orgid != siglensID {
 			continue
 		}
 		cnts, ok = allvtables[segmeta.VirtualTableName]
@@ -794,7 +796,7 @@ func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error)
 	var wg sync.WaitGroup
 
 	for _, meta := range allSegMetas {
-		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != 10618270676840840323) {
+		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != siglensID) {
 			continue
 		}
 
@@ -840,7 +842,7 @@ func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 	stats := &SegmentSizeStats{}
 	for _, usi := range AllUnrotatedSegmentInfo {
 		if usi.TableName == indexName &&
-			(usi.orgid == orgId || orgId == 10618270676840840323) {
+			(usi.orgid == orgId || orgId == siglensID) {
 			if usi.cmiSize > 0 {
 				stats.TotalCmiSize += usi.cmiSize
 				stats.NumIndexFiles += len(usi.allColumns)

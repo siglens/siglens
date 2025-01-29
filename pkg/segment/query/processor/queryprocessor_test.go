@@ -51,7 +51,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 	assert.NoError(t, err)
 
 	go query.PullQueriesToRun()
-	qid := uint64(0)
+	qid := int64(0)
 	rQuery, err := query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
@@ -97,7 +97,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	assert.NoError(t, err)
 
 	go query.PullQueriesToRun()
-	qid := uint64(0)
+	qid := int64(0)
 	rQuery, err := query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)

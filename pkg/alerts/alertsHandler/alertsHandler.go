@@ -592,7 +592,7 @@ func ProcessDeleteContactRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func InitAlertingService(getMyIds func() []uint64) {
+func InitAlertingService(getMyIds func() []int64) {
 	if databaseObj == nil {
 		log.Errorf("InitAlertingService, err = %+v", invalidDatabaseProvider)
 		return
@@ -621,7 +621,7 @@ func InitAlertingService(getMyIds func() []uint64) {
 	}
 }
 
-func InitMinionSearchService(getMyIds func() []uint64) {
+func InitMinionSearchService(getMyIds func() []int64) {
 	if databaseObj == nil {
 		log.Errorf("InitMinionSearchService, err = %+v", invalidDatabaseProvider)
 		return

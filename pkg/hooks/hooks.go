@@ -52,7 +52,7 @@ type Hooks struct {
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid int64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
-	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
+	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (int64, error)
 	// TODO: There are too many arguments here. Consider refactoring by creating a struct.
 	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId int64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
@@ -94,16 +94,16 @@ type Hooks struct {
 	UploadPQMRFilesExtrasHook           func(allFiles []string) error
 
 	// Server helpers
-	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)
-	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (uint64, error)
+	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (int64, error)
+	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (int64, error)
 	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
 
 	// Ingest server
 	IngestMiddlewareRecoveryHook           func(ctx *fasthttp.RequestCtx) error
 	KibanaIngestHandlerHook                func(ctx *fasthttp.RequestCtx)
-	KibanaIngestSingleDocHook              func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
-	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
-	GetIdsConditionHook                    func() (bool, []uint64)
+	KibanaIngestSingleDocHook              func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, int64) error
+	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, int64) error
+	GetIdsConditionHook                    func() (bool, []int64)
 	ExtraIngestEndpointsHook               func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
 	OverrideIngestRequestHook              func(ctx *fasthttp.RequestCtx, myid int64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
 	OverrideDeleteIndexRequestHook         func(ctx *fasthttp.RequestCtx, myid int64, indexName string) bool

@@ -52,7 +52,7 @@ const QUERY_INFO_REFRESH_LOOP_SECS = 300
 var ExtractKibanaRequestsFn func([]string, uint64) map[string]*structs.SegmentSearchRequest
 
 // Inits metadata layer and search limiter
-func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]string, uint64) map[string]*structs.SegmentSearchRequest) error {
+func InitQueryNode(getMyIds func() []int64, extractKibanaRequestsFn func([]string, uint64) map[string]*structs.SegmentSearchRequest) error {
 	ExtractKibanaRequestsFn = extractKibanaRequestsFn
 	ticker := time.NewTicker(30 * time.Second)
 	done := make(chan bool)
@@ -87,7 +87,7 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 }
 
 // ingest only nodes should call this to be fetching remote pqs information
-func InitQueryInfoRefresh(getMyIds func() []uint64) {
+func InitQueryInfoRefresh(getMyIds func() []int64) {
 	go runQueryInfoRefreshLoop(getMyIds)
 }
 
@@ -104,8 +104,8 @@ func queryMetricsLooper() {
 	}
 }
 
-func initSyncSegMetaForAllIds(getMyIds func() []uint64) {
-	defaultId := uint64(0)
+func initSyncSegMetaForAllIds(getMyIds func() []int64) {
+	defaultId := int64(0)
 	syncSegMetaWithSegFullMeta(defaultId)
 
 	for _, myId := range getMyIds() {

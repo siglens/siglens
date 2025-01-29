@@ -130,7 +130,7 @@ type MetricsSegment struct {
 	bytesReceived   uint64             // total size of incoming data
 	rwLock          *sync.RWMutex      // read write lock for access
 	datapointCount  uint64             // total number of datapoints across all series in the block
-	Orgid           uint64
+	Orgid           int64
 }
 
 /*
@@ -171,7 +171,7 @@ type MetricsAndTagsHolder struct {
 
 var numMetricsSegments uint64
 
-var OrgMetricsAndTags map[uint64]*MetricsAndTagsHolder = make(map[uint64]*MetricsAndTagsHolder)
+var OrgMetricsAndTags map[int64]*MetricsAndTagsHolder = make(map[int64]*MetricsAndTagsHolder)
 
 func InitTestingConfig() {
 	TAGS_TREE_FLUSH_SLEEP_DURATION = 10
@@ -228,7 +228,7 @@ func initOrgMetrics(orgid int64) error {
 }
 
 func ResetMetricsSegStore_TestOnly() {
-	OrgMetricsAndTags = make(map[uint64]*MetricsAndTagsHolder)
+	OrgMetricsAndTags = make(map[int64]*MetricsAndTagsHolder)
 }
 
 /*

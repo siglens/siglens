@@ -137,7 +137,7 @@ type RunningQueryState struct {
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
 	cleanupCallback          func()
 	qid                      uint64
-	orgid                    uint64
+	orgid                    int64
 	tableInfo                *structs.TableInfo
 	timeRange                *dtu.TimeRange
 	astNode                  *structs.ASTNode
@@ -737,7 +737,7 @@ func (rQuery *RunningQueryState) SetSearchQueryInformation(qid uint64, tableInfo
 	rQuery.rqsLock.Unlock()
 }
 
-func GetSearchQueryInformation(qid uint64) ([]string, *dtu.TimeRange, uint64, error) {
+func GetSearchQueryInformation(qid uint64) ([]string, *dtu.TimeRange, int64, error) {
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()

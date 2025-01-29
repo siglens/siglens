@@ -38,7 +38,7 @@ type QueryContext struct {
 	TableInfo    *TableInfo
 	SizeLimit    uint64
 	Scroll       int
-	Orgid        uint64
+	Orgid        int64
 	RawQuery     string
 	IncludeNulls bool
 }
