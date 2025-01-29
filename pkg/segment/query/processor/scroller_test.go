@@ -34,7 +34,7 @@ func Test_Scroll(t *testing.T) {
 
 	go query.PullQueriesToRun()
 
-	qid := int64(0)
+	qid := uint64(0)
 	_, err = query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)

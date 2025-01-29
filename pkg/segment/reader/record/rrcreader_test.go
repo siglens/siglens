@@ -67,7 +67,7 @@ func Test_GetJsonFromAllRrcOldPipeline(t *testing.T) {
 			VirtualTableName: "evts",
 		},
 	}
-	qid := int64(0)
+	qid := uint64(0)
 	allRecords, _, err := GetJsonFromAllRrcOldPipeline(allrrc, false, qid, segencmap, &structs.QueryAggregators{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
@@ -140,7 +140,7 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 			VirtualTableName: "evts",
 		},
 	}
-	qid := int64(0)
+	qid := uint64(0)
 	aggNode := &structs.QueryAggregators{}
 	aggNode.PipeCommandType = structs.OutputTransformType
 	aggNode.OutputTransforms = &structs.OutputTransforms{}
@@ -203,7 +203,7 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 			VirtualTableName: "evts",
 		},
 	}
-	qid := int64(0)
+	qid := uint64(0)
 	aggNode := &structs.QueryAggregators{}
 	aggNode.PipeCommandType = structs.OutputTransformType
 	aggNode.OutputTransforms = &structs.OutputTransforms{}
