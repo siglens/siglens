@@ -315,7 +315,7 @@ func cleanRecentlyRotatedInfo() {
 }
 
 func AddEntryToInMemBuf(streamid string, indexName string, flush bool,
-	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	signalType SIGNAL_TYPE, orgid int64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
 	segstore, err := getOrCreateSegStore(streamid, indexName, orgid)
@@ -466,7 +466,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 }
 
 func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool,
-	signalType SIGNAL_TYPE, orgid uint64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
+	signalType SIGNAL_TYPE, orgid int64, rid uint64, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*ParsedLogEvent) error {
 
 	tsKey := config.GetTimeStampKey()
@@ -526,7 +526,7 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 	return nil
 }
 
-func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid uint64) error {
+func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid int64) error {
 	switch signalType {
 	case SIGNAL_METRICS_OTSDB:
 		tagsHolder := metrics.GetTagsHolder()
@@ -728,7 +728,7 @@ func InitColWip(segKey string, colName string) *ColWip {
 // varint stores length of Record , it would occupy 1-9 bytes
 // The first bit of each byte of varint specifies whether there are follow on bytes
 // rest 7 bits are used to store the number
-func getOrCreateSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+func getOrCreateSegStore(streamid string, table string, orgId int64) (*SegStore, error) {
 
 	segstore := getSegStore(streamid)
 	if segstore == nil {
@@ -750,7 +750,7 @@ func getSegStore(streamid string) *SegStore {
 	return segstore
 }
 
-func createSegStore(streamid string, table string, orgId uint64) (*SegStore, error) {
+func createSegStore(streamid string, table string, orgId int64) (*SegStore, error) {
 	allSegStoresLock.Lock()
 	defer allSegStoresLock.Unlock()
 
@@ -993,7 +993,7 @@ func writeRunningSegMeta(segKey string, rsm *structs.SegMeta) {
 	writeSfm(segKey, segFullMeta)
 }
 
-func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64, map[string]struct{}) {
+func GetUnrotatedVTableCounts(vtable string, orgid int64) (uint64, int, uint64, map[string]struct{}) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := 0
@@ -1011,7 +1011,7 @@ func GetUnrotatedVTableCounts(vtable string, orgid uint64) (uint64, int, uint64,
 	return bytesCount, recCount, onDiskBytesCount, allColumnsMap
 }
 
-func GetUnrotatedVTableTimestamps(orgid uint64) map[string]struct{ Earliest, Latest uint64 } {
+func GetUnrotatedVTableTimestamps(orgid int64) map[string]struct{ Earliest, Latest uint64 } {
 	result := make(map[string]struct{ Earliest, Latest uint64 })
 
 	allSegStoresLock.RLock()
@@ -1047,7 +1047,7 @@ func GetUnrotatedVTableTimestamps(orgid uint64) map[string]struct{ Earliest, Lat
 	return result
 }
 
-func GetUnrotatedVTableCountsForAll(orgid uint64, allvtables map[string]*structs.VtableCounts) {
+func GetUnrotatedVTableCountsForAll(orgid int64, allvtables map[string]*structs.VtableCounts) {
 
 	var ok bool
 	var cnts *structs.VtableCounts

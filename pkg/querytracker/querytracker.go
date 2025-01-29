@@ -152,7 +152,7 @@ func removeOldEntries() {
 
 }
 
-func GetTopNPersistentSearches(intable string, orgid uint64) (map[string]*structs.SearchNode, error) {
+func GetTopNPersistentSearches(intable string, orgid int64) (map[string]*structs.SearchNode, error) {
 
 	res := make(map[string]*structs.SearchNode)
 	if !config.IsPQSEnabled() {
@@ -192,7 +192,7 @@ func GetTopNPersistentSearches(intable string, orgid uint64) (map[string]*struct
 	return res, nil
 }
 
-func GetPersistentColumns(intable string, orgid uint64) (map[string]bool, error) {
+func GetPersistentColumns(intable string, orgid int64) (map[string]bool, error) {
 	persistentQueries, err := GetTopNPersistentSearches(intable, orgid)
 
 	if err != nil {

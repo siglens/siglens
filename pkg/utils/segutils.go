@@ -68,7 +68,7 @@ func DecodeGOB(raw []byte, node any) error {
 	return nil
 }
 
-func CreateStreamId(indexName string, orgId uint64) string {
+func CreateStreamId(indexName string, orgId int64) string {
 	// todo this still has a issue of having 50 shards per index, we need to cap it somehow
 	return fmt.Sprintf("%d-%v-%v", rand.Intn(MAX_SHARDS), orgId, xxhash.Sum64String(indexName))
 }

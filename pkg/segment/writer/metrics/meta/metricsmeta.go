@@ -124,7 +124,7 @@ func ReadMetricsMeta(mmeta string) (map[string]*structs.MetricsMeta, error) {
 }
 
 // includes remote metrics meta entries
-func GetAllMetricsMetaEntries(orgid uint64) (map[string]*structs.MetricsMeta, error) {
+func GetAllMetricsMetaEntries(orgid int64) (map[string]*structs.MetricsMeta, error) {
 	nDir := config.GetIngestNodeBaseDir()
 	files, err := os.ReadDir(nDir)
 	if err != nil {

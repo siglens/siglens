@@ -95,7 +95,7 @@ func initMetadataRefresh() {
 	initMetricsMetaRefresh()
 }
 
-func updateVTable(vfname string, orgid uint64) error {
+func updateVTable(vfname string, orgid int64) error {
 	vtableFd, err := os.OpenFile(vfname, os.O_RDONLY, 0644)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -131,7 +131,7 @@ func updateVTable(vfname string, orgid uint64) error {
 	return err
 }
 
-func initGlobalMetadataRefresh(getMyIds func() []uint64) {
+func initGlobalMetadataRefresh(getMyIds func() []int64) {
 	if !config.IsQueryNode() || !config.IsS3Enabled() {
 		return
 	}
@@ -147,7 +147,7 @@ func initGlobalMetadataRefresh(getMyIds func() []uint64) {
 	}
 }
 
-func RefreshGlobalMetadata(fnMyids func() []uint64, ownedSegments map[string]struct{}, shouldDiscardUnownedSegments bool) error {
+func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]struct{}, shouldDiscardUnownedSegments bool) error {
 	ingestNodes := make([]string, 0)
 	ingestNodePath := config.GetDataPath() + "ingestnodes"
 
@@ -294,7 +294,7 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 	return nil
 }
 
-func syncSegMetaWithSegFullMeta(myId uint64) {
+func syncSegMetaWithSegFullMeta(myId int64) {
 	vTableNames, err := virtualtable.GetVirtualTableNames(myId)
 	if err != nil {
 		log.Errorf("syncSegMetaWithSegFullMeta: Error in getting vtable names, err:%v", err)
@@ -508,7 +508,7 @@ func getExternalPqinfoFiles() ([]string, error) {
 	return fNames, nil
 }
 
-func getExternalUSQueriesInfo(orgid uint64) ([]string, error) {
+func getExternalUSQueriesInfo(orgid int64) ([]string, error) {
 	fNames := make([]string, 0)
 	queryNodes := make([]string, 0)
 	querytNodePath := config.GetDataPath() + "querynodes"
@@ -531,7 +531,7 @@ func getExternalUSQueriesInfo(orgid uint64) ([]string, error) {
 	if orgid == 0 {
 		usqFileExtensionName = "/usqinfo.bin"
 	} else {
-		usqFileExtensionName = "/usqinfo-" + strconv.FormatUint(orgid, 10) + ".bin"
+		usqFileExtensionName = "/usqinfo-" + strconv.FormatInt(orgid, 10) + ".bin"
 	}
 
 	for _, node := range queryNodes {
@@ -545,7 +545,7 @@ func getExternalUSQueriesInfo(orgid uint64) ([]string, error) {
 	return fNames, nil
 }
 
-func internalQueryInfoRefresh(getMyIds func() []uint64) {
+func internalQueryInfoRefresh(getMyIds func() []int64) {
 	err := blob.DownloadAllQueryNodesDir()
 	if err != nil {
 		log.Errorf("internalQueryInfoRefresh: Error in downloading query nodes dir, err:%v", err)
@@ -595,7 +595,7 @@ func internalQueryInfoRefresh(getMyIds func() []uint64) {
 	}
 }
 
-func runQueryInfoRefreshLoop(getMyIds func() []uint64) {
+func runQueryInfoRefreshLoop(getMyIds func() []int64) {
 	for {
 
 		startTime := time.Now()

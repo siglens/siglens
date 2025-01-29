@@ -199,7 +199,7 @@ func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
-		handler := func(ctx *fasthttp.RequestCtx, orgId uint64) {
+		handler := func(ctx *fasthttp.RequestCtx, orgId int64) {
 			eswriter.ProcessBulkRequest(ctx, orgId, false)
 		}
 
@@ -300,7 +300,7 @@ func pipeSearchWebsocketHandler() func(ctx *fasthttp.RequestCtx) {
 	instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
-			var orgId uint64
+			var orgId int64
 			var err error
 			if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 				orgId, err = hook(ctx)
@@ -630,7 +630,7 @@ func getMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
-			var orgId uint64
+			var orgId int64
 			var err error
 			if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 				orgId, err = hook(ctx)

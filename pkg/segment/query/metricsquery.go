@@ -41,7 +41,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
+func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
 	rotatedMetricRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
 	if err != nil {
 		err = fmt.Errorf("getAllRequestsWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
@@ -61,7 +61,7 @@ func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64,
 	return allSearchRequests, nil
 }
 
-func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
+func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
 	allSearchRequests, err := getAllRequestsWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get all metric requests within time range %+v; err=%v", timeRange, err)
@@ -206,7 +206,7 @@ func mergeMetricSearchRequests(unrotatedMSegments map[string][]*structs.MetricsS
 	return mSegments
 }
 
-func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid uint64) ([]string, error) {
+func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid int64) ([]string, error) {
 	mSgementsMeta := segmetadata.GetMetricSegmentsOverTheTimeRange(timeRange, orgid)
 
 	unrotatedMSegments, err := metrics.GetUnrotatedMetricSegmentsOverTheTimeRange(timeRange, orgid)
@@ -416,7 +416,7 @@ func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, reg
 	return metricNames, nil
 }
 
-func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid uint64) (uint64, error) {
+func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int64) (uint64, error) {
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
 	tagsTreeReaders, err := GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)

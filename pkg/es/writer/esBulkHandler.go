@@ -76,7 +76,7 @@ func init() {
 	resp_status_201["index"] = statusbody
 }
 
-func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
+func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid int64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
 		if alreadyHandled {
@@ -114,7 +114,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid uint64,
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid int64,
 	useIngestHook bool) (int, map[string]interface{}, error) {
 
 	response := make(map[string]interface{})
@@ -326,7 +326,7 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 	return DELETE, "eventType", ""
 }
 
-func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid uint64) string {
+func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid int64) string {
 
 	// first check localCopy of map, if it exists then avoid the lock inside vtables.
 	// note that this map gets reset on every bulk request
@@ -360,7 +360,7 @@ func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
 }
 
 func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
-	localIndexMap map[string]string, myid uint64, rid uint64,
+	localIndexMap map[string]string, myid int64, rid uint64,
 	idxToStreamIdCache map[string]string, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
 
@@ -410,7 +410,7 @@ func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
 	return nil
 }
 
-func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid int64) {
 
 	r := string(ctx.PostBody())
 	indexName := ctx.UserValue("indexName").(string)
@@ -444,7 +444,7 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 }
 
 // Accepts wildcard index names e.g. "ind-*"
-func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid int64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 	if hook := hooks.GlobalHooks.OverrideDeleteIndexRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, inIndexName)
@@ -472,7 +472,7 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 }
 
-func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
+func deleteIndex(inIndexName string, myid int64) ([]string, int) {
 	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
 	indicesNotFound := 0
 	for _, indexName := range convertedIndexNames {
