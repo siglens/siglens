@@ -32,7 +32,7 @@ Returns all tagTrees that we need to search and what MetricsSegments & MetricsBl
 
 Returns map[string][]*structs.MetricSearchRequest, mapping a tagsTree to all MetricSearchRequest that pass time filtering
 */
-func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid int64) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 
 	retUpdate := &sync.Mutex{}
@@ -106,7 +106,7 @@ func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summa
 	return retVal, gErr
 }
 
-func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint64) map[string]*structs.MetricsMeta {
+func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid int64) map[string]*structs.MetricsMeta {
 
 	globalMetricsMetadata.updateLock.Lock()
 	defer globalMetricsMetadata.updateLock.Unlock()
@@ -123,7 +123,7 @@ func GetMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint6
 	return metricsSegMeta
 }
 
-func GetUniqueTagKeysForRotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
+func GetUniqueTagKeysForRotated(tRange *dtu.MetricsTimeRange, myid int64) (map[string]struct{}, error) {
 	mSegmentsMeta := GetMetricSegmentsOverTheTimeRange(tRange, myid)
 
 	uniqueTagKeys := make(map[string]struct{})

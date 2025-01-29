@@ -59,7 +59,7 @@ func getDashboardDetailsPath(id string) string {
 	return fmt.Sprintf("%squerynodes/%s/dashboards/details/%s.json", config.GetDataPath(), config.GetHostID(), id)
 }
 
-func InitDashboards(myid uint64) error {
+func InitDashboards(myid int64) error {
 	// Create base directories
 	baseDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
 
@@ -96,7 +96,7 @@ func InitDashboards(myid uint64) error {
 	return nil
 }
 
-func createDashboard(req *CreateDashboardRequest, myid uint64) (map[string]string, error) {
+func createDashboard(req *CreateDashboardRequest, myid int64) (map[string]string, error) {
 	if req.Name == "" {
 		return nil, errors.New("dashboard name cannot be empty")
 	}
@@ -199,7 +199,7 @@ func createDashboard(req *CreateDashboardRequest, myid uint64) (map[string]strin
 	return retval, nil
 }
 
-func toggleFavorite(id string, myid uint64) (bool, error) {
+func toggleFavorite(id string, myid int64) (bool, error) {
 	// Load the dashboard JSON file
 	dashboardDetailsFname := getDashboardDetailsPath(id)
 
@@ -238,7 +238,7 @@ func toggleFavorite(id string, myid uint64) (bool, error) {
 	return !isFavorite, nil
 }
 
-func getDashboard(id string, myid uint64) (map[string]interface{}, error) {
+func getDashboard(id string, myid int64) (map[string]interface{}, error) {
 
 	dashboardDetailsFname := getDashboardDetailsPath(id)
 
@@ -263,7 +263,7 @@ func getDashboard(id string, myid uint64) (map[string]interface{}, error) {
 	return detailDashboardInfo, nil
 }
 
-func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid uint64) error {
+func updateDashboard(id string, dName string, dashboardDetails map[string]interface{}, myid int64) error {
 
 	if isDefaultDashboard(id) {
 		return errors.New("updateDashboard: cannot update default dashboard")
@@ -389,7 +389,7 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 	return nil
 }
 
-func deleteDashboard(id string, myid uint64) error {
+func deleteDashboard(id string, myid int64) error {
 
 	if isDefaultDashboard(id) {
 		return errors.New("deleteDashboard: cannot delete default dashboard")
@@ -471,7 +471,7 @@ func parseUpdateDashboardRequest(readJSON map[string]interface{}) (string, strin
 	return dId, dName, details, nil
 }
 
-func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	var req CreateDashboardRequest
 	if err := json.Unmarshal(ctx.PostBody(), &req); err != nil {
 		log.Errorf("ProcessCreateDashboardRequest: could not unmarshal body: %v, err=%v", ctx.PostBody(), err)
@@ -494,7 +494,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	dashboardDetails, err := getDashboard(dId, myid)
 	if err != nil {
@@ -506,7 +506,7 @@ func ProcessGetDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	if dId == "" {
 		log.Errorf("ProcessFavoriteRequest: received empty dashboard id")
@@ -526,7 +526,7 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("ProcessUpdateDashboardRequest: received empty request body")
@@ -587,7 +587,7 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	dId := utils.ExtractParamAsString(ctx.UserValue("dashboard-id"))
 	if dId == "" {
 		utils.SetBadMsg(ctx, "Dashboard ID is required")
@@ -616,7 +616,7 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessDeleteDashboardsByOrgId(myid uint64) error {
+func ProcessDeleteDashboardsByOrgId(myid int64) error {
 	structure, err := readFolderStructure(myid)
 	if err != nil {
 		if os.IsNotExist(err) {

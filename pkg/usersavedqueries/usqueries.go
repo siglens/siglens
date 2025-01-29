@@ -73,18 +73,18 @@ func InitUsq() error {
 	return nil
 }
 
-func acquireOrCreateLock(myid uint64) {
+func acquireOrCreateLock(myid int64) {
 	if _, ok := usqLock[myid]; !ok {
 		usqLock[myid] = &sync.Mutex{}
 	}
 	usqLock[myid].Lock()
 }
 
-func releaseLock(myid uint64) {
+func releaseLock(myid int64) {
 	usqLock[myid].Unlock()
 }
 
-func writeUsq(qname string, uq map[string]interface{}, myid uint64) error {
+func writeUsq(qname string, uq map[string]interface{}, myid int64) error {
 
 	if qname == "" {
 		log.Errorf("writeUsq: failed to save query data, query name is empty")
@@ -121,7 +121,7 @@ func writeUsq(qname string, uq map[string]interface{}, myid uint64) error {
 		  map[string]interface: the savequerydata
 		  error: any error
 */
-func getUsqOne(qname string, myid uint64) (bool, map[string]map[string]interface{}, error) {
+func getUsqOne(qname string, myid int64) (bool, map[string]map[string]interface{}, error) {
 	var allUSQInfo map[string]map[string]interface{} = make(map[string]map[string]interface{})
 	retval := make(map[string]map[string]interface{})
 	found := false
@@ -163,7 +163,7 @@ func getUsqOne(qname string, myid uint64) (bool, map[string]map[string]interface
 	return found, retval, nil
 }
 
-func getUsqAll(myid uint64) (bool, map[string]map[string]interface{}, error) {
+func getUsqAll(myid int64) (bool, map[string]map[string]interface{}, error) {
 	var allUSQInfo map[string]map[string]interface{} = make(map[string]map[string]interface{})
 
 	acquireOrCreateLock(myid)
@@ -204,7 +204,7 @@ func getUsqAll(myid uint64) (bool, map[string]map[string]interface{}, error) {
 	   returns:
 		  error: any error
 */
-func deleteAllUsq(myid uint64) error {
+func deleteAllUsq(myid int64) error {
 	acquireOrCreateLock(myid)
 	err := readSavedQueries(myid)
 	if err != nil {
@@ -241,7 +241,7 @@ func deleteAllUsq(myid uint64) error {
 		  bool : if deleted true else false
 		  error: any error
 */
-func deleteUsq(qname string, myid uint64) (bool, error) {
+func deleteUsq(qname string, myid int64) (bool, error) {
 
 	acquireOrCreateLock(myid)
 	err := readSavedQueries(myid)
@@ -279,7 +279,7 @@ func deleteUsq(qname string, myid uint64) (bool, error) {
 /*
 Caller must call this via a lock
 */
-func readSavedQueries(myid uint64) error {
+func readSavedQueries(myid int64) error {
 
 	// first see if on disk is newer than memory
 	usqFilename := getUsqFileName(myid)
@@ -321,7 +321,7 @@ func readSavedQueries(myid uint64) error {
 	return nil
 }
 
-func getUsqFileName(myid uint64) string {
+func getUsqFileName(myid int64) string {
 	if myid != 0 {
 		usqFilename := usqBaseFilename + "-" + strconv.FormatUint(myid, 10) + ".bin"
 		return usqFilename
@@ -333,7 +333,7 @@ func getUsqFileName(myid uint64) string {
 /*
 Caller must call this via a lock
 */
-func writeSavedQueries(myid uint64) error {
+func writeSavedQueries(myid int64) error {
 
 	usqFilename := getUsqFileName(myid)
 	localUSQInfoLock.RLock()
@@ -358,7 +358,7 @@ func writeSavedQueries(myid uint64) error {
 	return nil
 }
 
-func DeleteAllUserSavedQueries(myid uint64) error {
+func DeleteAllUserSavedQueries(myid int64) error {
 	err := deleteAllUsq(myid)
 	if err != nil {
 		log.Errorf("DeleteAllUserSavedQueries: Failed to delete user saved queries for orgid %d, err=%v", myid, err)
@@ -374,7 +374,7 @@ func DeleteAllUserSavedQueries(myid uint64) error {
 	return nil
 }
 
-func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid uint64) {
+func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 	queryName := utils.ExtractParamAsString(ctx.UserValue("qname"))
 	deleted, err := deleteUsq(queryName, myid)
 	if err != nil {
@@ -395,7 +395,7 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx, myid uint64) {
+func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx, myid int64) {
 	httpResp := make(utils.AllSavedQueries)
 	found, savedQueriesAll, err := getUsqAll(myid)
 	if err != nil {
@@ -413,7 +413,7 @@ func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func SaveUserQueries(ctx *fasthttp.RequestCtx, myid uint64) {
+func SaveUserQueries(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf("SaveUserQueries: received empty user query. Postbody is nil")
@@ -498,7 +498,7 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ReadExternalUSQInfo(fName string, myid uint64) error {
+func ReadExternalUSQInfo(fName string, myid int64) error {
 	var tempUSQInfo map[string]map[string]interface{} = make(map[string]map[string]interface{})
 	content, err := os.ReadFile(fName)
 	if err != nil {
@@ -525,7 +525,7 @@ func ReadExternalUSQInfo(fName string, myid uint64) error {
 	return nil
 }
 
-func SearchUserSavedQuery(ctx *fasthttp.RequestCtx, myid uint64) {
+func SearchUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 	queryName := utils.ExtractParamAsString(ctx.UserValue("qname"))
 
 	found, usqInfo, err := getUsqOne(queryName, myid)

@@ -46,12 +46,12 @@ import (
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
 // GetTraceStatsForAllSegments retrieves all trace-related statistics.
-func GetTraceStatsForAllSegments(myid uint64) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+func GetTraceStatsForAllSegments(myid int64) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	allSegMetas := writer.ReadGlobalSegmetas()
 	return GetTracesStats(myid, allSegMetas)
 }
 
-func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var httpResp utils.ClusterStatsResponseInfo
 	var err error
@@ -204,7 +204,7 @@ func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[st
 	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
+func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
@@ -332,7 +332,7 @@ func isTraceRelatedIndex(indexName string) bool {
 	return false
 }
 
-func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	totalBytes := float64(0)
 	totalEventCount := int64(0)
 	totalOnDiskBytes := float64(0)
@@ -477,13 +477,13 @@ func getStats(myid uint64, filterFunc func(string) bool, allSegMetas []*structs.
 	return stats, totalEventCount, totalBytes, totalOnDiskBytes, totalCols
 }
 
-func GetIngestionStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+func GetIngestionStats(myid int64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	return getStats(myid, func(indexName string) bool {
 		return !isTraceRelatedIndex(indexName)
 	}, allSegMetas)
 }
 
-func GetTracesStats(myid uint64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+func GetTracesStats(myid int64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
 	return getStats(myid, isTraceRelatedIndex, allSegMetas)
 }
 
@@ -493,7 +493,7 @@ func convertBytesToGB(bytes float64) string {
 	return finalStr
 }
 
-func GetMetricsStats(myid uint64) (uint64, uint64, uint64) {
+func GetMetricsStats(myid int64) (uint64, uint64, uint64) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := uint64(0)

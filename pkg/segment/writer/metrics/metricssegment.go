@@ -189,7 +189,7 @@ func InitMetricsSegStore() {
 	go timeBasedTagsTreeFlush()
 }
 
-func initOrgMetrics(orgid uint64) error {
+func initOrgMetrics(orgid int64) error {
 	orgMetricsAndTagsLock.Lock()
 	if _, ok := OrgMetricsAndTags[orgid]; !ok {
 		OrgMetricsAndTags[orgid] = &MetricsAndTagsHolder{
@@ -234,7 +234,7 @@ func ResetMetricsSegStore_TestOnly() {
 /*
 Returns the total incoming bytes, total on disk bytes, approx number of datapoints across all metric segments
 */
-func GetUnrotatedMetricStats(orgid uint64) (uint64, uint64, uint64) {
+func GetUnrotatedMetricStats(orgid int64) (uint64, uint64, uint64) {
 	totalIncoming := uint64(0)
 	totalMSegEncodedSize := uint64(0)
 	totalDPS := uint64(0)
@@ -324,7 +324,7 @@ func timeBasedTagsTreeFlush() {
 	}
 }
 
-func InitMetricsSegment(orgid uint64, mId string) (*MetricsSegment, error) {
+func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 	suffix, err := suffix.GetNextSuffix(mId, "ts")
 	if err != nil {
 		return nil, err
@@ -434,7 +434,7 @@ If it cannot find the series or no space exists in the metrics segment, it will 
 
 Return number of bytes written and any error encountered
 */
-func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid uint64) error {
+func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid int64) error {
 	if len(mName) == 0 {
 		log.Errorf("EncodeDatapoint: metric name is empty, orgid=%v", orgid)
 		return fmt.Errorf("metric name is empty")
@@ -690,7 +690,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 // for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
 // Call the EncodeDatapoint function to add the datapoint to the respective series
 // Return the number of datapoints ingested and any errors encountered
-func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid uint64) (uint32, []error) {
+func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid int64) (uint32, []error) {
 
 	var ts uint32 = uint32(time.Now().Unix())
 	var measurement string
@@ -836,7 +836,7 @@ func extractTagsFromJson(tagsObj []byte, tags *TagsHolder) error {
 	return nil
 }
 
-func getMetricsSegment(mName []byte, orgid uint64) (*MetricsSegment, *TagsTreeHolder, error) {
+func getMetricsSegment(mName []byte, orgid int64) (*MetricsSegment, *TagsTreeHolder, error) {
 	orgMetricsAndTagsLock.RLock()
 	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
 	orgMetricsAndTagsLock.RUnlock()
@@ -1352,7 +1352,7 @@ func ForceFlushMetricsBlock() {
 	wg.Wait()
 }
 
-func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid uint64) (map[string][]*structs.MetricsSearchRequest, error) {
+func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summary.QuerySummary, orgid int64) (map[string][]*structs.MetricsSearchRequest, error) {
 	sTime := time.Now()
 	retVal := make(map[string][]*structs.MetricsSearchRequest)
 	retLock := &sync.Mutex{}
@@ -1426,7 +1426,7 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 	return retVal, nil
 }
 
-func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid uint64) ([]*MetricsSegment, error) {
+func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, orgid int64) ([]*MetricsSegment, error) {
 	allMetricsSegments := GetMetricSegments(orgid)
 	resultMetricSegments := make([]*MetricsSegment, 0)
 
@@ -1440,7 +1440,7 @@ func GetUnrotatedMetricSegmentsOverTheTimeRange(tRange *dtu.MetricsTimeRange, or
 	return resultMetricSegments, nil
 }
 
-func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid uint64) (map[string]struct{}, error) {
+func GetUniqueTagKeysForUnrotated(tRange *dtu.MetricsTimeRange, myid int64) (map[string]struct{}, error) {
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
 		log.Errorf("GetUniqueTagKeysForUnrotated: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
@@ -1521,7 +1521,7 @@ func GetTotalEncodedSize() uint64 {
 	return totalMSegsBlkEncodedSize + totalTagsTreeSize
 }
 
-func GetMetricSegments(orgid uint64) []*MetricsSegment {
+func GetMetricSegments(orgid int64) []*MetricsSegment {
 	orgMetricsAndTagsLock.RLock()
 	allMetricsSegments := []*MetricsSegment{}
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
@@ -1557,7 +1557,7 @@ func GetAllTagsTreeHolders() []*TagsTreeHolder {
 	return tagsTreeHolders
 }
 
-func GetTagsTreeHolder(orgid uint64, mid string) *TagsTreeHolder {
+func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	orgMetricsAndTagsLock.RLock()
 	var tt *TagsTreeHolder
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {

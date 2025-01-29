@@ -136,7 +136,7 @@ func updateRecentlyRotatedSegmentFiles(segkey string) {
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
 	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockNum uint16,
-	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64,
+	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid int64,
 	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
 	defer UnrotatedInfoLock.Unlock()
@@ -518,7 +518,7 @@ func GetUnrotatedMetadataInfo() (uint64, uint64) {
 }
 
 // returns map[table]->map[segKey]->timeRange that pass index & time range check, total checked, total passed
-func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
+func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid int64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 	totalCount := uint64(0)
 	totalChecked := uint64(0)
 	retVal := make(map[string]map[string]*structs.SegmentByTimeAndColSizes)
@@ -552,7 +552,7 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 	return retVal, totalChecked, totalCount
 }
 
-func GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) map[string]bool {
+func GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid int64) map[string]bool {
 	allColumns := make(map[string]bool)
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()

@@ -342,7 +342,7 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 	return allSegMetas, nil
 }
 
-func GetVTableCountsForAll(orgid uint64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
+func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
 
 	allvtables := make(map[string]*structs.VtableCounts)
 
@@ -781,7 +781,7 @@ func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
 	return stats, nil
 }
 
-func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error) {
+func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error) {
 	allSegMetas := ReadGlobalSegmetas()
 	stats := &utils.IndexStats{}
 
@@ -833,7 +833,7 @@ func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error
 	return stats, nil
 }
 
-func getUnrotatedSegmentStats(indexName string, orgId uint64) *SegmentSizeStats {
+func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
 

@@ -34,7 +34,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func MetricsQueryParser(ctx *fasthttp.RequestCtx, myid uint64) {
+func MetricsQueryParser(ctx *fasthttp.RequestCtx, myid int64) {
 	var httpResp toputils.HttpServerResponse
 	queryReq := ctx.QueryArgs()
 	startStr := string(queryReq.Peek("start"))
@@ -65,7 +65,7 @@ func MetricsQueryParser(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ParseRequest(startStr string, endStr string, m string, myid uint64) (*structs.MetricsQueryRequest, error) {
+func ParseRequest(startStr string, endStr string, m string, myid int64) (*structs.MetricsQueryRequest, error) {
 	if startStr == "" || m == "" {
 		return nil, fmt.Errorf("Invalid query - missing 'start' or 'm' parameter")
 	}

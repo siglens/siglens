@@ -39,7 +39,7 @@ type OtsdbPutResp struct {
 	Errors  []string `json:"errors,omitempty"`
 }
 
-func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
+func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTSDB_METRICS, false)
 		if alreadyHandled {
@@ -75,7 +75,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid uint64) {
 	writeOtsdbResponse(ctx, processedCount, failedCount, "", fasthttp.StatusOK)
 }
 
-func HandlePutMetrics(fullData []byte, myid uint64) (uint64, uint64, error) {
+func HandlePutMetrics(fullData []byte, myid int64) (uint64, uint64, error) {
 
 	//to have a check if there are any errors in the request
 	//to check for status : 200 or 400

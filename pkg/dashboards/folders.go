@@ -98,7 +98,7 @@ var (
 	rootFolderID        = "root-folder"
 )
 
-func getFolderStructureFilePath(myid uint64) string {
+func getFolderStructureFilePath(myid int64) string {
 	if myid == 0 {
 		return config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards/folder_structure.json"
 	}
@@ -119,7 +119,7 @@ func isDefaultFolder(id string) bool {
 	return exists && item.Type == ItemTypeFolder
 }
 
-func InitFolderStructure(myid uint64) error {
+func InitFolderStructure(myid int64) error {
 	folderStructureLock.Lock()
 	defer folderStructureLock.Unlock()
 
@@ -154,7 +154,7 @@ func InitFolderStructure(myid uint64) error {
 	return nil
 }
 
-func readCombinedFolderStructure(myid uint64) (*FolderStructure, error) {
+func readCombinedFolderStructure(myid int64) (*FolderStructure, error) {
 
 	userStructure, err := readFolderStructure(myid)
 	if err != nil {
@@ -217,7 +217,7 @@ func readDefaultFolderStructure() (*FolderStructure, error) {
 	return &structure, nil
 }
 
-func readFolderStructure(myid uint64) (*FolderStructure, error) {
+func readFolderStructure(myid int64) (*FolderStructure, error) {
 	folderStructureLock.RLock()
 	defer folderStructureLock.RUnlock()
 
@@ -234,7 +234,7 @@ func readFolderStructure(myid uint64) (*FolderStructure, error) {
 	return &structure, nil
 }
 
-func writeFolderStructure(structure *FolderStructure, myid uint64) error {
+func writeFolderStructure(structure *FolderStructure, myid int64) error {
 	folderStructureLock.Lock()
 	defer folderStructureLock.Unlock()
 
@@ -250,7 +250,7 @@ func writeFolderStructure(structure *FolderStructure, myid uint64) error {
 	return nil
 }
 
-func createFolder(req *CreateFolderRequest, myid uint64) (string, error) {
+func createFolder(req *CreateFolderRequest, myid int64) (string, error) {
 	if req.Name == "" {
 		return "", errors.New("folder name cannot be empty")
 	}
@@ -302,7 +302,7 @@ func createFolder(req *CreateFolderRequest, myid uint64) (string, error) {
 	return folderID, nil
 }
 
-func getFolderContents(folderID string, foldersOnly bool, myid uint64) (*FolderContentResponse, error) {
+func getFolderContents(folderID string, foldersOnly bool, myid int64) (*FolderContentResponse, error) {
 	structure, err := readCombinedFolderStructure(myid)
 
 	if err != nil {
@@ -384,7 +384,7 @@ func generateBreadcrumbs(folderID string, structure *FolderStructure) []Breadcru
 	return breadcrumbs
 }
 
-func updateFolder(folderID string, req *UpdateFolderRequest, myid uint64) error {
+func updateFolder(folderID string, req *UpdateFolderRequest, myid int64) error {
 	if folderID == rootFolderID {
 		return fmt.Errorf("updateFolder: cannot update root folder")
 	}
@@ -501,7 +501,7 @@ func wouldCreateCircularReference(folderID, newParentID string, structure *Folde
 	}
 }
 
-func deleteFolder(folderID string, myid uint64) error {
+func deleteFolder(folderID string, myid int64) error {
 	if folderID == rootFolderID {
 		return fmt.Errorf("deleteFolder: cannot delete root folder")
 	}
@@ -586,7 +586,7 @@ func deleteDashboardFile(dashboardID string) error {
 	return os.Remove(dashboardDetailsFname)
 }
 
-func listItems(req *ListItemsRequest, myid uint64) (*ListItemsResponse, error) {
+func listItems(req *ListItemsRequest, myid int64) (*ListItemsResponse, error) {
 	// Read folder structure
 	structure, err := readCombinedFolderStructure(myid)
 	if err != nil {
@@ -727,7 +727,7 @@ func listItems(req *ListItemsRequest, myid uint64) (*ListItemsResponse, error) {
 // 2. Remove migration-related code from InitDashboards
 // 3. Remove migrateToFolderStructure function
 
-func getAllIdsFileName(myid uint64) string {
+func getAllIdsFileName(myid int64) string {
 	baseDir := config.GetDataPath() + "querynodes/" + config.GetHostID() + "/dashboards"
 	allidsBaseFname := baseDir + "/allids"
 
@@ -737,7 +737,7 @@ func getAllIdsFileName(myid uint64) string {
 	return allidsBaseFname + "-" + strconv.FormatUint(myid, 10) + ".json"
 }
 
-func migrateToFolderStructure(myid uint64) error {
+func migrateToFolderStructure(myid int64) error {
 	folderStructureLock.Lock()
 	defer folderStructureLock.Unlock()
 
@@ -803,7 +803,7 @@ func migrateToFolderStructure(myid uint64) error {
 	return nil
 }
 
-func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	var req CreateFolderRequest
 	if err := json.Unmarshal(ctx.PostBody(), &req); err != nil {
 		log.Errorf("ProcessCreateFolderRequest: failed to unmarshal request: %v", err)
@@ -827,7 +827,7 @@ func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
 	if folderID == "" {
 		folderID = rootFolderID
@@ -847,7 +847,7 @@ func ProcessGetFolderContentsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
 	if folderID == "" {
 		utils.SetBadMsg(ctx, "Folder ID is required")
@@ -874,7 +874,7 @@ func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	folderID := utils.ExtractParamAsString(ctx.UserValue("folder-id"))
 	if folderID == "" {
 		utils.SetBadMsg(ctx, "Folder ID is required")
@@ -894,7 +894,7 @@ func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessListAllItemsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	req := &ListItemsRequest{
 		Sort:     string(ctx.QueryArgs().Peek("sort")),
 		Query:    string(ctx.QueryArgs().Peek("query")),

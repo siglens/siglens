@@ -148,7 +148,7 @@ func InitSsa() {
 	go waitForInitialEvent()
 }
 
-func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
+func GetOldestSegmentEpoch(ingestNodeDir string, orgid int64) (uint64, error) {
 	// Read segmeta entries
 	allSegMetas := writer.ReadLocalSegmeta(false)
 
@@ -324,7 +324,7 @@ func populateDeploymentSsa(m map[string]interface{}) {
 	m["country"] = IPAddressInfo.Country
 }
 
-func populateIngestSsa(m map[string]interface{}, myid uint64) {
+func populateIngestSsa(m map[string]interface{}, myid int64) {
 
 	totalEventCount := uint64(0)
 	totalOnDiskBytes := uint64(0)

@@ -119,7 +119,7 @@ func GetQueryCount() {
 	}
 }
 
-func ReadQueryStats(orgid uint64) error {
+func ReadQueryStats(orgid int64) error {
 	filename := getQueryStatsFilename(getBaseQueryStatsDir(orgid))
 	fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -159,7 +159,7 @@ func ReadQueryStats(orgid uint64) error {
 	return nil
 }
 
-func GetBaseStatsDir(orgid uint64) string {
+func GetBaseStatsDir(orgid int64) string {
 
 	var sb strings.Builder
 	timeNow := uint64(time.Now().UnixNano()) / uint64(time.Millisecond)
@@ -175,7 +175,7 @@ func GetBaseStatsDir(orgid uint64) string {
 	return basedir
 }
 
-func getBaseQueryStatsDir(orgid uint64) string {
+func getBaseQueryStatsDir(orgid int64) string {
 
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "querynodes/" + config.GetHostID() + "/")
@@ -187,7 +187,7 @@ func getBaseQueryStatsDir(orgid uint64) string {
 	return basedir
 }
 
-func getBaseStatsDirs(startTime, endTime time.Time, orgid uint64) []string {
+func getBaseStatsDirs(startTime, endTime time.Time, orgid int64) []string {
 	startTOD := (startTime.UnixMilli() / MS_IN_DAY) * MS_IN_DAY
 	endTOD := (endTime.UnixMilli() / MS_IN_DAY) * MS_IN_DAY
 	ingestDir := config.GetIngestNodeBaseDir()
@@ -318,7 +318,7 @@ func ForceFlushStatstoFile() {
 	}
 }
 
-func logStatSummary(orgid uint64) {
+func logStatSummary(orgid int64) {
 	if _, ok := ustats[orgid]; ok {
 		log.Infof("Ingest stats: past minute : events=%v, metrics=%v, bytes=%v",
 			msgPrinter.Sprintf("%v", ustats[orgid].LogLinesCount),
@@ -332,11 +332,11 @@ func logStatSummary(orgid uint64) {
 	}
 }
 
-func GetTotalLogLines(orgid uint64) uint64 {
+func GetTotalLogLines(orgid int64) uint64 {
 	return ustats[orgid].TotalLogLinesCount
 }
 
-func FlushStatsToFile(orgid uint64) error {
+func FlushStatsToFile(orgid int64) error {
 	if qs, ok := QueryStatsMap[orgid]; ok {
 		filename := getQueryStatsFilename(getBaseQueryStatsDir(orgid))
 		fd, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
@@ -404,7 +404,7 @@ func FlushStatsToFile(orgid uint64) error {
 	return nil
 }
 
-func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
+func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid int64) {
 	if _, ok := ustats[orgid]; !ok {
 		ustats[orgid] = &Stats{}
 	}
@@ -415,7 +415,7 @@ func UpdateStats(logsBytesCount uint64, logLinesCount uint64, orgid uint64) {
 	atomic.AddUint64(&ustats[orgid].LogsBytesCount, logsBytesCount)
 }
 
-func UpdateTracesStats(traceBytesCount uint64, traceSpanCount uint64, orgid uint64) {
+func UpdateTracesStats(traceBytesCount uint64, traceSpanCount uint64, orgid int64) {
 	if _, ok := ustats[orgid]; !ok {
 		ustats[orgid] = &Stats{}
 	}
@@ -425,7 +425,7 @@ func UpdateTracesStats(traceBytesCount uint64, traceSpanCount uint64, orgid uint
 	atomic.AddUint64(&ustats[orgid].TotalBytesCount, traceBytesCount)
 }
 
-func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid uint64) {
+func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid int64) {
 	if _, ok := ustats[orgid]; !ok {
 		ustats[orgid] = &Stats{}
 	}
@@ -436,18 +436,18 @@ func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid 
 	atomic.AddUint64(&ustats[orgid].MetricsBytesCount, metricsBytesCount)
 }
 
-func GetQueryStats(orgid uint64) (uint64, float64, float64, uint64) {
+func GetQueryStats(orgid int64) (uint64, float64, float64, uint64) {
 	if _, ok := QueryStatsMap[orgid]; !ok {
 		return 0, 0, 0, 0
 	}
 	return QueryStatsMap[orgid].QueryCount, QueryStatsMap[orgid].TotalRespTimeSinceRestart, QueryStatsMap[orgid].TotalRespTimeSinceInstall, QueryStatsMap[orgid].QueriesSinceInstall
 }
 
-func GetCurrentMetricsStats(orgid uint64) (uint64, uint64) {
+func GetCurrentMetricsStats(orgid int64) (uint64, uint64) {
 	return ustats[orgid].TotalBytesCount, ustats[orgid].TotalMetricsDatapointsCount
 }
 
-func UpdateQueryStats(queryCount uint64, respTime float64, orgid uint64) {
+func UpdateQueryStats(queryCount uint64, respTime float64, orgid int64) {
 	mu.Lock()
 	if _, ok := QueryStatsMap[orgid]; !ok {
 		QueryStatsMap[orgid] = &QueryStats{
@@ -469,7 +469,7 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid uint64) {
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
-func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid uint64) (map[string]ReadStats, error) {
+func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64) (map[string]ReadStats, error) {
 	endEpoch := time.Now()
 	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
 	startTOD := (startEpoch.UnixMilli() / MS_IN_DAY) * MS_IN_DAY

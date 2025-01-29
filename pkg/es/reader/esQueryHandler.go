@@ -37,7 +37,7 @@ import (
 
 var ScrollLimit uint64 = 10000
 
-func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	var httpResp utils.HttpServerESResponseOuter
 	var httpRespScroll utils.HttpServerESResponseScroll
 	queryStart := time.Now()
@@ -191,7 +191,7 @@ Uses microreader & segwriter to get the doc counts per index name
 TODO: how does this look in a multi node setting?
 Returns NodeResults with doc counts per index aggregation
 */
-func getIndexNameAggOnly(aggName string, myid uint64) *structs.NodeResult {
+func getIndexNameAggOnly(aggName string, myid int64) *structs.NodeResult {
 
 	totalHits := uint64(0)
 	bucketResults := make([]*structs.BucketResult, 0)

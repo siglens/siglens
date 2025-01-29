@@ -45,16 +45,16 @@ type database interface {
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
 	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
-	GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error)
+	GetAllAlerts(orgId int64) ([]*alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
-	GetAllMinionSearches(orgId uint64) ([]alertutils.MinionSearch, error)
+	GetAllMinionSearches(orgId int64) ([]alertutils.MinionSearch, error)
 	UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	UpdateAlert(*alertutils.AlertDetails) error
 	UpdateSilenceMinutes(*alertutils.AlertDetails) error
 	DeleteAlert(alert_id string) error
 	CreateContact(*alertutils.Contact) error
-	GetAllContactPoints(orgId uint64) ([]alertutils.Contact, error)
+	GetAllContactPoints(orgId int64) ([]alertutils.Contact, error)
 	UpdateContactPoint(contact *alertutils.Contact) error
 	GetCoolDownDetails(alert_id string) (uint64, time.Time, error)
 	GetAlertNotification(alert_id string) (*alertutils.Notification, error)
@@ -119,7 +119,7 @@ func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (strin
 	return "", nil
 }
 
-func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -315,7 +315,7 @@ func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -333,7 +333,7 @@ func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID uint64) {
+func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -486,7 +486,7 @@ func ProcessDeleteAlertRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -515,7 +515,7 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -645,7 +645,7 @@ func InitMinionSearchService(getMyIds func() []uint64) {
 	}
 }
 
-func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return

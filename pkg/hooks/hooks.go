@@ -49,12 +49,12 @@ type Hooks struct {
 	ShutdownSiglensPreHook    func()
 
 	// Cluster health
-	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
-	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
+	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)
+	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid int64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
 	// TODO: There are too many arguments here. Consider refactoring by creating a struct.
-	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId uint64,
+	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId int64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
 		queryCount *uint64, totalResponseTimeSinceRestart *float64, totalResponseTimeSinceInstall *float64,
@@ -62,8 +62,8 @@ type Hooks struct {
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// rStats is of type usageStats.ReadStats
-	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
-	AddMultiNodeIndexHook       func(orgId uint64) []string
+	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId int64)
+	AddMultiNodeIndexHook       func(orgId int64) []string
 
 	AcquireOwnedSegmentRLockHook func()
 	ReleaseOwnedSegmentRLockHook func()
@@ -105,8 +105,8 @@ type Hooks struct {
 	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
 	GetIdsConditionHook                    func() (bool, []uint64)
 	ExtraIngestEndpointsHook               func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
-	OverrideIngestRequestHook              func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
-	OverrideDeleteIndexRequestHook         func(ctx *fasthttp.RequestCtx, myid uint64, indexName string) bool
+	OverrideIngestRequestHook              func(ctx *fasthttp.RequestCtx, myid int64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
+	OverrideDeleteIndexRequestHook         func(ctx *fasthttp.RequestCtx, myid int64, indexName string) bool
 	GetNextSuffixHook                      func(uint64, func(uint64) string) (uint64, error)
 	GetOwnedSegmentsHook                   func() map[string]struct{}
 	AddUsageForRotatedSegmentsHook         func(qid uint64, rotatedSegments map[string]struct{})
@@ -127,7 +127,7 @@ type Hooks struct {
 	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
 
 	// Handling ingestion
-	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid uint64) (bool, uint64)
+	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid int64) (bool, uint64)
 	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType segutils.SIGNAL_TYPE) error
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)

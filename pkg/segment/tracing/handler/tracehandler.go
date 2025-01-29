@@ -46,7 +46,7 @@ import (
 const OneHourInMs = 60 * 60 * 1000
 const TRACE_PAGE_LIMIT = 50
 
-func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not parse and validate request body", err)
@@ -155,7 +155,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody, _, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not parse and validate request body", err)
@@ -340,7 +340,7 @@ func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, trace
 }
 
 // Call /api/search endpoint
-func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*segstructs.PipeSearchResponseOuter, error) {
+func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid int64) (*segstructs.PipeSearchResponseOuter, error) {
 
 	modifiedData, err := json.Marshal(searchRequestBody)
 	if err != nil {
@@ -376,7 +376,7 @@ func MonitorSpansHealth() {
 	}
 }
 
-func ProcessRedTracesIngest(myid uint64) {
+func ProcessRedTracesIngest(myid int64) {
 	// Initial request
 	searchRequestBody := structs.SearchRequestBody{
 		IndexName:     "traces",
@@ -591,7 +591,7 @@ func DependencyGraphThread() {
 	}
 }
 
-func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64, myid uint64) map[string]map[string]int {
+func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64, myid int64) map[string]map[string]int {
 
 	requestBody := map[string]interface{}{
 		"indexName":     "traces",
@@ -641,7 +641,7 @@ func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64, myid uint64) ma
 	return dependencyMatrix
 }
 
-func writeDependencyMatrix(dependencyMatrix map[string]map[string]int, myid uint64) {
+func writeDependencyMatrix(dependencyMatrix map[string]map[string]int, myid int64) {
 	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
 	if err != nil {
 		log.Errorf("writeDependencyMatrix: Error marshaling dependency matrix:err=%v", err)
@@ -678,7 +678,7 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int, myid uint
 
 // ProcessAggregatedDependencyGraphs handles the /dependencies endpoint.
 // It aggregates already computed dependency graphs based on the provided start and end epochs.
-func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	// Extract startEpoch and endEpoch from the request
 	_, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
@@ -756,7 +756,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 
 // ProcessGeneratedDepGraph handles the /generate-dep-graph endpoint.
 // It generates a new dependency graph based on the provided start and end epochs and displays it without storing.
-func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid int64) {
 	// Extract startEpoch and endEpoch from the request
 	_, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
@@ -798,7 +798,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {

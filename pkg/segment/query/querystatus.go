@@ -729,7 +729,7 @@ func SetCleanupCallback(qid uint64, cleanupCallback func()) error {
 	return nil
 }
 
-func (rQuery *RunningQueryState) SetSearchQueryInformation(qid uint64, tableInfo *structs.TableInfo, timeRange *dtu.TimeRange, orgid uint64) {
+func (rQuery *RunningQueryState) SetSearchQueryInformation(qid uint64, tableInfo *structs.TableInfo, timeRange *dtu.TimeRange, orgid int64) {
 	rQuery.rqsLock.Lock()
 	rQuery.tableInfo = tableInfo
 	rQuery.timeRange = timeRange

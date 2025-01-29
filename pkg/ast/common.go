@@ -298,7 +298,7 @@ func getDefaultAstAndAggNode(qid uint64, timeRange *dtu.TimeRange) (*structs.AST
 }
 
 // Executes simple query to return a single column values in a given table
-func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid uint64) ([]interface{}, error) {
+func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid int64) ([]interface{}, error) {
 	var err error
 
 	if astNode == nil {

@@ -95,7 +95,7 @@ func initMetadataRefresh() {
 	initMetricsMetaRefresh()
 }
 
-func updateVTable(vfname string, orgid uint64) error {
+func updateVTable(vfname string, orgid int64) error {
 	vtableFd, err := os.OpenFile(vfname, os.O_RDONLY, 0644)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -294,7 +294,7 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 	return nil
 }
 
-func syncSegMetaWithSegFullMeta(myId uint64) {
+func syncSegMetaWithSegFullMeta(myId int64) {
 	vTableNames, err := virtualtable.GetVirtualTableNames(myId)
 	if err != nil {
 		log.Errorf("syncSegMetaWithSegFullMeta: Error in getting vtable names, err:%v", err)
@@ -508,7 +508,7 @@ func getExternalPqinfoFiles() ([]string, error) {
 	return fNames, nil
 }
 
-func getExternalUSQueriesInfo(orgid uint64) ([]string, error) {
+func getExternalUSQueriesInfo(orgid int64) ([]string, error) {
 	fNames := make([]string, 0)
 	queryNodes := make([]string, 0)
 	querytNodePath := config.GetDataPath() + "querynodes"

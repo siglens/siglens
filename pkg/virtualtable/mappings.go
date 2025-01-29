@@ -77,7 +77,7 @@ func createMappingFromEvent(incomingBody *string, indexName *string) (string, er
 	return string(JsonBody), nil
 }
 
-func AddMappingFromADoc(indexName *string, incomingBody *string, orgid uint64) error {
+func AddMappingFromADoc(indexName *string, incomingBody *string, orgid int64) error {
 	jsonBody, err := createMappingFromEvent(incomingBody, indexName)
 	if err != nil {
 		log.Errorf("AddMappingFromADoc: cannot create mapping from the event with indexName=%v, incomingBody=%v, err=%v", indexName, incomingBody, err)

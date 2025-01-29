@@ -321,7 +321,7 @@ func (hm *allSegmentMetadata) deleteSegmentKey(key string) {
 	hm.deleteSegmentKeyWithLock(key)
 }
 
-func (hm *allSegmentMetadata) deleteTable(table string, orgid uint64) {
+func (hm *allSegmentMetadata) deleteTable(table string, orgid int64) {
 	hm.updateLock.Lock()
 	defer hm.updateLock.Unlock()
 
@@ -412,11 +412,11 @@ func DeleteSegmentKeys[T any](segKeys map[string]T) {
 	}
 }
 
-func DeleteVirtualTable(vTable string, orgid uint64) {
+func DeleteVirtualTable(vTable string, orgid int64) {
 	globalMetadata.deleteTable(vTable, orgid)
 }
 
-func GetAllSegKeysForOrg(orgid uint64) map[string]struct{} {
+func GetAllSegKeysForOrg(orgid int64) map[string]struct{} {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 
@@ -595,7 +595,7 @@ func IsUnrotatedQueryNeeded(timeRange *dtu.TimeRange, indexNames []string) bool 
 		 2. final matched count
 		 3. total possible count
 */
-func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
+func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid int64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
@@ -629,7 +629,7 @@ func FilterSegmentsByTime(timeRange *dtu.TimeRange, indexNames []string, orgid u
 	return retVal, timePassed, totalChecked
 }
 
-func GetColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) map[string]bool {
+func GetColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid int64) map[string]bool {
 	globalMetadata.updateLock.RLock()
 	defer globalMetadata.updateLock.RUnlock()
 	allColumns := make(map[string]bool)

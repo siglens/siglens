@@ -136,7 +136,7 @@ type SegmentByTimeAndColSizes struct {
 	TotalRecords         uint32
 }
 
-func InitTableInfo(rawRequest string, orgid uint64, es bool) *TableInfo {
+func InitTableInfo(rawRequest string, orgid int64, es bool) *TableInfo {
 	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(rawRequest, orgid, es)
 	ti := &TableInfo{rawRequest: rawRequest}
 	if es {
@@ -220,7 +220,7 @@ func getIndexNamesCleanLogs(indices []string) string {
 	return indicesStr
 }
 
-func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid uint64, es bool) *QueryContext {
+func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid int64, es bool) *QueryContext {
 	ti := InitTableInfo(indexRequest, orgid, es)
 	return &QueryContext{
 		TableInfo: ti,
@@ -230,7 +230,7 @@ func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid u
 	}
 }
 
-func InitQueryContextWithTableInfo(ti *TableInfo, sizeLimit uint64, scroll int, orgid uint64, es bool) *QueryContext {
+func InitQueryContextWithTableInfo(ti *TableInfo, sizeLimit uint64, scroll int, orgid int64, es bool) *QueryContext {
 	return &QueryContext{
 		TableInfo: ti,
 		SizeLimit: sizeLimit,

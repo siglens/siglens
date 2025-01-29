@@ -155,7 +155,7 @@ func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32,
 	return searchText, startTime, endTime, 0, granularity, nil
 }
 
-func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	searchText := string(ctx.FormValue("query"))
 	timeParam := string(ctx.FormValue("time"))
@@ -213,7 +213,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	searchText := string(ctx.FormValue("query"))
 	startParam := string(ctx.FormValue("start"))
@@ -285,7 +285,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
 }
-func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(PromQLBuildInfo))
 	if err != nil {
@@ -293,7 +293,7 @@ func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 }
 
-func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 
@@ -354,7 +354,7 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
-func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
@@ -437,7 +437,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
-func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	matches := make([]string, 0)
 	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {
@@ -510,7 +510,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessMetricsSearchRequest: received empty search request body ")
@@ -591,7 +591,7 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
 		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricNamesRequest: empty json body received", errors.New("empty json body received"))
@@ -638,7 +638,7 @@ func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
 		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricTagsRequest: empty json body received", errors.New("empty json body received"))
@@ -711,7 +711,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map[string]interface{}, startTime, endTime uint32, myid uint64, qid uint64) (*mresults.MetricsResult, []*structs.MetricsQuery, parser.ValueType, string, error) {
+func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map[string]interface{}, startTime, endTime uint32, myid int64, qid uint64) (*mresults.MetricsResult, []*structs.MetricsQuery, parser.ValueType, string, error) {
 	if qid == 0 {
 		qid = rutils.GetNextQid()
 	}
@@ -746,7 +746,7 @@ func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map
 	return res, metricQueriesList, pqlQuerytype, finalSearchText, nil
 }
 
-func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
 		utils.SendError(ctx, "empty json body received", "", nil)
@@ -826,7 +826,7 @@ func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]st
 	return finalSearchText, nil
 }
 
-func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
 	if err != nil {
@@ -933,7 +933,7 @@ func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	return start, end, queries, formulas, errorLog, readJSON, nil
 }
 
-func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	type inputStruct struct {
 		StartEpoch utils.Epoch `json:"startEpoch"`
 		EndEpoch   utils.Epoch `json:"endEpoch"`
@@ -968,7 +968,7 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid uin
 	WriteJsonResponse(ctx, &output)
 }
 
-func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	type inputStruct struct {
 		StartEpoch utils.Epoch `json:"startEpoch"`
 		EndEpoch   utils.Epoch `json:"endEpoch"`
@@ -1046,7 +1046,7 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint6
 	utils.WriteJsonResponse(ctx, &output)
 }
 
-func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	type inputStruct struct {
 		StartEpoch utils.Epoch `json:"startEpoch"`
 		EndEpoch   utils.Epoch `json:"endEpoch"`
@@ -1132,7 +1132,7 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid uint
 	utils.WriteJsonResponse(ctx, &output)
 }
 
-func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	type inputStruct struct {
 		StartEpoch utils.Epoch `json:"startEpoch"`
 		EndEpoch   utils.Epoch `json:"endEpoch"`
@@ -1207,7 +1207,7 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid uint6
 	utils.WriteJsonResponse(ctx, &output)
 }
 
-func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid int64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
 	expr, err := parser.ParseExpr(searchText)
 	if err != nil {

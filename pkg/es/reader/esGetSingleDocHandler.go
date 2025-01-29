@@ -34,7 +34,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func ProcessSingleDocGetRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSingleDocGetRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var response = utils.NewSingleESResponse()
 

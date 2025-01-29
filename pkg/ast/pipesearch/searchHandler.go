@@ -257,7 +257,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (*struct
 	return httpRespOuter, timeRange, nil
 }
 
-func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid uint64, queryStart time.Time, dbPanelId string) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
+func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid int64, queryStart time.Time, dbPanelId string) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
@@ -330,7 +330,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 }
 
-func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	defer fileutils.DeferableAddAccessLogEntry(
 		time.Now(),
@@ -525,7 +525,7 @@ func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationR
 	return resp
 }
 
-func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
+func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var resp utils.AutoCompleteDataInfo
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
