@@ -55,7 +55,7 @@ type AlertDetails struct {
 	CronJob                  gocron.Job          `json:"cron_job" gorm:"embedded"`
 	NodeId                   uint64              `json:"node_id"`
 	NotificationID           string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
-	OrgId                    uint64              `json:"org_id"`
+	OrgId                    int64               `json:"org_id"`
 	NumEvaluationsCount      uint64              `json:"num_evaluations_count"`
 }
 
@@ -130,7 +130,7 @@ type Contact struct {
 	Slack       []SlackTokenConfig `json:"slack" gorm:"many2many:slack_contact;auto_preload"`
 	PagerDuty   string             `json:"pager_duty"`
 	Webhook     []WebHookConfig    `json:"webhook" gorm:"many2many:webhook_contact;auto_preload"`
-	OrgId       uint64             `json:"org_id"`
+	OrgId       int64              `json:"org_id"`
 }
 
 type SlackTokenConfig struct {
@@ -238,7 +238,7 @@ type MinionSearch struct {
 	LogText         string              `json:"log_text,omitempty"`
 	LogTextHash     string              `json:"log_text_hash,omitempty"`
 	LogLevel        string              `json:"log_level,omitempty"`
-	OrgId           uint64              `json:"org_id"`
+	OrgId           int64               `json:"org_id"`
 }
 
 type MetricAlertData struct {

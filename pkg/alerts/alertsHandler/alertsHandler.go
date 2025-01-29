@@ -132,7 +132,7 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 		utils.SendError(ctx, "Received empty request", "", nil)
 		return
 	}
-	alertToBeCreated.OrgId = org_id
+	alertToBeCreated.OrgId = int64(org_id)
 	err := json.Unmarshal(rawJSON, &alertToBeCreated)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
@@ -504,7 +504,7 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
 		return
 	}
-	contactToBeCreated.OrgId = org_id
+	contactToBeCreated.OrgId = int64(org_id)
 	err = databaseObj.CreateContact(contactToBeCreated)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to create contact. Error=%v", err), fmt.Sprintf("contact name: %v", contactToBeCreated.ContactName), err)
@@ -665,7 +665,7 @@ func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id uint64
 	}
 	minionSearches := convertToSiglensAlert(LogLinesEntry)
 	for _, searchToBeCreated := range minionSearches {
-		searchToBeCreated.OrgId = org_id
+		searchToBeCreated.OrgId = int64(org_id)
 		searchDataObj, err := databaseObj.CreateMinionSearch(searchToBeCreated)
 		if err != nil {
 			utils.SendError(ctx, fmt.Sprintf("Failed to create alert. Error=%v", err), fmt.Sprintf("alert name: %v", searchToBeCreated.AlertName), err)

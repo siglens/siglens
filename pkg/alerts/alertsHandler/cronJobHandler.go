@@ -311,7 +311,7 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 		return
 	}
 
-	queryRes, _, _, extraMsgToLog, err := promql.ProcessMetricsQueryRequest(queries, formulas, start, end, alertToEvaluate.OrgId, qid)
+	queryRes, _, _, extraMsgToLog, err := promql.ProcessMetricsQueryRequest(queries, formulas, start, end, uint64(alertToEvaluate.OrgId), qid)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error processing metrics query. Alert=%+v, ExtraMsgToLog=%v, err=%+v", alertToEvaluate.AlertName, extraMsgToLog, err)
 		return
