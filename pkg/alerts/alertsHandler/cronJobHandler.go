@@ -277,7 +277,7 @@ func getMetricsQueryLinkForTheAlert(alertDetails *alertutils.AlertDetails, parse
 }
 
 func evaluateLogAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
-	searchResponse, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams)
+	searchResponse, timeRange, err := pipesearch.ProcessAlertsPipeSearchRequest(alertToEvaluate.QueryParams, alertToEvaluate.OrgId)
 	if err != nil {
 		log.Errorf("ALERTSERVICE: evaluateLogAlert: Error processing logs query. Alert=%+v, err=%+v", alertToEvaluate.AlertName, err)
 		return
@@ -493,7 +493,7 @@ func updateMinionSearchStateAndCreateAlertHistory(msToEvaluate *alertutils.Minio
 }
 
 func evaluateMinionSearch(msToEvaluate *alertutils.MinionSearch, job gocron.Job) {
-	searchResponse, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams)
+	searchResponse, _, err := pipesearch.ProcessAlertsPipeSearchRequest(msToEvaluate.QueryParams, msToEvaluate.OrgId)
 	if err != nil {
 		log.Errorf("MinionSearch: evaluate: Error processing logs query. Alert=%+v, err=%+v", msToEvaluate.AlertName, err)
 		return

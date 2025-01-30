@@ -229,8 +229,9 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
-func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
-	orgid := int64(0)
+func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
+	orgid int64) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
+
 	dbPanelId := "-1"
 	queryStart := time.Now()
 
