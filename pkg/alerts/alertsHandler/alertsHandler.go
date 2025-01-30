@@ -356,6 +356,22 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
+
+	type Input struct {
+		AlertId      string                         `json:"alert_id" gorm:"primaryKey"`
+		AlertName    string                         `json:"alert_name" gorm:"not null;unique"`
+		AlertType    alertutils.AlertType           `json:"alert_type"`
+		ContactID    string                         `json:"contact_id" gorm:"foreignKey:ContactId;"`
+		ContactName  string                         `json:"contact_name"`
+		Labels       []alertutils.AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
+		QueryParams  alertutils.QueryParams         `json:"queryParams" gorm:"embedded"`
+		Condition    alertutils.AlertQueryCondition `json:"condition"`
+		Value        float64                        `json:"value"`
+		EvalWindow   uint64                         `json:"eval_for"`      // in minutes
+		EvalInterval uint64                         `json:"eval_interval"` // in minutes
+		Message      string                         `json:"message"`
+	}
+
 	responseBody := make(map[string]interface{})
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
@@ -363,12 +379,31 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	var alertToBeUpdated *alertutils.AlertDetails
-	err := json.Unmarshal(rawJSON, &alertToBeUpdated)
+	var input Input
+	err := json.Unmarshal(rawJSON, &input)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
 		return
 	}
+
+	// Find alert in the database
+	alertToBeUpdated, err := databaseObj.GetAlert(input.AlertId)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to find alert. Error=%v", err), fmt.Sprintf("alert ID: %v", input.AlertId), err)
+		return
+	}
+
+	alertToBeUpdated.AlertName = input.AlertName
+	alertToBeUpdated.AlertType = input.AlertType
+	alertToBeUpdated.ContactID = input.ContactID
+	alertToBeUpdated.ContactName = input.ContactName
+	alertToBeUpdated.Labels = input.Labels
+	alertToBeUpdated.QueryParams = input.QueryParams
+	alertToBeUpdated.Condition = input.Condition
+	alertToBeUpdated.Value = input.Value
+	alertToBeUpdated.EvalWindow = input.EvalWindow
+	alertToBeUpdated.EvalInterval = input.EvalInterval
+	alertToBeUpdated.Message = input.Message
 
 	if alertToBeUpdated.EvalWindow < alertToBeUpdated.EvalInterval {
 		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeUpdated.EvalWindow, alertToBeUpdated.EvalInterval), nil)
