@@ -155,9 +155,9 @@ type HtmlSnippets struct {
 }
 
 type JsSnippets struct {
-	ClusterStatsExtraFunctions  string
-	ClusterStatsExtraSetup      string
-	ClusterStatsSetUserRole     string
+	ClusterStatsExtraFunctions string
+	ClusterStatsExtraSetup     string
+	ClusterStatsSetUserRole    string
 
 	CommonExtraFunctions string
 	Button1Function      string
