@@ -27,6 +27,7 @@ import (
 	jp "github.com/buger/jsonparser"
 	"github.com/siglens/siglens/pkg/config"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
@@ -59,7 +60,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	}
 
 	config.InitializeTestingConfig(t.TempDir())
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	// Ingest some data that can all be converted to numbers.
 	jsons := [][]byte{

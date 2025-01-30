@@ -28,10 +28,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func MockGetMyIds() []uint64 {
+	return []uint64{0}
+}
+
 func Test_AddGetVTables(t *testing.T) {
 
 	config.InitializeDefaultConfig(t.TempDir())
-	_ = InitVTable()
+	_ = InitVTable(MockGetMyIds)
 
 	VTableBaseDir = "vtabbase/"
 	VTableMappingsDir = "vtabbase/mappings/"
@@ -69,7 +73,7 @@ func Test_AddGetVTables(t *testing.T) {
 
 func Test_AddAliases(t *testing.T) {
 
-	_ = InitVTable()
+	_ = InitVTable(MockGetMyIds)
 	// special test code only to override the default paths and have idempotent tests
 
 	VTableBaseDir = "vtabbase/"
@@ -101,7 +105,7 @@ func Test_AddAliases(t *testing.T) {
 
 func Test_GetIndexNameFromAlias(t *testing.T) {
 
-	_ = InitVTable()
+	_ = InitVTable(MockGetMyIds)
 	os.RemoveAll(VTableBaseDir)
 
 	// special test code only to ove\rride the default paths and have idempotent tests
@@ -132,7 +136,7 @@ func Test_GetIndexNameFromAlias(t *testing.T) {
 
 func Test_AddRemoveAlias(t *testing.T) {
 
-	_ = InitVTable()
+	_ = InitVTable(MockGetMyIds)
 	os.RemoveAll(VTableBaseDir)
 
 	// special test code only to ove\rride the default paths and have idempotent tests
@@ -171,7 +175,7 @@ func Test_DeleteVirtualTable(t *testing.T) {
 
 	indexName := "valtix2"
 
-	_ = InitVTable()
+	_ = InitVTable(MockGetMyIds)
 
 	var check string
 	var sb strings.Builder
