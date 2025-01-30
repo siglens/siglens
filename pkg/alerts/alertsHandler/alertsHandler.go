@@ -352,24 +352,14 @@ func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID int64) {
 }
 
 func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
+	type Input struct {
+		alertutils.AlertConfig
+		AlertId string `json:"alert_id"`
+	}
+
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
-	}
-
-	type Input struct {
-		AlertId      string                         `json:"alert_id" gorm:"primaryKey"`
-		AlertName    string                         `json:"alert_name" gorm:"not null;unique"`
-		AlertType    alertutils.AlertType           `json:"alert_type"`
-		ContactID    string                         `json:"contact_id" gorm:"foreignKey:ContactId;"`
-		ContactName  string                         `json:"contact_name"`
-		Labels       []alertutils.AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
-		QueryParams  alertutils.QueryParams         `json:"queryParams" gorm:"embedded"`
-		Condition    alertutils.AlertQueryCondition `json:"condition"`
-		Value        float64                        `json:"value"`
-		EvalWindow   uint64                         `json:"eval_for"`      // in minutes
-		EvalInterval uint64                         `json:"eval_interval"` // in minutes
-		Message      string                         `json:"message"`
 	}
 
 	responseBody := make(map[string]interface{})
