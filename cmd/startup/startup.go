@@ -46,6 +46,7 @@ import (
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	entryHandler "github.com/siglens/siglens/pkg/server/ingest"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	ingestserver "github.com/siglens/siglens/pkg/server/ingest"
@@ -241,11 +242,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		log.Fatalf("TLS is enabled but certificate or private key path is not provided")
 	}
 
-	err = vtable.InitVTable()
-	if err != nil {
-		log.Fatalf("error in InitVTable: %v", err)
-	}
-
 	log.Infof("StartSiglensServer: Initialilizing Blob Store")
 	err = blob.InitBlobStore()
 	if err != nil {
@@ -282,6 +278,18 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	}
 	log.Infof(siglensStartupLog)
 	log.Infof(siglensVersionLog)
+
+	if hook := hooks.GlobalHooks.SigLensDBExtrasHook; hook != nil {
+		err := hook()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = vtable.InitVTable(server_utils.GetMyIds)
+	if err != nil {
+		log.Fatalf("error in InitVTable: %v", err)
+	}
 
 	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
 		err := hook(nodeID)

@@ -44,6 +44,7 @@ type Hooks struct {
 	GetNodeIdHook             func() string
 	ExtractConfigHook         func(yamlData []byte) (commonconfig.Configuration, error)
 	LogConfigHook             func()
+	SigLensDBExtrasHook       func() error
 	StartSiglensExtrasHook    func(nodeID string) error
 	ShutdownSiglensExtrasHook func()
 	ShutdownSiglensPreHook    func()
