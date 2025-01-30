@@ -34,29 +34,33 @@ const (
 	AlertTypeMinion
 )
 
+type AlertConfig struct {
+	AlertName    string              `json:"alert_name" gorm:"not null;unique"`
+	AlertType    AlertType           `json:"alert_type"`
+	ContactID    string              `json:"contact_id" gorm:"foreignKey:ContactId;"`
+	ContactName  string              `json:"contact_name"`
+	Labels       []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
+	QueryParams  QueryParams         `json:"queryParams" gorm:"embedded"`
+	Condition    AlertQueryCondition `json:"condition"`
+	Value        float64             `json:"value"`
+	EvalWindow   uint64              `json:"eval_for"`      // in minutes; TODO: Rename json field to eval_window
+	EvalInterval uint64              `json:"eval_interval"` // in minutes
+	Message      string              `json:"message"`
+}
+
 type AlertDetails struct {
-	AlertId                  string              `json:"alert_id" gorm:"primaryKey"`
-	AlertType                AlertType           `json:"alert_type"`
-	AlertName                string              `json:"alert_name" gorm:"not null;unique"`
-	State                    AlertState          `json:"state"`
-	CreateTimestamp          time.Time           `json:"create_timestamp" gorm:"autoCreateTime:milli" `
-	ContactID                string              `json:"contact_id" gorm:"foreignKey:ContactId;"`
-	ContactName              string              `json:"contact_name"`
-	Labels                   []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
-	SilenceMinutes           uint64              `json:"silence_minutes"`
-	SilenceEndTime           uint64              `json:"silence_end_time"`
-	QueryParams              QueryParams         `json:"queryParams" gorm:"embedded"`
-	MetricsQueryParamsString string              `json:"metricsQueryParams"`
-	Condition                AlertQueryCondition `json:"condition"`
-	Value                    float64             `json:"value"`
-	EvalWindow               uint64              `json:"eval_for"`      // in minutes; TODO: Rename json field to eval_window
-	EvalInterval             uint64              `json:"eval_interval"` // in minutes
-	Message                  string              `json:"message"`
-	CronJob                  gocron.Job          `json:"cron_job" gorm:"embedded"`
-	NodeId                   uint64              `json:"node_id"`
-	NotificationID           string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
-	OrgId                    int64               `json:"org_id"`
-	NumEvaluationsCount      uint64              `json:"num_evaluations_count"`
+	AlertConfig
+	AlertId                  string     `json:"alert_id" gorm:"primaryKey"`
+	State                    AlertState `json:"state"`
+	CreateTimestamp          time.Time  `json:"create_timestamp" gorm:"autoCreateTime:milli" `
+	SilenceMinutes           uint64     `json:"silence_minutes"`
+	SilenceEndTime           uint64     `json:"silence_end_time"`
+	MetricsQueryParamsString string     `json:"metricsQueryParams"`
+	CronJob                  gocron.Job `json:"cron_job" gorm:"embedded"`
+	NodeId                   uint64     `json:"node_id"`
+	NotificationID           string     `json:"notification_id" gorm:"foreignKey:NotificationId;"`
+	OrgId                    int64      `json:"org_id"`
+	NumEvaluationsCount      uint64     `json:"num_evaluations_count"`
 }
 
 func (AlertDetails) TableName() string {
