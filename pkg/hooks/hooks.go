@@ -142,13 +142,11 @@ type HtmlSnippets struct {
 	RunCheck2 string
 	RunCheck3 string
 	Button1   string
-	Popup1    string
 	Dropdown2 string
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
 	OrgDeploymentType          string
-	OrgSettingsExtras          string
 	DistNodesExtras            string
 	OrgSLOs                    string
 	SLOCss                     string
@@ -160,9 +158,6 @@ type JsSnippets struct {
 	ClusterStatsExtraFunctions  string
 	ClusterStatsExtraSetup      string
 	ClusterStatsSetUserRole     string
-	ClusterStatsAdminView       string
-	ClusterStatsAdminButton     string
-	ClusterStatsCallDisplayRows string
 
 	CommonExtraFunctions string
 	Button1Function      string
