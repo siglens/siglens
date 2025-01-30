@@ -6,3 +6,4 @@ static/js/application-version.js
 static/js/cluster-stats.js
 static/js/common.js
 static/js/diagnostics.js
+static/js/query-stats.js
