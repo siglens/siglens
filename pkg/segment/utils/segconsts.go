@@ -176,6 +176,42 @@ const (
 	SS_DT_RAW_JSON
 )
 
+func ValTypeToSSDType(valtype byte) SS_DTYPE {
+	switch valtype {
+	case VALTYPE_ENC_BOOL[0]:
+		return SS_DT_BOOL
+	case VALTYPE_ENC_UINT8[0]:
+		return SS_DT_USIGNED_8_NUM
+	case VALTYPE_ENC_UINT16[0]:
+		return SS_DT_USIGNED_16_NUM
+	case VALTYPE_ENC_UINT32[0]:
+		return SS_DT_USIGNED_32_NUM
+	case VALTYPE_ENC_UINT64[0]:
+		return SS_DT_UNSIGNED_NUM
+	case VALTYPE_ENC_INT8[0]:
+		return SS_DT_SIGNED_8_NUM
+	case VALTYPE_ENC_INT16[0]:
+		return SS_DT_SIGNED_16_NUM
+	case VALTYPE_ENC_INT32[0]:
+		return SS_DT_SIGNED_32_NUM
+	case VALTYPE_ENC_INT64[0]:
+		return SS_DT_SIGNED_NUM
+	case VALTYPE_ENC_FLOAT64[0]:
+		return SS_DT_FLOAT
+	case VALTYPE_ENC_SMALL_STRING[0], VALTYPE_ENC_LARGE_STRING[0]:
+		return SS_DT_STRING
+	case VALTYPE_ENC_BACKFILL[0]:
+		return SS_DT_BACKFILL
+	case VALTYPE_DICT_ARRAY[0]:
+		return SS_DT_ARRAY_DICT
+	case VALTYPE_RAW_JSON[0]:
+		return SS_DT_RAW_JSON
+	default:
+		log.Errorf("ValTypeToSsdType: invalid valtype: %v", valtype)
+		return SS_INVALID
+	}
+}
+
 const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
 const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
 var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
