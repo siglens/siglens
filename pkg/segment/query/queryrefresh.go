@@ -126,16 +126,7 @@ func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]stru
 		}
 	}
 
-	default_id := int64(0)
-	// myids should also include the default_id
 	myids := fnMyids()
-	if len(myids) == 0 {
-		myids = append(myids, default_id)
-	}
-
-	if myids[0] != default_id {
-		myids = append(myids, default_id)
-	}
 
 	allSfmFiles := make([]string, len(ingestNodes))
 
