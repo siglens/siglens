@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -124,8 +125,17 @@ func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]stru
 			ingestNodes = append(ingestNodes, file.Name())
 		}
 	}
+
+	default_id := int64(0)
+	// myids should also include the default_id
 	myids := fnMyids()
-	defaultMyId := int64(0)
+	if len(myids) == 0 {
+		myids = append(myids, default_id)
+	}
+
+	if myids[0] != default_id {
+		myids = append(myids, default_id)
+	}
 
 	allSfmFiles := make([]string, len(ingestNodes))
 
@@ -139,11 +149,7 @@ func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]stru
 	// Aggregate All vtable names for each myid from all ingest nodes
 	// Aggregate All segmeta files from all ingest nodes
 	for i, node := range ingestNodes {
-		var smFile strings.Builder
-		smFile.WriteString(config.GetDataPath() + "ingestnodes/" + node)
-		smFile.WriteString(SEGMETA_FILENAME)
-		smfname := smFile.String()
-		allSfmFiles[i] = smfname
+		allSfmFiles[i] = filepath.Join(config.GetDataPath(), "ingestnodes", node, SEGMETA_FILENAME)
 
 		wg.Add(1)
 		go func(ingestNode string) {
@@ -151,16 +157,8 @@ func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]stru
 
 			vTableNamesMap := make(map[int64]map[string]bool)
 
-			vTableFileName := virtualtable.GetFilePathForRemoteNode(ingestNode, defaultMyId)
-			vTableNamesMap[defaultMyId] = make(map[string]bool)
-			err := virtualtable.LoadVirtualTableNamesFromFile(vTableFileName, vTableNamesMap[defaultMyId])
-			if err != nil {
-				log.Errorf("RefreshGlobalMetadata: Error in getting vtable names for default org, err:%v", err)
-				return
-			}
-
 			for _, myid := range myids {
-				vTableFileName = virtualtable.GetFilePathForRemoteNode(ingestNode, myid)
+				vTableFileName := virtualtable.GetFilePathForRemoteNode(ingestNode, myid)
 				vTableNamesMap[myid] = make(map[string]bool)
 				err := virtualtable.LoadVirtualTableNamesFromFile(vTableFileName, vTableNamesMap[myid])
 				if err != nil {
