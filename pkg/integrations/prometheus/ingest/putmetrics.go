@@ -56,7 +56,7 @@ func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 	return &req, nil
 }
 
-func PutMetrics(ctx *fasthttp.RequestCtx) {
+func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
 		if alreadyHandled {
@@ -87,7 +87,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx) {
 	}
 
 	compressed := ctx.PostBody()
-	processedCount, failedCount, err = HandlePutMetrics(compressed)
+	processedCount, failedCount, err = HandlePutMetrics(compressed, myid)
 	if err != nil {
 		log.Errorf("PutMetrics: failed to handle put metrics for compressed data: %v. err=%+v", compressed, err)
 		writePrometheusResponse(ctx, processedCount, failedCount, err.Error(), fasthttp.StatusBadRequest)
@@ -96,7 +96,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx) {
 	writePrometheusResponse(ctx, processedCount, failedCount, "", fasthttp.StatusOK)
 }
 
-func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
+func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	var successCount uint64 = 0
 	var failedCount uint64 = 0
 
@@ -170,7 +170,7 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 
 			modifiedData := `{"metric":"` + metricName + `","tags":` + tags + `,"timestamp":` + strconv.FormatInt(s.Timestamp, 10) + `,"value":` + strconv.FormatFloat(s.Value, 'f', -1, 64) + `}`
 
-			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, int64(0))
+			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
 			if err != nil {
 				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", modifiedData, err)
 				failedCount++

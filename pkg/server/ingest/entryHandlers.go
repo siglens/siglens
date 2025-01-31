@@ -154,7 +154,7 @@ func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 
 func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		prometheuswriter.PutMetrics(ctx)
+		serverutils.CallWithMyId(prometheuswriter.PutMetrics, ctx)
 	}
 }
 
