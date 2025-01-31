@@ -47,7 +47,7 @@ type QueryInformation struct {
 	qid                uint64
 	sNodeType          structs.SearchNodeType
 	qType              structs.QueryType
-	orgId              uint64
+	orgId              int64
 	alreadyDistributed bool
 	containsKibana     bool
 	batchErr           *toputils.BatchError
@@ -133,7 +133,7 @@ func (qi *QueryInformation) GetQid() uint64 {
 	return qi.qid
 }
 
-func (qi *QueryInformation) GetOrgId() uint64 {
+func (qi *QueryInformation) GetOrgId() int64 {
 	return qi.orgId
 }
 
@@ -209,7 +209,7 @@ The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 */
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
-	dqs DistributedQueryServiceInterface, orgid uint64, scrollFrom int, containsKibana bool) (*QueryInformation, error) {
+	dqs DistributedQueryServiceInterface, orgid int64, scrollFrom int, containsKibana bool) (*QueryInformation, error) {
 	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {

@@ -37,7 +37,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid uint64, ctx *fasthttp.RequestCtx) {
+func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp.RequestCtx) {
 
 	qid := rutils.GetNextQid()
 	event, err := readInitialEvent(qid, conn)

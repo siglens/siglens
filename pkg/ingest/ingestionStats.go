@@ -206,7 +206,7 @@ func setNumKeysAndValues() {
 		StartEpochSec: 0,
 		EndEpochSec:   uint32(time.Now().Unix()),
 	}
-	myid := uint64(0)
+	myid := int64(0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
 	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, myid, querySummary)

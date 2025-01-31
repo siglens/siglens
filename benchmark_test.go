@@ -70,8 +70,8 @@ var loadDataBytes1 = []byte(`{"index" : { "_index" : "bidx-1"} }
 
 var allData = [][]byte{loadDataBytes0, loadDataBytes1}
 
-func getMyIds() []uint64 {
-	myids := make([]uint64, 1)
+func getMyIds() []int64 {
+	myids := make([]int64, 1)
 	myids[0] = 0
 	return myids
 }

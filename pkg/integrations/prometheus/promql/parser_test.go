@@ -40,7 +40,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// "(test_metric)",
 	query := queries[0]
@@ -298,7 +298,7 @@ func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "round(testmetric0, 1/2)"
 	mHashedMName := xxhash.Sum64String("testmetric0")
@@ -368,7 +368,7 @@ func Test_parsePromQLQuery_NestedQueries_v1(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Double nested range query
 	query := "sum(rate(http_requests_total[5m]))"
@@ -480,7 +480,7 @@ func Test_parsePromQLQuery_NestedQueries_v2(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Triple nested range query with group by and params for function
 	query := "clamp_max(sum(rate(http_request_duration_seconds_bucket[5m])) by (le), 100)"
@@ -564,7 +564,7 @@ func Test_parsePromQLQuery_NestedQueries_v3(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Nested Query with Binary Expression
 	query := "(sum(rate(http_requests_total[5m])) by (job)) * avg(irate(node_cpu_seconds_total[5m]))"
@@ -638,7 +638,7 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Nested Query with Aggregations + Binary Expr. Total 3 nested queries
 	query := "sum(rate(http_requests_total[5m])) by (job) / count_over_time(http_requests_total[5m]) + sum(rate(node_cpu_seconds_total[5m]))"
@@ -734,7 +734,7 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "avg_over_time(sum(rate(http_requests_total[5m]))[10m:]) + sum_over_time(rate(http_requests_total[5m])[10m:1m])"
 	mHashedMName1 := xxhash.Sum64String("http_requests_total")
@@ -804,7 +804,7 @@ func Test_parsePromQLQuery_NestedQueries_v6(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "abs(rate(testmetric3[5m]))"
 	mHashedMName := xxhash.Sum64String("testmetric3")
@@ -842,7 +842,7 @@ func Test_parsePromQLQuery_NestedQueries_v7(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "max_over_time(deriv(rate(distance_covered_total[5s])[30s:5s])[10m:])"
 	mHashedMName := xxhash.Sum64String("distance_covered_total")
@@ -887,7 +887,7 @@ func Test_parsePromQLQuery_NestedQueries_v8(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "sum by (app, proc) ( instance_memory_limit_bytes - instance_memory_usage_bytes )"
 	mHashedMName1 := xxhash.Sum64String("instance_memory_limit_bytes")
@@ -967,7 +967,7 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v1(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "max(sum(rate(http_requests_total[5m])) by (job, handler)) by (proc)"
 	mHashedMName := xxhash.Sum64String("http_requests_total")
@@ -1035,7 +1035,7 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v2(t *testing.T) {
 	intervalSeconds_uint32, _ := mresults.CalculateInterval(endTime - startTime)
 	intervalSeconds := int(intervalSeconds_uint32)
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "sum by (app, proc) ( sum by (job) (instance_memory_limit_bytes - instance_memory_usage_bytes) )"
 	mHashedMName1 := xxhash.Sum64String("instance_memory_limit_bytes")
@@ -1122,7 +1122,7 @@ func Test_parsePromQLQuery_Scalar_Op_v1(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "1 + 2 + 3 * 4"
 
@@ -1156,7 +1156,7 @@ func Test_parsePromQLQuery_Scalar_SingleValue(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	query := "99"
 
@@ -1176,7 +1176,7 @@ func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Read the file
 	file, err := os.Open("../../../../cicd/metrics_test.csv")
@@ -1209,7 +1209,7 @@ func Test_parsePromQLQuery_Parse_Promql_Test_CSV(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Read the file
 	file, err := os.Open("../../../../cicd/promql_test.csv")

@@ -499,7 +499,7 @@ func (qs *QuerySummary) getNumRecordsMatchedMinMax(searchType SearchTypeEnum) (u
 	return minPerSegment, maxPerSegment
 }
 
-func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, containsKibana bool, orgid uint64) {
+func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, containsKibana bool, orgid int64) {
 
 	sort.Slice(qs.metadataSummary.allTimes, func(i, j int) bool {
 		return qs.metadataSummary.allTimes[i] < qs.metadataSummary.allTimes[j]
@@ -595,7 +595,7 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 	qs.stopTicker()
 }
 
-func (qs *QuerySummary) LogMetricsQuerySummary(orgid uint64) {
+func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
 	log.Warnf("qid=%d, MetricsQuerySummary: Finished in %+vms time. Searched a total of %+v TSIDs. Total number of series searched=%+v. Returned number of series=%+v",
 		qs.qid, time.Since(qs.startTime).Milliseconds(), qs.getNumTSIDsMatched(), qs.getNumSeriesSearched(), qs.getNumResultSeries())
 	log.Warnf("qid=%d, MetricsQuerySummary: Time taken to get rotated search requests=%+vms. Time taken to get unrotated search requests=%+vms. Total number of metrics segments searched=%+v.",

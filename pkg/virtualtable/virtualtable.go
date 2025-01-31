@@ -49,15 +49,15 @@ var vTableBaseFileName string
 var globalTableAccessLock sync.RWMutex = sync.RWMutex{}
 var vTableRawFileAccessLock sync.RWMutex = sync.RWMutex{}
 
-var aliasToIndexNames map[uint64]map[string]map[string]bool = make(map[uint64]map[string]map[string]bool)
+var aliasToIndexNames map[int64]map[string]map[string]bool = make(map[int64]map[string]map[string]bool)
 
 // holds all the tables for orgid -> tname -> bool
-var allVirtualTables map[uint64]map[string]bool
+var allVirtualTables map[int64]map[string]bool
 
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
-func InitVTable(fnMyIds func() []uint64) error {
-	allVirtualTables = make(map[uint64]map[string]bool)
+func InitVTable(fnMyIds func() []int64) error {
+	allVirtualTables = make(map[int64]map[string]bool)
 	var sb strings.Builder
 	sb.WriteString(config.GetDataPath() + "ingestnodes/" + config.GetHostID() + "/vtabledata")
 	VTableBaseDir = sb.String()
@@ -86,17 +86,17 @@ func InitVTable(fnMyIds func() []uint64) error {
 	return nil
 }
 
-func getVirtualTableFileName(orgid uint64) string {
+func getVirtualTableFileName(orgid int64) string {
 	var vTableFileName string
 	if orgid == 0 {
 		vTableFileName = vTableBaseFileName + VIRTUAL_TAB_FILE_EXT
 	} else {
-		vTableFileName = vTableBaseFileName + "-" + strconv.FormatUint(orgid, 10) + VIRTUAL_TAB_FILE_EXT
+		vTableFileName = vTableBaseFileName + "-" + strconv.FormatInt(orgid, 10) + VIRTUAL_TAB_FILE_EXT
 	}
 	return vTableFileName
 }
 
-func refreshInMemoryTableForAllIds(fnMyIds func() []uint64) {
+func refreshInMemoryTableForAllIds(fnMyIds func() []int64) {
 	myids := fnMyIds()
 
 	globalTableAccessLock.Lock()
@@ -109,7 +109,7 @@ func refreshInMemoryTableForAllIds(fnMyIds func() []uint64) {
 		allVirtualTables[myid] = vTableMap
 
 		wg.Add(1)
-		go func(myid uint64, vTableMap map[string]bool) {
+		go func(myid int64, vTableMap map[string]bool) {
 			defer wg.Done()
 
 			err := getVirtualTableNamesInternal(myid, vTableMap)
@@ -122,19 +122,19 @@ func refreshInMemoryTableForAllIds(fnMyIds func() []uint64) {
 	wg.Wait()
 }
 
-func refreshInMemoryTable(fnMyIds func() []uint64) {
+func refreshInMemoryTable(fnMyIds func() []int64) {
 	for {
 		refreshInMemoryTableForAllIds(fnMyIds)
 		time.Sleep(1 * time.Minute)
 	}
 }
 
-func GetFilePathForRemoteNode(node string, orgid uint64) string {
+func GetFilePathForRemoteNode(node string, orgid int64) string {
 	var vFile strings.Builder
 	vFile.WriteString(config.GetDataPath() + "ingestnodes/" + node + "/vtabledata")
 	vFile.WriteString(VIRTUAL_TAB_FILENAME)
 	if orgid != 0 {
-		vFile.WriteString("-" + strconv.FormatUint(orgid, 10) + VIRTUAL_TAB_FILE_EXT)
+		vFile.WriteString("-" + strconv.FormatInt(orgid, 10) + VIRTUAL_TAB_FILE_EXT)
 	} else {
 		vFile.WriteString(VIRTUAL_TAB_FILE_EXT)
 	}
@@ -174,7 +174,7 @@ func CreateVirtTableBaseDirs(vTableBaseDir string, vTableMappingsDir string,
 
 // addVirtualTableHelper adds the given virtual table to the global virtual table map and writes it to the file
 // It returns true if a virtual table was added to the file, false otherwise
-func addVirtualTableHelper(vTableMap map[string]struct{}, orgid uint64) (bool, error) {
+func addVirtualTableHelper(vTableMap map[string]struct{}, orgid int64) (bool, error) {
 	vTablesToAppend := make(map[string]struct{})
 
 	globalTableAccessLock.Lock()
@@ -224,7 +224,7 @@ func addVirtualTableHelper(vTableMap map[string]struct{}, orgid uint64) (bool, e
 	return true, nil
 }
 
-func AddVirtualTable(tname *string, orgid uint64) error {
+func AddVirtualTable(tname *string, orgid int64) error {
 	vTableMap := make(map[string]struct{})
 	vTableMap[*tname] = struct{}{}
 
@@ -248,7 +248,7 @@ func AddVirtualTable(tname *string, orgid uint64) error {
 	return nil
 }
 
-func BulkAddVirtualTableNames(myIdToVTableMap map[uint64]map[string]struct{}) error {
+func BulkAddVirtualTableNames(myIdToVTableMap map[int64]map[string]struct{}) error {
 	vTableRawFileAccessLock.Lock()
 	defer vTableRawFileAccessLock.Unlock()
 
@@ -259,7 +259,7 @@ func BulkAddVirtualTableNames(myIdToVTableMap map[uint64]map[string]struct{}) er
 
 	for myid, vTableNamesMap := range myIdToVTableMap {
 		wg.Add(1)
-		go func(id uint64, vTableMap map[string]struct{}) {
+		go func(id int64, vTableMap map[string]struct{}) {
 			defer wg.Done()
 
 			vTableFileUpdated, err := addVirtualTableHelper(vTableMap, id)
@@ -294,7 +294,7 @@ func BulkAddVirtualTableNames(myIdToVTableMap map[uint64]map[string]struct{}) er
 	return nil
 }
 
-func IsVirtualTablePresent(tname *string, orgid uint64) bool {
+func IsVirtualTablePresent(tname *string, orgid int64) bool {
 	vtables, err := GetVirtualTableNames(orgid)
 	if err != nil {
 		log.Errorf("Could not get virtual tables for orgid %v. Err: %v", orgid, err)
@@ -308,7 +308,7 @@ func IsVirtualTablePresent(tname *string, orgid uint64) bool {
 	return false
 }
 
-func AddVirtualTableAndMapping(tname *string, mapping *string, orgid uint64) error {
+func AddVirtualTableAndMapping(tname *string, mapping *string, orgid int64) error {
 
 	//todo for dupe entries, write a goroutine that wakes up once per day (random time) and reads the
 	// central place of virtualtablenames.txt and de-dupes the table names by creating a lock
@@ -322,11 +322,11 @@ func AddVirtualTableAndMapping(tname *string, mapping *string, orgid uint64) err
 
 }
 
-func AddMapping(tname *string, mapping *string, orgid uint64) error {
+func AddMapping(tname *string, mapping *string, orgid int64) error {
 	var sb1 strings.Builder
 	sb1.WriteString(VTableMappingsDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(*tname)
@@ -351,7 +351,7 @@ func AddMapping(tname *string, mapping *string, orgid uint64) error {
 	return nil
 }
 
-func GetVirtualTableNames(orgid uint64) (map[string]bool, error) {
+func GetVirtualTableNames(orgid int64) (map[string]bool, error) {
 	vTableMap := make(map[string]bool)
 	err := getVirtualTableNamesInternal(orgid, vTableMap)
 	if err != nil {
@@ -360,7 +360,7 @@ func GetVirtualTableNames(orgid uint64) (map[string]bool, error) {
 	return vTableMap, nil
 }
 
-func getVirtualTableNamesInternal(orgid uint64, vTableMap map[string]bool) error {
+func getVirtualTableNamesInternal(orgid int64, vTableMap map[string]bool) error {
 	vTableFileName := getVirtualTableFileName(orgid)
 	err := LoadVirtualTableNamesFromFile(vTableFileName, vTableMap)
 	if err != nil {
@@ -395,7 +395,7 @@ func LoadVirtualTableNamesFromFile(fileName string, vTableMap map[string]bool) e
 	return nil
 }
 
-func AddAliases(indexName string, aliases []string, orgid uint64) error {
+func AddAliases(indexName string, aliases []string, orgid int64) error {
 
 	if indexName == "" {
 		log.Errorf("AddAliases: indexName is null. len(indexName)=%v", len(indexName))
@@ -432,7 +432,7 @@ func AddAliases(indexName string, aliases []string, orgid uint64) error {
 	return nil
 }
 
-func GetAllAliasesAsMapArray(orgid uint64) (map[string][]string, error) {
+func GetAllAliasesAsMapArray(orgid int64) (map[string][]string, error) {
 	retVal := make(map[string][]string)
 
 	if _, ok := aliasToIndexNames[orgid]; ok {
@@ -448,7 +448,7 @@ func GetAllAliasesAsMapArray(orgid uint64) (map[string][]string, error) {
 	return retVal, nil
 }
 
-func GetAliasesAsArray(indexName string, orgid uint64) ([]string, error) {
+func GetAliasesAsArray(indexName string, orgid int64) ([]string, error) {
 
 	retVal := []string{}
 
@@ -463,12 +463,12 @@ func GetAliasesAsArray(indexName string, orgid uint64) ([]string, error) {
 	return retVal, nil
 }
 
-func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
+func GetAliases(indexName string, orgid int64) (map[string]bool, error) {
 
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(indexName)
@@ -500,12 +500,12 @@ func GetAliases(indexName string, orgid uint64) (map[string]bool, error) {
 
 }
 
-func writeAliasFile(indexName *string, allnames map[string]bool, orgid uint64) error {
+func writeAliasFile(indexName *string, allnames map[string]bool, orgid int64) error {
 
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(*indexName)
@@ -538,7 +538,7 @@ func initializeAliasToIndexMap() error {
 	for _, dir := range dirs {
 		if dir.IsDir() {
 			orgid := dir.Name()
-			orgIdNumber, _ := strconv.ParseUint(orgid, 10, 64)
+			orgIdNumber, _ := strconv.ParseInt(orgid, 10, 64)
 			files, err := os.ReadDir(VTableAliasesDir + dir.Name())
 			if err != nil {
 				log.Errorf("initializeAliasToIndexMap: Failed to read directory=%v, for org =%v, err=%v", VTableAliasesDir+dir.Name(), orgid, err)
@@ -567,7 +567,7 @@ func initializeAliasToIndexMap() error {
 	return nil
 }
 
-func putAliasToIndexInMem(aliasName string, indexName string, orgid uint64) {
+func putAliasToIndexInMem(aliasName string, indexName string, orgid int64) {
 
 	if aliasName == "" {
 		log.Errorf("putAliasToIndexInMem: aliasName is empty. len(aliasName)=%v", len(aliasName))
@@ -602,7 +602,7 @@ func FlushAliasMapToFile() error {
 	return nil
 }
 
-func GetIndexNameFromAlias(aliasName string, orgid uint64) (string, error) {
+func GetIndexNameFromAlias(aliasName string, orgid int64) (string, error) {
 	if aliasName == "" {
 		log.Errorf("getIndexNameFromAlias: aliasName is empty")
 		return "", errors.New("getIndexNameFromAlias: aliasName is empty")
@@ -617,7 +617,7 @@ func GetIndexNameFromAlias(aliasName string, orgid uint64) (string, error) {
 	return "", errors.New("not found")
 }
 
-func IsAlias(nameToCheck string, orgid uint64) (bool, string) {
+func IsAlias(nameToCheck string, orgid int64) (bool, string) {
 
 	if valMap, ok := aliasToIndexNames[orgid][nameToCheck]; ok {
 		for indexName := range valMap {
@@ -628,7 +628,7 @@ func IsAlias(nameToCheck string, orgid uint64) (bool, string) {
 	return false, ""
 }
 
-func RemoveAliases(indexName string, aliases []string, orgid uint64) error {
+func RemoveAliases(indexName string, aliases []string, orgid int64) error {
 
 	if indexName == "" {
 		log.Errorf("RemoveAliases: indexName is null.len(indexName)=%v", len(indexName))
@@ -665,11 +665,11 @@ func RemoveAliases(indexName string, aliases []string, orgid uint64) error {
 	return nil
 }
 
-func removeAliasFile(indexName *string, orgid uint64) error {
+func removeAliasFile(indexName *string, orgid int64) error {
 	var sb1 strings.Builder
 	sb1.WriteString(VTableAliasesDir)
 	if orgid != 0 {
-		sb1.WriteString(strconv.FormatUint(orgid, 10))
+		sb1.WriteString(strconv.FormatInt(orgid, 10))
 		sb1.WriteString("/")
 	}
 	sb1.WriteString(*indexName)
@@ -689,7 +689,7 @@ func removeAliasFile(indexName *string, orgid uint64) error {
 
 // returns all indexNames that the input corresponding to after expanding "*" && aliases
 // if isElastic is false, indices containing .kibana will not be matched
-func ExpandAndReturnIndexNames(indexNameIn string, orgid uint64, isElastic bool) []string {
+func ExpandAndReturnIndexNames(indexNameIn string, orgid int64, isElastic bool) []string {
 
 	finalResultsMap := make(map[string]bool)
 
@@ -791,7 +791,7 @@ func isIndexExcluded(indexName string) bool {
 	return false
 }
 
-func DeleteVirtualTable(tname *string, orgid uint64) error {
+func DeleteVirtualTable(tname *string, orgid int64) error {
 	vTableRawFileAccessLock.Lock()
 	defer vTableRawFileAccessLock.Unlock()
 	vTableFileName := getVirtualTableFileName(orgid)

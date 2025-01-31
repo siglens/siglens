@@ -52,7 +52,7 @@ const QUERY_INFO_REFRESH_LOOP_SECS = 300
 var ExtractKibanaRequestsFn func([]string, uint64) map[string]*structs.SegmentSearchRequest
 
 // Inits metadata layer and search limiter
-func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]string, uint64) map[string]*structs.SegmentSearchRequest) error {
+func InitQueryNode(getMyIds func() []int64, extractKibanaRequestsFn func([]string, uint64) map[string]*structs.SegmentSearchRequest) error {
 	ExtractKibanaRequestsFn = extractKibanaRequestsFn
 	ticker := time.NewTicker(30 * time.Second)
 	done := make(chan bool)
@@ -87,7 +87,7 @@ func InitQueryNode(getMyIds func() []uint64, extractKibanaRequestsFn func([]stri
 }
 
 // ingest only nodes should call this to be fetching remote pqs information
-func InitQueryInfoRefresh(getMyIds func() []uint64) {
+func InitQueryInfoRefresh(getMyIds func() []int64) {
 	go runQueryInfoRefreshLoop(getMyIds)
 }
 
@@ -104,8 +104,8 @@ func queryMetricsLooper() {
 	}
 }
 
-func initSyncSegMetaForAllIds(getMyIds func() []uint64) {
-	defaultId := uint64(0)
+func initSyncSegMetaForAllIds(getMyIds func() []int64) {
+	defaultId := int64(0)
 	syncSegMetaWithSegFullMeta(defaultId)
 
 	for _, myId := range getMyIds() {
@@ -437,7 +437,7 @@ func GetSortedQSRs(queryInfo *QueryInformation, sTime time.Time, querySummary *s
 }
 
 func GetNodeResultsForSegmentStatsCmd(queryInfo *QueryInformation, sTime time.Time, allSegFileResults *segresults.SearchResults,
-	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid uint64, getSstMap bool) *structs.NodeResult {
+	qsrs []*QuerySegmentRequest, querySummary *summary.QuerySummary, orgid int64, getSstMap bool) *structs.NodeResult {
 
 	sortedQSRSlice, numRawSearch, numDistributed, err := getAllSegmentsInAggs(queryInfo, qsrs, queryInfo.aggs,
 		queryInfo.queryRange, queryInfo.indexInfo.GetQueryTables(), queryInfo.qid, sTime, orgid)
@@ -785,7 +785,7 @@ func getAllUnrotatedSegments(queryInfo *QueryInformation, sTime time.Time) ([]*Q
 
 // returns query segment requests, count of keys to raw search, and distributed query count
 func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentRequest, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
-	qid uint64, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, uint64, error) {
+	qid uint64, sTime time.Time, orgid int64) ([]*QuerySegmentRequest, uint64, uint64, error) {
 
 	if len(qsrs) != 0 {
 		return qsrs, uint64(len(qsrs)), 0, nil
@@ -834,7 +834,7 @@ func getAllSegmentsInAggs(queryInfo *QueryInformation, qsrs []*QuerySegmentReque
 }
 
 func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
-	qid uint64, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, error) {
+	qid uint64, sTime time.Time, orgid int64) ([]*QuerySegmentRequest, uint64, error) {
 	allUnrotatedKeys, totalChecked, totalCount := writer.FilterUnrotatedSegmentsInQuery(timeRange, indexNames, orgid)
 	log.Infof("qid=%d, Unrotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", qid, totalCount,
 		totalChecked, time.Since(sTime))
@@ -851,7 +851,7 @@ func getAllUnrotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.Qu
 }
 
 func getAllRotatedSegmentsInAggs(queryInfo *QueryInformation, aggs *structs.QueryAggregators, timeRange *dtu.TimeRange, indexNames []string,
-	qid uint64, sTime time.Time, orgid uint64) ([]*QuerySegmentRequest, uint64, error) {
+	qid uint64, sTime time.Time, orgid int64) ([]*QuerySegmentRequest, uint64, error) {
 	// 1. metadata.FilterSegmentsByTime gives epoch range
 	allPossibleKeys, tsPassedCount, totalPossible := segmetadata.FilterSegmentsByTime(timeRange, indexNames, orgid)
 	log.Infof("qid=%d, Rotated query time filtering returned %v segment keys to search out of %+v. query elapsed time: %+v", qid, tsPassedCount,

@@ -326,7 +326,7 @@ func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: query1 - query2 * query3 + query2
 	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
@@ -426,7 +426,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v1(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: query1 + query2
 	query := "node_cpu_seconds_total + node_memory_MemTotal_bytes"
@@ -511,7 +511,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v2(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: query1 - query2 * query3 + query2
 	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
@@ -611,7 +611,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v3(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: query1 + query2
 	query := "node_cpu_seconds_total + node_memory_MemTotal_bytes"
@@ -715,7 +715,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v4(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: query1 - query2 * query3 + query2
 	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
@@ -784,7 +784,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v5(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: query1 - query2 * query3 + query2
 	query := "node_cpu_seconds_total - node_memory_MemTotal_bytes * node_disk_reads_completed_total + node_memory_MemTotal_bytes"
@@ -932,7 +932,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v1(t *testing.T)
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	baseQuery := "node_cpu_seconds_total"
 	baseQueryHash := xxhash.Sum64String(baseQuery)
@@ -1059,7 +1059,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v2(t *testing.T)
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
 
-	myId := uint64(0)
+	myId := int64(0)
 
 	// Test: 100 + 10 - 50 + query1 - (100 - 10 + 110 + 2 * query2 + 10) * 10 * query3 + 100 + query2 - 50
 	query := "100 + 10 - 50 + node_cpu_seconds_total - (100 - 10 + 110 + 2 * node_memory_MemTotal_bytes + 10) * 10 * node_disk_reads_completed_total + 100 + node_memory_MemTotal_bytes - 50"

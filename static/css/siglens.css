@@ -3987,8 +3987,8 @@ float: right;
 }
 
 
-.myOrg .dropdown-option,.invite-role-options {
-    background: var(--myOrg-dropdown-options-bg);
+.main-dropdown .dropdown-menu,.invite-role-options {
+    background: var(--index-drop-down-box-bg-color);
     z-index: 99;
     position: relative;
     width: 170px;
@@ -3999,7 +3999,7 @@ float: right;
     color: var(--table-or-regular-text-color);
 }
 
-.myOrg .dropdown-option li, .invite-role-options li {
+.main-dropdown .dropdown-menu li, .invite-role-options li {
     padding: 5px;
     border-radius: 5px;
     margin-top: 7px;
@@ -4007,14 +4007,16 @@ float: right;
     cursor: pointer;
 }
 
-.myOrg .dropdown-option{
+.main-dropdown .dropdown-menu{
     visibility: hidden;
+    display: block;
 }
 
-.myOrg .dropdown-option.active{
+.main-dropdown .dropdown-menu.active{
     visibility: visible;
 }
-.myOrg .dropdown-option li:hover,.invite-role-options li:hover{
+
+.main-dropdown .dropdown-menu li:hover,.invite-role-options li:hover{
     background: var(--index-drop-down-item-hover-bg-color);
     color: var(--index-drop-down-item-hover-text-color);
 }
@@ -4215,10 +4217,6 @@ color: #C8C7CC;
     width: 64px;
 }
 
-#confirm-ret-change-prompt {
-    display: none;
-}
-
 .cancel-btn {
     color: var(--button-text-color) !important;
     background: var(--component-bg-color);
@@ -4249,34 +4247,11 @@ color: #C8C7CC;
     height: 30px;
 }
 
-#delete-org-container {
-    border: 2px solid;
-    border-color: #e16565;
-    border-radius: 5px;
-    margin-bottom: 20px;
-}
-
-#delete-org-inner {
-    padding: 20px;
-}
-
-#confirm-del-org-prompt {
-    display: block;
-    width: 607px !important;
-}
-
-.delete-org-btn, #del-index-btn {
+#del-index-btn {
     background-color: var(--delete-btn) !important;
     color: var(--button-text-color) !important;
     height: 32px;
     padding: 0 20px;
-}
-
-#confirm-del-org-prompt .header {
-    color: var(--text-color);
-    margin-bottom: 15px;
-    font-weight: bold;
-    font-size: 18px;
 }
 
 .prompt-input {
@@ -4290,20 +4265,6 @@ color: #C8C7CC;
 
 .prompt-text-bottom {
     margin: 15px 0;
-}
-
-#delete-org-inner .header {
-    margin-bottom: 10px;
-    font-size: 16px;
-    font-weight: bold;
-}
-
-#confirm-del-org-prompt {
-    display: none;
-}
-
-.del-org-prompt-text-container span {
-    font-weight: var(--fw-900);
 }
 
 #index-summary-prompt .summary-content{

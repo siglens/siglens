@@ -261,7 +261,7 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		log.Errorf("error in init retention cleaner: %v", err)
 		return err
 	}
-	err = dashboards.InitDashboards()
+	err = dashboards.InitDashboards(0)
 	if err != nil {
 		log.Errorf("error in init Dashboards: %v", err)
 		return err

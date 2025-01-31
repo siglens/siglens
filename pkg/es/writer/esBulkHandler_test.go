@@ -41,7 +41,7 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	indexName := "traces"
 	shouldFlush := true
 	localIndexMap := make(map[string]string)
-	orgId := uint64(0)
+	orgId := int64(0)
 	tsKey := config.GetTimeStampKey()
 
 	idxToStreamIdCache := make(map[string]string)

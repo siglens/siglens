@@ -68,7 +68,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId uint64) {
+func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, orgId, grpc.INGEST_FUNC_FAKE_DATA, false)
 		if alreadyHandled {

@@ -50,12 +50,12 @@ type Hooks struct {
 	ShutdownSiglensPreHook    func()
 
 	// Cluster health
-	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid uint64)
-	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid uint64)
+	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)
+	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid int64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
-	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (uint64, error)
+	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (int64, error)
 	// TODO: There are too many arguments here. Consider refactoring by creating a struct.
-	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId uint64,
+	AddMultinodeStatsHook func(indexData utils.AllIndexesStats, orgId int64,
 		logsIncomingBytes *float64, logsOnDiskBytes *float64, logsEventCount *int64,
 		metricsIncomingBytes *uint64, metricsOnDiskBytes *uint64, metricsDatapointsCount *uint64,
 		queryCount *uint64, totalResponseTimeSinceRestart *float64, totalResponseTimeSinceInstall *float64,
@@ -63,8 +63,8 @@ type Hooks struct {
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// rStats is of type usageStats.ReadStats
-	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId uint64)
-	AddMultiNodeIndexHook       func(orgId uint64) []string
+	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId int64)
+	AddMultiNodeIndexHook       func(orgId int64) []string
 
 	AcquireOwnedSegmentRLockHook func()
 	ReleaseOwnedSegmentRLockHook func()
@@ -95,19 +95,19 @@ type Hooks struct {
 	UploadPQMRFilesExtrasHook           func(allFiles []string) error
 
 	// Server helpers
-	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (uint64, error)
-	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (uint64, error)
+	GetOrgIdHookQuery         func(ctx *fasthttp.RequestCtx) (int64, error)
+	GetOrgIdHook              func(ctx *fasthttp.RequestCtx) (int64, error)
 	ExtractKibanaRequestsHook func(kibanaIndices []string, qid uint64) map[string]interface{}
 
 	// Ingest server
 	IngestMiddlewareRecoveryHook           func(ctx *fasthttp.RequestCtx) error
 	KibanaIngestHandlerHook                func(ctx *fasthttp.RequestCtx)
-	KibanaIngestSingleDocHook              func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
-	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, uint64) error
-	GetIdsConditionHook                    func() (bool, []uint64)
+	KibanaIngestSingleDocHook              func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, int64) error
+	EsBulkIngestInternalHook               func(*fasthttp.RequestCtx, map[string]interface{}, string, bool, string, uint64, int64) error
+	GetIdsConditionHook                    func() (bool, []int64)
 	ExtraIngestEndpointsHook               func(router *router.Router, recovery func(next func(ctx *fasthttp.RequestCtx)) func(ctx *fasthttp.RequestCtx))
-	OverrideIngestRequestHook              func(ctx *fasthttp.RequestCtx, myid uint64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
-	OverrideDeleteIndexRequestHook         func(ctx *fasthttp.RequestCtx, myid uint64, indexName string) bool
+	OverrideIngestRequestHook              func(ctx *fasthttp.RequestCtx, myid int64, ingestFunc grpc.IngestFuncEnum, useIngestHook bool) bool
+	OverrideDeleteIndexRequestHook         func(ctx *fasthttp.RequestCtx, myid int64, indexName string) bool
 	GetNextSuffixHook                      func(uint64, func(uint64) string) (uint64, error)
 	GetOwnedSegmentsHook                   func() map[string]struct{}
 	AddUsageForRotatedSegmentsHook         func(qid uint64, rotatedSegments map[string]struct{})
@@ -128,7 +128,7 @@ type Hooks struct {
 	GetDistributedStreamsHook       func(chainedDp interface{}, searcher interface{}, queryInfo interface{}, shouldDistribute bool) (interface{}, error)
 
 	// Handling ingestion
-	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid uint64) (bool, uint64)
+	BeforeHandlingBulkRequest func(ctx *fasthttp.RequestCtx, myid int64) (bool, uint64)
 	AfterWritingToSegment     func(rid uint64, segstore interface{}, record []byte, ts uint64, signalType segutils.SIGNAL_TYPE) error
 	AfterHandlingBulkRequest  func(ctx *fasthttp.RequestCtx, rid uint64) bool
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)
@@ -143,13 +143,11 @@ type HtmlSnippets struct {
 	RunCheck2 string
 	RunCheck3 string
 	Button1   string
-	Popup1    string
 	Dropdown2 string
 
 	OrgSettingsOrgName         string
 	OrgSettingsRetentionPeriod string
 	OrgDeploymentType          string
-	OrgSettingsExtras          string
 	DistNodesExtras            string
 	OrgSLOs                    string
 	SLOCss                     string
@@ -158,12 +156,9 @@ type HtmlSnippets struct {
 }
 
 type JsSnippets struct {
-	ClusterStatsExtraFunctions  string
-	ClusterStatsExtraSetup      string
-	ClusterStatsSetUserRole     string
-	ClusterStatsAdminView       string
-	ClusterStatsAdminButton     string
-	ClusterStatsCallDisplayRows string
+	ClusterStatsExtraFunctions string
+	ClusterStatsExtraSetup     string
+	ClusterStatsSetUserRole    string
 
 	CommonExtraFunctions string
 	Button1Function      string

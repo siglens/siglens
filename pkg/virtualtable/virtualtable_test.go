@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func MockGetMyIds() []uint64 {
-	return []uint64{0}
+func MockGetMyIds() []int64 {
+	return []int64{0}
 }
 
 func Test_AddGetVTables(t *testing.T) {

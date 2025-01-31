@@ -54,7 +54,7 @@ type MetricsQuery struct {
 	reordered       bool   // if the tags filters have been reordered
 	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
 	numValueFilters uint32 // number of value filters
-	OrgId           uint64 // organization id
+	OrgId           int64  // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
