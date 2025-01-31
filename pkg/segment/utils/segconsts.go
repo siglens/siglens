@@ -207,7 +207,7 @@ func ValTypeToSSDType(valtype byte) SS_DTYPE {
 	case VALTYPE_RAW_JSON[0]:
 		return SS_DT_RAW_JSON
 	default:
-		log.Errorf("ValTypeToSsdType: invalid valtype: %v", valtype)
+		log.Errorf("ValTypeToSSDType: invalid valtype: %v", valtype)
 		return SS_INVALID
 	}
 }
