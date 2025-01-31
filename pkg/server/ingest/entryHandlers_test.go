@@ -31,6 +31,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/siglens/siglens/pkg/config"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 )
 
@@ -42,7 +43,7 @@ func cleanupOutDir() {
 func TestPartial_esBulkPostHandler(t *testing.T) {
 
 	config.InitializeDefaultConfig(t.TempDir())
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
 	ln := fasthttputil.NewInmemoryListener()
@@ -119,7 +120,7 @@ func TestPartial_esBulkPostHandler(t *testing.T) {
 }
 
 func TestOk_esBulkPostHandler(t *testing.T) {
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 	config.InitializeDefaultConfig(t.TempDir())
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
@@ -191,7 +192,7 @@ func TestOk_esBulkPostHandler(t *testing.T) {
 }
 
 func TestDelete_esBulkPostHandler(t *testing.T) {
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 	config.InitializeDefaultConfig(t.TempDir())
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
@@ -254,7 +255,7 @@ func TestDelete_esBulkPostHandler(t *testing.T) {
 }
 
 func TestUpdate_esBulkPostHandler(t *testing.T) {
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
@@ -319,7 +320,7 @@ func TestUpdate_esBulkPostHandler(t *testing.T) {
 }
 
 func Test_HealthHandler(t *testing.T) {
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	// init a webServer to use the post handler method
 	// setup listener , it's fasthttp in memory listener for TESTING only
