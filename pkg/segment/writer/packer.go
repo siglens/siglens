@@ -576,14 +576,12 @@ func initMicroIndices(key string, ssType SS_DTYPE, colBlooms map[string]*BloomIn
 	colRis map[string]*RangeIndex) {
 
 	switch ssType {
-	// case SS_DT_STRING, SS_DT_SIGNED_NUM:
 	case SS_DT_STRING:
-		fallthrough
-		// bi := &BloomIndex{}
-		// bi.uniqueWordCount = 0
-		// bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
-		// colBlooms[key] = bi
-	case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
+		bi := &BloomIndex{}
+		bi.uniqueWordCount = 0
+		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
+		colBlooms[key] = bi
+	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		ri := &RangeIndex{}
 		ri.Ranges = make(map[string]*Numbers)
 		colRis[key] = ri
