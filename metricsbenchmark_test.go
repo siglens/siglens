@@ -51,7 +51,7 @@ func Benchmark_InsertJson(b *testing.B) {
 	sTime := time.Now()
 	totalSuccess := uint64(0)
 	for i := 0; i < 10_000; i++ {
-		success, fail, err := otsdbwriter.HandlePutMetrics(rawJson, uint64(0))
+		success, fail, err := otsdbwriter.HandlePutMetrics(rawJson, int64(0))
 		assert.NoError(b, err)
 		assert.Equal(b, success, uint64(100))
 		assert.Equal(b, fail, uint64(0))

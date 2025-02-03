@@ -9,7 +9,7 @@ import (
 
 const INFLUX_SHOW_DB_RESP = `{"results":[{"series":[{"name":"databases","columns":["name"],"values":[["_internal"],["benchmark_db"]]}]}]}`
 
-func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+func GetQueryHandler(ctx *fasthttp.RequestCtx, myid int64) {
 
 	q := string(ctx.QueryArgs().Peek("q"))
 	if strings.ToLower(q) == "show databases" {
@@ -25,7 +25,7 @@ func GetQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.Error("Unsupported query", fasthttp.StatusBadRequest)
 	}
 }
-func PostQueryHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+func PostQueryHandler(ctx *fasthttp.RequestCtx, myid int64) {
 	q := string(ctx.QueryArgs().Peek("q"))
 	if strings.Contains(strings.ToLower(q), "drop database") {
 		// Return status code 200

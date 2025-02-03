@@ -19,7 +19,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, myid uint64) {
+func ProcessPutPostSingleDocRequest(ctx *fasthttp.RequestCtx, updateArg bool, myid int64) {
 	r := bytes.NewReader(ctx.PostBody())
 	indexNameIn := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 	tsNow := utils.GetCurrentTimeInMs()

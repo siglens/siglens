@@ -89,7 +89,7 @@ type SegStore struct {
 	timeCreated           time.Time
 	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
 	stbHolder             *STBHolder
-	OrgId                 uint64
+	OrgId                 int64
 	firstTime             bool
 	stbDictEncWorkBuf     [][]string
 	segStatsWorkBuf       []byte
@@ -107,7 +107,7 @@ type PQTracker struct {
 }
 
 func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTableName string,
-	skipDe bool, orgId uint64, highTs uint64, lowTs uint64) *SegStore {
+	skipDe bool, orgId int64, highTs uint64, lowTs uint64) *SegStore {
 
 	segStore := NewSegStore(orgId)
 	segStore.SegmentKey = segmentKey
@@ -124,7 +124,7 @@ func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTa
 	return segStore
 }
 
-func NewSegStore(orgId uint64) *SegStore {
+func NewSegStore(orgId int64) *SegStore {
 	now := time.Now()
 	segstore := &SegStore{
 		Lock:               sync.Mutex{},

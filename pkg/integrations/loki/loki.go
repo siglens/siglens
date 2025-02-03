@@ -163,7 +163,7 @@ func getVectorArithmeticResponse(queryResult *structs.NodeResult) map[string]int
 }
 
 // See https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
-func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	contentType := string(ctx.Request.Header.ContentType())
 	switch contentType {
 	case "application/json":
@@ -190,7 +190,7 @@ func ProcessLokiLogsIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 //		  }
 //		]
 //	}
-func processPromtailLogs(ctx *fasthttp.RequestCtx, myid uint64) {
+func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
 		if alreadyHandled {
@@ -331,7 +331,7 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid uint64) {
 //	   }
 //	 ]
 //	}
-func processJsonLogs(ctx *fasthttp.RequestCtx, myid uint64) {
+func processJsonLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_LOKI, false)
 		if alreadyHandled {
@@ -433,7 +433,7 @@ func processJsonLogs(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func fetchColumnNamesFromAllIndexes(myid uint64) []string {
+func fetchColumnNamesFromAllIndexes(myid int64) []string {
 	allColsNamesMap := map[string]struct{}{}
 	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(LOKIINDEX_STAR, myid, false)
 	for _, indexName := range indexNamesRetrieved {
@@ -496,7 +496,7 @@ func addAscSortColRequestToQueryAggs(queryAggs *structs.QueryAggregators, sizeLi
 	return queryAggs
 }
 
-func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	indexName := []string{LOKIINDEX}
 	responsebody := make(map[string]interface{})
 	colNames := remove(metadata.GetAllColNames(indexName), "line")
@@ -510,7 +510,7 @@ func ProcessLokiLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	responsebody := make(map[string]interface{})
 
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
@@ -549,7 +549,7 @@ func ProcessLokiLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	query := removeUnimplementedMethods(string(ctx.QueryArgs().Peek("query")))
 	if query == "" {
 		utils.SendError(ctx, "Search request is empty", "", nil)
@@ -696,7 +696,7 @@ func ProcessQueryRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	query := removeUnimplementedMethods(string(ctx.QueryArgs().Peek("query")))
 
 	qid := rutils.GetNextQid()
@@ -740,7 +740,7 @@ func ProcessIndexStatsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 }
 
-func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessLokiSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	responsebody := make(map[string]interface{})
 	query := string(ctx.QueryArgs().Peek("match[]"))
 	startEpoch, err := strconv.ParseUint(string(ctx.QueryArgs().Peek("start")), 10, 64)
@@ -843,7 +843,7 @@ func getMetricsResponse(queryResult *structs.NodeResult) LokiMetricsResponse {
 	lokiMetricsResponse.Data.Stats = MetricStats{}
 	return lokiMetricsResponse
 }
-func getQueryStats(queryResult *structs.NodeResult, startTime uint64, myid uint64) Stats {
+func getQueryStats(queryResult *structs.NodeResult, startTime uint64, myid int64) Stats {
 	lokiQueryStats := Stats{}
 	if queryResult == nil {
 		return lokiQueryStats

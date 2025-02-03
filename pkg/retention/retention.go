@@ -84,7 +84,7 @@ func internalRetentionCleaner() {
 	}
 }
 
-func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid uint64) {
+func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid int64) {
 	currTime := time.Now()
 	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
 
@@ -166,7 +166,7 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 	DeleteEmptyIndices(ingestNodeDir, orgid)
 }
 
-func DeleteEmptyIndices(ingestNodeDir string, myid uint64) {
+func DeleteEmptyIndices(ingestNodeDir string, myid int64) {
 	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
 		log.Errorf("deleteEmptyIndices: Error in getting virtual table names, err: %v", err)

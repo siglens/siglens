@@ -33,7 +33,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_SPLUNK, false)
 		if alreadyHandled {
@@ -98,7 +98,7 @@ func ProcessSplunkHecIngestRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getPLE(record map[string]interface{}, myid uint64, tsKey *string, jsParsingStackbuf []byte) (error, int, *segwriter.ParsedLogEvent) {
+func getPLE(record map[string]interface{}, myid int64, tsKey *string, jsParsingStackbuf []byte) (error, int, *segwriter.ParsedLogEvent) {
 	if record["index"] == "" || record["index"] == nil {
 		record["index"] = "default"
 	}

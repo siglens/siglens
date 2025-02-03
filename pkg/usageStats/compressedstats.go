@@ -33,10 +33,10 @@ type CompressedStats struct {
 	TimeStamp       time.Time
 }
 
-var cstats map[uint64]*CompressedStats
+var cstats map[int64]*CompressedStats
 
 func init() {
-	cstats = make(map[uint64]*CompressedStats)
+	cstats = make(map[int64]*CompressedStats)
 	//cstats = CompressedStats{CompressedBytes: 0}
 }
 
@@ -52,14 +52,14 @@ func getCompressedStatsFilename(baseDir string) string {
 	return sb.String()
 }
 
-func UpdateCompressedStats(segFileSize int64, orgid uint64) {
+func UpdateCompressedStats(segFileSize int64, orgid int64) {
 	if _, ok := cstats[orgid]; !ok {
 		cstats[orgid] = &CompressedStats{}
 	}
 	atomic.AddInt64(&cstats[orgid].CompressedBytes, segFileSize)
 }
 
-func flushCompressedStatsToFile(orgid uint64) error {
+func flushCompressedStatsToFile(orgid int64) error {
 	if _, ok := cstats[orgid]; ok {
 		if cstats[orgid].CompressedBytes > 0 {
 			cstats[orgid].TimeStamp = time.Now().UTC()

@@ -46,6 +46,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -1467,8 +1468,8 @@ func contains(slice []string, element string) bool {
 	return false
 }
 
-func getMyIds() []uint64 {
-	myids := make([]uint64, 1)
+func getMyIds() []int64 {
+	myids := make([]int64, 1)
 	myids[0] = 0
 	return myids
 }
@@ -1548,7 +1549,7 @@ func Test_unrotatedQuery(t *testing.T) {
 	writer.InitWriterNode()
 	numBatch := 10
 	numRec := 100
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	// disable dict encoding globally
 	writer.SetCardinalityLimit(0)

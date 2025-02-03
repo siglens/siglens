@@ -12,7 +12,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func CollectDiagnosticsAPI(ctx *fasthttp.RequestCtx, orgid uint64) {
+func CollectDiagnosticsAPI(ctx *fasthttp.RequestCtx, orgid int64) {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 

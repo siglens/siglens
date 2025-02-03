@@ -19,31 +19,32 @@
 
 let selectedLogSource = "";
 let iToken = "";
-$(document).ready(function () {
+$(document).ready(async function () {
     $('#data-ingestion,#test-data-btn').hide();
     $('.theme-btn').on('click', themePickerHandler);
     $(".custom-chart-tab").tabs();
     $(".custom-chart-tab").show();
-    $.ajax({
-        method: 'get',
-        url: 'api/config',
-        crossDomain: true,
-        dataType: 'json',
-        credentials: 'include'
-    })
-        .then((_res) => {
-            {{ if .TestDataSendData }}
-                {{ .TestDataSendData }}
-            {{ else }}
-                myOrgSendTestData(iToken);
-            {{ end }}
-        })
-        .catch((err) => {
-            console.log(err)
+
+    let baseUrl = "";
+    try {
+        const config = await $.ajax({
+            method: 'GET',
+            url: 'api/config',
+            crossDomain: true,
+            dataType: 'json',
+            xhrFields: { withCredentials: true }
         });
-    var currentUrl = window.location.href;
-    var url = new URL(currentUrl);
-    var baseUrl = url.protocol + '//' + url.hostname;
+        if (config.IngestUrl) {
+            baseUrl = config.IngestUrl;
+        }
+        {{ if .TestDataSendData }}
+            {{ .TestDataSendData }}
+        {{ else }}
+            myOrgSendTestData(iToken);
+        {{ end }}
+    } catch (err) {
+        console.log(err);
+    }
 
     $('#custom-chart-tab').on('click', '.tab-li', function () {
         selectedLogSource = $(this).text().trim();
@@ -55,7 +56,7 @@ $(document).ready(function () {
             {{ .IngestDataCmd }}
         {{ end }}
 
-        var curlCommand = 'curl -X POST "' + baseUrl + ':8081/elastic/_bulk" \\\n' +
+        var curlCommand = 'curl -X POST "' + baseUrl + '/elastic/_bulk" \\\n' +
             '-H \'Content-Type: application/json\' \\\n' +
             ingestCmd +
             '-d \'{ "index" : { "_index" : "test" } }\n' +
@@ -78,7 +79,7 @@ $(document).ready(function () {
             case 'Splunk HEC':
                 $('#platform-input').val(selectedLogSource);
                 $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
-                curlCommand = 'curl -X POST "' + baseUrl + ':8081/services/collector/event" \\\n' +
+                curlCommand = 'curl -X POST "' + baseUrl + '/services/collector/event" \\\n' +
                     '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
                     ingestCmd +
                     '-d \'{ "index": "test", "name": "john", "age": "23"}\'';

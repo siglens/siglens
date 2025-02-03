@@ -45,16 +45,16 @@ type database interface {
 	GetAlert(alert_id string) (*alertutils.AlertDetails, error)
 	CreateAlertHistory(alertHistoryDetails *alertutils.AlertHistoryDetails) (*alertutils.AlertHistoryDetails, error)
 	GetAlertHistoryByAlertID(alertHistoryParams *alertutils.AlertHistoryQueryParams) ([]*alertutils.AlertHistoryDetails, error)
-	GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error)
+	GetAllAlerts(orgId int64) ([]*alertutils.AlertDetails, error)
 	CreateMinionSearch(alertInfo *alertutils.MinionSearch) (alertutils.MinionSearch, error)
 	GetMinionSearch(alert_id string) (*alertutils.MinionSearch, error)
-	GetAllMinionSearches(orgId uint64) ([]alertutils.MinionSearch, error)
+	GetAllMinionSearches(orgId int64) ([]alertutils.MinionSearch, error)
 	UpdateMinionSearchStateByAlertID(alertId string, alertState alertutils.AlertState) error
 	UpdateAlert(*alertutils.AlertDetails) error
 	UpdateSilenceMinutes(*alertutils.AlertDetails) error
 	DeleteAlert(alert_id string) error
 	CreateContact(*alertutils.Contact) error
-	GetAllContactPoints(orgId uint64) ([]alertutils.Contact, error)
+	GetAllContactPoints(orgId int64) ([]alertutils.Contact, error)
 	UpdateContactPoint(contact *alertutils.Contact) error
 	GetCoolDownDetails(alert_id string) (uint64, time.Time, error)
 	GetAlertNotification(alert_id string) (*alertutils.Notification, error)
@@ -119,7 +119,7 @@ func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (strin
 	return "", nil
 }
 
-func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -315,7 +315,7 @@ func ProcessGetAlertRequest(ctx *fasthttp.RequestCtx) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -333,7 +333,7 @@ func ProcessGetAllAlertsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID uint64) {
+func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -352,10 +352,16 @@ func ProcessGetAllMinionSearchesRequest(ctx *fasthttp.RequestCtx, orgID uint64) 
 }
 
 func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
+	type Input struct {
+		alertutils.AlertConfig
+		AlertId string `json:"alert_id"`
+	}
+
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
 	}
+
 	responseBody := make(map[string]interface{})
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
@@ -363,12 +369,31 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	var alertToBeUpdated *alertutils.AlertDetails
-	err := json.Unmarshal(rawJSON, &alertToBeUpdated)
+	var input Input
+	err := json.Unmarshal(rawJSON, &input)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to unmarshal json. Error=%v", err), "", err)
 		return
 	}
+
+	// Find alert in the database
+	alertToBeUpdated, err := databaseObj.GetAlert(input.AlertId)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Failed to find alert. Error=%v", err), fmt.Sprintf("alert ID: %v", input.AlertId), err)
+		return
+	}
+
+	alertToBeUpdated.AlertName = input.AlertName
+	alertToBeUpdated.AlertType = input.AlertType
+	alertToBeUpdated.ContactID = input.ContactID
+	alertToBeUpdated.ContactName = input.ContactName
+	alertToBeUpdated.Labels = input.Labels
+	alertToBeUpdated.QueryParams = input.QueryParams
+	alertToBeUpdated.Condition = input.Condition
+	alertToBeUpdated.Value = input.Value
+	alertToBeUpdated.EvalWindow = input.EvalWindow
+	alertToBeUpdated.EvalInterval = input.EvalInterval
+	alertToBeUpdated.Message = input.Message
 
 	if alertToBeUpdated.EvalWindow < alertToBeUpdated.EvalInterval {
 		utils.SendError(ctx, "EvalWindow should be greater than or equal to EvalInterval", fmt.Sprintf("EvalWindow: %v, EvalInterval:%v", alertToBeUpdated.EvalWindow, alertToBeUpdated.EvalInterval), nil)
@@ -486,7 +511,7 @@ func ProcessDeleteAlertRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -515,7 +540,7 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
 	utils.WriteJsonResponse(ctx, responseBody)
 }
 
-func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessGetAllContactsRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return
@@ -592,7 +617,7 @@ func ProcessDeleteContactRequest(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func InitAlertingService(getMyIds func() []uint64) {
+func InitAlertingService(getMyIds func() []int64) {
 	if databaseObj == nil {
 		log.Errorf("InitAlertingService, err = %+v", invalidDatabaseProvider)
 		return
@@ -621,7 +646,7 @@ func InitAlertingService(getMyIds func() []uint64) {
 	}
 }
 
-func InitMinionSearchService(getMyIds func() []uint64) {
+func InitMinionSearchService(getMyIds func() []int64) {
 	if databaseObj == nil {
 		log.Errorf("InitMinionSearchService, err = %+v", invalidDatabaseProvider)
 		return
@@ -645,7 +670,7 @@ func InitMinionSearchService(getMyIds func() []uint64) {
 	}
 }
 
-func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id uint64) {
+func ProcessCreateLogMinionSearchRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	if databaseObj == nil {
 		utils.SendError(ctx, invalidDatabaseProvider, "", nil)
 		return

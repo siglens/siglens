@@ -28,7 +28,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func ProcessGetAlias(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetAlias(ctx *fasthttp.RequestCtx, myid int64) {
 	log.Infof("ProcessGetAlias:")
 	aliasName := utils.ExtractParamAsString(ctx.UserValue("aliasName"))
 
@@ -60,7 +60,7 @@ func ProcessGetAlias(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetAllAliases(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetAllAliases(ctx *fasthttp.RequestCtx, myid int64) {
 
 	respbody := make(map[string]interface{})
 	allIndices, err := vtable.GetVirtualTableNames(myid)
@@ -95,7 +95,7 @@ func ProcessGetAllAliases(ctx *fasthttp.RequestCtx, myid uint64) {
 
 }
 
-func ProcessGetIndexAlias(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetIndexAlias(ctx *fasthttp.RequestCtx, myid int64) {
 
 	indexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 
@@ -122,7 +122,7 @@ func ProcessGetIndexAlias(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessPutAliasesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPutAliasesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	indexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
 	aliasName := utils.ExtractParamAsString(ctx.UserValue("aliasName"))
 
@@ -153,7 +153,7 @@ func ProcessPutAliasesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 */
 
-func ProcessPostAliasesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPostAliasesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	r := bytes.NewReader(ctx.PostBody())
 
 	log.Infof("ProcessPostAliasesRequest: body=%v", string(ctx.PostBody()))
@@ -197,7 +197,7 @@ func ProcessPostAliasesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
    [{"remove": {"index": "test1", "alias" : "alias1"  } }]
 */
 
-func processActions(ctx *fasthttp.RequestCtx, actions interface{}, myid uint64) {
+func processActions(ctx *fasthttp.RequestCtx, actions interface{}, myid int64) {
 
 	switch t := actions.(type) {
 	case []interface{}:
@@ -232,7 +232,7 @@ func processActions(ctx *fasthttp.RequestCtx, actions interface{}, myid uint64) 
    { "index" : "test1", "alias" : "alias1" }}
 */
 
-func parseAddAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64) {
+func parseAddAction(ctx *fasthttp.RequestCtx, params interface{}, myid int64) {
 	log.Infof("parseAddAction: add alias request, params=%v", params)
 	switch t := params.(type) {
 	case map[string]interface{}:
@@ -263,7 +263,7 @@ func parseAddAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64) {
    { "indices" : ["test1", "test2"], "alias" : "alias1" }
 */
 
-func doAddAliases(ctx *fasthttp.RequestCtx, indexName interface{}, aliasName interface{}, indices interface{}, myid uint64) {
+func doAddAliases(ctx *fasthttp.RequestCtx, indexName interface{}, aliasName interface{}, indices interface{}, myid int64) {
 
 	log.Infof("doAddAliases: addalias for indexName=%v, aliasName=%v, indices=%v", indexName, aliasName, indices)
 
@@ -309,7 +309,7 @@ func doAddAliases(ctx *fasthttp.RequestCtx, indexName interface{}, aliasName int
 
 */
 
-func parseRemoveAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64) {
+func parseRemoveAction(ctx *fasthttp.RequestCtx, params interface{}, myid int64) {
 	log.Infof("parseRemoveAction: remove alias request, params=%v", params)
 	switch t := params.(type) {
 	case map[string]interface{}:
@@ -351,7 +351,7 @@ func parseRemoveAction(ctx *fasthttp.RequestCtx, params interface{}, myid uint64
 	}
 }
 
-func ProcessIndexAliasExist(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessIndexAliasExist(ctx *fasthttp.RequestCtx, myid int64) {
 
 	//get indexName and aliasName
 	indexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))

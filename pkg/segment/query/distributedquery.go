@@ -29,7 +29,7 @@ type DistributedQueryServiceInterface interface {
 	IsDistributed() bool
 	GetSegEncToKeyBaseValue() uint32
 	GetNumNodesDistributedTo() uint64
-	GetOwnedSegments(orgId uint64) (map[string]struct{}, error)
+	GetOwnedSegments(orgId int64) (map[string]struct{}, error)
 }
 
 type DistributedQueryService struct {
@@ -75,6 +75,6 @@ func (d *DistributedQueryService) GetNumNodesDistributedTo() uint64 {
 	return 0
 }
 
-func (d *DistributedQueryService) GetOwnedSegments(orgId uint64) (map[string]struct{}, error) {
+func (d *DistributedQueryService) GetOwnedSegments(orgId int64) (map[string]struct{}, error) {
 	return metadata.GetAllSegKeysForOrg(orgId), nil
 }

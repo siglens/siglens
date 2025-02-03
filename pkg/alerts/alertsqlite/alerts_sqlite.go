@@ -293,7 +293,7 @@ func (p Sqlite) GetAlert(alert_id string) (*alertutils.AlertDetails, error) {
 	return &alert, nil
 }
 
-func (p Sqlite) GetAllAlerts(orgId uint64) ([]*alertutils.AlertDetails, error) {
+func (p Sqlite) GetAllAlerts(orgId int64) ([]*alertutils.AlertDetails, error) {
 	alerts := make([]*alertutils.AlertDetails, 0)
 	err := p.db.Model(&alerts).Preload("Labels").Where("org_id = ?", orgId).Find(&alerts).Error
 	if err != nil {
@@ -498,7 +498,7 @@ func (p Sqlite) CreateContact(newContact *alertutils.Contact) error {
 	return nil
 }
 
-func (p Sqlite) GetAllContactPoints(org_id uint64) ([]alertutils.Contact, error) {
+func (p Sqlite) GetAllContactPoints(org_id int64) ([]alertutils.Contact, error) {
 	contacts := make([]alertutils.Contact, 0)
 	if err := p.db.Preload("Slack").Preload("Webhook").Where("org_id = ?", org_id).Find(&contacts).Error; err != nil {
 		return nil, err
@@ -746,7 +746,7 @@ func (p Sqlite) GetEmailAndChannelID(contact_id string) ([]string, []alertutils.
 	return emailArray, slackArray, webhookArray, nil
 }
 
-func (p Sqlite) GetAllMinionSearches(orgId uint64) ([]alertutils.MinionSearch, error) {
+func (p Sqlite) GetAllMinionSearches(orgId int64) ([]alertutils.MinionSearch, error) {
 
 	alerts := make([]alertutils.MinionSearch, 0)
 	err := p.db.Model(&alerts).Where("org_id = ?", orgId).Find(&alertutils.MinionSearch{}).Error

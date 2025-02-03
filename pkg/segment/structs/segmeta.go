@@ -48,7 +48,7 @@ type SegMeta struct {
 	ColumnNames map[string]*ColSizeInfo `json:"-"`
 	AllPQIDs    map[string]bool         `json:"-"`
 	NumBlocks   uint16                  `json:"numBlocks,omitempty"`
-	OrgId       uint64                  `json:"orgid,omitempty"`
+	OrgId       int64                   `json:"orgid,omitempty"`
 }
 
 // This segment specific info is written individually per segment instead of in the
@@ -69,7 +69,7 @@ type MetricsMeta struct {
 	LatestEpochSec     uint32          `json:"latestEpochSec"`
 	TTreeDir           string          `json:"TTreeDir"`
 	DatapointCount     uint64          `json:"approximateDatapointCount"`
-	OrgId              uint64          `json:"orgid"`
+	OrgId              int64           `json:"orgid"`
 }
 
 type FileType int

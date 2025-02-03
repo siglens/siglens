@@ -280,8 +280,8 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 }
 
-func getMyIds() []uint64 {
-	myids := make([]uint64, 1)
+func getMyIds() []int64 {
+	myids := make([]int64, 1)
 	myids[0] = 0
 	return myids
 }

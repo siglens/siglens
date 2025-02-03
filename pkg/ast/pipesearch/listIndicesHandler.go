@@ -33,7 +33,7 @@ type IndexInfo struct {
 
 type AllIndicesInfoResponse []*IndexInfo
 
-func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
+func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var httpResp AllIndicesInfoResponse
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.Response.Header.Set("Content-Type", "application/json")

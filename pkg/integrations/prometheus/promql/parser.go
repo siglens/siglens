@@ -59,7 +59,7 @@ func extractTimeWindow(args parser.Expressions) (float64, float64, error) {
 	return 0, 0, fmt.Errorf("extractTimeWindow: can not extract time window from args: %v", args)
 }
 
-func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid int64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// Check if the query is just a number
 	_, err := dtypeutils.ConvertToFloat(query, 64)
 	if err == nil {
@@ -84,7 +84,7 @@ func ConvertPromQLToMetricsQuery(query string, startTime, endTime uint32, myid u
 	return metricQueryRequests, pqlQuerytype, queryArithmetics, nil
 }
 
-func parsePromQLQuery(query string, startTime, endTime uint32, myid uint64) ([]*structs.MetricsQueryRequest, parser.ValueType, []*structs.QueryArithmetic, error) {
+func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*structs.MetricsQueryRequest, parser.ValueType, []*structs.QueryArithmetic, error) {
 	parser.EnableExperimentalFunctions = true
 	expr, err := parser.ParseExpr(query)
 	if err != nil {

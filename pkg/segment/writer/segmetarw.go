@@ -43,6 +43,8 @@ const PQS_TICKER = 10 // seconds
 const PQS_FLUSH_SIZE = 100
 const PQS_CHAN_SIZE = 1000
 
+const siglensID = -7828473396868711293
+
 var smrLock sync.RWMutex = sync.RWMutex{}
 var localSegmetaFname string
 
@@ -342,7 +344,7 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 	return allSegMetas, nil
 }
 
-func GetVTableCountsForAll(orgid uint64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
+func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
 
 	allvtables := make(map[string]*structs.VtableCounts)
 
@@ -352,7 +354,7 @@ func GetVTableCountsForAll(orgid uint64, allSegmetas []*structs.SegMeta) map[str
 		if segmeta == nil {
 			continue
 		}
-		if segmeta.OrgId != orgid && orgid != 10618270676840840323 { //orgid for siglens
+		if segmeta.OrgId != orgid && orgid != siglensID {
 			continue
 		}
 		cnts, ok = allvtables[segmeta.VirtualTableName]
@@ -781,7 +783,7 @@ func calculateSegmentSizes(segmentKey string) (*SegmentSizeStats, error) {
 	return stats, nil
 }
 
-func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error) {
+func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error) {
 	allSegMetas := ReadGlobalSegmetas()
 	stats := &utils.IndexStats{}
 
@@ -794,7 +796,7 @@ func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error
 	var wg sync.WaitGroup
 
 	for _, meta := range allSegMetas {
-		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != 10618270676840840323) {
+		if meta.VirtualTableName != indexName || (meta.OrgId != orgId && orgId != siglensID) {
 			continue
 		}
 
@@ -833,14 +835,14 @@ func GetIndexSizeStats(indexName string, orgId uint64) (*utils.IndexStats, error
 	return stats, nil
 }
 
-func getUnrotatedSegmentStats(indexName string, orgId uint64) *SegmentSizeStats {
+func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
 
 	stats := &SegmentSizeStats{}
 	for _, usi := range AllUnrotatedSegmentInfo {
 		if usi.TableName == indexName &&
-			(usi.orgid == orgId || orgId == 10618270676840840323) {
+			(usi.orgid == orgId || orgId == siglensID) {
 			if usi.cmiSize > 0 {
 				stats.TotalCmiSize += usi.cmiSize
 				stats.NumIndexFiles += len(usi.allColumns)
