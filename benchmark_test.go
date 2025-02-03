@@ -122,7 +122,7 @@ func Benchmark_EndToEnd(b *testing.B) {
 
 	limit.InitMemoryLimiter()
 
-	err := vtable.InitVTable()
+	err := vtable.InitVTable(serverutils.GetMyIds)
 	if err != nil {
 		b.Fatalf("Failed to initialize vtable: %v", err)
 	}
@@ -316,7 +316,7 @@ func Benchmark_RRCToJson(b *testing.B) {
 
 func Benchmark_esBulkIngest(b *testing.B) {
 	config.InitializeDefaultConfig(b.TempDir())
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(serverutils.GetMyIds)
 
 	querytracker.InitQT()
 
@@ -390,7 +390,7 @@ func Benchmark_agileTreeIngest(b *testing.B) {
 	config.SetAggregationsFlag(true)
 	config.SetPQSEnabled(true)
 
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(serverutils.GetMyIds)
 
 	measureInfoUsage := make(map[string]bool)
 	finalGrpCols := make(map[string]bool)

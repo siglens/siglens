@@ -18,10 +18,10 @@
 package query
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -95,42 +95,6 @@ func initMetadataRefresh() {
 	initMetricsMetaRefresh()
 }
 
-func updateVTable(vfname string, orgid int64) error {
-	vtableFd, err := os.OpenFile(vfname, os.O_RDONLY, 0644)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		log.Errorf("updateVTable: Failed to open file=%v, err=%v", vfname, err)
-		return err
-	}
-	defer func() {
-		err = vtableFd.Close()
-		if err != nil {
-			log.Errorf("updateVTable: Failed to close file name=%v, err:%v", vfname, err)
-		}
-	}()
-	scanner := bufio.NewScanner(vtableFd)
-
-	for scanner.Scan() {
-		rawbytes := scanner.Bytes()
-		vtableName := string(rawbytes)
-		if vtableName != "" {
-			// todo: confirm if this is correct
-			err = virtualtable.AddVirtualTable(&vtableName, orgid)
-			if err != nil {
-				log.Errorf("updateVTable: Error in adding virtual table:%v, err:%v", &vtableName, err)
-				return err
-			}
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return utils.TeeErrorf("updateVTable: Error while scanning vtable file %v, err: %v", vfname, err)
-	}
-
-	return err
-}
-
 func initGlobalMetadataRefresh(getMyIds func() []int64) {
 	if !config.IsQueryNode() || !config.IsS3Enabled() {
 		return
@@ -161,41 +125,77 @@ func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]stru
 			ingestNodes = append(ingestNodes, file.Name())
 		}
 	}
+
 	myids := fnMyids()
+
+	allSfmFiles := make([]string, len(ingestNodes))
+
+	myIdToVTableMap := make(map[int64]map[string]struct{}) // myid -> vtableName -> struct{}
+	syncLock := &sync.Mutex{}
+
+	var wg sync.WaitGroup
 
 	// For each non current ingest node, we need to process the
 	//  segmeta.json and virtualtablenames.txt
-	var wg sync.WaitGroup
-	for _, n := range ingestNodes {
+	// Aggregate All vtable names for each myid from all ingest nodes
+	// Aggregate All segmeta files from all ingest nodes
+	for i, node := range ingestNodes {
+		allSfmFiles[i] = filepath.Join(config.GetDataPath(), "ingestnodes", node, SEGMETA_FILENAME)
+
 		wg.Add(1)
-		go func(node string) {
+		go func(ingestNode string) {
 			defer wg.Done()
-			vfname := virtualtable.GetFilePathForRemoteNode(node, 0)
-			err := updateVTable(vfname, 0)
-			if err != nil {
-				log.Errorf("RefreshGlobalMetadata: Error updating default org vtable, err:%v", err)
-			}
+
+			vTableNamesMap := make(map[int64]map[string]bool)
+
 			for _, myid := range myids {
-				vfname := virtualtable.GetFilePathForRemoteNode(node, myid)
-				err := updateVTable(vfname, myid)
+				vTableFileName := virtualtable.GetFilePathForRemoteNode(ingestNode, myid)
+				vTableNamesMap[myid] = make(map[string]bool)
+				err := virtualtable.LoadVirtualTableNamesFromFile(vTableFileName, vTableNamesMap[myid])
 				if err != nil {
-					log.Errorf("RefreshGlobalMetadata: Error in refreshing vtable for myid=%d  err:%v", myid, err)
+					log.Errorf("RefreshGlobalMetadata: Error in getting vtable names for myid=%d, err:%v", myid, err)
+					continue
 				}
 			}
-			// Call populateMicroIndices for all read segmeta.json
-			var smFile strings.Builder
-			smFile.WriteString(config.GetDataPath() + "ingestnodes/" + node)
-			smFile.WriteString(SEGMETA_FILENAME)
-			smfname := smFile.String()
-			err = populateGlobalMicroIndices(smfname, ownedSegments)
+
+			syncLock.Lock()
+			defer syncLock.Unlock()
+			for myid, vTableNames := range vTableNamesMap {
+				if _, exists := myIdToVTableMap[myid]; !exists {
+					myIdToVTableMap[myid] = make(map[string]struct{})
+				}
+				utils.AddMapKeysToSet(myIdToVTableMap[myid], vTableNames)
+			}
+
+		}(node)
+	}
+
+	wg.Wait()
+
+	// Add all vtable names to the global map
+	err = virtualtable.BulkAddVirtualTableNames(myIdToVTableMap)
+	if err != nil {
+		log.Errorf("RefreshGlobalMetadata: Error in adding virtual table names, err:%v", err)
+		return err
+	}
+
+	// Populate all segmeta files
+	for _, smfname := range allSfmFiles {
+		wg.Add(1)
+		go func(smFile string) {
+			defer wg.Done()
+
+			err := populateGlobalMicroIndices(smFile, ownedSegments)
 			if err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					log.Errorf("RefreshGlobalMetadata: Error loading initial metadata from file %v: %v", smfname, err)
+					log.Errorf("RefreshGlobalMetadata: Error loading initial metadata from file %v: %v", smFile, err)
 				}
 			}
-		}(n)
+		}(smfname)
 	}
+
 	wg.Wait()
+
 	if shouldDiscardUnownedSegments {
 		segmetadata.DiscardUnownedSegments(ownedSegments)
 	}

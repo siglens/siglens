@@ -58,7 +58,7 @@ func Test_PutMetrics(t *testing.T) {
 	totalSuccess := uint64(0)
 	for i := 0; i < 100; i++ {
 		postData := FixtureSamplePayload(i)
-		success, fail, err := HandlePutMetrics(postData)
+		success, fail, err := HandlePutMetrics(postData, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, success, uint64(1))
 		assert.Equal(t, fail, uint64(0))
