@@ -599,38 +599,33 @@ circle:hover{
     padding: 8px;
 }
 
-.logs-metrics-container{
-    margin-top: auto;
-    box-shadow: var(--box-shadow);
-    background-color: var(--black1-to-white0);
-    border: 1px solid var(--search-input-border);
-    border-radius: 10px;
-    padding-bottom: 40px;
-    overflow: auto;
-    height: 250px;
-    padding: 10px;
-}
-.logs-metrics-container .section-button,.max-min-btn {
-    cursor: pointer;
-}
-#timeline-container.expanded,
-.span-details-container.expanded{
+#timeline-container,
+.span-details-container{
     height: calc(100vh - 150px);
-}
-.max-min-btn{
-    font-size: 14px;
-    font-weight: bolder;
-    transform: rotate(-90deg);
-    margin-bottom: 10px;
-}
-.max-min-btn.minimized{
-    transform: rotate(-270deg);
-}
-.logs-metrics-container.minimized{
-    height: 50px;
 }
 
 #timeline-container svg {
     display: block;
     background-color: var(--black1-to-white0);
+}
+.label-container {
+    position: relative;
+    padding-left: 8px;
+}
+
+.vertical-strip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 1px;
+}
+
+.fa-chevron-down, .fa-chevron-right {
+    transition: transform 0.2s ease;
+}
+
+.fa-chevron-down:hover, .fa-chevron-right:hover {
+    color: #333;
 }
