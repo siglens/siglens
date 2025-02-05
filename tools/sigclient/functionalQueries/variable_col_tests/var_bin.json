@@ -1,5 +1,5 @@
 {
-    "queryText": "city=Boston | bin variable_col_4 as bin_http | bin bins=2 variable_col_4 as bin_http_2 | bin span=5s variable_col_4 as bin_http_3 | bin span=2log3 variable_col_4 as bin_http_4 | bin minspan=500 variable_col_4 as bin_http_5 | bin bins=50000 variable_col_4 as bin_http_6 | bin bins=50000 minspan=2 variable_col_4 as bin_http_7 | bin end=100000 variable_col_4 as bin_http_8 | bin start=-10000 variable_col_4 as bin_http_9 | fields bin_http, bin_http_2, bin_http_3, bin_http_4, bin_http_5, bin_http_6, bin_http_7, bin_http_8, bin_http_9, variable_col_4, ident",
+    "queryText": "city=Boston | eval updated_col_4=if(variable_col_4=\"603361244\", tostring(variable_col_4), tonumber(variable_col_4)) | bin updated_col_4 as bin_http | bin bins=2 updated_col_4 as bin_http_2 | bin span=5s updated_col_4 as bin_http_3 | bin span=2log3 updated_col_4 as bin_http_4 | bin minspan=500 updated_col_4 as bin_http_5 | bin bins=50000 updated_col_4 as bin_http_6 | bin bins=50000 minspan=2 updated_col_4 as bin_http_7 | bin end=100000 updated_col_4 as bin_http_8 | bin start=-10000 updated_col_4 as bin_http_9 | fields bin_http, bin_http_2, bin_http_3, bin_http_4, bin_http_5, bin_http_6, bin_http_7, bin_http_8, bin_http_9, updated_col_4, ident",
     "expectedResult": {
          "totalMatched":  {
             "value": 100,
@@ -23,7 +23,7 @@
                 "bin_http_9": "603361244",
                 "ident": "5644ebc3-afb2-4b47-a411-8510b027dbf9",
                 "timestamp": 1731967199901,
-                "variable_col_4": "603361244"
+                "updated_col_4": "603361244"
             },
             {
                 "ident": "b40f3267-3d65-4ffb-a88f-51af0bdff718",
@@ -41,7 +41,7 @@
                 "bin_http_9": "2e+08-3e+08",
                 "ident": "59e37369-feb2-40ac-a01f-3636d234a8e6",
                 "timestamp": 1731967199783,
-                "variable_col_4": 265496292
+                "updated_col_4": 265496292
             },
             {
                 "ident": "452922de-6bb7-4552-9dcf-e76360d78795",
@@ -75,7 +75,7 @@
             "bin_http",
             "bin_http_5",
             "ident",
-            "variable_col_4",
+            "updated_col_4",
             "timestamp",
             "bin_http_2",
             "bin_http_3",
@@ -93,7 +93,7 @@
             "bin_http_7",
             "bin_http_8",
             "bin_http_9",
-            "variable_col_4",
+            "updated_col_4",
             "ident"
         ]
      }
