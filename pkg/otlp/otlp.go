@@ -138,7 +138,7 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
-	usageStats.UpdateTracesStats(uint64(len(data)), uint64(numSpans), 0)
+	usageStats.UpdateTracesStats(uint64(len(data)), uint64(numSpans), myid)
 	// Send the appropriate response.
 	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
 }
