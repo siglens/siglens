@@ -48,6 +48,8 @@ import (
 	entryHandler "github.com/siglens/siglens/pkg/server/ingest"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 
+	"sort"
+
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	ingestserver "github.com/siglens/siglens/pkg/server/ingest"
 	queryserver "github.com/siglens/siglens/pkg/server/query"
@@ -423,4 +425,27 @@ func startQueryServer(serverAddr string) {
 
 	query.InitMaxRunningQueries()
 	go query.PullQueriesToRun()
+}
+
+// SK changes
+
+func exactperc(values []float64, percentile float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	sort.Float64s(values)
+	index := int(percentile * float64(len(values)-1) / 100)
+	return values[index]
+}
+
+func exactperc99(values []float64) float64 {
+	return exactperc(values, 99)
+}
+
+func perc66_6(values []float64) float64 {
+	return exactperc(values, 66.6)
+}
+
+func upperperc6_6(values []float64) float64 {
+	return exactperc(values, 93.4)
 }
