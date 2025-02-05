@@ -303,11 +303,6 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
 
-	var ownedSegments map[string]struct{}
-	if hook := hooks.GlobalHooks.GetOwnedSegmentsHook; hook != nil {
-		ownedSegments = hook()
-	}
-
 	for vTableName := range vTableNames {
 		streamid := utils.CreateStreamId(vTableName, myId)
 		vTableBaseDir := config.GetBaseVTableDir(streamid, vTableName)
@@ -321,11 +316,6 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 		for _, file := range filesInDir {
 			fileName := file.Name()
 			segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fileName)
-			if ownedSegments != nil {
-				if _, exists := ownedSegments[segkey]; !exists {
-					continue
-				}
-			}
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue
@@ -356,7 +346,7 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 	}
 
 	writer.BulkAddRotatedSegmetas(segMetaSlice, false)
-	log.Infof("syncSegMetaWithSegFullMeta: Added %d segmeta entries", smiCount)
+	log.Infof("syncSegMetaWithSegFullMeta: myid=%v, Added %d segmeta entries", myId, smiCount)
 }
 
 func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {
