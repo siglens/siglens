@@ -607,7 +607,9 @@ circle:hover{
 #timeline-container svg {
     display: block;
     background-color: var(--black1-to-white0);
+    border-bottom: 1px solid var(--time-tick);
 }
+
 .label-container {
     position: relative;
     padding-left: 8px;

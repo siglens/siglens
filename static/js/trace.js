@@ -232,7 +232,7 @@ function displayTimeline(data) {
 
     function updateTimeline() {
         const totalHeight = calculateTotalHeight(data);
-        const padding = { top: 0, right: 10, bottom: 10, left: 20 };
+        const padding = { top: 0, right: 10, bottom: 10, left: 30 };
         const labelWidth = 400;
 
         d3.select('#timeline-container').selectAll('*').remove();
@@ -258,15 +258,20 @@ function displayTimeline(data) {
         const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
         // Timeline container
-        const timelineContainer = scrollContainer.append('div').style('overflow', 'visible').style('flex-grow', '1');
+        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%');
 
-        const timelineSvg = timelineContainer.append('svg').attr('width', svgWidth).attr('height', totalHeight);
+        const timelineSvg = timelineContainer
+            .append('svg')
+            .style('width', '100%')
+            .style('height', totalHeight + 'px')
+            .attr('height', totalHeight) // Fixed height
+            .attr('preserveAspectRatio', 'none'); // Allow independent scaling
+        let containerWidth = timelineContainer.node().getBoundingClientRect().width;
 
-        // Setup scales
         const xScale = d3
             .scaleLinear()
             .domain([nsToMs(data.start_time), nsToMs(data.end_time)])
-            .range([0, svgWidth - 100]);
+            .range([0, containerWidth - 100]); // Leave some padding
 
         // Add time labels
         const timeTicks = xScale.ticks(4);
@@ -374,15 +379,18 @@ function displayTimeline(data) {
                 }
 
                 //eslint-disable-next-line no-unused-vars
+                // When creating rectangles in renderTimeline:
                 const rect = timelineSvg
                     .append('rect')
+                    .attr('class', 'timeline-bar')
                     .attr('x', xScale(nsToMs(node.start_time)))
-                    .attr('y', y)
+                    .attr('y', y) // y position stays fixed
                     .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
-                    .attr('height', 14)
+                    .attr('height', 14) // height stays fixed
                     .attr('rx', 2)
                     .attr('ry', 2)
                     .attr('fill', node.color)
+                    .datum(node) // Attach data for resize updates
                     .on('mouseover', function (event) {
                         d3.select(this).style('cursor', 'pointer');
                         showTooltip(event, node);
@@ -390,13 +398,16 @@ function displayTimeline(data) {
                     .on('mouseout', hideTooltip)
                     .on('click', () => showSpanDetails(node));
 
+                // Duration text in renderTimeline:
                 timelineSvg
                     .append('text')
+                    .attr('class', 'duration-label') // Make sure we use this class
+                    .datum(node) // Attach the full node data
                     .attr('x', xScale(nsToMs(node.end_time)) + 5)
                     .attr('y', y + 12)
                     .text(`${nsToMs(node.duration)}ms`)
                     .style('font-size', '10px')
-                    .attr('class', 'normal-node')
+                    .attr('class', 'normal-node duration-label') // Add both classes
                     .style('cursor', 'pointer')
                     .on('click', () => showSpanDetails(node));
             }
@@ -416,6 +427,54 @@ function displayTimeline(data) {
         if (firstSpan) {
             showSpanDetails(firstSpan);
         }
+
+        const resizeHandler = () => {
+            // Update container width
+            containerWidth = timelineContainer.node().getBoundingClientRect().width;
+
+            // Update x scale
+            xScale.range([0, containerWidth - 100]);
+
+            // Update time labels
+            const timeTicks = xScale.ticks(4);
+            timeHeaderSvg
+                .selectAll('.time-label')
+                .data(timeTicks)
+                .join('text')
+                .attr('class', 'time-label')
+                .attr('x', (d) => xScale(d) + 14)
+                .attr('y', 26)
+                .attr('text-anchor', 'middle')
+                .text((d) => `${d}ms`);
+
+            // Update time grid lines
+            timelineSvg
+                .selectAll('.time-tick')
+                .data(timeTicks)
+                .join('line')
+                .attr('class', 'time-tick')
+                .attr('x1', (d) => xScale(d))
+                .attr('x2', (d) => xScale(d))
+                .attr('y1', 0)
+                .attr('y2', totalHeight)
+                .attr('stroke', '#eee')
+                .attr('stroke-dasharray', '2,2');
+
+            // Update rectangles
+            timelineSvg
+                .selectAll('rect.timeline-bar')
+                .attr('x', (d) => xScale(nsToMs(d.start_time)))
+                .attr('width', (d) => Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time))));
+
+            // Update duration labels to stay at the end of bars
+            timelineSvg.selectAll('text.duration-label').attr('x', (d) => {
+                const barEndX = xScale(nsToMs(d.end_time));
+                return barEndX + 5; // 5px padding after bar
+            });
+        };
+
+        const debouncedResize = _.debounce(resizeHandler, 150);
+        window.addEventListener('resize', debouncedResize);
     }
 
     const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt').style('display', 'none');
@@ -449,7 +508,7 @@ function displayTimeline(data) {
 
 function showSpanDetails(node) {
     let spanDetailsContainer = d3.select('.span-details-container');
-    spanDetailsContainer.style('display', 'block');
+    // spanDetailsContainer.style('display', 'block');
     spanDetailsContainer.html(
         `
         <div class="d-flex justify-content-between align-items-center">
