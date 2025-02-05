@@ -409,31 +409,6 @@ function displayTimeline(data) {
             }
         }
 
-        const tooltip = d3.select('body').selectAll('.tooltip-gantt').data([0]);
-
-        function showTooltip(event, node) {
-            tooltip
-                .style('display', 'block')
-                .html(
-                    `
-                    <strong>${node.service_name} : ${node.operation_name}</strong><br>
-                    <strong>SpanId</strong>: ${node.span_id}<br>
-                    <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
-                    <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
-                    <strong>Duration</strong>: ${nsToMs(node.duration)}ms<br>
-                    <strong>Tags</strong>: ${Object.entries(node.tags)
-                        .map(([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`)
-                        .join('')}
-                `
-                )
-                .style('left', event.pageX + 10 + 'px')
-                .style('top', event.pageY - 28 + 'px');
-        }
-
-        function hideTooltip() {
-            tooltip.style('display', 'none');
-        }
-
         // Render the timeline
         renderTimeline(data);
 
@@ -441,6 +416,31 @@ function displayTimeline(data) {
         if (firstSpan) {
             showSpanDetails(firstSpan);
         }
+    }
+
+    const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt').style('display', 'none');
+
+    function hideTooltip() {
+        tooltip.style('display', 'none');
+    }
+
+    function showTooltip(event, node) {
+        tooltip
+            .style('display', 'block')
+            .html(
+                `
+                <strong>${node.service_name} : ${node.operation_name}</strong><br>
+                <strong>SpanId</strong>: ${node.span_id}<br>
+                <strong>Start Time</strong>: ${nsToMs(node.start_time)}ms<br>
+                <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
+                <strong>Duration</strong>: ${nsToMs(node.duration)}ms<br>
+                <strong>Tags</strong>: ${Object.entries(node.tags)
+                    .map(([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`)
+                    .join('')}
+            `
+            )
+            .style('left', event.pageX + 10 + 'px')
+            .style('top', event.pageY - 28 + 'px');
     }
 
     // Initial render
