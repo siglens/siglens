@@ -65,6 +65,7 @@ type Stats struct {
 	MetricsBytesCount           uint64
 	TraceBytesCount             uint64
 	TraceSpanCount              uint64
+	TotalTraceSpanCount         uint64
 }
 
 var ustats = make(map[int64]*Stats)
@@ -318,17 +319,21 @@ func ForceFlushStatstoFile() {
 	}
 }
 
-func logStatSummary(orgid int64) {
-	if _, ok := ustats[orgid]; ok {
-		log.Infof("Ingest stats: past minute : events=%v, metrics=%v, bytes=%v",
-			msgPrinter.Sprintf("%v", ustats[orgid].LogLinesCount),
-			msgPrinter.Sprintf("%v", ustats[orgid].MetricsDatapointsCount),
-			msgPrinter.Sprintf("%v", ustats[orgid].BytesCount))
+func logStatSummary(myid int64) {
+	if _, ok := ustats[myid]; ok {
+		log.Infof("Ingest stats: past minute : myid=%v, events=%v, metrics=%v, traces=%v, bytes=%v",
+			myid,
+			msgPrinter.Sprintf("%v", ustats[myid].LogLinesCount),
+			msgPrinter.Sprintf("%v", ustats[myid].MetricsDatapointsCount),
+			msgPrinter.Sprintf("%v", ustats[myid].TraceSpanCount),
+			msgPrinter.Sprintf("%v", ustats[myid].BytesCount))
 
-		log.Infof("Ingest stats: total so far: events=%v, metrics=%v, bytes=%v",
-			msgPrinter.Sprintf("%v", ustats[orgid].TotalLogLinesCount),
-			msgPrinter.Sprintf("%v", ustats[orgid].TotalMetricsDatapointsCount),
-			msgPrinter.Sprintf("%v", ustats[orgid].TotalBytesCount))
+		log.Infof("Ingest stats: total so far: myid=%v, events=%v, metrics=%v, traces=%v, bytes=%v",
+			myid,
+			msgPrinter.Sprintf("%v", ustats[myid].TotalLogLinesCount),
+			msgPrinter.Sprintf("%v", ustats[myid].TotalMetricsDatapointsCount),
+			msgPrinter.Sprintf("%v", ustats[myid].TotalTraceSpanCount),
+			msgPrinter.Sprintf("%v", ustats[myid].TotalBytesCount))
 	}
 }
 
@@ -422,6 +427,7 @@ func UpdateTracesStats(traceBytesCount uint64, traceSpanCount uint64, orgid int6
 	atomic.AddUint64(&ustats[orgid].BytesCount, traceBytesCount)
 	atomic.AddUint64(&ustats[orgid].TraceBytesCount, traceBytesCount)
 	atomic.AddUint64(&ustats[orgid].TraceSpanCount, traceSpanCount)
+	atomic.AddUint64(&ustats[orgid].TotalTraceSpanCount, traceSpanCount)
 	atomic.AddUint64(&ustats[orgid].TotalBytesCount, traceBytesCount)
 }
 
