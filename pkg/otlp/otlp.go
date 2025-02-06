@@ -41,6 +41,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const contentTypeHeader = "Content-Type"
+const protobufContentType = "application/x-protobuf" // This might be OTLP specific; not sure.
+
+func getContentType(ctx *fasthttp.RequestCtx) string {
+	return string(ctx.Request.Header.Peek(contentTypeHeader))
+}
+
+func setContentType(ctx *fasthttp.RequestCtx, contentType string) {
+	ctx.Response.Header.Set(contentTypeHeader, contentType)
+}
+
 func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTLP_TRACES, false)
@@ -50,9 +61,9 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	// All requests and responses should be protobufs.
-	ctx.Response.Header.Set("Content-Type", "application/x-protobuf")
-	if string(ctx.Request.Header.Peek("Content-Type")) != "application/x-protobuf" {
-		log.Infof("ProcessTraceIngest: got a non-protobuf request. Got Content-Type: %s", string(ctx.Request.Header.Peek("Content-Type")))
+	setContentType(ctx, protobufContentType)
+	if contentType := getContentType(ctx); contentType != protobufContentType {
+		log.Infof("ProcessTraceIngest: got a non-protobuf request. Got Content-Type: %s", contentType)
 		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
 		return
 	}
