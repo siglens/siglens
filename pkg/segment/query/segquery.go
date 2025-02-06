@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/siglens/siglens/pkg/blob"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -105,15 +106,25 @@ func queryMetricsLooper() {
 }
 
 func initSyncSegMetaForAllIds(getMyIds func() []int64) {
-	defaultId := int64(0)
-	syncSegMetaWithSegFullMeta(defaultId)
+	var allSegKeys map[string]struct{}
+	var err error
+
+	if hook := hooks.GlobalHooks.GetAllSegmentsHook; hook != nil {
+		allSegKeys, err = hook()
+		if err != nil {
+			log.Errorf("initSyncSegMetaForAllIds: Error in getting all SegKeys, err:%v", err)
+			return
+		}
+	}
+
+	totalAddedSmiCount := 0
 
 	for _, myId := range getMyIds() {
-		if myId == defaultId {
-			continue
-		}
+		totalAddedSmiCount += syncSegMetaWithSegFullMeta(myId, allSegKeys)
+	}
 
-		syncSegMetaWithSegFullMeta(myId)
+	if totalAddedSmiCount > 0 {
+		blob.UploadIngestNodeDir()
 	}
 }
 
