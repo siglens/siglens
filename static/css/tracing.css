@@ -449,15 +449,12 @@ a.warn-box-anchor {
 }
 
 .labels-container{
-    position: sticky;
-    left: 0;
-    z-index: 2;
     flex-shrink: 0;
 }
 
 .labels-container svg {
     overflow: visible;
-    border-right: 1px solid var(--time-tick);
+    /* border-right: 1px solid var(--time-tick); */
 }
 
 .header-div{
@@ -613,6 +610,7 @@ circle:hover{
 .label-container {
     position: relative;
     padding-left: 8px;
+    border-bottom: 1px solid var(--time-tick);
 }
 
 .vertical-strip {
@@ -640,4 +638,9 @@ circle:hover{
     font-weight: normal;
     color: var(--table-or-regular-text-color) ;
     font-size: 10px;
+}
+
+body.resizing {
+    user-select: none;
+    cursor: col-resize;
 }
