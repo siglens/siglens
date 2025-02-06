@@ -263,7 +263,9 @@ func GetGroupByTokens(cols, first, rest interface{}, idx int, limit int) *struct
 func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error) {
 	var aggFunc utils.AggregateFunctions
 
-	if aggType == "avg" {
+	if aggType == "sumsq" {
+		aggFunc = utils.Sumsq
+	}else if aggType == "avg" {
 		aggFunc = utils.Avg
 	} else if aggType == "min" {
 		aggFunc = utils.Min
@@ -275,9 +277,7 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
-	}  else if aggType == "sumsq" {
-		aggFunc = utils.Sumsq
-	}else {
+	} else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}
 	return aggFunc, nil

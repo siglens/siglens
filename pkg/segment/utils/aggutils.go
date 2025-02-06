@@ -74,6 +74,9 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	switch e1.Dtype {
 	case SS_DT_UNSIGNED_NUM:
 		switch fun {
+		case Sumsq:
+			e1.CVal = e1.CVal.(uint64)+ (e2.CVal.(uint64)*e2.CVal.(uint64))
+			return e1, nil
 		case Sum, Count:
 			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
 			return e1, nil
@@ -83,14 +86,14 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
-		case Sumsq:
-			e1.CVal = e1.CVal.(uint64)+ (e2.CVal.(uint64)*e2.CVal.(uint64))
-			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
 		}
 	case SS_DT_SIGNED_NUM:
 		switch fun {
+		case Sumsq: 
+			e1.CVal = e1.CVal.(int64) + (e2.CVal.(int64) * e2.CVal.(int64))
+			return e1, nil
 		case Sum, Count:
 			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)
 			return e1, nil
@@ -100,14 +103,14 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
-		case Sumsq: 
-			e1.CVal = e1.CVal.(int64) + (e2.CVal.(int64) * e2.CVal.(int64))
-			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
+		case Sumsq:
+			e1.CVal = e1.CVal.(float64) + (e2.CVal.(float64) * e2.CVal.(float64))
+			return e1, nil
 		case Sum, Count:
 			e1.CVal = e1.CVal.(float64) + e2.CVal.(float64)
 			return e1, nil
@@ -116,9 +119,6 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			return e1, nil
 		case Max:
 			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
-			return e1, nil
-		case Sumsq:
-			e1.CVal = e1.CVal.(float64) + (e2.CVal.(float64) * e2.CVal.(float64))
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
@@ -218,6 +218,9 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 	switch self.Ntype {
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		switch fun {
+		case Sumsq: 
+			self.IntgrVal = self.IntgrVal + (e2int64 * e2int64)
+			return nil
 		case Sum:
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
@@ -230,14 +233,14 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
-		case Sumsq: 
-			self.IntgrVal = self.IntgrVal + (e2int64 * e2int64)
-			return nil
 		default:
 			return fmt.Errorf("ReduceFast: unsupported int function: %v", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
+		case Sumsq:
+			self.FloatVal = self.FloatVal + (e2float64 * e2float64)
+			return nil
 		case Sum:
 			self.FloatVal = self.FloatVal + e2float64
 			return nil
@@ -249,9 +252,6 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			return nil
 		case Count:
 			self.FloatVal = self.FloatVal + e2float64
-			return nil
-		case Sumsq:
-			self.FloatVal = self.FloatVal + (e2float64 * e2float64)
 			return nil
 		default:
 			return fmt.Errorf("ReduceFast: unsupported float function: %v", fun)

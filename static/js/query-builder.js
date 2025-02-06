@@ -154,7 +154,7 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
-var calculations = ['min', 'max', 'count', 'avg','sumsq'];
+var calculations = ['sumsq','min', 'max', 'count', 'avg','sum'];
 var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];

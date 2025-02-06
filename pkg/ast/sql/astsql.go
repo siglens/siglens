@@ -113,6 +113,8 @@ func getInTable(exp string) (string, error) {
 func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 	agg = strings.ToLower(agg)
 	switch agg {
+	case "sumsq":
+		return utils.Sumsq
 	case "count":
 		return utils.Count
 	case "avg":
@@ -125,8 +127,6 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Sum
 	case "cardinality":
 		return utils.Cardinality
-	case "sumsq":
-		return utils.Sumsq
 	default:
 		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0
@@ -146,7 +146,6 @@ func getMathEvaluatorSQL(op string, qid uint64) (utils.MathFunctions, error) {
 		return utils.Sqrt, nil
 	case "exp":
 		return utils.Exp, nil
-		
 	default:
 		log.Errorf("qid=%v, getMathEvaluatorSQL: math evaluator type: %v is not supported!", qid, op)
 		return 0, fmt.Errorf("math evaluator type not supported")
