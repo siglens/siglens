@@ -242,18 +242,18 @@ function displayTimeline(data) {
         const containerDiv = d3.select('#timeline-container');
         containerDiv.selectAll('*').remove();
 
-        const wrapper = containerDiv.append('div').style('position', 'relative').style('width', '100%').style('height', '100%').style('display', 'flex').style('flex-direction', 'column');
+        const wrapper = containerDiv.append('div').style('position', 'relative').style('width', '100%').style('height', '100%').style('display', 'flex').style('flex-direction', 'column').style('min-width', '600px');
 
         // Create fixed header container
-        const headerDiv = wrapper.append('div').attr('class', 'header-div');
+        const headerDiv = wrapper.append('div').attr('class', 'header-div').style('min-width', '600px');
 
         // Service and Operation header (fixed)
-        const labelHeaderDiv = headerDiv.append('div').style('min-width', `${labelWidth}px`).style('padding-left', `${padding.left}px`).style('padding-top', '10px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
+        const labelHeaderDiv = headerDiv.append('div').style('min-width', '200px').style('padding-left', `${padding.left}px`).style('width', `${labelWidth}px`).style('padding-top', '10px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
 
         // Time labels container
-        const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1');
+        const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1').style('min-width', '400px');
 
-        const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px');
+        const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px').style('min-width', '400px');
 
         const resizer = wrapper
             .append('div')
@@ -265,25 +265,27 @@ function displayTimeline(data) {
             .style('background', '#ddd')
             .style('cursor', 'col-resize')
             .style('z-index', '99')
-            .style('transition', 'background-color 0.2s');
+            .style('transition', 'background-color 0.2s')
+            .style('min-left', '200px');
 
         // Main scrollable container
-        const scrollContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)');
+        const scrollContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)').style('min-width', '600px');
 
         // Labels container
-        const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', `${labelWidth}px`).style('flex-shrink', '0');
+        const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
 
         const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
         // Timeline container
-        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%');
+        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
 
         const timelineSvg = timelineContainer
             .append('svg')
             .style('width', '100%')
             .style('height', totalHeight + 'px')
-            .attr('height', totalHeight) // Fixed height
-            .attr('preserveAspectRatio', 'none'); // Allow independent scaling
+            .attr('height', totalHeight)
+            .attr('preserveAspectRatio', 'none');
+
         let containerWidth = timelineContainer.node().getBoundingClientRect().width;
         const xScale = d3
             .scaleLinear()
@@ -292,7 +294,7 @@ function displayTimeline(data) {
 
         function updateTimelineElements() {
             // Update time scale
-            containerWidth = timelineContainer.node().getBoundingClientRect().width;
+            containerWidth = Math.max(400, timelineContainer.node().getBoundingClientRect().width);
             xScale.range([0, containerWidth - 100]);
 
             // Update time labels
@@ -335,47 +337,35 @@ function displayTimeline(data) {
         let startX;
         let startWidth;
 
-        resizer
-            .on('mouseenter', function () {
-                d3.select(this).style('background', '#999');
-            })
-            .on('mouseleave', function () {
-                if (!isResizing) {
-                    d3.select(this).style('background', '#ddd');
-                }
-            })
-            .on('mousedown', function (event) {
-                isResizing = true;
-                startX = event.clientX;
-                startWidth = labelWidth;
-
-                d3.select('body').style('cursor', 'col-resize').style('user-select', 'none');
-            });
+        resizer.on('mousedown', function (event) {
+            isResizing = true;
+            startX = event.clientX;
+            startWidth = labelWidth;
+            d3.select('body').style('cursor', 'col-resize').style('user-select', 'none');
+        });
 
         d3.select('body')
             .on('mousemove', function (event) {
                 if (!isResizing) return;
 
                 const dx = event.clientX - startX;
-                const newWidth = Math.max(200, startWidth + dx);
+                const newWidth = Math.max(200, Math.min(startWidth + dx, window.innerWidth - 400));
 
                 labelWidth = newWidth;
 
-                // Update widths and positions
+                labelsContainer.style('width', `${newWidth}px`);
+                labelHeaderDiv.style('width', `${newWidth}px`);
+                headerDiv.select('div').style('width', `${newWidth}px`);
+                resizer.style('left', `${newWidth}px`);
                 labelsContainer.style('min-width', newWidth + 'px');
-                headerDiv.select('div').style('min-width', newWidth + 'px');
-                resizer.style('left', newWidth + 'px');
                 labelsSvg.attr('width', newWidth);
 
                 updateTimelineElements();
             })
             .on('mouseup', function () {
                 if (!isResizing) return;
-
                 isResizing = false;
                 d3.select('body').style('cursor', 'default').style('user-select', 'auto');
-
-                resizer.style('background', '#ddd');
             });
 
         // Initial render
@@ -394,7 +384,6 @@ function displayTimeline(data) {
             .attr('text-anchor', 'middle')
             .text((d) => `${d}ms`);
 
-        // Add time grid
         timelineSvg
             .selectAll('.time-tick')
             .data(timeTicks)
