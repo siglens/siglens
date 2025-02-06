@@ -35,8 +35,11 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const contentTypeHeader = "Content-Type"
+
 const (
-	ContentJson = "application/json; charset=utf-8"
+	ContentJson     = "application/json; charset=utf-8"
+	ContentProtobuf = "application/x-protobuf"
 )
 
 type HttpServerResponse struct {
@@ -976,4 +979,12 @@ func EncodeURL(str string) (string, error) {
 	}
 	u.RawQuery = url.QueryEscape(u.RawQuery)
 	return u.String(), nil
+}
+
+func GetContentType(ctx *fasthttp.RequestCtx) string {
+	return string(ctx.Request.Header.Peek(contentTypeHeader))
+}
+
+func SetContentType(ctx *fasthttp.RequestCtx, contentType string) {
+	ctx.Response.Header.Set(contentTypeHeader, contentType)
 }

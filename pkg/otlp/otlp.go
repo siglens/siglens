@@ -46,8 +46,8 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	// All requests and responses should be protobufs.
-	setContentType(ctx, protobufContentType)
-	if contentType := getContentType(ctx); contentType != protobufContentType {
+	utils.SetContentType(ctx, utils.ContentProtobuf)
+	if contentType := utils.GetContentType(ctx); contentType != utils.ContentProtobuf {
 		log.Infof("ProcessTraceIngest: got a non-protobuf request. Got Content-Type: %s", contentType)
 		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
 		return

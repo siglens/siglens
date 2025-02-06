@@ -12,17 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const contentTypeHeader = "Content-Type"
-const protobufContentType = "application/x-protobuf" // This might be OTLP specific.
-
-func getContentType(ctx *fasthttp.RequestCtx) string {
-	return string(ctx.Request.Header.Peek(contentTypeHeader))
-}
-
-func setContentType(ctx *fasthttp.RequestCtx, contentType string) {
-	ctx.Response.Header.Set(contentTypeHeader, contentType)
-}
-
 func getUncompressedData(ctx *fasthttp.RequestCtx) ([]byte, error) {
 	data := ctx.PostBody()
 	if requiresGzipDecompression(ctx) {
