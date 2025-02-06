@@ -6,11 +6,32 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 )
+
+func getDataToUnmarshal(ctx *fasthttp.RequestCtx) ([]byte, error) {
+	// We don't support JSON requests yet.
+	if contentType := utils.GetContentType(ctx); contentType != utils.ContentProtobuf {
+		log.Errorf("getDataToUnmarshal: got a non-protobuf request. Got Content-Type: %s", contentType)
+		return nil, fmt.Errorf("Expected a protobuf request")
+	}
+
+	// From https://opentelemetry.io/docs/specs/otlp/#otlphttp-response:
+	// The server MUST use the same “Content-Type” in the response as it received in the request.
+	utils.SetContentType(ctx, utils.ContentProtobuf)
+
+	data, err := getUncompressedData(ctx)
+	if err != nil {
+		log.Errorf("getDataToUnmarshal: failed to uncompress data: %v", err)
+		return nil, fmt.Errorf("Unable to gzip decompress the data")
+	}
+
+	return data, nil
+}
 
 func getUncompressedData(ctx *fasthttp.RequestCtx) ([]byte, error) {
 	data := ctx.PostBody()

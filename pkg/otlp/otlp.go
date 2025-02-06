@@ -45,19 +45,10 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	// All requests and responses should be protobufs.
-	utils.SetContentType(ctx, utils.ContentProtobuf)
-	if contentType := utils.GetContentType(ctx); contentType != utils.ContentProtobuf {
-		log.Infof("ProcessTraceIngest: got a non-protobuf request. Got Content-Type: %s", contentType)
-		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
-		return
-	}
-
-	// Get the data from the request.
-	data, err := getUncompressedData(ctx)
+	data, err := getDataToUnmarshal(ctx)
 	if err != nil {
-		log.Errorf("ProcessTraceIngest: failed to get uncompressed data: %v", err)
-		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
+		log.Errorf("ProcessTraceIngest: failed to get data to unmarshal: %v", err)
+		setFailureResponse(ctx, fasthttp.StatusBadRequest, err.Error())
 		return
 	}
 
