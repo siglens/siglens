@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2024 SigScalr, Inc.
 //
-// This file is part of SigLens Observability Solution
+// # This file is part of SigLens Observability Solution
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -15,27 +15,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package grpc
+package otlp
 
-// A single request for a segment key
-type SegkeyRequest interface {
-	GetSegmentKey() string
-	GetTableName() string
-	GetStartEpochMs() uint64
-	GetEndEpochMs() uint64
-}
+import (
+	"testing"
 
-type IngestFuncEnum uint32
-
-const (
-	INGEST_FUNC_UNKNOWN IngestFuncEnum = iota
-	INGEST_FUNC_ES_BULK
-	INGEST_FUNC_SPLUNK
-	INGEST_FUNC_OTSDB_METRICS
-	INGEST_FUNC_INFLUX_METRICS
-	INGEST_FUNC_PROMETHEUS_METRICS
-	INGEST_FUNC_OTLP_LOGS
-	INGEST_FUNC_OTLP_TRACES
-	INGEST_FUNC_FAKE_DATA
-	INGEST_FUNC_LOKI
+	"github.com/stretchr/testify/assert"
+	"github.com/valyala/fasthttp"
 )
+
+func Test_Logs_BadContentType(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.Set("Content-Type", "application/foo")
+	ProcessLogIngest(ctx, 0)
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+}
