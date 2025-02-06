@@ -557,10 +557,14 @@ function showSpanDetails(node) {
 
 function calculateTotalHeight(node) {
     let totalHeight = 0;
-    function calculateHeight(node) {
+    function calculateHeight(node, isVisible = true) {
+        if (!isVisible) return;
+        
         totalHeight += 40;
-        if (node.children !== null) {
-            node.children.forEach(calculateHeight);
+        
+        // Only process children if node is expanded and has children
+        if (node.children && node.children.length > 0 && node.isExpanded) {
+            node.children.forEach(child => calculateHeight(child, true));
         }
     }
     calculateHeight(node);
