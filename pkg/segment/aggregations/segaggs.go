@@ -172,7 +172,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 
-func EstimatedDistinctCount(data []uint64) (uint64, error) {
+func Estdc(data []uint64) (uint64, error) {
 	hll := hyperloglog.New16() // Using 16-bit precision HyperLogLog
 	for _, value := range data {
 		hll.InsertHash(value)
@@ -181,7 +181,7 @@ func EstimatedDistinctCount(data []uint64) (uint64, error) {
 }
 
 // EstimatedDistinctCountError (estdc_error)
-func EstimatedDistinctCountError(trueCount, estimatedCount uint64) float64 {
+func EstdcError(trueCount, estimatedCount uint64) float64 {
 	if trueCount == 0 {
 		return 0.0
 	}

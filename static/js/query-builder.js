@@ -154,7 +154,7 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
-var calculations = ['min', 'max', 'count', 'avg', 'sum'];
+var calculations = ['min', 'max', 'count', 'avg', 'sum','estdc','estdc_error'];
 var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];
