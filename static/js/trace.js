@@ -123,6 +123,7 @@ const colorArray = [
 let svgWidth;
 let traceId;
 let colorIndex = 0;
+let spanDetailsClosed = false;
 
 $(document).ready(() => {
     $('.theme-btn').on('click', themePickerHandler);
@@ -200,6 +201,7 @@ function convertNanosecondsToDateTime(timestamp) {
 }
 
 function displayTimeline(data) {
+    spanDetailsClosed = false; 
     // Create a map of service names to colors
     const serviceColors = new Map();
 
@@ -512,7 +514,7 @@ function displayTimeline(data) {
         renderTimeline(data);
 
         // Show details for the first span by default
-        if (firstSpan) {
+        if (firstSpan && !spanDetailsClosed) {
             showSpanDetails(firstSpan);
             updateTimelineElements();
         }
@@ -636,10 +638,11 @@ function showSpanDetails(node) {
     // Handle close button
     spanDetailsContainer.select('.close-btn').on('click', function () {
         spanDetailsContainer.style('display', 'none');
-        window.dispatchEvent(new Event('resize'));
+        spanDetailsClosed = true;
+        updateTimelineElements();
     });
 
-    window.dispatchEvent(new Event('resize'));
+    updateTimelineElements();
 }
 
 function calculateTotalHeight(node) {
