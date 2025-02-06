@@ -145,7 +145,10 @@ resourceLoop:
 					continue recordLoop
 				}
 
-				record := SingleRecord{}
+				record := SingleRecord{
+					Attributes: make(map[string]interface{}),
+				}
+
 				for _, attribute := range logRecord.Attributes {
 					key, value, err := extractKeyValue(attribute)
 					if err != nil {
@@ -157,6 +160,7 @@ resourceLoop:
 					record.Attributes[key] = value
 				}
 
+				indexName = "andrew-test"
 				ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &timestampKey, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ProcessLogIngest: failed to get new PLE, jsonBytes: %v, err: %v", jsonBytes, err)
