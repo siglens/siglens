@@ -154,7 +154,8 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
-var calculations = ['min', 'max', 'count', 'avg', 'sum'];
+//Added stdev and stdevp functions
+var calculations = ['min', 'max', 'count', 'avg', 'sum', 'stdev', 'stdevp'];
 var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];
