@@ -20,6 +20,7 @@ package otlp
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 )
@@ -27,6 +28,15 @@ import (
 func Test_Logs_BadContentType(t *testing.T) {
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.Header.Set("Content-Type", "application/foo")
+	ProcessLogIngest(ctx, 0)
+
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+}
+
+func Test_Logs_BadBody(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.Set("Content-Type", utils.ContentProtobuf)
+	ctx.Request.SetBody([]byte("bad body"))
 	ProcessLogIngest(ctx, 0)
 
 	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())

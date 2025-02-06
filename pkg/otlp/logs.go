@@ -22,6 +22,8 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
+	collogpb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
@@ -32,20 +34,19 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	_, err := getDataToUnmarshal(ctx)
+	data, err := getDataToUnmarshal(ctx)
 	if err != nil {
 		log.Errorf("ProcessTraceIngest: failed to get data to unmarshal: %v", err)
 		setFailureResponse(ctx, fasthttp.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Unmarshal the data.
-	// request, err := unmarshalLogRequest(data)
-	// if err != nil {
-	// 	log.Errorf("ProcessTraceIngest: failed to unpack Data: %s with err %v", string(data), err)
-	// 	setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to unmarshal traces")
-	// 	return
-	// }
+	_, err = unmarshalLogRequest(data)
+	if err != nil {
+		log.Errorf("ProcessTraceIngest: failed to unpack Data: %s with err %v", string(data), err)
+		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to unmarshal traces")
+		return
+	}
 
 	// err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	// if err != nil {
@@ -60,16 +61,16 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	// handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
 }
 
-// func unmarshalLogRequest(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
-// 	// var trace coltracepb.ExportTraceServiceRequest
-// 	// err := proto.Unmarshal(data, &trace)
-// 	// if err != nil {
-// 	// 	log.Errorf("unmarshalTraceRequest: failed to unmarshal trace request. err: %v data: %v", err, string(data))
-// 	// 	return nil, err
-// 	// }
-// 	// return &trace, nil
-// 	panic("unmarshalLogRequest not implemented")
-// }
+func unmarshalLogRequest(data []byte) (*collogpb.ExportLogsServiceRequest, error) {
+	var logs collogpb.ExportLogsServiceRequest
+	err := proto.Unmarshal(data, &logs)
+	if err != nil {
+		log.Errorf("unmarshalLogRequest: failed with err: %v data: %v", err, string(data))
+		return nil, err
+	}
+
+	return &logs, nil
+}
 
 // func handleLogIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {
 // 	// if numFailedSpans == 0 {
