@@ -231,6 +231,10 @@ function displayTimeline(data) {
     assignServiceColors(data);
 
     function updateTimeline() {
+        const oldContainer = document.querySelector('#timeline-container > div:nth-child(2)');
+        const scrollTop = oldContainer ? oldContainer.scrollTop : 0;
+        const scrollLeft = oldContainer ? oldContainer.scrollLeft : 0;
+
         const totalHeight = calculateTotalHeight(data);
         const padding = { top: 0, right: 10, bottom: 10, left: 30 };
         const labelWidth = 400;
@@ -324,6 +328,7 @@ function displayTimeline(data) {
                     .attr('transform', 'translate(-20, 0)')
                     .style('cursor', 'pointer')
                     .on('click', () => {
+                        event.stopPropagation();
                         node.isExpanded = !node.isExpanded;
                         updateTimeline();
                     });
@@ -427,6 +432,14 @@ function displayTimeline(data) {
         if (firstSpan) {
             showSpanDetails(firstSpan);
         }
+
+        requestAnimationFrame(() => {
+            const newContainer = document.querySelector('#timeline-container > div:nth-child(2)');
+            if (newContainer) {
+                newContainer.scrollTop = scrollTop;
+                newContainer.scrollLeft = scrollLeft;
+            }
+        });
 
         const resizeHandler = () => {
             // Update container width
