@@ -261,7 +261,7 @@ function displayTimeline(data) {
             .style('left', labelWidth + 'px')
             .style('min-left', '200px');
 
-        const mainContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto')
+        const mainContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto');
 
         // Labels container
         const labelsContainer = mainContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
@@ -514,6 +514,7 @@ function displayTimeline(data) {
         // Show details for the first span by default
         if (firstSpan) {
             showSpanDetails(firstSpan);
+            updateTimelineElements();
         }
 
         requestAnimationFrame(() => {
@@ -604,7 +605,7 @@ function displayTimeline(data) {
 
 function showSpanDetails(node) {
     let spanDetailsContainer = d3.select('.span-details-container');
-    // spanDetailsContainer.style('display', 'block');
+    spanDetailsContainer.style('display', 'block');
     spanDetailsContainer.html(
         `
         <div class="d-flex justify-content-between align-items-center">
@@ -633,9 +634,13 @@ function showSpanDetails(node) {
         `
     );
 
+    // Handle close button
     spanDetailsContainer.select('.close-btn').on('click', function () {
         spanDetailsContainer.style('display', 'none');
+        window.dispatchEvent(new Event('resize'));
     });
+
+    window.dispatchEvent(new Event('resize'));
 }
 
 function calculateTotalHeight(node) {

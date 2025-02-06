@@ -453,6 +453,9 @@ a.warn-box-anchor {
     border-bottom: 1px solid var(--time-tick);
 }
 
+.labels-container svg {
+    overflow: visible;
+}
 
 .header-div{
     position: sticky;
@@ -482,7 +485,7 @@ a.warn-box-anchor {
     font-size: 12px;
     color: var(--subsection-border);
     font-weight: normal !important;
-
+    margin-left: 10px;
 }
 
 .trace-name .trace-id{
@@ -543,7 +546,7 @@ a.warn-box-anchor {
     background-color: var(--ui-widget-bg-color) !important;
     padding: 5px;
     border-radius: 5px;
-    font-size: 12px;
+    font-size: 10px;
 }
 
 .tooltip-design {
