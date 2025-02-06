@@ -350,15 +350,15 @@ function displayTimeline(data) {
             if (node.is_anomalous) {
                 const errorGroup = labelGroup.append('g').attr('transform', 'translate(-35, 4)').style('cursor', 'pointer');
 
-                errorGroup.append('circle').attr('cx', 8).attr('cy', 5).attr('r', 8).attr('fill', '#ef4444');
+                errorGroup.append('circle').attr('cx', 6).attr('cy', 6).attr('r', 6).attr('fill', '#ef4444');
 
                 errorGroup
                     .append('text')
-                    .attr('x', 8)
-                    .attr('y', 6)
+                    .attr('x', 6)
+                    .attr('y', 7)
                     .attr('text-anchor', 'middle')
                     .attr('fill', 'white')
-                    .attr('font-size', '12px')
+                    .attr('font-size', '9px')
                     .attr('font-weight', 'bold')
                     .style('dominant-baseline', 'middle')
                     .text('!')
@@ -369,14 +369,18 @@ function displayTimeline(data) {
             labelGroup
                 .append('text')
                 .attr('x', 10)
-                .attr('y', 12)
-                .text(`${node.service_name}:${node.operation_name}`)
+                .attr('y', 14)
                 .attr('class', 'node-label')
                 .classed('anomalous-node', node.is_anomalous)
                 .classed('normal-node', !node.is_anomalous)
                 .classed('error-node', node.status === 'STATUS_CODE_ERROR')
                 .style('cursor', 'pointer')
-                .on('click', () => showSpanDetails(node));
+                .on('click', () => showSpanDetails(node))
+                .each(function () {
+                    const text = d3.select(this);
+                    text.append('tspan').attr('class', 'node-label-service').text(node.service_name);
+                    text.append('tspan').attr('class', 'node-label-operation').text(node.operation_name).attr('dx', '10');
+                });
 
             if (!node.is_anomalous) {
                 if (firstSpan === null) {
@@ -559,12 +563,12 @@ function calculateTotalHeight(node) {
     let totalHeight = 0;
     function calculateHeight(node, isVisible = true) {
         if (!isVisible) return;
-        
+
         totalHeight += 40;
-        
+
         // Only process children if node is expanded and has children
         if (node.children && node.children.length > 0 && node.isExpanded) {
-            node.children.forEach(child => calculateHeight(child, true));
+            node.children.forEach((child) => calculateHeight(child, true));
         }
     }
     calculateHeight(node);

@@ -631,3 +631,13 @@ circle:hover{
 .fa-chevron-down:hover, .fa-chevron-right:hover {
     color: #333;
 }
+
+.node-label-service {
+    font-weight: bold;
+}
+
+.node-label-operation {
+    font-weight: normal;
+    color: var(--table-or-regular-text-color) ;
+    font-size: 10px;
+}
