@@ -124,7 +124,10 @@ func initSyncSegMetaForAllIds(getMyIds func() []int64) {
 	}
 
 	if totalAddedSmiCount > 0 {
-		blob.UploadIngestNodeDir()
+		err := blob.UploadIngestNodeDir()
+		if err != nil {
+			log.Errorf("initSyncSegMetaForAllIds: Error in uploading ingest node dir, err:%v", err)
+		}
 	}
 }
 
