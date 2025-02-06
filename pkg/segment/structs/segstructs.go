@@ -1437,8 +1437,6 @@ var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
 	utils.UpperPerc:    {},
 	utils.Median:       {},
 	utils.Mode:         {},
-	utils.Stdev:        {},
-	utils.Stdevp:       {},
 	utils.Sumsq:        {},
 	utils.Var:          {},
 	utils.Varp:         {},
