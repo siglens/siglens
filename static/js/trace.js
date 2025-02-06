@@ -257,15 +257,8 @@ function displayTimeline(data) {
 
         const resizer = wrapper
             .append('div')
-            .style('position', 'absolute')
-            .style('top', '0')
-            .style('bottom', '0')
+            .attr('class', 'gantt-chart-resizer')
             .style('left', labelWidth + 'px')
-            .style('width', '5px')
-            .style('background', '#ddd')
-            .style('cursor', 'col-resize')
-            .style('z-index', '99')
-            .style('transition', 'background-color 0.2s')
             .style('min-left', '200px');
 
         const mainContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto')
@@ -303,7 +296,7 @@ function displayTimeline(data) {
                 .data(timeTicks)
                 .join('text')
                 .attr('class', 'time-label')
-                .attr('x', (d) => xScale(d) + 14)
+                .attr('x', (d) => xScale(d) + 16)
                 .attr('y', 26)
                 .attr('text-anchor', 'middle')
                 .text((d) => `${d}ms`);

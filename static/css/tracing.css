@@ -450,12 +450,9 @@ a.warn-box-anchor {
 
 .labels-container{
     flex-shrink: 0;
+    border-bottom: 1px solid var(--time-tick);
 }
 
-.labels-container svg {
-    overflow: visible;
-    /* border-right: 1px solid var(--time-tick); */
-}
 
 .header-div{
     position: sticky;
@@ -598,7 +595,7 @@ circle:hover{
 
 #timeline-container,
 .span-details-container{
-    height: calc(100vh - 150px);
+    height: calc(100vh - 90px);
 }
 
 #timeline-container svg {
@@ -607,11 +604,6 @@ circle:hover{
     border-bottom: 1px solid var(--time-tick);
 }
 
-.label-container {
-    position: relative;
-    padding-left: 8px;
-    border-bottom: 1px solid var(--time-tick);
-}
 
 .vertical-strip {
     position: absolute;
@@ -643,4 +635,19 @@ circle:hover{
 body.resizing {
     user-select: none;
     cursor: col-resize;
+}
+
+.gantt-chart-resizer{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    z-index: 99;
+    transition: background-color 0.2s;
+}
+
+.gantt-chart-resizer:hover {
+    width: 5px;
+    background: var(--time-tick);
 }
