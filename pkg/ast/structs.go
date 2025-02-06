@@ -275,7 +275,9 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
-	} else {
+	}  else if aggType == "sumsq" {
+		aggFunc = utils.Sumsq
+	}else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}
 	return aggFunc, nil
