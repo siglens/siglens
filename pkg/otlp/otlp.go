@@ -42,7 +42,7 @@ import (
 )
 
 const contentTypeHeader = "Content-Type"
-const protobufContentType = "application/x-protobuf" // This might be OTLP specific; not sure.
+const protobufContentType = "application/x-protobuf" // This might be OTLP specific.
 
 func getContentType(ctx *fasthttp.RequestCtx) string {
 	return string(ctx.Request.Header.Peek(contentTypeHeader))
@@ -69,19 +69,11 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	// Get the data from the request.
-	data := ctx.PostBody()
-	if requiresGzipDecompression(ctx) {
-		reader, err := gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
-			return
-		}
-
-		data, err = io.ReadAll(reader)
-		if err != nil {
-			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
-			return
-		}
+	data, err := getUncompressedData(ctx)
+	if err != nil {
+		log.Errorf("ProcessTraceIngest: failed to get uncompressed data: %v", err)
+		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
+		return
 	}
 
 	// Unmarshal the data.
@@ -152,6 +144,23 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	usageStats.UpdateTracesStats(uint64(len(data)), uint64(numSpans), myid)
 	// Send the appropriate response.
 	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
+}
+
+func getUncompressedData(ctx *fasthttp.RequestCtx) ([]byte, error) {
+	data := ctx.PostBody()
+	if requiresGzipDecompression(ctx) {
+		reader, err := gzip.NewReader(bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("cannot gzip decompress: err=%v", err)
+		}
+
+		data, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, fmt.Errorf("cannot gzip decompress: err=%v", err)
+		}
+	}
+
+	return data, nil
 }
 
 func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
