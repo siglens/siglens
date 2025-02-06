@@ -1,5 +1,5 @@
 {
-    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency",
+    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency, estdc(user_id) as estdc, estdc_error(user_id) as estdc_error",
     "expectedResult": {
         "totalMatched": {
             "value": 1,
@@ -10,18 +10,24 @@
             {
                 "avg_latency": 5002125.981666666,
                 "count(*)": 30000,
-                "sum": 150063779450
+                "sum": 150063779450,
+                "estdc": 25000,
+                "estdc_error": 0.0081
             }
         ],
         "allColumns": [
             "avg_latency",
             "count(*)",
-            "sum"
+            "sum",
+            "estdc",
+            "estdc_error"
         ],
         "columnsOrder": [
             "avg_latency",
             "count(*)",
-            "sum"
+            "sum",
+            "estdc",
+            "estdc_error"
         ]
     }
 }

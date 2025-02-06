@@ -552,7 +552,7 @@ func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	resp.ColumnNames = segmetadata.GetAllColNames(sortedIndices)
-	resp.MeasureFunctions = []string{"min", "max", "avg", "count", "sum", "cardinality"}
+	resp.MeasureFunctions = []string{"min", "max", "avg", "count", "sum", "cardinality", "estdc", "estdc_error"}
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }

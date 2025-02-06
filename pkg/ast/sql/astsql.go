@@ -123,6 +123,10 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Max
 	case "sum":
 		return utils.Sum
+	case "estdc":
+		return utils.Estdc
+	case "estdc_error":
+		return utils.EstdcError	
 	case "cardinality":
 		return utils.Cardinality
 	default:

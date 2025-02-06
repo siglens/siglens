@@ -1,6 +1,8 @@
 module github.com/siglens/siglens
 
-go 1.21
+go 1.23
+
+toolchain go1.23.4
 
 require (
 	github.com/FastFilter/xorfilter v0.1.4
@@ -56,6 +58,7 @@ require (
 )
 
 require (
+	github.com/axiomhq/hyperloglog v0.2.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/dennwc/varint v1.0.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20200812162917-85c65e2d0165 // indirect
@@ -67,6 +70,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.19.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/kamstrup/intmap v0.5.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
