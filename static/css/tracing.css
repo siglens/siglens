@@ -587,8 +587,10 @@ circle:hover{
     cursor: pointer;
 }
 
-.details-container div{
-    margin-bottom: 6px;
+.details-container .details{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .details-container table th,.details-container table td{

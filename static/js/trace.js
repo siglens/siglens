@@ -609,15 +609,14 @@ function showSpanDetails(node) {
     spanDetailsContainer.html(
         `
         <div class="d-flex justify-content-between align-items-center">
-            <div class="operation-name"><strong>${node.operation_name}</strong></div>
+            <div class="operation-name"><strong style="margin-right: 10px;">${node.operation_name}</strong><span class="node-label-operation">${node.span_id}</span></div>
             <div class="close-btn"></div>
         </div>
         <hr>
         <div class="details-container">
-            <div><strong>SpanId</strong>: ${node.span_id} </div>
-            <div><strong>Service</strong>: ${node.service_name}</div>
-            <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
-            <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
+            <div class="details">
+                <div>Service: <strong>${node.service_name}</strong> | Start Time: <strong>${nsToMs(node.start_time)}ms</strong> | Duration: <strong>${nsToMs(node.duration)}ms </strong></div>
+            </div>
             <div><strong>Tags</strong>:</div>
             <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
               ${Object.entries(node.tags)
