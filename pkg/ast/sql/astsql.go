@@ -126,7 +126,7 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 	case "estdc":
 		return utils.Estdc
 	case "estdc_error":
-		return utils.EstdcError	
+		return utils.EstdcError
 	case "cardinality":
 		return utils.Cardinality
 	default:

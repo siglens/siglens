@@ -28,12 +28,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"github.com/axiomhq/hyperloglog"
 )
 
 func applyTimeRangeHistogram(nodeResult *structs.NodeResult, rangeHistogram *structs.TimeBucket, aggName string) {
@@ -4463,10 +4464,10 @@ func encodeBucketKey(bucketKeySlice []string) interface{} {
 }
 
 func abs(x int) int {
-    if x < 0 {
-        return -x
-    }
-    return x
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // Estdc estimates distinct count using HyperLogLog
@@ -4479,9 +4480,8 @@ func Estdc(values []string) int {
 }
 
 func EstdcError(actualCount, estimatedCount int) float64 {
-    if actualCount == 0 {
-        return 0
-    }
-    return float64(abs(estimatedCount - actualCount)) / float64(actualCount)
+	if actualCount == 0 {
+		return 0
+	}
+	return float64(abs(estimatedCount-actualCount)) / float64(actualCount)
 }
-
