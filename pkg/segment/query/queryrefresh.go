@@ -294,11 +294,11 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 	return nil
 }
 
-func syncSegMetaWithSegFullMeta(myId int64) {
+func syncSegMetaWithSegFullMeta(myId int64, allSegKeys map[string]struct{}) int {
 	vTableNames, err := virtualtable.GetVirtualTableNames(myId)
 	if err != nil {
 		log.Errorf("syncSegMetaWithSegFullMeta: Error in getting vtable names, err:%v", err)
-		return
+		return 0
 	}
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
@@ -316,6 +316,14 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 		for _, file := range filesInDir {
 			fileName := file.Name()
 			segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fileName)
+
+			if allSegKeys != nil {
+				if _, exists := allSegKeys[segkey]; exists {
+					// This segment is already in the segmetadata
+					continue
+				}
+			}
+
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue
@@ -347,6 +355,8 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 
 	writer.BulkAddRotatedSegmetas(segMetaSlice, false)
 	log.Infof("syncSegMetaWithSegFullMeta: myid=%v, Added %d segmeta entries", myId, smiCount)
+
+	return smiCount
 }
 
 func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {
