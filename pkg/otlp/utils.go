@@ -16,8 +16,7 @@ import (
 func getDataToUnmarshal(ctx *fasthttp.RequestCtx) ([]byte, error) {
 	// We don't support JSON requests yet.
 	if contentType := utils.GetContentType(ctx); contentType != utils.ContentProtobuf {
-		log.Errorf("getDataToUnmarshal: got a non-protobuf request. Got Content-Type: %s", contentType)
-		return nil, fmt.Errorf("Expected a protobuf request")
+		return nil, fmt.Errorf("getDataToUnmarshal: got a non-protobuf request. Got Content-Type: %s", contentType)
 	}
 
 	// From https://opentelemetry.io/docs/specs/otlp/#otlphttp-response:
@@ -26,8 +25,7 @@ func getDataToUnmarshal(ctx *fasthttp.RequestCtx) ([]byte, error) {
 
 	data, err := getUncompressedData(ctx)
 	if err != nil {
-		log.Errorf("getDataToUnmarshal: failed to uncompress data: %v", err)
-		return nil, fmt.Errorf("Unable to gzip decompress the data")
+		return nil, fmt.Errorf("getDataToUnmarshal: failed to uncompress data: %v", err)
 	}
 
 	return data, nil
