@@ -268,11 +268,10 @@ function displayTimeline(data) {
             .style('transition', 'background-color 0.2s')
             .style('min-left', '200px');
 
-        // Main scrollable container
-        const scrollContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)').style('min-width', '600px');
+        const mainContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto')
 
         // Labels container
-        const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
+        const labelsContainer = mainContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
 
         const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
@@ -396,12 +395,6 @@ function displayTimeline(data) {
             .attr('y2', totalHeight)
             .attr('stroke', '#eee')
             .attr('stroke-dasharray', '2,2');
-
-        // Sync horizontal scrolling between time header and timeline
-        scrollContainer.on('scroll', function () {
-            const scrollLeft = this.scrollLeft;
-            timeHeaderDiv.node().scrollLeft = scrollLeft;
-        });
 
         let y = 20;
         let firstSpan = null;
