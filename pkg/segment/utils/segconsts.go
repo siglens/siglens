@@ -859,6 +859,9 @@ func (dte *DtypeEnclosure) GetValue() (interface{}, error) {
 type CValueEnclosure struct {
 	Dtype SS_DTYPE
 	CVal  interface{}
+	Sum   float64
+	SumSq float64
+	Count int64
 }
 
 func (e *CValueEnclosure) Equal(other *CValueEnclosure) bool {

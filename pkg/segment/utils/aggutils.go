@@ -111,6 +111,17 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
 			return e1, nil
+		case Stdev, Stdevp:
+			if e1.Count < 2 {
+				return e1, fmt.Errorf("Reduce: not enough data for standard deviation")
+			}
+			mean := e1.Sum / float64(e1.Count)
+			variance := (e1.SumSq/float64(e1.Count) - mean*mean)
+			if fun == Stdev {
+				variance *= float64(e1.Count) / float64(e1.Count-1) // Sample variance adjustment
+			}
+			e1.CVal = math.Sqrt(variance)
+			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
 		}
