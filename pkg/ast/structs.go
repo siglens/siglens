@@ -265,7 +265,7 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 
 	if aggType == "sumsq" {
 		aggFunc = utils.Sumsq
-	}else if aggType == "avg" {
+	} else if aggType == "avg" {
 		aggFunc = utils.Avg
 	} else if aggType == "min" {
 		aggFunc = utils.Min

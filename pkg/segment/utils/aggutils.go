@@ -75,7 +75,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	case SS_DT_UNSIGNED_NUM:
 		switch fun {
 		case Sumsq:
-			e1.CVal = e1.CVal.(uint64)+ (e2.CVal.(uint64)*e2.CVal.(uint64))
+			e1.CVal = e1.CVal.(uint64) + (e2.CVal.(uint64) * e2.CVal.(uint64))
 			return e1, nil
 		case Sum, Count:
 			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
@@ -91,7 +91,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		}
 	case SS_DT_SIGNED_NUM:
 		switch fun {
-		case Sumsq: 
+		case Sumsq:
 			e1.CVal = e1.CVal.(int64) + (e2.CVal.(int64) * e2.CVal.(int64))
 			return e1, nil
 		case Sum, Count:
@@ -218,7 +218,7 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 	switch self.Ntype {
 	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
 		switch fun {
-		case Sumsq: 
+		case Sumsq:
 			self.IntgrVal = self.IntgrVal + (e2int64 * e2int64)
 			return nil
 		case Sum:
