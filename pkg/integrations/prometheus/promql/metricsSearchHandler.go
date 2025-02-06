@@ -1086,7 +1086,11 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int6
 
 	tagPairs := make(map[string]map[string]struct{})
 	for _, segmentTagTreeReader := range tagsTreeReaders {
-		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		segmentTagPairs, err := segmentTagTreeReader.GetAllTagPairs()
+		if err != nil {
+			utils.SendInternalError(ctx, "Failed to search metrics", "", err)
+			return
+		}
 		for key, valueSet := range segmentTagPairs {
 			if _, ok := tagPairs[key]; !ok {
 				tagPairs[key] = valueSet
@@ -1171,7 +1175,11 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid int64
 
 	tagPairs := make(map[string]map[string]struct{})
 	for _, segmentTagTreeReader := range tagsTreeReaders {
-		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		segmentTagPairs, err := segmentTagTreeReader.GetAllTagPairs()
+		if err != nil {
+			utils.SendInternalError(ctx, "Failed to search metrics", "", err)
+			return
+		}
 		for key, valueSet := range segmentTagPairs {
 			if _, ok := tagPairs[key]; !ok {
 				tagPairs[key] = valueSet

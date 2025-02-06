@@ -466,16 +466,17 @@ func (attr *AllTagTreeReaders) GetAllTagKeys() map[string]struct{} {
 }
 
 // Returns a map: tagKey -> set of tagValues for that key
-func (attr *AllTagTreeReaders) GetAllTagPairs() map[string]map[string]struct{} {
+func (attr *AllTagTreeReaders) GetAllTagPairs() (map[string]map[string]struct{}, error) {
 	tagPairs := make(map[string]map[string]struct{})
 	for tagKey, ttr := range attr.tagTrees {
 		err := ttr.readTagValuesOnly(tagKey, tagPairs)
 		if err != nil {
 			log.Errorf("AllTagTreeReaders.GetAllTagPairs: failed to get tag values for tag key %v. Error: %v", tagKey, err)
+			return nil, err
 		}
 	}
 
-	return tagPairs
+	return tagPairs, nil
 }
 
 func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string) (map[uint64]struct{}, error) {

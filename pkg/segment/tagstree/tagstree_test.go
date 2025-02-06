@@ -1,6 +1,8 @@
 package tagstree
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/buger/jsonparser"
@@ -45,7 +47,8 @@ func Test_SimpleReadWrite(t *testing.T) {
 	assert.NoError(t, err)
 	defer reader.CloseAllTagTreeReaders()
 
-	tagPairs := reader.GetAllTagPairs()
+	tagPairs, err := reader.GetAllTagPairs()
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(tagPairs))
 	values, ok := tagPairs[tagKey]
 	assert.True(t, ok)
@@ -55,4 +58,73 @@ func Test_SimpleReadWrite(t *testing.T) {
 	assert.True(t, ok)
 	_, ok = values["server2"]
 	assert.True(t, ok)
+}
+
+func Test_ConcurrentReadWrite(t *testing.T) {
+	initTestConfig(t)
+
+	// Create writer
+	treeHolder, err := treewriter.InitTagsTreeHolder("test_mid")
+	assert.NoError(t, err)
+
+	tagsHolder := treewriter.GetTagsHolder()
+	tagKey := "host"
+	tagsHolder.Insert(tagKey, []byte("server1"), jsonparser.String)
+
+	firstFlushChan := make(chan struct{})
+	waitGroup := sync.WaitGroup{}
+	go func() {
+		waitGroup.Add(1)
+		defer waitGroup.Done()
+
+		for i := 0; i < 100; i++ {
+			metric := []byte(fmt.Sprintf("metric%d", i))
+			tsid, err := tagsHolder.GetTSID(metric)
+			assert.NoError(t, err)
+
+			err = treeHolder.AddTagsForTSID(metric, tagsHolder, tsid)
+			assert.NoError(t, err)
+
+			// Flush to disk
+			err = treeHolder.EncodeTagsTreeHolder()
+			assert.NoError(t, err)
+			if i == 0 {
+				firstFlushChan <- struct{}{}
+			}
+		}
+	}()
+
+	// Wait for first flush
+	<-firstFlushChan
+
+	// Read from disk
+	baseDir := treewriter.GetFinalTagsTreeDir("test_mid", 0)
+	reader, err := treereader.InitAllTagsTreeReader(baseDir)
+	assert.NoError(t, err)
+	defer reader.CloseAllTagTreeReaders()
+
+	go func() {
+		waitGroup.Add(1)
+		defer waitGroup.Done()
+
+		numMetrics := 0
+		for i := 0; i < 100; i++ {
+			tagPairs, err := reader.GetAllTagPairs()
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(tagPairs))
+			values, ok := tagPairs[tagKey]
+			assert.True(t, ok)
+			assert.Equal(t, len(values), 1)
+
+			metrics, err := reader.GetHashedMetricNames()
+			assert.NoError(t, err)
+			assert.True(t, len(metrics) >= numMetrics)
+			numMetrics = len(metrics)
+		}
+	}()
+	waitGroup.Wait()
+
+	metrics, err := reader.GetHashedMetricNames()
+	assert.NoError(t, err)
+	assert.Equal(t, 100, len(metrics))
 }
