@@ -488,6 +488,32 @@ func getAverage(sum utils.NumTypeEnclosure, count uint64) (float64, error) {
 	return avg, nil
 }
 
+func GetSegEstdcError(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+
+	res := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		FloatVal: 0,
+	}
+
+	if currSegStat == nil {
+		return &res, fmt.Errorf("GetSegEstdcError: currSegStat is nil")
+	}
+
+	// if this is the first segment, then running will be nil, and we return the first seg's stats
+	if runningSegStat == nil {
+		res.FloatVal = currSegStat.ComputeEstdcError()
+		return &res, nil
+	}
+
+	err := runningSegStat.Hll.StrictUnion(currSegStat.Hll.Hll)
+	if err != nil {
+		return nil, fmt.Errorf("GetSegEstdcError: error in Hll.Merge, err: %+v", err)
+	}
+	res.FloatVal = runningSegStat.ComputeEstdcError()
+
+	return &res, nil
+}
+
 func GetSegList(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
 	res := utils.CValueEnclosure{

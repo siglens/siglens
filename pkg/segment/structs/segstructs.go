@@ -661,6 +661,28 @@ func (ss *SegStats) GetHllCardinality() uint64 {
 	return ss.Hll.Cardinality()
 }
 
+// EstimatedStdError calculates the standard error for an HLL estimate.
+func EstimatedStdError(hll *sutils.GobbableHll) float64 {
+	if hll == nil {
+		return 0.0
+	}
+
+	// Get the number of registers (m)
+	m := 1 << uint(hll.Settings().Log2m) // Assuming there's a method `Settings()` returning HLL settings.
+
+	// Standard error formula for HLL
+	return 1.04 / math.Sqrt(float64(m))
+}
+
+// ComputeEstdcError calculates the estimated standard deviation of cardinality.
+func (ss *SegStats) ComputeEstdcError() float64 {
+	if ss == nil || ss.Hll == nil {
+		return 0.0
+	}
+
+	return EstimatedStdError(ss.Hll)
+}
+
 func (ss *SegStats) GetHllBytes() []byte {
 	if ss == nil || ss.Hll == nil {
 		return nil
@@ -1430,8 +1452,6 @@ func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOpti
 }
 
 var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
-	utils.Estdc:        {},
-	utils.EstdcError:   {},
 	utils.ExactPerc:    {},
 	utils.Perc:         {},
 	utils.UpperPerc:    {},

@@ -305,6 +305,11 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
 	case utils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+	case utils.Estdc:
+		//Calling Cardinality function itself because it changes storage type based on threshold, so it will change the storage type to registers once the data crosses the threshold of sparse and goes into dense storage. And if the storage type is registers it will return estimated count. So this will return estimated count for large datasets.
+		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case utils.EstdcError:
+		sstResult, err = segread.GetSegEstdcError(runningSegStat, incomingSegStat)
 	case utils.Values:
 		// Use GetSegValue to process and get the segment value
 		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
