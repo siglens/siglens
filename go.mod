@@ -1,8 +1,11 @@
 module github.com/siglens/siglens
 
-go 1.21
+go 1.23
+toolchain go1.23.4
 
 require (
+    github.com/axiomhq/hyperloglog v0.2.3
+	github.com/kamstrup/intmap v0.5.1 
 	github.com/FastFilter/xorfilter v0.1.4
 	github.com/bits-and-blooms/bitset v1.2.0
 	github.com/bits-and-blooms/bloom/v3 v3.0.1

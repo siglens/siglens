@@ -190,7 +190,7 @@ space? rhs:Identifier space? ')'? {
     return aggNode, nil
 }
 
-MeasureAggsFunc <- mfunc: ("avg" / "min" / "max" / "sum" / "cardinality" / "count" ){
+MeasureAggsFunc <- mfunc: ("avg" / "min" / "max" / "sum" / "cardinality" / "count" /"estdc"/"estdc_error"){
     aggFunc, _ := ast.AggTypeToAggregateFunction(string(c.text))
     return aggFunc, nil
 }

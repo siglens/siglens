@@ -22,10 +22,15 @@ github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3 h1:6df1vn4bBlDDo
 github.com/bboreham/go-loser v0.0.0-20230920113527-fcc2c21820a3/go.mod h1:CIWtjkly68+yqLPbvwwR/fjNJA/idrtULjZWh2v1ys0=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
+github.com/axiomhq/hyperloglog v0.2.3 h1:2ZGwz3FGcx77e9/aNjqJijsGhH6RZOlglzxnDpVBCQY=
+github.com/axiomhq/hyperloglog v0.2.3/go.mod h1:DLUK9yIzpU5B6YFLjxTIcbHu1g4Y1WQb1m5RH3radaM=
+github.com/axiomhq/hyperloglog v0.2.3 h1:2ZGwz3FGcx77e9/aNjqJijsGhH6RZOlglzxnDpVBCQY=
 github.com/bits-and-blooms/bitset v1.2.0 h1:Kn4yilvwNtMACtf1eYDlG8H77R07mZSPbMjLyS07ChA=
 github.com/bits-and-blooms/bitset v1.2.0/go.mod h1:gIdJ4wp64HaoK2YrL1Q5/N7Y16edYb8uY+O0FJTyyDA=
 github.com/bits-and-blooms/bloom/v3 v3.0.1 h1:Inlf0YXbgehxVjMPmCGv86iMCKMGPPrPSHtBF5yRHwA=
 github.com/bits-and-blooms/bloom/v3 v3.0.1/go.mod h1:MC8muvBzzPOFsrcdND/A7kU7kMhkqb9KI70JlZCP+C8=
+github.com/kamstrup/intmap v0.5.1 h1:ENGAowczZA+PJPYYlreoqJvWgQVtAmX1l899WfYFVK0=
+github.com/kamstrup/intmap v0.5.1/go.mod h1:gWUVWHKzWj8xpJVFf5GC0O26bWmv3GqdnIX/LMT6Aq4=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 h1:DDGfHa7BWjL4YnC6+E63dPcxHo2sUxDIu8g3QgEJdRY=
 github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869/go.mod h1:Ekp36dRnpXw/yCqJaO+ZrUyxD+3VXMFFr56k5XYrpB4=
 github.com/brianvoe/gofakeit/v6 v6.21.0 h1:tNkm9yxEbpuPK8Bx39tT4sSc5i9SUGiciLdNix+VDQY=

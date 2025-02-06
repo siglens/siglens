@@ -429,10 +429,14 @@ func aggTypeToAggregateFunction(aggType string) (AggregateFunctions, error) {
 	} else if aggType == "cardinality" {
 		aggFunc = Cardinality
 	} else if aggType == "count" {
-		aggFunc = Count
+		aggFunc = Count		
+	} else if aggType == "estdc" {
+		aggFunc = Estdc
+	} else if aggType == "estdc_error" {
+		aggFunc = EstdcError
 	} else {
-		return aggFunc, errors.New("unsupported statistic aggregation type")
-	}
+			return aggFunc, errors.New("unsupported statistic aggregation type")
+		}
 	return aggFunc, nil
 }
 

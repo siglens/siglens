@@ -271,7 +271,7 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 		aggFunc = utils.Max
 	} else if aggType == "sum" {
 		aggFunc = utils.Sum
-	} else if aggType == "count" {
+	}else if aggType == "count" {
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality

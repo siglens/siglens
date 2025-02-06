@@ -40,6 +40,8 @@ var aggregatorMapping = map[string]utils.AggregateFunctions{
 	"avg":         utils.Avg,
 	"min":         utils.Min,
 	"max":         utils.Max,
+	"estdc":       utils.Estdc,
+	"estdc_error": utils.EstdcError,
 	"sum":         utils.Sum,
 	"cardinality": utils.Cardinality,
 }

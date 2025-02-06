@@ -119,6 +119,10 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Avg
 	case "min":
 		return utils.Min
+	case "estdc":
+		return utils.Estdc
+	case "estdc_error":
+		return utils.EstdcError
 	case "max":
 		return utils.Max
 	case "sum":

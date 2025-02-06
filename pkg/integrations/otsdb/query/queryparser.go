@@ -260,6 +260,8 @@ func parseAggregatorDownsampler(m string) (segutils.AggregateFunctions, structs.
 		"max":         segutils.Max,
 		"sum":         segutils.Sum,
 		"cardinality": segutils.Cardinality,
+		"estdc":       segutils.Estdc,
+		"estdc_error": segutils.EstdcError,
 		"quantile":    segutils.Quantile,
 	}
 	agg := structs.Aggregation{AggregatorFunction: aggregatorMapping["avg"]}
