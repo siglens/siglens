@@ -245,18 +245,18 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
 		case Sumsq:
-			if self.Ntype == SS_DT_SIGNED_NUM {
+			if self.Ntype == SS_DT_SIGNED_NUM {// For integer types, use uint64 to prevent overflow				
 				val1 := uint64(self.IntgrVal)
 				val2 := uint64(e2int64)
 				result := val1 + (val2 * val2)
 				self.Ntype = SS_DT_UNSIGNED_NUM
 				self.IntgrVal = int64(result)
 				return nil
-			} else if self.Ntype == SS_DT_FLOAT {
+			} else if self.Ntype == SS_DT_FLOAT {// For float types, continue using float64				
 				self.FloatVal = self.FloatVal + (e2float64 * e2float64)
 				return nil
-			}
-			if self.Ntype == SS_INVALID {
+			}		
+			if self.Ntype == SS_INVALID {// Initialize for first value
 				self.Ntype = SS_DT_UNSIGNED_NUM
 				self.IntgrVal = int64(uint64(e2int64 * e2int64))
 				return nil
