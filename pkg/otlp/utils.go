@@ -9,6 +9,7 @@ import (
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -59,6 +60,43 @@ func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
 	}
 
 	return false
+}
+
+func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
+	value, err := extractAnyValue(keyvalue.Value)
+	if err != nil {
+		log.Errorf("extractKeyValue: failed to extract value for key %s: %v", keyvalue.Key, err)
+		return "", nil, err
+	}
+
+	return keyvalue.Key, value, nil
+}
+
+func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
+	switch anyValue.Value.(type) {
+	case *commonpb.AnyValue_StringValue:
+		return anyValue.GetStringValue(), nil
+	case *commonpb.AnyValue_IntValue:
+		return anyValue.GetIntValue(), nil
+	case *commonpb.AnyValue_DoubleValue:
+		return anyValue.GetDoubleValue(), nil
+	case *commonpb.AnyValue_BoolValue:
+		return anyValue.GetBoolValue(), nil
+	case *commonpb.AnyValue_ArrayValue:
+		arrayValue := anyValue.GetArrayValue().Values
+		value := make([]interface{}, len(arrayValue))
+		for i := range arrayValue {
+			var err error
+			value[i], err = extractAnyValue(arrayValue[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return value, nil
+	default:
+		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue.Value)
+	}
 }
 
 func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
