@@ -347,7 +347,7 @@ func ConvertGroupByKeyFromBytes(rec []byte) ([]interface{}, error) {
 // IsNumTypeAgg checks if aggregate function requires numeric type data
 func IsNumTypeAgg(fun AggregateFunctions) bool {
 	switch fun {
-	case Avg, Min, Max, Sum, Range,Sumsq:
+	case Avg, Min, Max, Sum, Range, Sumsq:
 		return true
 	default:
 		return false

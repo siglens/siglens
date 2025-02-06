@@ -146,7 +146,7 @@ func getMathEvaluatorSQL(op string, qid uint64) (utils.MathFunctions, error) {
 		return utils.Sqrt, nil
 	case "exp":
 		return utils.Exp, nil
-	
+
 	default:
 		log.Errorf("qid=%v, getMathEvaluatorSQL: math evaluator type: %v is not supported!", qid, op)
 		return 0, fmt.Errorf("math evaluator type not supported")

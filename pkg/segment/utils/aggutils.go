@@ -100,7 +100,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
-		case Sumsq: 
+		case Sumsq:
 			e1.CVal = e1.CVal.(int64) + (e2.CVal.(int64) * e2.CVal.(int64))
 			return e1, nil
 		default:
@@ -230,7 +230,7 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
-		case Sumsq: 
+		case Sumsq:
 			self.IntgrVal = self.IntgrVal + (e2int64 * e2int64)
 			return nil
 		default:
