@@ -289,19 +289,19 @@ func ExactPercentile99(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	
+
 	// Sort values for exact calculation
 	sort.Float64s(values)
-	
+
 	// Calculate index for 99th percentile
 	idx := float64(len(values)-1) * 0.99
 	floorIdx := int(math.Floor(idx))
 	ceilIdx := int(math.Ceil(idx))
-	
+
 	if floorIdx == ceilIdx {
 		return values[floorIdx]
 	}
-	
+
 	// Interpolate between the two closest values
 	weight := idx - float64(floorIdx)
 	return values[floorIdx] + (values[ceilIdx]-values[floorIdx])*weight
@@ -312,15 +312,15 @@ func ApproxPercentile66_6(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	
+
 	const reservoirSize = 1000
 	var sampledValues []float64
-	
+
 	if len(values) > reservoirSize {
 
 		sampledValues = make([]float64, reservoirSize)
 		copy(sampledValues, values[:reservoirSize])
-		
+
 		for i := reservoirSize; i < len(values); i++ {
 			j := rand.Intn(i + 1)
 			if j < reservoirSize {
@@ -333,16 +333,16 @@ func ApproxPercentile66_6(values []float64) float64 {
 		copy(sampledValues, values)
 		sort.Float64s(sampledValues)
 	}
-	
+
 	// Calculate index for 66.6th percentile
 	idx := float64(len(sampledValues)-1) * 0.666
 	floorIdx := int(math.Floor(idx))
 	ceilIdx := int(math.Ceil(idx))
-	
+
 	if floorIdx == ceilIdx {
 		return sampledValues[floorIdx]
 	}
-	
+
 	// Interpolate between the two closest values
 	weight := idx - float64(floorIdx)
 	return sampledValues[floorIdx] + (sampledValues[ceilIdx]-sampledValues[floorIdx])*weight
@@ -353,19 +353,19 @@ func UpperPercentile6_6(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
-	
+
 	// For fields with >1000 distinct values, we'll use a conservative estimate
 	// by taking a slightly higher percentile to ensure we get an upper bound
 	const safetyFactor = 1.1 // Add 10% to ensure upper bound
-	
+
 	k := int(float64(len(values)-1) * 0.066 * safetyFactor)
 	if k >= len(values) {
 		k = len(values) - 1
 	}
-	
+
 	tempValues := make([]float64, len(values))
 	copy(tempValues, values)
-	
+
 	return quickSelectFloat64(tempValues, k)
 }
 
@@ -374,10 +374,10 @@ func quickSelectFloat64(arr []float64, k int) float64 {
 	if len(arr) == 1 {
 		return arr[0]
 	}
-	
+
 	pivot := arr[rand.Intn(len(arr))]
 	var lows, highs, pivots []float64
-	
+
 	for _, val := range arr {
 		switch {
 		case val < pivot:
@@ -388,7 +388,7 @@ func quickSelectFloat64(arr []float64, k int) float64 {
 			pivots = append(pivots, val)
 		}
 	}
-	
+
 	if k < len(lows) {
 		return quickSelectFloat64(lows, k)
 	} else if k < len(lows)+len(pivots) {

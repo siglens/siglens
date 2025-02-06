@@ -298,7 +298,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
 						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
 				}
-				default:
+			default:
 			}
 		}
 		for i := range values {
