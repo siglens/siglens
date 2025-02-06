@@ -1,5 +1,5 @@
 {
-    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency, estdc(user_id) as estdc, estdc_error(user_id) as estdc_error",
+    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency, estdc(latency) as estdc, estdc_error(latency) as estdc_error",
     "expectedResult": {
         "totalMatched": {
             "value": 1,
