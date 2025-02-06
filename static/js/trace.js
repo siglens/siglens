@@ -276,7 +276,7 @@ function displayTimeline(data) {
         const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
         // Timeline container
-        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
+        const timelineContainer = mainContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
 
         const timelineSvg = timelineContainer
             .append('svg')
