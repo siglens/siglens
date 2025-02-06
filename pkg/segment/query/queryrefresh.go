@@ -346,17 +346,17 @@ func syncSegMetaWithSegFullMeta(myId int64, allSegKeys map[string]struct{}) int 
 
 	segmetadata.BulkAddSegmentMicroIndex(allSmi)
 
-	smiCount := len(allSmi)
-	segMetaSlice := make([]*structs.SegMeta, smiCount)
+	addedSmiCount := len(allSmi)
+	segMetaSlice := make([]*structs.SegMeta, addedSmiCount)
 	for idx, smi := range allSmi {
-		reverseIdx := smiCount - idx - 1
+		reverseIdx := addedSmiCount - idx - 1
 		segMetaSlice[reverseIdx] = &smi.SegMeta
 	}
 
 	writer.BulkAddRotatedSegmetas(segMetaSlice, false)
-	log.Infof("syncSegMetaWithSegFullMeta: myid=%v, Added %d segmeta entries", myId, smiCount)
+	log.Infof("syncSegMetaWithSegFullMeta: myid=%v, Added %d segmeta entries", myId, addedSmiCount)
 
-	return smiCount
+	return addedSmiCount
 }
 
 func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {
