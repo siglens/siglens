@@ -271,7 +271,7 @@ func InitRunningStreamStatsResults(measureFunc utils.AggregateFunctions) *struct
 	}
 
 	switch measureFunc {
-	case utils.Count, utils.Sum, utils.Avg, utils.Range, utils.Cardinality:
+	case utils.Count, utils.Sum, utils.Avg, utils.Range, utils.Cardinality, utils.Stdev:
 		runningSSResult.CurrResult = utils.CValueEnclosure{
 			Dtype: utils.SS_DT_FLOAT,
 			CVal:  0.0,

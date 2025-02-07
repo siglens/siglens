@@ -539,6 +539,7 @@ type SegStats struct {
 type NumericStats struct {
 	NumericCount uint64                 `json:"numericCount,omitempty"`
 	Sum          utils.NumTypeEnclosure `json:"sum,omitempty"`
+	SumSq        utils.NumTypeEnclosure `json:"sumSq,omitempty"`
 }
 
 type StringStats struct {
@@ -1437,9 +1438,6 @@ var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
 	utils.UpperPerc:    {},
 	utils.Median:       {},
 	utils.Mode:         {},
-	utils.Stdev:        {},
-	utils.Stdevp:       {},
-	utils.Sumsq:        {},
 	utils.Var:          {},
 	utils.Varp:         {},
 	utils.First:        {},

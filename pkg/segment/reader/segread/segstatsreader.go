@@ -20,6 +20,7 @@ package segread
 import (
 	"fmt"
 	"os"
+	"math"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -562,4 +563,94 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 	// Convert the string set to a sorted slice
 	res.CVal = toputils.GetSortedStringKeys(strSet)
 	return &res, nil
+}
+func GetSegStdDev(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+    StdOutLogger.Infof("GetSegStdDev: Function called")
+
+    rSst := utils.NumTypeEnclosure{
+        Ntype:    utils.SS_DT_FLOAT,
+        FloatVal: 0.0,
+    }
+
+    if currSegStat == nil {
+        StdOutLogger.Infof("GetSegStdDev: currSegStat is nil")
+        return &rSst, fmt.Errorf("GetSegStdDev: currSegStat is nil")
+    }
+    if currSegStat.NumStats == nil {
+        StdOutLogger.Infof("GetSegStdDev: currSegStat.NumStats is nil")
+        return &rSst, fmt.Errorf("GetSegStdDev: currSegStat.NumStats is nil")
+    }
+    if !currSegStat.IsNumeric {
+        StdOutLogger.Infof("GetSegStdDev: currSegStat is non-numeric")
+        return &rSst, fmt.Errorf("GetSegStdDev: current segStats is non-numeric")
+    }
+
+    StdOutLogger.Infof("GetSegStdDev: Processing segment stats")
+
+    var sum, sumSq utils.NumTypeEnclosure
+    var count uint64
+
+    if runningSegStat != nil {
+        sum = runningSegStat.NumStats.Sum
+        sumSq = runningSegStat.NumStats.SumSq
+        count = runningSegStat.NumStats.NumericCount
+        StdOutLogger.Infof("GetSegStdDev: Initialized with runningSegStat - Sum: %+v, SumSq: %+v, Count: %d", sum, sumSq, count)
+    }
+
+    count += currSegStat.NumStats.NumericCount
+    StdOutLogger.Infof("GetSegStdDev: Updated count after adding currSegStat: %d", count)
+
+    // Aggregate sum
+    if currSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
+        sum.FloatVal += currSegStat.NumStats.Sum.FloatVal
+        sum.Ntype = utils.SS_DT_FLOAT
+    } else {
+        sum.IntgrVal += currSegStat.NumStats.Sum.IntgrVal
+    }
+
+    StdOutLogger.Infof("GetSegStdDev: Updated sum - %+v", sum)
+
+    // Aggregate sumSq
+    if currSegStat.NumStats.SumSq.Ntype == utils.SS_DT_FLOAT {
+        sumSq.FloatVal += currSegStat.NumStats.SumSq.FloatVal
+        sumSq.Ntype = utils.SS_DT_FLOAT
+    } else {
+        sumSq.IntgrVal += currSegStat.NumStats.SumSq.IntgrVal
+    }
+
+    StdOutLogger.Infof("GetSegStdDev: Updated sumSq - %+v", sumSq)
+
+    if runningSegStat != nil {
+        runningSegStat.NumStats.Sum = sum
+        runningSegStat.NumStats.SumSq = sumSq
+        runningSegStat.NumStats.NumericCount = count
+    }
+
+    var sumFloat, sumSqFloat float64
+    if sum.Ntype == utils.SS_DT_FLOAT {
+        sumFloat = sum.FloatVal
+    } else {
+        sumFloat = float64(sum.IntgrVal)
+    }
+
+    if sumSq.Ntype == utils.SS_DT_FLOAT {
+        sumSqFloat = sumSq.FloatVal
+    } else {
+        sumSqFloat = float64(sumSq.IntgrVal)
+    }
+
+    StdOutLogger.Infof("GetSegStdDev: Converted sumFloat: %f, sumSqFloat: %f", sumFloat, sumSqFloat)
+
+    if count < 2 {
+        StdOutLogger.Infof("GetSegStdDev: Insufficient data for stddev (count < 2)")
+        return &rSst, fmt.Errorf("GetSegStdDev: need at least 2 values for stddev")
+    }
+
+    variance := math.Max(0, (sumSqFloat-(sumFloat*sumFloat)/float64(count))/float64(count-1))
+    StdOutLogger.Infof("GetSegStdDev: Computed variance: %f", variance)
+
+    rSst.FloatVal = math.Sqrt(variance)
+    StdOutLogger.Infof("GetSegStdDev: Computed stddev: %f", rSst.FloatVal)
+
+    return &rSst, nil
 }

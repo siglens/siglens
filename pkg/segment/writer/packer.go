@@ -1645,6 +1645,12 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 			stats.NumStats.Sum.FloatVal = float64(stats.NumStats.Sum.IntgrVal) + fltVal
 			stats.NumStats.Sum.Ntype = SS_DT_FLOAT
 		}
+		if stats.NumStats.SumSq.Ntype == SS_DT_FLOAT {
+			stats.NumStats.SumSq.FloatVal += fltVal * fltVal
+		} else {
+			stats.NumStats.SumSq.FloatVal = float64(stats.NumStats.SumSq.IntgrVal) + (fltVal * fltVal)
+			stats.NumStats.SumSq.Ntype = SS_DT_FLOAT
+		}
 	// incoming is NON-float
 	default:
 		UpdateMinMax(stats, CValueEnclosure{Dtype: SS_DT_SIGNED_NUM, CVal: inIntgrVal})
@@ -1654,6 +1660,11 @@ func processStats(stats *SegStats, inNumType SS_IntUintFloatTypes, intVal int64,
 		} else {
 			// incoming non-float, stored is non-float, simple sum
 			stats.NumStats.Sum.IntgrVal = stats.NumStats.Sum.IntgrVal + inIntgrVal
+		}
+		if stats.NumStats.SumSq.Ntype == SS_DT_FLOAT {
+			stats.NumStats.SumSq.FloatVal += float64(inIntgrVal * inIntgrVal)
+		} else {
+			stats.NumStats.SumSq.IntgrVal += inIntgrVal * inIntgrVal
 		}
 	}
 }

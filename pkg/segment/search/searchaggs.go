@@ -589,8 +589,15 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 						IntgrVal: int64(dtypeVal.FloatVal),
 						FloatVal: dtypeVal.FloatVal,
 					}
+					squaredValue := dtypeVal.FloatVal * dtypeVal.FloatVal
+					sumSqEnclosure := &utils.NumTypeEnclosure{
+						Ntype:    utils.SS_DT_FLOAT, // Ensure squared value is stored as float
+						FloatVal: squaredValue,
+					}
+
 					segStat.NumStats = &structs.NumericStats{
-						Sum: *nTypeEnclosure,
+						Sum:   *nTypeEnclosure,
+						SumSq: *sumSqEnclosure, // Assign sumSq here
 					}
 				}
 			} else if mOp.MeasureFunc != utils.Count {
