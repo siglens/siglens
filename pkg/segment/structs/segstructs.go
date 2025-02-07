@@ -578,9 +578,9 @@ type AvgStat struct {
 }
 
 type StdevStat struct {
-    Sum     float64
-    SumSq   float64  
-    Count   int64
+	Sum   float64
+	SumSq float64
+	Count int64
 }
 
 type FieldGetter interface {

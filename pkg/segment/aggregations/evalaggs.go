@@ -571,236 +571,236 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 }
 
 func PerformEvalAggForStdev(measureAgg *structs.MeasureAggregator, currResultExists bool, currStdevStat structs.StdevStat, fieldToValue map[string]utils.CValueEnclosure, isPopulation bool) (structs.StdevStat, error) {
-    
-    fields := measureAgg.ValueColRequest.GetFields()
-    finalStdevStat := structs.StdevStat{
-        Sum:   0,
-        SumSq: 0,
-        Count: 0,
-    }
 
-    if len(fields) == 0 {
-        floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-        // We cannot compute stdev if constant is not numeric
-        if err != nil || !isNumeric {
-            return currStdevStat, fmt.Errorf("PerformEvalAggForStdev: Error while evaluating value col request to a numeric value, err: %v", err)
-        }
-        finalStdevStat.Sum = floatValue
-        finalStdevStat.SumSq = floatValue * floatValue
-        finalStdevStat.Count = 1
-    } else {
-        if measureAgg.ValueColRequest.BooleanExpr != nil {
-            boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-            if err != nil {
-                return currStdevStat, fmt.Errorf("PerformEvalAggForStdev: there are some errors in the eval function: %v", err)
-            }
-            if boolResult {
-                finalStdevStat.Sum = 1
-                finalStdevStat.SumSq = 1
-                finalStdevStat.Count = 1
-            }
-        } else {
-            floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-            if err != nil {
-                return currStdevStat, fmt.Errorf("PerformEvalAggForStdev: Error while evaluating value col request, err: %v", err)
-            }
-            // records that are not float will be ignored
-            if isNumeric {
-                finalStdevStat.Sum = floatValue
-                finalStdevStat.SumSq = floatValue * floatValue
-                finalStdevStat.Count = 1
-            }
-        }
-    }
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalStdevStat := structs.StdevStat{
+		Sum:   0,
+		SumSq: 0,
+		Count: 0,
+	}
 
-    if currResultExists {
-        finalStdevStat.Sum += currStdevStat.Sum
-        finalStdevStat.SumSq += currStdevStat.SumSq
-        finalStdevStat.Count += currStdevStat.Count
-    }
+	if len(fields) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		// We cannot compute stdev if constant is not numeric
+		if err != nil || !isNumeric {
+			return currStdevStat, fmt.Errorf("PerformEvalAggForStdev: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		finalStdevStat.Sum = floatValue
+		finalStdevStat.SumSq = floatValue * floatValue
+		finalStdevStat.Count = 1
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currStdevStat, fmt.Errorf("PerformEvalAggForStdev: there are some errors in the eval function: %v", err)
+			}
+			if boolResult {
+				finalStdevStat.Sum = 1
+				finalStdevStat.SumSq = 1
+				finalStdevStat.Count = 1
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currStdevStat, fmt.Errorf("PerformEvalAggForStdev: Error while evaluating value col request, err: %v", err)
+			}
+			// records that are not float will be ignored
+			if isNumeric {
+				finalStdevStat.Sum = floatValue
+				finalStdevStat.SumSq = floatValue * floatValue
+				finalStdevStat.Count = 1
+			}
+		}
+	}
 
-    return finalStdevStat, nil
+	if currResultExists {
+		finalStdevStat.Sum += currStdevStat.Sum
+		finalStdevStat.SumSq += currStdevStat.SumSq
+		finalStdevStat.Count += currStdevStat.Count
+	}
+
+	return finalStdevStat, nil
 }
 
-func ComputeAggEvalForStdev(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, 
-    measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}, isPopulation bool) error {
-    
-    fields := measureAgg.ValueColRequest.GetFields()
-    var stdevStat structs.StdevStat
-    var err error
+func ComputeAggEvalForStdev(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats,
+	measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}, isPopulation bool) error {
 
-    stdevStatVal, currResultExists := runningEvalStats[measureAgg.String()]
-    if currResultExists {
-        stat := stdevStatVal.(*structs.StdevStat)
-        stdevStat.Sum = stat.Sum
-        stdevStat.SumSq = stat.SumSq
-        stdevStat.Count = stat.Count
-    }
+	fields := measureAgg.ValueColRequest.GetFields()
+	var stdevStat structs.StdevStat
+	var err error
 
-    if len(fields) == 0 {
-        stdevStat, err = PerformEvalAggForStdev(measureAgg, currResultExists, stdevStat, nil, isPopulation)
-        if err != nil {
-            return fmt.Errorf("ComputeAggEvalForStdev: Error while performing eval agg for stdev, err: %v", err)
-        }
-    } else {
-        sst, ok := sstMap[fields[0]]
-        if !ok {
-            return fmt.Errorf("ComputeAggEvalForStdev: sstMap did not have segstats for field %v", fields[0])
-        }
+	stdevStatVal, currResultExists := runningEvalStats[measureAgg.String()]
+	if currResultExists {
+		stat := stdevStatVal.(*structs.StdevStat)
+		stdevStat.Sum = stat.Sum
+		stdevStat.SumSq = stat.SumSq
+		stdevStat.Count = stat.Count
+	}
 
-        length := len(sst.Records)
-        for i := 0; i < length; i++ {
-            fieldToValue := make(map[string]utils.CValueEnclosure)
-            err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
-            if err != nil {
-                return fmt.Errorf("ComputeAggEvalForStdev: Error populating fieldToValue, err: %v", err)
-            }
+	if len(fields) == 0 {
+		stdevStat, err = PerformEvalAggForStdev(measureAgg, currResultExists, stdevStat, nil, isPopulation)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForStdev: Error while performing eval agg for stdev, err: %v", err)
+		}
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForStdev: sstMap did not have segstats for field %v", fields[0])
+		}
 
-            stdevStat, err = PerformEvalAggForStdev(measureAgg, currResultExists, stdevStat, fieldToValue, isPopulation)
-            currResultExists = true
-            if err != nil {
-                return fmt.Errorf("ComputeAggEvalForStdev: Error performing eval agg for stdev, err: %v", err)
-            }
-        }
-    }
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForStdev: Error populating fieldToValue, err: %v", err)
+			}
 
-    runningEvalStats[measureAgg.String()] = &stdevStat
+			stdevStat, err = PerformEvalAggForStdev(measureAgg, currResultExists, stdevStat, fieldToValue, isPopulation)
+			currResultExists = true
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForStdev: Error performing eval agg for stdev, err: %v", err)
+			}
+		}
+	}
 
-    var stdev float64
-    if stdevStat.Count > 0 {
-        mean := stdevStat.Sum / float64(stdevStat.Count)
-        variance := (stdevStat.SumSq / float64(stdevStat.Count)) - (mean * mean)
-        
-        if !isPopulation && stdevStat.Count > 1 {
-            variance = variance * float64(stdevStat.Count) / float64(stdevStat.Count-1)
-        }
-        
-        if variance > 0 {
-            stdev = math.Sqrt(variance)
-        }
-    }
+	runningEvalStats[measureAgg.String()] = &stdevStat
 
-    measureResults[measureAgg.String()] = utils.CValueEnclosure{
-        Dtype: utils.SS_DT_FLOAT,
-        CVal:  stdev,
-    }
+	var stdev float64
+	if stdevStat.Count > 0 {
+		mean := stdevStat.Sum / float64(stdevStat.Count)
+		variance := (stdevStat.SumSq / float64(stdevStat.Count)) - (mean * mean)
 
-    return nil
+		if !isPopulation && stdevStat.Count > 1 {
+			variance = variance * float64(stdevStat.Count) / float64(stdevStat.Count-1)
+		}
+
+		if variance > 0 {
+			stdev = math.Sqrt(variance)
+		}
+	}
+
+	measureResults[measureAgg.String()] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  stdev,
+	}
+
+	return nil
 }
 
-func PerformEvalAggForStdevp(measureAgg *structs.MeasureAggregator, currResultExists bool, 
-    currStdevStat structs.StdevStat, fieldToValue map[string]utils.CValueEnclosure) (structs.StdevStat, error) {
-    
-    fields := measureAgg.ValueColRequest.GetFields()
-    finalStdevStat := structs.StdevStat{
-        Sum:   0,
-        SumSq: 0,
-        Count: 0,
-    }
+func PerformEvalAggForStdevp(measureAgg *structs.MeasureAggregator, currResultExists bool,
+	currStdevStat structs.StdevStat, fieldToValue map[string]utils.CValueEnclosure) (structs.StdevStat, error) {
 
-    if len(fields) == 0 {
-        floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-        // We cannot compute stdevp if constant is not numeric
-        if err != nil || !isNumeric {
-            return currStdevStat, fmt.Errorf("PerformEvalAggForStdevp: Error while evaluating value col request to a numeric value, err: %v", err)
-        }
-        finalStdevStat.Sum = floatValue
-        finalStdevStat.SumSq = floatValue * floatValue
-        finalStdevStat.Count = 1
-    } else {
-        if measureAgg.ValueColRequest.BooleanExpr != nil {
-            boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
-            if err != nil {
-                return currStdevStat, fmt.Errorf("PerformEvalAggForStdevp: there are some errors in the eval function that is inside the stdevp function: %v", err)
-            }
-            if boolResult {
-                finalStdevStat.Sum = 1
-                finalStdevStat.SumSq = 1
-                finalStdevStat.Count = 1
-            }
-        } else {
-            floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
-            if err != nil {
-                return currStdevStat, fmt.Errorf("PerformEvalAggForStdevp: Error while evaluating value col request, err: %v", err)
-            }
-            // records that are not float will be ignored
-            if isNumeric {
-                finalStdevStat.Sum = floatValue
-                finalStdevStat.SumSq = floatValue * floatValue
-                finalStdevStat.Count = 1
-            }
-        }
-    }
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalStdevStat := structs.StdevStat{
+		Sum:   0,
+		SumSq: 0,
+		Count: 0,
+	}
 
-    if currResultExists {
-        finalStdevStat.Sum += currStdevStat.Sum
-        finalStdevStat.SumSq += currStdevStat.SumSq
-        finalStdevStat.Count += currStdevStat.Count
-    }
+	if len(fields) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		// We cannot compute stdevp if constant is not numeric
+		if err != nil || !isNumeric {
+			return currStdevStat, fmt.Errorf("PerformEvalAggForStdevp: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		finalStdevStat.Sum = floatValue
+		finalStdevStat.SumSq = floatValue * floatValue
+		finalStdevStat.Count = 1
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currStdevStat, fmt.Errorf("PerformEvalAggForStdevp: there are some errors in the eval function that is inside the stdevp function: %v", err)
+			}
+			if boolResult {
+				finalStdevStat.Sum = 1
+				finalStdevStat.SumSq = 1
+				finalStdevStat.Count = 1
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currStdevStat, fmt.Errorf("PerformEvalAggForStdevp: Error while evaluating value col request, err: %v", err)
+			}
+			// records that are not float will be ignored
+			if isNumeric {
+				finalStdevStat.Sum = floatValue
+				finalStdevStat.SumSq = floatValue * floatValue
+				finalStdevStat.Count = 1
+			}
+		}
+	}
 
-    return finalStdevStat, nil
+	if currResultExists {
+		finalStdevStat.Sum += currStdevStat.Sum
+		finalStdevStat.SumSq += currStdevStat.SumSq
+		finalStdevStat.Count += currStdevStat.Count
+	}
+
+	return finalStdevStat, nil
 }
 
-func ComputeAggEvalForStdevp(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, 
-    measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
-    
-    fields := measureAgg.ValueColRequest.GetFields()
-    var stdevpStat structs.StdevStat
-    var err error
+func ComputeAggEvalForStdevp(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats,
+	measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 
-    stdevpStatVal, currResultExists := runningEvalStats[measureAgg.String()]
-    if currResultExists {
-        stat := stdevpStatVal.(*structs.StdevStat)
-        stdevpStat.Sum = stat.Sum
-        stdevpStat.SumSq = stat.SumSq
-        stdevpStat.Count = stat.Count
-    }
+	fields := measureAgg.ValueColRequest.GetFields()
+	var stdevpStat structs.StdevStat
+	var err error
 
-    if len(fields) == 0 {
-        stdevpStat, err = PerformEvalAggForStdevp(measureAgg, currResultExists, stdevpStat, nil)
-        if err != nil {
-            return fmt.Errorf("ComputeAggEvalForStdevp: Error while performing eval agg for stdevp, err: %v", err)
-        }
-    } else {
-        sst, ok := sstMap[fields[0]]
-        if !ok {
-            return fmt.Errorf("ComputeAggEvalForStdevp: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
-        }
+	stdevpStatVal, currResultExists := runningEvalStats[measureAgg.String()]
+	if currResultExists {
+		stat := stdevpStatVal.(*structs.StdevStat)
+		stdevpStat.Sum = stat.Sum
+		stdevpStat.SumSq = stat.SumSq
+		stdevpStat.Count = stat.Count
+	}
 
-        length := len(sst.Records)
-        for i := 0; i < length; i++ {
-            fieldToValue := make(map[string]utils.CValueEnclosure)
-            err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
-            if err != nil {
-                return fmt.Errorf("ComputeAggEvalForStdevp: Error while populating fieldToValue from sstMap, err: %v", err)
-            }
+	if len(fields) == 0 {
+		stdevpStat, err = PerformEvalAggForStdevp(measureAgg, currResultExists, stdevpStat, nil)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForStdevp: Error while performing eval agg for stdevp, err: %v", err)
+		}
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForStdevp: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
 
-            stdevpStat, err = PerformEvalAggForStdevp(measureAgg, currResultExists, stdevpStat, fieldToValue)
-            currResultExists = true
-            if err != nil {
-                return fmt.Errorf("ComputeAggEvalForStdevp: Error while performing eval agg for stdevp, err: %v", err)
-            }
-        }
-    }
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue := make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForStdevp: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
 
-    runningEvalStats[measureAgg.String()] = &stdevpStat
+			stdevpStat, err = PerformEvalAggForStdevp(measureAgg, currResultExists, stdevpStat, fieldToValue)
+			currResultExists = true
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForStdevp: Error while performing eval agg for stdevp, err: %v", err)
+			}
+		}
+	}
 
-    // Calculate population standard deviation (stdevp)
-    var stdevp float64
-    if stdevpStat.Count > 0 {
-        mean := stdevpStat.Sum / float64(stdevpStat.Count)
-        variance := (stdevpStat.SumSq / float64(stdevpStat.Count)) - (mean * mean)
-        if variance > 0 {
-            stdevp = math.Sqrt(variance)
-        }
-    }
+	runningEvalStats[measureAgg.String()] = &stdevpStat
 
-    measureResults[measureAgg.String()] = utils.CValueEnclosure{
-        Dtype: utils.SS_DT_FLOAT,
-        CVal:  stdevp,
-    }
+	// Calculate population standard deviation (stdevp)
+	var stdevp float64
+	if stdevpStat.Count > 0 {
+		mean := stdevpStat.Sum / float64(stdevpStat.Count)
+		variance := (stdevpStat.SumSq / float64(stdevpStat.Count)) - (mean * mean)
+		if variance > 0 {
+			stdevp = math.Sqrt(variance)
+		}
+	}
 
-    return nil
+	measureResults[measureAgg.String()] = utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  stdevp,
+	}
+
+	return nil
 }
 
 // Always pass a non-nil strSet when using this function
