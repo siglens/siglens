@@ -171,46 +171,6 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.8 Informational functions: cluster, getfields, isnotnull, isnum, typeof
     2.9 Text functions: replace, spath, upper, trim
 */
-// exactperc calculates the exact percentile of a slice of float64.
-// func exactperc(values []float64, percentile float64) (float64, error) {
-// 	if len(values) == 0 {
-// 		return 0, errors.New("exactperc: empty slice")
-// 	}
-// 	sort.Float64s(values)
-// 	index := int(percentile * float64(len(values)-1) / 100)
-// 	return values[index], nil
-// }
-
-// func exactperc(values []float64, percentile float64) (float64, error) {
-// 	if len(values) == 0 {
-// 		return 0, errors.New("exactperc: empty slice")
-// 	}
-// 	sort.Float64s(values)
-// 	rank := percentile / 100 * float64(len(values)-1)
-// 	lower := int(rank)
-// 	upper := lower + 1
-// 	weight := rank - float64(lower)
-// 	if upper >= len(values) {
-// 		return values[lower], nil
-// 	}
-// 	return values[lower]*(1-weight) + values[upper]*weight, nil
-// }
-
-// // exactperc99 calculates the 99th percentile of a slice of float64.
-// func exactperc99(values []float64) (float64, error) {
-// 	fmt.Println("exactperc99 called")
-// 	return exactperc(values, 99)
-// }
-
-// // perc66_6 calculates the 66.6th percentile of a slice of float64.
-// func perc66_6(values []float64) (float64, error) {
-// 	return exactperc(values, 66.6)
-// }
-
-// // upperperc6_6 calculates the upper 6.6th percentile of a slice of float64.
-// func upperperc6_6(values []float64) (float64, error) {
-// 	return exactperc(values, 93.4) // 100 - 6.6 = 93.4
-// }
 
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool, timeSort bool, timeSortAsc bool) error {
