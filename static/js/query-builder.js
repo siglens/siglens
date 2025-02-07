@@ -154,7 +154,7 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
-var calculations = ['min', 'max', 'count', 'avg', 'sum'];
+var calculations = ['sumsq','min', 'max', 'count', 'avg', 'sum'];
 var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];
@@ -302,6 +302,7 @@ function checkContent(obj) {
     }
 }
 function checkFirstBox(curSelect) {
+    
     let num = 0;
     if (($('#column-first').val() == null || $('#column-first').val().trim() == '') && curSelect != 0) num++;
     if (($('#symbol').val() == null || $('#symbol').val().trim() == '') && curSelect != 1) num++;

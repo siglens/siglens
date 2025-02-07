@@ -83,6 +83,22 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
+		case Sumsq:
+			val2 := e2.CVal.(uint64)
+		
+			// Prevent overflow while computing sum of squares
+			if val2 > math.MaxUint64/val2 {
+				return e1, fmt.Errorf("Reduce: uint64 overflow detected in sumsq operation")
+			}
+		
+			squaredVal2 := val2 * val2
+		
+			if e1.CVal.(uint64) > math.MaxUint64-squaredVal2 {
+				return e1, fmt.Errorf("Reduce: uint64 addition overflow in sumsq operation")
+			}
+		
+			e1.CVal = e1.CVal.(uint64) + squaredVal2
+			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
 		}
@@ -97,6 +113,33 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 		case Max:
 			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
+		case Sumsq:
+		
+			val2 := e2.CVal.(int64)
+		
+			// Convert to uint64 to handle large negative values safely
+			absVal2 := uint64(math.Abs(float64(val2)))
+		
+			// Prevent overflow while computing sum of squares
+			if absVal2 > math.MaxUint64/absVal2 {
+				return e1, fmt.Errorf("Reduce: int64 overflow detected in sumsq operation")
+			}
+		
+			squaredVal2 := int64(absVal2 * absVal2)
+		
+			// Handle first assignment case
+			if e1.CVal.(int64) == 0 {
+				e1.CVal = squaredVal2
+				return e1, nil
+			}
+		
+			// Prevent overflow while adding squared values
+			if e1.CVal.(int64) > math.MaxInt64-squaredVal2 {
+				return e1, fmt.Errorf("Reduce: int64 addition overflow in sumsq operation")
+			}
+		
+			e1.CVal = e1.CVal.(int64) + squaredVal2
+			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
 		}
@@ -110,6 +153,34 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			return e1, nil
 		case Max:
 			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
+			return e1, nil
+		case Sumsq:
+			val2 := e2.CVal.(float64)
+		
+			// Handle NaN cases to prevent propagation
+			if math.IsNaN(val2) || math.IsNaN(e1.CVal.(float64)) {
+				return e1, fmt.Errorf("Reduce: NaN detected in sumsq operation")
+			}
+		
+			// Check for Infinity to prevent unexpected behavior
+			if math.IsInf(val2, 0) || math.IsInf(e1.CVal.(float64), 0) {
+				return e1, fmt.Errorf("Reduce: Infinity detected in sumsq operation")
+			}
+		
+			squaredVal2 := val2 * val2
+		
+			// Handle first assignment case
+			if e1.CVal.(float64) == 0 {
+				e1.CVal = squaredVal2
+				return e1, nil
+			}
+		
+			// Prevent overflow when adding squared values
+			if math.IsInf(e1.CVal.(float64)+squaredVal2, 0) {
+				return e1, fmt.Errorf("Reduce: float64 overflow detected in sumsq operation")
+			}
+		
+			e1.CVal = e1.CVal.(float64) + squaredVal2
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
@@ -221,13 +292,52 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
+		case Sumsq:
+			// Handle first-time initialization
+			if self.Ntype == SS_INVALID {
+				self.Ntype = SS_DT_UNSIGNED_NUM
+				squared := uint64(e2int64) * uint64(e2int64)
+				self.IntgrVal = int64(squared) // Store as int64 while keeping positive range
+				return nil
+			}
+		
+			// Handle signed integers safely (without unexpected overflow)
+			if self.Ntype == SS_DT_SIGNED_NUM {
+				if e2int64 < 0 {
+					e2int64 = -e2int64 // Ensure non-negative before squaring
+				}
+				squared := uint64(e2int64) * uint64(e2int64)
+		
+				// Check for overflow before addition
+				if uint64(self.IntgrVal) > math.MaxUint64-squared {
+					return fmt.Errorf("Sumsq: integer overflow detected")
+				}
+		
+				self.IntgrVal += int64(squared)
+				return nil
+			}
+		
+			// Handle unsigned numbers
+			if self.Ntype == SS_DT_UNSIGNED_NUM {
+				squared := uint64(e2int64) * uint64(e2int64)
+		
+				// Check for overflow before addition
+				if uint64(self.IntgrVal) > math.MaxUint64-squared {
+					return fmt.Errorf("Sumsq: integer overflow detected")
+				}
+		
+				self.IntgrVal += int64(squared)
+				return nil
+			}
+		
+			return fmt.Errorf("Sumsq: unsupported type: %v", self.Ntype)
 		default:
 			return fmt.Errorf("ReduceFast: unsupported int function: %v", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
 		case Sum:
-			self.FloatVal = self.FloatVal + e2float64
+			self.FloatVal += e2float64
 			return nil
 		case Min:
 			self.FloatVal = math.Min(self.FloatVal, e2float64)
@@ -236,7 +346,17 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.FloatVal = math.Max(self.FloatVal, e2float64)
 			return nil
 		case Count:
-			self.FloatVal = self.FloatVal + e2float64
+			self.IntgrVal++ // Count should increment an integer counter
+			return nil
+		case Sumsq:
+			squared := e2float64 * e2float64
+	
+			// Handle NaN and Infinity cases
+			if math.IsNaN(squared) || math.IsInf(squared, 0) {
+				return fmt.Errorf("Sumsq: Invalid float operation, result is NaN or Inf")
+			}
+	
+			self.FloatVal += squared
 			return nil
 		default:
 			return fmt.Errorf("ReduceFast: unsupported float function: %v", fun)
