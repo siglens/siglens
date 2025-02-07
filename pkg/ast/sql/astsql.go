@@ -125,6 +125,10 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Sum
 	case "cardinality":
 		return utils.Cardinality
+	case "stdev":
+		return utils.Stdev
+	case "stdevp":
+		return utils.Stdevp
 	default:
 		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0

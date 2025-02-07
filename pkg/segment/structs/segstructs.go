@@ -577,6 +577,12 @@ type AvgStat struct {
 	Sum   float64
 }
 
+type StdevStat struct {
+    Sum     float64
+    SumSq   float64  
+    Count   int64
+}
+
 type FieldGetter interface {
 	GetFields() []string
 }
@@ -1437,8 +1443,6 @@ var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
 	utils.UpperPerc:    {},
 	utils.Median:       {},
 	utils.Mode:         {},
-	utils.Stdev:        {},
-	utils.Stdevp:       {},
 	utils.Sumsq:        {},
 	utils.Var:          {},
 	utils.Varp:         {},
