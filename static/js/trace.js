@@ -399,7 +399,7 @@ function displayTimeline(data) {
 
             const labelBackground = labelsSvg.append('rect').attr('x', -30).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `hover-area-${node.span_id}`);
 
-            const labelGroup = labelsSvg.append('g').attr('transform', `translate(${10 * level}, ${y})`);
+            const labelGroup = labelsSvg.append('g').attr('transform', `translate(${20 * level}, ${y})`);
 
             // Add vertical color strip
             labelGroup.append('rect').attr('x', 0).attr('y', 10).attr('width', 3).attr('height', 20).attr('fill', node.color).attr('rx', 1).attr('ry', 1);
@@ -432,7 +432,7 @@ function displayTimeline(data) {
             // Add error indicator
             let errorGroup;
             if (node.is_anomalous) {
-                errorGroup = labelGroup.append('g').attr('transform', 'translate(-35, 4)');
+                errorGroup = labelGroup.append('g').attr('transform', 'translate(10, 4)');
 
                 errorGroup.append('circle').attr('cx', 6).attr('cy', 16).attr('r', 6).attr('fill', '#ef4444');
 
@@ -452,7 +452,7 @@ function displayTimeline(data) {
             // Add node labels
             labelGroup
                 .append('text')
-                .attr('x', 10)
+                .attr('x', node.is_anomalous ? 28 : 10)
                 .attr('y', 24)
                 .attr('class', 'node-label')
                 .classed('anomalous-node', node.is_anomalous)
