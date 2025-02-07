@@ -539,6 +539,9 @@ type SegStats struct {
 type NumericStats struct {
 	NumericCount uint64                 `json:"numericCount,omitempty"`
 	Sum          utils.NumTypeEnclosure `json:"sum,omitempty"`
+	//Added numeric stats
+	Stdev        utils.NumTypeEnclosure `json:"stdev,omitempty"`
+	PopulationSD utils.NumTypeEnclosure `json:"populationsd,omitempty"`
 }
 
 type StringStats struct {

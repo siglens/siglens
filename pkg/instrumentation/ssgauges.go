@@ -20,6 +20,7 @@ package instrumentation
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/siglens/siglens/pkg/utils"
@@ -57,6 +58,41 @@ type simpleInt64Gauge struct {
 	description string
 	gauge       metric.Int64ObservableGauge
 	lock        *sync.RWMutex
+}
+
+func CalculateStdev(values []float64) float64 {
+	n := float64(len(values))
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= n
+
+	variance := 0.0
+	for _, value := range values {
+		variance += (value - mean) * (value - mean)
+	}
+	variance /= (n - 1)
+
+	return math.Sqrt(variance)
+}
+
+// Population Standard Deviation
+func CalculateStdevp(values []float64) float64 {
+	n := float64(len(values))
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= n
+
+	variance := 0.0
+	for _, value := range values {
+		variance += (value - mean) * (value - mean)
+	}
+	variance /= n
+
+	return math.Sqrt(variance)
 }
 
 type Gauge int

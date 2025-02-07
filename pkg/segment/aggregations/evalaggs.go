@@ -354,45 +354,122 @@ func PerformEvalAggForSum(measureAgg *structs.MeasureAggregator, count uint64, c
 	return finalResult, nil
 }
 
-func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure) error {
+func PerformEvalAggForStdev(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
-	fieldToValue := make(map[string]utils.CValueEnclosure)
+	finalResult := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  float64(0),
+	}
+	finalValue := float64(0)
+	sumValue := float64(0)
+	meanValue := float64(0)
 
 	if len(fields) == 0 {
-		countStat, exist := sstMap["*"]
-		if !exist {
-			return fmt.Errorf("ComputeAggEvalForSum: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		if err != nil || !isNumeric {
+			return currResult, fmt.Errorf("PerformEvalAggForStdev: Error while evaluating value col request to a numeric value, err: %v", err)
 		}
-		currResult, currResultExists := measureResults[measureAgg.String()]
-		result, err := PerformEvalAggForSum(measureAgg, countStat.Count, currResultExists, currResult, fieldToValue)
-		if err != nil {
-			return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+		sumValue = floatValue * float64(count)
+		meanValue = sumValue / float64(count)
+		variance := 0.0
+		for _, v := range fieldToValue {
+			value, ok := v.CVal.(float64)
+			if !ok {
+				continue // Skip non-float64 values
+			}
+			variance += (value - meanValue) * (value - meanValue)
 		}
-		measureResults[measureAgg.String()] = result
+		variance /= float64(count - 1)
+		finalValue = math.Sqrt(variance)
 	} else {
-		sst, ok := sstMap[fields[0]]
-		if !ok {
-			return fmt.Errorf("ComputeAggEvalForSum: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
-		}
-
-		length := len(sst.Records)
-		for i := 0; i < length; i++ {
-			fieldToValue = make(map[string]utils.CValueEnclosure)
-			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForSum: Error while populating fieldToValue from sstMap, err: %v", err)
+				return currResult, fmt.Errorf("PerformEvalAggForStdev: there are some errors in the eval function that is inside the stdev function: %v", err)
 			}
-
-			currResult, currResultExists := measureResults[measureAgg.String()]
-			result, err := PerformEvalAggForSum(measureAgg, uint64(length), currResultExists, currResult, fieldToValue)
+			if boolResult {
+				finalValue = float64(1)
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 			if err != nil {
-				return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+				return currResult, fmt.Errorf("PerformEvalAggForStdev: Error while evaluating value col request, err: %v", err)
 			}
-			measureResults[measureAgg.String()] = result
+			if isNumeric {
+				finalValue = floatValue
+			}
 		}
 	}
+	if !currResultExists {
+		finalResult.CVal = finalValue
+		return finalResult, nil
+	}
+	currValue, isFloat := currResult.CVal.(float64)
+	if !isFloat {
+		return currResult, fmt.Errorf("PerformEvalAggForStdev: Float type enclosure does not have a float value")
+	}
+	finalValue += currValue
+	finalResult.CVal = finalValue
+	return finalResult, nil
+}
 
-	return nil
+func PerformEvalAggForStdevp(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
+	fields := measureAgg.ValueColRequest.GetFields()
+	finalResult := utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  float64(0),
+	}
+	finalValue := float64(0)
+	sumValue := float64(0)
+	meanValue := float64(0)
+
+	if len(fields) == 0 {
+		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+		if err != nil || !isNumeric {
+			return currResult, fmt.Errorf("PerformEvalAggForStdevp: Error while evaluating value col request to a numeric value, err: %v", err)
+		}
+		sumValue = floatValue * float64(count)
+		meanValue = sumValue / float64(count)
+		variance := 0.0
+		for _, v := range fieldToValue {
+			value, ok := v.CVal.(float64)
+			if !ok {
+				continue // Skip non-float64 values
+			}
+			variance += (value - meanValue) * (value - meanValue)
+		}
+		variance /= float64(count)
+		finalValue = math.Sqrt(variance)
+	} else {
+		if measureAgg.ValueColRequest.BooleanExpr != nil {
+			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("PerformEvalAggForStdevp: there are some errors in the eval function that is inside the stdevp function: %v", err)
+			}
+			if boolResult {
+				finalValue = float64(1)
+			}
+		} else {
+			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
+			if err != nil {
+				return currResult, fmt.Errorf("PerformEvalAggForStdevp: Error while evaluating value col request, err: %v", err)
+			}
+			if isNumeric {
+				finalValue = floatValue
+			}
+		}
+	}
+	if !currResultExists {
+		finalResult.CVal = finalValue
+		return finalResult, nil
+	}
+	currValue, isFloat := currResult.CVal.(float64)
+	if !isFloat {
+		return currResult, fmt.Errorf("PerformEvalAggForStdevp: Float type enclosure does not have a float value")
+	}
+	finalValue += currValue
+	finalResult.CVal = finalValue
+	return finalResult, nil
 }
 
 func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
