@@ -243,6 +243,7 @@
             $(evt.currentTarget).addClass('active');
             datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
             $('#daterangepicker').removeClass('show').hide();
+            $('#date-picker-btn').removeClass('active')
         }
 
         function resetCustomDateRange() {
