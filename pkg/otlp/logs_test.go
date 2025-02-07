@@ -95,6 +95,23 @@ func Test_Logs_FullSuccess(t *testing.T) {
 	assert.Equal(t, 1, int(usageStats.GetTotalLogLines(myid)))
 }
 
+func Test_Logs_PartialSuccess(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	numTotal := 10
+	numFailed := 5
+	setLogIngestionResponse(ctx, numTotal, numFailed)
+
+	response := &collogpb.ExportLogsServiceResponse{}
+	err := proto.Unmarshal(ctx.Response.Body(), response)
+	assert.NoError(t, err)
+
+	assert.NotNil(t, response.PartialSuccess)
+	assert.Equal(t, int64(numFailed), response.PartialSuccess.RejectedLogRecords)
+
+	// See https://opentelemetry.io/docs/specs/otlp/#partial-success-1
+	assert.Equal(t, fasthttp.StatusOK, ctx.Response.StatusCode())
+}
+
 func initTestConfig(t *testing.T) {
 	runningConfig := config.GetTestConfig(t.TempDir())
 	config.SetConfig(runningConfig)

@@ -225,7 +225,7 @@ resourceLoop:
 	usageStats.UpdateStats(uint64(len(data)), uint64(max(0, numTotalRecords-numFailedRecords)), myid)
 
 	// Send the appropriate response.
-	handleLogIngestionResponse(ctx, numTotalRecords, numFailedRecords)
+	setLogIngestionResponse(ctx, numTotalRecords, numFailedRecords)
 }
 
 func unmarshalLogRequest(data []byte) (*collogpb.ExportLogsServiceRequest, error) {
@@ -239,18 +239,36 @@ func unmarshalLogRequest(data []byte) (*collogpb.ExportLogsServiceRequest, error
 	return &logs, nil
 }
 
-func handleLogIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numFailedRecords int) {
+func setLogIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numFailedRecords int) {
 	if numFailedRecords == 0 {
 		response, err := proto.Marshal(&collogpb.ExportLogsServiceResponse{})
 		if err != nil {
-			log.Errorf("handleLogIngestionResponse: failed to marshal successful response; err=%v", err)
+			log.Errorf("setLogIngestionResponse: failed to marshal successful response; err=%v", err)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
 
 		_, err = ctx.Write(response)
 		if err != nil {
-			log.Errorf("handleLogIngestionResponse: failed to write successful response; err=%v", err)
+			log.Errorf("setLogIngestionResponse: failed to write successful response; err=%v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+	} else if numFailedRecords < numTotalRecords {
+		response, err := proto.Marshal(&collogpb.ExportLogsServiceResponse{
+			PartialSuccess: &collogpb.ExportLogsPartialSuccess{
+				RejectedLogRecords: int64(numFailedRecords),
+			},
+		})
+		if err != nil {
+			log.Errorf("setLogIngestionResponse: failed to marshal partially successful response; err=%v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+
+		_, err = ctx.Write(response)
+		if err != nil {
+			log.Errorf("setLogIngestionResponse: failed to write partially successful response; err=%v", err)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
