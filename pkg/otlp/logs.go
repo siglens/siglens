@@ -34,6 +34,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const defaultIndexName = "otlp-default"
+const indexNameKey = "index"
+
 func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTLP_LOGS, false)
@@ -99,7 +102,7 @@ resourceLoop:
 			SchemaUrl:              resourceLog.SchemaUrl,
 		}
 
-		indexName := "otlp-default"
+		indexName := defaultIndexName
 
 		for _, attribute := range resourceLog.Resource.Attributes {
 			key, value, err := extractKeyValue(attribute)
@@ -112,7 +115,7 @@ resourceLoop:
 			}
 			resource.Attributes[key] = value
 
-			if key == "index" {
+			if key == indexNameKey {
 				valueStr := fmt.Sprintf("%v", value)
 				if valueStr != "" {
 					indexName = valueStr
