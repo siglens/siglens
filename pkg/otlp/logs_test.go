@@ -29,6 +29,7 @@ import (
 	collogpb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	logpb "go.opentelemetry.io/proto/otlp/logs/v1"
+	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -95,6 +96,7 @@ func Test_Logs_FullSuccess(t *testing.T) {
 	assert.Equal(t, 1, int(usageStats.GetTotalLogLines(myid)))
 }
 
+// See https://opentelemetry.io/docs/specs/otlp/#partial-success-1
 func Test_Logs_PartialSuccess(t *testing.T) {
 	ctx := &fasthttp.RequestCtx{}
 	numTotal := 10
@@ -108,8 +110,22 @@ func Test_Logs_PartialSuccess(t *testing.T) {
 	assert.NotNil(t, response.PartialSuccess)
 	assert.Equal(t, int64(numFailed), response.PartialSuccess.RejectedLogRecords)
 
-	// See https://opentelemetry.io/docs/specs/otlp/#partial-success-1
 	assert.Equal(t, fasthttp.StatusOK, ctx.Response.StatusCode())
+}
+
+// See https://opentelemetry.io/docs/specs/otlp/#failures-1
+func Test_Logs_Failure(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	numTotal := 10
+	numFailed := 10
+	setLogIngestionResponse(ctx, numTotal, numFailed)
+
+	response := &status.Status{}
+	err := proto.Unmarshal(ctx.Response.Body(), response)
+	assert.NoError(t, err)
+
+	statusCode := ctx.Response.StatusCode()
+	assert.True(t, statusCode >= 400 && statusCode < 600, "invalid status code: %d", statusCode)
 }
 
 func initTestConfig(t *testing.T) {

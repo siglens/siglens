@@ -272,9 +272,9 @@ func setLogIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numF
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
+	} else {
+		setFailureResponse(ctx, fasthttp.StatusInternalServerError, "Every log record failed ingestion")
 	}
-
-	// TODO: handle partial success, and failure
 }
 
 // func handleLogIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {
