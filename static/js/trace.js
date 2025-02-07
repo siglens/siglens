@@ -233,7 +233,7 @@ function displayTimeline(data) {
     assignServiceColors(data);
 
     function updateTimeline() {
-        const oldContainer = document.querySelector('#timeline-container > div:nth-child(2)');
+        const oldContainer = document.querySelector('#timeline-container > div:nth-child(3)');
         const scrollTop = oldContainer ? oldContainer.scrollTop : 0;
         const scrollLeft = oldContainer ? oldContainer.scrollLeft : 0;
 
@@ -244,7 +244,7 @@ function displayTimeline(data) {
         const containerDiv = d3.select('#timeline-container');
         containerDiv.selectAll('*').remove();
 
-        const wrapper = containerDiv.append('div').style('position', 'relative').style('width', '100%').style('height', '100%').style('display', 'flex').style('flex-direction', 'column').style('min-width', '600px');
+        const wrapper = containerDiv.append('div').style('position', 'relative').style('width', '100%').style('display', 'flex').style('flex-direction', 'column').style('min-width', '600px');
 
         // Create fixed header container
         const headerDiv = wrapper.append('div').attr('class', 'header-div').style('min-width', '600px');
@@ -257,21 +257,20 @@ function displayTimeline(data) {
 
         const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px').style('min-width', '400px');
 
-        const resizer = wrapper
+        const resizer = containerDiv
             .append('div')
             .attr('class', 'gantt-chart-resizer')
             .style('left', labelWidth + 'px')
             .style('min-left', '200px');
 
-        const mainContainer = wrapper.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto');
-
+        const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)');
         // Labels container
-        const labelsContainer = mainContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
+        const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
 
         const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
         // Timeline container
-        const timelineContainer = mainContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
+        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
 
         const timelineSvg = timelineContainer
             .append('svg')
@@ -556,7 +555,7 @@ function displayTimeline(data) {
         }
 
         requestAnimationFrame(() => {
-            const newContainer = document.querySelector('#timeline-container > div:nth-child(2)');
+            const newContainer = document.querySelector('#timeline-container > div:nth-child(3)');
             if (newContainer) {
                 newContainer.scrollTop = scrollTop;
                 newContainer.scrollLeft = scrollLeft;
