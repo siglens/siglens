@@ -19,7 +19,6 @@ package writer
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -73,7 +72,7 @@ func Test_PutMetrics(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-var prombMarshalDataSlice [][]byte = [][]byte{
+var prompbMarshalDataSlice [][]byte = [][]byte{
 	// nested quotes
 	[]byte(`{"metric":{"__name__":"httpcheck_error","error_message":"Get \"http://frontend-proxy:8080\": dial tcp 172.18.0.26:8080: connect: connection refused","http_url":"http://frontend-proxy:8080"},"value":[1738943658.675,"1"]}`),
 	// tag with slice values
@@ -81,11 +80,11 @@ var prombMarshalDataSlice [][]byte = [][]byte{
 	[]byte(`{"metric":{"__name__":"target_info","container_id":"cd4ba3a39b41a843d04e83f40014c0d4b0a2c56f68fb339e5e1ffc3fd9975866","docker_cli_cobra_command_path":"docker compose","host_arch":"arm64","host_name":"cd4ba3a39b41","job":"payment","os_type":"linux","os_version":"6.12.5-linuxkit","process_command":"/usr/src/app/index.js","process_command_args":"[\"/usr/local/bin/node\",\"--require\",\"./opentelemetry.js\",\"/usr/src/app/index.js\"]","process_executable_name":"node","process_executable_path":"/usr/local/bin/node","process_owner":"node","process_pid":"18","process_runtime_description":"Node.js","process_runtime_name":"nodejs","process_runtime_version":"22.13.1","telemetry_sdk_language":"nodejs","telemetry_sdk_name":"opentelemetry","telemetry_sdk_version":"1.30.1"},"value":[1738943749.26,"1"]}`),
 }
 
-func Test_ConvertToOTtsdbAndAddTSEntry(t *testing.T) {
+func Test_ConvertToOTSDBAndExtractPayload(t *testing.T) {
 	timestamp := time.Now().Unix()
 	expectedTimestamp := uint32(timestamp)
 
-	for _, data := range prombMarshalDataSlice {
+	for _, data := range prompbMarshalDataSlice {
 
 		var dataMap map[string]interface{}
 		err := json.Unmarshal(data, &dataMap)
@@ -95,7 +94,6 @@ func Test_ConvertToOTtsdbAndAddTSEntry(t *testing.T) {
 		metricName := dataMap["metric"].(map[string]interface{})["__name__"].(string)
 
 		otsdbData, err := ConvertToOTSDBFormat(data, timestamp, value)
-		fmt.Println(string(otsdbData))
 		assert.NoError(t, err)
 		assert.NotNil(t, otsdbData)
 
@@ -119,7 +117,7 @@ func Test_ConvertToOTtsdbAndAddTSEntry(t *testing.T) {
 			expectedValue, ok := dataMap["metric"].(map[string]interface{})[key].(string)
 			assert.True(t, ok)
 			// Since the strings will be escaped, we need to remove the escape characters
-			assert.Equal(t, strings.ReplaceAll(expectedValue, `\`, ``), strings.ReplaceAll(string(value), `\`, ``))
+			assert.Equal(t, strings.ReplaceAll(expectedValue, `\"`, `"`), strings.ReplaceAll(string(value), `\"`, `"`))
 		}
 	}
 }
