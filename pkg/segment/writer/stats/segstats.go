@@ -19,7 +19,7 @@ package stats
 
 import (
 	"math"
-	"math/rand/v2"
+	"math/rand"
 	"sort"
 	"strconv"
 
