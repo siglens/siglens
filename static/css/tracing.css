@@ -656,3 +656,7 @@ body.resizing {
     width: 5px;
     background: var(--time-tick);
 }
+
+.hover-highlight {
+    fill: var(--alert-background);
+}

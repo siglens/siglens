@@ -201,7 +201,7 @@ function convertNanosecondsToDateTime(timestamp) {
 }
 
 function displayTimeline(data) {
-    spanDetailsClosed = false; 
+    spanDetailsClosed = false;
     // Create a map of service names to colors
     const serviceColors = new Map();
 
@@ -347,11 +347,11 @@ function displayTimeline(data) {
 
                 labelWidth = newWidth;
 
-                labelsContainer.style('width', `${newWidth}px`);
+                labelsContainer.style('width', `${newWidth}px`).style('min-width', newWidth + 'px');
                 labelHeaderDiv.style('width', `${newWidth}px`);
                 headerDiv.select('div').style('width', `${newWidth}px`);
                 resizer.style('left', `${newWidth}px`);
-                labelsContainer.style('min-width', newWidth + 'px');
+                labelsContainer.select('svg').attr('width', newWidth);
                 labelsSvg.attr('width', newWidth);
 
                 updateTimelineElements();
@@ -391,16 +391,18 @@ function displayTimeline(data) {
             .attr('stroke', '#eee')
             .attr('stroke-dasharray', '2,2');
 
-        let y = 20;
+        let y = 0;
         let firstSpan = null;
 
         function renderTimeline(node, level = 0, isVisible = true) {
             if (!isVisible) return;
 
+            const labelBackground = labelsSvg.append('rect').attr('x', -30).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `hover-area-${node.span_id}`);
+
             const labelGroup = labelsSvg.append('g').attr('transform', `translate(${10 * level}, ${y})`);
 
             // Add vertical color strip
-            labelGroup.append('rect').attr('x', 0).attr('y', 0).attr('width', 3).attr('height', 20).attr('fill', node.color).attr('rx', 1).attr('ry', 1);
+            labelGroup.append('rect').attr('x', 0).attr('y', 10).attr('width', 3).attr('height', 20).attr('fill', node.color).attr('rx', 1).attr('ry', 1);
 
             // Add expand/collapse button if node has children
             if (node.children && node.children.length > 0) {
@@ -415,7 +417,7 @@ function displayTimeline(data) {
                     });
 
                 // Create a foreign object to hold the HTML content
-                const fo = buttonGroup.append('foreignObject').attr('width', 16).attr('height', 16).attr('y', 2); // Adjust this value to vertically align the icon
+                const fo = buttonGroup.append('foreignObject').attr('width', 16).attr('height', 16).attr('y', 12);
 
                 // Add the Font Awesome icon
                 const div = fo.append('xhtml:div').style('width', '100%').style('height', '100%').style('display', 'flex').style('align-items', 'center').style('justify-content', 'center');
@@ -428,15 +430,16 @@ function displayTimeline(data) {
             }
 
             // Add error indicator
+            let errorGroup;
             if (node.is_anomalous) {
-                const errorGroup = labelGroup.append('g').attr('transform', 'translate(-35, 4)').style('cursor', 'pointer');
+                errorGroup = labelGroup.append('g').attr('transform', 'translate(-35, 4)');
 
-                errorGroup.append('circle').attr('cx', 6).attr('cy', 6).attr('r', 6).attr('fill', '#ef4444');
+                errorGroup.append('circle').attr('cx', 6).attr('cy', 16).attr('r', 6).attr('fill', '#ef4444');
 
                 errorGroup
                     .append('text')
                     .attr('x', 6)
-                    .attr('y', 7)
+                    .attr('y', 17)
                     .attr('text-anchor', 'middle')
                     .attr('fill', 'white')
                     .attr('font-size', '9px')
@@ -450,7 +453,7 @@ function displayTimeline(data) {
             labelGroup
                 .append('text')
                 .attr('x', 10)
-                .attr('y', 14)
+                .attr('y', 24)
                 .attr('class', 'node-label')
                 .classed('anomalous-node', node.is_anomalous)
                 .classed('normal-node', !node.is_anomalous)
@@ -463,45 +466,78 @@ function displayTimeline(data) {
                     text.append('tspan').attr('class', 'node-label-operation').text(node.operation_name).attr('dx', '10');
                 });
 
+            const timelineBackground = timelineSvg.append('rect').attr('x', 0).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `timeline-hover-area-${node.span_id}`);
+
+            let timelineBar, durationLabel;
             if (!node.is_anomalous) {
                 if (firstSpan === null) {
                     firstSpan = node;
                 }
 
                 //eslint-disable-next-line no-unused-vars
-                // When creating rectangles in renderTimeline:
-                const rect = timelineSvg
+                timelineBar = timelineSvg
                     .append('rect')
                     .attr('class', 'timeline-bar')
                     .attr('x', xScale(nsToMs(node.start_time)))
-                    .attr('y', y) // y position stays fixed
+                    .attr('y', y + 14)
                     .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
-                    .attr('height', 14) // height stays fixed
+                    .attr('height', 14)
                     .attr('rx', 2)
                     .attr('ry', 2)
                     .attr('fill', node.color)
-                    .datum(node) // Attach data for resize updates
-                    .on('mouseover', function (event) {
-                        d3.select(this).style('cursor', 'pointer');
-                        showTooltip(event, node);
-                    })
-                    .on('mouseout', hideTooltip)
-                    .on('click', () => showSpanDetails(node));
+                    .datum(node);
 
-                // Duration text in renderTimeline:
-                timelineSvg
+                durationLabel = timelineSvg
                     .append('text')
-                    .attr('class', 'duration-label') // Make sure we use this class
-                    .datum(node) // Attach the full node data
+                    .attr('class', 'duration-label')
+                    .datum(node)
                     .attr('x', xScale(nsToMs(node.end_time)) + 5)
-                    .attr('y', y + 12)
+                    .attr('y', y + 24)
                     .text(`${nsToMs(node.duration)}ms`)
                     .style('font-size', '10px')
-                    .attr('class', 'normal-node duration-label') // Add both classes
-                    .style('cursor', 'pointer')
-                    .on('click', () => showSpanDetails(node));
+                    .attr('class', 'normal-node duration-label');
             }
 
+            function addHoverEffect() {
+                labelBackground.classed('hover-highlight', true);
+                timelineBackground.classed('hover-highlight', true);
+            }
+
+            function removeHoverEffect() {
+                labelBackground.classed('hover-highlight', false);
+                timelineBackground.classed('hover-highlight', false);
+            }
+
+            const elements = [labelBackground.node(), timelineBackground.node(), labelGroup.node()];
+
+            if (!node.is_anomalous) {
+                durationLabel.node();
+            }
+            if (node.is_anomalous && errorGroup) {
+                elements.push(errorGroup.node());
+            }
+
+            d3.selectAll(elements)
+                .style('cursor', 'pointer')
+                .on('mouseover', function (event) {
+                    addHoverEffect();
+                })
+                .on('mouseout', removeHoverEffect)
+                .on('click', () => showSpanDetails(node));
+
+            if (timelineBar) {
+                timelineBar
+                    .style('cursor', 'pointer')
+                    .on('mouseover', function (event) {
+                        addHoverEffect();
+                        showTooltip(event, node);
+                    })
+                    .on('mouseout', function () {
+                        removeHoverEffect();
+                        hideTooltip();
+                    })
+                    .on('click', () => showSpanDetails(node));
+            }
             y += 40;
 
             // Render children only if expanded
@@ -639,10 +675,10 @@ function showSpanDetails(node) {
     spanDetailsContainer.select('.close-btn').on('click', function () {
         spanDetailsContainer.style('display', 'none');
         spanDetailsClosed = true;
-        updateTimelineElements();
+        window.dispatchEvent(new Event('resize'));
     });
 
-    updateTimelineElements();
+    window.dispatchEvent(new Event('resize'));
 }
 
 function calculateTotalHeight(node) {
