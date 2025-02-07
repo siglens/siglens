@@ -42,6 +42,7 @@ var aggregatorMapping = map[string]utils.AggregateFunctions{
 	"max":         utils.Max,
 	"sum":         utils.Sum,
 	"cardinality": utils.Cardinality,
+	"sumsq":       utils.Sumsq,
 }
 
 func MetricsQueryExpressionsParser(ctx *fasthttp.RequestCtx) {
