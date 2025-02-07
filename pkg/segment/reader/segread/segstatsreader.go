@@ -19,6 +19,7 @@ package segread
 
 import (
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/siglens/siglens/pkg/blob"
@@ -411,6 +412,31 @@ func GetSegCardinality(runningSegStat *structs.SegStats,
 	}
 	res.IntgrVal = int64(runningSegStat.GetHllCardinality())
 
+	return &res, nil
+}
+
+func GetSegEstimatedCardinalityError(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+
+	res := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT, // Use float type for percentage error
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &res, fmt.Errorf("GetSegEstimatedCardinalityError: currSegStat is nil")
+	}
+
+	// Get the estimated distinct count (estdc)
+	//estdc := float64(currSegStat.GetHllCardinality())
+
+	// Compute `m` as 2^log2m (total number of registers in HLL)
+	m := math.Pow(2, float64(currSegStat.Hll.Settings().Log2m))
+
+	// Use HLL's theoretical relative standard error bound
+	errorBound := (1.04 / math.Sqrt(m)) * 100 // Convert to percentage
+
+	res.FloatVal = errorBound
 	return &res, nil
 }
 

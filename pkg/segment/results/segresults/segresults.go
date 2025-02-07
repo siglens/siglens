@@ -298,6 +298,12 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		}
 		return runningSegStat, nil
 	case utils.Cardinality:
+		if incomingSegStat == nil || len(incomingSegStat.Records) == 0 {
+			fmt.Println("currSegStat has no records!")
+		} else {
+			fmt.Println("currSegStat has", len(incomingSegStat.Records), "records")
+		}
+
 		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
 	case utils.Count:
 		sstResult, err = segread.GetSegCount(runningSegStat, incomingSegStat)
@@ -305,6 +311,11 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
 	case utils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+	case utils.Estdc:
+		sstResult, err = segread.GetSegCardinality(runningSegStat, incomingSegStat)
+	case utils.EstdcError:
+		sstResult, err = segread.GetSegEstimatedCardinalityError(runningSegStat, incomingSegStat)
+
 	case utils.Values:
 		// Use GetSegValue to process and get the segment value
 		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)

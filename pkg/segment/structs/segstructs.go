@@ -534,6 +534,7 @@ type SegStats struct {
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
+	
 }
 
 type NumericStats struct {
@@ -1430,8 +1431,6 @@ func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOpti
 }
 
 var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
-	utils.Estdc:        {},
-	utils.EstdcError:   {},
 	utils.ExactPerc:    {},
 	utils.Perc:         {},
 	utils.UpperPerc:    {},
