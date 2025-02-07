@@ -34,8 +34,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const defaultIndexName = "otlp-default"
-const indexNameKey = "index"
+const defaultIndexName = "otel-logs"
+const indexNameAttributeKey = "siglensIndexName"
 
 func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
@@ -91,6 +91,9 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	now := utils.GetCurrentTimeInMs()
 	timestampKey := config.GetTimeStampKey()
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+	localIndexMap := make(map[string]string)
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	numFailedRecords := 0
 
@@ -115,7 +118,7 @@ resourceLoop:
 			}
 			resource.Attributes[key] = value
 
-			if key == indexNameKey {
+			if key == indexNameAttributeKey {
 				valueStr := fmt.Sprintf("%v", value)
 				if valueStr != "" {
 					indexName = valueStr
@@ -185,7 +188,6 @@ resourceLoop:
 					continue recordLoop
 				}
 
-				indexName = "andrew-test"
 				ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &timestampKey, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ProcessLogIngest: failed to get new PLE, jsonBytes: %v, err: %v", jsonBytes, err)
@@ -200,22 +202,14 @@ resourceLoop:
 				pleArray = append(pleArray, ple)
 			}
 		}
-	}
 
-	indexName := "andrew-test"
-	shouldFlush := false
-	localIndexMap := make(map[string]string)
-	idxToStreamIdCache := make(map[string]string)
-	cnameCacheByteHashToStr := make(map[uint64]string)
-	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
-	if err != nil {
-		log.Errorf("ProcessLogIngest: Failed to ingest logs, err: %v", err)
-		numFailedRecords = len(pleArray)
+		shouldFlush := false
+		err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+		if err != nil {
+			log.Errorf("ProcessLogIngest: Failed to ingest logs, err: %v", err)
+			numFailedRecords += len(pleArray)
+		}
 	}
-	// if err != nil {
-	// 	log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
-	// 	numFailedSpans += len(pleArray)
-	// }
 
 	// log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
 	// usageStats.UpdateStats(uint64(len(data)), uint64(numSpans), myid)
