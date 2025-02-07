@@ -421,7 +421,7 @@ function displayTimeline(data) {
                     .attr('y1', firstChildY)
                     .attr('x2', 30 * level + 1.5)
                     .attr('y2', lastChildY)
-                    .attr('class', 'connecting-lines')
+                    .attr('class', 'connecting-lines');
             }
 
             const labelBackground = labelsSvg.append('rect').attr('x', -30).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `hover-area-${node.span_id}`);
