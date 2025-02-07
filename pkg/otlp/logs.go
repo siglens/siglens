@@ -80,7 +80,7 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		ObservedTimeUnixNano   uint64                 `json:"observedTimeUnixNano"`
 		SeverityNumber         int32                  `json:"severityNumber"`
 		SeverityText           string                 `json:"severityText"`
-		Body                   string                 `json:"body"`
+		Body                   interface{}            `json:"body"`
 		Attributes             map[string]interface{} `json:"attributes"`
 		DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
 		Flags                  uint32                 `json:"flags"`
@@ -168,7 +168,7 @@ resourceLoop:
 					numFailedRecords++
 					continue recordLoop
 				}
-				record.Body = body.(string)
+				record.Body = body
 
 				for _, attribute := range logRecord.Attributes {
 					key, value, err := extractKeyValue(attribute)
