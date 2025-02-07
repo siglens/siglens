@@ -546,7 +546,7 @@ func (ss *SegStore) encodeSingleNumber(key string, value interface{},
 	return matchedCol
 }
 
-func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
+func (ss *SegStore) initAndBackFillColumn(key string, ssType SS_DTYPE,
 	matchedCol bool) (*ColWip, uint16, bool) {
 	allColWip := ss.wipBlock.colWips
 	colBlooms := ss.wipBlock.columnBlooms
@@ -563,7 +563,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 	if !ok {
 		if recNum != 0 {
 			log.Debugf("EncodeColumns: newColumn=%v showed up in the middle, backfilling it now", key)
-			ss.backFillPastRecords(key, valType, recNum, colBlooms, colRis, colWip)
+			ss.backFillPastRecords(key, ssType, recNum, colBlooms, colRis, colWip)
 		}
 	}
 	allColsInBlock[key] = true
@@ -572,10 +572,10 @@ func (ss *SegStore) initAndBackFillColumn(key string, valType SS_DTYPE,
 	return colWip, recNum, matchedCol
 }
 
-func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomIndex,
+func initMicroIndices(key string, ssType SS_DTYPE, colBlooms map[string]*BloomIndex,
 	colRis map[string]*RangeIndex) {
 
-	switch valType {
+	switch ssType {
 	case SS_DT_STRING:
 		bi := &BloomIndex{}
 		bi.uniqueWordCount = 0
@@ -592,14 +592,14 @@ func initMicroIndices(key string, valType SS_DTYPE, colBlooms map[string]*BloomI
 		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	default:
-		log.Errorf("initMicroIndices: unknown valType: %v", valType)
+		log.Errorf("initMicroIndices: unknown ssType: %v", ssType)
 	}
 }
 
-func (ss *SegStore) backFillPastRecords(key string, valType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
+func (ss *SegStore) backFillPastRecords(key string, ssType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
 	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
 
-	initMicroIndices(key, valType, colBlooms, colRis)
+	initMicroIndices(key, ssType, colBlooms, colRis)
 	packedLen := uint32(0)
 
 	recArr := make([]uint16, recNum)

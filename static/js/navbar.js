@@ -31,10 +31,10 @@ let navbarComponent = `
         <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./service-health.html">
                 <span class="icon-traces"></span>
-                <span class="nav-link-text">Tracing</span>
+                <span class="nav-link-text">APM</span>
             </a>
             <ul class="traces-dropdown navbar-submenu">
-                <a href="./service-health.html"><li class="traces-link">Service Health</li></a>
+                <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
@@ -148,7 +148,7 @@ let orgUpperNavTabs = [
 ];
 
 let tracingUpperNavTabs = [
-    { name: 'Service Health', url: './service-health.html', class: 'service-health' },
+    { name: 'Service Health (RED)', url: './service-health.html', class: 'service-health' },
     { name: 'Search Traces', url: './search-traces.html', class: 'search-traces' },
     { name: 'Dependency Graph', url: './dependency-graph.html', class: 'dependency-graph' },
 ];
@@ -200,7 +200,7 @@ $(document).ready(function () {
             $('.nav-traces').removeClass('disable-hover');
         }, 500);
         if ($('.subsection-navbar').length) {
-            $('.subsection-navbar').appendOrgNavTabs('Tracing', tracingUpperNavTabs);
+            $('.subsection-navbar').appendOrgNavTabs('APM', tracingUpperNavTabs);
         }
     } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
         $('.nav-ingest').addClass('active');
