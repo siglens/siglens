@@ -6,10 +6,10 @@ require (
 	github.com/FastFilter/xorfilter v0.1.4
 	github.com/bits-and-blooms/bitset v1.2.0
 	github.com/bits-and-blooms/bloom/v3 v3.0.1
-	github.com/brianvoe/gofakeit/v6 v6.21.0
+	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/buger/jsonparser v1.1.1
 	github.com/cespare/xxhash v1.1.0
-	github.com/dustin/go-humanize v1.0.0
+	github.com/dustin/go-humanize v1.0.1
 	github.com/fasthttp/router v1.4.1
 	github.com/fasthttp/websocket v1.5.0
 	github.com/fsnotify/fsnotify v1.7.0
