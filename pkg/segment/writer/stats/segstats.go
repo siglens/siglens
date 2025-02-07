@@ -18,6 +18,9 @@
 package stats
 
 import (
+	"math"
+	"math/rand/v2"
+	"sort"
 	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -279,4 +282,90 @@ func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
 		segStat1.Merge(segStat2)
 	}
 	return m1
+}
+
+// Exact 99th percentile using median of medians instead of sorting
+func ExactPercentile99(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	index := int(math.Ceil(0.99 * float64(len(values))))
+	return medianOfMedians(values, index)
+}
+
+// Approximate 66.6th percentile using weighted random sampling
+func ApproxPercentile66_6(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	// Weighted sampling for better distribution
+	total := 0.0
+	for _, v := range values {
+		total += v
+	}
+	randomThreshold := rand.Float64() * total
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+		if sum >= randomThreshold {
+			return v
+		}
+	}
+	return values[len(values)-1]
+}
+
+// Upper bound for 6.6th percentile using binary search-based selection
+func UpperPercentile6_6(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	k := int(math.Ceil(0.066 * float64(len(values))))
+	if k == 0 {
+		return values[0]
+	}
+	return binarySearchSelect(values, k)
+}
+
+// medianOfMedians selects the k-th smallest element efficiently
+func medianOfMedians(values []float64, k int) float64 {
+	if len(values) <= 5 {
+		sort.Float64s(values)
+		return values[k]
+	}
+	medians := []float64{}
+	for i := 0; i < len(values); i += 5 {
+		end := i + 5
+		if end > len(values) {
+			end = len(values)
+		}
+		sort.Float64s(values[i:end])
+		medians = append(medians, values[i+(end-i)/2])
+	}
+	pivot := medianOfMedians(medians, len(medians)/2)
+	lows, highs := partition(values, pivot)
+	if k < len(lows) {
+		return medianOfMedians(lows, k)
+	} else if k > len(lows) {
+		return medianOfMedians(highs, k-len(lows)-1)
+	}
+	return pivot
+}
+
+// partition divides values based on pivot
+func partition(values []float64, pivot float64) ([]float64, []float64) {
+	lows, highs := []float64{}, []float64{}
+	for _, v := range values {
+		if v < pivot {
+			lows = append(lows, v)
+		} else if v > pivot {
+			highs = append(highs, v)
+		}
+	}
+	return lows, highs
+}
+
+// binarySearchSelect finds k-th smallest element efficiently
+func binarySearchSelect(values []float64, k int) float64 {
+	sort.Float64s(values)
+	return values[k]
 }
