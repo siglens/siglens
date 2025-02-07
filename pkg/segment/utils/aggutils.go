@@ -253,7 +253,7 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 				self.Ntype = SS_DT_UNSIGNED_NUM
 				self.IntgrVal = int64(result)
 				return nil
-				} else if self.Ntype == SS_DT_FLOAT {
+			} else if self.Ntype == SS_DT_FLOAT {
 				// For float types, continue using float64
 				self.FloatVal = self.FloatVal + (e2float64 * e2float64)
 				return nil
