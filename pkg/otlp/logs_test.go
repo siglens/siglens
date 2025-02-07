@@ -52,7 +52,8 @@ func Test_Logs_BadBody(t *testing.T) {
 func Test_Logs_FullSuccess(t *testing.T) {
 	myid := int64(0)
 	initTestConfig(t)
-	virtualtable.InitVTable(func() []int64 { return []int64{myid} })
+	err := virtualtable.InitVTable(func() []int64 { return []int64{myid} })
+	assert.NoError(t, err)
 
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.Header.Set("Content-Type", utils.ContentProtobuf)
