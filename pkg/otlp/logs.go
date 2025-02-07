@@ -18,6 +18,7 @@
 package otlp
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -29,7 +30,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	collogpb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -55,6 +55,12 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
+	type Resource struct {
+		Attributes             map[string]interface{} `json:"attributes"`
+		DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
+		SchemaUrl              string                 `json:"schemaUrl"`
+	}
+
 	type Scope struct {
 		Name                   string                 `json:"name"`
 		Version                string                 `json:"version"`
@@ -64,10 +70,12 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	type SingleRecord struct {
-		TimeUnixNano           uint64                 `json:"time_unix_nano"`
-		ObservedTimeUnixNano   uint64                 `json:"observed_time_unix_nano"`
-		SeverityNumber         int32                  `json:"severity_number"`
-		SeverityText           string                 `json:"severity_text"`
+		Resource               *Resource              `json:"resource"`
+		Scope                  *Scope                 `json:"scope"`
+		TimeUnixNano           uint64                 `json:"timeUnixNano"`
+		ObservedTimeUnixNano   uint64                 `json:"observedTimeUnixNano"`
+		SeverityNumber         int32                  `json:"severityNumber"`
+		SeverityText           string                 `json:"severityText"`
 		Body                   string                 `json:"body"`
 		Attributes             map[string]interface{} `json:"attributes"`
 		DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
@@ -85,26 +93,28 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 
 resourceLoop:
 	for _, resourceLog := range request.ResourceLogs {
-		resource := resourceLog.Resource
-		sharedResourceInfo := make(map[string]interface{})
-		for _, attribute := range resource.Attributes {
+		resource := Resource{
+			Attributes:             make(map[string]interface{}),
+			DroppedAttributesCount: int64(resourceLog.Resource.DroppedAttributesCount),
+			SchemaUrl:              resourceLog.SchemaUrl,
+		}
+
+		indexName := "otlp-default"
+
+		for _, attribute := range resourceLog.Resource.Attributes {
 			key, value, err := extractKeyValue(attribute)
 			if err != nil {
 				log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
 				numFailedResources++
 				continue resourceLoop
 			}
-			sharedResourceInfo[key] = value
-		}
+			resource.Attributes[key] = value
 
-		sharedResourceInfo["resourceSchema"] = resourceLog.SchemaUrl
-		sharedResourceInfo["droppedAttributesCount"] = resource.DroppedAttributesCount
-
-		indexName := "otlp-default"
-		if value, ok := sharedResourceInfo["index"]; ok {
-			valueStr := fmt.Sprintf("%v", value)
-			if valueStr != "" {
-				indexName = valueStr
+			if key == "index" {
+				valueStr := fmt.Sprintf("%v", value)
+				if valueStr != "" {
+					indexName = valueStr
+				}
 			}
 		}
 
@@ -134,30 +144,44 @@ resourceLoop:
 
 		recordLoop:
 			for _, logRecord := range scopeLog.LogRecords {
-				marshaler := protojson.MarshalOptions{
-					UseProtoNames:   false, // Use JSON names instead of proto names
-					EmitUnpopulated: true,  // Include zero values
+				record := SingleRecord{
+					Resource:               &resource,
+					Scope:                  &scope,
+					TimeUnixNano:           logRecord.TimeUnixNano,
+					ObservedTimeUnixNano:   logRecord.ObservedTimeUnixNano,
+					SeverityNumber:         int32(logRecord.SeverityNumber),
+					SeverityText:           logRecord.SeverityText,
+					Attributes:             make(map[string]interface{}),
+					DroppedAttributesCount: int64(logRecord.DroppedAttributesCount),
+					Flags:                  logRecord.Flags,
+					TraceId:                string(logRecord.TraceId),
+					SpanId:                 string(logRecord.SpanId),
 				}
-				jsonBytes, err := marshaler.Marshal(logRecord)
+
+				body, err := extractAnyValue(logRecord.Body)
 				if err != nil {
-					log.Errorf("ProcessLogIngest: failed to marshal log record: %v", err)
+					log.Errorf("ProcessLogIngest: failed to extract body from log record: %v", err)
 					numFailedRecords++
 					continue recordLoop
 				}
-
-				record := SingleRecord{
-					Attributes: make(map[string]interface{}),
-				}
+				record.Body = body.(string)
 
 				for _, attribute := range logRecord.Attributes {
 					key, value, err := extractKeyValue(attribute)
 					if err != nil {
-						log.Errorf("ProcessLogIngest: failed to extract key value from attribute: %v", err)
+						log.Errorf("ProcessLogIngest: failed to extract key and value from attribute: %v", err)
 						numFailedRecords++
 						continue recordLoop
 					}
 
 					record.Attributes[key] = value
+				}
+
+				jsonBytes, err := json.Marshal(record)
+				if err != nil {
+					log.Errorf("ProcessLogIngest: failed to marshal log record; err=%v", err)
+					numFailedRecords++
+					continue recordLoop
 				}
 
 				indexName = "andrew-test"
