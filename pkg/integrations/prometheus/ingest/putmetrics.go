@@ -180,7 +180,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 		}
 	}
 	bytesReceived := uint64(len(compressed))
-	usageStats.UpdateMetricsStats(bytesReceived, successCount, 0)
+	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
 }
 
