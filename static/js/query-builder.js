@@ -154,7 +154,7 @@ $(document).mouseup(function (e) {
         ThirdCancelInfo(e);
     }
 });
-var calculations = ['min', 'max', 'count', 'avg', 'sum'];
+var calculations = ['min', 'max', 'count', 'avg', 'sum','exactperc99','perc66.6','upperperc6.6'];
 var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];

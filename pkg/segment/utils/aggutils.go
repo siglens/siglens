@@ -22,6 +22,7 @@ import (
 	"math"
 )
 
+
 func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CValueEnclosure, error) {
 
 	if e1.Dtype == SS_INVALID {

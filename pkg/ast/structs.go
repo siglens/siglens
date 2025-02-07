@@ -275,6 +275,12 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
+	} else if aggType == "exactperc99" {
+		aggFunc = utils.ExactPerc
+	} else if aggType == "perc66.6" {
+		aggFunc = utils.Perc
+	} else if aggType == "upperperc6.6" {
+		aggFunc = utils.UpperPerc
 	} else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}
