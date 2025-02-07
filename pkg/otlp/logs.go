@@ -18,6 +18,7 @@
 package otlp
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -151,8 +152,8 @@ resourceLoop:
 					Attributes:             make(map[string]interface{}),
 					DroppedAttributesCount: int64(logRecord.DroppedAttributesCount),
 					Flags:                  logRecord.Flags,
-					TraceId:                string(logRecord.TraceId),
-					SpanId:                 string(logRecord.SpanId),
+					TraceId:                hex.EncodeToString(logRecord.TraceId),
+					SpanId:                 hex.EncodeToString(logRecord.SpanId),
 				}
 
 				body, err := extractAnyValue(logRecord.Body)
