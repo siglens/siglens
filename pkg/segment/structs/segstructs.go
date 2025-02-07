@@ -534,7 +534,6 @@ type SegStats struct {
 	NumStats    *NumericStats
 	StringStats *StringStats
 	Records     []*utils.CValueEnclosure
-	
 }
 
 type NumericStats struct {
