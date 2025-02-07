@@ -95,33 +95,38 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	numTotalRecords := 0
 	numFailedRecords := 0
 
 resourceLoop:
 	for _, resourceLog := range request.ResourceLogs {
 		resource := Resource{
-			Attributes:             make(map[string]interface{}),
-			DroppedAttributesCount: int64(resourceLog.Resource.DroppedAttributesCount),
-			SchemaUrl:              resourceLog.SchemaUrl,
+			Attributes: make(map[string]interface{}),
+			SchemaUrl:  resourceLog.SchemaUrl,
 		}
 
 		indexName := defaultIndexName
 
-		for _, attribute := range resourceLog.Resource.Attributes {
-			key, value, err := extractKeyValue(attribute)
-			if err != nil {
-				log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
-				for _, scopeLog := range resourceLog.ScopeLogs {
-					numFailedRecords += len(scopeLog.LogRecords)
-				}
-				continue resourceLoop
-			}
-			resource.Attributes[key] = value
+		if resourceLog.Resource != nil {
+			resource.DroppedAttributesCount = int64(resourceLog.Resource.DroppedAttributesCount)
 
-			if key == indexNameAttributeKey {
-				valueStr := fmt.Sprintf("%v", value)
-				if valueStr != "" {
-					indexName = valueStr
+			for _, attribute := range resourceLog.Resource.Attributes {
+				key, value, err := extractKeyValue(attribute)
+				if err != nil {
+					log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
+					for _, scopeLog := range resourceLog.ScopeLogs {
+						numTotalRecords += len(scopeLog.LogRecords)
+						numFailedRecords += len(scopeLog.LogRecords)
+					}
+					continue resourceLoop
+				}
+				resource.Attributes[key] = value
+
+				if key == indexNameAttributeKey {
+					valueStr := fmt.Sprintf("%v", value)
+					if valueStr != "" {
+						indexName = valueStr
+					}
 				}
 			}
 		}
@@ -129,25 +134,30 @@ resourceLoop:
 	scopeLoop:
 		for _, scopeLog := range resourceLog.ScopeLogs {
 			scope := Scope{
-				Name:                   scopeLog.Scope.Name,
-				Version:                scopeLog.Scope.Version,
-				Attributes:             make(map[string]interface{}),
-				DroppedAttributesCount: int64(scopeLog.Scope.DroppedAttributesCount),
-				SchemaUrl:              scopeLog.SchemaUrl,
+				Attributes: make(map[string]interface{}),
+				SchemaUrl:  scopeLog.SchemaUrl,
 			}
 
-			for _, attribute := range scopeLog.Scope.Attributes {
-				key, value, err := extractKeyValue(attribute)
-				if err != nil {
-					log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
-					numFailedRecords += len(scopeLog.LogRecords)
-					continue scopeLoop
+			if scopeLog.Scope != nil {
+				scope.Name = scopeLog.Scope.Name
+				scope.Version = scopeLog.Scope.Version
+				scope.DroppedAttributesCount = int64(scopeLog.Scope.DroppedAttributesCount)
+
+				for _, attribute := range scopeLog.Scope.Attributes {
+					key, value, err := extractKeyValue(attribute)
+					if err != nil {
+						log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
+						numTotalRecords += len(scopeLog.LogRecords)
+						numFailedRecords += len(scopeLog.LogRecords)
+						continue scopeLoop
+					}
+					scope.Attributes[key] = value
 				}
-				scope.Attributes[key] = value
 			}
 
 		recordLoop:
 			for _, logRecord := range scopeLog.LogRecords {
+				numTotalRecords++
 				record := SingleRecord{
 					Resource:               &resource,
 					Scope:                  &scope,
@@ -214,8 +224,8 @@ resourceLoop:
 	// log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
 	// usageStats.UpdateStats(uint64(len(data)), uint64(numSpans), myid)
 
-	// // Send the appropriate response.
-	// handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
+	// Send the appropriate response.
+	handleLogIngestionResponse(ctx, numTotalRecords, numFailedRecords)
 }
 
 func unmarshalLogRequest(data []byte) (*collogpb.ExportLogsServiceRequest, error) {
@@ -227,6 +237,26 @@ func unmarshalLogRequest(data []byte) (*collogpb.ExportLogsServiceRequest, error
 	}
 
 	return &logs, nil
+}
+
+func handleLogIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numFailedRecords int) {
+	if numFailedRecords == 0 {
+		response, err := proto.Marshal(&collogpb.ExportLogsServiceResponse{})
+		if err != nil {
+			log.Errorf("handleLogIngestionResponse: failed to marshal successful response; err=%v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+
+		_, err = ctx.Write(response)
+		if err != nil {
+			log.Errorf("handleLogIngestionResponse: failed to write successful response; err=%v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
+	}
+
+	// TODO: handle partial success, and failure
 }
 
 // func handleLogIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {

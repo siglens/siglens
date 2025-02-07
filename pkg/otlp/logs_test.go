@@ -21,8 +21,13 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
+	collogpb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
+	logpb "go.opentelemetry.io/proto/otlp/logs/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func Test_Logs_BadContentType(t *testing.T) {
@@ -40,4 +45,43 @@ func Test_Logs_BadBody(t *testing.T) {
 	ProcessLogIngest(ctx, 0)
 
 	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+}
+
+func Test_Logs_FullSuccess(t *testing.T) {
+	virtualtable.InitVTable(func() []int64 { return []int64{0} })
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.Set("Content-Type", utils.ContentProtobuf)
+	protobuf := &collogpb.ExportLogsServiceRequest{
+		ResourceLogs: []*logpb.ResourceLogs{{
+			ScopeLogs: []*logpb.ScopeLogs{{
+				LogRecords: []*logpb.LogRecord{{
+					TimeUnixNano: 1234567890,
+					SeverityText: "INFO",
+					Body: &commonpb.AnyValue{
+						Value: &commonpb.AnyValue_StringValue{
+							StringValue: "hello world",
+						},
+					},
+				}},
+			}},
+		}},
+	}
+
+	data, err := proto.Marshal(protobuf)
+	assert.NoError(t, err)
+	ctx.Request.SetBody(data)
+	ProcessLogIngest(ctx, 0)
+
+	assert.Equal(t, fasthttp.StatusOK, ctx.Response.StatusCode())
+	assert.Equal(t, utils.ContentProtobuf, string(ctx.Response.Header.Peek("Content-Type")))
+
+	responseBytes := ctx.Response.Body()
+
+	response := &collogpb.ExportLogsServiceResponse{}
+	err = proto.Unmarshal(responseBytes, response)
+	assert.NoError(t, err)
+
+	// From https://opentelemetry.io/docs/specs/otlp/#full-success-1:
+	// The server MUST leave the partial_success field unset in case of a successful response.
+	assert.Nil(t, response.PartialSuccess)
 }
