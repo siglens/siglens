@@ -339,7 +339,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 	for i := uint16(0); i < ple.numCols; i++ {
 		cname := ple.allCnames[i]
 		ctype := ple.allCvalsTypeLen[i][0]
-		colWip, _, matchedCol = ss.initAndBackFillColumn(cname, SS_DTYPE(ctype), matchedCol)
+		colWip, _, matchedCol = ss.initAndBackFillColumn(cname, ValTypeToSSDType(ctype), matchedCol)
 
 		switch ctype {
 		case VALTYPE_ENC_SMALL_STRING[0]:

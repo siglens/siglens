@@ -18,12 +18,9 @@
 package otlp
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
@@ -37,7 +34,6 @@ import (
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
-	"google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -49,28 +45,11 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	// All requests and responses should be protobufs.
-	ctx.Response.Header.Set("Content-Type", "application/x-protobuf")
-	if string(ctx.Request.Header.Peek("Content-Type")) != "application/x-protobuf" {
-		log.Infof("ProcessTraceIngest: got a non-protobuf request. Got Content-Type: %s", string(ctx.Request.Header.Peek("Content-Type")))
-		setFailureResponse(ctx, fasthttp.StatusBadRequest, "Expected a protobuf request")
+	data, err := getDataToUnmarshal(ctx)
+	if err != nil {
+		log.Errorf("ProcessTraceIngest: failed to get data to unmarshal: %v", err)
+		setFailureResponse(ctx, fasthttp.StatusBadRequest, err.Error())
 		return
-	}
-
-	// Get the data from the request.
-	data := ctx.PostBody()
-	if requiresGzipDecompression(ctx) {
-		reader, err := gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
-			return
-		}
-
-		data, err = io.ReadAll(reader)
-		if err != nil {
-			setFailureResponse(ctx, fasthttp.StatusBadRequest, "Unable to gzip decompress the data")
-			return
-		}
 	}
 
 	// Unmarshal the data.
@@ -138,22 +117,9 @@ func ProcessTraceIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
-	usageStats.UpdateTracesStats(uint64(len(data)), uint64(numSpans), 0)
+	usageStats.UpdateTracesStats(uint64(len(data)), uint64(numSpans), myid)
 	// Send the appropriate response.
 	handleTraceIngestionResponse(ctx, numSpans, numFailedSpans)
-}
-
-func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
-	encoding := string(ctx.Request.Header.Peek("Content-Encoding"))
-	if encoding == "gzip" {
-		return true
-	}
-
-	if encoding != "" && encoding != "none" {
-		log.Errorf("requiresGzipDecompression: invalid content encoding: %s. Request headers: %v", encoding, ctx.Request.Header.String())
-	}
-
-	return false
 }
 
 func unmarshalTraceRequest(data []byte) (*coltracepb.ExportTraceServiceRequest, error) {
@@ -289,24 +255,6 @@ func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {
 	}
 
 	return jsonLinks, nil
-}
-
-func setFailureResponse(ctx *fasthttp.RequestCtx, statusCode int, message string) {
-	ctx.SetStatusCode(statusCode)
-
-	failureStatus := status.Status{
-		Code:    int32(statusCode),
-		Message: message,
-	}
-
-	bytes, err := proto.Marshal(&failureStatus)
-	if err != nil {
-		log.Errorf("setFailureResponse: failed to marshal failure status. err: %v. Status: %+v", err, &failureStatus)
-	}
-	_, err = ctx.Write(bytes)
-	if err != nil {
-		log.Errorf("sendFailureResponse: failed to write failure status: %v", err)
-	}
 }
 
 func handleTraceIngestionResponse(ctx *fasthttp.RequestCtx, numSpans int, numFailedSpans int) {
