@@ -19,6 +19,7 @@ package segread
 
 import (
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/siglens/siglens/pkg/blob"
@@ -380,6 +381,59 @@ func GetSegSum(runningSegStat *structs.SegStats,
 			rSst.Ntype = utils.SS_DT_FLOAT
 		} else {
 			runningSegStat.NumStats.Sum.IntgrVal = runningSegStat.NumStats.Sum.IntgrVal + currSegStat.NumStats.Sum.IntgrVal
+			rSst.IntgrVal = runningSegStat.NumStats.Sum.IntgrVal
+		}
+	}
+
+	return &rSst, nil
+}
+
+func GetSegSumsq(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+	// Initialize result with default integer type
+	rSst := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_SIGNED_NUM,
+		IntgrVal: 0,
+	}
+
+	// Validate input
+	if currSegStat == nil {
+		return &rSst, fmt.Errorf("GetSegSumsq: currSegStat is nil")
+	}
+
+	if !currSegStat.IsNumeric {
+		return &rSst, fmt.Errorf("GetSegSumsq: current segStats is non-numeric")
+	}
+
+	// if this is the first segment, then running will be nil, and we return the square of the first seg's stats
+	if runningSegStat == nil {
+		switch currSegStat.NumStats.Sum.Ntype {
+		case utils.SS_DT_FLOAT:
+			rSst.FloatVal = math.Pow(currSegStat.NumStats.Sum.FloatVal, 2)
+			rSst.Ntype = utils.SS_DT_FLOAT
+		default:
+			rSst.IntgrVal = currSegStat.NumStats.Sum.IntgrVal * currSegStat.NumStats.Sum.IntgrVal
+		}
+		return &rSst, nil
+	}
+
+	switch currSegStat.NumStats.Sum.Ntype {
+	case utils.SS_DT_FLOAT:
+		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
+			runningSegStat.NumStats.Sum.FloatVal += math.Pow(currSegStat.NumStats.Sum.FloatVal, 2)
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		} else {
+			runningSegStat.NumStats.Sum.FloatVal = float64(runningSegStat.NumStats.Sum.IntgrVal) + math.Pow(currSegStat.NumStats.Sum.FloatVal, 2)
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		}
+	default:
+		if runningSegStat.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
+			runningSegStat.NumStats.Sum.FloatVal += float64(currSegStat.NumStats.Sum.IntgrVal * currSegStat.NumStats.Sum.IntgrVal)
+			rSst.FloatVal = runningSegStat.NumStats.Sum.FloatVal
+			rSst.Ntype = utils.SS_DT_FLOAT
+		} else {
+			runningSegStat.NumStats.Sum.IntgrVal += currSegStat.NumStats.Sum.IntgrVal * currSegStat.NumStats.Sum.IntgrVal
 			rSst.IntgrVal = runningSegStat.NumStats.Sum.IntgrVal
 		}
 	}
