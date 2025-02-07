@@ -370,7 +370,7 @@ function searchTrace(params) {
             $('#graph-show').addClass('empty-result-show');
         })
         .always(() => {
-            // Reset cursor 
+            // Reset cursor
             $('body').css('cursor', 'default');
             $('#search-trace-btn').prop('disabled', false).removeClass('disabled');
             isLoading = false;
@@ -558,19 +558,17 @@ function calculateTimeToNow(startTime) {
 let lastScrollPosition = 0;
 let isLoading = false; // Flag to indicate whether an API call is in progress
 
-$('#dashboard .scrollable-container').on('scroll', function() {
+$('#dashboard .scrollable-container').on('scroll', function () {
     const container = $(this);
     const scrollHeight = this.scrollHeight;
     const scrollPosition = container.height() + container.scrollTop();
-    
-    if (!isLoading && hasLoaded && !allResultsFetched && 
-        (scrollPosition / scrollHeight) >= 0.6) {
-        
+
+    if (!isLoading && hasLoaded && !allResultsFetched && scrollPosition / scrollHeight >= 0.6) {
         isLoading = true;
         lastScrollPosition = container.scrollTop();
-        
+
         getData();
-        
+
         container.scrollTop(lastScrollPosition);
     }
 });
