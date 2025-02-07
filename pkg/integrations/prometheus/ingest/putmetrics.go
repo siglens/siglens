@@ -193,7 +193,7 @@ func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, 
 	}
 
 	if metricName == "" {
-		return nil, fmt.Errorf("HandlePutMetrics: the Metric name is empty. json data payload: %+v", dataJson)
+		return nil, fmt.Errorf("ConvertToOTSDBFormat: the Metric name is empty. json data payload: %+v", dataJson)
 	}
 
 	modifiedMetric := Metric{
