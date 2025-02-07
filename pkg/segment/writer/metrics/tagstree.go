@@ -132,7 +132,7 @@ func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid u
 
 // Add tag keys and values to the tree. If inserted into a tree, sets the updated flag.
 func (tth *TagsTreeHolder) addTags(mName []byte, tags *TagsHolder, tsid uint64) error {
-	finaltags := tags.getEntries()
+	finaltags := tags.GetEntries()
 	for _, tag := range finaltags {
 		currKey := tag.tagKey
 		currTree, ok := tth.allTrees[currKey]
