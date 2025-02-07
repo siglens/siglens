@@ -88,8 +88,7 @@ func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	timestampKey := config.GetTimeStampKey()
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
-
-	numFailedResources := 0
+	numFailedRecords := 0
 
 resourceLoop:
 	for _, resourceLog := range request.ResourceLogs {
@@ -105,7 +104,9 @@ resourceLoop:
 			key, value, err := extractKeyValue(attribute)
 			if err != nil {
 				log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
-				numFailedResources++
+				for _, scopeLog := range resourceLog.ScopeLogs {
+					numFailedRecords += len(scopeLog.LogRecords)
+				}
 				continue resourceLoop
 			}
 			resource.Attributes[key] = value
@@ -117,8 +118,6 @@ resourceLoop:
 				}
 			}
 		}
-
-		numFailedScopeLogs := 0
 
 	scopeLoop:
 		for _, scopeLog := range resourceLog.ScopeLogs {
@@ -134,13 +133,11 @@ resourceLoop:
 				key, value, err := extractKeyValue(attribute)
 				if err != nil {
 					log.Errorf("ProcessTraceIngest: failed to extract key value from attribute: %v", err)
-					numFailedScopeLogs++
+					numFailedRecords += len(scopeLog.LogRecords)
 					continue scopeLoop
 				}
 				scope.Attributes[key] = value
 			}
-
-			numFailedRecords := 0
 
 		recordLoop:
 			for _, logRecord := range scopeLog.LogRecords {
@@ -204,7 +201,7 @@ resourceLoop:
 	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	if err != nil {
 		log.Errorf("ProcessLogIngest: Failed to ingest logs, err: %v", err)
-		numFailedResources += len(pleArray) // TODO andrew
+		numFailedRecords = len(pleArray)
 	}
 	// if err != nil {
 	// 	log.Errorf("ProcessTraceIngest: Failed to ingest traces, err: %v", err)
