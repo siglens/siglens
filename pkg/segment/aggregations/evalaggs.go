@@ -354,6 +354,47 @@ func PerformEvalAggForSum(measureAgg *structs.MeasureAggregator, count uint64, c
 	return finalResult, nil
 }
 
+func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure) error {
+	fields := measureAgg.ValueColRequest.GetFields()
+	fieldToValue := make(map[string]utils.CValueEnclosure)
+
+	if len(fields) == 0 {
+		countStat, exist := sstMap["*"]
+		if !exist {
+			return fmt.Errorf("ComputeAggEvalForSum: sstMap did not have count when constant was used for measureAgg: %v", measureAgg.String())
+		}
+		currResult, currResultExists := measureResults[measureAgg.String()]
+		result, err := PerformEvalAggForSum(measureAgg, countStat.Count, currResultExists, currResult, fieldToValue)
+		if err != nil {
+			return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+		}
+		measureResults[measureAgg.String()] = result
+	} else {
+		sst, ok := sstMap[fields[0]]
+		if !ok {
+			return fmt.Errorf("ComputeAggEvalForSum: sstMap did not have segstats for field %v, measureAgg: %v", fields[0], measureAgg.String())
+		}
+
+		length := len(sst.Records)
+		for i := 0; i < length; i++ {
+			fieldToValue = make(map[string]utils.CValueEnclosure)
+			err := PopulateFieldToValueFromSegStats(fields, measureAgg, sstMap, fieldToValue, i)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForSum: Error while populating fieldToValue from sstMap, err: %v", err)
+			}
+
+			currResult, currResultExists := measureResults[measureAgg.String()]
+			result, err := PerformEvalAggForSum(measureAgg, uint64(length), currResultExists, currResult, fieldToValue)
+			if err != nil {
+				return fmt.Errorf("ComputeAggEvalForSum: Error while performing eval agg for sum, err: %v", err)
+			}
+			measureResults[measureAgg.String()] = result
+		}
+	}
+
+	return nil
+}
+
 func PerformEvalAggForStdev(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
 	finalResult := utils.CValueEnclosure{
