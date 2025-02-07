@@ -205,10 +205,7 @@ function displayTimeline(data) {
 
     function assignServiceColors(node) {
         if (!serviceColors.has(node.service_name)) {
-            serviceColors.set(
-                node.service_name,
-                colorArray[serviceColors.size % colorArray.length]
-            );
+            serviceColors.set(node.service_name, colorArray[serviceColors.size % colorArray.length]);
         }
         node.color = serviceColors.get(node.service_name);
         if (node.children && node.children.length > 0) {
@@ -239,44 +236,18 @@ function displayTimeline(data) {
         const containerDiv = d3.select('#timeline-container');
         containerDiv.selectAll('*').remove();
 
-        const wrapper = containerDiv
-            .append('div')
-            .style('position', 'relative')
-            .style('width', '100%')
-            .style('display', 'flex')
-            .style('flex-direction', 'column')
-            .style('min-width', '600px');
+        const wrapper = containerDiv.append('div').style('position', 'relative').style('width', '100%').style('display', 'flex').style('flex-direction', 'column').style('min-width', '600px');
 
         // Fixed header container
-        const headerDiv = wrapper
-            .append('div')
-            .attr('class', 'header-div')
-            .style('min-width', '600px');
+        const headerDiv = wrapper.append('div').attr('class', 'header-div').style('min-width', '600px');
 
         // Service and Operation header (fixed)
-        const labelHeaderDiv = headerDiv
-            .append('div')
-            .style('min-width', '200px')
-            .style('padding-left', `${padding.left}px`)
-            .style('width', `${labelWidth}px`)
-            .style('padding-top', '10px')
-            .style('flex-shrink', '0')
-            .append('text')
-            .attr('class', 'gantt-chart-heading')
-            .text('Service and Operation');
+        const labelHeaderDiv = headerDiv.append('div').style('min-width', '200px').style('padding-left', `${padding.left}px`).style('width', `${labelWidth}px`).style('padding-top', '10px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
 
         // Time labels container
-        const timeHeaderDiv = headerDiv
-            .append('div')
-            .style('overflow-x', 'hidden')
-            .style('flex-grow', '1')
-            .style('min-width', '400px');
+        const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1').style('min-width', '400px');
 
-        const timeHeaderSvg = timeHeaderDiv
-            .append('svg')
-            .attr('width', svgWidth)
-            .attr('height', '45px')
-            .style('min-width', '400px');
+        const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px').style('min-width', '400px');
 
         const resizer = containerDiv
             .append('div')
@@ -284,35 +255,15 @@ function displayTimeline(data) {
             .style('left', labelWidth + 'px')
             .style('min-left', '200px');
 
-        const scrollContainer = containerDiv
-            .append('div')
-            .style('display', 'flex')
-            .style('position', 'relative')
-            .style('overflow', 'auto')
-            .style('height', 'calc(100% - 45px)');
+        const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)');
 
         // Labels container
-        const labelsContainer = scrollContainer
-            .append('div')
-            .attr('class', 'labels-container')
-            .style('min-width', '200px')
-            .style('width', `${labelWidth}px`)
-            .style('flex-shrink', '0');
+        const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
 
-        const labelsSvg = labelsContainer
-            .append('svg')
-            .attr('width', labelWidth)
-            .attr('height', totalHeight)
-            .append('g')
-            .attr('transform', `translate(${padding.left},${padding.top})`)
-            .attr('class', 'labels-container');
+        const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
 
         // Timeline container
-        const timelineContainer = scrollContainer
-            .append('div')
-            .style('flex-grow', '1')
-            .style('width', '100%')
-            .style('min-width', '400px');
+        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
 
         const timelineSvg = timelineContainer
             .append('svg')
@@ -361,14 +312,10 @@ function displayTimeline(data) {
             timelineSvg
                 .selectAll('rect.timeline-bar')
                 .attr('x', (d) => xScale(nsToMs(d.start_time)))
-                .attr('width', (d) =>
-                    Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time)))
-                );
+                .attr('width', (d) => Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time))));
 
             // Update duration labels
-            timelineSvg
-                .selectAll('text.duration-label')
-                .attr('x', (d) => xScale(nsToMs(d.end_time)) + 5);
+            timelineSvg.selectAll('text.duration-label').attr('x', (d) => xScale(nsToMs(d.end_time)) + 5);
         }
 
         // Setup resize functionality
@@ -470,29 +417,12 @@ function displayTimeline(data) {
                     .attr('class', 'connecting-lines');
             }
 
-            const labelBackground = labelsSvg
-                .append('rect')
-                .attr('x', -30)
-                .attr('y', y)
-                .attr('width', '100%')
-                .attr('height', 40)
-                .attr('fill', 'transparent')
-                .attr('class', `hover-area-${node.span_id}`);
+            const labelBackground = labelsSvg.append('rect').attr('x', -30).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `hover-area-${node.span_id}`);
 
-            const labelGroup = labelsSvg
-                .append('g')
-                .attr('transform', `translate(${30 * level}, ${y})`);
+            const labelGroup = labelsSvg.append('g').attr('transform', `translate(${30 * level}, ${y})`);
 
             // Add vertical color strip
-            labelGroup
-                .append('rect')
-                .attr('x', 0)
-                .attr('y', 10)
-                .attr('width', 3)
-                .attr('height', 20)
-                .attr('fill', node.color)
-                .attr('rx', 1)
-                .attr('ry', 1);
+            labelGroup.append('rect').attr('x', 0).attr('y', 10).attr('width', 3).attr('height', 20).attr('fill', node.color).attr('rx', 1).attr('ry', 1);
 
             // Add expand/collapse button if node has children
             if (node.children && node.children.length > 0) {
@@ -507,20 +437,10 @@ function displayTimeline(data) {
                     });
 
                 // Create a foreign object to hold the HTML content
-                const fo = buttonGroup
-                    .append('foreignObject')
-                    .attr('width', 16)
-                    .attr('height', 16)
-                    .attr('y', 12);
+                const fo = buttonGroup.append('foreignObject').attr('width', 16).attr('height', 16).attr('y', 12);
 
                 // Add the Font Awesome icon
-                const div = fo
-                    .append('xhtml:div')
-                    .style('width', '100%')
-                    .style('height', '100%')
-                    .style('display', 'flex')
-                    .style('align-items', 'center')
-                    .style('justify-content', 'center');
+                const div = fo.append('xhtml:div').style('width', '100%').style('height', '100%').style('display', 'flex').style('align-items', 'center').style('justify-content', 'center');
                 div.append('xhtml:i')
                     .attr('class', node.isExpanded ? 'fa fa-chevron-down' : 'fa fa-chevron-right')
                     .style('color', '#666')
@@ -532,12 +452,7 @@ function displayTimeline(data) {
             if (node.is_anomalous) {
                 errorGroup = labelGroup.append('g').attr('transform', 'translate(10, 4)');
 
-                errorGroup
-                    .append('circle')
-                    .attr('cx', 6)
-                    .attr('cy', 16)
-                    .attr('r', 6)
-                    .attr('fill', '#ef4444');
+                errorGroup.append('circle').attr('cx', 6).attr('cy', 16).attr('r', 6).attr('fill', '#ef4444');
 
                 errorGroup
                     .append('text')
@@ -565,23 +480,11 @@ function displayTimeline(data) {
                 .on('click', () => showSpanDetails(node))
                 .each(function () {
                     const text = d3.select(this);
-                    text.append('tspan')
-                        .attr('class', 'node-label-service')
-                        .text(node.service_name);
-                    text.append('tspan')
-                        .attr('class', 'node-label-operation')
-                        .text(node.operation_name)
-                        .attr('dx', '10');
+                    text.append('tspan').attr('class', 'node-label-service').text(node.service_name);
+                    text.append('tspan').attr('class', 'node-label-operation').text(node.operation_name).attr('dx', '10');
                 });
 
-            const timelineBackground = timelineSvg
-                .append('rect')
-                .attr('x', 0)
-                .attr('y', y)
-                .attr('width', '100%')
-                .attr('height', 40)
-                .attr('fill', 'transparent')
-                .attr('class', `timeline-hover-area-${node.span_id}`);
+            const timelineBackground = timelineSvg.append('rect').attr('x', 0).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `timeline-hover-area-${node.span_id}`);
 
             let timelineBar, durationLabel;
             if (!node.is_anomalous) {
@@ -712,9 +615,7 @@ function displayTimeline(data) {
             timelineSvg
                 .selectAll('rect.timeline-bar')
                 .attr('x', (d) => xScale(nsToMs(d.start_time)))
-                .attr('width', (d) =>
-                    Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time)))
-                );
+                .attr('width', (d) => Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time))));
 
             timelineSvg.selectAll('text.duration-label').attr('x', (d) => {
                 const barEndX = xScale(nsToMs(d.end_time));
@@ -726,11 +627,7 @@ function displayTimeline(data) {
         window.addEventListener('resize', debouncedResize);
     }
 
-    const tooltip = d3
-        .select('body')
-        .append('div')
-        .attr('class', 'tooltip-gantt')
-        .style('display', 'none');
+    const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt').style('display', 'none');
 
     function hideTooltip() {
         tooltip.style('display', 'none');
@@ -747,9 +644,7 @@ function displayTimeline(data) {
                 <strong>End Time</strong>: ${nsToMs(node.end_time)}ms<br>
                 <strong>Duration</strong>: ${nsToMs(node.duration)}ms<br>
                 <strong>Tags</strong>: ${Object.entries(node.tags)
-                    .map(
-                        ([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`
-                    )
+                    .map(([key, value]) => `<em>${key}</em> <strong>:</strong> <em>${value}</em><br>`)
                     .join('')}
             `
             )
