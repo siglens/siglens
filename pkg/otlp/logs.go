@@ -189,6 +189,11 @@ resourceLoop:
 					numFailedRecords++
 					continue resourceLoop
 				}
+
+				if timestampMs := record.TimeUnixNano / 1_000_000; timestampMs > 0 {
+					ple.SetTimestamp(timestampMs)
+				}
+
 				pleArray = append(pleArray, ple)
 			}
 		}
