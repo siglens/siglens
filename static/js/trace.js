@@ -396,9 +396,37 @@ function displayTimeline(data) {
         function renderTimeline(node, level = 0, isVisible = true) {
             if (!isVisible) return;
 
+            // Draw connecting lines for parent nodes to their children
+            if (node.children && node.children.length > 0 && node.isExpanded) {
+                const calculateTotalDepth = (node) => {
+                    let depth = 1;
+                    if (node.children && node.children.length > 0 && node.isExpanded) {
+                        node.children.forEach((child) => {
+                            depth += calculateTotalDepth(child);
+                        });
+                    }
+                    return depth;
+                };
+                let totalDepth = 0;
+                node.children.forEach((child) => {
+                    totalDepth += calculateTotalDepth(child);
+                });
+
+                const firstChildY = y + 40;
+                const lastChildY = y + 40 + totalDepth * 40;
+
+                labelsSvg
+                    .append('line')
+                    .attr('x1', 30 * level + 1.5)
+                    .attr('y1', firstChildY)
+                    .attr('x2', 30 * level + 1.5)
+                    .attr('y2', lastChildY)
+                    .attr('class', 'connecting-lines')
+            }
+
             const labelBackground = labelsSvg.append('rect').attr('x', -30).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `hover-area-${node.span_id}`);
 
-            const labelGroup = labelsSvg.append('g').attr('transform', `translate(${20 * level}, ${y})`);
+            const labelGroup = labelsSvg.append('g').attr('transform', `translate(${30 * level}, ${y})`);
 
             // Add vertical color strip
             labelGroup.append('rect').attr('x', 0).attr('y', 10).attr('width', 3).attr('height', 20).attr('fill', node.color).attr('rx', 1).attr('ry', 1);
@@ -693,5 +721,5 @@ function calculateTotalHeight(node) {
         }
     }
     calculateHeight(node);
-    return totalHeight + 40;
+    return totalHeight;
 }

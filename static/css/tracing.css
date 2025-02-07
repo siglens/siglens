@@ -659,10 +659,16 @@ body.resizing {
 
 .hover-highlight {
     fill: var(--alert-background);
+    opacity: 0.6;
 }
 
 .scrollable-container{
     padding: 16px;
     height: 100%;
     overflow-y: auto;
+}
+
+.connecting-lines{
+    stroke: var(--time-tick);
+    stroke-width: 1;
 }
