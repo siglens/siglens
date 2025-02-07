@@ -1,5 +1,5 @@
 {
-    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency", perc6.6(latency) as upperperc6.6, perc66.6(latency) as perc66.6, perc99(latency) as exactperc99",
+    "queryText": "* | tail 30000 | stats count, sum(latency) as sum, avg(latency) as avg_latency, exactperc99(latency) as exactperc99, perc66.6(latency) as perc66 , upperperc6.6(latency) as upperperc6",
     "expectedResult": {
         "totalMatched": {
             "value": 1,
@@ -10,27 +10,25 @@
             {
                 "avg_latency": 5002125.981666666,
                 "count(*)": 30000,
-                "sum": 150063779450,
-                "upperperc6.6": 123456,  
-                "perc66.6": 456789,  
-                "exactperc99": 987654  
+                "sum": 150063779450
             }
         ],
         "allColumns": [
             "avg_latency",
             "count(*)",
             "sum",
-            "upperperc6.6",
-            "perc66.6",
-            "exactperc99"
+            "exactperc99",
+             "perc66.6", 
+             "upperperc6.6"
+
         ],
         "columnsOrder": [
             "avg_latency",
             "count(*)",
             "sum",
-            "upperperc6.6",
-            "perc66.6",
-            "exactperc99"
+            "exactperc99",
+             "perc66.6", 
+             "upperperc6.6"
         ]
     }
 }

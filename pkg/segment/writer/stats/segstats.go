@@ -24,6 +24,7 @@ import (
 	. "github.com/siglens/siglens/pkg/segment/utils"
 
 	bbp "github.com/valyala/bytebufferpool"
+	
 )
 
 func GetDefaultNumStats() *NumericStats {
@@ -280,3 +281,4 @@ func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
 	}
 	return m1
 }
+
