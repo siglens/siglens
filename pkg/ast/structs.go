@@ -272,7 +272,7 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 	} else if aggType == "sum" {
 		aggFunc = utils.Sum
 	} else if aggType == "sumsq" {
-		aggFunc = utils.SumSq	
+		aggFunc = utils.Sumsq
 	} else if aggType == "count" {
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
