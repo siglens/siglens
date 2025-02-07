@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -221,8 +222,7 @@ resourceLoop:
 		}
 	}
 
-	// log.Debugf("ProcessTraceIngest: %v spans in the request and failed to ingest %v of them", numSpans, numFailedSpans)
-	// usageStats.UpdateStats(uint64(len(data)), uint64(numSpans), myid)
+	usageStats.UpdateStats(uint64(len(data)), uint64(max(0, numTotalRecords-numFailedRecords)), myid)
 
 	// Send the appropriate response.
 	handleLogIngestionResponse(ctx, numTotalRecords, numFailedRecords)

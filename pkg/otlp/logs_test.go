@@ -20,6 +20,8 @@ package otlp
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
@@ -48,7 +50,10 @@ func Test_Logs_BadBody(t *testing.T) {
 }
 
 func Test_Logs_FullSuccess(t *testing.T) {
-	virtualtable.InitVTable(func() []int64 { return []int64{0} })
+	myid := int64(0)
+	initTestConfig(t)
+	virtualtable.InitVTable(func() []int64 { return []int64{myid} })
+
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.Header.Set("Content-Type", utils.ContentProtobuf)
 	protobuf := &collogpb.ExportLogsServiceRequest{
@@ -70,7 +75,7 @@ func Test_Logs_FullSuccess(t *testing.T) {
 	data, err := proto.Marshal(protobuf)
 	assert.NoError(t, err)
 	ctx.Request.SetBody(data)
-	ProcessLogIngest(ctx, 0)
+	ProcessLogIngest(ctx, myid)
 
 	assert.Equal(t, fasthttp.StatusOK, ctx.Response.StatusCode())
 	assert.Equal(t, utils.ContentProtobuf, string(ctx.Response.Header.Peek("Content-Type")))
@@ -84,4 +89,15 @@ func Test_Logs_FullSuccess(t *testing.T) {
 	// From https://opentelemetry.io/docs/specs/otlp/#full-success-1:
 	// The server MUST leave the partial_success field unset in case of a successful response.
 	assert.Nil(t, response.PartialSuccess)
+
+	// Verify usage stats.
+	assert.Equal(t, 1, int(usageStats.GetTotalLogLines(myid)))
+}
+
+func initTestConfig(t *testing.T) {
+	runningConfig := config.GetTestConfig(t.TempDir())
+	config.SetConfig(runningConfig)
+
+	err := config.InitDerivedConfig("test")
+	assert.NoError(t, err)
 }
