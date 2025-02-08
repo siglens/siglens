@@ -142,6 +142,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	// OTLP Handlers
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
+	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/logs", hs.Recovery(otlpIngestLogsHandler()))
 
 	if hook := hooks.GlobalHooks.ExtraIngestEndpointsHook; hook != nil {
 		hook(hs.router, hs.Recovery)

@@ -130,7 +130,7 @@ func (th *TagsHolder) GetTSID(mName []byte) (uint64, error) {
 	return retVal, nil
 }
 
-func (th *TagsHolder) getEntries() []tagEntry {
+func (th *TagsHolder) GetEntries() []tagEntry {
 	return th.entries[:th.idx]
 }
 
@@ -145,4 +145,18 @@ func (th *TagsHolder) String() string {
 	}
 	_, _ = buf.WriteString("}")
 	return buf.String()
+}
+
+func (te *tagEntry) GetTagKey() string {
+	return te.tagKey
+}
+
+func (te *tagEntry) GetTagValue() []byte {
+	bytes := make([]byte, len(te.tagValue))
+	copy(bytes, te.tagValue)
+	return bytes
+}
+
+func (te *tagEntry) GetTagValueType() jp.ValueType {
+	return te.tagValueType
 }
