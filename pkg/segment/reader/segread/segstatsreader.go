@@ -28,6 +28,20 @@ import (
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+var StdOutLogger *log.Logger
+
+func init() {
+	StdOutLogger = &log.Logger{
+		Out:       os.Stderr,
+		Formatter: new(log.TextFormatter),
+		Hooks:     make(log.LevelHooks),
+		Level:     log.InfoLevel,
+	}
+	customFormatter := new(log.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	customFormatter.FullTimestamp = true
+	StdOutLogger.SetFormatter(customFormatter)
+}
 
 func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, error) {
 
@@ -353,6 +367,7 @@ func GetSegSum(runningSegStat *structs.SegStats,
 
 	// if this is the first segment, then running will be nil, and we return the first seg's stats
 	if runningSegStat == nil {
+		StdOutLogger.Infof("UpdateSegmentStats called with am i only one");
 		switch currSegStat.NumStats.Sum.Ntype {
 		case utils.SS_DT_FLOAT:
 			rSst.FloatVal = currSegStat.NumStats.Sum.FloatVal
