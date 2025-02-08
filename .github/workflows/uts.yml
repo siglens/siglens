@@ -2,8 +2,6 @@ name: siglens-lint-ut
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches-ignore:
-      - main
 permissions:
   contents: read
 jobs:
@@ -13,7 +11,7 @@ jobs:
     name: golang-cicd
     runs-on: ubuntu-latest
     needs: check-changed-files
-    if: ${{ !github.event.pull_request.draft && needs.check-changed-files.outputs.skip_tests != 'true' }}
+    if: ${{ !github.event.pull_request.draft && needs.check-changed-files.outputs.skip_tests != 'true' && github.event.pull_request.base.ref != 'main' }}
     steps:
       - uses: actions/cache@v3
         with:
@@ -55,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     name: ESLint JS Files
     needs: check-changed-files
-    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true' }}
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true'  && github.event.pull_request.base.ref != 'main' }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
