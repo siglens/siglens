@@ -116,10 +116,12 @@ workflows:
   test_and_lint:
     jobs:
       - functional-test:
-          branches:
-            ignore:
-              - main
+          filters:
+            branches:
+              ignore:
+                - main
       - e2e-server:
-          branches:
-            ignore:
-              - main
+          filters:
+            branches:
+              ignore:
+                - main
