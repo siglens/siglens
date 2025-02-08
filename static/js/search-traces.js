@@ -49,7 +49,7 @@ function initPage() {
 }
 
 function getValuesOfColumn(chooseColumn, spanName) {
-    let searchText = 'SELECT DISTINCT ' + chooseColumn + ' FROM `traces`';
+    let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
     let param = {
         state: 'query',
         searchText: searchText,
@@ -94,7 +94,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
 }
 function fetchData(chooseColumn) {
     return new Promise((resolve, reject) => {
-        let searchText = 'SELECT DISTINCT ' + chooseColumn + ' FROM `traces`';
+        let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
         if (chooseColumn == 'name' && $('#service-span-name').text() && $('#service-span-name').text() != 'All') {
             searchText += " WHERE service='" + $('#service-span-name').text() + "'";
         } else if (chooseColumn == 'service' && $('#operation-span-name').text() && $('#operation-span-name').text() != 'All') {
