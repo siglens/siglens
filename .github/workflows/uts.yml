@@ -38,7 +38,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          skip-save-cache: true
+          skip-cache: true
           working-directory: ./
           version: v1.59.1
   ESLint:
