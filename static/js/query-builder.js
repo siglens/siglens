@@ -550,7 +550,7 @@ function getValuesofColumn(chooseColumn) {
     valuesOfColumn.clear();
     let param = {
         state: 'query',
-        searchText: `SELECT DISTINCT ${chooseColumn} FROM \`${selectedSearchIndex}\``,
+        searchText: `SELECT DISTINCT \`${chooseColumn}\` FROM \`${selectedSearchIndex}\``,
         startEpoch: filterStartDate,
         endEpoch: filterEndDate,
         indexName: selectedSearchIndex,
