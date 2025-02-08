@@ -119,7 +119,7 @@ workflows:
           branches:
             ignore:
               - main
-      - e2e-server
+      - e2e-server:
           branches:
             ignore:
               - main
