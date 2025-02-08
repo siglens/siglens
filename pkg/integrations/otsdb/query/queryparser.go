@@ -261,6 +261,7 @@ func parseAggregatorDownsampler(m string) (segutils.AggregateFunctions, structs.
 		"sum":         segutils.Sum,
 		"cardinality": segutils.Cardinality,
 		"quantile":    segutils.Quantile,
+		"sumsq":       segutils.Sumsq,
 	}
 	agg := structs.Aggregation{AggregatorFunction: aggregatorMapping["avg"]}
 	downsampler := structs.Downsampler{Interval: 1, Unit: "m", Aggregator: agg}

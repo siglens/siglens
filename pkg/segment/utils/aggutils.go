@@ -84,7 +84,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
 		case Sumsq:
-			e1.CVal = e1.CVal.(uint64)*e1.CVal.(uint64) + e2.CVal.(uint64)*e2.CVal.(uint64)
+			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)*e2.CVal.(uint64)
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
@@ -101,7 +101,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
 		case Sumsq:
-			e1.CVal = e1.CVal.(int64)*e1.CVal.(int64) + e2.CVal.(int64)*e2.CVal.(int64)
+			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)*e2.CVal.(int64)
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
@@ -118,7 +118,7 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
 			return e1, nil
 		case Sumsq:
-			e1.CVal = e1.CVal.(float64)*e1.CVal.(float64) + e2.CVal.(float64)*e2.CVal.(float64)
+			e1.CVal = e1.CVal.(float64) + e2.CVal.(float64)*e2.CVal.(float64)
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
