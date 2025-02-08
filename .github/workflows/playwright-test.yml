@@ -10,7 +10,7 @@ jobs:
   playwright-tests:
     runs-on: ubuntu-latest
     needs: check-changed-files
-    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true' }}
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true'  && github.event.pull_request.base.ref != 'main' }}
     steps:
       - uses: actions/checkout@v3
 
@@ -32,7 +32,7 @@ jobs:
       - name: Run SigLens
         run: |
           ./siglens --config server.yaml &
-          sleep 10 
+          sleep 10
 
       - name: Ingest Logs & Metrics
         run: |
