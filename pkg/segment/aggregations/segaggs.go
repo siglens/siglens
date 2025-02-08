@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/axiomhq/hyperloglog"
+	// "github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -172,22 +172,22 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
     2.9 Text functions: replace, spath, upper, trim
 */
 
-func Estdc(data []uint64) (uint64, error) {
-	hll := hyperloglog.New16() // Using 16-bit precision HyperLogLog
-	for _, value := range data {
-		hll.InsertHash(value)
-	}
-	return hll.Estimate(), nil
-}
+// func Estdc(data []uint64) (uint64, error) {
+// 	hll := hyperloglog.New16() // Using 16-bit precision HyperLogLog
+// 	for _, value := range data {
+// 		hll.InsertHash(value)
+// 	}
+// 	return hll.Estimate(), nil
+// }
 
-// EstimatedDistinctCountError (estdc_error)
-func EstdcError(trueCount, estimatedCount uint64) float64 {
-	if trueCount == 0 {
-		return 0.0
-	}
-	errorRate := math.Abs(float64(trueCount)-float64(estimatedCount)) / float64(trueCount)
-	return errorRate * 100 // Returning percentage error
-}
+// // EstimatedDistinctCountError (estdc_error)
+// func EstdcError(trueCount, estimatedCount uint64) float64 {
+// 	if trueCount == 0 {
+// 		return 0.0
+// 	}
+// 	errorRate := math.Abs(float64(trueCount)-float64(estimatedCount)) / float64(trueCount)
+// 	return errorRate * 100 // Returning percentage error
+// }
 
 func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggregators, recs map[string]map[string]interface{},
 	recordIndexInFinal map[string]int, finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, hasSort bool, timeSort bool, timeSortAsc bool) error {

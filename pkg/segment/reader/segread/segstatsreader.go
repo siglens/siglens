@@ -20,6 +20,7 @@ package segread
 import (
 	"fmt"
 	"os"
+	"math"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -387,6 +388,31 @@ func GetSegSum(runningSegStat *structs.SegStats,
 	return &rSst, nil
 }
 
+func GetSegEstimatedCardinalityError(runningSegStat *structs.SegStats,
+	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+
+	res := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT, // Use float type for percentage error
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &res, fmt.Errorf("GetSegEstimatedCardinalityError: currSegStat is nil")
+	}
+
+	// Get the estimated distinct count (estdc)
+	//estdc := float64(currSegStat.GetHllCardinality())
+
+	// Compute `m` as 2^log2m (total number of registers in HLL)
+	m := math.Pow(2, float64(currSegStat.Hll.Settings().Log2m))
+
+	// Use HLL's theoretical relative standard error bound
+	errorBound := (1.04 / math.Sqrt(m)) * 100 // Convert to percentage
+
+	res.FloatVal = errorBound
+	return &res, nil
+}
+
 func GetSegCardinality(runningSegStat *structs.SegStats,
 	currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
 
@@ -435,6 +461,7 @@ func GetSegCount(runningSegStat *structs.SegStats,
 
 	return &rSst, nil
 }
+
 
 func GetSegAvg(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
 	// Initialize result with default values
