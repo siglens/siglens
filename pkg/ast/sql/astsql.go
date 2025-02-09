@@ -123,15 +123,14 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Max
 	case "sum":
 		return utils.Sum
+	case "perc":
+		return utils.Perc
+	case "exactperc":
+		return utils.ExactPerc
+	case "upperperc":
+		return utils.UpperPerc
 	case "cardinality":
 		return utils.Cardinality
-	
-	case "perc66.6":
-		return utils.Perc
-	case "upperperc6.6":
-		return utils.UpperPerc
-	case "exactperc99":
-		return utils.ExactPerc
 	default:
 		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0

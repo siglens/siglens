@@ -262,24 +262,6 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			continue
 		}
 
-		var numericValues []float64
-		for _, val := range values {
-			if val.IsNumeric() {
-				if val.IsFloat() {
-					numericValues = append(numericValues, val.CVal.(float64))
-				} else {
-					intVal, err := val.GetIntValue()
-					if err != nil {
-						log.Errorf("qid=%v, statsProcessor.processMeasureOperations: cannot get int value; err=%v", qid, err)
-						continue
-					}
-					numericValues = append(numericValues, float64(intVal))
-				}
-			}
-		}
-
-		
-
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
 			hasListFunc := listUsage[colName]

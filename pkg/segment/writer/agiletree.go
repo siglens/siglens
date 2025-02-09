@@ -68,6 +68,9 @@ const (
 	MeasFnMaxIdx
 	MeasFnSumIdx
 	MeasFnCountIdx
+	MeasFnPercIdx
+	MeasFnExactPercIdx
+	MeasFnUpperPercIdx
 	// Note: anytimes you add a Fn, make sure to adjust the IdxToAgFn array
 	// Note: always keep this last since it is used for indexing into aggValues
 	TotalMeasFns
@@ -131,6 +134,12 @@ func AgFnToIdx(fn utils.AggregateFunctions) int {
 		return MeasFnSumIdx
 	case utils.Count:
 		return MeasFnCountIdx
+	case utils.Perc:
+		return MeasFnPercIdx
+	case utils.ExactPerc:
+		return MeasFnExactPercIdx
+	case utils.UpperPerc:
+		return MeasFnUpperPercIdx
 	default:
 		log.Errorf("AgFnToIdx: invalid fn: %v", fn)
 		return MeasFnCountIdx

@@ -305,6 +305,7 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		sstResult, err = segread.GetSegSum(runningSegStat, incomingSegStat)
 	case utils.Avg:
 		sstResult, err = segread.GetSegAvg(runningSegStat, incomingSegStat)
+
 	case utils.Values:
 		// Use GetSegValue to process and get the segment value
 		res, err := segread.GetSegValue(runningSegStat, incomingSegStat)
@@ -327,6 +328,30 @@ func (sr *SearchResults) UpdateNonEvalSegStats(runningSegStat *structs.SegStats,
 		if runningSegStat == nil {
 			return incomingSegStat, nil
 		}
+		return runningSegStat, nil
+
+	case utils.Perc:
+		res, err := segread.GetSegPerc(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		return runningSegStat, nil
+
+	case utils.ExactPerc:
+		res, err := segread.GetSegExactPerc(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
+		return runningSegStat, nil
+
+	case utils.UpperPerc:
+		res, err := segread.GetSegUpperPerc(runningSegStat, incomingSegStat)
+		if err != nil {
+			return nil, fmt.Errorf("UpdateSegmentStats: error getting segment level stats for %v, err: %v, qid=%v", measureAgg.String(), err, sr.qid)
+		}
+		sr.segStatsResults.measureResults[measureAgg.String()] = *res
 		return runningSegStat, nil
 	default:
 		return nil, fmt.Errorf("UpdateSegmentStats: does not support using aggOps: %v, qid=%v", measureAgg.String(), sr.qid)

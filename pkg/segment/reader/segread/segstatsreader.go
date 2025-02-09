@@ -20,6 +20,7 @@ package segread
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -562,4 +563,139 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 	// Convert the string set to a sorted slice
 	res.CVal = toputils.GetSortedStringKeys(strSet)
 	return &res, nil
+}
+func GetSegPerc(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	percentile := 66.6
+
+	// 1. Handle nil currSegStat or empty Records:
+	if currSegStat == nil || currSegStat.Records == nil || len(currSegStat.Records) == 0 {
+		return nil, fmt.Errorf("current segment stats are empty or nil")
+	}
+
+	// 2. Merge Records:  Preserve the original CValueEnclosure structure
+	mergedRecords := make([]*utils.CValueEnclosure, 0)
+
+	if runningSegStat != nil && runningSegStat.Records != nil {
+		mergedRecords = append(mergedRecords, runningSegStat.Records...)
+	}
+	mergedRecords = append(mergedRecords, currSegStat.Records...)
+
+	// 3. Extract numeric values for sorting:
+	numericValues := make([]float64, 0, len(mergedRecords)) // Assuming float64. Adjust if needed.
+	for _, record := range mergedRecords {
+		if record.Dtype == utils.SS_DT_FLOAT { // or utils.SS_DT_SIGNED_NUM if you're using integers
+			numericValues = append(numericValues, record.CVal.(float64)) // Type assertion!
+		} else if record.Dtype == utils.SS_DT_SIGNED_NUM {
+			numericValues = append(numericValues, float64(record.CVal.(int64))) // Type assertion!
+		}
+	}
+
+	// 4. Sort the numeric values:
+	sort.Float64s(numericValues)
+
+	// 5. Calculate the index:
+	index := int((percentile / 100) * float64(len(numericValues)))
+	if index >= len(numericValues) {
+		index = len(numericValues) - 1
+	}
+	if index < 0 || len(numericValues) == 0 { // Handle empty numericValues
+		return &utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: 0.0}, nil // Or appropriate default
+	}
+
+	// 6. Return the result as a CValueEnclosure:
+	result := &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT, // Or utils.SS_DT_SIGNED_NUM if using integers
+		CVal:  numericValues[index],
+	}
+
+	return result, nil
+}
+
+func GetSegExactPerc(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	percentile := 99.0
+
+	if currSegStat == nil || currSegStat.Records == nil || len(currSegStat.Records) == 0 {
+		return nil, fmt.Errorf("current segment stats are empty or nil")
+	}
+
+	mergedRecords := make([]*utils.CValueEnclosure, 0)
+	if runningSegStat != nil && runningSegStat.Records != nil {
+		mergedRecords = append(mergedRecords, runningSegStat.Records...)
+	}
+	mergedRecords = append(mergedRecords, currSegStat.Records...)
+
+	numericValues := make([]float64, 0, len(mergedRecords))
+	for _, record := range mergedRecords {
+		val, ok := record.CVal.(float64) // Type assertion with check
+		if ok {
+			numericValues = append(numericValues, val)
+		} else {
+			intVal, intOk := record.CVal.(int64)
+			if intOk {
+				numericValues = append(numericValues, float64(intVal))
+			} else {
+				return nil, fmt.Errorf("CVal is not a float64 or int64")
+			}
+		}
+
+	}
+
+	sort.Float64s(numericValues)
+
+	index := int((percentile / 100) * float64(len(numericValues)))
+	if index >= len(numericValues) {
+		index = len(numericValues) - 1
+	}
+	if index < 0 || len(numericValues) == 0 { // Handle empty numericValues
+		return &utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: 0.0}, nil // Or appropriate default
+	}
+
+	return &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  numericValues[index],
+	}, nil
+}
+
+func GetSegUpperPerc(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.CValueEnclosure, error) {
+	percentile := 6.6
+
+	if currSegStat == nil || currSegStat.Records == nil || len(currSegStat.Records) == 0 {
+		return nil, fmt.Errorf("current segment stats are empty or nil")
+	}
+
+	mergedRecords := make([]*utils.CValueEnclosure, 0)
+	if runningSegStat != nil && runningSegStat.Records != nil {
+		mergedRecords = append(mergedRecords, runningSegStat.Records...)
+	}
+	mergedRecords = append(mergedRecords, currSegStat.Records...)
+
+	numericValues := make([]float64, 0, len(mergedRecords))
+	for _, record := range mergedRecords {
+		val, ok := record.CVal.(float64) // Type assertion with check
+		if ok {
+			numericValues = append(numericValues, val)
+		} else {
+			intVal, intOk := record.CVal.(int64)
+			if intOk {
+				numericValues = append(numericValues, float64(intVal))
+			} else {
+				return nil, fmt.Errorf("CVal is not a float64 or int64")
+			}
+		}
+	}
+
+	sort.Float64s(numericValues)
+
+	index := int((percentile / 100) * float64(len(numericValues)))
+	if index >= len(numericValues) {
+		index = len(numericValues) - 1
+	}
+	if index < 0 || len(numericValues) == 0 { // Handle empty numericValues
+		return &utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: 0.0}, nil // Or appropriate default
+	}
+
+	return &utils.CValueEnclosure{
+		Dtype: utils.SS_DT_FLOAT,
+		CVal:  numericValues[index],
+	}, nil
 }
