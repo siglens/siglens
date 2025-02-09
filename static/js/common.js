@@ -1014,9 +1014,9 @@ function initializeFilterInputEvents() {
         }
     });
 
-    const LINE_HEIGHT = 21;
+    const LINE_HEIGHT = 20;
     const MAX_VISIBLE_LINES = 5;
-    const PADDING = 8;
+    const PADDING = 4;
 
     // Create a clone of the textarea to measure its height
     function createTextAreaClone($textarea) {
