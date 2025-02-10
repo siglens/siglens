@@ -22,6 +22,7 @@ import (
 	"io/fs"
 	"os"
 	"regexp"
+	"syscall"
 
 	"github.com/cespare/xxhash"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
@@ -119,15 +120,24 @@ func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
 func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string, fInfo fs.FileInfo) (*TagTreeReader, error) {
 	fName := attr.baseDir + tagKey
 
-	if fInfo.Size() == 0 {
-		log.Errorf("InitTagsTreeReader: file is empty %s", fName)
-		return nil, fmt.Errorf("InitTagsTreeReader: file is empty %s", fName)
-	}
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
 		log.Errorf("InitTagsTreeReader: failed to open file %s. Error: %v.", fName, err)
 		return nil, err
 	}
+
+	err = syscall.Flock(int(fd.Fd()), syscall.LOCK_SH)
+	if err != nil {
+		log.Errorf("InitTagsTreeReader: failed to lock file %s. Error: %v.", fName, err)
+		return nil, err
+	}
+	defer func() {
+		err = syscall.Flock(int(fd.Fd()), syscall.LOCK_UN)
+		if err != nil {
+			log.Errorf("InitTagsTreeReader: failed to unlock file %s. Error: %v.", fName, err)
+		}
+	}()
+
 	metadataSizeBuf := make([]byte, 5)
 	_, err = fd.ReadAt(metadataSizeBuf[:5], 0)
 	if err != nil {
