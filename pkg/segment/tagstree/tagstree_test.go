@@ -28,9 +28,12 @@ func Test_SimpleReadWrite(t *testing.T) {
 	assert.NoError(t, err)
 
 	tagsHolder := treewriter.GetTagsHolder()
-	tagKey := "host"
-	tagsHolder.Insert(tagKey, []byte("server1"), jsonparser.String)
-	tagsHolder.Insert(tagKey, []byte("server2"), jsonparser.String)
+	key1 := "key1"
+	key2 := "key2"
+	value1 := "value1"
+	value2 := "value2"
+	tagsHolder.Insert(key1, []byte(value1), jsonparser.String)
+	tagsHolder.Insert(key2, []byte(value2), jsonparser.String)
 	tsid, err := tagsHolder.GetTSID([]byte("metric1"))
 	assert.NoError(t, err)
 
@@ -49,14 +52,18 @@ func Test_SimpleReadWrite(t *testing.T) {
 
 	tagPairs, err := reader.GetAllTagPairs()
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(tagPairs))
-	values, ok := tagPairs[tagKey]
-	assert.True(t, ok)
-	assert.Equal(t, 2, len(values))
+	assert.Equal(t, 2, len(tagPairs))
 
-	_, ok = values["server1"]
+	key1Values, ok := tagPairs[key1]
 	assert.True(t, ok)
-	_, ok = values["server2"]
+	assert.Len(t, key1Values, 1)
+	_, ok = key1Values[value1]
+	assert.True(t, ok)
+
+	key2Values, ok := tagPairs[key2]
+	assert.True(t, ok)
+	assert.Len(t, key2Values, 1)
+	_, ok = key2Values[value2]
 	assert.True(t, ok)
 }
 
