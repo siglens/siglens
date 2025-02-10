@@ -249,7 +249,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 
 func ExactPercentileCalculation(val []float64, percentile float64) float64 {
 	if len(val) == 0 {
-		return math.NaN() 
+		return math.NaN()
 	}
 
 	sort.Float64s(val)
@@ -266,7 +266,6 @@ func ExactPercentileCalculation(val []float64, percentile float64) float64 {
 	return val[lw_pos]*(1-wt) + val[up_pos]*wt
 }
 
-
 func PercentileCalculation(val []float64, percentile float64) float64 {
 	if len(val) == 0 {
 		return math.NaN()
@@ -275,7 +274,6 @@ func PercentileCalculation(val []float64, percentile float64) float64 {
 	sort.Float64s(val)
 
 	pos := int(math.Round((percentile / 100.0) * float64(len(val)-1)))
-
 
 	return val[pos]
 }

@@ -262,7 +262,6 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			continue
 		}
 
-
 		var GetnumVals []float64
 
 		for _, item := range values {
@@ -281,7 +280,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			}
 		}
 
-		for _, measureOp := range p.options.MeasureOperations { 
+		for _, measureOp := range p.options.MeasureOperations {
 			switch measureOp.MeasureFunc {
 			case utils.ExactPerc:
 				if measureOp.MeasureCol == colName {
@@ -304,7 +303,6 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			default:
 			}
 		}
-
 
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
