@@ -23,6 +23,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/stats"
 )
 
 type QueryStruct struct {
@@ -275,6 +276,12 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
+	} else if aggType == "exactperc99" {
+		aggFunc = stats.ExactPercentileCalculation
+	} else if aggType == "perc66.6" {
+		aggFunc = stats.PercentileCalculation
+	} else if aggType == "upperperc6.6" {
+		aggFunc = stats.UpperPercentileCalculation
 	} else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}

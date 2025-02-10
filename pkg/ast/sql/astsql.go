@@ -28,6 +28,7 @@ import (
 	query "github.com/siglens/siglens/pkg/es/query"
 	structs "github.com/siglens/siglens/pkg/segment/structs"
 	utils "github.com/siglens/siglens/pkg/segment/utils"
+	stats "github.com/siglens/siglens/pkg/segment/writer/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/xwb1989/sqlparser"
 )
@@ -125,6 +126,12 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Sum
 	case "cardinality":
 		return utils.Cardinality
+	case "exactperc99":
+		return stats.ExactPercentileCalculation
+	case "perc66.6":
+		return stats.PercentileCalculation
+	case "upperperc6.6":
+		return stats.UpperPercentileCalculation
 	default:
 		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0
