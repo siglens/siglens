@@ -272,7 +272,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 				default:
 					intValue, err := item.GetIntValue()
 					if err != nil {
-						log.Errorf("qid=%v, statsProcessor.processMeasureOperations: error in getting integer value: %v", qid, err)
+						log.Errorf("qid=%v, error in getting integer value: %v", qid, err)
 						continue
 					}
 					GetnumVals = append(GetnumVals, float64(intValue))
