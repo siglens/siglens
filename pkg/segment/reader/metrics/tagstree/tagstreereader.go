@@ -20,7 +20,6 @@ package tagstree
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"regexp"
 	"syscall"
@@ -71,13 +70,13 @@ type TagValueIterator struct {
 	matchingTSIDs map[uint64]struct{}
 }
 
-func (attr *AllTagTreeReaders) getTagTreeFileInfoForTagKey(tagKey string) (bool, fs.FileInfo) {
+func (attr *AllTagTreeReaders) getTagTreeFileInfoForTagKey(tagKey string) bool {
 	fName := attr.baseDir + tagKey
-	finfo, err := os.Stat(fName)
+	_, err := os.Stat(fName)
 	if err != nil {
-		return false, nil
+		return false
 	}
-	return true, finfo
+	return true
 }
 
 func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
@@ -102,15 +101,9 @@ func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
 		}
 
 		tagKey := file.Name()
-		fInfo, err := file.Info()
-		if err != nil {
-			err = fmt.Errorf("InitAllTagsTreeReader: failed to get file info for file %s; err=%v", tagKey, err)
-			log.Errorf(err.Error())
-			return nil, err
-		}
 
 		// This also inserts the tagTreeReader into the tagTrees map.
-		_, err = attr.InitTagsTreeReader(tagKey, fInfo)
+		_, err = attr.InitTagsTreeReader(tagKey)
 		if err != nil {
 			err = fmt.Errorf("InitAllTagsTreeReader: failed to initialize tag tree reader for tag key %s in base dir %v; err=%v", tagKey, tagsTreeBaseDir, err)
 			log.Errorf(err.Error())
@@ -121,7 +114,7 @@ func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
 	return attr, nil
 }
 
-func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string, fInfo fs.FileInfo) (*TagTreeReader, error) {
+func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string) (*TagTreeReader, error) {
 	fName := attr.baseDir + tagKey
 
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
@@ -227,12 +220,12 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
-		fileExists, fInfo := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
+		fileExists := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
 		if !fileExists {
 			continue
 		}
 		if tagVal, ok := tf.RawTagValue.(string); ok && (tagVal == "*" || tf.IsRegex()) {
-			itr, mNameExists, err := attr.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey, fInfo)
+			itr, mNameExists, err := attr.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get the value iterator for metric name %v and tag key %v. Error: %v. TagVAlH %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue)
 				continue
@@ -319,7 +312,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				return nil, err
 			}
 		} else {
-			_, _, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, fInfo)
+			_, _, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 				return nil, err
@@ -355,10 +348,12 @@ Returns:
 - map[string]map[uint64]struct{}, map matching raw tag values for this tag key to set of all tsids with that value
 - error, any errors encountered
 */
-func (attr *AllTagTreeReaders) GetMatchingTSIDs(mName uint64, tagKey string, tagValue uint64, tagOperator segutils.TagOperator, fInfo fs.FileInfo) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+func (attr *AllTagTreeReaders) GetMatchingTSIDs(mName uint64, tagKey string, tagValue uint64,
+	tagOperator segutils.TagOperator) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
-		ttr, err := attr.InitTagsTreeReader(tagKey, fInfo)
+		ttr, err := attr.InitTagsTreeReader(tagKey)
 		if err != nil {
 			return false, false, nil, 0, fmt.Errorf("GetMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
@@ -567,10 +562,10 @@ func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string) (map[uint64]struc
 /*
 Returns *TagValueIterator a boolean indicating if the metric name was found, or any errors encountered
 */
-func (attr *AllTagTreeReaders) GetValueIteratorForMetric(mName uint64, tagKey string, fInfo fs.FileInfo) (*TagValueIterator, bool, error) {
+func (attr *AllTagTreeReaders) GetValueIteratorForMetric(mName uint64, tagKey string) (*TagValueIterator, bool, error) {
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
-		ttr, err := attr.InitTagsTreeReader(tagKey, fInfo)
+		ttr, err := attr.InitTagsTreeReader(tagKey)
 		if err != nil {
 			return nil, false, fmt.Errorf("GetMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
@@ -688,12 +683,12 @@ func (attr *AllTagTreeReaders) FindTagValuesOnly(mQuery *structs.MetricsQuery,
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
-		fileExists, fInfo := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
+		fileExists := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
 		if !fileExists {
 			continue
 		}
 
-		err := attr.readTagValuesOnly(tf.TagKey, fInfo, rawTagValues)
+		err := attr.readTagValuesOnly(tf.TagKey, rawTagValues)
 		if err != nil {
 			log.Infof("FindTagValuesOnly: failed to get the value iterator for tag key %v. Error: %v. TagVAlH %+v", tf.TagKey, err, tf.HashTagValue)
 			continue
@@ -705,13 +700,13 @@ func (attr *AllTagTreeReaders) FindTagValuesOnly(mQuery *structs.MetricsQuery,
 /*
 Returns *TagValueIterator a boolean indicating if the metric name was found, or any errors encountered
 */
-func (attr *AllTagTreeReaders) readTagValuesOnly(tagKey string, fInfo fs.FileInfo,
+func (attr *AllTagTreeReaders) readTagValuesOnly(tagKey string,
 	rawTagValues map[string]map[string]struct{}) error {
 
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
 		var err error
-		ttr, err = attr.InitTagsTreeReader(tagKey, fInfo)
+		ttr, err = attr.InitTagsTreeReader(tagKey)
 		if err != nil {
 			return fmt.Errorf("readTagValuesOnly: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		}
