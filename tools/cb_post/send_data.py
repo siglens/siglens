@@ -9,10 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger()
 
-# Path to hits.json file
-ndjson_file = "sighits.json"
-
-# Target URL for HTTP POST request
+# Target URL for data ingestion service 
 url = "http://localhost:8081/elastic/_bulk"
 
 buffer_limit = 10 * 1024 * 1024
