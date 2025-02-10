@@ -99,9 +99,6 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 
 	// Read from disk
 	baseDir := treewriter.GetFinalTagsTreeDir("test_mid", 0)
-	reader, err := treereader.InitAllTagsTreeReader(baseDir)
-	assert.NoError(t, err)
-	defer reader.CloseAllTagTreeReaders()
 
 	go func() {
 		waitGroup.Add(1)
@@ -109,6 +106,9 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 
 		numMetrics := 0
 		for i := 0; i < 100; i++ {
+			reader, err := treereader.InitAllTagsTreeReader(baseDir)
+			assert.NoError(t, err)
+
 			tagPairs, err := reader.GetAllTagPairs()
 			assert.NoError(t, err)
 			assert.Equal(t, 1, len(tagPairs))
@@ -120,9 +120,15 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 			assert.NoError(t, err)
 			assert.True(t, len(metrics) >= numMetrics)
 			numMetrics = len(metrics)
+
+			reader.CloseAllTagTreeReaders()
 		}
 	}()
 	waitGroup.Wait()
+
+	reader, err := treereader.InitAllTagsTreeReader(baseDir)
+	assert.NoError(t, err)
+	defer reader.CloseAllTagTreeReaders()
 
 	metrics, err := reader.GetHashedMetricNames()
 	assert.NoError(t, err)
