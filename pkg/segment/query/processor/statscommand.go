@@ -266,10 +266,9 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 
 		for _, item := range values {
 			if item.IsNumeric() {
-				switch {
-				case item.IsFloat():
+				if item.IsFloat() {
 					GetnumVals = append(GetnumVals, item.CVal.(float64))
-				default:
+				} else {
 					intValue, err := item.GetIntValue()
 					if err != nil {
 						log.Errorf("qid=%v, error in getting integer value: %v", qid, err)
