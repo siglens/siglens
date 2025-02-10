@@ -275,7 +275,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						log.Errorf("qid=%v, error in getting integer value: %v", qid, err)
 						continue
 					}
-				GetnumVals = append(GetnumVals, float64(intValue))
+					GetnumVals = append(GetnumVals, float64(intValue))
 				}
 			}
 		}
