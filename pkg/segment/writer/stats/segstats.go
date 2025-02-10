@@ -20,6 +20,7 @@ package stats
 import (
 	"math"
 	"math/rand"
+	"sort"
 	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
