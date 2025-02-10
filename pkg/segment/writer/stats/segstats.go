@@ -18,10 +18,10 @@
 package stats
 
 import (
-	"sort"
-	"strconv"
 	"math"
 	"math/rand"
+	"sort"
+	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -283,7 +283,6 @@ func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
 	}
 	return m1
 }
-
 
 // ExactPercentile99 calculates the exact 99th percentile using QuickSelect.
 func ExactPerc(data []float64) float64 {
