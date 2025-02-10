@@ -262,6 +262,50 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			continue
 		}
 
+
+		var GetnumVals []float64
+
+		for _, item := range values {
+			if item.IsNumeric() {
+				switch {
+				case item.IsFloat():
+					GetnumVals = append(GetnumVals, item.CVal.(float64))
+				default:
+					intValue, err := item.GetIntValue()
+					if err != nil {
+						log.Errorf("qid=%v, statsProcessor.processMeasureOperations: error in getting integer value: %v", qid, err)
+						continue
+					}
+					GetnumVals = append(GetnumVals, float64(intValue))
+				}
+			}
+		}
+
+		for _, measureOp := range p.options.MeasureOperations { 
+			switch measureOp.MeasureFunc {
+			case utils.ExactPerc:
+				if measureOp.MeasureCol == colName {
+					result := stats.ExactPercentileCalculation(numericValues, 99.0)
+					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
+						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
+				}
+			case utils.Perc:
+				if measureOp.MeasureCol == colName {
+					result := stats.PercentileCalculation(numericValues, 66.6)
+					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
+						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
+				}
+			case utils.UpperPerc:
+				if measureOp.MeasureCol == colName {
+					result := stats.UpperPercentileCalculation(numericValues, 6.6)
+					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
+						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
+				}
+			default:
+			}
+		}
+
+
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
 			hasListFunc := listUsage[colName]

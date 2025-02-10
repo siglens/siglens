@@ -247,6 +247,55 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 	return nil
 }
 
+func ExactPercentileCalculation(val []float64, percentile float64) float64 {
+	if len(val) == 0 {
+		return math.NaN() 
+	}
+
+	sort.Float64s(val)
+
+	idx := (percentile / 100.0) * float64(len(val)-1)
+	lw_pos := int(math.Floor(idx))
+	up_pos := int(math.Ceil(idx))
+
+	if lw_pos == up_pos || up_pos >= len(val) {
+		return val[lw_pos]
+	}
+
+	wt := idx - float64(lw_pos)
+	return val[lw_pos]*(1-wt) + val[up_pos]*wt
+}
+
+
+func PercentileCalculation(val []float64, percentile float64) float64 {
+	if len(val) == 0 {
+		return math.NaN()
+	}
+
+	sort.Float64s(val)
+
+	pos := int(math.Round((percentile / 100.0) * float64(len(val)-1)))
+
+
+	return val[pos]
+}
+
+func UpperPercentileCalculation(val []float64, percentile float64) float64 {
+	if len(val) == 0 {
+		return math.NaN()
+	}
+
+	sort.Float64s(val)
+
+	pos := int(math.Ceil((percentile / 100.0) * float64(len(val)-1)))
+
+	if pos >= len(val) {
+		pos = len(val) - 1
+	}
+
+	return val[pos]
+}
+
 func GetOrderedRecs(recs map[string]map[string]interface{}, recordIndexInFinal map[string]int) ([]string, error) {
 	currentOrder := make([]string, len(recs))
 
