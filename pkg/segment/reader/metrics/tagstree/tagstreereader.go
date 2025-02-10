@@ -73,10 +73,7 @@ type TagValueIterator struct {
 func (attr *AllTagTreeReaders) tagTreeFileExists(tagKey string) bool {
 	fName := attr.baseDir + tagKey
 	_, err := os.Stat(fName)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
