@@ -1432,9 +1432,6 @@ func AddAllColumnsInStreamStatsOptions(cols map[string]struct{}, streamStatsOpti
 var unsupportedStatsFuncs = map[utils.AggregateFunctions]struct{}{
 	utils.Estdc:        {},
 	utils.EstdcError:   {},
-	utils.ExactPerc:    {},
-	utils.Perc:         {},
-	utils.UpperPerc:    {},
 	utils.Median:       {},
 	utils.Mode:         {},
 	utils.Stdev:        {},

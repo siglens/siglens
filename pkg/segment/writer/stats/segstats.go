@@ -18,6 +18,9 @@
 package stats
 
 import (
+	"math"
+	"math/rand"
+	"sort"
 	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -279,4 +282,96 @@ func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
 		segStat1.Merge(segStat2)
 	}
 	return m1
+}
+
+// ExactPercentile99 calculates the exact 99th percentile using QuickSelect.
+func ExactPercentileCalculation(data []float64) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+	pos := int(math.Ceil(0.99 * float64(len(data))))
+	return QuickSelect(data, pos)
+}
+
+// ApproximatePercentile66_6 calculates an approximate 66.6th percentile using reservoir sampling.
+func PercentileCalculation(data []float64) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+
+	const reservoirSize = 1000
+	var sampledValues []float64
+
+	if len(data) > reservoirSize {
+		sampledValues = make([]float64, reservoirSize)
+		copy(sampledValues, data[:reservoirSize])
+
+		for i := reservoirSize; i < len(data); i++ {
+			j := rand.Intn(i + 1)
+			if j < reservoirSize {
+				sampledValues[j] = data[i]
+			}
+		}
+		sort.Float64s(sampledValues)
+	} else {
+		sampledValues = append([]float64{}, data...)
+		sort.Float64s(sampledValues)
+	}
+
+	pos := int(math.Round(0.666 * float64(len(sampledValues)-1)))
+	return sampledValues[pos]
+}
+
+// UpperPercentile6_6 estimates the upper bound for the 6.6th percentile.
+func UpperPercentileCalculation(data []float64) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+
+	k := int(math.Ceil(0.066 * float64(len(data))))
+	if k == 0 {
+		return data[0]
+	}
+
+	return QuickSelect(data, k)
+}
+
+// QuickSelect finds the k-th smallest element efficiently
+func QuickSelect(arr []float64, k int) float64 {
+	if len(arr) == 0 || k < 0 || k >= len(arr) {
+		return math.NaN()
+	}
+
+	l, r := 0, len(arr)-1
+
+	for l < r {
+		pivotIndex := partition(arr, l, r)
+		if pivotIndex == k {
+			return arr[pivotIndex]
+		} else if pivotIndex < k {
+			l = pivotIndex + 1
+		} else {
+			r = pivotIndex - 1
+		}
+	}
+
+	return arr[l] // found
+}
+
+// rearrange elements in place usig partition & return index of pivot
+func partition(arr []float64, l, r int) int {
+	pivotIndex := l + rand.Intn(r-l+1)
+	pivot := arr[pivotIndex]
+	arr[pivotIndex], arr[r] = arr[r], arr[pivotIndex] // Move pivot to end
+
+	storePos := l
+	for i := l; i < r; i++ {
+		if arr[i] < pivot {
+			arr[i], arr[storePos] = arr[storePos], arr[i]
+			storePos++
+		}
+	}
+
+	arr[storePos], arr[r] = arr[r], arr[storePos] // Move pivot to its final place
+	return storePos
 }
