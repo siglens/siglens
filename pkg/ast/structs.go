@@ -20,7 +20,6 @@ package ast
 import (
 	"fmt"
 	"strings"
-	"stats"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -276,12 +275,6 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 		aggFunc = utils.Count
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
-	} else if aggType == "exactperc99" {
-		aggFunc = stats.ExactPerc
-	} else if aggType == "perc66.6" {
-		aggFunc = stats.Perc
-	} else if aggType == "upperperc6.6" {
-		aggFunc = stats.UpperPerc
 	} else {
 		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}

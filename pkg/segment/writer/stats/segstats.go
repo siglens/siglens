@@ -285,7 +285,7 @@ func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
 }
 
 // ExactPercentile99 calculates the exact 99th percentile using QuickSelect.
-func ExactPerc(data []float64) float64 {
+func ExactPercentileCalculation(data []float64) float64 {
 	if len(data) == 0 {
 		return 0
 	}
@@ -294,7 +294,7 @@ func ExactPerc(data []float64) float64 {
 }
 
 // ApproximatePercentile66_6 calculates an approximate 66.6th percentile using reservoir sampling.
-func Perc(data []float64) float64 {
+func PercentileCalculation(data []float64) float64 {
 	if len(data) == 0 {
 		return 0
 	}
@@ -323,7 +323,7 @@ func Perc(data []float64) float64 {
 }
 
 // UpperPercentile6_6 estimates the upper bound for the 6.6th percentile.
-func UpperPerc(data []float64) float64 {
+func UpperPercentileCalculation(data []float64) float64 {
 	if len(data) == 0 {
 		return 0
 	}

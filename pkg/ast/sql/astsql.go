@@ -23,7 +23,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"stats"
 
 	"github.com/siglens/siglens/pkg/ast"
 	query "github.com/siglens/siglens/pkg/es/query"
@@ -126,12 +125,6 @@ func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
 		return utils.Sum
 	case "cardinality":
 		return utils.Cardinality
-	case "exactperc99":
-		return stats.ExactPerc
-	case "perc66.6":
-		return stats.Perc
-	case "upperperc6.6":
-		return stats.UpperPerc
 	default:
 		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0
