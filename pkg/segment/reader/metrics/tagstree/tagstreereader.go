@@ -18,6 +18,7 @@
 package tagstree
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -55,7 +56,10 @@ type TagTreeReader struct {
 }
 
 func (ttr *TagTreeReader) Close() error {
-	return ttr.fd.Close()
+	unlockErr := syscall.Flock(int(ttr.fd.Fd()), syscall.LOCK_UN)
+	closeErr := ttr.fd.Close()
+
+	return errors.Join(unlockErr, closeErr)
 }
 
 /*
@@ -131,12 +135,6 @@ func (attr *AllTagTreeReaders) InitTagsTreeReader(tagKey string, fInfo fs.FileIn
 		log.Errorf("InitTagsTreeReader: failed to lock file %s. Error: %v.", fName, err)
 		return nil, err
 	}
-	defer func() {
-		err = syscall.Flock(int(fd.Fd()), syscall.LOCK_UN)
-		if err != nil {
-			log.Errorf("InitTagsTreeReader: failed to unlock file %s. Error: %v.", fName, err)
-		}
-	}()
 
 	metadataSizeBuf := make([]byte, 5)
 	_, err = fd.ReadAt(metadataSizeBuf[:5], 0)
