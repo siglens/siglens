@@ -94,29 +94,28 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 		}
 	}()
 
-	// Wait for first flush
-	<-firstFlushChan
-
-	// Read from disk
 	baseDir := treewriter.GetFinalTagsTreeDir("test_mid", 0)
-
 	uniqueNumMetrics := make(map[int]struct{})
 
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
 
+		// Wait for first flush
+		<-firstFlushChan
+
 		numMetrics := 0
 		for i := 0; i < 100; i++ {
+			// Read from disk
 			reader, err := treereader.InitAllTagsTreeReader(baseDir)
 			assert.NoError(t, err)
 
 			tagPairs, err := reader.GetAllTagPairs()
 			assert.NoError(t, err)
-			assert.Equal(t, 1, len(tagPairs))
+			assert.Len(t, tagPairs, 1)
 			values, ok := tagPairs[tagKey]
 			assert.True(t, ok)
-			assert.Equal(t, len(values), 1)
+			assert.Len(t, values, 1)
 
 			metrics, err := reader.GetHashedMetricNames()
 			assert.NoError(t, err)
@@ -131,6 +130,10 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 	waitGroup.Wait()
 
 	if len(uniqueNumMetrics) < 5 { // Somewhat arbitrary number
+		// The purpose of this unit test is to test concurrent read/write, and
+		// we expect a lot of interleaving of those operations. If we got here,
+		// the test doesn't sufficiently test concurrency, so fail the test. We
+		// may need to increase the number of iterations.
 		t.Errorf("Insufficient testing; only got %d unique number of metrics", len(uniqueNumMetrics))
 		t.FailNow()
 	}
@@ -141,5 +144,5 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 
 	metrics, err := reader.GetHashedMetricNames()
 	assert.NoError(t, err)
-	assert.Equal(t, 100, len(metrics))
+	assert.Len(t, metrics, 100)
 }
