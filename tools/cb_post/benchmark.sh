@@ -36,6 +36,7 @@ cd $SIGLENS_SRC
 ###### Data loading 
 
 # Download and unzip dataset
+cd $CWD
 wget https://datasets.clickhouse.com/hits_compatible/hits.json.gz
 gzip -d hits.json.gz
 
