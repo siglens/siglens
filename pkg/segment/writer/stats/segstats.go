@@ -20,7 +20,6 @@ package stats
 import (
 	"math"
 	"math/rand"
-	"sort"
 	"strconv"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -336,31 +335,42 @@ func UpperPercentileCalculation(data []float64) float64 {
 	return QuickSelect(data, k)
 }
 
-// QuickSelect finds the k-th smallest element efficiently.
+// QuickSelect finds the k-th smallest element efficiently
 func QuickSelect(arr []float64, k int) float64 {
-	if len(arr) == 1 {
-		return arr[0]
+	if len(arr) == 0 || k < 0 || k >= len(arr) {
+		return math.NaN()
 	}
 
-	pivot := arr[rand.Intn(len(arr))]
-	var l, h, pivots []float64
+	l, r := 0, len(arr)-1
 
-	for _, val := range arr {
-		switch {
-		case val < pivot:
-			l = append(l, val)
-		case val > pivot:
-			h = append(h, val)
-		default:
-			pivots = append(pivots, val)
+	for l < r {
+		pivotIndex := partition(arr, l, r)
+		if pivotIndex == k {
+			return arr[pivotIndex]
+		} else if pivotIndex < k {
+			l = pivotIndex + 1
+		} else {
+			r = pivotIndex - 1
 		}
 	}
 
-	if k < len(l) {
-		return QuickSelect(l, k)
-	} else if k < len(l)+len(pivots) {
-		return pivots[0]
-	} else {
-		return QuickSelect(h, k-len(l)-len(pivots))
+	return arr[l] // found
+}
+
+// rearrange elements in place usig partition & return index of pivot
+func partition(arr []float64, l, r int) int {
+	pivotIndex := l + rand.Intn(r-l+1)
+	pivot := arr[pivotIndex]
+	arr[pivotIndex], arr[r] = arr[r], arr[pivotIndex] // Move pivot to end
+
+	storePos := l
+	for i := l; i < r; i++ {
+		if arr[i] < pivot {
+			arr[i], arr[storePos] = arr[storePos], arr[i]
+			storePos++
+		}
 	}
+
+	arr[storePos], arr[r] = arr[r], arr[storePos] // Move pivot to its final place
+	return storePos
 }
