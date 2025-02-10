@@ -73,8 +73,8 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 
 	firstFlushChan := make(chan struct{})
 	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(1)
 	go func() {
-		waitGroup.Add(1)
 		defer waitGroup.Done()
 
 		for i := 0; i < 100; i++ {
@@ -100,8 +100,8 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 	// Read from disk
 	baseDir := treewriter.GetFinalTagsTreeDir("test_mid", 0)
 
+	waitGroup.Add(1)
 	go func() {
-		waitGroup.Add(1)
 		defer waitGroup.Done()
 
 		numMetrics := 0
