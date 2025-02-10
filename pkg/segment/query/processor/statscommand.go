@@ -280,7 +280,6 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			}
 		}
 
-
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
 			hasListFunc := listUsage[colName]
