@@ -280,29 +280,6 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 			}
 		}
 
-		for _, measureOp := range p.options.MeasureOperations {
-			switch measureOp.MeasureFunc {
-			case utils.ExactPerc:
-				if measureOp.MeasureCol == colName {
-					result := stats.ExactPercentileCalculation(GetnumVals, 99.0)
-					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
-						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
-				}
-			case utils.Perc:
-				if measureOp.MeasureCol == colName {
-					result := stats.PercentileCalculation(GetnumVals, 66.6)
-					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
-						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
-				}
-			case utils.UpperPerc:
-				if measureOp.MeasureCol == colName {
-					result := stats.UpperPercentileCalculation(GetnumVals, 6.6)
-					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, result,
-						fmt.Sprintf("%v", result), p.byteBuffer, aggColUsage, valuesUsage[colName], listUsage[colName])
-				}
-			default:
-			}
-		}
 
 		for i := range values {
 			hasValuesFunc := valuesUsage[colName]
