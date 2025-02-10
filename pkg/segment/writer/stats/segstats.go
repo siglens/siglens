@@ -18,7 +18,10 @@
 package stats
 
 import (
+	"sort"
 	"strconv"
+	"math"
+	"math/rand"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
@@ -279,4 +282,86 @@ func MergeSegStats(m1, m2 map[string]*SegStats) map[string]*SegStats {
 		segStat1.Merge(segStat2)
 	}
 	return m1
+}
+
+
+// ExactPercentile99 calculates the exact 99th percentile using QuickSelect.
+func ExactPerc(data []float64) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+	pos := int(math.Ceil(0.99 * float64(len(data))))
+	return QuickSelect(data, pos)
+}
+
+// ApproximatePercentile66_6 calculates an approximate 66.6th percentile using reservoir sampling.
+func Perc(data []float64) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+
+	const reservoirSize = 1000
+	var sampledValues []float64
+
+	if len(data) > reservoirSize {
+		sampledValues = make([]float64, reservoirSize)
+		copy(sampledValues, data[:reservoirSize])
+
+		for i := reservoirSize; i < len(data); i++ {
+			j := rand.Intn(i + 1)
+			if j < reservoirSize {
+				sampledValues[j] = data[i]
+			}
+		}
+		sort.Float64s(sampledValues)
+	} else {
+		sampledValues = append([]float64{}, data...)
+		sort.Float64s(sampledValues)
+	}
+
+	pos := int(math.Round(0.666 * float64(len(sampledValues)-1)))
+	return sampledValues[pos]
+}
+
+// UpperPercentile6_6 estimates the upper bound for the 6.6th percentile.
+func UpperPerc(data []float64) float64 {
+	if len(data) == 0 {
+		return 0
+	}
+
+	k := int(math.Ceil(0.066 * float64(len(data))))
+	if k == 0 {
+		return data[0]
+	}
+
+	return QuickSelect(data, k)
+}
+
+// QuickSelect finds the k-th smallest element efficiently.
+func QuickSelect(arr []float64, k int) float64 {
+	if len(arr) == 1 {
+		return arr[0]
+	}
+
+	pivot := arr[rand.Intn(len(arr))]
+	var l, h, pivots []float64
+
+	for _, val := range arr {
+		switch {
+		case val < pivot:
+			l = append(l, val)
+		case val > pivot:
+			h = append(h, val)
+		default:
+			pivots = append(pivots, val)
+		}
+	}
+
+	if k < len(l) {
+		return QuickSelect(l, k)
+	} else if k < len(l)+len(pivots) {
+		return pivots[0]
+	} else {
+		return QuickSelect(h, k-len(l)-len(pivots))
+	}
 }
