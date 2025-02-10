@@ -100,6 +100,8 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 	// Read from disk
 	baseDir := treewriter.GetFinalTagsTreeDir("test_mid", 0)
 
+	uniqueNumMetrics := make(map[int]struct{})
+
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
@@ -121,10 +123,17 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 			assert.True(t, len(metrics) >= numMetrics)
 			numMetrics = len(metrics)
 
+			uniqueNumMetrics[len(metrics)] = struct{}{}
+
 			reader.CloseAllTagTreeReaders()
 		}
 	}()
 	waitGroup.Wait()
+
+	if len(uniqueNumMetrics) < 5 { // Somewhat arbitrary number
+		t.Errorf("Insufficient testing; only got %d unique number of metrics", len(uniqueNumMetrics))
+		t.FailNow()
+	}
 
 	reader, err := treereader.InitAllTagsTreeReader(baseDir)
 	assert.NoError(t, err)
