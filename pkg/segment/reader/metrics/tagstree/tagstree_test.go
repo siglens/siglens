@@ -110,7 +110,7 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	metricName = xxhash.Sum64String("test.metric.0")
 	tagKey = "color"
 	tagValue = xxhash.Sum64String("yellow")
-	tagKeyFileExists := attr.getTagTreeFileInfoForTagKey(tagKey)
+	tagKeyFileExists := attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
 	exists, tagValExists, rawTagValueToTSIDs, tagHashValue, err := attr.GetMatchingTSIDs(metricName, tagKey, tagValue, segutils.Equal)
 	assert.Nil(t, err)
@@ -123,7 +123,7 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	metricName = xxhash.Sum64String("test.metric.1")
 	tagKey = "group"
 	expectedtagValues := []string{"group 0", "group 1"}
-	tagKeyFileExists = attr.getTagTreeFileInfoForTagKey(tagKey)
+	tagKeyFileExists = attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
 	itr, found, err := attr.GetValueIteratorForMetric(metricName, tagKey)
 	assert.Nil(t, err)
@@ -175,7 +175,7 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 	metric1 := xxhash.Sum64String("metric1")
 
 	// Test selecting for key = value
-	colorTagKeyFileExists := attr.getTagTreeFileInfoForTagKey("color")
+	colorTagKeyFileExists := attr.tagTreeFileExists("color")
 	assert.True(t, colorTagKeyFileExists)
 	exists, tagValExists, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(metric1, "color", xxhash.Sum64String("blue"), segutils.Equal)
 	assert.Nil(t, err)
@@ -183,7 +183,7 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 2)
 
-	fruitTagKeyFileExists := attr.getTagTreeFileInfoForTagKey("fruit")
+	fruitTagKeyFileExists := attr.tagTreeFileExists("fruit")
 	assert.True(t, fruitTagKeyFileExists)
 	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.Equal)
 	assert.Nil(t, err)

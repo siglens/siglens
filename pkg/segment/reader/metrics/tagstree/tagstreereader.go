@@ -70,7 +70,7 @@ type TagValueIterator struct {
 	matchingTSIDs map[uint64]struct{}
 }
 
-func (attr *AllTagTreeReaders) getTagTreeFileInfoForTagKey(tagKey string) bool {
+func (attr *AllTagTreeReaders) tagTreeFileExists(tagKey string) bool {
 	fName := attr.baseDir + tagKey
 	_, err := os.Stat(fName)
 	if err != nil {
@@ -220,7 +220,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
-		fileExists := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
+		fileExists := attr.tagTreeFileExists(tf.TagKey)
 		if !fileExists {
 			continue
 		}
@@ -683,7 +683,7 @@ func (attr *AllTagTreeReaders) FindTagValuesOnly(mQuery *structs.MetricsQuery,
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
-		fileExists := attr.getTagTreeFileInfoForTagKey(tf.TagKey)
+		fileExists := attr.tagTreeFileExists(tf.TagKey)
 		if !fileExists {
 			continue
 		}
