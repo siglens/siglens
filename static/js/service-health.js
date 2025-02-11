@@ -65,8 +65,8 @@ const columnDefs = [
 const gridOptions = {
     rowData: serviceRowData,
     onRowClicked: onRowClicked,
-    headerHeight: 32,
-    rowHeight: 42,
+    headerHeight: 26,
+    rowHeight: 34,
     defaultColDef: {
         cellClass: 'align-center-grid',
         resizable: true,

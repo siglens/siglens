@@ -42,14 +42,14 @@ $(document).ready(function () {
     });
 
     $('#alert-from-logs-btn').click(function () {
-        $('.addrulepopupOverlay, .addrulepopupContent').addClass('active');
+        $('.popupOverlay, .addrulepopupContent').addClass('active');
     });
 
     $('#addrule-cancel-btn').click(function () {
         $('#rule-name').tooltip('hide');
         $('#rule-name').val('');
         $('.rule-name-error').removeClass('active').text('');
-        $('.addrulepopupOverlay, .addrulepopupContent').removeClass('active');
+        $('.popupOverlay, .addrulepopupContent').removeClass('active');
     });
     $('#addrule-save-btn').click(function () {
         var ruleName = $('#rule-name').val().trim(); // Trim whitespace
@@ -67,7 +67,7 @@ $(document).ready(function () {
         $('#rule-name').tooltip('hide');
         $('#rule-name').val('');
         $('.rule-name-error').removeClass('active').text('');
-        $('.addrulepopupOverlay, .addrulepopupContent').removeClass('active');
+        $('.popupOverlay, .addrulepopupContent').removeClass('active');
 
         var queryParams = {
             queryLanguage: data.queryLanguage,

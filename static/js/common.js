@@ -119,7 +119,6 @@ function showError(errorMsg) {
     $('#query-builder-btn').removeClass('active');
     $('#live-tail-btn').html('Live Tail');
     $('#live-tail-btn').removeClass('active');
-    $('#run-metrics-query-btn').removeClass('active');
 
     wsState = 'query';
 }
@@ -814,32 +813,6 @@ function addZero(i) {
     return i;
 }
 
-// my org page
-//eslint-disable-next-line no-unused-vars
-function showToastMyOrgPage(msg) {
-    let toast = `<div class="div-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`;
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-    $('.ret-days-toast').remove();
-}
-//eslint-disable-next-line no-unused-vars
-function showRetDaysUpdateToast(msg) {
-    let toast = `<div class="ret-days-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`;
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
 //eslint-disable-next-line no-unused-vars
 function showToast(msg, type = 'error') {
     let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
@@ -848,7 +821,7 @@ function showToast(msg, type = 'error') {
             <button type="button" aria-label="Close" class="toast-close">×</button>
             ${msg}
             <div class="toast-buttons">
-                <button type="button" class="toast-ok btn">OK</button>
+                <button type="button" class="toast-ok btn btn-secondary">OK</button>
             </div>
         </div>`;
 
@@ -1014,9 +987,9 @@ function initializeFilterInputEvents() {
         }
     });
 
-    const LINE_HEIGHT = 21;
+    const LINE_HEIGHT = 20;
     const MAX_VISIBLE_LINES = 5;
-    const PADDING = 8;
+    const PADDING = 4;
 
     // Create a clone of the textarea to measure its height
     function createTextAreaClone($textarea) {

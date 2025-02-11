@@ -613,7 +613,7 @@ function setShowColumnInfoDialog() {
         },
         buttons: {
             Cancel: {
-                class: 'cancelqButton cancel-record-btn',
+                class: 'cancelqButton cancel-record-btn btn btn-secondary',
                 text: 'OK',
                 click: function () {
                     $('#show-record-popup').dialog('close');

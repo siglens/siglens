@@ -359,14 +359,14 @@ function setDownloadLogsDialog() {
         },
         buttons: {
             Cancel: {
-                class: 'cancelqButton',
+                class: 'cancelqButton btn btn-secondary',
                 text: 'Cancel',
                 click: function () {
                     dialog.dialog('close');
                 },
             },
             Save: {
-                class: 'saveqButton',
+                class: 'saveqButton btn btn-primary',
                 text: 'Save',
                 click: download,
             },

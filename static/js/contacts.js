@@ -27,8 +27,8 @@ let contactEditFlag = 0;
 const contactFormHTML = `
 <form id="contact-form">
 <div class="d-flex btn-container">
-    <button class="btn" id="cancel-contact-btn" type="button">Cancel</button>
-    <button class="btn" id="save-contact-btn" type="submit">Save</button>
+    <button class="btn btn-secondary mx-3" id="cancel-contact-btn" type="button">Cancel</button>
+    <button class="btn btn-primary" id="save-contact-btn" type="submit">Save</button>
 </div>
 <div class="add-contact-form">
     <div>
@@ -45,8 +45,7 @@ const contactFormHTML = `
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                         data-bs-toggle="dropdown">
                         <span>Slack</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        <i class="dropdown-arrow"></i>
                     </button>
                     <div class="dropdown-menu box-shadow contact-options">
                         <li id="option-0" class="contact-option active">Slack</li>
@@ -66,7 +65,7 @@ const contactFormHTML = `
     <div style="position: relative;">
         <label for="slack-channel-id">Channel ID</label>
         <input type="text" class="form-control" id="slack-channel-id" style="position: relative;">
-        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
+        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 23px;"
         title="Specify channel, private group, or IM channel (can be an encoded ID or a name)."
         id="info-slack-channel-id"></i>
     </div>
@@ -74,7 +73,7 @@ const contactFormHTML = `
     <div style="position: relative;">
     <label for="slack-token">Slack API Token</label>
     <input type="text" class="form-control" id="slack-token" style="position: relative;">
-        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 29px;"
+        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" style="display: block; top: 23px;"
         title="Provide a Slack bot API token (starts with “xoxb”)."
         id="info-slack-token"></i>
     </div>
@@ -84,7 +83,7 @@ const contactFormHTML = `
     <input type="text" class="form-control" id="webhook-id">
 </div>
     </div>
-    <button class="add-new-contact-type btn" type="button">
+    <button class="add-new-contact-type btn btn-primary" type="button">
         <span>
             <img src="./assets/add-icon.svg" class="add-icon">Add new contact type
         </span>
@@ -431,7 +430,7 @@ class btnRenderer {
         this.eGui = document.createElement('span');
         this.eGui.innerHTML = `<div id="alert-grid-btn">
 				<button class='btn' id="editbutton"></button>
-                <button class="btn-simple" id="delbutton"></button>
+                <button class="btn-simple mx-4" id="delbutton"></button>
 				</div>`;
         this.eButton = this.eGui.querySelector('.btn');
         this.dButton = this.eGui.querySelector('.btn-simple');
@@ -454,11 +453,11 @@ class btnRenderer {
 function showDeleteContactDialog(data, matchingAlertNames) {
     $('#contact-name-placeholder-delete-dialog').html('<strong>' + data.contactName + '</strong>');
     $('.popupOverlay, .delete-dialog').addClass('active');
-    let el = $('#alert-listing');
+    let el = $('#associated-alerts');
     el.html(``);
     const maxHeight = 100;
     matchingAlertNames.forEach(function (alertName) {
-        el.append(`<div class="alert-dropdown-item">${alertName}</div>`);
+        el.append(`<li class="alert-dropdown-item">${alertName}</li>`);
     });
 
     // Apply styling to make the dropdown scrollable
@@ -531,8 +530,8 @@ const contactGridOptions = {
     columnDefs: contactColumnDefs,
     rowData: contactRowData,
     animateRows: true,
-    rowHeight: 44,
-    headerHeight: 32,
+    rowHeight: 34,
+    headerHeight: 26,
     defaultColDef: {
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',

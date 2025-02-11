@@ -50,7 +50,7 @@ class FolderDropdown {
                             ${this.selectedFolder ? this.selectedFolder.name : this.options.placeholder}
                         </span>                   
                     </div>
-                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">                
+                    <img class="orange" src="assets/arrow-btn.svg" alt="expand">                
                 </button>
                 <div class="folder-dropdown-content">
                     <div class="folder-search-container">

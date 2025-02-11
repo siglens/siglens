@@ -31,8 +31,8 @@ document.addEventListener('DOMContentLoaded', function () {
             { headerName: 'Number of Series', field: 'numSeries' },
         ],
         rowData: [],
-        rowHeight: 44,
-        headerHeight: 32,
+        headerHeight: 26,
+        rowHeight: 34,
         defaultColDef: {
             cellClass: 'align-center-grid',
             icons: {
@@ -63,8 +63,8 @@ document.addEventListener('DOMContentLoaded', function () {
             { headerName: 'Number of Series', field: 'numSeries', filter: true },
         ],
         rowData: [],
-        rowHeight: 44,
-        headerHeight: 32,
+        headerHeight: 26,
+        rowHeight: 34,
         defaultColDef: {
             cellClass: 'align-center-grid',
             icons: {
@@ -94,8 +94,8 @@ document.addEventListener('DOMContentLoaded', function () {
             { headerName: 'Number of Unique Values', field: 'numValues' },
         ],
         rowData: [],
-        rowHeight: 44,
-        headerHeight: 32,
+        headerHeight: 26,
+        rowHeight: 34,
         defaultColDef: {
             cellClass: 'align-center-grid',
             icons: {
