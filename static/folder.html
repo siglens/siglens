@@ -73,10 +73,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <div id="breadcrumb"></div>
                 <div class="d-flex align-items-center">
                     <div class="dropdown">
-                        <button class="btn dropdown-toggle grey-dropdown-btn" data-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="true" data-bs-toggle="dropdown">
+                        <button class="btn dropdown-toggle btn-grey w-100" data-toggle="dropdown"
+                            aria-haspopup="false" aria-expanded="false" data-bs-toggle="dropdown">
                             <span style="margin-right: 6px;">Folder Action</span>
-                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                            <i class="dropdown-arrow"></i>                        
                         </button>
                         <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">
                             <li class="dropdown-option" id="move-folder">Move</li>
@@ -87,7 +87,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </div>
             </div>
 
-            <div class="p-20 h-100">
+            <div class="p-4 h-100">
                 <div id="db-search-container">
                     <div>
                         <input type="text" id="search-input" class="form-control search-db-input"
@@ -121,8 +121,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div id="folder-selector"></div>
                 </div>
                 <div id="buttons-popupContent">
-                    <button class="cancel-btn">Cancel</button>
-                    <button class="move-btn primary-btn">Move</button>
+                    <button class="cancel-btn btn btn-secondary">Cancel</button>
+                    <button class="move-btn btn-primary btn">Move</button>
                 </div>
             </div>
 
@@ -133,9 +133,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <p class="content-count"></p>
                     <input type="text" class="confirm-input" placeholder='Type "Delete" to confirm'>
                 </div>
-                <div id="buttons-popupContent">
-                    <button class="cancel-btn primary-btn">Cancel</button>
-                    <button class="delete-btn" disabled>Delete</button>
+                <div class="btncontainer">
+                    <button type="button" class="cancel-btn btn btn-primary">Cancel</button>
+                    <button type="button" class="delete-btn btn btn-secondary">Delete</button>
                 </div>
             </div>
 

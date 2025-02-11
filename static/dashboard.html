@@ -140,8 +140,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                 data-bs-toggle="dropdown">
                                 <span></span>
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg" alt="retract">
+                                <img class="orange" src="assets/arrow-btn.svg" alt="expand">                
                             </button>
                             <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
                                 <div class="ranges">
@@ -182,9 +181,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="prompt-text-container">
                 <div class="delete-db-text">Are you sure you want to delete this Panel?</div>
             </div>
-            <div id="buttons-db-prompt">
-                <button type="button" id="cancel-btn-panel">Cancel</button>
-                <button type="button" id="delete-btn-panel">Delete</button>
+            <div class="btncontainer">
+                <button type="button" id="cancel-btn-panel" class="btn btn-primary">Cancel</button>
+                <button type="button" id="delete-btn-panel" class="btn btn-secondary">Delete</button>
             </div>
         </div>
         <div id="app-footer">2024 &copy; SigLens</div>
@@ -301,8 +300,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     data-bs-toggle="dropdown">
                                     <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
                                     Available Fields
-                                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                    <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                    <i class="dropdown-arrow"></i>
                                 </button>
                                 <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
                     
@@ -409,8 +407,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
                                                                 aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
                                                                 <span>Splunk QL</span>
-                                                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                                                <i class="dropdown-arrow"></i>
                                                             </button>
                                                             <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
                                                                 <li id="option-3" class="query-language-option active">Splunk QL</li>
@@ -421,8 +418,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                             <button class="btn dropdown-toggle" type="button" id="query-mode-btn" data-toggle="dropdown"
                                                                 aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
                                                                 <span>Builder</span>
-                                                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                                                <i class="dropdown-arrow"></i>
                                                             </button>
                                                             <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
                                                                 <li id="mode-option-1" class="query-mode-option">Builder</li>
