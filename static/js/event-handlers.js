@@ -38,7 +38,6 @@ function setupEventHandlers() {
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
     $('#query-mode-options .query-mode-option').on('click', setQueryModeHandler);
 
-
     $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
 
     $('#log-opt-single-btn').on('click', function () {
