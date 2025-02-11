@@ -119,7 +119,6 @@ function showError(errorMsg) {
     $('#query-builder-btn').removeClass('active');
     $('#live-tail-btn').html('Live Tail');
     $('#live-tail-btn').removeClass('active');
-    $('#run-metrics-query-btn').removeClass('active');
 
     wsState = 'query';
 }
