@@ -119,7 +119,7 @@
 
 .service-health-text {
     font-size: 14px;
-    color: #6F6B7B;
+    color: #6f6b7b;
     cursor: pointer;
     margin-bottom: 0;
 }
@@ -243,6 +243,7 @@
 .input-box,
 .search-trace-btn {
     margin-top: 12px;
+    position: relative;
 }
 
 .input-box {
@@ -278,13 +279,11 @@
     width: 150px;
 }
 
-
 .search-trace-btn-box {
     display: flex;
     flex-direction: row;
     justify-content: right;
 }
-
 
 .empty-result-show {
     display: flex;
@@ -549,7 +548,6 @@ circle:hover {
     border-bottom: 1px solid var(--time-tick);
 }
 
-
 .vertical-strip {
     position: absolute;
     left: 0;
@@ -613,4 +611,8 @@ body.resizing {
 .connecting-lines {
     stroke: var(--time-tick);
     stroke-width: 1;
+}
+
+.dropdown-menu.daterangepicker.show {
+    top: 44px;
 }
