@@ -23,6 +23,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -72,15 +73,13 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 	fName := segKey + ".strm"
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("qid=%d, InitNewAgileTreeReader: failed to open STR %s for Error: %v.",
-			qid, fName, err)
 		return nil, err
 	}
 
 	return &AgileTreeReader{
 		segKey:         segKey,
 		metaFd:         fd,
-		metaFileBuffer: *fileReadBufferPool.Get().(*[]byte),
+		metaFileBuffer: *segreader.FileReadBufferPool.Get().(*[]byte),
 		isMetaLoaded:   false,
 		buckets:        aggsTreeBuckets{},
 	}, nil
@@ -116,13 +115,28 @@ func (str *AgileTreeReader) Close() error {
 }
 
 func (str *AgileTreeReader) returnBuffers() {
-	fileReadBufferPool.Put(&str.metaFileBuffer)
+	segreader.FileReadBufferPool.Put(&str.metaFileBuffer)
 }
 
 func (str *AgileTreeReader) resetBlkVars() {
 
 	str.treeMeta = nil
 	str.isMetaLoaded = false
+}
+
+func validateTreeEncodingVersion(version byte) error {
+	switch version {
+	case utils.VERSION_STAR_TREE_BLOCK[0]:
+		// do nothing, this is the expected encoding
+	case utils.VERSION_STAR_TREE_BLOCK_LEGACY[0]:
+		log.Warnf("AgileTreeReader.ReadTreeMeta: received a legacy encoding type for agileTree: %v", version)
+		return errors.New("received legacy agileTree encoding")
+	default:
+		log.Errorf("AgileTreeReader.ReadTreeMeta: received an unknown encoding type for agileTree: %v", version)
+		return errors.New("received non-agileTree encoding")
+	}
+
+	return nil
 }
 
 /*
@@ -144,7 +158,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 
 	finfo, err := os.Stat(str.metaFd.Name())
 	if err != nil {
-		log.Errorf("ReadTreeMeta could not get file size error: %+v", err)
+		log.Errorf("AgileTreeReader.ReadTreeMeta: could not get file size error: %+v", err)
 		return err
 	}
 	fileSize := uint32(finfo.Size())
@@ -153,14 +167,14 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 
 	_, err = str.metaFd.ReadAt(str.metaFileBuffer[:fileSize], 0)
 	if err != nil {
-		log.Errorf("ReadTreeMeta read file error: %+v", err)
+		log.Errorf("AgileTreeReader.ReadTreeMeta: read file error: %+v", err)
 		return err
 	}
 
-	if str.metaFileBuffer[0] != utils.STAR_TREE_BLOCK[0] {
-		log.Errorf("ReadTreeMeta: received an unknown encoding type for agileTree: %v",
-			str.metaFileBuffer[0])
-		return errors.New("received non-agileTree encoding")
+	encodingVersion := str.metaFileBuffer[0]
+	err = validateTreeEncodingVersion(encodingVersion)
+	if err != nil {
+		return err
 	}
 
 	idx := uint32(0)
@@ -302,7 +316,7 @@ func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error
 		idx += 4
 
 		if numDictEncodings == 0 {
-			log.Errorf("decodeMetadata: numDictEncodings was 0 for cname: %v", string(buf[soff:eoff]))
+			log.Errorf("AgileTreeReader.decodeMetadata: numDictEncodings was 0 for cname: %v", string(buf[soff:eoff]))
 			continue
 		}
 
@@ -332,13 +346,13 @@ func (str *AgileTreeReader) getLevelForColumn(colName string) (int, error) {
 			return idx + 1, nil // root is at level 0 so add 1
 		}
 	}
-	return 0, fmt.Errorf("column %+v not found in tree", colName)
+	return 0, fmt.Errorf("AgileTreeReader.getLevelForColumn: column %+v not found in tree", colName)
 }
 
 func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte) ([]byte, error) {
 	rawVal, ok := dictEncoding[key]
 	if !ok {
-		return []byte{}, fmt.Errorf("failed to find raw value for idx %+v which has %+v keys", key, len(dictEncoding))
+		return []byte{}, fmt.Errorf("AgileTreeReader.getRawVal: failed to find raw value for key %+v which has %+v keys", key, len(dictEncoding))
 	}
 	return rawVal, nil
 }
@@ -349,6 +363,7 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 
 	var wvInt64 int64
 	var wvFloat64 float64
+	var dtype utils.SS_DTYPE
 	idx := uint32(0)
 
 	// level
@@ -360,8 +375,8 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 	idx += 4
 
 	if curLevel != desiredLevel {
-		log.Errorf("decodeNodeDetailsJit wanted level: %v, but read level: %v", desiredLevel, curLevel)
-		return fmt.Errorf("decodeNodeDetailsJit wanted level: %v, but read level: %v", desiredLevel, curLevel)
+		log.Errorf("AgileTreeReader.decodeNodeDetailsJit: wanted level: %v, but read level: %v", desiredLevel, curLevel)
+		return fmt.Errorf("AgileTreeReader.decodeNodeDetailsJit: wanted level: %v, but read level: %v", desiredLevel, curLevel)
 	}
 
 	usedDictEncodings := make([]map[uint32][]byte, len(grpTreeLevels))
@@ -434,24 +449,13 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 			agIdx := idx                           // set to the start of aggValue for this node's data
 			agIdx += uint32(measResIndices[j]) * 9 // jump to the AgValue for this meas's index
 
-			dtype := utils.SS_DTYPE(buf[agIdx])
-			agIdx += 1
-
-			switch dtype {
-			case utils.SS_DT_UNSIGNED_NUM, utils.SS_DT_SIGNED_NUM:
-				wvInt64 = toputils.BytesToInt64LittleEndian(buf[agIdx : agIdx+8])
-			case utils.SS_DT_FLOAT:
-				wvFloat64 = toputils.BytesToFloat64LittleEndian(buf[agIdx : agIdx+8])
-			case utils.SS_DT_BACKFILL:
-			default:
-				return fmt.Errorf("decodeNodeDetailsJit: unsupported Dtype: %v", dtype)
-			}
+			wvInt64, wvFloat64, dtype = utils.ConvertBytesToNumber(buf[agIdx : agIdx+9])
 
 			// remainder will give us MeasFnIdx
 			fn := writer.IdxToAgFn[measResIndices[j]%writer.TotalMeasFns]
 			err := aggVal[j].ReduceFast(dtype, wvInt64, wvFloat64, fn)
 			if err != nil {
-				log.Errorf("decodeNodeDetailsJit: Failed to reduce aggregation for err: %v", err)
+				log.Errorf("AgileTreeReader.decodeNodeDetailsJit: Failed to reduce aggregation for dtype: %v, err: %v", dtype, err)
 			}
 		}
 		idx += uint32(numAggValues) * 9
@@ -474,7 +478,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	for i, grpByCol := range grpColNames {
 		level, err := str.getLevelForColumn(grpByCol)
 		if err != nil {
-			log.Errorf("qid=%v, ApplyGroupByJit: failed to get level in tree for column %s: %v", qid,
+			log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: failed to get level in tree for column: %s, err: %v", qid,
 				grpByCol, err)
 			return err
 		}
@@ -499,8 +503,8 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			}
 		}
 		if !found {
-			log.Errorf("qid=%v, ApplyGroupByJit: Tree could not find mcol: %v", qid, mops.MeasureCol)
-			return fmt.Errorf("qid=%v, ApplyGroupByJit: Tree could not find mcol: %v",
+			log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: Tree could not find mcol: %v", qid, mops.MeasureCol)
+			return fmt.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: Tree could not find mcol: %v",
 				qid, mops.MeasureCol)
 		}
 		fnidx := writer.AgFnToIdx(mops.MeasureFunc)                              // What MeasFn idx this translates to
@@ -512,7 +516,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	err := str.computeAggsJit(combiner, maxGrpLevel, measResIndices, agileTreeBuf,
 		grpTreeLevels, grpColNames)
 	if err != nil {
-		log.Errorf("qid=%v, ApplyGroupByJit: failed to apply aggs-jit: %v", qid, err)
+		log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: failed to apply aggs-jit, err: %v", qid, err)
 		return err
 	}
 
@@ -527,7 +531,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		}
 		rawVal, err := str.decodeRawValBytes(mkey, usedDictEncodings, grpColNames)
 		if err != nil {
-			log.Errorf("qid=%v, ApplyGroupByJit: Failed to get raw value for a agileTree key! %+v", qid, err)
+			log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: Failed to get raw value for a agileTree key: %v, err: %+v", qid, mkey, err)
 			return err
 		}
 
@@ -551,6 +555,15 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 			case utils.SS_DT_FLOAT:
 				extVal.Dtype = utils.SS_DT_FLOAT
 				extVal.CVal = ntAgvals[i].FloatVal
+			case utils.SS_DT_BACKFILL:
+				extVal.Dtype = utils.SS_DT_SIGNED_NUM
+				extVal.CVal = ntAgvals[i].IntgrVal
+			case utils.SS_INVALID:
+				log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: invalid dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
+				continue
+			default:
+				log.Errorf("qid=%v, AgileTreeReader.ApplyGroupByJit: unknown dtype: %v", qid, utils.SS_DTYPE(ntAgvals[i].Ntype))
+				continue
 			}
 			// todo count is stored multiple times in the nodeAggvalue (per measCol), store only once
 			if i == 0 { // count is always at index 0
@@ -575,7 +588,7 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 	fName := str.segKey + ".strl"
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("computeAggsJit: failed to open STRLev %v  Error: %v.",
+		log.Infof("AgileTreeReader.computeAggsJit: failed to open STRLev %v  Error: %v.",
 			fName, err)
 		return err
 	}
@@ -588,7 +601,7 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 
 	_, err = str.levDataFd.ReadAt(agileTreeBuf[:myLevsSize], myLevsOff)
 	if err != nil {
-		log.Errorf("computeAggsJit read file error: %+v", err)
+		log.Errorf("AgileTreeReader.computeAggsJit: read file error at offset: %v, err: %+v", myLevsOff, err)
 		return err
 	}
 
@@ -616,7 +629,7 @@ func (str *AgileTreeReader) decodeRawValBytes(mkey string, usedGrpDictEncodings 
 		cname := grpColNames[i]
 		rawVal, err := str.getRawVal(nk, dictEncoding)
 		if err != nil {
-			log.Errorf("decodeRawValBytes: Failed to get raw value for nk:%v, came: %v, err: %+v",
+			log.Errorf("AgileTreeReader.decodeRawValBytes: Failed to get raw value for nk: %v, cname: %v, err: %+v",
 				nk, cname, err)
 			return "", err
 		}

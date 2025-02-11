@@ -43,8 +43,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/lib/tippy.css" />
+    <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
 
+    <style>
+        .metrics-graph-container{
+            display: block;
+        }
+        .metrics-graph{
+            margin-bottom: 20px;
+        }
+        #metrics-explorer, #metrics-graphs{
+            display: none;
+        }
+        .query-builder-container{
+            margin: 0px;
+            background-color: var(--bg-color);
+        }
+    </style>   
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -52,8 +72,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="./js/lib/echarts.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -68,30 +90,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="alerting">
-            <div class="alerts-nav-tab">
-            </div>
-            <div class="upper-header">
-                <p class="caption">Rules that determine whether an alert will fire
-                </p>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <h4 class="all-dashboards" id="all-alerts-text">All Alerts</h4>
+                <span class="dashboard-arrow"></span>
+                <h3 class="name-dashboard" id="alert-name">New Alert</h3>
             </div>
             <!-- create alert form -->
-            <div class="form-container">
+            <div class="form-container" id="alerting-form-container">
                 <form id="alert-form">
                     <div class="d-flex btn-container">
-                        <button class="btn" id="cancel-alert-btn" type="button" tabindex="9">Cancel</button>
-                        <button class="btn" id="save-alert-btn" type="submit" tabindex="10">Save</button>
+                        <button class="btn btn-secondary mx-3" id="cancel-alert-btn" type="button" tabindex="9">Cancel</button>
+                        <button class="btn btn-primary" id="save-alert-btn" type="submit" tabindex="10">Save</button>
                     </div>
                     <div class="add-alert-form">
+                        <div id="metrics-graphs" class="metrics-graph-container">
+    
+                        </div>
+                        <div id="logs-explorer">
+
+                        </div>
                         <div class="subsection-heading">
                             <div class="circle">1</div>
-                            <div>Alert Rule</div>
-                        </div>
-                        <div class="alert-form-subsection">
-                            <label for="alert-rule-name">Rule name</label>
-                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
-                        </div>
-                        <div class="subsection-heading">
-                            <div class="circle">2</div>
                             <div>Query</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -101,23 +120,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Select Query Type">
                                         <span>Logs</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu box-shadow" id="data-source-options">
                                         <li id="option-1" class="data-source-option active">Logs</li>
+                                        <li id="option-2" class="data-source-option">Metrics</li>
                                     </div>
                                 </div>
-                                <div>
+                                <div class="logs-lang-container">
                                     <button class="btn dropdown-toggle" type="button" id="logs-language-btn"
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
                                         <span>Splunk QL</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu box-shadow" id="logs-language-options">
                                         <li id="option-1" class="logs-language-option active">Splunk QL</li>
+                                    </div>
+                                </div>
+                                <div class="index-box">
+                                    <div style="margin-right: 5px;">Indexes:</div>
+                                    <div class="index-container">
+                                        <input type="text" name="" id="index-listing">
+                                        <button id="add-index" class="add-con btn">+</button>
                                     </div>
                                 </div>
                                 <div class="dropdown timepicker">
@@ -125,8 +150,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Pick the time window">
                                         <span>Time Picker</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
                                         id="daterangepicker ">
@@ -157,16 +181,96 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                             <div class="query-container position-relative">
-                                <input type="text" class="form-control" placeholder="Enter a query" id="query" required tabindex="2">
-
-                                <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
-                                    id="info-icon-spl" style="display: block;" title='city=Boston | stats count
-                                city=* | stats avg(latency)
-                                '></i>
+                                <div id = "custom-code-tab" class="custom-code-tab">
+                                    <div class="query-builder-container">
+                                        <div class="d-flex justify-content-end">
+                                            <ul class="tab-list">
+                                                <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
+                                                <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
+                                            </ul>
+                                        </div>
+                                        <div class="d-flex">
+                                            <div id = "tabs-1">
+                                                <div class="filter-info">
+                                                    <div id="filter-container" class="position-relative">
+                                                        <div class="filter-con">
+                                                            <div class="filter-box" id="filter-box-1">
+                                                                <span class = "aggregations" id="search-filter-text">Search filter</span>
+                                                                <ul id="tags" class="tags-list"></ul>
+                                                                <button id="add-con" class="add-con btn">+</button>
+                                                            </div>
+                                                            <div class="add-filter" id="add-filter">
+                                                                <input id="column-first" class="column-first" type="hidden" onkeyup="checkContent(this)"/>
+                                                                <input id="symbol" class="symbol" type="hidden" onkeyup="checkContent(this)"/>
+                                                                <input id="value-first" class="value-first" type="hidden" onkeyup="checkContent(this)"/>
+                                                                <button id="completed" class="completed btn"></button>
+                                                                <button id="cancel-enter" class="cancel-enter btn">×</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="builder-div">stats</div>
+                                                        <div class="filter-con second-enter">
+                                                            <div class="filter-box" id="filter-box-2">
+                                                                <span class = "aggregations" id="aggregate-attribute-text">Aggregation attribute</span>
+                                                                <ul id="tags-second" class="tags-list"></ul>
+                                                                <button id="add-con-second" class="add-con btn">+</button>
+                                                            </div>
+                                                            <div class="add-filter add-filters" id="add-filter-second">
+                                                                <input id="column-second" class="column-first" type="hidden" onkeyup="checkSecondContent(this)"/>
+                                                                <input id="value-second" class="value-first" type="hidden" onkeyup="checkSecondContent(this)"/>
+                                                                <button id="completed-second" class="completed btn" ></button>
+                                                                <button id="cancel-enter-second" class="cancel-enter btn">×</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="builder-div">group by</div>
+                                                        <div class="filter-con third-enter">
+                                                            <div class="filter-box third-box"  id="filter-box-3">
+                                                                <span class = "aggregations" id="aggregations">Group by column name</span>
+                                                                <ul id="tags-third" class="tags-list"></ul>
+                                                                <button id="add-con-third" class="add-con btn">+</button>
+                                                            </div>
+                                                            <div class="add-filter add-third" id="add-filter-third">
+                                                                <input id="column-third" class="column-third" type="hidden" />
+                                                                <button id="cancel-enter-third" class="cancel-enter btn">×</button>
+                                                            </div>
+                                                        </div>
+                                                        <div class="require-field-tooltip" id="logs-error">Please fill a query</div>
+                                                    </div>
+                                                    <button class="search-img" id="query-builder-btn" type="button"></button>
+                                                </div>
+                                            </div>
+                                            <div id = "tabs-2">
+                                                <div class="filter-container">
+                                                    <div class="position-relative search-bar-container">
+                                                        <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
+                                                        id="info-icon-spl" style="display: block;" title='city=Boston | stats count
+                                                    city=* | stats avg(latency)
+                                                    city=Boston | stats count AS Count BY weekday
+                                                    city=Boston | stats count AS Count BY job_description
+                                                    '></i>
+                                                        <textarea class="form-control expandable-textarea" id="filter-input"
+                                                            placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text"></textarea>
+                                                        <span class="clear-icon" id="clearInput" title="Clear"></span>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                            <div id="metrics-explorer">
+                                <div id="metrics-queries"></div>
+                                <div id="metrics-formula"></div>
+                                 <div class="mt-3 d-flex ">
+                                     <button id="add-query" class="btn" type="button"><span class="plus-icon">+</span> Add Query</button>
+                                     <button id="add-formula" class="btn" type="button"><span class="plus-icon">+</span> Add Formula</button>
+                                 </div>
+                             </div>
                         </div>
                         <div class="subsection-heading">
-                            <div class="circle">3</div>
+                            <div class="circle">2</div>
                             <div>Set Condition</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -176,7 +280,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown">
                                         <span>Is above</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <i class="dropdown-arrow"></i>                                    
                                     </button>
                                     <div class="dropdown-menu box-shadow alert-condition-options"
                                         aria-labelledby="index-btn">
@@ -208,13 +312,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         If it is pending for longer than the "for" value, it will become a firing alert.'>
                                         </i>
                                     </span>
-                                    <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0" tabindex="5"
+                                    <div style="position: relative;" class="d-flex">
+                                        <input type="number" name="evaluate-every" id="evaluate-for" value="1" min="0" tabindex="5"
                                         class="form-control"></input>min
+                                        <div class="evaluation-error-message" style="display: none;">
+                                            <div class="icon-container">
+                                                <i class="fas fa-exclamation"></i>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="subsection-heading">
-                            <div class="circle">4</div>
+                            <div class="circle">3</div>
                             <div>Notification</div>
                         </div>
                         <div class="alert-form-subsection">
@@ -227,30 +339,34 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown">
                                         <span>Choose</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <i class="dropdown-arrow"></i>                                    
                                     </button>
                                     <div class="dropdown-menu box-shadow contact-points-options"
                                         aria-labelledby="index-btn">
                                         <li id="option-0" class="contact-points-option">Add New</li>
                                     </div>
+                                    <div class="require-field-tooltip" id="contact-point-error">Please choose a contact point option!</div>
                                 </div>
                             </div>
                             <div class="message-info" id="message-info">
-                                Message<textarea name="message" id="notification-msg" rows="4" class="message form-control" tabindex="6"
+                                Message<textarea name="message" id="notification-msg" rows="4" class="message" tabindex="6"
                                     required></textarea>
                             </div>
+                        </div>
+                        <div class="subsection-heading">
+                            <div class="circle">4</div>
+                            <div>Alert Rule</div>
+                        </div>
+                        <div class="alert-form-subsection">
+                            <label for="alert-rule-name">Rule name</label>
+                            <input type="text" class="form-control" placeholder="Enter rule name" id="alert-rule-name" required tabindex="1">
                         </div>
                         <div class="label-subsection">
                             <label for="custom-label">Custom Label</label>
                             <div class="d-flex align-items-end mb-0">
                                 <div class="label-main-container mb-0">
-                                    <div class="label-container d-flex align-items-center">
-                                        <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7"
-                                            value="alerting"><span class="label-equal"> = </span> <input type="text"
-                                            id="label-value" class="form-control" placeholder="Value" value="true" tabindex="8">
-                                    </div>
                                 </div>
-                                <button class="add-label-container btn" type="button">Add Label</button>
+                                <button class="add-label-container btn btn-grey" type="button"><span class="plus-icon">+</span>Add Label</button>
                             </div>
                         </div>
                     </div>
@@ -278,8 +394,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/contacts.js?cb=1_1_10"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
+    <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
+    <script src="./js/search.js?cb=1_1_10"></script>
+    <script src="./js/index.js?cb=1_1_10"></script>
+    <script src="./js/query-builder.js"></script>
     <script src="./js/alert.js?cb=1_1_10"></script>
+    <script src="./js/dashboard-charts.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
+    <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

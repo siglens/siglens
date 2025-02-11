@@ -1,6 +1,6 @@
 {
-    "description": "Sigscalr Ingestion Dashboard",
-    "name": "Sigscalr Ingestion DB",
+    "description": "SigLens Ingestion Dashboard",
+    "name": "SigLens Ingestion DB",
     "panels": [
         {
             "chartType": "number",
@@ -17,20 +17,25 @@
             "panelId": "45b901cf-c465-4249-8879-af6042370f7b",
             "panelIndex": 0,
             "queryData": {
-                "end": "now",
-                "formulas": [
+                "queriesData": [
                     {
-                        "formula": "a"
+                        "end": "now",
+                        "formulas": [
+                            {
+                                "formula": "a"
+                            }
+                        ],
+                        "queries": [
+                            {
+                                "name": "a",
+                                "qlType": "promql",
+                                "query": "ss_current_bytes_received"
+                            }
+                        ],
+                        "start": "now-1h"
                     }
                 ],
-                "queries": [
-                    {
-                        "name": "a",
-                        "qlType": "promql",
-                        "query": "ss_current_bytes_received"
-                    }
-                ],
-                "start": "now-1h"
+                "formulasData": []
             },
             "queryType": "metrics",
             "unit": "data"
@@ -46,24 +51,29 @@
                 "x": 0,
                 "y": 6
             },
-            "name": "SigScalr Storage Used",
+            "name": "SigLens Storage Used",
             "panelId": "060afc8a-2e14-41ff-9c43-90b9c20f0832",
             "panelIndex": 1,
             "queryData": {
-                "end": "now",
-                "formulas": [
+                "queriesData": [
                     {
-                        "formula": "a"
+                        "end": "now",
+                        "formulas": [
+                            {
+                                "formula": "a"
+                            }
+                        ],
+                        "queries": [
+                            {
+                                "name": "a",
+                                "qlType": "promql",
+                                "query": "ss_current_on_disk_bytes"
+                            }
+                        ],
+                        "start": "now-1h"
                     }
                 ],
-                "queries": [
-                    {
-                        "name": "a",
-                        "qlType": "promql",
-                        "query": "ss_current_on_disk_bytes"
-                    }
-                ],
-                "start": "now-1h"
+                "formulasData": []
             },
             "queryType": "metrics",
             "unit": "data"
@@ -83,20 +93,25 @@
             "panelId": "20a5c2a4-129c-4778-ae20-ca24cb35a306",
             "panelIndex": 2,
             "queryData": {
-                "end": "now",
-                "formulas": [
+                "queriesData": [
                     {
-                        "formula": "a"
+                        "end": "now",
+                        "formulas": [
+                            {
+                                "formula": "a"
+                            }
+                        ],
+                        "queries": [
+                            {
+                                "name": "a",
+                                "qlType": "promql",
+                                "query": "ss_current_bytes_received/ss_current_on_disk_bytes"
+                            }
+                        ],
+                        "start": "now-1h"
                     }
                 ],
-                "queries": [
-                    {
-                        "name": "a",
-                        "qlType": "promql",
-                        "query": "ss_current_bytes_received/ss_current_on_disk_bytes"
-                    }
-                ],
-                "start": "now-1h"
+                "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -117,20 +132,25 @@
             "panelId": "ce5cc4d8-4c3e-4b55-9d7d-97f46815ff0a",
             "panelIndex": 3,
             "queryData": {
-                "end": "now",
-                "formulas": [
+                "queriesData": [
                     {
-                        "formula": "a"
+                        "end": "now",
+                        "formulas": [
+                            {
+                                "formula": "a"
+                            }
+                        ],
+                        "queries": [
+                            {
+                                "name": "a",
+                                "qlType": "promql",
+                                "query": "deriv(ss_current_bytes_received[2m])*60"
+                            }
+                        ],
+                        "start": "now-1h"
                     }
                 ],
-                "queries": [
-                    {
-                        "name": "a",
-                        "qlType": "promql",
-                        "query": "deriv(ss_current_bytes_received[2m])*60"
-                    }
-                ],
-                "start": "now-1h"
+                "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -151,20 +171,25 @@
             "panelId": "658e9c6a-0466-4553-88ff-46fdf63dc3c2",
             "panelIndex": 4,
             "queryData": {
-                "end": "now",
-                "formulas": [
+                "queriesData": [
                     {
-                        "formula": "a"
+                        "end": "now",
+                        "formulas": [
+                            {
+                                "formula": "a"
+                            }
+                        ],
+                        "queries": [
+                            {
+                                "name": "a",
+                                "qlType": "promql",
+                                "query": "deriv(ss_current_on_disk_bytes[2m])*60"
+                            }
+                        ],
+                        "start": "now-1h"
                     }
                 ],
-                "queries": [
-                    {
-                        "name": "a",
-                        "qlType": "promql",
-                        "query": "deriv(ss_current_on_disk_bytes[2m])*60"
-                    }
-                ],
-                "start": "now-1h"
+                "formulasData": []
             },
             "queryType": "metrics",
             "startDate": "now-1h",
@@ -185,24 +210,44 @@
             "panelId": "c108e768-9086-4461-aa29-b21553614af7",
             "panelIndex": 5,
             "queryData": {
-                "end": "now",
-                "formulas": [
+                "queriesData": [
                     {
-                        "formula": "a"
+                        "end": "now",
+                        "formulas": [
+                            {
+                                "formula": "a"
+                            }
+                        ],
+                        "queries": [
+                            {
+                                "name": "a",
+                                "qlType": "promql",
+                                "query": "deriv(ss_current_event_count[2m])*60"
+                            }
+                        ],
+                        "start": "now-1h"
                     }
                 ],
-                "queries": [
-                    {
-                        "name": "a",
-                        "qlType": "promql",
-                        "query": "deriv(ss_current_event_count[2m])*60"
-                    }
-                ],
-                "start": "now-1h"
+                "formulasData": []
             },
             "queryType": "metrics",
             "unit": ""
         }
     ],
+    "folder": {
+        "breadcrumbs": [
+            {
+                "id": "root-folder",
+                "name": "Root"
+            },
+            {
+                "id": "siglens-folder",
+                "name": "SigLens Dashboards"
+            }
+        ],
+        "id": "siglens-folder",
+        "name": "SigLens Dashboards",
+        "path": "SigLens Dashboards"
+    },
     "timeRange": "Last 1 Hr"
 }

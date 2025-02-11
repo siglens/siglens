@@ -1,0 +1,71 @@
+{
+    "queryText": "city=Boston AND http_method=POST AND (app_name=Bracecould OR app_name=R*) | eval nullField1=null() | eval nullField2=null() | eval nullStatus=nullif(http_status, 200) | fillnull value=FILLING nullField1 nullField2 | fields city, http_status, nullField1, nullField2, nullStatus, user_email | where http_status=200 | eval masked_email=replace(user_email, \"^([^@]+)@\", \"xxxxx@\") | eval original_date_string=\"2024-06-25 12:00:00 UTC\" | eval original_parsed_time=strptime(original_date_string, \"%Y-%m-%d %H:%M:%S %Z\") | eval formatted_time=strftime(original_parsed_time*1000, \"%Y-%m-%d %H:%M:%S %Z\") | eval reparsed_time=strptime(formatted_time, \"%Y-%m-%d %H:%M:%S %Z\") | eval res=if(original_parsed_time=reparsed_time ,\"pass\" ,\"fail\") | eval rel_time=relative_time(1721738260, \"-1m\") | fields city,http_status,nullField1,nullField2,nullStatus,user_email,masked_email,res,reparsed_time,formatted_time,original_parsed_time,original_date_string,rel_time",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 2,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": [
+            "user_email"
+        ],
+        "records": [
+            {
+                "city": "Boston",
+                "http_status": 200,
+                "nullField1": "FILLING",
+                "nullField2": "FILLING",
+                "user_email": "barbaraleffler@ledner.org",
+                "masked_email": "xxxxx@ledner.org",
+                "res": "pass",
+                "reparsed_time": "1719316800",
+                "original_parsed_time": "1719316800",
+                "original_date_string": "2024-06-25 12:00:00 UTC",
+                "rel_time": 1721738200000
+            },
+            {
+                "city": "Boston",
+                "http_status": 200,
+                "nullField1": "FILLING",
+                "nullField2": "FILLING",
+                "user_email": "shaynacremin@wilkinson.net",
+                "masked_email": "xxxxx@wilkinson.net",
+                "res": "pass",
+                "reparsed_time": "1719316800",
+                "original_parsed_time": "1719316800",
+                "original_date_string": "2024-06-25 12:00:00 UTC",
+                "rel_time": 1721738200000
+            }
+        ],
+        "allColumns": [
+            "city",
+            "http_status",
+            "nullField1",
+            "nullField2",
+            "nullStatus",
+            "user_email",
+            "masked_email",
+            "res",
+            "reparsed_time",
+            "formatted_time",
+            "original_parsed_time",
+            "original_date_string",
+            "rel_time"
+        ],
+        "columnsOrder": [
+            "city",
+            "http_status",
+            "nullField1",
+            "nullField2",
+            "nullStatus",
+            "user_email",
+            "masked_email",
+            "res",
+            "reparsed_time",
+            "formatted_time",
+            "original_parsed_time",
+            "original_date_string",
+            "rel_time"
+        ]
+    }
+}

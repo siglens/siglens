@@ -20,7 +20,6 @@ package sampledataset
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
@@ -51,7 +50,6 @@ func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
 func (r *DynamicUserGenerator) Init() error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
-	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()
 	_, err := json.Marshal(r.baseBody)
@@ -74,6 +72,7 @@ func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
 
 func (r *DynamicUserGenerator) generateRandomBody() {
 	randomizeBody(r.faker, r.baseBody, r.tsKey)
+
 }
 
 func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, tsKey string) {

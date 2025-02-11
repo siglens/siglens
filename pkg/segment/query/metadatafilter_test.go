@@ -21,13 +21,14 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +41,7 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 		EndEpochMs:   uint64(numEntriesInBlock),
 	}
 
-	timeFilteredFiles, totalChecked, passedCheck := metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	timeFilteredFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
 	log.Infof("time filter: %v", timeFilteredFiles)
 	assert.Equal(t, passedCheck, uint64(fileCount), "all files passed")
 	assert.Equal(t, totalChecked, uint64(fileCount), "all files passed")
@@ -49,7 +50,7 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 	assert.Len(t, timeFilteredFiles["evts"], fileCount)
 
 	// adding extra tables that do not exist should not change results
-	extraTableFiles, totalChecked, passedCheck := metadata.FilterSegmentsByTime(tRange, []string{"evts", "extra-table"}, 0)
+	extraTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{"evts", "extra-table"}, 0)
 	assert.Equal(t, passedCheck, uint64(fileCount), "all files passed")
 	assert.Equal(t, totalChecked, uint64(fileCount), "all files passed")
 	assert.Len(t, extraTableFiles, 1, "one table")
@@ -57,7 +58,7 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 	assert.Len(t, extraTableFiles["evts"], fileCount)
 
 	// no results when no tables are given
-	noTableFiles, totalChecked, passedCheck := metadata.FilterSegmentsByTime(tRange, []string{}, 0)
+	noTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{}, 0)
 	assert.Equal(t, passedCheck, uint64(0), "no tables")
 	assert.Equal(t, totalChecked, uint64(0), "no tables")
 	assert.Len(t, noTableFiles, 0)
@@ -79,14 +80,14 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ := metadata.FilterSegmentsByTime(tRange, indexNames, 0)
+	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, indexNames, 0)
 	ti := InitTableInfo("evts", 0, false)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
 			SearchQueries: []*SearchQuery{baseQuery},
 		},
 	}
-	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0)
+	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0, 0, false)
 	assert.NoError(t, err)
 	qsrs := ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ := FilterSegKeysToQueryResults(qInfo, qsrs)
@@ -94,7 +95,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	_, _, isRange := baseQuery.ExtractRangeFilterFromQuery(1)
 	assert.False(t, isRange)
 
-	blockbloomKeywords, wildcard, blockOp := baseQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, _, wildcard, blockOp := baseQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
 
 	assert.Len(t, blockbloomKeywords, 1)
@@ -107,7 +108,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(baseQuery, tRange, blkTracker,
-			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
+			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "one file at a time")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "checkedBlocks blocks is not as expected")
@@ -132,7 +133,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	blockbloomKeywords, wildcard, blockOp = fileNameQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, _, wildcard, blockOp = fileNameQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
 	assert.Len(t, blockbloomKeywords, 1)
 	assert.Equal(t, blockOp, utils.And)
@@ -144,7 +145,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(fileNameQuery, tRange, blkTracker,
-			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
+			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "all blocks will be checked")
 		if qsr.segKey == randomFile {
@@ -169,11 +170,11 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ = metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	allFiles, _, _ = segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
 	qsrs = ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ = FilterSegKeysToQueryResults(qInfo, qsrs)
 
-	blockbloomKeywords, wildcard, blockOp = batchQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, _, wildcard, blockOp = batchQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcard)
 	assert.Len(t, blockbloomKeywords, 1)
 	assert.Equal(t, blockOp, utils.And)
@@ -186,7 +187,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(batchQuery, tRange, blkTracker,
-			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
+			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcard, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "process single request at a time")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "each file will should have a single matching block")
@@ -207,7 +208,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 
 	// changing col name has no effect on block bloom keys
-	blockbloomKeywords, wildcardValue, blockOp := batchWildcardQuery.GetAllBlockBloomKeysToSearch()
+	blockbloomKeywords, nil, wildcardValue, blockOp := batchWildcardQuery.GetAllBlockBloomKeysToSearch()
 	assert.False(t, wildcardValue)
 	assert.Len(t, blockbloomKeywords, 1)
 	assert.Equal(t, blockOp, utils.And)
@@ -220,7 +221,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		searchRequests, checkedBlocks, matchedBlocks, errs := getAllSearchRequestsFromCmi(batchWildcardQuery, tRange, blkTracker,
-			blockbloomKeywords, blockOp, nil, rangeOp, false, wildcardValue, 0, true, qsr.pqid)
+			blockbloomKeywords, nil, blockOp, nil, rangeOp, false, wildcardValue, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "one file at a time key7=batch-1")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "each file will should have a single matching block")
@@ -247,14 +248,14 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ := metadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
 	ti := InitTableInfo("evts", 0, false)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
 			SearchQueries: []*SearchQuery{rangeQuery},
 		},
 	}
-	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0)
+	qInfo, err := InitQueryInformation(sn, nil, tRange, ti, uint64(numBlocks*numEntriesInBlock*fileCount), 5, 1, nil, 0, 0, false)
 	assert.NoError(t, err)
 	qsrs := ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ := FilterSegKeysToQueryResults(qInfo, qsrs)
@@ -267,7 +268,7 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		blkTracker, err := qsr.GetMicroIndexFilter()
 		assert.NoError(t, err, "no error should occur when getting block tracker")
 		finalRangeRequests, totalChecked, passedBlocks, errs := getAllSearchRequestsFromCmi(rangeQuery, tRange, blkTracker,
-			nil, utils.And, rangeFilter, rangeOp, true, false, 0, true, qsr.pqid)
+			nil, nil, utils.And, rangeFilter, rangeOp, true, false, 0, true, qsr.pqid)
 		assert.Len(t, errs, 0)
 		assert.Equal(t, uint64(numBlocks), totalChecked)
 		assert.Equal(t, uint64(1), passedBlocks, "one block in each file matches")
@@ -279,8 +280,8 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 }
 
-func getMyIds() []uint64 {
-	myids := make([]uint64, 1)
+func getMyIds() []int64 {
+	myids := make([]int64, 1)
 	myids[0] = 0
 	return myids
 }
@@ -289,20 +290,20 @@ func Test_MetadataFilter(t *testing.T) {
 	numBlocks := 5
 	numEntriesInBlock := 10
 	fileCount := 5
-	config.InitializeDefaultConfig()
-	_ = localstorage.InitLocalStorage()
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "metadatafilter")
+	assert.Nil(t, err)
 	limit.InitMemoryLimiter()
-	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err = InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
-	metadata.InitMockColumnarMetadataStore("data/", fileCount, numBlocks, numEntriesInBlock)
+
+	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBlocks, numEntriesInBlock)
 	testTimeFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testBloomFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testRangeFilter(t, numBlocks, numEntriesInBlock, fileCount)
 
-	err = os.RemoveAll("data/")
-	if err != nil {
-		t.Fatalf("Failed to initialize query node: %v", err)
-	}
+	os.RemoveAll(dir)
 }

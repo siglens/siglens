@@ -11,7 +11,7 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.data
-siglens.db
+siglens.db*
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -84,3 +84,7 @@ siglens.db
 
 *.fasthttp.br
 *.fasthttp.gz
+
+
+# Alerting Scale testing output
+vector_log_lib/

@@ -30,19 +30,20 @@ import (
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_writePQSFiles(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	config.SetPQSEnabled(true)
 	InitWriterNode()
 	numBatch := 10
 	numRec := 100
 	numStreams := 10
-	_ = vtable.InitVTable()
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	value1, _ := utils.CreateDtypeEnclosure("batch-0", 0)
 	query := &structs.SearchQuery{
@@ -62,7 +63,10 @@ func Test_writePQSFiles(t *testing.T) {
 	}
 	node.AddQueryInfoForNode()
 
-	querytracker.UpdateQTUsage([]string{"test"}, node, nil)
+	querytracker.UpdateQTUsage([]string{"test"}, node, nil, "batch=batch-0")
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	for batch := 0; batch < numBatch; batch++ {
 		for rec := 0; rec < numRec; rec++ {
@@ -76,15 +80,26 @@ func Test_writePQSFiles(t *testing.T) {
 			for stremNum := 0; stremNum < numStreams; stremNum++ {
 				record["col5"] = strconv.Itoa(stremNum)
 				streamid := fmt.Sprintf("stream-%d", stremNum)
+				index := "test"
 				raw, _ := json.Marshal(record)
-				err := AddEntryToInMemBuf(streamid, raw, uint64(rec), "test", 10, false, utils.SIGNAL_EVENTS, 0)
+
+				ple := NewPLE()
+				ple.SetRawJson(raw)
+				ple.SetTimestamp(uint64(rec) + 1)
+				ple.SetIndexName(index)
+				tsKey := "timestamp"
+				err := ParseRawJsonObject("", raw, &tsKey, jsParsingStackbuf[:], ple)
+				assert.Nil(t, err)
+
+				err = AddEntryToInMemBuf(streamid, index, false, utils.SIGNAL_EVENTS, 0, 0,
+					cnameCacheByteHashToStr, jsParsingStackbuf[:], []*ParsedLogEvent{ple})
 				assert.Nil(t, err)
 			}
 		}
 
 		sleep := time.Duration(1 * time.Millisecond)
 		time.Sleep(sleep)
-		FlushWipBufferToFile(&sleep)
+		FlushWipBufferToFile(&sleep, nil)
 	}
 
 	assert.Greaterf(t, TotalUnrotatedMetadataSizeBytes, uint64(0), "data in unrotated metadata == 0")

@@ -22,87 +22,55 @@ import (
 	"fmt"
 	"sync"
 
-	blob "github.com/siglens/siglens/pkg/blob"
-	"github.com/siglens/siglens/pkg/blob/ssutils"
+	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
-	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-type PersistentQueryResults struct {
-	segKey       string // segment key
-	tableName    string // table name for segKey
-	pqid         string // persistent query id
-	pqmrFilePath string // raw file path for pqmr file
-}
-
-// segKey -> [qid -> PersistentQueryResults]
-var allPersistentQueryResults map[string]map[string]*PersistentQueryResults
+// segKey -> [qid] -> bool
+var allPersistentQueryResults map[string]map[string]bool
 var allPersistentQueryResultsLock sync.RWMutex
 
 func init() {
-	allPersistentQueryResults = make(map[string]map[string]*PersistentQueryResults)
+	allPersistentQueryResults = make(map[string]map[string]bool)
 	allPersistentQueryResultsLock = sync.RWMutex{}
 }
 
 // base func to add & read from segmeta updates
-func AddPersistentQueryResult(segKey string, tableName string, pqid string) {
+func AddPersistentQueryResult(segKey string, pqid string) {
 
-	if !config.IsPQSEnabled() {
+	isPqidPresent := DoesSegKeyHavePqidResults(segKey, pqid)
+	if isPqidPresent {
 		return
 	}
-	ssFile := structs.SegSetFile{
-		SegKey:     segKey,
-		Identifier: "",
-		FileType:   structs.Pqmr,
-	}
-	fName := ssutils.GetFileNameFromSegSetFile(ssFile)
+
 	allPersistentQueryResultsLock.Lock()
 	if _, ok := allPersistentQueryResults[segKey]; !ok {
-		allPersistentQueryResults[segKey] = make(map[string]*PersistentQueryResults)
+		allPersistentQueryResults[segKey] = make(map[string]bool)
 	}
-
-	allPersistentQueryResults[segKey][pqid] = &PersistentQueryResults{
-		segKey:       segKey,
-		pqid:         pqid,
-		pqmrFilePath: fName,
-		tableName:    tableName,
-	}
+	allPersistentQueryResults[segKey][pqid] = true
 	allPersistentQueryResultsLock.Unlock()
-}
-
-func getPQResults(segKey string, pqid string) (*PersistentQueryResults, error) {
-	allPersistentQueryResultsLock.RLock()
-	defer allPersistentQueryResultsLock.RUnlock()
-	if _, ok := allPersistentQueryResults[segKey]; !ok {
-		return nil, errors.New("segKey does not have any persistent query results")
-	}
-
-	var pqResults *PersistentQueryResults
-	var ok bool
-	if pqResults, ok = allPersistentQueryResults[segKey][pqid]; !ok {
-		return nil, errors.New("pqid does not exist for segKey")
-	}
-	return pqResults, nil
 }
 
 func GetAllPersistentQueryResults(segKey string, pqid string) (*pqmr.SegmentPQMRResults, error) {
 
-	pqResults, err := getPQResults(segKey, pqid)
-	if err != nil {
-		return nil, err
+	isPqidPresent := DoesSegKeyHavePqidResults(segKey, pqid)
+	if !isPqidPresent {
+		return nil, errors.New("segKey does not have any persistent query results")
 	}
-	fName := fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqResults.pqid)
-	err = blob.DownloadSegmentBlob(fName, false)
+
+	fName := fmt.Sprintf("%v/pqmr/%v.pqmr", segKey, pqid)
+	err := blob.DownloadSegmentBlob(fName, false)
 	if err != nil {
-		log.Errorf("Failed to download PQMR results! SegKey: %+v, pqid: %+v", segKey, pqResults.pqid)
+		log.Errorf("GetAllPersistentQueryResults: Failed to download PQMR results! SegKey: %+v, pqid: %+v, file name: %v", segKey, pqid, fName)
 		return nil, errors.New("failed to download PQMR results")
 	}
 
 	pqmrResults, err := pqmr.ReadPqmr(&fName)
 	if err != nil {
-		log.Errorf("Failed to read PQMR results! From file %+v. Error: %+v", fName, err)
+		log.Errorf("GetAllPersistentQueryResults: Failed to read PQMR results! From file %+v. Error: %+v", fName, err)
 		return nil, err
 	}
 	return pqmrResults, nil
@@ -111,6 +79,32 @@ func GetAllPersistentQueryResults(segKey string, pqid string) (*pqmr.SegmentPQMR
 // Returns if segKey, pqid combination exists
 func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {
 
-	_, err := getPQResults(segKey, pqid)
-	return err == nil
+	if !config.IsPQSEnabled() {
+		return false
+	}
+
+	isPqidPresent := false
+	allPersistentQueryResultsLock.RLock()
+	_, ok := allPersistentQueryResults[segKey]
+	if ok {
+		_, ok := allPersistentQueryResults[segKey][pqid]
+		if ok {
+			isPqidPresent = true
+		}
+	}
+	allPersistentQueryResultsLock.RUnlock()
+	return isPqidPresent
+}
+
+func AddAllPqidResults(segKey string, allPqids map[string]bool) {
+	if !config.IsPQSEnabled() {
+		return
+	}
+
+	allPersistentQueryResultsLock.Lock()
+	if _, ok := allPersistentQueryResults[segKey]; !ok {
+		allPersistentQueryResults[segKey] = make(map[string]bool)
+	}
+	utils.MergeMapsRetainingFirst(allPersistentQueryResults[segKey], allPqids)
+	allPersistentQueryResultsLock.Unlock()
 }

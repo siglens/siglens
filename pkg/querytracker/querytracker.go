@@ -33,6 +33,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/query/colusage"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
 
@@ -44,7 +45,8 @@ import (
 const MAX_QUERIES_TO_TRACK = 100     // this limits how many PQS searches we are doing
 const MAX_CANDIDATE_QUERIES = 10_000 // this limits how many unique queries we use in our stats calculations
 
-const STALE_QUERIES_EXPIRY_SECS = 21600 // queries will get booted out if they have not been seen in 6 hours
+// queries will get booted out if they have not been seen for below time
+const STALE_QUERIES_EXPIRY_SECS = 3 * 24 * 60 * 60
 const STALE_SLEEP_SECS = 1800
 
 const FLUSH_SLEEP_SECS = 120
@@ -62,11 +64,13 @@ var localGroupByOverride = map[string]*PersistentGroupBy{}
 type PersistentSearchNode struct {
 	SearchNode *structs.SearchNode
 	PersistentInfo
+	SearchText string
 }
 
 type PersistentAggregation struct {
 	QueryAggs *structs.QueryAggregators
 	PersistentInfo
+	SearchText string
 }
 
 type PersistentGroupBy struct {
@@ -148,7 +152,7 @@ func removeOldEntries() {
 
 }
 
-func GetTopNPersistentSearches(intable string, orgid uint64) (map[string]*structs.SearchNode, error) {
+func GetTopNPersistentSearches(intable string, orgid int64) (map[string]*structs.SearchNode, error) {
 
 	res := make(map[string]*structs.SearchNode)
 	if !config.IsPQSEnabled() {
@@ -188,7 +192,7 @@ func GetTopNPersistentSearches(intable string, orgid uint64) (map[string]*struct
 	return res, nil
 }
 
-func GetPersistentColumns(intable string, orgid uint64) (map[string]bool, error) {
+func GetPersistentColumns(intable string, orgid int64) (map[string]bool, error) {
 	persistentQueries, err := GetTopNPersistentSearches(intable, orgid)
 
 	if err != nil {
@@ -212,13 +216,22 @@ type colUsage struct {
 	usage int
 }
 
+func SetTopPersistentAggsForTestOnly(table string, grpCols map[string]bool, measCols map[string]bool) {
+	pg := &PersistentGroupBy{}
+	pg.GroupByCols = grpCols
+	pg.MeasureCols = measCols
+	localGroupByOverride[table] = pg
+}
+
 // returns a sorted slice of most used group by columns, and all measure columns.
-func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
+func GetTopPersistentAggs(table string) (map[string]struct{}, map[string]bool) {
 	groupByColsUsage := make(map[string]int)
 	measureInfoUsage := make(map[string]bool)
 
+	finalGrpCols := make(map[string]struct{})
+
 	if !config.IsPQSEnabled() {
-		return []string{}, measureInfoUsage
+		return finalGrpCols, measureInfoUsage
 	}
 	overrideGroupByCols := make([]string, 0)
 	persistentInfoLock.Lock()
@@ -252,7 +265,7 @@ func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
 			continue
 		}
 		queryAggs := agginfo.QueryAggs
-		if queryAggs == nil || queryAggs.GroupByRequest == nil {
+		if queryAggs == nil || queryAggs.GroupByRequest == nil || queryAggs.HasValueColRequest() {
 			continue
 		}
 		cols := queryAggs.GroupByRequest.GroupByColumns
@@ -272,24 +285,35 @@ func GetTopPersistentAggs(table string) ([]string, map[string]bool) {
 	sort.Slice(ss, func(i, j int) bool {
 		return ss[i].usage > ss[j].usage
 	})
-	var finalCols []string
-	if len(overrideGroupByCols) >= MAX_NUM_GROUPBY_COLS {
-		finalCols = make([]string, MAX_NUM_GROUPBY_COLS)
-		finalCols = append(finalCols, overrideGroupByCols[:MAX_NUM_GROUPBY_COLS]...)
-	} else {
-		finalCols = append(finalCols, overrideGroupByCols[:]...)
-		for _, s := range ss {
-			if len(finalCols) <= MAX_NUM_GROUPBY_COLS {
-				finalCols = append(finalCols, s.col)
-			} else {
-				break
-			}
+
+	// First pick from the override upto MAX_NUM_GROUPBY_COLS
+	i := 0
+	for _, cname := range overrideGroupByCols {
+		finalGrpCols[cname] = struct{}{}
+		i++
+		if i > MAX_NUM_GROUPBY_COLS {
+			break
 		}
 	}
-	return finalCols, measureInfoUsage
+
+	// now pick based on usage
+	for _, s := range ss {
+		if len(finalGrpCols) <= MAX_NUM_GROUPBY_COLS {
+			finalGrpCols[s.col] = struct{}{}
+		} else {
+			break
+		}
+	}
+
+	colsToIgnoreForTracking := []string{config.GetTimeStampKey(), "*"}
+
+	utils.RemoveEntriesFromMap(finalGrpCols, colsToIgnoreForTracking)
+	utils.RemoveEntriesFromMap(measureInfoUsage, colsToIgnoreForTracking)
+
+	return finalGrpCols, measureInfoUsage
 }
 
-func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators) {
+func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.QueryAggregators, searchText string) {
 
 	if len(tableName) == 0 {
 		return
@@ -297,11 +321,11 @@ func UpdateQTUsage(tableName []string, sn *structs.SearchNode, aggs *structs.Que
 
 	persistentInfoLock.Lock()
 	defer persistentInfoLock.Unlock()
-	updateSearchNodeUsage(tableName, sn)
-	updateAggsUsage(tableName, aggs)
+	updateSearchNodeUsage(tableName, sn, searchText)
+	updateAggsUsage(tableName, aggs, searchText)
 }
 
-func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode) {
+func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode, searchText string) {
 
 	if sn == nil {
 		return
@@ -321,9 +345,15 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode) {
 			delete(localPersistentQueries, allNodesPQsSorted[len(allNodesPQsSorted)-1].Pqid)
 			allNodesPQsSorted = allNodesPQsSorted[:len(allNodesPQsSorted)-1]
 		}
-		pInfo := PersistentInfo{AllTables: make(map[string]bool), Pqid: pqid}
-		pqinfo = &PersistentSearchNode{SearchNode: sn}
-		pqinfo.PersistentInfo = pInfo
+		pInfo := PersistentInfo{
+			AllTables: make(map[string]bool),
+			Pqid:      pqid,
+		}
+		pqinfo = &PersistentSearchNode{
+			SearchNode:     sn,
+			PersistentInfo: pInfo,
+			SearchText:     searchText,
+		}
 		localPersistentQueries[pqid] = pqinfo
 		allNodesPQsSorted = append(allNodesPQsSorted, pqinfo)
 		log.Infof("updateSearchNodeUsage: added pqid %v, total=%v, tableName=%v",
@@ -343,9 +373,9 @@ func updateSearchNodeUsage(tableName []string, sn *structs.SearchNode) {
 	})
 }
 
-func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators) {
+func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators, searchText string) {
 
-	if aggs == nil || aggs.IsAggsEmpty() {
+	if aggs == nil || aggs.IsAggsEmpty() || aggs.HasValueColRequest() {
 		return
 	}
 
@@ -360,9 +390,15 @@ func updateAggsUsage(tableName []string, aggs *structs.QueryAggregators) {
 			delete(localPersistentAggs, allPersistentAggsSorted[len(allPersistentAggsSorted)-1].Pqid)
 			allPersistentAggsSorted = allPersistentAggsSorted[:len(allPersistentAggsSorted)-1]
 		}
-		pInfo := PersistentInfo{AllTables: make(map[string]bool), Pqid: pqid}
-		pqinfo = &PersistentAggregation{QueryAggs: aggs}
-		pqinfo.PersistentInfo = pInfo
+		pInfo := PersistentInfo{
+			AllTables: make(map[string]bool),
+			Pqid:      pqid,
+		}
+		pqinfo = &PersistentAggregation{
+			QueryAggs:      aggs,
+			PersistentInfo: pInfo,
+			SearchText:     searchText,
+		}
 		localPersistentAggs[pqid] = pqinfo
 		allPersistentAggsSorted = append(allPersistentAggsSorted, pqinfo)
 		log.Infof("updateAggsUsage: added pqid %v, total=%v, tableName=%v",
@@ -607,22 +643,37 @@ func getPQSSummary() map[string]interface{} {
 	response := make(map[string]interface{})
 	numQueriesInPQS := len(allNodesPQsSorted)
 	response["total_tracked_queries"] = numQueriesInPQS
-	pqidUsageCount := make(map[string]int)
+
+	promotedSearches := make([]map[string]interface{}, 0)
 	for idx, pqinfo := range allNodesPQsSorted {
 		if idx > MAX_QUERIES_TO_TRACK {
 			continue
 		}
-		pqidUsageCount[pqinfo.Pqid] = int(pqinfo.TotalUsage)
+		searchItem := map[string]interface{}{
+			"id":              pqinfo.Pqid,
+			"count":           int(pqinfo.TotalUsage),
+			"last_used_epoch": pqinfo.LastUsedEpoch,
+			"search_text":     pqinfo.SearchText,
+		}
+		promotedSearches = append(promotedSearches, searchItem)
 	}
-	response["promoted_searches"] = pqidUsageCount
-	aggsUsageCount := make(map[string]int)
+	response["promoted_searches"] = promotedSearches
+
+	promotedAggregations := make([]map[string]interface{}, 0)
 	for idx, pqinfo := range allPersistentAggsSorted {
 		if idx > MAX_QUERIES_TO_TRACK {
 			continue
 		}
-		aggsUsageCount[pqinfo.Pqid] = int(pqinfo.TotalUsage)
+		aggItem := map[string]interface{}{
+			"id":              pqinfo.Pqid,
+			"count":           int(pqinfo.TotalUsage),
+			"last_used_epoch": pqinfo.LastUsedEpoch,
+			"search_text":     pqinfo.SearchText,
+		}
+		promotedAggregations = append(promotedAggregations, aggItem)
 	}
-	response["promoted_aggregations"] = aggsUsageCount
+	response["promoted_aggregations"] = promotedAggregations
+
 	return response
 }
 
@@ -631,7 +682,7 @@ func GetPQSById(ctx *fasthttp.RequestCtx) {
 	pqid := utils.ExtractParamAsString(ctx.UserValue("pqid"))
 	finalResult := getPqsById(pqid)
 	if finalResult == nil {
-		err := getAggPQSById(ctx, pqid)
+		err := fillAggPQS(ctx, pqid)
 		if err != nil {
 			var httpResp utils.HttpServerResponse
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -669,6 +720,7 @@ func getPqsById(pqid string) map[string]interface{} {
 
 		finalResult = make(map[string]interface{})
 		finalResult["pqid"] = pqinfo.Pqid
+		finalResult["search_text"] = pqinfo.SearchText
 		finalResult["last_used_epoch"] = pqinfo.LastUsedEpoch
 		finalResult["total_usage"] = pqinfo.TotalUsage
 		finalResult["virtual_tables"] = pqinfo.AllTables
@@ -677,7 +729,15 @@ func getPqsById(pqid string) map[string]interface{} {
 	return finalResult
 }
 
-func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
+func fillAggPQS(ctx *fasthttp.RequestCtx, pqid string) error {
+	finalResult, err := getAggPQSById(pqid)
+	utils.WriteJsonResponse(ctx, &finalResult)
+	ctx.Response.Header.Set("Content-Type", "application/json")
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	return err
+}
+
+func getAggPQSById(pqid string) (map[string]interface{}, error) {
 	pqinfo, exists := localPersistentAggs[pqid]
 	if !exists {
 		for _, info := range allPersistentAggsSorted {
@@ -688,7 +748,7 @@ func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
 	}
 
 	if pqinfo == nil {
-		return fmt.Errorf("pqid %+s does not exist in aggs", pqid)
+		return nil, fmt.Errorf("pqid %+s does not exist in aggs", pqid)
 	}
 	sNode := pqinfo.QueryAggs
 	var convertedAggs map[string]interface{}
@@ -697,15 +757,12 @@ func getAggPQSById(ctx *fasthttp.RequestCtx, pqid string) error {
 
 	finalResult := make(map[string]interface{})
 	finalResult["pqid"] = pqinfo.Pqid
+	finalResult["search_text"] = pqinfo.SearchText
 	finalResult["last_used_epoch"] = pqinfo.LastUsedEpoch
 	finalResult["total_usage"] = pqinfo.TotalUsage
 	finalResult["virtual_tables"] = pqinfo.AllTables
 	finalResult["search_aggs"] = convertedAggs
-
-	utils.WriteJsonResponse(ctx, &finalResult)
-	ctx.Response.Header.Set("Content-Type", "application/json")
-	ctx.SetStatusCode(fasthttp.StatusOK)
-	return nil
+	return finalResult, nil
 }
 
 func RefreshExternalPQInfo(fNames []string) error {
@@ -925,10 +982,15 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 				}
 			}
 		default:
-			log.Errorf("PostPqsAggCols: Invalid key=[%v]", key)
-			err := fmt.Sprintf("PostPqsAggCols: Invalid key=[%v]", key)
-			return errors.New(err)
+			err := fmt.Errorf("PostPqsAggCols: Invalid key=[%v] with value of type [%T]", key, value)
+			log.Error(err)
+			return err
 		}
+	}
+	if len(tableName) == 0 {
+		err := errors.New("PostPqsAggCols: No tableName specified")
+		log.Errorf("%+v", err)
+		return err
 	}
 	if _, ok := localGroupByOverride[tableName]; ok {
 		entry := localGroupByOverride[tableName]
@@ -945,6 +1007,7 @@ func parsePostPqsAggBody(jsonSource map[string]interface{}) error {
 	return nil
 }
 func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
+	// asserts that inputValueParam is a slice of strings
 	switch inputValueParam.(type) {
 	case []interface{}:
 		break
@@ -963,4 +1026,55 @@ func processPostAggs(inputValueParam interface{}) (map[string]bool, error) {
 		}
 	}
 	return evMap, nil
+}
+
+func GetSortColumnsFromPQS(virtualTable string) []string {
+	persistentInfoLock.RLock()
+	defer persistentInfoLock.RUnlock()
+
+	const MaxSortColumns = 10
+	sortColumnFreq := make(map[string]int)
+
+	for _, pqinfo := range allPersistentAggsSorted {
+		if _, ok := pqinfo.AllTables[virtualTable]; !ok {
+			continue
+		}
+
+		if aggs := pqinfo.QueryAggs; aggs != nil && aggs.SortExpr != nil && len(aggs.SortExpr.SortEles) > 0 {
+			_, queryCols := colusage.GetFilterAndQueryColumns(nil, aggs)
+
+			column := aggs.SortExpr.SortEles[0].Field
+			if _, exists := queryCols[column]; exists {
+				sortColumnFreq[column] += int(pqinfo.TotalUsage)
+			}
+		}
+	}
+
+	if len(sortColumnFreq) <= MaxSortColumns {
+		result := make([]string, 0, len(sortColumnFreq))
+		for col := range sortColumnFreq {
+			result = append(result, col)
+		}
+		return result
+	}
+
+	type colFreq struct {
+		col  string
+		freq int
+	}
+	pairs := make([]colFreq, 0, len(sortColumnFreq))
+	for col, freq := range sortColumnFreq {
+		pairs = append(pairs, colFreq{col, freq})
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].freq > pairs[j].freq
+	})
+
+	result := make([]string, 0, MaxSortColumns)
+	for i := 0; i < MaxSortColumns && i < len(pairs); i++ {
+		result = append(result, pairs[i].col)
+	}
+
+	return result
 }

@@ -29,15 +29,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_timeReader(t *testing.T) {
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "segreader")
+	assert.Nil(t, err)
+
+	numBlocks := 10
+	numEntriesInBlock := 10
+	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	assert.Greater(t, len(cols), 1)
+	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
+	assert.Nil(t, err)
+
+	// test across multiple columns types
+	for blockNum := 0; blockNum < numBlocks; blockNum++ {
+		currRecs, err := timeReader.GetAllTimeStampsForBlock(uint16(blockNum))
+		assert.Nil(t, err)
+		assert.Len(t, currRecs, numEntriesInBlock)
+
+		startTs := uint64(1)
+		for _, readTs := range currRecs {
+			assert.Equal(t, startTs, readTs)
+			startTs++
+		}
+	}
+	os.RemoveAll(dataDir)
+}
+
 func Test_readTimeStamps(t *testing.T) {
 
-	config.InitializeTestingConfig()
-	segDir := "data/"
-	_ = os.MkdirAll(segDir, 0755)
-	segKey := segDir + "test"
+	dataDir := t.TempDir()
+	config.InitializeTestingConfig(dataDir)
+	segBaseDir, segKey, err := writer.GetMockSegBaseDirAndKeyForTest(dataDir, "timereader")
+	assert.Nil(t, err)
+
 	numBlocks := 10
-	numEntriesInBlock := 20000
-	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segKey, numBlocks, numEntriesInBlock)
+	numEntriesInBlock := 2000
+	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	colName := config.GetTimeStampKey()
 	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, blockmeta, blockSums, 0)
@@ -61,11 +91,11 @@ func Test_readTimeStamps(t *testing.T) {
 
 	log.Infof("Total time stamps read %+v num in summaries %+v", totalRead, totalInSummaries)
 	assert.Equal(t, totalRead, totalInSummaries)
-	os.RemoveAll(segDir)
+	os.RemoveAll(dataDir)
 }
 
 func Benchmark_readTimeFile(b *testing.B) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(b.TempDir())
 	segKey := "/Users/ssubramanian/Desktop/SigLens/siglens/data/Sris-MacBook-Pro.local/final/2022/02/21/01/valtix2/10005995996882630313/0"
 	sumFile := structs.GetBsuFnameFromSegKey(segKey)
 

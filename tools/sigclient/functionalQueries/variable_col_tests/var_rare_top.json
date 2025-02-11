@@ -1,0 +1,117 @@
+{
+    "queryText": "variable_col_9=A* | rare 5 variable_col_7 useother=false percentfield=rare_pc countfield=rare_count showperc=true | eval city_count=rare_count.variable_col_7 | top 5 variable_col_7, city_count useother=false countfield=top_count percentfield=top_percent",
+    "expectedResult": {
+        "bucketCount": 5,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "variable_col_7",
+            "city_count"
+        ],
+        "measureFunctions": [
+            "top_percent",
+            "top_count"
+        ],
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Customer"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "388Customer"
+                    }
+                ],
+                "GroupByValues": [
+                    "Customer",
+                    "388Customer"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Corporate"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "348Corporate"
+                    }
+                ],
+                "GroupByValues": [
+                    "Corporate",
+                    "348Corporate"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Chief"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "346Chief"
+                    }
+                ],
+                "GroupByValues": [
+                    "Chief",
+                    "346Chief"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Central"
+                    },
+                    {
+                        "Dtype": 5,
+                        "CVal": "339Central"
+                    }
+                ],
+                "GroupByValues": [
+                    "Central",
+                    "339Central"
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 8,
+                        "CVal": null
+                    },
+                    {
+                        "Dtype": 8,
+                        "CVal": null
+                    }
+                ],
+                "GroupByValues": [
+                    "",
+                    ""
+                ],
+                "MeasureVal": {
+                    "top_count": 1,
+                    "top_percent": 20
+                }
+            }
+        ]
+    }
+}

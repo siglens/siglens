@@ -22,10 +22,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -34,26 +34,16 @@ import (
 )
 
 // function to init mock server in memory. Should only be called by tests
-func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCount int) {
+func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, entryCount int) {
 
-	_ = os.Remove(dir)
-
-	globalMetadata = &allSegmentMetadata{
-		allSegmentMicroIndex:        make([]*SegmentMicroIndex, 0),
-		segmentMetadataReverseIndex: make(map[string]*SegmentMicroIndex),
-		tableSortedMetadata:         make(map[string][]*SegmentMicroIndex),
-		updateLock:                  &sync.RWMutex{},
-	}
+	metadata.ResetGlobalMetadataForTest()
 
 	writer.SetCardinalityLimit(1)
-	err := os.MkdirAll(dir, os.FileMode(0755))
-	if err != nil {
-		log.Fatalf("InitMockColumnarMetadataStore: Could not create directory %v", err)
-	}
+
 	for i := 0; i < count; i++ {
-		segkey := dir + "query_test_" + fmt.Sprint(i)
-		bsumFname := dir + "query_test_" + fmt.Sprint(i) + ".bsu"
-		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segkey,
+		segkey := segBaseDir + fmt.Sprint(i)
+		bsumFname := segBaseDir + fmt.Sprint(i) + ".bsu"
+		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
 			numBlocks, entryCount)
 
 		for colName := range cnames {
@@ -95,14 +85,14 @@ func InitMockColumnarMetadataStore(dir string, count int, numBlocks int, entryCo
 		sInfo := &structs.SegMeta{
 			SegmentKey:       segkey,
 			VirtualTableName: "evts",
-			SegbaseDir:       segkey, // its actually one dir up, but for mocks its fine
+			SegbaseDir:       segBaseDir,
 			EarliestEpochMS:  0,
 			LatestEpochMS:    uint64(entryCount),
 			ColumnNames:      allColsSizes,
 			NumBlocks:        uint16(numBlocks),
 		}
-		segMetadata := InitSegmentMicroIndex(sInfo)
-		BulkAddSegmentMicroIndex([]*SegmentMicroIndex{segMetadata})
+		segMetadata := metadata.InitSegmentMicroIndex(sInfo, false)
+		metadata.BulkAddSegmentMicroIndex([]*metadata.SegmentMicroIndex{segMetadata})
 	}
 }
 

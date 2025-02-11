@@ -19,11 +19,14 @@ package tagstree
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -110,9 +113,9 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	metricName = xxhash.Sum64String("test.metric.0")
 	tagKey = "color"
 	tagValue = xxhash.Sum64String("yellow")
-	tagKeyFileExists, fInfo := attr.getTagTreeFileInfoForTagKey(tagKey)
+	tagKeyFileExists := attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, tagHashValue, err := attr.GetMatchingTSIDs(metricName, tagKey, tagValue, segutils.Equal, fInfo)
+	exists, tagValExists, rawTagValueToTSIDs, tagHashValue, err := attr.GetMatchingTSIDs(metricName, tagKey, tagValue, segutils.Equal)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
@@ -123,9 +126,9 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	metricName = xxhash.Sum64String("test.metric.1")
 	tagKey = "group"
 	expectedtagValues := []string{"group 0", "group 1"}
-	tagKeyFileExists, fInfo = attr.getTagTreeFileInfoForTagKey(tagKey)
+	tagKeyFileExists = attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
-	itr, found, err := attr.GetValueIteratorForMetric(metricName, tagKey, fInfo)
+	itr, found, err := attr.GetValueIteratorForMetric(metricName, tagKey)
 	assert.Nil(t, err)
 	assert.True(t, found)
 	count := 0
@@ -175,36 +178,36 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 	metric1 := xxhash.Sum64String("metric1")
 
 	// Test selecting for key = value
-	colorTagKeyFileExists, colorFInfo := attr.getTagTreeFileInfoForTagKey("color")
+	colorTagKeyFileExists := attr.tagTreeFileExists("color")
 	assert.True(t, colorTagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(metric1, "color", xxhash.Sum64String("blue"), segutils.Equal, colorFInfo)
+	exists, tagValExists, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(metric1, "color", xxhash.Sum64String("blue"), segutils.Equal)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 2)
 
-	fruitTagKeyFileExists, fruitFInfo := attr.getTagTreeFileInfoForTagKey("fruit")
+	fruitTagKeyFileExists := attr.tagTreeFileExists("fruit")
 	assert.True(t, fruitTagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.Equal, fruitFInfo)
+	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.Equal)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 3)
 
 	// Test selecting for key != value
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "color", xxhash.Sum64String("green"), segutils.NotEqual, colorFInfo)
+	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "color", xxhash.Sum64String("green"), segutils.NotEqual)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 4)
 
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.NotEqual, fruitFInfo)
+	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.NotEqual)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 2)
 
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("this-doesn't-match-anything"), segutils.NotEqual, fruitFInfo)
+	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("this-doesn't-match-anything"), segutils.NotEqual)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
@@ -213,4 +216,146 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 	// Cleanup
 	_ = os.RemoveAll("./tagstree-test.test")
 	_ = os.RemoveAll("./ingestnodes")
+}
+
+func Test_SimpleReadWrite(t *testing.T) {
+	initTestConfig(t)
+
+	// Create writer
+	treeHolder, err := metrics.InitTagsTreeHolder("test_mid")
+	assert.NoError(t, err)
+
+	tagsHolder := metrics.GetTagsHolder()
+	key1 := "key1"
+	key2 := "key2"
+	value1 := "value1"
+	value2 := "value2"
+	tagsHolder.Insert(key1, []byte(value1), jsonparser.String)
+	tagsHolder.Insert(key2, []byte(value2), jsonparser.String)
+	tsid, err := tagsHolder.GetTSID([]byte("metric1"))
+	assert.NoError(t, err)
+
+	err = treeHolder.AddTagsForTSID([]byte("metric1"), tagsHolder, tsid)
+	assert.NoError(t, err)
+
+	// Flush to disk
+	err = treeHolder.EncodeTagsTreeHolder()
+	assert.NoError(t, err)
+
+	// Read from disk
+	baseDir := metrics.GetFinalTagsTreeDir("test_mid", 0)
+	reader, err := InitAllTagsTreeReader(baseDir)
+	assert.NoError(t, err)
+	defer reader.CloseAllTagTreeReaders()
+
+	tagPairs, err := reader.GetAllTagPairs()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(tagPairs))
+
+	key1Values, ok := tagPairs[key1]
+	assert.True(t, ok)
+	assert.Len(t, key1Values, 1)
+	_, ok = key1Values[value1]
+	assert.True(t, ok)
+
+	key2Values, ok := tagPairs[key2]
+	assert.True(t, ok)
+	assert.Len(t, key2Values, 1)
+	_, ok = key2Values[value2]
+	assert.True(t, ok)
+}
+
+func Test_ConcurrentReadWrite(t *testing.T) {
+	initTestConfig(t)
+
+	// Create writer
+	treeHolder, err := metrics.InitTagsTreeHolder("test_mid")
+	assert.NoError(t, err)
+
+	tagsHolder := metrics.GetTagsHolder()
+	tagKey := "host"
+	tagsHolder.Insert(tagKey, []byte("server1"), jsonparser.String)
+
+	firstFlushChan := make(chan struct{})
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+
+		for i := 0; i < 100; i++ {
+			metric := []byte(fmt.Sprintf("metric%d", i))
+			tsid, err := tagsHolder.GetTSID(metric)
+			assert.NoError(t, err)
+
+			err = treeHolder.AddTagsForTSID(metric, tagsHolder, tsid)
+			assert.NoError(t, err)
+
+			// Flush to disk
+			err = treeHolder.EncodeTagsTreeHolder()
+			assert.NoError(t, err)
+			if i == 0 {
+				firstFlushChan <- struct{}{}
+			}
+		}
+	}()
+
+	baseDir := metrics.GetFinalTagsTreeDir("test_mid", 0)
+	uniqueNumMetrics := make(map[int]struct{})
+
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+
+		// Wait for first flush
+		<-firstFlushChan
+
+		numMetrics := 0
+		for i := 0; i < 100; i++ {
+			// Read from disk
+			reader, err := InitAllTagsTreeReader(baseDir)
+			assert.NoError(t, err)
+
+			tagPairs, err := reader.GetAllTagPairs()
+			assert.NoError(t, err)
+			assert.Len(t, tagPairs, 1)
+			values, ok := tagPairs[tagKey]
+			assert.True(t, ok)
+			assert.Len(t, values, 1)
+
+			metrics, err := reader.GetHashedMetricNames()
+			assert.NoError(t, err)
+			assert.True(t, len(metrics) >= numMetrics)
+			numMetrics = len(metrics)
+
+			uniqueNumMetrics[len(metrics)] = struct{}{}
+
+			reader.CloseAllTagTreeReaders()
+		}
+	}()
+	waitGroup.Wait()
+
+	if len(uniqueNumMetrics) < 5 { // Somewhat arbitrary number
+		// The purpose of this unit test is to test concurrent read/write, and
+		// we expect a lot of interleaving of those operations. If we got here,
+		// the test doesn't sufficiently test concurrency, so fail the test. We
+		// may need to increase the number of iterations.
+		t.Errorf("Insufficient testing; only got %d unique number of metrics", len(uniqueNumMetrics))
+		t.FailNow()
+	}
+
+	reader, err := InitAllTagsTreeReader(baseDir)
+	assert.NoError(t, err)
+	defer reader.CloseAllTagTreeReaders()
+
+	metrics, err := reader.GetHashedMetricNames()
+	assert.NoError(t, err)
+	assert.Len(t, metrics, 100)
+}
+
+func initTestConfig(t *testing.T) {
+	runningConfig := config.GetTestConfig(t.TempDir())
+	config.SetConfig(runningConfig)
+
+	err := config.InitDerivedConfig("test")
+	assert.NoError(t, err)
 }

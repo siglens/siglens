@@ -43,9 +43,10 @@ type UnrotatedSegmentInfo struct {
 	TableName           string
 	searchMetadataSize  uint64 // size of blockSummaries & blockInfo
 	cmiSize             uint64 // size of UnrotatedBlockCmis
+	removedCmiSize      uint64 // size of removed CMI due to memory rebalance
 	isCmiLoaded         bool   // is UnrotatedBlockCmis loaded?
 	RecordCount         int
-	orgid               uint64
+	orgid               int64
 }
 
 var UnrotatedInfoLock sync.RWMutex = sync.RWMutex{}
@@ -55,7 +56,7 @@ var recentlyRotatedSegmentFilesLock sync.RWMutex = sync.RWMutex{}
 var TotalUnrotatedMetadataSizeBytes uint64
 
 func GetSizeOfUnrotatedMetadata() uint64 {
-	return TotalUnrotatedMetadataSizeBytes
+	return atomic.LoadUint64(&TotalUnrotatedMetadataSizeBytes)
 }
 
 // Removed unrotated metadata from in memory based on the available size and return the new in memory size
@@ -76,7 +77,7 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 	}
 
 	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].cmiSize < ss[j].cmiSize
+		return ss[i].cmiSize-ss[i].removedCmiSize < ss[j].cmiSize-ss[j].removedCmiSize
 	})
 	removedSize := uint64(0)
 	count := 0
@@ -84,9 +85,9 @@ func RebalanceUnrotatedMetadata(totalAvailableSize uint64) uint64 {
 		if removedSize >= sizeToRemove {
 			break
 		}
-
-		if ss[i].isCmiLoaded {
-			removedSize += ss[i].removeInMemoryMetadata()
+		size := ss[i].removeInMemoryMetadata()
+		if size > 0 {
+			removedSize += size
 			count++
 		}
 	}
@@ -123,18 +124,20 @@ func removeSegKeyFromUnrotatedInfo(segkey string) {
 	}
 }
 
-func updateRecentlyRotatedSegmentFiles(segkey string, finalKey string) {
+func updateRecentlyRotatedSegmentFiles(segkey string) {
+	// TODO: Does this function do anything useful now? Can it be removed?
 	recentlyRotatedSegmentFilesLock.Lock()
 	RecentlyRotatedSegmentFiles[segkey] = &SegfileRotateInfo{
-		FinalName:   finalKey,
+		FinalName:   segkey,
 		TimeRotated: utils.GetCurrentTimeInMs(),
 	}
 	recentlyRotatedSegmentFilesLock.Unlock()
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.BlockMetadataHolder, allCols map[string]bool, blockIdx uint16,
-	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid uint64) {
+	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockNum uint16,
+	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid int64,
+	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
 	defer UnrotatedInfoLock.Unlock()
 
@@ -153,7 +156,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 		}
 	}
 	AllUnrotatedSegmentInfo[segkey].blockSummaries = append(AllUnrotatedSegmentInfo[segkey].blockSummaries, blkSumCpy)
-	AllUnrotatedSegmentInfo[segkey].blockInfo[blockIdx] = blockMetadata
+	AllUnrotatedSegmentInfo[segkey].blockInfo[blockNum] = blockMetadata
 	AllUnrotatedSegmentInfo[segkey].tsRange = tRange
 	AllUnrotatedSegmentInfo[segkey].RecordCount = recordCount
 
@@ -163,8 +166,8 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 
 	var pqidSize uint64
 	if AllUnrotatedSegmentInfo[segkey].isCmiLoaded {
-		AllUnrotatedSegmentInfo[segkey].addMicroIndicesToUnrotatedInfo(blockIdx, wipBlock.columnBlooms, wipBlock.columnRangeIndexes)
-		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockIdx, wipBlock.pqMatches)
+		AllUnrotatedSegmentInfo[segkey].addMicroIndicesToUnrotatedInfo(blockNum, wipBlock.columnBlooms, wipBlock.columnRangeIndexes)
+		pqidSize = AllUnrotatedSegmentInfo[segkey].addUnrotatedQIDInfo(blockNum, pqMatches)
 	}
 
 	blkSumSize := blkSumCpy.GetSize()
@@ -307,9 +310,9 @@ func (ri *RangeIndex) copyRangeIndex() *RangeIndex {
 // does CMI check on unrotated segment info for inputted request. Assumes UnrotatedInfoLock has been acquired
 // returns the final blocks to search, total unrotated blocks, num filtered blocks, and errors if any
 func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.SearchQuery, tRange *dtu.TimeRange,
-	blkTracker *structs.BlockTracker, bloomWords map[string]bool, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
+	blkTracker *structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
 	rangeOp segutils.FilterOperator, isRange bool, wildcardValue bool,
-	qid uint64) (map[uint16]map[string]bool, uint64, uint64, error) {
+	qid uint64, dualCaseCheckEnabled bool) (map[uint16]map[string]bool, uint64, uint64, error) {
 
 	timeFilteredBlocks := metautils.FilterBlocksByTime(usi.blockSummaries, blkTracker, tRange)
 	totalPossibleBlocks := uint64(len(usi.blockSummaries))
@@ -326,7 +329,7 @@ func (usi *UnrotatedSegmentInfo) DoCMICheckForUnrotated(currQuery *structs.Searc
 	if isRange {
 		err = usi.doRangeCheckForCols(timeFilteredBlocks, rangeFilter, rangeOp, colsToCheck, qid)
 	} else if !wildcardValue {
-		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, bloomOp, colsToCheck, qid)
+		err = usi.doBloomCheckForCols(timeFilteredBlocks, bloomWords, originalBloomWords, bloomOp, colsToCheck, qid, dualCaseCheckEnabled)
 	}
 
 	numFinalBlocks := uint64(len(timeFilteredBlocks))
@@ -355,14 +358,15 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 		// As long as there is one column within the range, the value is equal to true
 		var matchedBlockRange bool
 		for col := range colsToCheck {
-			var cmi *structs.CmiContainer
-			var ok bool
-			if cmi, ok = currInfo[col]; !ok {
+			cmi, ok := currInfo[col]
+			if !ok || cmi == nil || cmi.Ranges == nil {
+				if rangeOp == segutils.NotEquals {
+					timeFilteredBlocks[blkNum][col] = true
+					matchedBlockRange = true
+				}
 				continue
 			}
-			if cmi.Ranges == nil {
-				continue
-			}
+
 			isMatched := metautils.CheckRangeIndex(rangeFilter, cmi.Ranges, rangeOp, qid)
 			if isMatched {
 				timeFilteredBlocks[blkNum][col] = true
@@ -377,12 +381,15 @@ func (usi *UnrotatedSegmentInfo) doRangeCheckForCols(timeFilteredBlocks map[uint
 }
 
 func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint16]map[string]bool,
-	bloomKeys map[string]bool, bloomOp segutils.LogicalOperator,
-	colsToCheck map[string]bool, qid uint64) error {
+	bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp segutils.LogicalOperator,
+	colsToCheck map[string]bool, qid uint64, dualCaseCheckEnabled bool) error {
 
 	if !usi.isCmiLoaded {
 		return nil
 	}
+
+	checkInOriginalKeys := dualCaseCheckEnabled && len(originalBloomKeys) > 0
+
 	numUnrotatedBlks := uint16(len(usi.unrotatedBlockCmis))
 	for blkNum := range timeFilteredBlocks {
 		if blkNum > numUnrotatedBlks {
@@ -404,6 +411,12 @@ func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint
 					continue
 				}
 				needleExists := cmi.Bf.TestString(entry)
+				if !needleExists && checkInOriginalKeys {
+					originalEntry, ok := originalBloomKeys[entry]
+					if ok {
+						needleExists = cmi.Bf.TestString(originalEntry)
+					}
+				}
 				if needleExists {
 					atLeastOneFound = true
 					timeFilteredBlocks[blkNum][col] = true
@@ -470,13 +483,11 @@ Only usi.UnrotatedBlockCmis will be removed from in memory
 Returns the size removed
 */
 func (usi *UnrotatedSegmentInfo) removeInMemoryMetadata() uint64 {
-
-	if usi.isCmiLoaded {
-		usi.isCmiLoaded = false
-		usi.unrotatedBlockCmis = make([]map[string]*structs.CmiContainer, 0)
-		return usi.cmiSize
-	}
-	return 0
+	usi.isCmiLoaded = false
+	currentSizeToRemove := usi.cmiSize - usi.removedCmiSize
+	usi.removedCmiSize += currentSizeToRemove
+	usi.unrotatedBlockCmis = make([]map[string]*structs.CmiContainer, 0)
+	return currentSizeToRemove
 }
 
 /*
@@ -485,9 +496,7 @@ Returns the in memory size of a UnrotatedSegmentInfo
 func (usi *UnrotatedSegmentInfo) getInMemorySize() uint64 {
 
 	size := uint64(0)
-	if usi.isCmiLoaded {
-		size += usi.cmiSize
-	}
+	size += usi.cmiSize - usi.removedCmiSize
 	size += usi.searchMetadataSize
 
 	return size
@@ -509,10 +518,10 @@ func GetUnrotatedMetadataInfo() (uint64, uint64) {
 }
 
 // returns map[table]->map[segKey]->timeRange that pass index & time range check, total checked, total passed
-func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid uint64) (map[string]map[string]*dtu.TimeRange, uint64, uint64) {
+func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []string, orgid int64) (map[string]map[string]*structs.SegmentByTimeAndColSizes, uint64, uint64) {
 	totalCount := uint64(0)
 	totalChecked := uint64(0)
-	retVal := make(map[string]map[string]*dtu.TimeRange)
+	retVal := make(map[string]map[string]*structs.SegmentByTimeAndColSizes)
 
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
@@ -532,12 +541,40 @@ func FilterUnrotatedSegmentsInQuery(timeRange *dtu.TimeRange, indexNames []strin
 			continue
 		}
 		if _, ok := retVal[usi.TableName]; !ok {
-			retVal[usi.TableName] = make(map[string]*dtu.TimeRange)
+			retVal[usi.TableName] = make(map[string]*structs.SegmentByTimeAndColSizes)
 		}
-		retVal[usi.TableName][segKey] = usi.tsRange
+		retVal[usi.TableName][segKey] = &structs.SegmentByTimeAndColSizes{
+			TimeRange:    usi.tsRange,
+			TotalRecords: uint32(usi.RecordCount),
+		}
 		totalCount++
 	}
 	return retVal, totalChecked, totalCount
+}
+
+func GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []string, orgid int64) map[string]bool {
+	allColumns := make(map[string]bool)
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+	for _, usi := range AllUnrotatedSegmentInfo {
+		var foundIndex bool
+		for _, idxName := range indexNames {
+			if idxName == usi.TableName {
+				foundIndex = true
+				break
+			}
+		}
+		if !foundIndex {
+			continue
+		}
+		if !timeRange.CheckRangeOverLap(usi.tsRange.StartEpochMs, usi.tsRange.EndEpochMs) || usi.orgid != orgid {
+			continue
+		}
+		for col := range usi.allColumns {
+			allColumns[col] = true
+		}
+	}
+	return allColumns
 }
 
 func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {

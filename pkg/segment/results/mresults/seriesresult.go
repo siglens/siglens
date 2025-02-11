@@ -46,7 +46,7 @@ type Series struct {
 	sorted    bool
 	grpID     *bytebufferpool.ByteBuffer
 
-	// if original Downsampler Aggregator is `Avg`, convertedDownsampleAggFn is equal to `Sum` else equal to original Downsampler Aggregator
+	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
 }
@@ -81,6 +81,7 @@ var extend_capacity = 50
 Allocates a series from the pool and returns.
 
 The allocated series should be returned to the pools via (mr *MetricsResults).DownsampleResults()
+If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 */
 func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.ByteBuffer) *Series {
 	// have some info about downsample
@@ -164,7 +165,7 @@ func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries,
 		})
 		retVal, err := reduceEntries(s.entries[i:maxJ], s.convertedDownsampleAggFn, s.aggregationConstant)
 		if err != nil {
-			log.Errorf("Downsample: failed to reduce entries: %v", err)
+			log.Errorf("Downsample: failed to reduce entries: %v by using this operator: %v, err: %v", s.entries[i:maxJ], s.convertedDownsampleAggFn, err)
 			return nil, err
 		}
 		ds.Add(retVal, s.entries[i].downsampledTime, uint64(maxJ-i))
@@ -218,7 +219,7 @@ func (dss *DownsampleSeries) Merge(toJoin *DownsampleSeries) {
 	dss.sorted = false
 }
 
-func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
+func (dss *DownsampleSeries) AggregateFromSingleTimeseries() (map[uint32]float64, error) {
 	// dss has a list of RunningEntry that caputre downsampled time per tsid
 	// many tsids will exist but they will share the grpID
 	dss.sortEntries()
@@ -231,13 +232,17 @@ func (dss *DownsampleSeries) Aggregate() (map[uint32]float64, error) {
 		})
 		currVal, err := reduceRunningEntries(dss.runningEntries[i:maxJ], dss.downsampleAggFn, dss.aggregationConstant)
 		if err != nil {
-			log.Errorf("Aggregate: failed to reduce running entries: %v", err)
+			log.Errorf("Aggregate: failed to reduce entries: %v by using this operator: %v, err: %v", dss.runningEntries[i:maxJ], dss.downsampleAggFn, err)
 			return nil, err
 		}
 		retVal[dss.runningEntries[i].downsampledTime] = currVal
 		i = maxJ - 1
 	}
 	return retVal, nil
+}
+
+func ApplyAggregationFromSingleTimeseries(entries []RunningEntry, aggregation structs.Aggregation) (float64, error) {
+	return reduceRunningEntries(entries, aggregation.AggregatorFunction, aggregation.FuncConstant)
 }
 
 func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
@@ -295,21 +300,21 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Acos:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < -1 || val > 1 {
-				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1]")
+				return val, fmt.Errorf("evaluateWithErr: acos evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Acos(val), nil
 		})
 	case segutils.Acosh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < 1 {
-				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf]")
+				return val, fmt.Errorf("evaluateWithErr: acosh evaluate values in the range [1,+Inf], but got input value: %v", val)
 			}
 			return math.Acosh(val), nil
 		})
 	case segutils.Asin:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val < -1 || val > 1 {
-				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1]")
+				return val, fmt.Errorf("evaluateWithErr: asin evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Asin(val), nil
 		})
@@ -320,7 +325,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Atanh:
 		err = evaluateWithErr(ts, func(val float64) (float64, error) {
 			if val <= -1 || val >= 1 {
-				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1]")
+				return val, fmt.Errorf("evaluateWithErr: atanh evaluate values in the range [-1,1], but got input value: %v", val)
 			}
 			return math.Atanh(val), nil
 		})
@@ -677,6 +682,8 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[key] = math.Sqrt(val)
 		}
 		return ts, nil
+	case segutils.Mad_Over_Time:
+		return evaluateMADOverTime(sortedTimeSeries, ts, timeWindow), nil
 	case segutils.Last_Over_Time:
 		// If we take the very last sample from every element of a range vector, the resulting vector will be identical to a regular instant vector query.
 		return ts, nil
@@ -691,7 +698,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		}
 		quantile, err := strconv.ParseFloat(function.ValueList[0], 64)
 		if err != nil {
-			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v", function.ValueList)
+			return ts, fmt.Errorf("ApplyMathFunction: quantile_over_time has incorrect parameters: %v, params can not convert to a float: %v", function.ValueList, err)
 		}
 
 		ts[sortedTimeSeries[0].downsampledTime] = sortedTimeSeries[0].dpVal * quantile
@@ -714,8 +721,68 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 		}
 		return ts, nil
 	default:
-		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type")
+		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type: %v", function.RangeFunction)
 	}
+}
+
+/*
+* Median Absolute Deviation Over Time
+1. Calculate the median absolute deviation of all points in the specified interval
+2. Calculate the absolute difference between each point and obtained median in that interval
+3. Calculate median of these obtained values
+*
+*/
+func evaluateMADOverTime(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow uint32) map[uint32]float64 {
+	for i := range sortedTimeSeries {
+		// Define the start time of the window for the current entry
+		timeWindowStartTime := sortedTimeSeries[i].downsampledTime
+		if timeWindow < sortedTimeSeries[i].downsampledTime {
+			timeWindowStartTime -= timeWindow
+		} else {
+			// Case where the window calculation might underflow
+			ts[sortedTimeSeries[i].downsampledTime] = 0
+			continue
+		}
+		// Index of the first entry within the time window
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+		})
+
+		if preIndex >= i { // Check if there is no previous data point within the window
+			ts[sortedTimeSeries[i].downsampledTime] = 0
+			continue
+		}
+
+		// All values within the time window
+		values := make([]float64, 0, i-preIndex+1)
+		for j := preIndex; j <= i; j++ {
+			values = append(values, sortedTimeSeries[j].dpVal)
+		}
+
+		// Median of these values
+		median := computeMedian(values)
+		// Absolute deviations from the median
+		deviations := make([]float64, len(values))
+		for k, v := range values {
+			deviations[k] = math.Abs(v - median)
+		}
+
+		// Median of the absolute deviations
+		mad := computeMedian(deviations)
+		// Store the MAD in the result map
+		ts[sortedTimeSeries[i].downsampledTime] = mad
+	}
+	return ts
+}
+
+// Median Calculation
+func computeMedian(values []float64) float64 {
+	sort.Float64s(values)
+	n := len(values)
+	if n%2 == 0 {
+		return (values[n/2-1] + values[n/2]) / 2
+	}
+	return values[n/2]
 }
 
 func (dss *DownsampleSeries) sortEntries() {
@@ -736,12 +803,16 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 		for i := range entries {
 			ret += entries[i].dpVal
 		}
+	case utils.BottomK:
+		fallthrough
 	case utils.Min:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal < ret {
 				ret = entries[i].dpVal
 			}
 		}
+	case utils.TopK:
+		fallthrough
 	case utils.Max:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal > ret {
@@ -749,7 +820,7 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 			}
 		}
 	case utils.Count:
-		ret += float64(len(entries))
+		// Count is to calculate the number of time series, we do not care about the entry value
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
@@ -773,6 +844,16 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 		} else {
 			ret = entriesCopy[int(index)].dpVal
 		}
+	case utils.Stddev:
+		fallthrough
+	case utils.Stdvar:
+		sum := 0.0
+		for i := range entries {
+			sum += entries[i].dpVal
+		}
+		ret = sum / float64(len(entries))
+	case utils.Group:
+		ret = 1
 	default:
 		err := fmt.Errorf("reduceEntries: unsupported AggregateFunction: %v", fn)
 		log.Errorf("%v", err)
@@ -809,9 +890,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			}
 		}
 	case utils.Count:
-		for i := range entries {
-			ret += float64(entries[i].runningCount)
-		}
+		// Count is to calculate the number of time series, we do not care about the entry value
 	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
@@ -834,6 +913,8 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 		} else {
 			ret = entriesCopy[int(index)].runningVal
 		}
+	case utils.Group:
+		ret = 1
 	default:
 		err := fmt.Errorf("reduceRunningEntries: unsupported AggregateFunction: %v", fn)
 		log.Errorf("%v", err)
@@ -937,7 +1018,7 @@ func evaluateRoundWithPrecision(ts map[uint32]float64, toNearestStr string) erro
 	toNearestStr = strings.ReplaceAll(toNearestStr, " ", "")
 	toNearest, err := convertStrToFloat64(toNearestStr)
 	if err != nil {
-		return fmt.Errorf("evaluateRoundWithPrecision: %v", err)
+		return fmt.Errorf("evaluateRoundWithPrecision: can not convert toNearest param: %v to a float, err: %v", toNearestStr, err)
 	}
 
 	for key, val := range ts {

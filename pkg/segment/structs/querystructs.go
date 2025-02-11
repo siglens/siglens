@@ -35,10 +35,12 @@ import (
 
 // New struct for passin query params
 type QueryContext struct {
-	TableInfo *TableInfo
-	SizeLimit uint64
-	Scroll    int
-	Orgid     uint64
+	TableInfo    *TableInfo
+	SizeLimit    uint64
+	Scroll       int
+	Orgid        int64
+	RawQuery     string
+	IncludeNulls bool
 }
 
 // Input for filter operator can either be the result of a ASTNode or an expression
@@ -65,15 +67,17 @@ const (
 // MatchFilter searches for all words in matchWords in the column matchColumn
 // The matchOperator defines if all or any of the matchWords need to be present
 type MatchFilter struct {
-	MatchColumn    string                 // column to search for
-	MatchWords     [][]byte               // all words to search for
-	MatchOperator  utils.LogicalOperator  // how to combine matchWords
-	MatchPhrase    []byte                 //whole string to search for in case of MatchPhrase query
-	MatchDictArray *MatchDictArrayRequest //array to search for in case of jaeger query
-	MatchType      MatchFilterType
-	NegateMatch    bool
-	RegexpString   string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
-	regexp         *regexp.Regexp
+	MatchColumn         string                 // column to search for
+	MatchWords          [][]byte               // all words to search for. The values will be normalized to Lower case if the query is case insensitive
+	MatchWordsOriginal  [][]byte               // all original words to search for. Will be set only if dualcasecheck is enabled and query is case insensitive.
+	MatchOperator       utils.LogicalOperator  // how to combine matchWords
+	MatchPhrase         []byte                 //whole string to search for in case of MatchPhrase query. The value will be normalized to Lower case if the query is case insensitive
+	MatchPhraseOriginal []byte                 //original string to search for in case of MatchPhrase query. Will be set only if dualcasecheck is enabled and query is case insensitive.
+	MatchDictArray      *MatchDictArrayRequest //array to search for in case of jaeger query
+	MatchType           MatchFilterType
+	NegateMatch         bool
+	RegexpString        string // Do not manually set this. Use SetRegexp(). This is only public to allow for GOB encoding MatchFilter.
+	regexp              *regexp.Regexp
 }
 
 type MatchDictArrayRequest struct {
@@ -90,8 +94,9 @@ type ExpressionFilter struct {
 
 // Top level filter criteria condition that define either a MatchFilter or ExpressionFilter. Only one will be defined, never both
 type FilterCriteria struct {
-	MatchFilter      *MatchFilter      // match filter to check multiple words in a column
-	ExpressionFilter *ExpressionFilter // expression filter to check a single expression in a column
+	MatchFilter             *MatchFilter      // match filter to check multiple words in a column
+	ExpressionFilter        *ExpressionFilter // expression filter to check a single expression in a column
+	FilterIsCaseInsensitive bool              // if the filter is case sensitive
 }
 
 // A condition struct defines the FilterConditions and ASTNodes that exist as a part of a single condition
@@ -125,7 +130,13 @@ type BlockTracker struct {
 	excludeBlocks map[uint16]bool
 }
 
-func InitTableInfo(rawRequest string, orgid uint64, es bool) *TableInfo {
+type SegmentByTimeAndColSizes struct {
+	TimeRange            *dtu.TimeRange
+	ConsistentCValLenMap map[string]uint32
+	TotalRecords         uint32
+}
+
+func InitTableInfo(rawRequest string, orgid int64, es bool) *TableInfo {
 	indexNamesRetrieved := vtable.ExpandAndReturnIndexNames(rawRequest, orgid, es)
 	ti := &TableInfo{rawRequest: rawRequest}
 	if es {
@@ -209,7 +220,7 @@ func getIndexNamesCleanLogs(indices []string) string {
 	return indicesStr
 }
 
-func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid uint64, es bool) *QueryContext {
+func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid int64, es bool) *QueryContext {
 	ti := InitTableInfo(indexRequest, orgid, es)
 	return &QueryContext{
 		TableInfo: ti,
@@ -219,7 +230,7 @@ func InitQueryContext(indexRequest string, sizeLimit uint64, scroll int, orgid u
 	}
 }
 
-func InitQueryContextWithTableInfo(ti *TableInfo, sizeLimit uint64, scroll int, orgid uint64, es bool) *QueryContext {
+func InitQueryContextWithTableInfo(ti *TableInfo, sizeLimit uint64, scroll int, orgid int64, es bool) *QueryContext {
 	return &QueryContext{
 		TableInfo: ti,
 		SizeLimit: sizeLimit,
@@ -287,7 +298,7 @@ func (m *MatchFilter) GetRegexp() (*regexp.Regexp, error) {
 
 		re, err := regexp.Compile(m.RegexpString)
 		if err != nil {
-			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err=%v", m.RegexpString, err)
+			log.Errorf("MatchFilter.GetRegexp: error compiling regexp: %v, err: %v", m.RegexpString, err)
 			return nil, err
 		}
 

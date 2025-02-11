@@ -22,62 +22,74 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/siglens/siglens/pkg/ast"
-	"github.com/siglens/siglens/pkg/ast/logql"
 	"github.com/siglens/siglens/pkg/ast/spl"
 	"github.com/siglens/siglens/pkg/ast/sql"
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
+	segment "github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/aggregations"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-
-	segment "github.com/siglens/siglens/pkg/segment"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, queryLanguageType string, indexName string) (*ASTNode, *QueryAggregators, error) {
-	var parsingError error
+func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, queryLanguageType string, indexName string) (*ASTNode, *QueryAggregators, []string, error) {
+	var err error
 	var queryAggs *QueryAggregators
 	var boolNode *ASTNode
-	boolNode, queryAggs, parsingError = ParseQuery(searchText, qid, queryLanguageType)
-	if parsingError != nil {
-		return nil, nil, parsingError
+	var parsedIndexNames []string
+	boolNode, queryAggs, parsedIndexNames, err = ParseQuery(searchText, qid, queryLanguageType)
+	if err != nil {
+		return nil, nil, []string{}, err
+	}
+	if len(parsedIndexNames) > 0 {
+		indexName = strings.Join(parsedIndexNames, ",") // indexName is passed as a comma separated string
 	}
 
 	if boolNode == nil && queryAggs == nil {
 		err := fmt.Errorf("qid=%d, ParseRequest: boolNode and queryAggs are nil for searchText: %v", qid, searchText)
 		log.Errorf(err.Error())
-		return nil, nil, err
+		return nil, nil, []string{}, err
 	}
 
-	tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
-	if err != nil {
-		log.Errorf("qid=%d, Search ParseRequest: parseTimeRange error: %v", qid, err)
-		return nil, nil, err
+	if boolNode.TimeRange == nil {
+		tRange, err := ast.ParseTimeRange(startEpoch, endEpoch, queryAggs, qid)
+		if err != nil {
+			log.Errorf("qid=%d, ParseRequest: parseTimeRange error: %v", qid, err)
+			return nil, nil, []string{}, err
+		}
+		boolNode.TimeRange = tRange
+	} else {
+		// Update the start and end epoch from the parsed Node time range
+		startEpoch = boolNode.TimeRange.StartEpochMs
+		endEpoch = boolNode.TimeRange.EndEpochMs
 	}
-	boolNode.TimeRange = tRange
 
 	//aggs
 	if queryAggs != nil {
 		// if groupby request or segment stats exist, dont early exist and no sort is needed
-		if queryAggs.GroupByRequest != nil {
+		if queryAggs.GroupByRequest != nil && queryAggs.StreamStatsOptions == nil {
 			queryAggs.GroupByRequest.BucketCount = 10_000
 			queryAggs.EarlyExit = false
 			queryAggs.Sort = nil
 			if len(queryAggs.GroupByRequest.GroupByColumns) == 1 && queryAggs.GroupByRequest.GroupByColumns[0] == "*" {
-				queryAggs.GroupByRequest.GroupByColumns = metadata.GetAllColNames([]string{indexName})
+				queryAggs.GroupByRequest.GroupByColumns = segmetadata.GetAllColNames([]string{indexName})
 			}
 			if queryAggs.TimeHistogram != nil && queryAggs.TimeHistogram.Timechart != nil {
 				if queryAggs.TimeHistogram.Timechart.BinOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions != nil &&
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings {
-					spanOptions, err := ast.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
+					spanOptions, err := structs.GetDefaultTimechartSpanOptions(startEpoch, endEpoch, qid)
 					if err != nil {
-						log.Errorf("qid=%d, Search ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
-						return nil, nil, err
+						log.Errorf("qid=%d, ParseRequest: GetDefaultTimechartSpanOptions error: %v", qid, err)
+						return nil, nil, []string{}, err
 					}
 					queryAggs.TimeHistogram.Timechart.BinOptions.SpanOptions = spanOptions
 					queryAggs.TimeHistogram.IntervalMillis = aggregations.GetIntervalInMillis(spanOptions.SpanLength.Num, spanOptions.SpanLength.TimeScalr)
@@ -85,7 +97,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 				queryAggs.TimeHistogram.StartTime = startEpoch
 				queryAggs.TimeHistogram.EndTime = endEpoch
 			}
-		} else if queryAggs.MeasureOperations != nil {
+		} else if queryAggs.MeasureOperations != nil && queryAggs.StreamStatsOptions == nil {
 			queryAggs.EarlyExit = false
 			queryAggs.Sort = nil
 		} else {
@@ -103,61 +115,80 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 
 	segment.LogASTNode(queryLanguageType+"query parser", boolNode, qid)
 	segment.LogQueryAggsNode(queryLanguageType+"aggs parser", queryAggs, qid)
-	return boolNode, queryAggs, nil
+	return boolNode, queryAggs, parsedIndexNames, nil
 }
 
-func ParseQuery(searchText string, qid uint64, queryLanguageType string) (*ASTNode, *QueryAggregators, error) {
+func ParseQuery(searchText string, qid uint64, queryLanguageType string) (*ASTNode, *QueryAggregators, []string, error) {
 
 	var boolNode *ASTNode
 	var aggNode *QueryAggregators
 	var err error
 
+	parsedIndexNames := []string{}
 	if queryLanguageType == "SQL" {
 		boolNode, aggNode, _, err = sql.ConvertToASTNodeSQL(searchText, qid)
 	} else {
-		boolNode, aggNode, err = parsePipeSearch(searchText, queryLanguageType, qid)
+		boolNode, aggNode, parsedIndexNames, err = parsePipeSearch(searchText, queryLanguageType, qid)
 	}
 
 	if err != nil {
-		log.Errorf("qid=%d, ParseQuery:ParsePipeSearch  error: %v", qid, err)
-		return nil, nil, err
+		log.Errorf("qid=%d, ParseQuery: ConvertToASTNodeSQL/parsePipeSearch error: %v", qid, err)
+		return nil, nil, []string{}, err
 	}
 
-	return boolNode, aggNode, nil
+	return boolNode, aggNode, parsedIndexNames, nil
 }
 
 func createMatchAll(qid uint64) *ASTNode {
 	rootNode := &ASTNode{}
 	colName := "*"
 	colValue := "*"
-	criteria := ast.CreateTermFilterCriteria(colName, colValue, Equals, qid)
+	criteria := ast.CreateTermFilterCriteria(colName, colValue, Equals, qid, nil)
 	rootNode.AndFilterCondition = &Condition{FilterCriteria: []*FilterCriteria{criteria}}
 	return rootNode
 }
 
-func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTNode, *QueryAggregators, error) {
+func updatePositionForGenEvents(aggs *QueryAggregators) {
+	node := aggs
+	position := 1
+	for node != nil {
+		if node.GenerateEvent != nil {
+			node.GenerateEvent.EventPosition = position
+			position++
+		}
+		node = node.Next
+	}
+}
+
+func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTNode, *QueryAggregators, []string, error) {
 	var leafNode *ASTNode
 	var res interface{}
 	var err error
 	if searchText == "*" || searchText == "" {
 		leafNode = createMatchAll(qid)
-		return leafNode, nil, nil
+		return leafNode, nil, []string{}, nil
 	}
+
+	forceCaseSensitive := true
+
 	//peg parsing to AST tree
 	switch queryLanguage {
 	case "Pipe QL":
 		res, err = Parse("", []byte(searchText))
-	case "Log QL":
-		res, err = logql.Parse("", []byte(searchText))
 	case "Splunk QL":
 		res, err = spl.Parse("", []byte(searchText))
+		forceCaseSensitive = false
+	case "Log QL":
+		if hook := hooks.GlobalHooks.LogQLParse; hook != nil {
+			res, err = hook("", []byte(searchText))
+		}
 	default:
 		log.Errorf("qid=%d, parsePipeSearch: Unknown queryLanguage: %v", qid, queryLanguage)
 	}
 
 	if err != nil {
-		log.Errorf("qid=%d, parsePipeSearch: PEG Parse error: %v:%v", qid, err, getParseError(err))
-		return nil, nil, getParseError(err)
+		log.Errorf("qid=%d, parsePipeSearch: Error while parsing searchText: %v in queryLanguage: %v, err: %v, parse error: %v", qid, searchText, queryLanguage, err, getParseError(err))
+		return nil, nil, []string{}, getParseError(err)
 	}
 
 	result, err := json.MarshalIndent(res, "", "   ")
@@ -167,30 +198,181 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, res)
 	}
 
-	queryJson := res.(ast.QueryStruct).SearchFilter
-	pipeCommandsJson := res.(ast.QueryStruct).PipeCommands
+	queryStruct, ok := res.(ast.QueryStruct)
+	if !ok {
+		return nil, nil, []string{}, toputils.TeeErrorf("qid=%d, parsePipeSearch: expected QueryStruct, got %T", qid, res)
+	}
+
+	searchNode := queryStruct.SearchFilter
+	aggs := queryStruct.PipeCommands
 	boolNode := &ASTNode{}
-	if queryJson == nil {
+	if searchNode == nil {
 		boolNode = createMatchAll(qid)
 	}
-	err = SearchQueryToASTnode(queryJson, boolNode, qid)
-	if err != nil {
-		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
-		return nil, nil, err
-	}
-	if pipeCommandsJson == nil {
-		return boolNode, nil, nil
-	}
-	pipeCommands, err := searchPipeCommandsToASTnode(pipeCommandsJson, qid)
 
+	searchNode, aggs = optimizeQuery(searchNode, aggs)
+
+	err = SearchQueryToASTnode(searchNode, boolNode, qid, forceCaseSensitive)
 	if err != nil {
 		log.Errorf("qid=%d, parsePipeSearch: SearchQueryToASTnode error: %v", qid, err)
-		return nil, nil, err
+		return nil, nil, []string{}, err
 	}
-	return boolNode, pipeCommands, nil
+
+	if aggs == nil {
+		return boolNode, nil, queryStruct.IndexNames, nil
+	}
+
+	pipeCommands, err := searchPipeCommandsToASTnode(aggs, qid)
+	if err != nil {
+		log.Errorf("qid=%d, parsePipeSearch: searchPipeCommandsToASTnode error: %v", qid, err)
+		return nil, nil, []string{}, err
+	}
+
+	updatePositionForGenEvents(pipeCommands)
+
+	return boolNode, pipeCommands, queryStruct.IndexNames, nil
 }
 
-func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
+func optimizeQuery(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	searchNode.Simplify()
+
+	if searchNode == nil || aggs == nil {
+		return searchNode, aggs
+	}
+
+	searchNode, aggs = optimizeStatsEvalQueries(searchNode, aggs)
+
+	return searchNode, aggs
+
+}
+
+// Optimize queries like:
+// weekday=Monday | stats count(eval(foo=bar)) avg(eval(latency>1000))
+// to:
+// weekday=Monday AND (foo=bar OR latency>1000) | stats count(eval(foo=bar)) avg(eval(latency>1000))
+func optimizeStatsEvalQueries(searchNode *ast.Node, aggs *QueryAggregators) (*ast.Node, *QueryAggregators) {
+	if searchNode == nil || aggs == nil {
+		return searchNode, aggs // This optimization doesn't apply.
+	}
+
+	if aggs.PipeCommandType != MeasureAggsType {
+		return searchNode, aggs // This optimization doesn't apply.
+	}
+
+	extraSearchNodes := make([]*ast.Node, 0) // These will be merged with the searchNode at the end.
+	for _, measureAgg := range aggs.MeasureOperations {
+		if measureAgg.ValueColRequest == nil {
+			return searchNode, aggs // This optimization doesn't apply.
+		}
+
+		if measureAgg.ValueColRequest.ValueExprMode != VEMBooleanExpr {
+			return searchNode, aggs // This optimization doesn't apply.
+		}
+
+		extraSearchNode := extractSearchNodeFromBooleanExpr(measureAgg.ValueColRequest.BooleanExpr)
+		if extraSearchNode == nil {
+			// We can't do this optimization for one of these reasons:
+			// - There was an issue extracting the search node
+			// - We can optimize this query, but we haven't implemented the optimization yet
+			// - We can't optimize this query
+			return searchNode, aggs
+		}
+
+		extraSearchNodes = append(extraSearchNodes, extraSearchNode)
+	}
+
+	joinedExtraSearchNode := ast.JoinNodes(extraSearchNodes, ast.NodeOr)
+	searchNode = ast.JoinNodes([]*ast.Node{searchNode, joinedExtraSearchNode}, ast.NodeAnd)
+
+	return searchNode, aggs
+}
+
+func extractSearchNodeFromBooleanExpr(boolExpr *BoolExpr) *ast.Node {
+	if boolExpr == nil {
+		log.Errorf("extractSearchNodeFromBooleanExpr: boolExpr is nil")
+		return nil
+	}
+
+	if !boolExpr.IsTerminal {
+		// TODO: we can actually handle this case.
+		return nil
+	}
+
+	extraSearchNode := &ast.Node{}
+	extraSearchNode.NodeType = ast.NodeTerminal
+	extraSearchNode.Comparison.Op = boolExpr.ValueOp
+
+	fieldWasSet := false
+	valueWasSet := false
+
+	if boolExpr.LeftValue == nil || boolExpr.RightValue == nil {
+		log.Errorf("extractSearchNodeFromBooleanExpr: boolExpr is terminal but left (%v) or right (%v) is nil",
+			boolExpr.LeftValue, boolExpr.RightValue)
+		return nil
+	}
+
+	for _, valueExpr := range []*ValueExpr{boolExpr.LeftValue, boolExpr.RightValue} {
+		switch valueExpr.ValueExprMode {
+		case VEMNumericExpr:
+			numericExpr := valueExpr.NumericExpr
+			if numericExpr == nil {
+				log.Errorf("extractSearchNodeFromBooleanExpr: numericExpr is nil")
+				return nil
+			}
+
+			if !numericExpr.IsTerminal {
+				// TODO: we can actually handle this case.
+				return nil
+			}
+			if numericExpr.ValueIsField {
+				extraSearchNode.Comparison.Field = numericExpr.Value
+				fieldWasSet = true
+			} else {
+				extraSearchNode.Comparison.Values = json.Number(numericExpr.Value)
+				valueWasSet = true
+			}
+		case VEMStringExpr:
+			stringExpr := valueExpr.StringExpr
+			if stringExpr == nil {
+				log.Errorf("extractSearchNodeFromBooleanExpr: stringExpr is nil")
+				return nil
+			}
+
+			switch stringExpr.StringExprMode {
+			case SEMField:
+				extraSearchNode.Comparison.Field = stringExpr.FieldName
+				fieldWasSet = true
+			case SEMRawString:
+				extraSearchNode.Comparison.Values = "\"" + stringExpr.RawString + "\""
+				extraSearchNode.Comparison.OriginalValues = extraSearchNode.Comparison.Values
+				valueWasSet = true
+			case SEMRawStringList, SEMConcatExpr, SEMTextExpr, SEMFieldList:
+				// TODO: we can handle at least some of these.
+			default:
+				log.Errorf("extractSearchNodeFromBooleanExpr: unknown stringExpr.StringExprMode: %v",
+					stringExpr.StringExprMode)
+				return nil
+			}
+		case VEMConditionExpr, VEMBooleanExpr:
+			// TODO: can these cases be handled?
+			return nil
+		default:
+			log.Errorf("extractSearchNodeFromBooleanExpr: unknown valueExpr.ValueExprMode: %v", valueExpr.ValueExprMode)
+			return nil
+		}
+	}
+
+	if !fieldWasSet || !valueWasSet {
+		log.Errorf("extractSearchNodeFromBooleanExpr: fieldWasSet=%v, valueWasSet=%v; expected both to be true",
+			fieldWasSet, valueWasSet)
+		return nil
+	}
+
+	return extraSearchNode
+}
+
+// If forceCaseSensitive is true, then the search query will not consider any of the case-insensitive search options.
+func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {
 	var err error
 	if node == nil {
 		return nil
@@ -198,35 +380,35 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 
 	switch node.NodeType {
 	case ast.NodeOr:
-		err := parseORCondition(node.Left, boolNode, qid)
+		err := parseORCondition(node.Left, boolNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseORCondition error: %v", qid, err)
+			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseORCondition for left child, error: %v", qid, err)
 			return err
 		}
 
-		err = parseORCondition(node.Right, boolNode, qid)
+		err = parseORCondition(node.Right, boolNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseORCondition error: %v", qid, err)
+			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseORCondition for right child, error: %v", qid, err)
 			return err
 		}
 
 	case ast.NodeAnd:
-		err := parseANDCondition(node.Left, boolNode, qid)
+		err := parseANDCondition(node.Left, boolNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseANDCondition error: %v", qid, err)
+			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseANDCondition for left child, error: %v", qid, err)
 			return err
 		}
 
-		err = parseANDCondition(node.Right, boolNode, qid)
+		err = parseANDCondition(node.Right, boolNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseANDCondition error: %v", qid, err)
+			log.Errorf("qid=%d, SearchQueryToASTnode: Error in parseANDCondition for right child, error: %v", qid, err)
 			return err
 		}
 
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.Op, node.Comparison.ValueIsRegex, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, forceCaseSensitive, qid)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseSingleTerm: processPipeSearchMap error: %v", qid, err)
+			log.Errorf("qid=%d, SearchQueryToASTnode: Error while processing single filter, error: %v", qid, err)
 			return err
 		}
 		filtercond := &Condition{
@@ -237,45 +419,60 @@ func SearchQueryToASTnode(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		} else {
 			boolNode.AndFilterCondition.JoinCondition(filtercond)
 		}
+	case ast.TimeModifierNode:
+		if boolNode.TimeRange == nil {
+			boolNode.TimeRange = &dtu.TimeRange{}
+		}
+		boolNode.TimeRange.StartEpochMs = node.TimeModifiers.StartEpoch
+		boolNode.TimeRange.EndEpochMs = node.TimeModifiers.EndEpoch
 	default:
-		log.Errorf("SearchQueryToASTnode : node type %d not supported", node.NodeType)
-		return errors.New("SearchQueryToASTnode : node type not supported")
+		log.Errorf("SearchQueryToASTnode: node type %d not supported", node.NodeType)
+		return errors.New("SearchQueryToASTnode: node type not supported")
 	}
 	return err
 }
 
 func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggregators, error) {
+	if config.IsNewQueryPipelineEnabled() {
+		return node, nil
+	}
 	var err error
 	var pipeCommands *QueryAggregators
 	//todo return array of queryaggs
 	if node == nil {
-		log.Errorf("qid=%d, searchPipeCommandsToASTnode : search pipe command node can not be nil %v", qid, node)
+		log.Errorf("qid=%d, searchPipeCommandsToASTnode: search pipe command node can not be nil %v", qid, node)
 		return nil, errors.New("searchPipeCommandsToASTnode: search pipe command node is nil ")
 	}
 	switch node.PipeCommandType {
+	case GenerateEventType:
+		pipeCommands, err = parseGenerateCmd(node.GenerateEvent, qid)
+		if err != nil {
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseGenerateCmd error: %v", qid, err)
+			return nil, err
+		}
 	case OutputTransformType:
 		pipeCommands, err = parseColumnsCmd(node.OutputTransforms, qid)
 		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode : parseColumnsCmd error: %v", qid, err)
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseColumnsCmd error: %v", qid, err)
 			return nil, err
 		}
 	case MeasureAggsType:
 		pipeCommands, err = parseSegLevelStats(node.MeasureOperations, qid)
 		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode : parseSegLevelStats error: %v", qid, err)
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseSegLevelStats error: %v", qid, err)
 			return nil, err
 		}
 	case GroupByType:
 		pipeCommands, err = parseGroupBySegLevelStats(node.GroupByRequest, node.BucketLimit, qid)
 		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode : parseGroupBySegLevelStats error: %v", qid, err)
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseGroupBySegLevelStats error: %v", qid, err)
 			return nil, err
 		}
 		pipeCommands.TimeHistogram = node.TimeHistogram
 	case TransactionType:
 		pipeCommands, err = parseTransactionRequest(node.TransactionArguments, qid)
 		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode : parseTransactionRequest error: %v", qid, err)
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: parseTransactionRequest error: %v", qid, err)
 			return nil, err
 		}
 	case VectorArithmeticExprType:
@@ -285,15 +482,16 @@ func searchPipeCommandsToASTnode(node *QueryAggregators, qid uint64) (*QueryAggr
 			VectorArithmeticExpr: node.VectorArithmeticExpr,
 		}
 	default:
-		log.Errorf("searchPipeCommandsToASTnode : node type %d not supported", node.PipeCommandType)
-		return nil, errors.New("searchPipeCommandsToASTnode : node type not supported")
+		log.Errorf("searchPipeCommandsToASTnode: node type %d not supported", node.PipeCommandType)
+		return nil, errors.New("searchPipeCommandsToASTnode: node type not supported")
 	}
-
+	pipeCommands.StatsOptions = node.StatsOptions
+	pipeCommands.StreamStatsOptions = node.StreamStatsOptions
 	if node.Next != nil {
 		pipeCommands.Next, err = searchPipeCommandsToASTnode(node.Next, qid)
 
 		if err != nil {
-			log.Errorf("qid=%d, searchPipeCommandsToASTnode failed to parse child node: %v", qid, node.Next)
+			log.Errorf("qid=%d, searchPipeCommandsToASTnode: failed to parse child node: %v", qid, node.Next)
 			return nil, err
 		}
 	}
@@ -313,6 +511,7 @@ func parseGroupBySegLevelStats(node *structs.GroupByRequest, bucketLimit int, qi
 		tempMeasureAgg.MeasureFunc = parsedMeasureAgg.MeasureFunc
 		tempMeasureAgg.ValueColRequest = parsedMeasureAgg.ValueColRequest
 		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
+		tempMeasureAgg.Param = parsedMeasureAgg.Param
 		aggNode.GroupByRequest.MeasureOperations = append(aggNode.GroupByRequest.MeasureOperations, tempMeasureAgg)
 	}
 	if node.GroupByColumns != nil {
@@ -332,8 +531,26 @@ func parseSegLevelStats(node []*structs.MeasureAggregator, qid uint64) (*QueryAg
 		tempMeasureAgg.MeasureFunc = parsedMeasureAgg.MeasureFunc
 		tempMeasureAgg.ValueColRequest = parsedMeasureAgg.ValueColRequest
 		tempMeasureAgg.StrEnc = parsedMeasureAgg.StrEnc
+		tempMeasureAgg.Param = parsedMeasureAgg.Param
 		aggNode.MeasureOperations = append(aggNode.MeasureOperations, tempMeasureAgg)
 	}
+	return aggNode, nil
+}
+
+func parseGenerateCmd(node *structs.GenerateEvent, qid uint64) (*QueryAggregators, error) {
+	aggNode := &QueryAggregators{}
+	aggNode.PipeCommandType = GenerateEventType
+	aggNode.GenerateEvent = &GenerateEvent{}
+	if node == nil {
+		return aggNode, nil
+	}
+	if node.GenTimes != nil {
+		aggNode.GenerateEvent.GenTimes = node.GenTimes
+	}
+	if node.InputLookup != nil {
+		aggNode.GenerateEvent.InputLookup = node.InputLookup
+	}
+
 	return aggNode, nil
 }
 
@@ -348,9 +565,9 @@ func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*Q
 	if node.StartsWith != nil {
 		if node.StartsWith.SearchNode != nil {
 			boolNode := &ASTNode{}
-			err := SearchQueryToASTnode(node.StartsWith.SearchNode.(*ast.Node), boolNode, qid)
+			err := SearchQueryToASTnode(node.StartsWith.SearchNode.(*ast.Node), boolNode, qid, true)
 			if err != nil {
-				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error: %v", qid, err)
+				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error for StartsWith, err: %v", qid, err)
 				return nil, err
 			}
 			aggNode.TransactionArguments.StartsWith.SearchNode = boolNode
@@ -360,9 +577,9 @@ func parseTransactionRequest(node *structs.TransactionArguments, qid uint64) (*Q
 	if node.EndsWith != nil {
 		if node.EndsWith.SearchNode != nil {
 			boolNode := &ASTNode{}
-			err := SearchQueryToASTnode(node.EndsWith.SearchNode.(*ast.Node), boolNode, qid)
+			err := SearchQueryToASTnode(node.EndsWith.SearchNode.(*ast.Node), boolNode, qid, true)
 			if err != nil {
-				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error: %v", qid, err)
+				log.Errorf("qid=%d, parseTransactionRequest: SearchQueryToASTnode error for EndsWith, err: %v", qid, err)
 				return nil, err
 			}
 			aggNode.TransactionArguments.EndsWith.SearchNode = boolNode
@@ -447,30 +664,49 @@ func parseColumnsCmd(node *structs.OutputTransforms, qid uint64) (*QueryAggregat
 		if node.LetColumns.SortColRequest != nil {
 			aggNode.OutputTransforms.LetColumns.SortColRequest = node.LetColumns.SortColRequest
 		}
+		if node.LetColumns.MultiValueColRequest != nil {
+			aggNode.OutputTransforms.LetColumns.MultiValueColRequest = node.LetColumns.MultiValueColRequest
+		}
+		if node.LetColumns.FormatResults != nil {
+			aggNode.OutputTransforms.LetColumns.FormatResults = node.LetColumns.FormatResults
+		}
+		if node.LetColumns.EventCountRequest != nil {
+			aggNode.OutputTransforms.LetColumns.EventCountRequest = node.LetColumns.EventCountRequest
+		}
+		if node.LetColumns.BinRequest != nil {
+			aggNode.OutputTransforms.LetColumns.BinRequest = node.LetColumns.BinRequest
+		}
+		if node.LetColumns.FillNullRequest != nil {
+			aggNode.OutputTransforms.LetColumns.FillNullRequest = node.LetColumns.FillNullRequest
+		}
+		if node.LetColumns.AppendRequest != nil {
+			aggNode.OutputTransforms.LetColumns.AppendRequest = node.LetColumns.AppendRequest
+		}
 	}
 	if node.FilterRows != nil {
 		aggNode.OutputTransforms.FilterRows = node.FilterRows
 	}
 
-	aggNode.OutputTransforms.MaxRows = node.MaxRows
+	aggNode.OutputTransforms.HeadRequest = node.HeadRequest
+	aggNode.OutputTransforms.TailRequest = node.TailRequest
 
-	if node.MaxRows > 0 {
-		aggNode.Limit = int(node.MaxRows)
+	if aggNode.OutputTransforms.HeadRequest != nil && aggNode.OutputTransforms.HeadRequest.BoolExpr == nil && aggNode.OutputTransforms.HeadRequest.MaxRows != 0 {
+		aggNode.Limit = int(aggNode.OutputTransforms.HeadRequest.MaxRows)
 	}
 
 	return aggNode, nil
 }
 
-func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
+func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {
 	qsSubNode := &ASTNode{}
 	if boolNode.OrFilterCondition == nil {
 		boolNode.OrFilterCondition = &Condition{}
 	}
 	switch node.NodeType {
 	case ast.NodeOr:
-		err := SearchQueryToASTnode(node, qsSubNode, qid)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseORCondition error: %v", qid, err)
+			log.Errorf("qid=%d, parseORCondition: SearchQueryToASTnode error for NodeOr, err: %v", qid, err)
 			return err
 		}
 		if boolNode.OrFilterCondition.NestedNodes == nil {
@@ -480,9 +716,9 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		}
 		return nil
 	case ast.NodeAnd:
-		err := SearchQueryToASTnode(node, qsSubNode, qid)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseORCondition error: %v", qid, err)
+			log.Errorf("qid=%d, parseORCondition: SearchQueryToASTnode error for NodeAnd, err: %v", qid, err)
 			return err
 		}
 		if boolNode.OrFilterCondition.NestedNodes == nil {
@@ -492,9 +728,9 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		}
 		return nil
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.Op, node.Comparison.ValueIsRegex, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, forceCaseSensitive, qid)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : processPipeSearchMap error: %v", qid, err)
+			log.Errorf("qid=%d, parseORCondition: Error while processing single filter, err: %v", qid, err)
 			return err
 		}
 		filtercond := &Condition{
@@ -507,20 +743,20 @@ func parseORCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		}
 		return nil
 	default:
-		log.Errorf("parseORCondition : node type %d not supported", node.NodeType)
-		return errors.New("parseORCondition : node type not supported")
+		log.Errorf("parseORCondition: node type %d not supported", node.NodeType)
+		return errors.New("parseORCondition: node type not supported")
 	}
 }
-func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
+func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64, forceCaseSensitive bool) error {
 	qsSubNode := &ASTNode{}
 	if boolNode.AndFilterCondition == nil {
 		boolNode.AndFilterCondition = &Condition{}
 	}
 	switch node.NodeType {
 	case ast.NodeOr:
-		err := SearchQueryToASTnode(node, qsSubNode, qid)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseANDCondition error: %v", qid, err)
+			log.Errorf("qid=%d, parseANDCondition: SearchQueryToASTnode error for NodeOr, err: %v", qid, err)
 			return err
 		}
 		if boolNode.AndFilterCondition.NestedNodes == nil {
@@ -530,9 +766,9 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		}
 		return nil
 	case ast.NodeAnd:
-		err := SearchQueryToASTnode(node, qsSubNode, qid)
+		err := SearchQueryToASTnode(node, qsSubNode, qid, forceCaseSensitive)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : parseANDCondition error: %v", qid, err)
+			log.Errorf("qid=%d, parseANDCondition: SearchQueryToASTnode error for NodeAnd, err: %v", qid, err)
 			return err
 		}
 		if boolNode.AndFilterCondition.NestedNodes == nil {
@@ -542,9 +778,9 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 		}
 		return nil
 	case ast.NodeTerminal:
-		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.Op, node.Comparison.ValueIsRegex, qid)
+		criteria, err := ast.ProcessSingleFilter(node.Comparison.Field, node.Comparison.Values, node.Comparison.OriginalValues, node.Comparison.Op, node.Comparison.ValueIsRegex, node.Comparison.CaseInsensitive, forceCaseSensitive, qid)
 		if err != nil {
-			log.Errorf("qid=%d, SearchQueryToASTnode : processPipeSearchMap error: %v", qid, err)
+			log.Errorf("qid=%d, parseANDCondition: Error while processing single filter, err: %v", qid, err)
 			return err
 		}
 		filtercond := &Condition{
@@ -556,16 +792,23 @@ func parseANDCondition(node *ast.Node, boolNode *ASTNode, qid uint64) error {
 			boolNode.AndFilterCondition.JoinCondition(filtercond)
 		}
 		return nil
+	case ast.TimeModifierNode:
+		if boolNode.TimeRange == nil {
+			boolNode.TimeRange = &dtu.TimeRange{}
+		}
+		boolNode.TimeRange.StartEpochMs = node.TimeModifiers.StartEpoch
+		boolNode.TimeRange.EndEpochMs = node.TimeModifiers.EndEpoch
+		return nil
 	default:
-		log.Errorf("parseANDCondition : node type %d not supported", node.NodeType)
-		return errors.New("parseANDCondition : node type not supported")
+		log.Errorf("parseANDCondition: node type %d not supported", node.NodeType)
+		return errors.New("parseANDCondition: node type not supported")
 	}
 }
 
 func GetFinalSizelimit(aggs *QueryAggregators, sizeLimit uint64) uint64 {
-	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
+	if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) && aggs.StreamStatsOptions == nil {
 		sizeLimit = 0
-	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasRexBlockInChainWithStats() || aggs.HasTransactionArgumentsInChain() {
+	} else if aggs.HasDedupBlockInChain() || aggs.HasSortBlockInChain() || aggs.HasGroupByOrMeasureAggsInChain() || aggs.HasTransactionArgumentsInChain() || aggs.HasTailInChain() || aggs.HasBinInChain() || aggs.HasStreamStatsInChain() || aggs.HasGenerateEvent() {
 		// 1. Dedup needs state information about the previous records, so we can
 		// run into an issue if we show some records, then the user scrolls
 		// down to see more and we run dedup on just the new records and add

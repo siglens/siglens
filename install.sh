@@ -718,6 +718,23 @@ chmod a+rwx data || {
     print_error_and_exit "Failed to change permissions for directory 'data'. Please check your file permissions."
 }
 
+if [ ! -f "data/siglens.db" ] && [ -f "siglens.db" ]; then
+    mv siglens.db data/ || {
+        post_event "install_failed" "Failed to move 'siglens.db' to data directory."
+        print_error_and_exit "Failed to move 'siglens.db' to data directory. Please check your permissions."
+    }
+    echo "Moved siglens.db from root directory to data directory."
+fi
+
+touch data/siglens.db || {
+    post_event "install_failed" "Failed to create file 'siglens.db'."
+    print_error_and_exit "Failed to create file 'siglens.db'. Please check your permissions."
+}
+chmod a+rwx data/siglens.db || {
+    post_event "install_failed" "Failed to change permissions for file 'siglens.db'."
+    print_error_and_exit "Failed to change permissions for file 'siglens.db'. Please check your file permissions."
+}
+
 mkdir -p logs || {
     post_event "install_failed" "Failed to create directory 'logs'"
     print_error_and_exit "Failed to create directory 'logs'. Please check your permissions."
@@ -806,11 +823,11 @@ CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=
 if [[ $CONTAINER_TOOL == "docker" ]]; then
 request_sudo
 sudo cat << EOF > .env
-    IMAGE_NAME=${IMAGE_NAME}
-    UI_PORT=${UI_PORT}
-    CONFIG_FILE=${CFILE}
-    WORK_DIR="$(pwd)"
-    CSI=${csi}
+IMAGE_NAME=${IMAGE_NAME}
+UI_PORT=${UI_PORT}
+CONFIG_FILE=${CFILE}
+WORK_DIR=$(pwd)
+CSI=${csi}
 EOF
 fi
 

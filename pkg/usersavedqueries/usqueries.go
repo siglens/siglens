@@ -39,15 +39,15 @@ import (
 var usqBaseFilename string
 
 // map of orgid => usq lock
-var usqLock map[uint64]*sync.Mutex
-var usqLastReadTime map[uint64]uint64
+var usqLock map[int64]*sync.Mutex
+var usqLastReadTime map[int64]uint64
 var localUSQInfoLock *sync.RWMutex = &sync.RWMutex{}
 var externalUSQInfoLock *sync.RWMutex = &sync.RWMutex{}
 
 // map of "orgid" => queryName" ==> fieldname => fieldvalue
 // e.g. "123456789" => mysave1" => {"searchText":"...", "indexName": "..."}
-var localUSQInfo map[uint64]map[string]map[string]interface{} = make(map[uint64]map[string]map[string]interface{})
-var externalUSQInfo map[uint64]map[string]map[string]interface{} = make(map[uint64]map[string]map[string]interface{})
+var localUSQInfo map[int64]map[string]map[string]interface{} = make(map[int64]map[string]map[string]interface{})
+var externalUSQInfo map[int64]map[string]map[string]interface{} = make(map[int64]map[string]map[string]interface{})
 
 func InitUsq() error {
 	var sb strings.Builder
@@ -59,8 +59,8 @@ func InitUsq() error {
 		log.Errorf("InitUsq: failed to create basedir=%v, err=%v", baseDir, err)
 		return err
 	}
-	usqLock = make(map[uint64]*sync.Mutex)
-	usqLastReadTime = make(map[uint64]uint64)
+	usqLock = make(map[int64]*sync.Mutex)
+	usqLastReadTime = make(map[int64]uint64)
 
 	acquireOrCreateLock(0)
 	err = readSavedQueries(0)
@@ -73,43 +73,43 @@ func InitUsq() error {
 	return nil
 }
 
-func acquireOrCreateLock(orgid uint64) {
-	if _, ok := usqLock[orgid]; !ok {
-		usqLock[orgid] = &sync.Mutex{}
+func acquireOrCreateLock(myid int64) {
+	if _, ok := usqLock[myid]; !ok {
+		usqLock[myid] = &sync.Mutex{}
 	}
-	usqLock[orgid].Lock()
+	usqLock[myid].Lock()
 }
 
-func releaseLock(orgid uint64) {
-	usqLock[orgid].Unlock()
+func releaseLock(myid int64) {
+	usqLock[myid].Unlock()
 }
 
-func writeUsq(qname string, uq map[string]interface{}, orgid uint64) error {
+func writeUsq(qname string, uq map[string]interface{}, myid int64) error {
 
 	if qname == "" {
-		log.Errorf("writeUsq: failed to save query data, with empty query name")
-		return errors.New("writeUsq: failed to save query data, with empty query name")
+		log.Errorf("writeUsq: failed to save query data, query name is empty")
+		return errors.New("writeUsq: failed to save query data, query name is empty")
 	}
 
-	acquireOrCreateLock(orgid)
-	err := readSavedQueries(orgid)
+	acquireOrCreateLock(myid)
+	err := readSavedQueries(myid)
 	if err != nil {
-		releaseLock(orgid)
-		log.Errorf("writeUsq: failed to read sdata, err=%v", err)
-		return errors.New("Internal server error, failed to read sdata")
+		releaseLock(myid)
+		log.Errorf("writeUsq: failed to read save queries, err=%v", err)
+		return errors.New("internal server error, failed to read saved queries")
 	}
-	releaseLock(orgid)
+	releaseLock(myid)
 	localUSQInfoLock.Lock()
-	if _, ok := localUSQInfo[orgid]; !ok {
-		localUSQInfo[orgid] = make(map[string]map[string]interface{})
+	if _, ok := localUSQInfo[myid]; !ok {
+		localUSQInfo[myid] = make(map[string]map[string]interface{})
 	}
-	localUSQInfo[orgid][qname] = uq
+	localUSQInfo[myid][qname] = uq
 	localUSQInfoLock.Unlock()
 
-	err = writeSavedQueries(orgid)
+	err = writeSavedQueries(myid)
 	if err != nil {
-		log.Errorf("writeUsq: failed to stat file, err=%v", err)
-		return errors.New("Internal server error, cant write data")
+		log.Errorf("writeUsq: failed to write the saved queries into a file, err=%v", err)
+		return errors.New("internal server error, cant write data")
 	}
 	return nil
 }
@@ -121,36 +121,36 @@ func writeUsq(qname string, uq map[string]interface{}, orgid uint64) error {
 		  map[string]interface: the savequerydata
 		  error: any error
 */
-func getUsqOne(qname string, orgid uint64) (bool, map[string]map[string]interface{}, error) {
+func getUsqOne(qname string, myid int64) (bool, map[string]map[string]interface{}, error) {
 	var allUSQInfo map[string]map[string]interface{} = make(map[string]map[string]interface{})
 	retval := make(map[string]map[string]interface{})
 	found := false
-	acquireOrCreateLock(orgid)
-	err := readSavedQueries(orgid)
+	acquireOrCreateLock(myid)
+	err := readSavedQueries(myid)
 	if err != nil {
-		releaseLock(orgid)
+		releaseLock(myid)
 		log.Errorf("GetUsqOne: failed to read, err=%v", err)
 		return false, nil, err
 	}
-	releaseLock(orgid)
+	releaseLock(myid)
 
 	localUSQInfoLock.RLock()
 	defer localUSQInfoLock.RUnlock()
-	if orgMap, ok := localUSQInfo[orgid]; ok {
+	if orgMap, ok := localUSQInfo[myid]; ok {
 		err = mergo.Merge(&allUSQInfo, &orgMap)
 		if err != nil {
 			log.Errorf("getUsqOne: failed to merge local saved queries, err=%v", err)
-			return false, localUSQInfo[orgid], err
+			return false, localUSQInfo[myid], err
 		}
 	}
 
 	externalUSQInfoLock.RLock()
 	defer externalUSQInfoLock.RUnlock()
-	if orgExternalMap, ok := externalUSQInfo[orgid]; ok {
+	if orgExternalMap, ok := externalUSQInfo[myid]; ok {
 		err = mergo.Merge(&allUSQInfo, &orgExternalMap)
 		if err != nil {
 			log.Errorf("getUsqOne: failed to merge external saved queries, err=%v", err)
-			return false, localUSQInfo[orgid], err
+			return false, localUSQInfo[myid], err
 		}
 	}
 	for k, v := range allUSQInfo {
@@ -163,35 +163,35 @@ func getUsqOne(qname string, orgid uint64) (bool, map[string]map[string]interfac
 	return found, retval, nil
 }
 
-func getUsqAll(orgid uint64) (bool, map[string]map[string]interface{}, error) {
+func getUsqAll(myid int64) (bool, map[string]map[string]interface{}, error) {
 	var allUSQInfo map[string]map[string]interface{} = make(map[string]map[string]interface{})
 
-	acquireOrCreateLock(orgid)
-	err := readSavedQueries(orgid)
+	acquireOrCreateLock(myid)
+	err := readSavedQueries(myid)
 	if err != nil {
-		releaseLock(orgid)
+		releaseLock(myid)
 		log.Errorf("GetUsqAll: failed to read, err=%v", err)
 		return false, nil, err
 	}
-	releaseLock(orgid)
+	releaseLock(myid)
 
 	localUSQInfoLock.RLock()
 	defer localUSQInfoLock.RUnlock()
-	if orgMap, ok := localUSQInfo[orgid]; ok {
+	if orgMap, ok := localUSQInfo[myid]; ok {
 		err = mergo.Merge(&allUSQInfo, &orgMap)
 		if err != nil {
 			log.Errorf("GetUsqAll: failed to merge local saved queries, err=%v", err)
-			return false, localUSQInfo[orgid], err
+			return false, localUSQInfo[myid], err
 		}
 	}
 
 	externalUSQInfoLock.RLock()
 	defer externalUSQInfoLock.RUnlock()
-	if orgExternalMap, ok := externalUSQInfo[orgid]; ok {
+	if orgExternalMap, ok := externalUSQInfo[myid]; ok {
 		err = mergo.Merge(&allUSQInfo, &orgExternalMap)
 		if err != nil {
 			log.Errorf("GetUsqAll: failed to merge external saved queries, err=%v", err)
-			return false, localUSQInfo[orgid], err
+			return false, localUSQInfo[myid], err
 		}
 	}
 
@@ -204,17 +204,17 @@ func getUsqAll(orgid uint64) (bool, map[string]map[string]interface{}, error) {
 	   returns:
 		  error: any error
 */
-func deleteAllUsq(orgid uint64) error {
-	acquireOrCreateLock(orgid)
-	err := readSavedQueries(orgid)
+func deleteAllUsq(myid int64) error {
+	acquireOrCreateLock(myid)
+	err := readSavedQueries(myid)
 	if err != nil {
-		releaseLock(orgid)
+		releaseLock(myid)
 		log.Errorf("deleteAllUsq: failed to read, err=%v", err)
 		return err
 	}
-	releaseLock(orgid)
+	releaseLock(myid)
 	localUSQInfoLock.RLock()
-	if _, ok := localUSQInfo[orgid]; !ok {
+	if _, ok := localUSQInfo[myid]; !ok {
 		localUSQInfoLock.RUnlock()
 		return nil
 
@@ -222,10 +222,10 @@ func deleteAllUsq(orgid uint64) error {
 	localUSQInfoLock.RUnlock()
 
 	localUSQInfoLock.Lock()
-	delete(localUSQInfo, orgid)
+	delete(localUSQInfo, myid)
 	localUSQInfoLock.Unlock()
 
-	userSavedQueriesFilename := getUsqFileName(orgid)
+	userSavedQueriesFilename := getUsqFileName(myid)
 	err = os.Remove(userSavedQueriesFilename)
 	if err != nil {
 		log.Errorf("deleteAllUsq: failed to delete usersavedqueries file: %v", userSavedQueriesFilename)
@@ -241,36 +241,36 @@ func deleteAllUsq(orgid uint64) error {
 		  bool : if deleted true else false
 		  error: any error
 */
-func deleteUsq(qname string, orgid uint64) (bool, error) {
+func deleteUsq(qname string, myid int64) (bool, error) {
 
-	acquireOrCreateLock(orgid)
-	err := readSavedQueries(orgid)
+	acquireOrCreateLock(myid)
+	err := readSavedQueries(myid)
 	if err != nil {
-		releaseLock(orgid)
+		releaseLock(myid)
 		log.Errorf("DeleteUsq: failed to read, err=%v", err)
 		return false, err
 	}
-	releaseLock(orgid)
+	releaseLock(myid)
 	localUSQInfoLock.RLock()
-	if _, ok := localUSQInfo[orgid]; !ok {
+	if _, ok := localUSQInfo[myid]; !ok {
 		localUSQInfoLock.RUnlock()
 		return false, nil
 
 	}
-	_, ok := localUSQInfo[orgid][qname]
+	_, ok := localUSQInfo[myid][qname]
 	if !ok {
 		localUSQInfoLock.RUnlock()
 		return false, nil
 	}
 	localUSQInfoLock.RUnlock()
 	localUSQInfoLock.Lock()
-	delete(localUSQInfo[orgid], qname)
+	delete(localUSQInfo[myid], qname)
 	localUSQInfoLock.Unlock()
 
-	err = writeSavedQueries(orgid)
+	err = writeSavedQueries(myid)
 	if err != nil {
 		log.Errorf("DeleteUsq: failed to write file, err=%v", err)
-		return false, errors.New("Internal server error, cant write data")
+		return false, errors.New("internal server error, cant write data")
 	}
 
 	return true, nil
@@ -279,21 +279,21 @@ func deleteUsq(qname string, orgid uint64) (bool, error) {
 /*
 Caller must call this via a lock
 */
-func readSavedQueries(orgid uint64) error {
+func readSavedQueries(myid int64) error {
 
 	// first see if on disk is newer than memory
-	usqFilename := getUsqFileName(orgid)
+	usqFilename := getUsqFileName(myid)
 	fileInfo, err := os.Stat(usqFilename)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			log.Errorf("readSavedQueries: failed to stat file, err=%v", err)
-			return errors.New("Internal server error, can't read mtime")
+			log.Errorf("readSavedQueries: failed to stat file=%v, err=%v", usqFilename, err)
+			return errors.New("internal server error, can't read mtime")
 		}
 		return nil // if doesnt exist then cant really do anything
 	}
 
 	modifiedTime := uint64(fileInfo.ModTime().UTC().Unix() * 1000)
-	lastReadTime, ok := usqLastReadTime[orgid]
+	lastReadTime, ok := usqLastReadTime[myid]
 	if ok && modifiedTime <= lastReadTime {
 		return nil
 	}
@@ -314,16 +314,16 @@ func readSavedQueries(orgid uint64) error {
 		return err
 	}
 	localUSQInfoLock.Lock()
-	localUSQInfo[orgid] = orgSavedQueriesMap
+	localUSQInfo[myid] = orgSavedQueriesMap
 	localUSQInfoLock.Unlock()
-	usqLastReadTime[orgid] = utils.GetCurrentTimeInMs()
+	usqLastReadTime[myid] = utils.GetCurrentTimeInMs()
 
 	return nil
 }
 
-func getUsqFileName(orgid uint64) string {
-	if orgid != 0 {
-		usqFilename := usqBaseFilename + "-" + strconv.FormatUint(orgid, 10) + ".bin"
+func getUsqFileName(myid int64) string {
+	if myid != 0 {
+		usqFilename := usqBaseFilename + "-" + strconv.FormatInt(myid, 10) + ".bin"
 		return usqFilename
 	} else {
 		return usqBaseFilename + ".bin"
@@ -333,21 +333,21 @@ func getUsqFileName(orgid uint64) string {
 /*
 Caller must call this via a lock
 */
-func writeSavedQueries(orgid uint64) error {
+func writeSavedQueries(myid int64) error {
 
-	usqFilename := getUsqFileName(orgid)
+	usqFilename := getUsqFileName(myid)
 	localUSQInfoLock.RLock()
-	orgMap := localUSQInfo[orgid]
+	orgMap := localUSQInfo[myid]
 	localUSQInfoLock.RUnlock()
 	jdata, err := json.Marshal(orgMap)
 	if err != nil {
-		log.Errorf("writeSavedQueries: Failed to marshall err=%v", err)
+		log.Errorf("writeSavedQueries: Failed to marshall orgMap=%v, err=%v", orgMap, err)
 		return err
 	}
 
 	err = os.WriteFile(usqFilename, jdata, 0644)
 	if err != nil {
-		log.Errorf("writeSavedQueries: Failed to writefile fullname=%v, err=%v", usqFilename, err)
+		log.Errorf("writeSavedQueries: Failed to writefile filename=%v, err=%v", usqFilename, err)
 		return err
 	}
 	err = blob.UploadQueryNodeDir()
@@ -358,13 +358,13 @@ func writeSavedQueries(orgid uint64) error {
 	return nil
 }
 
-func DeleteAllUserSavedQueries(orgid uint64) error {
-	err := deleteAllUsq(orgid)
+func DeleteAllUserSavedQueries(myid int64) error {
+	err := deleteAllUsq(myid)
 	if err != nil {
-		log.Errorf("DeleteAllUserSavedQueries: Failed to delete user saved queries for orgid %d, err=%v", orgid, err)
+		log.Errorf("DeleteAllUserSavedQueries: Failed to delete user saved queries for orgid %d, err=%v", myid, err)
 		return err
 	}
-	log.Infof("DeleteAllUserSavedQueries: Successfully deleted user saved queries for orgid: %d", orgid)
+	log.Infof("DeleteAllUserSavedQueries: Successfully deleted user saved queries for orgid: %d", myid)
 	err = blob.UploadQueryNodeDir()
 	if err != nil {
 		log.Errorf("DeleteAllUserSavedQueries: Failed to upload query nodes dir, err=%v", err)
@@ -374,9 +374,9 @@ func DeleteAllUserSavedQueries(orgid uint64) error {
 	return nil
 }
 
-func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx) {
+func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 	queryName := utils.ExtractParamAsString(ctx.UserValue("qname"))
-	deleted, err := deleteUsq(queryName, 0)
+	deleted, err := deleteUsq(queryName, myid)
 	if err != nil {
 		log.Errorf("DeleteUserSavedQuery: Failed to delete user saved query %v, err=%v", queryName, err)
 		utils.SetBadMsg(ctx, "")
@@ -395,9 +395,9 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
+func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx, myid int64) {
 	httpResp := make(utils.AllSavedQueries)
-	found, savedQueriesAll, err := getUsqAll(0)
+	found, savedQueriesAll, err := getUsqAll(myid)
 	if err != nil {
 		log.Errorf("GetUserSavedQueriesAll: Failed to read user saved queries, err=%v", err)
 		utils.SetBadMsg(ctx, "")
@@ -413,10 +413,10 @@ func GetUserSavedQueriesAll(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func SaveUserQueries(ctx *fasthttp.RequestCtx) {
+func SaveUserQueries(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("SaveUserQueries: received empty user query")
+		log.Errorf("SaveUserQueries: received empty user query. Postbody is nil")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -432,7 +432,7 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 		if err != nil {
 			log.Errorf("SaveUserQueries: could not write error message err=%v", err)
 		}
-		log.Errorf("SaveUserQueries: failed to decode user query body! Err=%+v", err)
+		log.Errorf("SaveUserQueries: failed to decode user query body=%v, Err=%+v", string(rawJSON), err)
 	}
 
 	var qname string
@@ -465,6 +465,22 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 				{
 					usQueryMap["queryLanguage"] = valtype
 				}
+			case "dataSource":
+				{
+					usQueryMap["dataSource"] = valtype
+				}
+			case "startTime":
+				{
+					usQueryMap["startTime"] = valtype
+				}
+			case "endTime":
+				{
+					usQueryMap["endTime"] = valtype
+				}
+			case "metricsQueryParams":
+				{
+					usQueryMap["metricsQueryParams"] = valtype
+				}
 			}
 		default:
 			log.Errorf("SaveUserQueries: Invalid save query key=[%v]", key)
@@ -472,9 +488,9 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 			return
 		}
 	}
-	err = writeUsq(qname, usQueryMap, 0)
+	err = writeUsq(qname, usQueryMap, myid)
 	if err != nil {
-		log.Errorf("SaveUserQueries: could not write query to file err=%v", err)
+		log.Errorf("SaveUserQueries: could not write query with query name=%v, to file err=%v", qname, err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -482,7 +498,7 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ReadExternalUSQInfo(fName string, orgid uint64) error {
+func ReadExternalUSQInfo(fName string, myid int64) error {
 	var tempUSQInfo map[string]map[string]interface{} = make(map[string]map[string]interface{})
 	content, err := os.ReadFile(fName)
 	if err != nil {
@@ -499,20 +515,20 @@ func ReadExternalUSQInfo(fName string, orgid uint64) error {
 		return err
 	}
 	externalUSQInfoLock.Lock()
-	if _, ok := externalUSQInfo[orgid]; !ok {
-		externalUSQInfo[orgid] = make(map[string]map[string]interface{})
+	if _, ok := externalUSQInfo[myid]; !ok {
+		externalUSQInfo[myid] = make(map[string]map[string]interface{})
 	}
 	for usQuery, usQueryInfo := range tempUSQInfo {
-		externalUSQInfo[orgid][usQuery] = usQueryInfo
+		externalUSQInfo[myid][usQuery] = usQueryInfo
 	}
 	externalUSQInfoLock.Unlock()
 	return nil
 }
 
-func SearchUserSavedQuery(ctx *fasthttp.RequestCtx) {
+func SearchUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 	queryName := utils.ExtractParamAsString(ctx.UserValue("qname"))
 
-	found, usqInfo, err := getUsqOne(queryName, 0)
+	found, usqInfo, err := getUsqOne(queryName, myid)
 
 	log.Infof("SearchUserSavedQuery: Found=%v, usqInfo=%v", found, usqInfo)
 	if err != nil {

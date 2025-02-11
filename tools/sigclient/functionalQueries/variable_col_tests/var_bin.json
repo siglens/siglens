@@ -1,0 +1,101 @@
+{
+    "queryText": "city=Boston | eval updated_col_4=if(variable_col_4=\"603361244\", tostring(variable_col_4), tonumber(variable_col_4)) | bin updated_col_4 as bin_http | bin bins=2 updated_col_4 as bin_http_2 | bin span=5s updated_col_4 as bin_http_3 | bin span=2log3 updated_col_4 as bin_http_4 | bin minspan=500 updated_col_4 as bin_http_5 | bin bins=50000 updated_col_4 as bin_http_6 | bin bins=50000 minspan=2 updated_col_4 as bin_http_7 | bin end=100000 updated_col_4 as bin_http_8 | bin start=-10000 updated_col_4 as bin_http_9 | fields bin_http, bin_http_2, bin_http_3, bin_http_4, bin_http_5, bin_http_6, bin_http_7, bin_http_8, bin_http_9, updated_col_4, ident",
+    "expectedResult": {
+         "totalMatched":  {
+            "value": 100,
+            "relation": "gte"
+        },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "ident": "0a7902e4-2869-45e5-99de-22b1aeecfede",
+                "timestamp": 1731967199998
+            },
+            {
+                "bin_http": "603361244",
+                "bin_http_2": "603361244",
+                "bin_http_3": "603361244",
+                "bin_http_4": "603361244",
+                "bin_http_5": "603361244",
+                "bin_http_6": "603361244",
+                "bin_http_7": "603361244",
+                "bin_http_8": "603361244",
+                "bin_http_9": "603361244",
+                "ident": "5644ebc3-afb2-4b47-a411-8510b027dbf9",
+                "timestamp": 1731967199901,
+                "updated_col_4": "603361244"
+            },
+            {
+                "ident": "b40f3267-3d65-4ffb-a88f-51af0bdff718",
+                "timestamp": 1731967199827
+            },
+            {
+                "bin_http": "2.6e+08-2.7e+08",
+                "bin_http_2": "0-1e+09",
+                "bin_http_3": 265496290,
+                "bin_http_4": "2.58280326e+08-7.74840978e+08",
+                "bin_http_5": "2.6e+08-2.7e+08",
+                "bin_http_6": "2.654e+08-2.655e+08",
+                "bin_http_7": "2.654e+08-2.655e+08",
+                "bin_http_8": "2.6e+08-2.7e+08",
+                "bin_http_9": "2e+08-3e+08",
+                "ident": "59e37369-feb2-40ac-a01f-3636d234a8e6",
+                "timestamp": 1731967199783,
+                "updated_col_4": 265496292
+            },
+            {
+                "ident": "452922de-6bb7-4552-9dcf-e76360d78795",
+                "timestamp": 1731967199759
+            },
+            {
+                "ident": "2781e384-4e52-4fea-9696-4786c5f4e46b",
+                "timestamp": 1731967199746
+            },
+            {
+                "ident": "c0981dfa-33c4-4a90-b258-135d21a832d5",
+                "timestamp": 1731967199691
+            },
+            {
+                "ident": "21c67337-42e4-42b6-8f04-c39f502d8570",
+                "timestamp": 1731967199625
+            },
+            {
+                "ident": "8684224b-defc-4509-934b-4cf6fe32b6ef",
+                "timestamp": 1731967199436
+            },
+            {
+                "ident": "77773018-eeb4-4790-beb8-b6261420b892",
+                "timestamp": 1731967198992
+            }
+        ],
+        "allColumns": [
+            "bin_http_6",
+            "bin_http_7",
+            "bin_http_8",
+            "bin_http",
+            "bin_http_5",
+            "ident",
+            "updated_col_4",
+            "timestamp",
+            "bin_http_2",
+            "bin_http_3",
+            "bin_http_4",
+            "bin_http_9"
+        ],
+        "columnsOrder": [
+            "timestamp",
+            "bin_http",
+            "bin_http_2",
+            "bin_http_3",
+            "bin_http_4",
+            "bin_http_5",
+            "bin_http_6",
+            "bin_http_7",
+            "bin_http_8",
+            "bin_http_9",
+            "updated_col_4",
+            "ident"
+        ]
+     }
+ }
+ 

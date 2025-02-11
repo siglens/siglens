@@ -39,8 +39,7 @@ const (
 	RAW SearchTypeEnum = iota
 	PQS
 	STREE
-	GRPC_ROTATED
-	GRPC_UNROTATED
+	REMOTE
 )
 
 type QueryType int
@@ -116,8 +115,7 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 	allQuerySummaries[RAW] = rawSearchTypeSummary
 	allQuerySummaries[PQS] = pqsSearchTypeSummary
 	allQuerySummaries[STREE] = agileTreeSearchTypeSummary
-	allQuerySummaries[GRPC_ROTATED] = &searchTypeSummary{}
-	allQuerySummaries[GRPC_UNROTATED] = &searchTypeSummary{}
+	allQuerySummaries[REMOTE] = &searchTypeSummary{}
 
 	qs := &QuerySummary{
 		queryType:           queryType,
@@ -501,7 +499,7 @@ func (qs *QuerySummary) getNumRecordsMatchedMinMax(searchType SearchTypeEnum) (u
 	return minPerSegment, maxPerSegment
 }
 
-func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, containsKibana bool, orgid uint64) {
+func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, containsKibana bool, orgid int64) {
 
 	sort.Slice(qs.metadataSummary.allTimes, func(i, j int) bool {
 		return qs.metadataSummary.allTimes[i] < qs.metadataSummary.allTimes[j]
@@ -526,8 +524,8 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 
 	if !containsKibana {
 		instrumentation.SetQueryLatencyMs(int64(qs.getQueryTotalTime()/1_000_000), "pqid", pqid)
-		instrumentation.SetEventsSearchedGauge(int64(qs.getTotNumRecordsSearched()))
-		instrumentation.SetEventsMatchedGauge(int64(qs.getTotNumRecordsMatched()))
+		instrumentation.SetTotalEventsSearched(int64(qs.getTotNumRecordsSearched()))
+		instrumentation.SetTotalEventsMatched(int64(qs.getTotNumRecordsMatched()))
 	}
 
 	if len(qs.allQuerySummaries[RAW].searchTimeHistory) <= 25 {
@@ -588,19 +586,16 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 	if qs.totalDistributedQueries > 0 {
 		log.Warnf("qid=%d, pqid %v, QuerySummary: Distributed: Sent %d requests numRemoteMatched: %v, numRecsSearced: %v",
 			qs.qid, pqid, qs.totalDistributedQueries, qs.remoteRecordsMatched, qs.remoteRecordsSearched)
-		log.Warnf("qid=%d, pqid %v, QuerySummary: Unrotated.GRPC Search times: min (%+vms) max (%+vms) p95 (%+vms), numGRPCs: %v",
-			qs.qid, pqid, qs.getMinSearchTime(GRPC_UNROTATED), qs.getMaxSearchTime(GRPC_UNROTATED),
-			qs.getPercentileTime(95, GRPC_UNROTATED), qs.getNumFilesSearched(GRPC_UNROTATED))
-		log.Warnf("qid=%d, pqid %v, QuerySummary: Rotated.GRPC Search times: min (%+vms) max (%+vms) p95 (%+vms), numGRPCs: %v",
-			qs.qid, pqid, qs.getMinSearchTime(GRPC_ROTATED), qs.getMaxSearchTime(GRPC_ROTATED),
-			qs.getPercentileTime(95, GRPC_ROTATED), qs.getNumFilesSearched(GRPC_ROTATED))
+		log.Warnf("qid=%d, pqid %v, QuerySummary: Remote Search times: min (%+vms) max (%+vms) p95 (%+vms), numGRPCs: %v",
+			qs.qid, pqid, qs.getMinSearchTime(REMOTE), qs.getMaxSearchTime(REMOTE),
+			qs.getPercentileTime(95, REMOTE), qs.getNumFilesSearched(REMOTE))
 	}
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)
 	qs.stopTicker()
 }
 
-func (qs *QuerySummary) LogMetricsQuerySummary(orgid uint64) {
+func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
 	log.Warnf("qid=%d, MetricsQuerySummary: Finished in %+vms time. Searched a total of %+v TSIDs. Total number of series searched=%+v. Returned number of series=%+v",
 		qs.qid, time.Since(qs.startTime).Milliseconds(), qs.getNumTSIDsMatched(), qs.getNumSeriesSearched(), qs.getNumResultSeries())
 	log.Warnf("qid=%d, MetricsQuerySummary: Time taken to get rotated search requests=%+vms. Time taken to get unrotated search requests=%+vms. Total number of metrics segments searched=%+v.",

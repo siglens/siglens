@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -63,12 +64,12 @@ func AddMetricsMetaEntry(entry *structs.MetricsMeta) error {
 
 	rawMeta, err := json.Marshal(entry)
 	if err != nil {
-		log.Errorf("AddMetricsMetaEntry: failed to Marshal: err=%v", err)
+		log.Errorf("AddMetricsMetaEntry: failed to Marshal: err=%v JSON: %v", err, entry)
 		return err
 	}
 
 	if _, err := fd.Write(rawMeta); err != nil {
-		log.Errorf("AddMetricsMetaEntry: failed to write segmeta filename=%v: err=%v", localMetricsMeta, err)
+		log.Errorf("AddMetricsMetaEntry: failed to write segmeta err=%v filename=%v rawMeta=%v", err, localMetricsMeta, rawMeta)
 		return err
 	}
 
@@ -97,7 +98,7 @@ func ReadMetricsMeta(mmeta string) (map[string]*structs.MetricsMeta, error) {
 		if os.IsNotExist(err) {
 			return map[string]*structs.MetricsMeta{}, nil
 		}
-		log.Errorf("GetLocalMetricsMetaEntries: failed to open filename=%v: err=%v", mmeta, err)
+		log.Errorf("ReadMetricsMeta: failed to open filename=%v: err=%v", mmeta, err)
 		return nil, err
 	}
 
@@ -110,21 +111,24 @@ func ReadMetricsMeta(mmeta string) (map[string]*structs.MetricsMeta, error) {
 		var mMeta structs.MetricsMeta
 		err := json.Unmarshal(rawbytes, &mMeta)
 		if err != nil {
-			log.Errorf("GetLocalMetricsMetaEntries: Cannot unmarshal data = %v, err= %v", string(rawbytes), err)
+			log.Errorf("ReadMetricsMeta: Cannot unmarshal data = %v, err= %v", string(rawbytes), err)
 			continue
 		}
 		retVal[mMeta.MSegmentDir] = &mMeta
+	}
+	if err := scanner.Err(); err != nil {
+		return retVal, utils.TeeErrorf("ReadMetricsMeta: Error while scanning file: %v, err: %v", mmeta, err)
 	}
 
 	return retVal, nil
 }
 
 // includes remote metrics meta entries
-func GetAllMetricsMetaEntries(orgid uint64) (map[string]*structs.MetricsMeta, error) {
+func GetAllMetricsMetaEntries(orgid int64) (map[string]*structs.MetricsMeta, error) {
 	nDir := config.GetIngestNodeBaseDir()
 	files, err := os.ReadDir(nDir)
 	if err != nil {
-		log.Errorf("ReadAllSegmetas: read dir err=%v ", err)
+		log.Errorf("GetAllMetricsMetaEntries: Failed to read directory. Directory: %v, Error: %v", nDir, err)
 		return make(map[string]*structs.MetricsMeta, 0), nil
 	}
 
@@ -148,7 +152,7 @@ func GetAllMetricsMetaEntries(orgid uint64) (map[string]*structs.MetricsMeta, er
 	for _, fName := range allSegmetas {
 		mMetas, err := ReadMetricsMeta(fName)
 		if err != nil {
-			log.Errorf("ReadAllSegmetas: read segmeta err=%v ", err)
+			log.Errorf("GetAllMetricsMetaEntries: Failed to read MetricsMeta. File: %v, Error: %v", fName, err)
 			continue
 		}
 
@@ -213,6 +217,9 @@ func removeMetricsSegmentsByList(metricsMetaFile string, metricsSegmentsToDelete
 			tagsTreeToDelete[metricSegmentMeta.TTreeDir] = true
 		}
 	}
+	if err := reader.Err(); err != nil {
+		log.Errorf("removeMetricsSegmentsByList: Error while scanning file: %v, err: %v", metricsMetaFile, err)
+	}
 	if entriesRemoved > 0 {
 		// if we removed entries and there was nothing preserved then we must delete this metrics meta file
 		if len(preservedEntries) == 0 {
@@ -233,17 +240,17 @@ func removeMetricsSegmentsByList(metricsMetaFile string, metricsSegmentsToDelete
 
 				msegjson, err := json.Marshal(*mentry)
 				if err != nil {
-					log.Errorf("removeMetricsSegmentsByList: failed to Marshal: err=%v", err)
+					log.Errorf("removeMetricsSegmentsByList: failed to Marshal. Metrics Entry: %v, Error: %v", *mentry, err)
 					return
 				}
 
 				if _, err := wfd.Write(msegjson); err != nil {
-					log.Errorf("removeMetricsSegmentsByList: failed to write metrics meta filename=%v: err=%v", metricsMetaFile, err)
+					log.Errorf("removeMetricsSegmentsByList: failed to write metrics meta. Filename: %v, JSON: %s, Error: %v", metricsMetaFile, msegjson, err)
 					return
 				}
 
 				if _, err := wfd.WriteString("\n"); err != nil {
-					log.Errorf("removeMetricsSegmentsByList: failed to write new line to metrics meta filename=%v: err=%v", metricsMetaFile, err)
+					log.Errorf("removeMetricsSegmentsByList: failed to write new line to metrics meta. Filename: %v, Error: %v", metricsMetaFile, err)
 					return
 				}
 			}

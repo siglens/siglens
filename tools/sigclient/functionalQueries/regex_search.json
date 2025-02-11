@@ -1,0 +1,53 @@
+{
+    "queryText": "search batch=batch-5 | regex city=\"^[A-L][a-z]+\\s[a-zA-Z]+$\" | regex http_method=\"P.+T\" | regex http_method!=\"P.+H\" | fields app_name, city, ident, http_method, batch, http_status",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 2,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["ident"],
+         "records": [
+            {
+                "_index": "ind-1",
+                "app_name": "Oxopen",
+                "batch": "batch-5",
+                "city": "Las Vegas",
+                "http_method": "PUT",
+                "http_status": 301,
+                "ident": "d4166f49-a96c-4ac4-bf5a-2a4bb461587b",
+                "timestamp": 1728486093560
+            },
+            {
+                "_index": "ind-3",
+                "app_name": "Crimsontroop",
+                "batch": "batch-5",
+                "city": "Long Beach",
+                "http_method": "POST",
+                "http_status": 200,
+                "ident": "d29731cb-9a5f-47b7-b893-34d73a3b32ba",
+                "timestamp": 1728486084817
+            }
+        ],
+        "allColumns":  [
+            "app_name",
+            "city",
+            "ident",
+            "http_method",
+            "batch",
+            "http_status",
+            "_index",
+            "timestamp"
+        ],
+        "columnsOrder": [
+            "app_name",
+            "city",
+            "ident",
+            "http_method",
+            "batch",
+            "http_status",
+            "_index",
+            "timestamp"
+        ]    
+    }
+}

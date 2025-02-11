@@ -24,13 +24,14 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	esutils "github.com/siglens/siglens/pkg/es/utils"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ExpandAndReturnIndexNames(t *testing.T) {
-	config.InitializeDefaultConfig()
-	_ = vtable.InitVTable()
+	config.InitializeDefaultConfig(t.TempDir())
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	vTableBaseDir := "vtabbase/"
 	vTableMappingsDir := "vtabbase/mappings/"

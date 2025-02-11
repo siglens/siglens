@@ -1,0 +1,61 @@
+{
+    "queryText": "_index=ind-0 | search  city=boston group=\"group 0\" user_agent=Mozilla*Windows* http_status=200 latency!=0 hobby!=\"Acting\" AND hobby!=\"Walking\" AND hobby!=\"*k.ing*\" AND hobby!=\"*gg*\"| eval hobby_http = hobby+\"@\"+http_method | stats count as cnt by hobby_http | sort -cnt | where cnt > 1 | sort hobby_http",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 19,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "cnt": 2,
+                "hobby_http": "Air sports@PATCH"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Bowling@GET"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Boxing@PUT"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Cabaret@PUT"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Coin collecting@GET"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Coloring@HEAD"
+            },
+            {
+                "cnt": 3,
+                "hobby_http": "Creative writing@DELETE"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Cryptography@POST"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Dolls@POST"
+            },
+            {
+                "cnt": 2,
+                "hobby_http": "Hacking@PATCH"
+            }
+        ],
+        "allColumns": [
+            "hobby_http",
+            "cnt"
+        ],
+        "columnsOrder": [
+            "cnt",
+            "hobby_http"
+        ]
+    }
+}
+  

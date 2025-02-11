@@ -1,0 +1,125 @@
+{
+    "queryText": "(city=boston AND ((NOT country!=INDIA) OR ((http_status > 404) AND latency <= 397119))) AND gender != fe* AND (first_name != CASE(CALE)) | fields ident, http_status, city, country, latency, gender, first_name",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 100,
+             "relation": "gte"
+         },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "city": "Boston",
+                "country": "Russian Federation",
+                "first_name": "Arlene",
+                "gender": "male",
+                "http_status": 500,
+                "ident": "c0981dfa-33c4-4a90-b258-135d21a832d5",
+                "latency": 372726
+            },
+            {
+                "city": "Boston",
+                "country": "Singapore",
+                "first_name": "Craig",
+                "gender": "male",
+                "http_status": 500,
+                "ident": "2572b413-e44e-4289-a716-447ca86af672",
+                "latency": 397119
+            },
+            {
+                "city": "Boston",
+                "country": "India",
+                "first_name": "Adelia",
+                "gender": "male",
+                "http_status": 404,
+                "ident": "6b4e6fe3-54b9-4c75-9762-216fccb61453",
+                "latency": 8123493
+            },
+            {
+                "city": "Boston",
+                "country": "India",
+                "first_name": "Kenny",
+                "gender": "male",
+                "http_status": 500,
+                "ident": "92abe5cf-fbe8-435b-9c0b-0137650c20cd",
+                "latency": 1287338
+            },
+            {
+                "city": "Boston",
+                "country": "Guyana",
+                "first_name": "Citlalli",
+                "gender": "male",
+                "http_status": 500,
+                "ident": "79472fb9-f24b-4812-9c72-006497b4a1c2",
+                "latency": 246346
+            },
+            {
+                "city": "Boston",
+                "country": "India",
+                "first_name": "Terry",
+                "gender": "male",
+                "http_status": 200,
+                "ident": "3f0f8dca-ac33-4156-a575-437a59c38f3e",
+                "latency": 1787108
+            },
+            {
+                "city": "Boston",
+                "country": "India",
+                "first_name": "Isabell",
+                "gender": "male",
+                "http_status": 400,
+                "ident": "ac4863e7-ac37-4464-95da-2e4d29aee2f7",
+                "latency": 4291012
+            },
+            {
+                "city": "Boston",
+                "country": "Svalbard and Jan Mayen",
+                "first_name": "Ellen",
+                "gender": "male",
+                "http_status": 500,
+                "ident": "47cebb0f-7aea-47f4-8d26-ab8294130219",
+                "latency": 178026
+            },
+            {
+                "city": "Boston",
+                "country": "India",
+                "first_name": "Cale",
+                "gender": "male",
+                "http_status": 400,
+                "ident": "35e4a10b-a365-415b-8673-55e12dc50c5b",
+                "latency": 3077507
+            },
+            {
+                "city": "Boston",
+                "country": "India",
+                "first_name": "Agustin",
+                "gender": "male",
+                "http_status": 404,
+                "ident": "66d97999-a261-40f7-95c8-311e70b64286",
+                "latency": 2077232
+            }
+        ],
+         "allColumns": [
+            "ident",
+            "http_status",
+            "city",
+            "country",
+            "latency",
+            "gender",
+            "first_name",
+            "_index",
+            "timestamp"
+        ],
+         "columnsOrder": [
+            "ident",
+            "http_status",
+            "city",
+            "country",
+            "latency",
+            "gender",
+            "first_name",
+            "_index",
+            "timestamp"
+        ]
+     }
+ }
+ 

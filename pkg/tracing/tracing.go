@@ -44,20 +44,20 @@ type customExporter struct {
 
 func (ce *customExporter) disableTracingTemporarily(ctx context.Context, serviceName string) {
 	fmt.Println("Disabling tracing due to repeated export failures.")
-	log.Errorf("Disabling tracing due to repeated export failures.")
+	log.Errorf("disableTracingTemporarily: Disabling tracing due to repeated export failures.")
 
 	// Disable tracing immediately
 	config.SetTracingEnabled(false)
 	otel.SetTracerProvider(traceNoop.NewTracerProvider())
 
 	if shutdownErr := ce.Shutdown(ctx); shutdownErr != nil {
-		log.Errorf("Failed to shut down the tracer provider: %v", shutdownErr)
+		log.Errorf("disableTracingTemporarily: Failed to shut down the tracer provider: %v", shutdownErr)
 	}
 
 	// Start a timer to re-enable tracing after one hour
 	time.AfterFunc(1*time.Hour, func() {
 		fmt.Println("Attempting to re-enable tracing...")
-		log.Info("Attempting to re-enable tracing...")
+		log.Info("disableTracingTemporarily: Attempting to re-enable tracing...")
 		// Re-enable tracing
 		config.SetTracingEnabled(true)
 		// Re-initialize tracing
@@ -87,7 +87,7 @@ func (ce *customExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnl
 
 	if err != nil {
 		ce.failureCount++
-		log.Errorf("Traces export failed: %v", err)
+		log.Errorf("ExportSpans: Traces export failed: %v", err)
 
 		// Check if the failure threshold is exceeded.
 		if ce.failureCount >= 3 {
@@ -111,12 +111,12 @@ func InitTracing(serviceName string) func() {
 	}
 
 	if serviceName == "" {
-		log.Errorf("Service name was not provided in config, assuming a default service name as siglens")
+		log.Warnf("InitTracing: Service name was not provided in config, assuming a default service name as siglens")
 		serviceName = "siglens"
 	}
 
 	if config.GetTracingEndpoint() == "" {
-		log.Errorf("Tracing endpoint is required to initialize tracing. Disabling tracing. Please set the endpoint in the config file.")
+		log.Errorf("InitTracing: Tracing endpoint is required to initialize tracing. Disabling tracing. Please set the endpoint in the config file.")
 		config.SetTracingEnabled(false)
 		return func() {}
 	}
@@ -129,7 +129,7 @@ func InitTracing(serviceName string) func() {
 
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
-		log.Errorf("Failed to create the trace exporter: %v", err)
+		log.Errorf("InitTracing: Failed to create the trace exporter: %v", err)
 	}
 
 	customExporter := &customExporter{
@@ -142,7 +142,7 @@ func InitTracing(serviceName string) func() {
 		),
 	)
 	if err != nil {
-		log.Errorf("Failed to create resource: %v", err)
+		log.Errorf("InitTracing: Failed to create resource: %v", err)
 	}
 
 	tp := trace.NewTracerProvider(
@@ -155,7 +155,7 @@ func InitTracing(serviceName string) func() {
 
 	return func() {
 		if err := tp.Shutdown(ctx); err != nil {
-			log.Errorf("Failed to shut down tracer provider: %v", err)
+			log.Errorf("InitTracing: Shutdown: Failed to shut down tracer provider: %v", err)
 		}
 	}
 }

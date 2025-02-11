@@ -20,10 +20,12 @@ package config
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
+	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -39,10 +41,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const MINUTES_REREAD_CONFIG = 15
+type ValuesRangeConfig struct {
+	Min     int
+	Max     int
+	Default int
+}
+
+const MINUTES_REREAD_CONFIG = 2
 const RunModFilePath = "data/common/runmod.cfg"
 
 const SIZE_8GB_IN_MB = uint64(8192)
+
+// How memory is split for rotated info. These should sum to 100.
+const DEFAULT_ROTATED_CMI_MEM_PERCENT = 48
+const DEFAULT_METADATA_MEM_PERCENT = 20
+const DEFAULT_SEG_SEARCH_MEM_PERCENT = 30 // minimum percent allocated for segsearch
+const DEFAULT_METRICS_MEM_PERCENT = 2
+const DEFAULT_BYTES_PER_QUERY = 200 * 1024 * 1024 // 200MB
+
+const DEFAULT_MAX_ALLOWED_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
@@ -51,35 +68,307 @@ var configFilePath string
 
 var parallelism int64
 
+const cgroupV1MaxMemoryPath = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+const cgroupV2MaxMemoryPath = "/sys/fs/cgroup/memory.max"
+
+const cgroupV1UsageMemoryPath = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+const cgroupV2UsageMemoryPath = "/sys/fs/cgroup/memory.current"
+
+type memoryValueType uint8
+
+const (
+	memoryValueMax memoryValueType = iota + 1
+	memoryValueUsage
+)
+
+type cgroupVersion uint8
+
+const (
+	noCgroupVersion cgroupVersion = iota
+	cgroupVersion1
+	cgroupVersion2
+)
+
+var cgroupVersionDetected cgroupVersion
+
+var memoryFilePaths struct {
+	MaxPaths   []string
+	UsagePaths []string
+}
+
+var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
+var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
+
 var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
+
+const (
+	MIN_QUERY_TIMEOUT_SECONDS = 60   // 1 minute
+	MAX_QUERY_TIMEOUT_SECONDS = 1800 // 30 minutes
+	DEFAULT_TIMEOUT_SECONDS   = 300  // 5 minutes
+)
 
 func init() {
 	parallelism = int64(runtime.GOMAXPROCS(0))
 	if parallelism <= 1 {
 		parallelism = 2
 	}
+
+	cgroupVersionDetected = detectCgroupVersion()
+	initMemoryPaths()
 }
 
-func GetTotalMemoryAvailable() uint64 {
+func detectCgroupVersion() cgroupVersion {
+	// Detect non-Linux OS
+	if runtime.GOOS != "linux" {
+		log.Infof("Non-Linux OS detected. Assuming no cgroup support.")
+		return noCgroupVersion
+	}
+
+	data, err := os.ReadFile("/proc/mounts")
+	if err != nil {
+		log.Warnf("detectCgroupVersion: Error reading /proc/mounts: %v", err)
+	} else {
+		if strings.Contains(string(data), " cgroup2 ") {
+			log.Infof("detectCgroupVersion: Detected cgroup v2")
+			return cgroupVersion2
+		}
+
+		if strings.Contains(string(data), " cgroup ") {
+			log.Infof("detectCgroupVersion: Detected cgroup v1 through /proc/mounts")
+			return cgroupVersion1
+		}
+	}
+
+	data, err = os.ReadFile("/proc/self/cgroup")
+	if err == nil && strings.Contains(string(data), ":memory:") {
+		log.Infof("detectCgroupVersion: Detected cgroup v1 through /proc/self/cgroup")
+		return cgroupVersion1
+	}
+
+	log.Warn("detectCgroupVersion: Unable to detect cgroup version")
+	return noCgroupVersion
+}
+
+// Detect whether the system is using cgroup v2
+func isCgroupVersion2() bool {
+	return cgroupVersionDetected == cgroupVersion2
+}
+
+func initMemoryPaths() {
+	switch cgroupVersionDetected {
+	case noCgroupVersion:
+		return
+	case cgroupVersion2:
+		memoryFilePaths.MaxPaths = []string{cgroupV2MaxMemoryPath}
+		memoryFilePaths.UsagePaths = []string{cgroupV2UsageMemoryPath}
+	case cgroupVersion1:
+		memoryFilePaths.MaxPaths = []string{cgroupV1MaxMemoryPath}
+		memoryFilePaths.UsagePaths = []string{cgroupV1UsageMemoryPath}
+	}
+
+	if isRunningInKubernetes() {
+		// Add Kubernetes-specific paths
+		memoryFilePaths.MaxPaths = append(memoryFilePaths.MaxPaths,
+			"/sys/fs/cgroup/kubepods/memory.max",                 // Kubernetes cgroup v2
+			"/sys/fs/cgroup/kubepods.slice/memory.max",           // Kubernetes cgroup v2 with systemd
+			"/sys/fs/cgroup/kubepods/burstable/memory.max",       // Kubernetes burstable v2
+			"/sys/fs/cgroup/kubepods/burstable.slice/memory.max", // Kubernetes burstable v2 with systemd
+		)
+
+		memoryFilePaths.UsagePaths = append(memoryFilePaths.UsagePaths,
+			"/sys/fs/cgroup/kubepods/memory.current",                 // Kubernetes cgroup v2
+			"/sys/fs/cgroup/kubepods.slice/memory.current",           // Kubernetes cgroup v2 with systemd
+			"/sys/fs/cgroup/kubepods/burstable/memory.current",       // Kubernetes burstable v2
+			"/sys/fs/cgroup/kubepods/burstable.slice/memory.current", // Kubernetes burstable v2 with systemd
+		)
+	}
+}
+
+func isRunningInKubernetes() bool {
+	// Check Kubernetes environment variables
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" && os.Getenv("KUBERNETES_SERVICE_PORT") != "" {
+		return true
+	}
+
+	// Check ServiceAccount token file
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount/token"); err == nil {
+		return true
+	}
+
+	return false
+}
+
+// Detect dynamic cgroup path (Kubernetes/Docker support)
+func detectCgroupPath(basePath string) string {
+	isCgroupV2 := isCgroupVersion2()
+	data, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return basePath // Fallback to static path
+	}
+
+	// Example content of /proc/self/cgroup:
+	// 11:memory:/kubepods.slice/kubepods-burstable.slice/pod1234
+	// 10:cpuset:/kubepods.slice/kubepods-burstable.slice/pod1234
+	// ...
+
+	// Split the data into lines
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		// <hierarchy-ID>:<subsystem>:<cgroup-path>
+		parts := strings.Split(line, ":")
+		if len(parts) < 3 {
+			continue
+		}
+
+		// Example:
+		// parts[0] = "11"       // hierarchy ID
+		// parts[1] = "memory"   // subsystem
+		// parts[2] = "/kubepods.slice/kubepods-burstable.slice/pod1234" // cgroup path
+
+		// Check if it's a memory cgroup or a unified hierarchy (cgroup v2)
+		if isCgroupV2 || strings.Contains(parts[1], "memory") {
+			cgroupPath := strings.TrimSpace(parts[2])
+			if cgroupPath == "/" { // Root path
+				return basePath
+			}
+
+			// Build dynamic path by replacing the base directory
+			newPath := fmt.Sprintf("/sys/fs/cgroup%s/%s", cgroupPath, path.Base(basePath))
+			if _, err := os.Stat(newPath); err == nil { // Check if path exists
+				return newPath
+			}
+
+			// Check one level deeper (common in Kubernetes)
+			nestedPath := fmt.Sprintf("/sys/fs/cgroup%s/%s", cgroupPath, path.Base(path.Dir(basePath)))
+			if _, err := os.Stat(nestedPath); err == nil {
+				return nestedPath
+			}
+		}
+	}
+
+	return basePath
+}
+
+func getContainerMemory(memoryValueType memoryValueType) (uint64, error) {
+	if cgroupVersionDetected == noCgroupVersion {
+		return 0, fmt.Errorf("getContainerMemory: Cgroup version not detected")
+	}
+
+	var memFilePaths []string
+
+	switch memoryValueType {
+	case memoryValueMax:
+		memFilePaths = memoryFilePaths.MaxPaths
+	case memoryValueUsage:
+		memFilePaths = memoryFilePaths.UsagePaths
+	default:
+		return 0, fmt.Errorf("getContainerMemory: Invalid memoryValueType: %v", memoryValueType)
+	}
+
+	resolvedPath := detectCgroupPath(memFilePaths[0])
+	if resolvedPath != memFilePaths[0] {
+		log.Infof("getContainerMemory: Detected dynamic cgroup path: %v", resolvedPath)
+		memFilePaths = append([]string{resolvedPath}, memFilePaths...)
+	}
+
+	var memory uint64
+
+	for _, path := range memFilePaths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return 0, err
+			}
+			continue
+		}
+
+		memory, err = strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("getContainerMemory: Error while converting memory limit: %v to uint64", string(data))
+		}
+
+		log.Infof("getContainerMemory: Fetching memory from cgroup file: %v", path)
+
+		break
+	}
+
+	if memory == 0 {
+		return 0, fmt.Errorf("getContainerMemory: Memory limit not found")
+	}
+
+	return memory, nil
+}
+
+func GetTotalMemoryAvailableToUse() uint64 {
 	var gogc uint64
 	v := os.Getenv("GOGC")
 	if v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			log.Error("Error while converting gogc to int")
+			log.Errorf("GetTotalMemoryAvailableToUse: Error while converting gogc: %v to int", v)
 			n = 100
 		}
 		gogc = uint64(n)
 	} else {
 		gogc = 100
 	}
-	hostMemory := memory.TotalMemory() * runningConfig.MemoryThresholdPercent / 100
-	allowedMemory := hostMemory / (1 + gogc/100)
-	log.Infof("GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
-		runningConfig.MemoryThresholdPercent,
-		segutils.ConvertUintBytesToMB(memory.TotalMemory()),
+
+	totalMemoryOnHost := getMaxMemoryAllowedToUseInBytesFromConfig()
+	if totalMemoryOnHost == 0 {
+		totalMemoryOnHost = GetMemoryMax()
+	} else {
+		log.Infof("GetTotalMemoryAvailableToUse: Using the total memory value set in the config. Memory: %v MB", segutils.ConvertUintBytesToMB(totalMemoryOnHost))
+	}
+
+	configuredMemory := totalMemoryOnHost * runningConfig.MemoryConfig.MaxUsagePercent / 100
+	allowedMemory := configuredMemory / (1 + gogc/100)
+	log.Infof("GetTotalMemoryAvailableToUse: GOGC: %+v, MemThresholdPerc: %v, HostRAM: %+v MB, RamAllowedToUse: %v MB", gogc,
+		runningConfig.MemoryConfig.MaxUsagePercent,
+		segutils.ConvertUintBytesToMB(totalMemoryOnHost),
 		segutils.ConvertUintBytesToMB(allowedMemory))
 	return allowedMemory
+}
+
+func GetMemoryMax() uint64 {
+	var memoryMax uint64
+
+	// try to get the memory from the cgroup
+	memoryMax, err := getContainerMemory(memoryValueMax)
+	if err != nil {
+		log.Warnf("GetMemoryMax: Error while getting memory from cgroup: %v", err)
+		// if we can't get the memory from the cgroup, get it from the OS
+		memoryMax = memory.TotalMemory()
+		log.Infof("GetMemoryMax: Memory from the Host in MB: %v", segutils.ConvertUintBytesToMB(memoryMax))
+	} else {
+		log.Infof("GetMemoryMax: Memory from cgroup in MB: %v", segutils.ConvertUintBytesToMB(memoryMax))
+	}
+
+	return memoryMax
+}
+
+func GetContainerMemoryUsage() (uint64, error) {
+	var memoryInUse uint64
+
+	// try to get the memory from the cgroup
+	memoryInUse, err := getContainerMemory(memoryValueUsage)
+	if err != nil {
+		log.Debugf("GetContainerMemoryUsage: Error while getting memory from cgroup: %v", err)
+		return 0, err
+	}
+
+	return memoryInUse, nil
+}
+
+func GetMemoryConfig() common.MemoryConfig {
+	return runningConfig.MemoryConfig
+}
+
+func getMaxMemoryAllowedToUseInBytesFromConfig() uint64 {
+	return runningConfig.MemoryConfig.MaxMemoryAllowedToUseInBytes
+}
+
+func GetMaxAllowedColumns() uint64 {
+	return runningConfig.MaxAllowedColumns
 }
 
 /*
@@ -99,10 +388,6 @@ func GetRunningConfig() *common.Configuration {
 
 func GetSSInstanceName() string {
 	return runningConfig.SSInstanceName
-}
-
-func GetEventTypeKeywords() *[]string {
-	return &runningConfig.EventTypeKeywords
 }
 
 func GetRetentionHours() int {
@@ -137,8 +422,8 @@ func GetS3BucketPrefix() string {
 	return runningConfig.S3.BucketPrefix
 }
 
-func GetMaxSegFileSize() *uint64 {
-	return &runningConfig.MaxSegFileSize
+func GetMaxSegFileSize() uint64 {
+	return runningConfig.MaxSegFileSize
 }
 
 func GetESVersion() *string {
@@ -173,6 +458,10 @@ func GetDataPath() string {
 	return runningConfig.DataPath
 }
 
+func GetLookupPath() string {
+	return runningConfig.DataPath + "lookups/"
+}
+
 // returns if tls is enabled
 func IsTlsEnabled() bool {
 	return runningConfig.TLS.Enabled
@@ -186,6 +475,10 @@ func GetTLSCertificatePath() string {
 // returns the configured private key path
 func GetTLSPrivateKeyPath() string {
 	return runningConfig.TLS.PrivateKeyPath
+}
+
+func ShouldCompressStaticFiles() bool {
+	return runningConfig.CompressStaticConverted
 }
 
 // used by
@@ -230,7 +523,12 @@ func GetUIDomain() string {
 	if hostname == "" {
 		return "localhost"
 	} else {
-		return hostname
+		host, _, err := net.SplitHostPort(hostname)
+		if err != nil {
+			log.Errorf("GetUIDomain: Failed to parse QueryHostname: %v, err: %v", hostname, err)
+			return hostname
+		}
+		return host
 	}
 }
 
@@ -246,12 +544,20 @@ func IsDebugMode() bool {
 	return runningConfig.Debug
 }
 
+func IsPProfEnabled() bool {
+	return runningConfig.PProfEnabledConverted
+}
+
 func IsPQSEnabled() bool {
 	return runningConfig.PQSEnabledConverted
 }
 
 func IsAggregationsEnabled() bool {
 	return runningConfig.AgileAggsEnabledConverted
+}
+
+func IsDualCaseCheckEnabled() bool {
+	return runningConfig.DualCaseCheckConverted
 }
 
 func SetAggregationsFlag(enabled bool) {
@@ -275,12 +581,12 @@ func GetRunningConfigAsJsonStr() (string, error) {
 	return buffer.String(), err
 }
 
-func GetSegFlushIntervalSecs() int {
-	if runningConfig.SegFlushIntervalSecs > 600 {
-		log.Errorf("GetSegFlushIntervalSecs:SegFlushIntervalSecs cannot be more than 10 mins")
-		runningConfig.SegFlushIntervalSecs = 600
-	}
-	return runningConfig.SegFlushIntervalSecs
+func GetIdleWipFlushIntervalSecs() int {
+	return runningConfig.IdleWipFlushIntervalSecs
+}
+
+func GetMaxWaitWipFlushIntervalSecs() int {
+	return runningConfig.MaxWaitWipFlushIntervalSecs
 }
 
 func GetTimeStampKey() string {
@@ -301,6 +607,20 @@ func GetMaxParallelS3IngestBuffers() uint64 {
 	return runningConfig.MaxParallelS3IngestBuffers
 }
 
+func IsNewQueryPipelineEnabled() bool {
+	// TODO: when we fully switch to the new pipeline, we can delete this function.
+	return runningConfig.UseNewPipelineConverted
+}
+
+func SetNewQueryPipelineEnabled(enabled bool) {
+	// TODO: when we fully switch to the new pipeline, we can delete this function.
+	runningConfig.UseNewPipelineConverted = enabled
+}
+
+func IsLowMemoryModeEnabled() bool {
+	return runningConfig.MemoryConfig.LowMemoryMode.Value()
+}
+
 // returns a map of s3 config
 func GetS3ConfigMap() map[string]interface{} {
 	data, err := json.Marshal(runningConfig.S3)
@@ -316,10 +636,17 @@ func GetS3ConfigMap() map[string]interface{} {
 	return newMap
 }
 
+func getServerYamlConfig() common.RunModConfig {
+	return common.RunModConfig{
+		QueryTimeoutSecs: runningConfig.QueryTimeoutSecs,
+		PQSEnabled:       runningConfig.PQSEnabledConverted,
+	}
+}
+
 func IsIngestNode() bool {
 	retVal, err := strconv.ParseBool(runningConfig.IngestNode)
 	if err != nil {
-		log.Errorf("Error parsing ingest node: [%v] Err: [%+v]. Defaulting to true", runningConfig.IngestNode, err)
+		log.Errorf("IsIngestNode: Error parsing ingest node: [%v], Err: [%+v]. Defaulting to true", runningConfig.IngestNode, err)
 		return true
 	}
 	return retVal
@@ -328,23 +655,23 @@ func IsIngestNode() bool {
 func IsQueryNode() bool {
 	retVal, err := strconv.ParseBool(runningConfig.QueryNode)
 	if err != nil {
-		log.Errorf("Error parsing query node: [%v] Err: [%+v]. Defaulting to true", runningConfig.QueryNode, err)
+		log.Errorf("IsIngestNode: Error parsing query node: [%v], Err: [%+v]. Defaulting to true", runningConfig.QueryNode, err)
 		return true
 	}
 	return retVal
 }
 
-func SetEventTypeKeywords(val []string) {
-	runningConfig.EventTypeKeywords = val
-}
-
-func SetSegFlushIntervalSecs(val int) {
-	if val < 1 {
-		log.Errorf("SetSegFlushIntervalSecs : SegFlushIntervalSecs should not be less than 1s")
-		log.Infof("SetSegFlushIntervalSecs : Setting SegFlushIntervalSecs to 1 by default")
-		val = 1
+func SetIdleWipFlushIntervalSecs(val int) {
+	if val < idleWipFlushRange.Min {
+		log.Errorf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs should not be less than %vs", idleWipFlushRange.Min)
+		log.Infof("SetIdleWipFlushIntervalSecs: Setting IdleWipFlushIntervalSecs to the min allowed: %vs", idleWipFlushRange.Min)
+		val = idleWipFlushRange.Min
 	}
-	runningConfig.SegFlushIntervalSecs = val
+	if val > idleWipFlushRange.Max {
+		log.Warnf("SetIdleWipFlushIntervalSecs: IdleWipFlushIntervalSecs cannot be more than %vs. Defaulting to max allowed: %vs", idleWipFlushRange.Max, idleWipFlushRange.Max)
+		val = idleWipFlushRange.Max
+	}
+	runningConfig.IdleWipFlushIntervalSecs = val
 }
 
 func SetRetention(val int) {
@@ -395,6 +722,26 @@ func SetQueryPort(value uint64) {
 	runningConfig.QueryPort = value
 }
 
+func GetQueryTimeoutSecs() int {
+	timeout := runningConfig.QueryTimeoutSecs
+	if timeout <= 0 {
+		log.Warnf("GetQueryTimeoutSecs: Invalid timeout %d, using default %d", timeout, DEFAULT_TIMEOUT_SECONDS)
+		return DEFAULT_TIMEOUT_SECONDS
+	}
+	return timeout
+}
+
+func GetDefaultRunModConfig() common.RunModConfig {
+	return common.RunModConfig{
+		PQSEnabled:       true,
+		QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
+	}
+}
+
+func SetQueryTimeoutSecs(timeout int) {
+	runningConfig.QueryTimeoutSecs = timeout
+}
+
 func ValidateDeployment() (common.DeploymentType, error) {
 	if IsQueryNode() && IsIngestNode() {
 		if runningConfig.S3.Enabled {
@@ -402,17 +749,17 @@ func ValidateDeployment() (common.DeploymentType, error) {
 		}
 		return common.SingleNode, nil
 	}
-	return 0, fmt.Errorf("single node deployment must have both query and ingest in the same node")
+	return 0, fmt.Errorf("ValidateDeployment: single node deployment must have both query and ingest in the same node")
 }
 
 func WriteToYamlConfig() {
 	setValues, err := yaml.Marshal(&runningConfig)
 	if err != nil {
-		log.Errorf("error converting to yaml: %v", err)
+		log.Errorf("WriteToYamlConfig: error converting to yaml: %v", err)
 	}
 	err = os.WriteFile(configFilePath, setValues, 0644)
 	if err != nil {
-		log.Errorf("error writing to yaml file: %v", err)
+		log.Errorf("WriteToYamlConfig: error writing to yaml configFilePath: %v, err: %v", configFilePath, err)
 	}
 }
 
@@ -431,11 +778,11 @@ func InitConfigurationData() error {
 	var readConfig common.RunModConfig
 	readConfig, err = ReadRunModConfig(RunModFilePath)
 	if err != nil && !os.IsNotExist(err) {
-		log.Errorf("InitConfigurationData: Failed to read runmod config: %v, config: %+v", err, readConfig)
+		log.Errorf("InitConfigurationData: Failed to read runmod config err: %v, config: %+v", err, readConfig)
 	}
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
-		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		log.Errorf("InitConfigurationData: Cannot stat config file while re-reading, configFilePath: %v, err: %v", configFilePath, err)
 		return err
 	}
 	configFileLastModified = uint64(fileInfo.ModTime().UTC().Unix())
@@ -446,14 +793,18 @@ func InitConfigurationData() error {
 /*
 Use only for testing purpose, DO NOT use externally
 */
-func InitializeDefaultConfig() {
-	runningConfig = GetTestConfig()
+func InitializeDefaultConfig(dataPath string) {
+	if !strings.HasSuffix(dataPath, "/") {
+		dataPath += "/"
+	}
+
+	runningConfig = GetTestConfig(dataPath)
 	_ = InitDerivedConfig("test-uuid") // This is only used for testing
 }
 
 // To do - Currently we are assigning default value two times.. in InitializeDefaultConfig() for testing and
 // ExtractConfigData(). Do this in one time.
-func GetTestConfig() common.Configuration {
+func GetTestConfig(dataPath string) common.Configuration {
 	// *************************************
 	// THIS IS ONLY USED in TESTS, MAKE SURE:
 	// 1. set the defaults ExtractConfigData
@@ -462,87 +813,126 @@ func GetTestConfig() common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:             "0.0.0.0",
-		QueryListenIP:              "0.0.0.0",
-		IngestPort:                 8081,
-		QueryPort:                  5122,
-		IngestUrl:                  "",
-		EventTypeKeywords:          []string{"eventType"},
-		QueryNode:                  "true",
-		IngestNode:                 "true",
-		SegFlushIntervalSecs:       5,
-		DataPath:                   "data/",
-		S3:                         common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-		RetentionHours:             24 * 90,
-		TimeStampKey:               "timestamp",
-		MaxSegFileSize:             1_073_741_824,
-		LicenseKeyPath:             "./",
-		ESVersion:                  "",
-		Debug:                      false,
-		MemoryThresholdPercent:     80,
-		DataDiskThresholdPercent:   85,
-		S3IngestQueueName:          "",
-		S3IngestQueueRegion:        "",
-		S3IngestBufferSize:         1000,
-		MaxParallelS3IngestBuffers: 10,
-		SSInstanceName:             "",
-		PQSEnabled:                 "false",
-		PQSEnabledConverted:        false,
-		SafeServerStart:            false,
-		AnalyticsEnabled:           "false",
-		AnalyticsEnabledConverted:  false,
-		AgileAggsEnabled:           "true",
-		AgileAggsEnabledConverted:  true,
-		QueryHostname:              "",
-		Log:                        common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
-		TLS:                        common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
-		Tracing:                    common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
-		DatabaseConfig:             common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
-		EmailConfig:                common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		IngestListenIP:              "0.0.0.0",
+		QueryListenIP:               "0.0.0.0",
+		IngestPort:                  8081,
+		QueryPort:                   5122,
+		IngestUrl:                   "",
+		QueryNode:                   "true",
+		IngestNode:                  "true",
+		IdleWipFlushIntervalSecs:    5,
+		MaxWaitWipFlushIntervalSecs: 30,
+		DataPath:                    dataPath,
+		S3:                          common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
+		RetentionHours:              24 * 90,
+		TimeStampKey:                "timestamp",
+		MaxSegFileSize:              4_294_967_296,
+		LicenseKeyPath:              "./",
+		ESVersion:                   "",
+		Debug:                       false,
+		PProfEnabled:                "true",
+		PProfEnabledConverted:       true,
+		DataDiskThresholdPercent:    85,
+		S3IngestQueueName:           "",
+		S3IngestQueueRegion:         "",
+		S3IngestBufferSize:          1000,
+		MaxParallelS3IngestBuffers:  10,
+		SSInstanceName:              "",
+		PQSEnabled:                  "false",
+		PQSEnabledConverted:         false,
+		SafeServerStart:             false,
+		AnalyticsEnabled:            "false",
+		AnalyticsEnabledConverted:   false,
+		AgileAggsEnabled:            "true",
+		AgileAggsEnabledConverted:   true,
+		DualCaseCheck:               "false",
+		DualCaseCheckConverted:      false,
+		QueryHostname:               "",
+		Log:                         common.LogConfig{LogPrefix: "", LogFileRotationSizeMB: 100, CompressLogFile: false},
+		TLS:                         common.TLSConfig{Enabled: false, CertificatePath: "", PrivateKeyPath: ""},
+		CompressStatic:              "false",
+		CompressStaticConverted:     false,
+		Tracing:                     common.TracingConfig{ServiceName: "", Endpoint: "", SamplingPercentage: 1},
+		DatabaseConfig:              common.DatabaseConfig{Enabled: true, Provider: "sqlite"},
+		EmailConfig:                 common.EmailConfig{SmtpHost: "smtp.gmail.com", SmtpPort: 587, SenderEmail: "doe1024john@gmail.com", GmailAppPassword: " "},
+		MemoryConfig: common.MemoryConfig{
+			MaxUsagePercent: 80,
+			SearchPercent:   DEFAULT_SEG_SEARCH_MEM_PERCENT,
+			CMIPercent:      DEFAULT_ROTATED_CMI_MEM_PERCENT,
+			MetadataPercent: DEFAULT_METADATA_MEM_PERCENT,
+			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
+			BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
+		},
+		MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 	}
 
 	return testConfig
 }
 
-func InitializeTestingConfig() {
-	InitializeDefaultConfig()
-	SetDebugMode(true)
-	SetDataPath("data/")
+func InitializeTestingConfig(dataPath string) {
+	InitializeDefaultConfig(dataPath)
+	SetDebugMode(false)
 }
 
 func ReadRunModConfig(fileName string) (common.RunModConfig, error) {
 	_, err := os.Stat(fileName)
 	if os.IsNotExist(err) {
-		log.Infof("ReadRunModConfig:Config file '%s' does not exist. Awaiting user action to create it.", fileName)
+		log.Infof("ReadRunModConfig: Config file '%s' does not exist. Awaiting user action to create it.", fileName)
 		return common.RunModConfig{}, err
 	} else if err != nil {
-		log.Errorf("ReadRunModConfig:Error accessing config file '%s': %v", fileName, err)
+		log.Errorf("ReadRunModConfig: Error accessing config file: '%s', err: %v", fileName, err)
 		return common.RunModConfig{}, err
 	}
 
 	jsonData, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Errorf("ReadRunModConfig:Cannot read input fileName = %v, err=%v", fileName, err)
+		log.Errorf("ReadRunModConfig: Cannot read input file: %v, err: %v", fileName, err)
 	}
 	return ExtractReadRunModConfig(jsonData)
 }
 
 func ExtractReadRunModConfig(jsonData []byte) (common.RunModConfig, error) {
 	var runModConfig common.RunModConfig
+	// If runmod.cfg is empty, use server.yaml values
+	if len(strings.TrimSpace(string(jsonData))) == 0 {
+		log.Infof("ExtractReadRunModConfig: Empty or no runmod config, using server.yaml values")
+		return getServerYamlConfig(), nil
+	}
 	err := json.Unmarshal(jsonData, &runModConfig)
 	if err != nil {
-		log.Errorf("ExtractReadRunModConfig:Failed to parse runmod.cfg: %v", err)
+		log.Errorf("ExtractReadRunModConfig: Failed to parse runmod.cfg data: %v, err: %v", string(jsonData), err)
 		return runModConfig, err
 	}
 
-	SetPQSEnabled(runModConfig.PQSEnabled)
+	validateAndApplyConfig(&runModConfig)
 	return runModConfig, nil
+}
+
+func validateAndApplyConfig(config *common.RunModConfig) {
+	reqData := make(map[string]interface{})
+	jsonData, _ := json.Marshal(config)
+	_ = json.Unmarshal(jsonData, &reqData)
+	// Check if fields exist in runmod json
+	if _, exists := reqData["queryTimeoutSecs"]; !exists {
+		if runningConfig.QueryTimeoutSecs > DEFAULT_TIMEOUT_SECONDS {
+			config.QueryTimeoutSecs = runningConfig.QueryTimeoutSecs
+		} else {
+			config.QueryTimeoutSecs = DEFAULT_TIMEOUT_SECONDS
+		}
+	}
+
+	if _, exists := reqData["pqsEnabled"]; !exists {
+		config.PQSEnabled = runningConfig.PQSEnabledConverted
+	}
+
+	SetPQSEnabled(config.PQSEnabled)
+	SetQueryTimeoutSecs(config.QueryTimeoutSecs)
 }
 
 func ReadConfigFile(fileName string) (common.Configuration, error) {
 	yamlData, err := os.ReadFile(fileName)
 	if err != nil {
-		log.Errorf("Cannot read input fileName = %v, err=%v", fileName, err)
+		log.Errorf("ReadConfigFile: Cannot read input file: %v, err: %v", fileName, err)
 	}
 
 	if hook := hooks.GlobalHooks.ExtractConfigHook; hook != nil {
@@ -553,10 +943,14 @@ func ReadConfigFile(fileName string) (common.Configuration, error) {
 }
 
 func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
-	var config common.Configuration
+	config := common.Configuration{
+		MemoryConfig: common.MemoryConfig{
+			LowMemoryMode: utils.DefaultValue(false),
+		},
+	}
 	err := yaml.Unmarshal(yamlData, &config)
 	if err != nil {
-		log.Errorf("Error parsing yaml err=%v", err)
+		log.Errorf("ExtractConfigData: Error parsing yaml data: %v, err: %v", string(yamlData), err)
 		return config, err
 	}
 
@@ -575,11 +969,31 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.QueryPort = 5122
 	}
 
-	if len(config.EventTypeKeywords) <= 0 {
-		config.EventTypeKeywords = []string{"eventType"}
+	if config.IdleWipFlushIntervalSecs <= 0 {
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Default
 	}
-	if config.SegFlushIntervalSecs <= 0 {
-		config.SegFlushIntervalSecs = 5
+	if config.IdleWipFlushIntervalSecs < idleWipFlushRange.Min {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs should not be less than %v seconds. Defaulting to min allowed: %v seconds", idleWipFlushRange.Min, idleWipFlushRange.Min)
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Min
+	}
+	if config.IdleWipFlushIntervalSecs > idleWipFlushRange.Max {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than %v seconds. Defaulting to max allowed: %v seconds", idleWipFlushRange.Max, idleWipFlushRange.Max)
+		config.IdleWipFlushIntervalSecs = idleWipFlushRange.Max
+	}
+	if config.MaxWaitWipFlushIntervalSecs <= 0 {
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Default
+	}
+	if config.MaxWaitWipFlushIntervalSecs < maxWaitWipFlushRange.Min {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs should not be less than %v seconds. Defaulting to min allowed: %v seconds", maxWaitWipFlushRange.Min, maxWaitWipFlushRange.Min)
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Min
+	}
+	if config.MaxWaitWipFlushIntervalSecs > maxWaitWipFlushRange.Max {
+		log.Warnf("ExtractConfigData: MaxWaitWipFlushIntervalSecs cannot be more than %v seconds. Defaulting to max allowed: %v seconds", maxWaitWipFlushRange.Max, maxWaitWipFlushRange.Max)
+		config.MaxWaitWipFlushIntervalSecs = maxWaitWipFlushRange.Max
+	}
+	if config.IdleWipFlushIntervalSecs > config.MaxWaitWipFlushIntervalSecs {
+		log.Warnf("ExtractConfigData: IdleWipFlushIntervalSecs cannot be more than MaxWaitWipFlushIntervalSecs. Setting IdleWipFlushIntervalSecs to MaxWaitWipFlushIntervalSecs")
+		config.IdleWipFlushIntervalSecs = config.MaxWaitWipFlushIntervalSecs
 	}
 	if len(config.Log.LogPrefix) <= 0 {
 		config.Log.LogPrefix = ""
@@ -593,14 +1007,25 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.IngestNode = "true"
 	}
 
+	if len(config.PProfEnabled) <= 0 {
+		config.PProfEnabled = "true"
+	}
+	pprofEnabled, err := strconv.ParseBool(config.PProfEnabled)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse pprof enabled flag. Defaulting to true. Error: %v", err)
+		pprofEnabled = true
+		config.PProfEnabled = "true"
+	}
+	config.PProfEnabledConverted = pprofEnabled
+
 	if len(config.PQSEnabled) <= 0 {
-		config.PQSEnabled = "false"
+		config.PQSEnabled = "true"
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
 		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to false. Error: %v", err)
-		pqsEnabled = false
-		config.PQSEnabled = "false"
+		pqsEnabled = true
+		config.PQSEnabled = "true"
 	}
 	config.PQSEnabledConverted = pqsEnabled
 
@@ -625,6 +1050,28 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.AgileAggsEnabled = "true"
 	}
 	config.AgileAggsEnabledConverted = AgileAggsEnabled
+
+	if len(config.DualCaseCheck) <= 0 {
+		config.DualCaseCheck = "true"
+	}
+	dualCaseCheck, err := strconv.ParseBool(config.DualCaseCheck)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse DualCaseCheck flag. Defaulting to true. Error: %v", err)
+		dualCaseCheck = true
+		config.DualCaseCheck = "true"
+	}
+	config.DualCaseCheckConverted = dualCaseCheck
+
+	if len(config.UseNewQueryPipeline) <= 0 {
+		config.UseNewQueryPipeline = "true"
+	}
+	useNewPipeline, err := strconv.ParseBool(config.UseNewQueryPipeline)
+	if err != nil {
+		log.Errorf("ExtractConfigData: failed to parse UseNewQueryPipeline flag. Defaulting to true. Error: %v", err)
+		useNewPipeline = true
+		config.UseNewQueryPipeline = "true"
+	}
+	config.UseNewPipelineConverted = useNewPipeline
 
 	if len(config.DataPath) <= 0 {
 		config.DataPath = "data/"
@@ -654,7 +1101,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if config.RetentionHours == 0 || config.RetentionHours > 15*24 {
-		log.Infof("Setting to 360hrs (15 days) of retention as default...")
+		log.Infof("ExtractConfigData: Setting to 360hrs (15 days) of retention as default...")
 		config.RetentionHours = 15 * 24
 	}
 	if len(config.TimeStampKey) <= 0 {
@@ -664,7 +1111,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.LicenseKeyPath = "./"
 	}
 	if config.MaxSegFileSize <= 0 {
-		config.MaxSegFileSize = 1_073_741_824
+		config.MaxSegFileSize = 4_294_967_296
 	}
 	if len(config.ESVersion) <= 0 {
 		config.ESVersion = "6.8.20"
@@ -683,17 +1130,58 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.DataDiskThresholdPercent = 85
 	}
 
-	if segutils.ConvertUintBytesToMB(memory.TotalMemory()) < SIZE_8GB_IN_MB {
-		if config.MemoryThresholdPercent > 50 {
-			log.Infof("MemoryThresholdPercent is set to %v%% but bringing it down to 50%%", config.MemoryThresholdPercent)
-			config.MemoryThresholdPercent = 50
-		} else if config.MemoryThresholdPercent == 0 {
-			config.MemoryThresholdPercent = 50
+	memoryLimits := config.MemoryConfig
+	totalMemory := memory.TotalMemory()
+
+	if memoryLimits.MaxMemoryAllowedToUseInBytes > totalMemory {
+		log.Warnf("ExtractConfigData: MaxMemoryAllowedToUseInBytes is set to %v, greater than host memory: %v. setting it to host memory",
+			memoryLimits.MaxMemoryAllowedToUseInBytes, totalMemory)
+		memoryLimits.MaxMemoryAllowedToUseInBytes = totalMemory
+	}
+
+	if segutils.ConvertUintBytesToMB(totalMemory) < SIZE_8GB_IN_MB {
+		if memoryLimits.MaxUsagePercent > 50 {
+			log.Infof("ExtractConfigData: MaxUsagePercent is set to %v%% but bringing it down to 50%%", memoryLimits.MaxUsagePercent)
+			memoryLimits.MaxUsagePercent = 50
+		} else if memoryLimits.MaxUsagePercent == 0 {
+			memoryLimits.MaxUsagePercent = 50
 		}
 	}
 
-	if config.MemoryThresholdPercent == 0 {
-		config.MemoryThresholdPercent = 80
+	if memoryLimits.MaxUsagePercent == 0 {
+		memoryLimits.MaxUsagePercent = 80
+	}
+	if memoryLimits.SearchPercent == 0 {
+		memoryLimits.SearchPercent = DEFAULT_SEG_SEARCH_MEM_PERCENT
+	}
+	if memoryLimits.CMIPercent == 0 {
+		memoryLimits.CMIPercent = DEFAULT_ROTATED_CMI_MEM_PERCENT
+	}
+	if memoryLimits.MetadataPercent == 0 {
+		memoryLimits.MetadataPercent = DEFAULT_METADATA_MEM_PERCENT
+	}
+	if memoryLimits.BytesPerQuery == 0 {
+		memoryLimits.BytesPerQuery = DEFAULT_BYTES_PER_QUERY
+	}
+	total := memoryLimits.SearchPercent + memoryLimits.CMIPercent + memoryLimits.MetadataPercent
+	if memoryLimits.MetricsPercent == 0 && total < 100 {
+		memoryLimits.MetricsPercent = DEFAULT_METRICS_MEM_PERCENT
+	}
+	total += memoryLimits.MetricsPercent
+
+	if total != 100 {
+		err := fmt.Errorf("ExtractConfigData: Memory splits sum to %v!=100%%. Search: %v, CMI: %v, Metadata: %v, Metrics: %v",
+			total, memoryLimits.SearchPercent, memoryLimits.CMIPercent, memoryLimits.MetadataPercent,
+			memoryLimits.MetricsPercent)
+
+		log.Error(err)
+		return config, err
+	}
+
+	config.MemoryConfig = memoryLimits
+
+	if config.MaxAllowedColumns == 0 {
+		config.MaxAllowedColumns = DEFAULT_MAX_ALLOWED_COLUMNS
 	}
 
 	if len(config.S3IngestQueueName) <= 0 {
@@ -711,6 +1199,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.S3IngestBufferSize = 1000
 	}
 
+	if config.QueryHostname == "" {
+		config.QueryHostname = fmt.Sprintf("localhost:%v", config.QueryPort)
+	}
+
 	if len(config.TLS.CertificatePath) >= 0 && strings.HasPrefix(config.TLS.CertificatePath, "./") {
 		config.TLS.CertificatePath = strings.Trim(config.TLS.CertificatePath, "./")
 	}
@@ -718,6 +1210,18 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	if len(config.TLS.PrivateKeyPath) >= 0 && strings.HasPrefix(config.TLS.PrivateKeyPath, "./") {
 		config.TLS.PrivateKeyPath = strings.Trim(config.TLS.PrivateKeyPath, "./")
 	}
+
+	if len(config.CompressStatic) <= 0 {
+		config.CompressStatic = "true"
+	}
+	compressStatic, err := strconv.ParseBool(config.CompressStatic)
+	if err != nil {
+		compressStatic = true
+		config.CompressStatic = "true"
+		log.Errorf("ExtractConfigData: failed to parse compress static flag. Defaulting to %v. Error: %v",
+			compressStatic, err)
+	}
+	config.CompressStaticConverted = compressStatic
 
 	// Check for Tracing Config through environment variables
 	if os.Getenv("TRACESTORE_ENDPOINT") != "" {
@@ -728,11 +1232,11 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
-	if os.Getenv("TRACE_SAMPLING_PRECENTAGE") != "" {
-		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PRECENTAGE"), 64)
+	if os.Getenv("TRACE_SAMPLING_PERCENTAGE") != "" {
+		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PERCENTAGE"), 64)
 		if err != nil {
-			log.Errorf("Error parsing TRACE_SAMPLING_PRECENTAGE: %v", err)
-			log.Info("Setting Trace Sampling Percentage to 1")
+			log.Errorf("ExtractConfigData: Error parsing TRACE_SAMPLING_PERCENTAGE err: %v", err)
+			log.Info("ExtractConfigData: Setting Trace Sampling Percentage to 1")
 			config.Tracing.SamplingPercentage = 1
 		} else {
 			config.Tracing.SamplingPercentage = samplingPercentage
@@ -744,10 +1248,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.Tracing.Endpoint) <= 0 {
-		log.Info("Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
+		log.Info("ExtractConfigData: Tracing is disabled. Please set the endpoint in the config file to enable Tracing.")
 		SetTracingEnabled(false)
 	} else {
-		log.Info("Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
+		log.Info("ExtractConfigData: Tracing is enabled. Tracing Endpoint: ", config.Tracing.Endpoint)
 		SetTracingEnabled(true)
 	}
 
@@ -756,7 +1260,18 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	} else if config.Tracing.SamplingPercentage > 100 {
 		config.Tracing.SamplingPercentage = 100
 	}
-
+	if config.QueryTimeoutSecs <= 0 {
+		config.QueryTimeoutSecs = DEFAULT_TIMEOUT_SECONDS
+	}
+	if config.QueryTimeoutSecs < MIN_QUERY_TIMEOUT_SECONDS {
+		log.Errorf("ExtractConfigData: Query timeout cannot be less than 1 minute.")
+		log.Info("ExtractConfigData: Setting Query timeout to 1 minute")
+		config.QueryTimeoutSecs = MIN_QUERY_TIMEOUT_SECONDS
+	} else if config.QueryTimeoutSecs > MAX_QUERY_TIMEOUT_SECONDS {
+		log.Errorf("ExtractConfigData: Query timeout cannot exceed 30 minutes.")
+		log.Info("ExtractConfigData: Setting Query timeout to 30 minutes")
+		config.QueryTimeoutSecs = MAX_QUERY_TIMEOUT_SECONDS
+	}
 	return config, nil
 }
 
@@ -769,7 +1284,7 @@ func ExtractCmdLineInput() string {
 	configFile := flag.String("config", "server.yaml", "Path to config file")
 
 	flag.Parse()
-	log.Info("Extracting config from configFile: ", *configFile)
+	log.Infof("ExtractCmdLineInput: Extracting config from configFile: %v", *configFile)
 	log.Trace("VerifyCommandLineInput | STOP")
 	return *configFile
 }
@@ -997,7 +1512,7 @@ func ProcessGetConfigAsJson(ctx *fasthttp.RequestCtx) {
 func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 	newConfig, err := ReadConfigFile(configFilePath)
 	if err != nil {
-		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		log.Errorf("ProcessForceReadConfig: Error while reading config file, configFilepath: %v, err: %v", configFilePath, err)
 		return
 	}
 	SetConfig(newConfig)
@@ -1008,7 +1523,7 @@ func ProcessForceReadConfig(ctx *fasthttp.RequestCtx) {
 func refreshConfig() {
 	fileInfo, err := os.Stat(configFilePath)
 	if err != nil {
-		log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+		log.Errorf("refreshConfig: Cannot stat config file while re-reading, configFilepath: %v, err: %v", configFilePath, err)
 		return
 	}
 	modifiedTime := fileInfo.ModTime()
@@ -1016,10 +1531,18 @@ func refreshConfig() {
 	if modifiedTimeSec > configFileLastModified {
 		newConfig, err := ReadConfigFile(configFilePath)
 		if err != nil {
-			log.Errorf("refreshConfig: Cannot stat config file while re-reading, err= %v", err)
+			log.Errorf("refreshConfig: Error while reading config file, configFilepath: %v, err: %v", configFilePath, err)
 			return
 		}
 		SetConfig(newConfig)
+
+		log.Infof("refreshConfig: cfg  updated, modifiedTimeSec: %v, lastModified: %v",
+			modifiedTimeSec, configFileLastModified)
+		configJSON, err := json.MarshalIndent(newConfig, "", "  ")
+		if err != nil {
+			log.Errorf("refreshConfig : Error marshalling config struct %v", err.Error())
+		}
+		log.Infof("refreshConfig: newConfig: %v", string(configJSON))
 		configFileLastModified = modifiedTimeSec
 	}
 }
@@ -1031,98 +1554,53 @@ func runRefreshConfigLoop() {
 	}
 }
 
-func ProcessSetConfig(persistent bool, ctx *fasthttp.RequestCtx) {
-	var httpResp utils.HttpServerResponse
-	var reqBodyMap map[string]interface{}
-	reqBodyStr := ctx.PostBody()
-	err := json.Unmarshal([]byte(reqBodyStr), &reqBodyMap)
-	if err != nil {
-		log.Printf("Error = %v", err)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		httpResp.Message = "Bad request"
-		httpResp.StatusCode = fasthttp.StatusBadRequest
-		utils.WriteResponse(ctx, httpResp)
-		return
-	}
-	err = setConfigParams(reqBodyMap)
-	if err == nil {
-		ctx.SetStatusCode(fasthttp.StatusOK)
-		httpResp.Message = "All OK"
-		httpResp.StatusCode = fasthttp.StatusOK
-		utils.WriteResponse(ctx, httpResp)
-		if persistent {
-			WriteToYamlConfig()
-		}
-	} else {
-		ctx.SetStatusCode(fasthttp.StatusForbidden)
-		httpResp.Message = err.Error()
-		httpResp.StatusCode = fasthttp.StatusForbidden
-		utils.WriteResponse(ctx, httpResp)
-	}
-}
-
-func setConfigParams(reqBodyMap map[string]interface{}) error {
-	for inputCfgParam := range reqBodyMap {
-		if inputCfgParam == "eventTypeKeywords" {
-			inputValueParam := reqBodyMap["eventTypeKeywords"]
-			evArray, err := extractStrArray(inputValueParam)
-			if err != nil {
-				return err
-			}
-			SetEventTypeKeywords(evArray)
-		} else {
-			err := fmt.Errorf("key = %v not allowed to update", inputCfgParam)
-			return err
-		}
-	}
-	return nil
-}
-
-func extractStrArray(inputValueParam interface{}) ([]string, error) {
-	switch inputValueParam.(type) {
-	case []interface{}:
-		break
-	default:
-		err := fmt.Errorf("inputValueParam type = %T not accepted", inputValueParam)
-		return nil, err
-	}
-	evArray := []string{}
-	for _, element := range inputValueParam.([]interface{}) {
-		switch element := element.(type) {
-		case string:
-			str := element
-			evArray = append(evArray, str)
-		default:
-			err := fmt.Errorf("element type = %T not accepted", element)
-			return nil, err
-		}
-	}
-	return evArray, nil
-}
-
-func getQueryServerPort() (uint64, error) {
-	if runningConfig.QueryPort == 0 {
-		return 0, errors.New("QueryServer Port config was not specified")
-	}
-	return runningConfig.QueryPort, nil
-}
-
 func GetQueryServerBaseUrl() string {
 	hostname := GetQueryHostname()
-	if hostname == "" {
-		port, err := getQueryServerPort()
-		if err != nil {
-			return "http://localhost:5122"
-		}
-		return "http://localhost:" + fmt.Sprintf("%d", port)
+	if IsTlsEnabled() {
+		hostname = "https://" + hostname
 	} else {
-		if IsTlsEnabled() {
-			hostname = "https://" + hostname
-		} else {
-			hostname = "http://" + hostname
-		}
-		return hostname
+		hostname = "http://" + hostname
 	}
+	return hostname
+}
+
+func GetSuffixFile(virtualTable string, streamId string) string {
+	var sb strings.Builder
+	sb.WriteString(GetDataPath())
+	sb.WriteString(GetHostID())
+	sb.WriteString("/suffix/")
+	sb.WriteString(virtualTable)
+	sb.WriteString("/")
+	sb.WriteString(streamId)
+	sb.WriteString(".suffix")
+	return sb.String()
+}
+
+func GetBaseVTableDir(streamid string, virtualTableName string) string {
+	return filepath.Join(GetDataPath(), GetHostID(), "final", virtualTableName, streamid)
+}
+
+func GetBaseSegDir(streamid string, virtualTableName string, suffix uint64) string {
+	// Note: this is coupled to getSegBaseDirFromFilename. If the directory
+	// structure changes, change getSegBaseDirFromFilename too.
+	// TODO: use filepath.Join to avoid "/" issues
+	var sb strings.Builder
+	sb.WriteString(GetDataPath())
+	sb.WriteString(GetHostID())
+	sb.WriteString("/final/")
+	sb.WriteString(virtualTableName + "/")
+	sb.WriteString(streamid + "/")
+	sb.WriteString(strconv.FormatUint(suffix, 10) + "/")
+	basedir := sb.String()
+	return basedir
+}
+
+func GetSegKey(streamid string, virtualTableName string, suffix uint64) string {
+	return fmt.Sprintf("%s%d", GetBaseSegDir(streamid, virtualTableName, suffix), suffix)
+}
+
+func GetSegKeyFromVTableDir(virtualTableDir string, suffixStr string) string {
+	return filepath.Join(virtualTableDir, suffixStr, suffixStr)
 }
 
 // DefaultUIServerHttpConfig  set fasthttp server default configuration

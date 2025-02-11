@@ -19,10 +19,13 @@ package segread
 
 import (
 	"errors"
+	"regexp"
 
+	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	log "github.com/sirupsen/logrus"
 )
 
 /*
@@ -36,20 +39,30 @@ returns:
 	bool: if there is a match
 	err
 */
-func (sfr *SegmentFileReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
-	bsh *structs.BlockSearchHelper) (bool, error) {
+func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *structs.MatchFilter,
+	bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
+	var compiledRegex *regexp.Regexp
+	var err error
 
 	if len(match.MatchWords) == 0 {
 		return false, nil
 	}
 
-	for dwordIdx, dWord := range sfr.deTlv {
-		matched, err := writer.ApplySearchToMatchFilterRawCsg(match, dWord)
+	if match.MatchType == structs.MATCH_PHRASE {
+		compiledRegex, err = match.GetRegexp()
+		if err != nil {
+			log.Errorf("ApplySearchToMatchFilterDictCsg: error getting match regex: %v", err)
+			return false, err
+		}
+	}
+
+	for dwordIdx, dWord := range sfr.GetDeTlv() {
+		matched, err := writer.ApplySearchToMatchFilterRawCsg(match, dWord, compiledRegex, isCaseInsensitive)
 		if err != nil {
 			return false, err
 		}
 		if matched {
-			addRecNumsToMr(uint16(dwordIdx), bsh, sfr)
+			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh)
 		}
 	}
 
@@ -69,36 +82,27 @@ returns:
 	bool: if there is a match
 	err
 */
-func (sfr *SegmentFileReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,
-	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper) (bool, error) {
+func ApplySearchToExpressionFilterDictCsg(sfr *segreader.SegmentFileReader, qValDte *utils.DtypeEnclosure,
+	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper, isCaseInsensitive bool) (bool, error) {
 
 	if qValDte == nil {
 		return false, nil
 	}
 
 	if isRegexSearch && qValDte.GetRegexp() == nil {
-		return false, errors.New("qValDte had nil regexp compilation")
+		return false, errors.New("ApplySearchToExpressionFilterDictCsg: qValDte had nil regexp compilation")
 	}
 
 	dte := &utils.DtypeEnclosure{}
-	for dwordIdx, dWord := range sfr.deTlv {
-		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte)
+	for dwordIdx, dWord := range sfr.GetDeTlv() {
+		matched, err := writer.ApplySearchToExpressionFilterSimpleCsg(qValDte, fop, dWord, isRegexSearch, dte, isCaseInsensitive)
 		if err != nil {
 			return false, err
 		}
 		if matched {
-			addRecNumsToMr(uint16(dwordIdx), bsh, sfr)
+			sfr.AddRecNumsToMr(uint16(dwordIdx), bsh)
 		}
 	}
 
 	return false, nil
-}
-
-func addRecNumsToMr(dwordIdx uint16, bsh *structs.BlockSearchHelper, sfr *SegmentFileReader) {
-
-	for i := uint16(0); i < sfr.blockSummaries[sfr.currBlockNum].RecCount; i++ {
-		if sfr.deRecToTlv[i] == dwordIdx {
-			bsh.AddMatchedRecord(uint(i))
-		}
-	}
 }

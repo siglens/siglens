@@ -33,7 +33,7 @@ var rawCSV = []byte("measurement,tag1=val1,tag2=val2 metric_1=100,metric_2=20 
 
 func Test_InsertCsv(t *testing.T) {
 
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	writer.InitWriterNode()
 
 	sTime := time.Now()

@@ -18,11 +18,14 @@
 package ingestserver
 
 import (
+	"crypto/tls"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/server"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/fasthttp/router"
@@ -32,7 +35,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/pprofhandler"
 )
 
 type ingestionServerCfg struct {
@@ -52,14 +54,12 @@ var (
 
 // ConstructHttpServer new fasthttp server
 func ConstructIngestServer(cfg config.WebConfig, ServerAddr string) *ingestionServerCfg {
-
-	s := &ingestionServerCfg{
+	return &ingestionServerCfg{
 		Config: cfg,
 		Addr:   ServerAddr,
 		router: router.New(),
 		debug:  true,
 	}
-	return s
 }
 
 func (hs *ingestionServerCfg) Close() {
@@ -79,8 +79,6 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.GET(server_utils.API_PREFIX+"/health", hs.Recovery(getHealthHandler()))
 	hs.router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", hs.Recovery(sampleDatasetBulkHandler()))
 
-	hs.router.POST("/setconfig/transient", hs.Recovery(postSetconfigHandler(false)))
-	hs.router.POST("/setconfig/persistent", hs.Recovery(postSetconfigHandler(true)))
 	hs.router.GET("/config", hs.Recovery(getConfigHandler()))
 	hs.router.POST("/config/reload", hs.Recovery(getConfigReloadHandler()))
 
@@ -90,6 +88,37 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.GET(server_utils.ELASTIC_PREFIX+"/_xpack", hs.Recovery(esGreetHandler()))
 	hs.router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(EsPutIndexHandler()))
+	hs.router.HEAD(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(EsPutIndexHandler()))
+
+	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_mapping", hs.Recovery(EsPutIndexHandler()))
+	hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_mapping/{docType}", hs.Recovery(EsPutIndexHandler()))
+
+	// without the doctype (>7.x format)
+	if strings.HasPrefix(*config.GetESVersion(), "7.") {
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_doc/{_id}", hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_doc/{_id?}", hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/_create/{_id}", hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_create/{_id}", hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/_update/{_id}", hs.Recovery(esPutPostSingleDocHandler(true)))
+
+	} else {
+		// with the doctype (<7.x format)
+
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id?}",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}/_create",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}/_create",
+			hs.Recovery(esPutPostSingleDocHandler(false)))
+
+		hs.router.POST(server_utils.ELASTIC_PREFIX+"/{indexName}/{docType}/{_id}/_update",
+			hs.Recovery(esPutPostSingleDocHandler(true)))
+	}
 
 	// Loki endpoints
 	hs.router.POST(server_utils.LOKI_PREFIX+"/api/v1/push", hs.Recovery(lokiPostBulkHandler()))
@@ -113,10 +142,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	// OTLP Handlers
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
-
-	if config.IsDebugMode() {
-		hs.router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
-	}
+	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/logs", hs.Recovery(otlpIngestLogsHandler()))
 
 	if hook := hooks.GlobalHooks.ExtraIngestEndpointsHook; hook != nil {
 		hook(hs.router, hs.Recovery)
@@ -124,6 +150,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
+		log.Errorf("ingestionServerCfg.Run: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err
 	}
 
@@ -137,22 +164,28 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		Concurrency:        hs.Config.Concurrency,
 	}
 
-	// run fasthttp server
-	var g run.Group
-
 	if config.IsTlsEnabled() {
-		g.Add(func() error {
-			return s.ServeTLS(hs.ln, config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
-	} else {
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
+		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
+		if err != nil {
+			log.Fatalf("Run: error loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			return err
+		}
+
+		cfg := &tls.Config{
+			GetCertificate: certReloader.GetCertificate,
+		}
+
+		hs.ln = tls.NewListener(hs.ln, cfg)
 	}
+
+	var g run.Group
+	g.Add(func() error {
+		return s.Serve(hs.ln)
+	}, func(e error) {
+		log.Errorf("ingestionServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
+		_ = hs.ln.Close()
+	})
+
 	return g.Run()
 }
 
@@ -160,6 +193,7 @@ func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	hs.router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	hs.ln, err = net.Listen("tcp4", hs.Addr)
 	if err != nil {
+		log.Errorf("ingestionServerCfg.RunSafeServer: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err
 	}
 
@@ -186,6 +220,7 @@ func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	g.Add(func() error {
 		return s.Serve(hs.ln)
 	}, func(e error) {
+		log.Errorf("ingestionServerCfg.RunSafeServer: Failed to serve on %s, err=%v", hs.Addr, e)
 		_ = hs.ln.Close()
 	})
 	return g.Run()

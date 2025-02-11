@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
+	"github.com/siglens/siglens/pkg/diagnostics"
 	esreader "github.com/siglens/siglens/pkg/es/reader"
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
@@ -36,9 +37,13 @@ import (
 	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	prom "github.com/siglens/siglens/pkg/integrations/prometheus/promql"
+	lookups "github.com/siglens/siglens/pkg/lookups"
 	"github.com/siglens/siglens/pkg/querytracker"
 	"github.com/siglens/siglens/pkg/sampledataset"
+	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/sortindex"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
+	writer "github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	systemconfig "github.com/siglens/siglens/pkg/systemConfig"
 	usq "github.com/siglens/siglens/pkg/usersavedqueries"
@@ -53,7 +58,7 @@ type VersionResponse struct {
 
 func getVersionHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		alertsHandler.ProcessVersionInfo(ctx)
+		systemconfig.ProcessVersionInfo(ctx)
 	}
 }
 
@@ -66,26 +71,26 @@ func getHealthHandler() func(ctx *fasthttp.RequestCtx) {
 func esGetSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
-		serverutils.CallWithOrgIdQuery(esreader.ProcessSearchRequest, ctx)
+		serverutils.CallWithMyIdQuery(esreader.ProcessSearchRequest, ctx)
 	}
 }
 
 func esDeleteIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(eswriter.ProcessDeleteIndex, ctx)
+		serverutils.CallWithMyIdQuery(eswriter.ProcessDeleteIndex, ctx)
 	}
 
 }
 
 func listIndicesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(pipesearch.ListIndicesHandler, ctx)
+		serverutils.CallWithMyIdQuery(pipesearch.ListIndicesHandler, ctx)
 	}
 }
 
 func otsdbMetricQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(otsdbquery.MetricsQueryParser, ctx)
+		serverutils.CallWithMyIdQuery(otsdbquery.MetricsQueryParser, ctx)
 	}
 }
 
@@ -97,66 +102,90 @@ func otsdbMetricQueryExpHandler() func(ctx *fasthttp.RequestCtx) {
 
 func promqlMetricsInstantQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlMetricsSearchRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessPromqlMetricsSearchRequest, ctx)
 	}
 }
 
 func promqlMetricsRangeQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlMetricsRangeSearchRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessPromqlMetricsRangeSearchRequest, ctx)
 	}
 }
 
 func promqlBuildInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessPromqlBuildInfoRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessPromqlBuildInfoRequest, ctx)
 	}
 }
 
 func promqlGetLabelsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelsRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetLabelsRequest, ctx)
 	}
 }
 
 func promqlGetLabelValuesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetLabelValuesRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetLabelValuesRequest, ctx)
 	}
 }
 
 func promqlGetSeriesByLabelHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetSeriesByLabelRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetSeriesByLabelRequest, ctx)
 	}
 }
 func uiMetricsSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessUiMetricsSearchRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessUiMetricsSearchRequest, ctx)
 	}
 }
 
 func getAllMetricNamesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricNamesRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetAllMetricNamesRequest, ctx)
 	}
 }
 
 func getMetricTimeSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricTimeSeriesRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetMetricTimeSeriesRequest, ctx)
 	}
 }
 
 func getMetricFunctionsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetMetricFunctionsRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetMetricFunctionsRequest, ctx)
 	}
 }
 
 func getAllMetricTagsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(prom.ProcessGetAllMetricTagsRequest, ctx)
+		serverutils.CallWithMyIdQuery(prom.ProcessGetAllMetricTagsRequest, ctx)
+	}
+}
+
+func getMetricSeriesCardinalityHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(prom.ProcessGetMetricSeriesCardinalityRequest, ctx)
+	}
+}
+
+func getTagKeysWithMostSeriesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(prom.ProcessGetTagKeysWithMostSeriesRequest, ctx)
+	}
+}
+
+func getTagPairsWithMostSeriesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(prom.ProcessGetTagPairsWithMostSeriesRequest, ctx)
+	}
+}
+
+func getTagKeysWithMostValuesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(prom.ProcessGetTagKeysWithMostValuesRequest, ctx)
 	}
 }
 
@@ -170,23 +199,17 @@ func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
-		handler := func(ctx *fasthttp.RequestCtx, orgId uint64) {
+		handler := func(ctx *fasthttp.RequestCtx, orgId int64) {
 			eswriter.ProcessBulkRequest(ctx, orgId, false)
 		}
 
-		serverutils.CallWithOrgId(handler, ctx)
+		serverutils.CallWithMyId(handler, ctx)
 	}
 }
 
 func esPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(eswriter.ProcessPutIndex, ctx)
-	}
-}
-
-func postSetconfigHandler(persistent bool) func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		config.ProcessSetConfig(persistent, ctx)
+		serverutils.CallWithMyId(eswriter.ProcessPutIndex, ctx)
 	}
 }
 
@@ -212,56 +235,57 @@ func esGetSingleDocHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 
 		instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
-		serverutils.CallWithOrgId(esreader.ProcessSingleDocGetRequest, ctx)
+		serverutils.CallWithMyId(esreader.ProcessSingleDocGetRequest, ctx)
 
 	}
 }
 
 func esGetIndexAliasesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(eswriter.ProcessGetIndexAlias, ctx)
+		serverutils.CallWithMyId(eswriter.ProcessGetIndexAlias, ctx)
 	}
 }
 
 func esGetAliasHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(eswriter.ProcessGetAlias, ctx)
+		serverutils.CallWithMyIdQuery(eswriter.ProcessGetAlias, ctx)
 	}
 }
 
 func esPostAliasesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(eswriter.ProcessPostAliasesRequest, ctx)
+		serverutils.CallWithMyIdQuery(eswriter.ProcessPostAliasesRequest, ctx)
 	}
 }
 
 func esPutIndexAliasHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(eswriter.ProcessPutAliasesRequest, ctx)
+		serverutils.CallWithMyIdQuery(eswriter.ProcessPutAliasesRequest, ctx)
 	}
 }
 
 func esGetAllAliasesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(eswriter.ProcessGetAllAliases, ctx)
+		serverutils.CallWithMyIdQuery(eswriter.ProcessGetAllAliases, ctx)
 	}
 }
 
 func esGetIndexAliasExistsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(eswriter.ProcessIndexAliasExist, ctx)
+		serverutils.CallWithMyIdQuery(eswriter.ProcessIndexAliasExist, ctx)
 	}
 }
 
 func pipeSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(pipesearch.ProcessPipeSearchRequest, ctx)
+		instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
+		serverutils.CallWithMyIdQuery(pipesearch.ProcessPipeSearchRequest, ctx)
 	}
 }
 
 func dashboardPipeSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(pipesearch.ProcessPipeSearchRequest, ctx)
+		serverutils.CallWithMyIdQuery(pipesearch.ProcessPipeSearchRequest, ctx)
 	}
 }
 
@@ -273,9 +297,10 @@ var upgrader = websocket.FastHTTPUpgrader{
 }
 
 func pipeSearchWebsocketHandler() func(ctx *fasthttp.RequestCtx) {
+	instrumentation.IncrementInt64Counter(instrumentation.QUERY_COUNT, 1)
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
-			var orgId uint64
+			var orgId int64
 			var err error
 			if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 				orgId, err = hook(ctx)
@@ -316,7 +341,7 @@ func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.StatsHandlerHook; hook != nil {
 			hook(ctx, 0)
 		} else {
-			serverutils.CallWithOrgIdQuery(health.ProcessClusterStatsHandler, ctx)
+			serverutils.CallWithMyIdQuery(health.ProcessClusterStatsHandler, ctx)
 		}
 	}
 }
@@ -326,37 +351,48 @@ func getClusterIngestStatsHandler() func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.IngestStatsHandlerHook; hook != nil {
 			hook(ctx, 0)
 		} else {
-			serverutils.CallWithOrgIdQuery(health.ProcessClusterIngestStatsHandler, ctx)
+			serverutils.CallWithMyIdQuery(health.ProcessClusterIngestStatsHandler, ctx)
 		}
 	}
 }
 
 func saveUserSavedQueriesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.SaveUserQueries(ctx)
+		serverutils.CallWithMyIdQuery(usq.SaveUserQueries, ctx)
 	}
 }
 
 func getUserSavedQueriesAllHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.GetUserSavedQueriesAll(ctx)
+		serverutils.CallWithMyIdQuery(usq.GetUserSavedQueriesAll, ctx)
 	}
 }
 
 func deleteUserSavedQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.DeleteUserSavedQuery(ctx)
+		serverutils.CallWithMyIdQuery(usq.DeleteUserSavedQuery, ctx)
 	}
 }
 
 func SearchUserSavedQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		usq.SearchUserSavedQuery(ctx)
+		serverutils.CallWithMyIdQuery(usq.SearchUserSavedQuery, ctx)
 	}
 }
 
 func postPqsClearHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		querytracker.PostPqsClear(ctx)
+	}
+}
+
+func postPqsDeleteHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		err := writer.DeletePQSData()
+		if err != nil {
+			utils.SendInternalError(ctx, "Error while deleting PQS data", "", err)
+			return
+		}
 		querytracker.PostPqsClear(ctx)
 	}
 }
@@ -393,48 +429,61 @@ func getPqsEnabledHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessCreateDashboardRequest, ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessCreateDashboardRequest, ctx)
 	}
 }
 
-func favoriteDashboardHandler() fasthttp.RequestHandler {
+func favoriteDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessFavoriteRequest(ctx)
-	}
-}
-
-func getFavoriteDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessListFavoritesRequest, ctx)
-	}
-}
-func getDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessListAllRequest, ctx)
-	}
-}
-
-func getDefaultDashboardIdsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessListAllDefaultDBRequest, ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessFavoriteRequest, ctx)
 	}
 }
 
 func updateDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessUpdateDashboardRequest, ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessUpdateDashboardRequest, ctx)
 	}
 }
 
 func getDashboardIdHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		dashboards.ProcessGetDashboardRequest(ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessGetDashboardRequest, ctx)
 	}
 }
 
 func deleteDashboardHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(dashboards.ProcessDeleteDashboardRequest, ctx)
+		serverutils.CallWithMyIdQuery(dashboards.ProcessDeleteDashboardRequest, ctx)
+	}
+}
+
+func listAllDashboardsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(dashboards.ProcessListAllItemsRequest, ctx)
+	}
+}
+
+func createFolderHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(dashboards.ProcessCreateFolderRequest, ctx)
+	}
+}
+
+func getFolderContentsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(dashboards.ProcessGetFolderContentsRequest, ctx)
+	}
+}
+
+func updateFolderHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(dashboards.ProcessUpdateFolderRequest, ctx)
+	}
+}
+
+func deleteFolderHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(dashboards.ProcessDeleteFolderRequest, ctx)
 	}
 }
 
@@ -447,50 +496,62 @@ func getSafeHealthHandler() func(ctx *fasthttp.RequestCtx) {
 func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(sampledataset.ProcessSyntheicDataRequest, ctx)
+		serverutils.CallWithMyId(sampledataset.ProcessSyntheicDataRequest, ctx)
 	}
 }
 
 func lokiLabelsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(loki.ProcessLokiLabelRequest, ctx)
+		serverutils.CallWithMyIdQuery(loki.ProcessLokiLabelRequest, ctx)
 	}
 }
 
 func lokiLabelValueHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(loki.ProcessLokiLabelValuesRequest, ctx)
+		serverutils.CallWithMyIdQuery(loki.ProcessLokiLabelValuesRequest, ctx)
 	}
 }
 
 func lokiQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(loki.ProcessQueryRequest, ctx)
+		serverutils.CallWithMyIdQuery(loki.ProcessQueryRequest, ctx)
 	}
 }
 
 func lokiIndexStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(loki.ProcessIndexStatsRequest, ctx)
+		serverutils.CallWithMyIdQuery(loki.ProcessIndexStatsRequest, ctx)
 	}
 }
 
 func lokiSeriesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(loki.ProcessLokiSeriesRequest, ctx)
+		serverutils.CallWithMyIdQuery(loki.ProcessLokiSeriesRequest, ctx)
 	}
 }
 
 // alerting apis
 func createAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessCreateAlertRequest, ctx)
+		serverutils.CallWithMyIdQuery(alertsHandler.ProcessCreateAlertRequest, ctx)
 	}
 }
 
 func silenceAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		alertsHandler.ProcessSilenceAlertRequest(ctx)
+	}
+}
+
+func unsilenceAlertHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessUnsilenceAlertRequest(ctx)
+	}
+}
+
+func testContactPointHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		alertsHandler.ProcessTestContactPointRequest(ctx)
 	}
 }
 
@@ -502,13 +563,13 @@ func getAlertHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getAllAlertsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessGetAllAlertsRequest, ctx)
+		serverutils.CallWithMyIdQuery(alertsHandler.ProcessGetAllAlertsRequest, ctx)
 	}
 }
 
 func getAllMinionSearchesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessGetAllMinionSearchesRequest, ctx)
+		serverutils.CallWithMyIdQuery(alertsHandler.ProcessGetAllMinionSearchesRequest, ctx)
 	}
 }
 
@@ -532,13 +593,13 @@ func deleteAlertHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createContactHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessCreateContactRequest, ctx)
+		serverutils.CallWithMyIdQuery(alertsHandler.ProcessCreateContactRequest, ctx)
 	}
 }
 
 func getAllContactsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessGetAllContactsRequest, ctx)
+		serverutils.CallWithMyIdQuery(alertsHandler.ProcessGetAllContactsRequest, ctx)
 	}
 }
 
@@ -556,7 +617,7 @@ func deleteContactHandler() func(ctx *fasthttp.RequestCtx) {
 
 func createMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(alertsHandler.ProcessCreateLogMinionSearchRequest, ctx)
+		serverutils.CallWithMyIdQuery(alertsHandler.ProcessCreateLogMinionSearchRequest, ctx)
 	}
 }
 
@@ -569,7 +630,7 @@ func getMinionSearchHandler() func(ctx *fasthttp.RequestCtx) {
 func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
-			var orgId uint64
+			var orgId int64
 			var err error
 			if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 				orgId, err = hook(ctx)
@@ -609,36 +670,96 @@ func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 // Tracing apis
 func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessSearchTracesRequest, ctx)
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSearchTracesRequest, ctx)
 	}
 }
 
 func totalTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessTotalTracesRequest, ctx)
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessTotalTracesRequest, ctx)
 	}
 }
 
 func getDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessAggregatedDependencyGraphs, ctx)
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessAggregatedDependencyGraphs, ctx)
 	}
 }
 
 func generateDependencyGraphHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessGeneratedDepGraph, ctx)
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessGeneratedDepGraph, ctx)
 	}
 }
 
 func ganttChartHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgIdQuery(tracinghandler.ProcessGanttChartRequest, ctx)
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessGanttChartRequest, ctx)
 	}
 }
 
 func getSystemInfoHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		systemconfig.GetSystemInfo(ctx)
+	}
+}
+
+func getInodesStatsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		systemconfig.GetInodeStats(ctx)
+	}
+}
+
+func uploadLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.UploadLookupFile(ctx)
+	}
+}
+
+func getAllLookupFilesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.GetAllLookupFiles(ctx)
+	}
+}
+
+func getLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.GetLookupFile(ctx)
+	}
+}
+
+func deleteLookupFileHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		lookups.DeleteLookupFile(ctx)
+	}
+}
+
+func getQueryStatsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		query.GetQueryStats(ctx)
+	}
+}
+
+func GetQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.GetQueryTimeout(ctx)
+	}
+}
+
+func UpdateQueryTimeoutHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		cfghandler.UpdateQueryTimeout(ctx)
+	}
+}
+
+func setSortColumnsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		sortindex.SetSortColumnsAPI(ctx)
+	}
+}
+
+func collectDiagnosticsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(diagnostics.CollectDiagnosticsAPI, ctx)
 	}
 }

@@ -1,0 +1,130 @@
+{
+    "queryText": "city=Boston | stats count as count BY http_method | top 5 http_method, count useother=true countfield=count percentfield=percent",
+    "expectedResult": {
+        "bucketCount": 6,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "http_method",
+            "count"
+        ],
+        "measureFunctions": [
+            "percent"
+        ],
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "percent": 16.666667
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
+                "GroupByValues": [
+                    "POST",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "percent": 16.666667
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
+                "GroupByValues": [
+                    "PATCH",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "percent": 16.666667
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "percent": 16.666667
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
+                "GroupByValues": [
+                    "GET",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "percent": 16.666667
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "other"
+                    },
+                    {
+                        "Dtype": 3,
+                        "CVal": 1
+                    }
+                ],
+                "GroupByValues": [
+                    "other",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "percent": 16.666667
+                }
+            }
+        ]
+    }
+}

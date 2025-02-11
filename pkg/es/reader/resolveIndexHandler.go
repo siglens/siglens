@@ -35,7 +35,7 @@ func IndicesBody(indexName string) esutils.ResolveIndexEntry {
 	return esutils.ResolveIndexEntry{Name: indexName, Attributes: []string{"open"}}
 }
 
-func ExpandAndReturnIndexNames(indexPattern string, allVirtualTableNames map[string]bool, myid uint64) ([]esutils.ResolveIndexEntry, []esutils.ResolveAliasEntry, error) {
+func ExpandAndReturnIndexNames(indexPattern string, allVirtualTableNames map[string]bool, myid int64) ([]esutils.ResolveIndexEntry, []esutils.ResolveAliasEntry, error) {
 	indicesEntries := []esutils.ResolveIndexEntry{}
 	aliasesEntries := []esutils.ResolveAliasEntry{}
 
@@ -109,7 +109,7 @@ func isIndexExcluded(indexName string) bool {
 	return false
 }
 
-func SendResolveIndexResponse(ctx *fasthttp.RequestCtx, myid uint64) {
+func SendResolveIndexResponse(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var resResp esutils.ResolveResponse
 

@@ -18,17 +18,31 @@
 package ingest
 
 import (
+	"os"
+	"path/filepath"
+	"sync/atomic"
 	"time"
 
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
+	rutils "github.com/siglens/siglens/pkg/readerUtils"
+	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
-	vtable "github.com/siglens/siglens/pkg/virtualtable"
-
 	log "github.com/sirupsen/logrus"
+)
+
+var (
+	previousEventCount    int64
+	previousBytesReceived int64
 )
 
 func InitIngestionMetrics() {
 	go ingestionMetricsLooper()
+	go metricsLooper()
 }
 
 func ingestionMetricsLooper() {
@@ -39,35 +53,207 @@ func ingestionMetricsLooper() {
 		currentBytesReceived := int64(0)
 		currentOnDiskBytes := int64(0)
 
-		// change to loop for all orgs
-		allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
+		allSegmetas := segwriter.ReadGlobalSegmetas()
 
-		if err != nil {
-			log.Errorf("ingestionMetricsLooper: Error in getting virtual table names, err:%v", err)
-		}
-		for indexName := range allVirtualTableNames {
+		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
+		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+		uniqueIndexes, uniqueColumns, totalCmiSize, totalCsgSize, totalSegments := processSegmentAndIndexStats(allSegmetas, allCnts)
+
+		for indexName, cnts := range allCnts {
 			if indexName == "" {
-				log.Errorf("ingestionMetricsLooper: skipping an empty index name indexName=%v", indexName)
+				log.Errorf("ingestionMetricsLooper: skipping an empty index name len(indexName)=%v", len(indexName))
 				continue
 			}
-			byteCount, eventCount, onDiskBytes := segwriter.GetVTableCounts(indexName, 0)
-			unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytes := segwriter.GetUnrotatedVTableCounts(indexName, 0)
 
-			totalEventsForIndex := uint64(eventCount) + uint64(unrotatedEventCount)
+			totalEventsForIndex := uint64(cnts.RecordCount)
 			currentEventCount += int64(totalEventsForIndex)
 			instrumentation.SetEventCountPerIndex(currentEventCount, "indexname", indexName)
 
-			totalBytesReceivedForIndex := byteCount + unrotatedByteCount
+			totalBytesReceivedForIndex := cnts.BytesCount
 			currentBytesReceived += int64(totalBytesReceivedForIndex)
 			instrumentation.SetBytesCountPerIndex(currentBytesReceived, "indexname", indexName)
 
-			totalOnDiskBytesForIndex := onDiskBytes + unrotatedOnDiskBytes
+			totalOnDiskBytesForIndex := cnts.OnDiskBytesCount
 			currentOnDiskBytes += int64(totalOnDiskBytesForIndex)
 			instrumentation.SetOnDiskBytesPerIndex(currentOnDiskBytes, "indexname", indexName)
-
 		}
-		instrumentation.SetGaugeCurrentEventCount(currentEventCount)
-		instrumentation.SetGaugeCurrentBytesReceivedGauge(currentBytesReceived)
-		instrumentation.SetGaugeOnDiskBytesGauge(currentOnDiskBytes)
+
+		eventCountPerMinute := currentEventCount - atomic.LoadInt64(&previousEventCount)
+		eventVolumePerMinute := currentBytesReceived - atomic.LoadInt64(&previousBytesReceived)
+
+		atomic.StoreInt64(&previousEventCount, currentEventCount)
+		atomic.StoreInt64(&previousBytesReceived, currentBytesReceived)
+
+		instrumentation.SetTotalIndexCount(int64(len(uniqueIndexes)))
+		instrumentation.SetTotalEventCount(currentEventCount)
+		instrumentation.SetTotalBytesReceived(currentBytesReceived)
+		instrumentation.SetTotalLogOnDiskBytes(currentOnDiskBytes)
+		instrumentation.SetPastMinuteEventCount(eventCountPerMinute)
+		instrumentation.SetPastMinuteEventVolume(eventVolumePerMinute)
+		instrumentation.SetTotalSegmentCount(totalSegments)
+		instrumentation.SetTotalColumnCount(int64(len(uniqueColumns)))
+		instrumentation.SetTotalCMISize(int64(totalCmiSize))
+		instrumentation.SetTotalCSGSize(int64(totalCsgSize))
 	}
+}
+
+func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[string]*structs.VtableCounts) (map[string]struct{}, map[string]struct{}, uint64, uint64, int64) {
+	uniqueIndexes := make(map[string]struct{})
+	uniqueColumns := make(map[string]struct{})
+	var totalCmiSize, totalCsgSize uint64
+	var totalSegments int64
+
+	for _, segmeta := range allSegmetas {
+		if segmeta == nil || segmeta.VirtualTableName == "" {
+			continue
+		}
+		uniqueIndexes[segmeta.VirtualTableName] = struct{}{}
+		for col := range segmeta.ColumnNames {
+			uniqueColumns[col] = struct{}{}
+		}
+		totalSegments++
+	}
+
+	for indexName := range allCnts {
+		if indexName != "" {
+			uniqueIndexes[indexName] = struct{}{}
+		}
+	}
+
+	for indexName := range uniqueIndexes {
+		stats, err := segwriter.GetIndexSizeStats(indexName, 0)
+		if err != nil {
+			log.Errorf("processSegmentAndIndexStats: failed to get stats for index=%v err=%v", indexName, err)
+			continue
+		}
+
+		totalCmiSize += stats.TotalCmiSize
+		totalCsgSize += stats.TotalCsgSize
+
+		_, _, _, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, 0)
+		for col := range columnNamesSet {
+			uniqueColumns[col] = struct{}{}
+		}
+
+		if len(columnNamesSet) > 0 {
+			totalSegments++
+		}
+
+		if stats.NumBlocks > 0 {
+			instrumentation.SetBlocksPerIndex(int64(stats.NumBlocks), "indexname", indexName)
+		}
+		if stats.NumIndexFiles > 0 {
+			instrumentation.SetFilesPerIndex(int64(stats.NumIndexFiles), "indexname", indexName)
+		}
+	}
+
+	return uniqueIndexes, uniqueColumns, totalCmiSize, totalCsgSize, totalSegments
+}
+
+func metricsLooper() {
+	oneMinuteTicker := time.NewTicker(1 * time.Minute)
+	fifteenMinuteTicker := time.NewTicker(15 * time.Minute)
+	for {
+		select {
+		case <-oneMinuteTicker.C:
+			setNumMetricNames()
+			setMetricOnDiskBytes()
+		case <-fifteenMinuteTicker.C:
+			// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
+			// keep it disabled until the panic is fixed
+			// setNumSeries()
+			setNumKeysAndValues()
+		}
+	}
+}
+
+func setNumMetricNames() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	names, err := query.GetAllMetricNamesOverTheTimeRange(allPreviousTime, 0)
+	if err != nil {
+		log.Errorf("setNumMetricNames: failed to get all metric names: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalMetricNames(int64(len(names)))
+}
+
+/*
+// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
+// keep it disabled until the panic is fixed
+
+func setNumSeries() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	numSeries, err := query.GetSeriesCardinalityOverTimeRange(allPreviousTime, 0)
+	if err != nil {
+		log.Errorf("setNumSeries: failed to get all series: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalTimeSeries(int64(numSeries))
+}
+*/
+
+func setNumKeysAndValues() {
+	allPreviousTime := &dtu.MetricsTimeRange{
+		StartEpochSec: 0,
+		EndEpochSec:   uint32(time.Now().Unix()),
+	}
+	myid := int64(0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(allPreviousTime, myid, querySummary)
+	if err != nil {
+		log.Errorf("setNumKeysAndValues: failed to get tags trees: %v", err)
+		return
+	}
+
+	keys := make(map[string]struct{})
+	values := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs, err := segmentTagTreeReader.GetAllTagPairs()
+		if err != nil {
+			log.Errorf("setNumKeysAndValues: failed to get all tag pairs: %v", err)
+			continue
+		}
+
+		for key, valueSet := range segmentTagPairs {
+			keys[key] = struct{}{}
+			for value := range valueSet {
+				values[value] = struct{}{}
+			}
+		}
+	}
+
+	instrumentation.SetTotalTagKeyCount(int64(len(keys)))
+	instrumentation.SetTotalTagValueCount(int64(len(values)))
+}
+
+func setMetricOnDiskBytes() {
+	tagsTreeHolderDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "tth")
+	tagsTreeHolderSize, err := fileutils.GetDirSize(tagsTreeHolderDir)
+	if os.IsNotExist(err) {
+		tagsTreeHolderSize = 0
+	} else if err != nil {
+		log.Errorf("setMetricOnDiskBytes: failed to get tags tree holder size: %v", err)
+		return
+	}
+
+	timeSeriesDir := filepath.Join(config.GetDataPath(), config.GetHostID(), "final", "ts")
+	timeSeriesSize, err := fileutils.GetDirSize(timeSeriesDir)
+	if os.IsNotExist(err) {
+		timeSeriesSize = 0
+	} else if err != nil {
+		log.Errorf("setMetricOnDiskBytes: failed to get time series size: %v", err)
+		return
+	}
+
+	instrumentation.SetTotalMetricOnDiskBytes(int64(tagsTreeHolderSize + timeSeriesSize))
 }

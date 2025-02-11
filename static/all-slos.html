@@ -44,7 +44,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     {{ .SLOCss | safeHTML }}
 
     <script src="./js/lib/lodash.min.js"></script>
@@ -71,7 +71,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div id="all-slos">
             <h1 class="myOrg-heading">SLOs</h1>
-            {{ .OrgSLOs | EntMsg }}
+            {{ if .EnterpriseEnabled }}
+            {{ .OrgSLOs | safeHTML }}
+            {{ else }}
+            {{ EntMsg }}
+            {{ end }}
         </div>
 
         <div id="app-footer">

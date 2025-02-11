@@ -357,13 +357,13 @@ func processAggregation(params map[string]interface{}, qid uint64, aggNode *Quer
 				if isTypeStatisticFunction(aggType) {
 					err := processStatisticAggregation(aggType, aggField, key, aggNode)
 					if err != nil {
-						log.Errorf("QID: %d Error when processing statistic aggregation! %s", qid, err.Error())
+						log.Errorf("qid=%d Error when processing statistic aggregation! %s", qid, err.Error())
 						return err
 					}
 				} else {
 					err := processNestedAggregation(aggType, aggField, key, qid, aggNode)
 					if err != nil {
-						log.Errorf("QID: %d Error when processing bucket aggregation! %s", qid, err.Error())
+						log.Errorf("qid=%d Error when processing bucket aggregation! %s", qid, err.Error())
 						return err
 					}
 				}

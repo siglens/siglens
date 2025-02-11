@@ -1,0 +1,4 @@
+{
+    "queryText": "search group=\"group 0\" [| gentimes start=-1 | eval host=\"Mozilla*,Opera*,Windows*,Mac*\" | makemv delim=\",\" host | mvexpand host | table host | format] | bin span=5m timestamp | stats count as count by host, timestamp, app_name, url | eval cmd = app_name. \"|\". url.\"|\".count | stats values(cmd) as cmds by timestamp, host | eval splunkd_count = mvindex(split(mvindex(cmds, mvfind(cmds, \"splunkd\")), \"|\"), 2) | eval cmds = mvjoin(cmds, \"|||\") | stats latest(cmds) as cmds by host | eval cmds = split(cmds, \"|||\") | rex field=host \"^(?<host>.*?)\\..*$\""
+}
+  

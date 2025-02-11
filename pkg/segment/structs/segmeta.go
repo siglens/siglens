@@ -24,8 +24,9 @@ import (
 const MAX_SEGMETA_FSIZE = 10_000_000 // 10 MB
 
 type ColSizeInfo struct {
-	CmiSize uint64 `json:"cmiSize"`
-	CsgSize uint64 `json:"csgSize"`
+	CmiSize            uint64 `json:"cmiSize"`
+	CsgSize            uint64 `json:"csgSize"`
+	ConsistentCvalSize uint32 `json:"cValSize"` // The size of the column value, given that the size is consistent across all records. The value is set to `MaxUint32` if the column values length is not consistent.
 }
 
 type VtableCounts struct {
@@ -35,18 +36,27 @@ type VtableCounts struct {
 }
 
 type SegMeta struct {
-	SegmentKey         string                  `json:"segmentKey"`
-	EarliestEpochMS    uint64                  `json:"earliestEpochMs,omitempty"`
-	LatestEpochMS      uint64                  `json:"latestEpochMs,omitempty"`
-	SegbaseDir         string                  `json:"segbaseDir,omitempty"`
-	VirtualTableName   string                  `json:"virtualTableName"`
-	RecordCount        int                     `json:"recordCount,omitempty"`
-	BytesReceivedCount uint64                  `json:"bytesReceivedCount,omitempty"`
-	OnDiskBytes        uint64                  `json:"onDiskBytes,omitempty"`
-	ColumnNames        map[string]*ColSizeInfo `json:"columnNames,omitempty"`
-	AllPQIDs           map[string]bool         `json:"pqids,omitempty"`
-	NumBlocks          uint16                  `json:"numBlocks,omitempty"`
-	OrgId              uint64                  `json:"orgid,omitempty"`
+	SegmentKey         string `json:"segmentKey"`
+	EarliestEpochMS    uint64 `json:"earliestEpochMs,omitempty"`
+	LatestEpochMS      uint64 `json:"latestEpochMs,omitempty"`
+	SegbaseDir         string `json:"segbaseDir,omitempty"`
+	VirtualTableName   string `json:"virtualTableName"`
+	RecordCount        int    `json:"recordCount,omitempty"`
+	BytesReceivedCount uint64 `json:"bytesReceivedCount,omitempty"`
+	OnDiskBytes        uint64 `json:"onDiskBytes,omitempty"`
+	// skip marshalling of these two fields, since they are getting written in the SegFullMeta
+	ColumnNames map[string]*ColSizeInfo `json:"-"`
+	AllPQIDs    map[string]bool         `json:"-"`
+	NumBlocks   uint16                  `json:"numBlocks,omitempty"`
+	OrgId       int64                   `json:"orgid,omitempty"`
+}
+
+// This segment specific info is written individually per segment instead of in the
+// single segmeta.json to avoid the bloat
+type SegFullMeta struct {
+	*SegMeta
+	ColumnNames map[string]*ColSizeInfo `json:"columnNames,omitempty"`
+	AllPQIDs    map[string]bool         `json:"pqids,omitempty"`
 }
 
 type MetricsMeta struct {
@@ -59,7 +69,7 @@ type MetricsMeta struct {
 	LatestEpochSec     uint32          `json:"latestEpochSec"`
 	TTreeDir           string          `json:"TTreeDir"`
 	DatapointCount     uint64          `json:"approximateDatapointCount"`
-	OrgId              uint64          `json:"orgid"`
+	OrgId              int64           `json:"orgid"`
 }
 
 type FileType int
@@ -68,7 +78,7 @@ const (
 	Cmi    FileType = iota // columnar micro index
 	Csg                    // columnar seg file
 	Bsu                    // block summary
-	Sid                    // segment info
+	Sfm                    // segment full meta file
 	Pqmr                   // segment persistent query matched results
 	Rollup                 // rollup files
 	Sst                    // Segment column stats files
@@ -117,21 +127,13 @@ type SegSetDataWithStrFname struct {
    ***********************************************************
 */
 
-const SIZE_OF_BSUM = 18
+const SIZE_OF_BSUM = 24 // 8 + 8 + 2 + 6 (padding)
 
 // If new member is added to BlockSum, make sure to reset it's value in resetwipblock()
 type BlockSummary struct {
 	HighTs   uint64
 	LowTs    uint64
 	RecCount uint16
-}
-
-const SIZE_OF_BlockInfo = 14 // 2 + 4 + 8 bytes
-type BlockInfo struct {
-	BlkNum    uint16
-	BlkLen    uint32
-	BlkOffset int64
-	// if you add a element here make sure to update the SIZE_OF_BlockInfo
 }
 
 type HostMetaData struct {

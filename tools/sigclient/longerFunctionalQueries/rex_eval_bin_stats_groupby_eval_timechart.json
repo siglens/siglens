@@ -1,0 +1,4 @@
+{
+    "queryText": "search city=\"boston\" | rex field=app_version \"(?<major>\\d+)\\.(?<minor>\\d).*\" | eval version=split(app_version,\".\") | eval version=mvindex(version,1) | bin timestamp span=15m | stats sum(latency) as latencySum, sum(http_status) as status_sum by version, timestamp | eval availability = 100 - (latencySum*100/status_sum) | timechart span=15m values(availability) by version"
+}
+  

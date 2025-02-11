@@ -20,11 +20,13 @@ package metrics
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
@@ -46,6 +48,7 @@ The leaf nodes stores the tsids that match certain tagValue
 TODO: how to flushes to just write updates
 */
 type TagTree struct {
+	name         string                // identifier used for debugging
 	rawValues    map[uint64][]*tagInfo // maps metricNameHash to a list of tagInfo in sorted order
 	dirty        bool                  // in memory has data that is not flushed to disk
 	numMetrics   int                   // number of metric names in this tree
@@ -77,8 +80,9 @@ type tagInfo struct {
 	matchingtsids []uint64
 }
 
-func InitTagsTree() *TagTree {
+func InitTagsTree(name string) *TagTree {
 	return &TagTree{
+		name:      name,
 		rawValues: make(map[uint64][]*tagInfo),
 		dirty:     false,
 		rwLock:    &sync.RWMutex{},
@@ -86,8 +90,9 @@ func InitTagsTree() *TagTree {
 }
 
 func InitTagsTreeHolder(mid string) (*TagsTreeHolder, error) {
-	suffix, err := suffix.GetSuffix(mid, "tth")
+	suffix, err := suffix.GetNextSuffix(mid, "tth")
 	if err != nil {
+		log.Errorf("InitTagsTreeHolder: failed to get the suffix for mid %s. Error: %+v", mid, err)
 		return nil, err
 	}
 	tKey := GetFinalTagsTreeDir(mid, suffix)
@@ -117,6 +122,7 @@ func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid u
 		defer tth.rwLock.Unlock()
 		err := tth.addTags(mName, tags, tsid)
 		if err != nil {
+			log.Errorf("TagsTreeHolder.AddTagsForTSID: failed to add tags to tree. mName: %v, tsid: %v, tags holder: %+v; err=%v", mName, tsid, tags, err)
 			return err
 		}
 		tth.tagBloom.Add(rawTSID)
@@ -127,15 +133,16 @@ func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid u
 
 // Add tag keys and values to the tree. If inserted into a tree, sets the updated flag.
 func (tth *TagsTreeHolder) addTags(mName []byte, tags *TagsHolder, tsid uint64) error {
-	finaltags := tags.getEntries()
+	finaltags := tags.GetEntries()
 	for _, tag := range finaltags {
 		currKey := tag.tagKey
 		currTree, ok := tth.allTrees[currKey]
 		if !ok {
-			currTree = InitTagsTree()
+			currTree = InitTagsTree(currKey)
 			tth.allTrees[currKey] = currTree
 		}
 		if err := currTree.AddTagValue(mName, tag.tagValue, tag.tagValueType, tsid); err != nil {
+			log.Errorf("TagsTreeHolder.addTags: failed to add tag value to tree. mName: %v, tsid: %v, tag: %+v; err=%v", mName, tsid, tag, err)
 			return err
 		}
 	}
@@ -147,20 +154,24 @@ func (tt *TagTree) AddTagValue(mName, val []byte, valueType jp.ValueType, tsid u
 	switch valueType {
 	case jp.String:
 		if value, err := jp.ParseString(val); err != nil {
+			log.Errorf("TagTree.AddTagValue: Failed to parse %v as string; err=%v", val, err)
 			return fmt.Errorf("AddTagValue: Error in raw tag value conversion %T. Error: %v", val, err)
 		} else {
 			hashVal = xxhash.Sum64String(value)
 		}
 	case jp.Number:
 		if value, err := jp.ParseFloat(val); err != nil {
+			log.Errorf("TagTree.AddTagValue: Failed to parse %v as float; err=%v", val, err)
 			return fmt.Errorf("AddTagValue: Error in raw tag value conversion %T. Error: %v", val, err)
 		} else {
 			hashVal = uint64(value)
 		}
 	case jp.NotExist:
 		// TODO: do we need special null handling?
+		log.Errorf("TagTree.AddTagValue: Received null tag value for metric: %v, tag: %v, tsid: %v", mName, val, tsid)
 		return fmt.Errorf("received null tag value")
 	default:
+		log.Errorf("TagTree.AddTagValue: Invalid value type %v for metric: %v, tag: %v, tsid: %v", valueType.String(), mName, val, tsid)
 		return fmt.Errorf("AddTagValue: Error in raw tag value conversion %T type %v", val, valueType.String())
 	}
 	hashedMName := xxhash.Sum64(mName)
@@ -230,6 +241,7 @@ func (tt *TagTree) AddTagValue(mName, val []byte, valueType jp.ValueType, tsid u
 	return nil
 }
 
+// Returns true if the tsid gets added; false if it already exists.
 func (ti *tagInfo) insertTSID(tsid uint64) bool {
 	idx := sort.Search(len(ti.matchingtsids), func(i int) bool { return ti.matchingtsids[i] <= tsid })
 	if idx == len(ti.matchingtsids) {
@@ -275,19 +287,43 @@ func (tt *TagTree) flushSingleTagsTree(tagKey string, tagsTreeBase string) error
 	fName := getTagsTreeFileName(tagKey, tagsTreeBase)
 	encodedTT, err := tt.encodeTagsTree()
 	if err != nil {
-		log.Errorf("EncodeTagsTreeHolder: encode failed fname=%v. Error: %v", fName, err)
+		log.Errorf("TagTree.flushSingleTagsTree: encode failed fname=%v. Error: %v", fName, err)
 		return err
 	}
-	ttFd, err := os.OpenFile(fName, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
+
+	// We want to write over the whole file. However, we can only lock the file
+	// after opening it. So we must not truncate the file when opening it.
+	// Instead, we open the file without truncating, then take the write lock,
+	// truncate the file, and write the new data.
+	ttFd, err := os.OpenFile(fName, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		log.Errorf("EncodeTagsTreeHolder: file open failed fname=%v. Error: %v", fName, err)
+		log.Errorf("TagTree.flushSingleTagsTree: file open failed fname=%v. Error: %v", fName, err)
 		_ = os.Remove(fName)
 		return err
 	}
 	defer ttFd.Close()
+
+	err = syscall.Flock(int(ttFd.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		log.Errorf("TagTree.flushSingleTagsTree: failed to lock file=%v. Error: %v", fName, err)
+		return err
+	}
+	defer func() {
+		err := syscall.Flock(int(ttFd.Fd()), syscall.LOCK_UN)
+		if err != nil {
+			log.Errorf("TagTree.flushSingleTagsTree: failed to unlock file=%v. Error: %v", fName, err)
+		}
+	}()
+
+	err = ttFd.Truncate(0)
+	if err != nil {
+		log.Errorf("TagTree.flushSingleTagsTree: failed to truncate file=%v. Error: %v", fName, err)
+		return err
+	}
+
 	_, err = ttFd.Write(encodedTT)
 	if err != nil {
-		log.Errorf("EncodeTagsTreeHolder: failed to write encoded tags tree in file=%v. Error: %v", fName, err)
+		log.Errorf("TagTree.flushSingleTagsTree: failed to write encoded tags tree in file=%v. Error: %v", fName, err)
 		return err
 	}
 	return nil
@@ -296,15 +332,15 @@ func (tt *TagTree) flushSingleTagsTree(tagKey string, tagsTreeBase string) error
 func (tt *TagsTreeHolder) flushTagsTree() {
 	err := tt.EncodeTagsTreeHolder()
 	if err != nil {
-		log.Errorf("flushTagsTree: failed to write tagstree info to file. Error: %v", err)
+		log.Errorf("flushTagsTree: failed to write tagstree %+v info to file. Error: %v", tt, err)
 	}
 }
 
 func (tt *TagsTreeHolder) rotateTagsTree(forceRotate bool) error {
 	if !forceRotate {
-		nextSuffix, err := suffix.GetSuffix(tt.mid, "tth")
+		nextSuffix, err := suffix.GetNextSuffix(tt.mid, "tth")
 		if err != nil {
-			log.Errorf("rotateTagsTree: failed to get the next suffix for mid %s. Error: %+v", tt.mid, err)
+			log.Errorf("TagTree.rotateTagsTree: failed to get the next suffix for mid %s. Error: %+v", tt.mid, err)
 			return err
 		}
 		tagsTreePath := GetFinalTagsTreeDir(tt.mid, nextSuffix)
@@ -322,7 +358,7 @@ func createTagsTreeDirectory(ttBase string) error {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(ttBase, 0764)
 			if err != nil {
-				log.Errorf("EncodeTagsTreeHolder: failed to create directory %s . Error %+v", ttBase, err)
+				log.Errorf("createTagsTreeDirectory: failed to create directory %s. Error: %+v", ttBase, err)
 				return err
 			}
 		}
@@ -333,11 +369,13 @@ func createTagsTreeDirectory(ttBase string) error {
 func (tt *TagsTreeHolder) EncodeTagsTreeHolder() error {
 	err := createTagsTreeDirectory(tt.tagstreeBase)
 	if err != nil {
+		log.Errorf("TagsTreeHolder.EncodeTagsTreeHolder: failed to create directory %s. Error: %+v", tt.tagstreeBase, err)
 		return err
 	}
 	for tagKey, tree := range tt.allTrees {
 		err := tree.flushSingleTagsTree(tagKey, tt.tagstreeBase)
 		if err != nil {
+			log.Errorf("TagsTreeHolder.EncodeTagsTreeHolder: failed to flush tag tree for key %s. Error: %v", tagKey, err)
 			return err
 		}
 		tree.dirty = false
@@ -378,39 +416,41 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	totalBytesWritten := 0
 	startOff := metadataSize
 	copy(metadataBuf[:1], VERSION_TAGSTREE) // Write version byte as 0x01
-	copy(metadataBuf[1:5], utils.Uint32ToBytesLittleEndian(metadataSize))
+	utils.Uint32ToBytesLittleEndianInplace(metadataSize, metadataBuf[1:5])
 	idx := uint32(5)
 	for hashedMName, tagInfo := range tree.rawValues {
 		tagBuf := new(bytes.Buffer)
 		id := uint32(0)
 		for _, tInfo := range tagInfo {
 			if _, err := tagBuf.Write(utils.Uint64ToBytesLittleEndian(tInfo.tagHashValue)); err != nil {
-				log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
+				log.Errorf("TagTree.encodeTagsTree: Failed to write hash value %v to tag tree %v. Error: %v", tInfo.tagHashValue, tree.name, err)
 				return nil, err
 			}
 			id += 8
 			switch tInfo.tagValueType {
 			case jp.String:
-				if value, err := jp.ParseString(tInfo.tagValue); err != nil {
-					return nil, fmt.Errorf("encodeTagsTree: Error in raw tag value conversion %T. Error: %v", tInfo.tagValue, err)
-				} else {
-					if _, err := tagBuf.Write(VALTYPE_ENC_SMALL_STRING[:]); err != nil {
-						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
-						return nil, err
-					}
-					id += 1
-					n := uint16(len(value))
-					if _, err := tagBuf.Write(utils.Uint16ToBytesLittleEndian(n)); err != nil {
-						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
-						return nil, err
-					}
-					id += 2
-					if _, err := tagBuf.WriteString(value); err != nil {
-						log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
-						return nil, err
-					}
-					id += uint32(len(value))
+				value, err := jp.ParseString(tInfo.tagValue)
+				if err != nil {
+					log.Errorf("TagTree.encodeTagsTree: Failed to parse %v as string for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
+					return nil, err
 				}
+				if _, err = tagBuf.Write(VALTYPE_ENC_SMALL_STRING[:]); err != nil {
+					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value type: %+v to buffer for tag tree %v. Error: %v",
+						VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
+					return nil, err
+				}
+				id += 1
+				valueLength := uint16(len(value))
+				if _, err := tagBuf.Write(utils.Uint16ToBytesLittleEndian(valueLength)); err != nil {
+					log.Errorf("TagTree.encodeTagsTree: Failed to write string length %v to buffer for tag tree %v. Error: %v", valueLength, tree.name, err)
+					return nil, err
+				}
+				id += 2
+				if _, err := tagBuf.WriteString(value); err != nil {
+					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value %v to buffer for tag tree %v. Error: %v", value, tree.name, err)
+					return nil, err
+				}
+				id += uint32(len(value))
 			case jp.Number:
 				var valueType []byte
 				var valueInBytes []byte
@@ -420,7 +460,8 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 				if err != nil {
 					value, err = jp.ParseFloat(tInfo.tagValue)
 					if err != nil {
-						return nil, fmt.Errorf("encodeTagsTree: Tag Value json number is neither int64 nor float64:  %T. Error: %v", tInfo.tagValue, err)
+						log.Errorf("TagTree.encodeTagsTree: Failed to parse tag value %v as int or float for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
+						return nil, err
 					}
 					valueType = VALTYPE_ENC_FLOAT64
 					valueInBytes = utils.Float64ToBytesLittleEndian(value.(float64))
@@ -430,38 +471,46 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 				}
 
 				if _, err := tagBuf.Write(valueType[:]); err != nil {
-					log.Errorf("encodeTagsTree: Cannot write tag value type: %+v to buffer. Error: %v", valueType[:], err)
+					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value type: %+v to buffer for tag tree %v. Error: %v",
+						valueType[:], tree.name, err)
 					return nil, err
 				}
 
 				id += 1
 				if _, err := tagBuf.Write(valueInBytes); err != nil {
-					log.Errorf("encodeTagsTree: Cannot write tag value: %v to buffer. Error: %v", value, err)
+					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value %v to buffer for tag tree %v. Error: %v", value, tree.name, err)
 					return nil, err
 				}
 				id += 8
 			default:
-				return nil, fmt.Errorf("encodeTagsTree: Incorrect tag value type %v", tInfo.tagValueType)
+				err := fmt.Errorf("encodeTagsTree: Invalid tag value type %v for tag tree %v", tInfo.tagValueType, tree.name)
+				log.Errorf("TagTree.encodeTagsTree: %v", err)
+				return nil, err
 			}
-			l1 := uint16(len(tInfo.matchingtsids))
-			if _, err := tagBuf.Write(utils.Uint16ToBytesLittleEndian(l1)); err != nil {
-				log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
+			numMatchingTSIDs := len(tInfo.matchingtsids)
+			if numMatchingTSIDs > math.MaxUint16 {
+				log.Errorf("TagTree.encodeTagsTree: Number of matching TSIDs (%v) exceeds maximum allowed value (%v) for tag tree %v",
+					numMatchingTSIDs, math.MaxUint16, tree.name)
+			}
+			if _, err := tagBuf.Write(utils.Uint16ToBytesLittleEndian(uint16(numMatchingTSIDs))); err != nil {
+				log.Errorf("TagTree.encodeTagsTree: Failed to write number of matching TSIDs %v to buffer for tag tree %v. Error: %v",
+					numMatchingTSIDs, tree.name, err)
 				return nil, err
 			}
 			id += 2
 			for _, tsid := range tInfo.matchingtsids {
 				if _, err := tagBuf.Write(utils.Uint64ToBytesLittleEndian(tsid)); err != nil {
-					log.Errorf("encodeTagsTree: Cannot write to buffer. Error: %v", err)
+					log.Errorf("TagTree.encodeTagsTree: Failed to write TSID %v to buffer for tag tree %v. Error: %v", tsid, tree.name, err)
 					return nil, err
 				}
 				id += 8
 			}
 		}
-		copy(metadataBuf[idx:], utils.Uint64ToBytesLittleEndian(hashedMName))
+		utils.Uint64ToBytesLittleEndianInplace(hashedMName, metadataBuf[idx:])
 		idx += 8
-		copy(metadataBuf[idx:], utils.Uint32ToBytesLittleEndian(startOff))
+		utils.Uint32ToBytesLittleEndianInplace(startOff, metadataBuf[idx:])
 		idx += 4
-		copy(metadataBuf[idx:], utils.Uint32ToBytesLittleEndian(startOff+id))
+		utils.Uint32ToBytesLittleEndianInplace(startOff+id, metadataBuf[idx:])
 		idx += 4
 		sizeToAdd := int64(tagBuf.Len())
 		if sizeToAdd > 0 {

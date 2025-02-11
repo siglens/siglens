@@ -44,8 +44,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
-    <link rel="stylesheet" href="./css/metrics-explorer.css" />
+    <link rel="stylesheet" href="./css/lib/tippy.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
     <style>
         #ui-id-1.ui-widget.ui-widget-content,
         #ui-id-2.ui-widget.ui-widget-content,
@@ -53,7 +55,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         #ui-id-4.ui-widget.ui-widget-content{
             width: 84px !important;
             min-width: 84px;
-            font-size: 12px;
+            font-size: 12px !important;
+            height: fit-content;
         }
         #ui-id-1.ui-autocomplete > li > div,
         #ui-id-2.ui-autocomplete > li > div,
@@ -71,6 +74,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
@@ -92,52 +96,55 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div>
                         <h1 class="myOrg-heading">Metrics Explorer</h1>
                     </div>
-                    <div class="dropdown">
-                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
-                            title="Pick the time window">
-                            <span>Time Picker</span>
-                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                        </button>
-                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
-                            <p class="dt-header">Search the last</p>
-                            <div class="ranges">
-                                <div class="inner-range">
-                                    <div id="now-5m" class="range-item ">5 Mins</div>
-                                    <div id="now-3h" class="range-item">3 Hrs</div>
-                                    <div id="now-2d" class="range-item">2 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-15m" class="range-item">15 Mins</div>
-                                    <div id="now-6h" class="range-item">6 Hrs</div>
-                                    <div id="now-7d" class="range-item">7 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-30m" class="range-item">30 Mins</div>
-                                    <div id="now-12h" class="range-item">12 Hrs</div>
-                                    <div id="now-30d" class="range-item">30 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-1h" class="range-item">1 Hr</div>
-                                    <div id="now-24h" class="range-item">24 Hrs</div>
-                                    <div id="now-90d" class="range-item">90 Days</div>
-                                </div>
-                                <hr>
-                                </hr>
-                                <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
-                                </div>
-                                <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                    <input type="date" id="date-start" />
-                                    <input type="time" id="time-start" value="00:00" />
-                                </div>
-                                <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                    <input type="date" id="date-end">
-                                    <input type="time" id="time-end" value="00:00">
-                                </div>
-                                <div class="drp-buttons">
-                                    <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
-                                        type="button">Apply</button>
+                    <div class="d-flex">
+                        <div>
+                            <button class="btn refresh-btn"></button>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
+                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                <span>Time Picker</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                                <p class="dt-header">Search the last</p>
+                                <div class="ranges">
+                                    <div class="inner-range">
+                                        <div id="now-5m" class="range-item ">5 Mins</div>
+                                        <div id="now-3h" class="range-item">3 Hrs</div>
+                                        <div id="now-2d" class="range-item">2 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-15m" class="range-item">15 Mins</div>
+                                        <div id="now-6h" class="range-item">6 Hrs</div>
+                                        <div id="now-7d" class="range-item">7 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-30m" class="range-item">30 Mins</div>
+                                        <div id="now-12h" class="range-item">12 Hrs</div>
+                                        <div id="now-30d" class="range-item">30 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="range-item">1 Hr</div>
+                                        <div id="now-24h" class="range-item">24 Hrs</div>
+                                        <div id="now-90d" class="range-item">90 Days</div>
+                                    </div>
+                                    <hr>
+                                    </hr>
+                                    <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
+                                    </div>
+                                    <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                        <input type="date" id="date-start" />
+                                        <input type="time" id="time-start" value="00:00" />
+                                    </div>
+                                    <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                        <input type="date" id="date-end">
+                                        <input type="time" id="time-end" value="00:00">
+                                    </div>
+                                    <div class="drp-buttons">
+                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                                            type="button">Apply</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -147,8 +154,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                    <div id="metrics-queries"></div>
                    <div id="metrics-formula"></div>
                     <div class="mt-3 d-flex ">
-                        <button id="add-query" class="btn"><span class="plus-icon">+</span> Add Query</button>
-                        <button id="add-formula" class="btn"><span class="plus-icon">+</span> Add Formula</button>
+                        <button id="add-query" class="btn btn-grey"><span class="plus-icon">+</span> Add Query</button>
+                        <button id="add-formula" class="btn btn-grey"><span class="plus-icon">+</span> Add Formula</button>
                     </div>
                 </div>
                 <hr>
@@ -167,24 +174,84 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
                 <hr>
-                <div class="mt-4">
-                    <div class="graph-view-container btn">
+                <div class="mt-3" style="display:flex; flex-direction:row; gap:8px">
+                    <div class="graph-view-container btn btn-white">
                         <label class="switch">
                             <input type="checkbox" id="toggle-switch" checked>
                             <span class="slider round"></span>
                         </label>
-                        <label class="label">One graph per query</label>
+                        <label class="label" style="margin-left: 6px">One graph per query</label>
+                    </div>
+                    <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+                    <button class="btn add-metrics-to-db-btn below-btn-img" id="add-metrics-to-db-btn" class="mx-3"></button>
+                    <button class="btn alert-from-metrics-btn below-btn-img" id="alert-from-metrics-btn"></button>
+
+                    <div class="dropdown download-btn">                       
+                        <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                        </button>
+                        <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn"
+                            id="save-query-options">
+                            <li id="csv-block" class="query-language-option">Download as CSV</li>
+                            <li id="json-block" class="query-language-option">Download as JSON</li>
+                        </div>
+                    </div>
+                    <div id="save-queries">
+                        <p class="validateTips"></p>
+                        <form>
+                            <fieldset>
+                                <input type="text" name="qname" id="qname" placeholder="Name"
+                                    class="text ui-widget-content ui-corner-all">
+                                <input type="text" name="description" id="description" placeholder="Description (Optional)"
+                                    class="text ui-widget-content ui-corner-all">
+                                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+                            </fieldset>
+                        </form>
                     </div>
                 </div>
-                <div id="metrics-graphs" class="metrics-graph-container mt-5">
+                <div id="metrics-graphs" class="metrics-graph-container mt-4">
     
                 </div>
-                <div id="merged-graph-container" style="display: none;" class="mt-5"></div>
+                <div id="merged-graph-container" style="display: none;" class="mt-4"></div>
             </div>
         </div>
 
+    
+    <div class="popupOverlay"></div>
+        <div class="popupContent" id="create-db-popup">
+            <h3 class="header mb-2">Add panel to dashboard</h3>
+            <p>Choose where to add the panel</p>
+            <div class="section-buttons mt-2">
+                <div class="section-button active new-dashboard-btn"><a>New Dashboard</a></div>
+                <div class="section-button existing-dashboard-btn"><a>Existing Dashboard</a></div>
+            </div>
+            <div class="new-dashboard">
+                <div>
+                    <input type="text" placeholder="Name" class="input mt-3" id="db-name">
+                    <p class="error-tip">Dashboard name is required!</p>
+                    <input type="text" placeholder="Description (Optional)" class="input mt-3" id="db-description">
+                </div>
+            </div>
+            <div class="existing-dashboard">
+                <p for="" class="mt-3 mb-3"><small>Select in which dashboard the panel will be created.</small></p>
+                <div class="dropdown">
+                    <button class="btn dropdown-toggle btn-grey w-100" type="button" id="selected-dashboard" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
+                        <span>Choose Dashboard</span>
+                        <i class="dropdown-arrow"></i>
+                    </button>
+                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="dashboard-options">
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center justify-content-center mt-4">
+                <button type="button" id="cancel-dbbtn" class="my-0 btn">Cancel</button>
+                <button type="button" id="create-db" class="btn create-db">Create Dashboard</button>
+                <button type="button" id="create-panel" class="btn create-db">Create Panel</button>
+            </div>
+        </div>
     </div>
-
     <div id="app-footer">
         2024 &copy; SigLens
     </div>
@@ -197,6 +264,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./js/metrics-explorer.js"></script>
+    <script src="./js/saved-query.js?cb=1_1_10"></script>
+    <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
+    <script src="./js/dashboard-from-logs-metrics.js?cb=1_1_10"></script>
+
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

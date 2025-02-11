@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -34,8 +35,11 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const contentTypeHeader = "Content-Type"
+
 const (
-	ContentJson = "application/json; charset=utf-8"
+	ContentJson     = "application/json; charset=utf-8"
+	ContentProtobuf = "application/x-protobuf"
 )
 
 type HttpServerResponse struct {
@@ -369,14 +373,33 @@ type DeleteIndexErrorResponseInfo struct {
 	Index        string `json:"index"`
 }
 
-type ResultPerIndex map[string]map[string]interface{} // maps index name to index stats
+type AllIndexesStats struct {
+	IndexToStats map[string]IndexStats
+}
+
+type IndexStats struct {
+	NumBytesIngested  uint64
+	NumRecords        uint64
+	NumSegments       uint64
+	NumColumns        uint64
+	ColumnsSet        map[string]struct{}
+	EarliestTimestamp uint64
+	LatestTimestamp   uint64
+	TotalOnDiskBytes  uint64
+	TotalCmiSize      uint64
+	TotalCsgSize      uint64
+	NumIndexFiles     int
+	NumBlocks         int64
+}
 
 type ClusterStatsResponseInfo struct {
-	IngestionStats map[string]interface{}            `json:"ingestionStats"`
-	QueryStats     map[string]interface{}            `json:"queryStats"`
-	MetricsStats   map[string]interface{}            `json:"metricsStats"`
-	IndexStats     []ResultPerIndex                  `json:"indexStats"`
-	ChartStats     map[string]map[string]interface{} `json:"chartStats"`
+	IngestionStats  map[string]interface{}              `json:"ingestionStats"`
+	QueryStats      map[string]interface{}              `json:"queryStats"`
+	MetricsStats    map[string]interface{}              `json:"metricsStats"`
+	IndexStats      []map[string]map[string]interface{} `json:"indexStats"`
+	TraceIndexStats []map[string]map[string]interface{} `json:"traceIndexStats"`
+	ChartStats      map[string]map[string]interface{}   `json:"chartStats"`
+	TraceStats      map[string]interface{}              `json:"traceStats"`
 }
 
 type MetricsStatsResponseInfo struct {
@@ -412,18 +435,32 @@ func NewSingleESResponse() *SingleESResponse {
 
 func WriteResponse(ctx *fasthttp.RequestCtx, httpResp HttpServerResponse) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := json.Marshal(httpResp)
-	_, err := ctx.Write(jval)
+	jval, err := json.Marshal(httpResp)
 	if err != nil {
+		log.Errorf("WriteResponse: Error marshaling HTTP response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error marshaling HTTP response", fasthttp.StatusInternalServerError)
+		return
+	}
+	_, err = ctx.Write(jval)
+	if err != nil {
+		log.Errorf("WriteResponse: Error writing HTTP response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error writing HTTP response", fasthttp.StatusInternalServerError)
 		return
 	}
 }
 
 func WriteJsonResponse(ctx *fasthttp.RequestCtx, httpResp interface{}) {
 	ctx.SetContentType(ContentJson)
-	jval, _ := json.Marshal(httpResp)
-	_, err := ctx.Write(jval)
+	jval, err := json.Marshal(httpResp)
 	if err != nil {
+		log.Errorf("WriteJsonResponse: Error marshaling JSON response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error marshaling JSON response", fasthttp.StatusInternalServerError)
+		return
+	}
+	_, err = ctx.Write(jval)
+	if err != nil {
+		log.Errorf("WriteJsonResponse: Error writing JSON response. Error: %v, HTTP Response: %+v", err, httpResp)
+		ctx.Error("Error writing JSON response", fasthttp.StatusInternalServerError)
 		return
 	}
 }
@@ -744,7 +781,7 @@ func (eo *HttpServerESResponse) GetHits() uint64 {
 	case map[string]interface{}:
 		retVal, ok := t["value"]
 		if !ok {
-			log.Infof("Tried to get hits for a map with no 'value' key! Map: %v", retVal)
+			log.Warnf("GetHits: Tried to get hits for a map with no 'value' key! Map: %v", retVal)
 			return 0
 		}
 		switch hit := retVal.(type) {
@@ -755,11 +792,11 @@ func (eo *HttpServerESResponse) GetHits() uint64 {
 		case int64:
 			return uint64(hit)
 		default:
-			log.Infof("Map value is not a supported type!: %v %T", hit, hit)
+			log.Warnf("GetHits: Map value is not a supported type!: %v %T", hit, hit)
 			return 0
 		}
 	default:
-		log.Infof("Tried to get hits for unsupported type %T", t)
+		log.Warnf("GetHits: Tried to get hits for unsupported type %T", t)
 		return 0
 	}
 }
@@ -818,7 +855,7 @@ func VerifyBasicAuth(ctx *fasthttp.RequestCtx, usernameHash uint64, passwordHash
 func GetSpecificIdentifier() (string, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		return "", fmt.Errorf("GetSpecificIdentifier: %v", err)
+		return "", fmt.Errorf("GetSpecificIdentifier: failt to get net interfaces: %v", err)
 	}
 
 	for _, iface := range interfaces {
@@ -874,7 +911,8 @@ func ExtractSeriesOfJsonObjects(body []byte) ([]map[string]interface{}, error) {
 	return objects, nil
 }
 
-func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error, statusCode int) {
+func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageToUser string,
+	extraMessageToLog string, err error, statusCode int, doLogging bool) {
 	// Get the caller function name, file name, and line number.
 	pc, _, _, _ := runtime.Caller(2) // Get the caller two levels up.
 	caller := runtime.FuncForPC(pc)
@@ -893,11 +931,13 @@ func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageTo
 		callerFile = callerFile[strings.LastIndex(callerFile, "/pkg/")+1:]
 	}
 
-	// Log the error message.
-	if extraMessageToLog == "" {
-		logger.Errorf("%s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
-	} else {
-		logger.Errorf("%s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+	if doLogging {
+		// Log the error message.
+		if extraMessageToLog == "" {
+			logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v, err=%v", callerName, callerFile, callerLine, messageToUser, err)
+		} else {
+			logger.Errorf("sendErrorWithStatus: %s at %s:%d: %v. %v, err=%v", callerName, callerFile, callerLine, messageToUser, extraMessageToLog, err)
+		}
 	}
 
 	// Send the error message to the client.
@@ -908,13 +948,43 @@ func sendErrorWithStatus(logger *log.Logger, ctx *fasthttp.RequestCtx, messageTo
 }
 
 func SendError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusBadRequest)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err,
+		fasthttp.StatusBadRequest, true)
+}
+
+func SendErrorWithoutLogging(ctx *fasthttp.RequestCtx, messageToUser string, err error) {
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, "", err,
+		fasthttp.StatusBadRequest, false)
 }
 
 func SendInternalError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusInternalServerError)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err,
+		fasthttp.StatusInternalServerError, true)
 }
 
 func SendUnauthorizedError(ctx *fasthttp.RequestCtx, messageToUser string, extraMessageToLog string, err error) {
-	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err, fasthttp.StatusUnauthorized)
+	sendErrorWithStatus(log.StandardLogger(), ctx, messageToUser, extraMessageToLog, err,
+		fasthttp.StatusUnauthorized, true)
+}
+
+func IsValidURL(str string) bool {
+	u, err := url.Parse(str)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
+func EncodeURL(str string) (string, error) {
+	u, err := url.Parse(str)
+	if err != nil {
+		return "", err
+	}
+	u.RawQuery = url.QueryEscape(u.RawQuery)
+	return u.String(), nil
+}
+
+func GetContentType(ctx *fasthttp.RequestCtx) string {
+	return string(ctx.Request.Header.Peek(contentTypeHeader))
+}
+
+func SetContentType(ctx *fasthttp.RequestCtx, contentType string) {
+	ctx.Response.Header.Set(contentTypeHeader, contentType)
 }

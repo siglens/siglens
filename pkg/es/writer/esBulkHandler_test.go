@@ -26,6 +26,8 @@ import (
 
 	jp "github.com/buger/jsonparser"
 	"github.com/siglens/siglens/pkg/config"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	"github.com/stretchr/testify/assert"
@@ -37,18 +39,28 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 	// Setup ingestion parameters.
 	now := utils.GetCurrentTimeInMs()
 	indexName := "traces"
-	shouldFlush := false
+	shouldFlush := true
 	localIndexMap := make(map[string]string)
-	orgId := uint64(0)
+	orgId := int64(0)
+	tsKey := config.GetTimeStampKey()
+
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
 
 	flush := func() {
 		jsonBytes := []byte(`{"hello": "world"}`)
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), true, localIndexMap, orgId)
+		pleArray := make([]*segwriter.ParsedLogEvent, 0)
+		defer segwriter.ReleasePLEs(pleArray)
+		ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
+		assert.Nil(t, err)
+		pleArray = append(pleArray, ple)
+		err = ProcessIndexRequestPle(now, indexName, true, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 		assert.Nil(t, err)
 	}
 
-	config.InitializeTestingConfig()
-	_ = vtable.InitVTable()
+	config.InitializeTestingConfig(t.TempDir())
+	_ = vtable.InitVTable(server_utils.GetMyIds)
 
 	// Ingest some data that can all be converted to numbers.
 	jsons := [][]byte{
@@ -60,10 +72,16 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 		[]byte(`{"age": 6.321}`),
 	}
 
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	for _, jsonBytes := range jsons {
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
 		assert.Nil(t, err)
+		pleArray = append(pleArray, ple)
 	}
+	err := ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	assert.Nil(t, err)
+	segwriter.ReleasePLEs(pleArray)
+
 	flush()
 
 	// Ingest some data that will need to be converted to strings.
@@ -79,10 +97,16 @@ func Test_IngestMultipleTypesIntoOneColumn(t *testing.T) {
 		[]byte(`{"age": "hello"}`),
 	}
 
+	pleArray = make([]*segwriter.ParsedLogEvent, 0)
 	for _, jsonBytes := range jsons {
-		err := ProcessIndexRequest(jsonBytes, now, indexName, uint64(len(jsonBytes)), shouldFlush, localIndexMap, orgId)
+		ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &tsKey, jsParsingStackbuf[:])
 		assert.Nil(t, err)
+		pleArray = append(pleArray, ple)
 	}
+	err = ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+	assert.Nil(t, err)
+	segwriter.ReleasePLEs(pleArray)
+
 	flush()
 
 	// Cleanup

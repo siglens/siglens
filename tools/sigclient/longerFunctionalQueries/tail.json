@@ -1,0 +1,82 @@
+{
+    "queryText": "city=Boston | fields app_name, ident, country | tail",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 10,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "SandyBrownmob",
+                "country": "United States of America",
+                "ident": "db4170ce-a2f3-493c-93b7-ecced98c3310",
+                "timestamp": 1730388400073
+            },
+            {
+                "app_name": "Goldbatch",
+                "country": "Dominican Republic",
+                "ident": "96ca0518-b5a9-42f5-a521-41f8459bbece",
+                "timestamp": 1730388400152
+            },
+            {
+                "app_name": "Mosquitosing",
+                "country": "Mauritania",
+                "ident": "7014680f-6e55-4f48-87d1-862954eac8b8",
+                "timestamp": 1730388400314
+            },
+            {
+                "app_name": "Sea Lionhad",
+                "country": "Nepal",
+                "ident": "060e3100-b048-4a96-a374-06d5fde03d6f",
+                "timestamp": 1730388400452
+            },
+            {
+                "app_name": "Mallardmay",
+                "country": "Cuba",
+                "ident": "69a64942-1ffa-4e4b-a138-dfab5e39069a",
+                "timestamp": 1730388400530
+            },
+            {
+                "app_name": "Gainsborocousin",
+                "country": "Palestine, State of",
+                "ident": "f1ab69c7-e90b-4237-baf7-19827ad6f28f",
+                "timestamp": 1730388400691
+            },
+            {
+                "app_name": "Scorpionbeing",
+                "country": "Saint Kitts and Nevis",
+                "ident": "fc9bf120-ef88-4df6-a01e-192cae5e9454",
+                "timestamp": 1730388400842
+            },
+            {
+                "app_name": "PaleVioletRedbody",
+                "country": "Saint Pierre and Miquelon",
+                "ident": "aa490f06-6ef7-42f7-903b-c14f833d0193",
+                "timestamp": 1730388401131
+            },
+            {
+                "app_name": "Solitudewas",
+                "country": "Cocos (Keeling) Islands",
+                "ident": "8987616c-f860-42f2-927c-ef8bd59e3d40",
+                "timestamp": 1730388401220
+            },
+            {
+                "app_name": "Cabinetdid",
+                "country": "Burkina Faso",
+                "ident": "945d29eb-4258-4850-8166-f9e3787d3e2b",
+                "timestamp": 1730388401286
+            }
+        ],
+        "allColumns": [
+            "app_name",
+            "ident",
+            "country"
+        ],
+        "columnsOrder": [
+            "app_name",
+            "ident",
+            "country"
+        ]
+    }
+}

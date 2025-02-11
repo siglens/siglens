@@ -1,0 +1,21 @@
+{
+    "queryText": "variable_col_7=Human http_method != \"POST\" gender=ma* | stats avg(variable_col_4) as avg, max(variable_col_15), min(variable_col_18), sum(variable_col_17), range(variable_col_19), count, values(variable_col_3), dc(variable_col_2) as distinct_count, list(variable_col_16)",
+    "expectedResult": {
+        "verifyMinimal": true,
+         "qtype": "segstats-query",
+         "measureFunctions": [
+            "range(variable_col_19)",
+            "count(*)",
+            "sum(variable_col_17)",
+            "list(variable_col_16)",
+            "avg",
+            "distinct_count",
+            "max(variable_col_15)",
+            "min(variable_col_18)",
+            "values(variable_col_3)"
+        ],
+         "measure": [
+        ]
+     }
+ }
+ 

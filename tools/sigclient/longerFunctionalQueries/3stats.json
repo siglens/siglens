@@ -1,0 +1,25 @@
+{
+   "queryText": "* | stats avg(http_status), max(latency), sum(longitude) | eval temp_value = 1",
+   "expectedResult": {
+        "qtype": "segstats-query",
+        "measureFunctions": [
+            "avg(http_status)",
+            "max(latency)",
+            "sum(longitude)",
+            "temp_value"
+        ],
+        "measure": [
+            {
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "avg(http_status)": 351.1828327,
+                    "max(latency)": 10000000,
+                    "sum(longitude)": -268673.53841299494,
+                    "temp_value": 1
+                }
+            }
+        ]
+    }
+}

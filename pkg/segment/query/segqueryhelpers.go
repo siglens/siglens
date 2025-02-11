@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,6 +39,7 @@ type QueryInformation struct {
 	colsToSearch       map[string]bool
 	indexInfo          *structs.TableInfo
 	sizeLimit          uint64
+	scrollFrom         int // The scroll from value for the query. This also means the number of records were already sent to the client and can be skipped
 	pqid               string
 	parallelismPerFile int64
 	dqs                DistributedQueryServiceInterface
@@ -45,18 +47,22 @@ type QueryInformation struct {
 	qid                uint64
 	sNodeType          structs.SearchNodeType
 	qType              structs.QueryType
-	orgId              uint64
+	orgId              int64
 	alreadyDistributed bool
+	containsKibana     bool
+	batchErr           *toputils.BatchError
 }
 
 type QuerySegmentRequest struct {
 	QueryInformation
-	segKey        string
-	segKeyTsRange *dtu.TimeRange
-	tableName     string
-	sType         structs.SegType
-	blkTracker    *structs.BlockTracker
-	HasMatchedRrc bool
+	segKey               string
+	segKeyTsRange        *dtu.TimeRange
+	tableName            string
+	sType                structs.SegType
+	blkTracker           *structs.BlockTracker
+	HasMatchedRrc        bool
+	ConsistentCValLenMap map[string]uint32
+	TotalRecords         uint32
 }
 
 func (qi *QueryInformation) GetSearchNode() *structs.SearchNode {
@@ -65,6 +71,18 @@ func (qi *QueryInformation) GetSearchNode() *structs.SearchNode {
 
 func (qi *QueryInformation) GetAggregators() *structs.QueryAggregators {
 	return qi.aggs
+}
+
+func (qi *QueryInformation) GetTimeRange() *dtu.TimeRange {
+	return qi.queryRange
+}
+
+func (qi *QueryInformation) SetQueryTimeRange(queryRange *dtu.TimeRange) {
+	qi.queryRange = queryRange
+}
+
+func (qi *QueryInformation) GetColsToSearch() map[string]bool {
+	return qi.colsToSearch
 }
 
 func (qi *QueryInformation) GetQueryRangeStartMs() uint64 {
@@ -83,8 +101,28 @@ func (qi *QueryInformation) GetSizeLimit() uint64 {
 	return qi.sizeLimit
 }
 
+func (qi *QueryInformation) SetSizeLimit(sizeLimit uint64) {
+	qi.sizeLimit = sizeLimit
+}
+
+func (qi *QueryInformation) GetScrollFrom() int {
+	return qi.scrollFrom
+}
+
 func (qi *QueryInformation) GetPqid() string {
 	return qi.pqid
+}
+
+func (qi *QueryInformation) GetParallelismPerFile() int64 {
+	return qi.parallelismPerFile
+}
+
+func (qi *QueryInformation) GetSearchNodeType() structs.SearchNodeType {
+	return qi.sNodeType
+}
+
+func (qi *QueryInformation) SetSearchNodeType(sNodeType structs.SearchNodeType) {
+	qi.sNodeType = sNodeType
 }
 
 func (qi *QueryInformation) GetQueryType() structs.QueryType {
@@ -95,8 +133,15 @@ func (qi *QueryInformation) GetQid() uint64 {
 	return qi.qid
 }
 
-func (qi *QueryInformation) GetOrgId() uint64 {
+func (qi *QueryInformation) GetOrgId() int64 {
 	return qi.orgId
+}
+
+func (qi *QueryInformation) IsDistributed() bool {
+	if qi.dqs == nil {
+		return false
+	}
+	return qi.dqs.IsDistributed()
 }
 
 func (qi *QueryInformation) IsAlreadyDistributed() bool {
@@ -107,12 +152,52 @@ func (qi *QueryInformation) SetAlreadyDistributed() {
 	qi.alreadyDistributed = true
 }
 
+func (qi *QueryInformation) ContainsKibana() bool {
+	return qi.containsKibana
+}
+
+func (qi *QueryInformation) GetBatchError() *toputils.BatchError {
+	return qi.batchErr
+}
+
 func (qsr *QuerySegmentRequest) GetSegKey() string {
 	return qsr.segKey
 }
 
+func (qsr *QuerySegmentRequest) SetSegKey(segKey string) {
+	qsr.segKey = segKey
+}
+
+func (qsr *QuerySegmentRequest) GetTimeRange() *dtu.TimeRange {
+	return qsr.segKeyTsRange
+}
+
+func (qsr *QuerySegmentRequest) SetTimeRange(segKeyTsRange *dtu.TimeRange) {
+	qsr.segKeyTsRange = segKeyTsRange
+}
+
 func (qsr *QuerySegmentRequest) GetTableName() string {
 	return qsr.tableName
+}
+
+func (qsr *QuerySegmentRequest) GetSegType() structs.SegType {
+	return qsr.sType
+}
+
+func (qsr *QuerySegmentRequest) GetStartEpochMs() uint64 {
+	return qsr.segKeyTsRange.StartEpochMs
+}
+
+func (qsr *QuerySegmentRequest) GetEndEpochMs() uint64 {
+	return qsr.segKeyTsRange.EndEpochMs
+}
+
+func (qsr *QuerySegmentRequest) SetSegType(sType structs.SegType) {
+	qsr.sType = sType
+}
+
+func (qsr *QuerySegmentRequest) SetBlockTracker(blkTracker *structs.BlockTracker) {
+	qsr.blkTracker = blkTracker
 }
 
 /*
@@ -124,7 +209,7 @@ The caller is responsible for calling qs.Wait() to wait for all grpcs to finish
 */
 func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators, queryRange *dtu.TimeRange,
 	indexInfo *structs.TableInfo, sizeLimit uint64, parallelismPerFile int64, qid uint64,
-	dqs DistributedQueryServiceInterface, orgid uint64) (*QueryInformation, error) {
+	dqs DistributedQueryServiceInterface, orgid int64, scrollFrom int, containsKibana bool) (*QueryInformation, error) {
 	colsToSearch, _, _ := search.GetAggColsAndTimestamp(aggs)
 	isQueryPersistent, err := querytracker.IsQueryPersistent(indexInfo.GetQueryTables(), s)
 	if err != nil {
@@ -140,6 +225,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		colsToSearch:       colsToSearch,
 		indexInfo:          indexInfo,
 		sizeLimit:          sizeLimit,
+		scrollFrom:         scrollFrom,
 		pqid:               pqid,
 		parallelismPerFile: parallelismPerFile,
 		dqs:                dqs,
@@ -148,12 +234,25 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		sNodeType:          sNodeType,
 		qType:              qType,
 		orgId:              orgid,
+		containsKibana:     containsKibana,
+		batchErr:           toputils.GetOrCreateBatchErrorWithQid(qid),
 	}, nil
 }
 
 // waits and closes the distributed query service
 func (qi *QueryInformation) Wait(querySummary *summary.QuerySummary) error {
 	return qi.dqs.Wait(qi.qid, querySummary)
+}
+
+func (qi *QueryInformation) GetDQS() DistributedQueryServiceInterface {
+	return qi.dqs
+}
+
+func (qi *QueryInformation) GetSegEncToKeyBaseValue() uint32 {
+	if qi.dqs == nil {
+		return 0
+	}
+	return qi.dqs.GetSegEncToKeyBaseValue()
 }
 
 // returns map[table] -> map[segKey] -> blkTracker to pass into MicroIndexCheck and ExtractSSRFromSearchNode

@@ -1,0 +1,36 @@
+{
+    "queryText": "city=Boston http_method != \"POST\" gender=ma* | stats avg(latency) as avg, max(http_status), min(latitude), sum(longitude), range(latitude), count, values(http_method), dc(first_name) as distinct_count, list(gender)",
+    "expectedResult": {
+         "qtype": "segstats-query",
+         "measureFunctions": [
+            "avg",
+            "max(http_status)",
+            "min(latitude)",
+            "sum(longitude)",
+            "range(latitude)",
+            "count(*)",
+            "values(http_method)",
+            "distinct_count",
+            "list(gender)"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "avg": 5106602.002,
+                    "count(*)": 414,
+                    "distinct_count": 384,
+                    "list(gender)": "[male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male male]",
+                    "max(http_status)": 500,
+                    "min(latitude)": -89.691,
+                    "range(latitude)": 179.617,
+                    "sum(longitude)": 1097.496,
+                    "values(http_method)": "[DELETE GET HEAD PATCH PUT]"
+                }
+            }
+        ]
+     }
+ }
+ 

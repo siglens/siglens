@@ -18,7 +18,6 @@
 package ast
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -29,6 +28,7 @@ import (
 type QueryStruct struct {
 	SearchFilter *Node
 	PipeCommands *structs.QueryAggregators
+	IndexNames   []string
 }
 
 // NodeType represents the type of a node in the parse tree
@@ -41,22 +41,96 @@ const (
 	NodeAnd
 	NodeOr
 	NodeTerminal
+	TimeModifierNode
 )
 
 // Node is a node in the query parse tree
 type Node struct {
-	NodeType   NodeType
-	Comparison Comparison
-	Left       *Node
-	Right      *Node
+	NodeType      NodeType
+	Comparison    Comparison
+	Left          *Node
+	Right         *Node
+	TimeModifiers *TimeModifiers
+}
+
+func (n *Node) isMatchAll() bool {
+	if n == nil {
+		return false
+	}
+
+	return n.NodeType == NodeTerminal && n.Comparison.isMatchAll()
+}
+
+// Potentially change the structure of the tree, but not the meaning.
+func (n *Node) Simplify() {
+	if n == nil {
+		return
+	}
+
+	n.Left.Simplify()
+	n.Right.Simplify()
+
+	if n.NodeType == NodeAnd {
+		if n.Left.isMatchAll() {
+			*n = *n.Right
+			n.Simplify()
+			return
+		}
+
+		if n.Right.isMatchAll() {
+			*n = *n.Left
+			n.Simplify()
+			return
+		}
+	}
+}
+
+func JoinNodes(nodes []*Node, operation NodeType) *Node {
+	if len(nodes) == 0 {
+		return nil
+	}
+
+	if len(nodes) == 1 {
+		return nodes[0]
+	}
+
+	if len(nodes) == 2 {
+		return &Node{
+			NodeType: operation,
+			Left:     nodes[0],
+			Right:    nodes[1],
+		}
+	}
+
+	return &Node{
+		NodeType: operation,
+		Left:     nodes[0],
+		Right:    JoinNodes(nodes[1:], operation),
+	}
+}
+
+// TimeModifiers is a struct that holds the time modifiers for a query
+type TimeModifiers struct {
+	StartEpoch uint64
+	EndEpoch   uint64
 }
 
 // Comparison is an individual comparison operation on a terminal node
 type Comparison struct {
-	Op           string
-	Field        string
-	Values       interface{}
-	ValueIsRegex bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
+	Op              string
+	Field           string
+	Values          interface{}
+	OriginalValues  interface{}
+	ValueIsRegex    bool // True if Values is a regex string. False if Values is a wildcarded string or anything else.
+	CaseInsensitive bool
+}
+
+func (c *Comparison) isMatchAll() bool {
+	if c == nil {
+		return false
+	}
+
+	return c.Op == "=" && c.Field == "*" && c.Values == `"*"`
 }
 
 type GrepValue struct {
@@ -71,6 +145,23 @@ type ParseError struct {
 	Offset   int      `json:"offset"`
 	Prefix   string   `json:"prefix"`
 	Expected []string `json:"expected"`
+}
+
+type TimeModifier struct {
+	RelativeTime   RelativeTimeModifier
+	AbsoluteTime   string
+	ChainedOffsets []RelativeTimeOffset
+	ChainedSnaps   []string
+}
+
+type RelativeTimeModifier struct {
+	RelativeTimeOffset RelativeTimeOffset
+	Snap               string
+}
+
+type RelativeTimeOffset struct {
+	Offset   int64
+	TimeUnit utils.TimeUnit
 }
 
 func MakeValue(val interface{}) (interface{}, error) {
@@ -110,7 +201,7 @@ func OpNameToString(label interface{}) (string, error) {
 			}
 			sb.WriteString(s)
 		default:
-			return "", fmt.Errorf("unexpected type [%T] found in label interfaces: %+v", i, i)
+			return "", fmt.Errorf("OpNameToString: unexpected type [%T] found in label interfaces: %+v", i, i)
 		}
 	}
 	return sb.String(), nil
@@ -185,7 +276,7 @@ func AggTypeToAggregateFunction(aggType string) (utils.AggregateFunctions, error
 	} else if aggType == "cardinality" {
 		aggFunc = utils.Cardinality
 	} else {
-		return aggFunc, errors.New("unsupported statistic aggregation type")
+		return aggFunc, fmt.Errorf("AggTypeToAggregateFunction: unsupported statistic aggregation type %v", aggType)
 	}
 	return aggFunc, nil
 }

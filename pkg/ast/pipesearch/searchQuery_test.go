@@ -47,7 +47,7 @@ func testParseQuery(query string, want *ast.Node) func(t *testing.T) {
 
 func TestAST_simpleEqual(t *testing.T) {
 	json_body := []byte(`something="another"`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
@@ -58,7 +58,7 @@ func TestAST_simpleEqual(t *testing.T) {
 
 func TestAST_simpleAnd(t *testing.T) {
 	json_body := []byte(`name="t1" AND surname="t2"`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
@@ -72,7 +72,7 @@ func TestAST_simpleAnd(t *testing.T) {
 
 func TestAST_simpleOr(t *testing.T) {
 	json_body := []byte(`name="t1" OR surname="t2"`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.OrFilterCondition.FilterCriteria)
 	assert.Len(t, res.OrFilterCondition.FilterCriteria, 2)
@@ -86,7 +86,7 @@ func TestAST_simpleOr(t *testing.T) {
 
 func TestAST_AND_Or(t *testing.T) {
 	json_body := []byte(`name="t1" OR name="t2" AND age=100`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.OrFilterCondition.FilterCriteria)
 	assert.Len(t, res.OrFilterCondition.FilterCriteria, 1)
@@ -103,7 +103,7 @@ func TestAST_AND_Or(t *testing.T) {
 
 func TestAST_AND_Or_paren(t *testing.T) {
 	json_body := []byte(`(name="t1" OR name="t2") AND age=100`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "age")
@@ -119,7 +119,7 @@ func TestAST_AND_Or_paren(t *testing.T) {
 }
 func TestAST_AND_Or_paren_around_condition(t *testing.T) {
 	json_body := []byte(`name="t1" OR (name="t2")`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.OrFilterCondition.FilterCriteria)
 	assert.Len(t, res.OrFilterCondition.FilterCriteria, 2)
@@ -133,7 +133,7 @@ func TestAST_AND_Or_paren_around_condition(t *testing.T) {
 
 func TestAST_AND_Or_multiple(t *testing.T) {
 	json_body := []byte(`name="t1" OR name="t2" OR age=100 AND surname=t3`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.Equal(t, res.OrFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "name")
 	assert.Equal(t, res.OrFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t1")
@@ -154,7 +154,7 @@ func TestAST_AND_Or_multiple(t *testing.T) {
 
 func TestAST_freeText_simple(t *testing.T) {
 	json_body := []byte(`test`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
@@ -166,7 +166,7 @@ func TestAST_freeText_simple(t *testing.T) {
 
 func TestAST_freeText_simple_matchWords(t *testing.T) {
 	json_body := []byte(`"test this ."`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
@@ -178,7 +178,7 @@ func TestAST_freeText_simple_matchWords(t *testing.T) {
 
 func TestAST_freeText_simple_wildcard(t *testing.T) {
 	json_body := []byte(`test*`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
@@ -191,7 +191,7 @@ func TestAST_freeText_simple_wildcard(t *testing.T) {
 
 func TestAST_freeText_simpleAnd(t *testing.T) {
 	json_body := []byte(`another AND test`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
@@ -207,7 +207,7 @@ func TestAST_freeText_simpleAnd(t *testing.T) {
 
 func TestAST_freeText_simpleAnd_wildcard(t *testing.T) {
 	json_body := []byte(`another* AND test*`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
@@ -223,7 +223,7 @@ func TestAST_freeText_simpleAnd_wildcard(t *testing.T) {
 
 func TestAST_freeText_complexOrAnd(t *testing.T) {
 	json_body := []byte(`"t2" OR ("t1" AND t3)`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.OrFilterCondition.FilterCriteria)
 	assert.Equal(t, res.OrFilterCondition.FilterCriteria[0].MatchFilter.MatchColumn, "*")
@@ -244,7 +244,7 @@ func TestAST_freeText_complexOrAnd(t *testing.T) {
 
 func TestAST_freeText_complexOrAnd_wildcard(t *testing.T) {
 	json_body := []byte(`t2* OR (t1* AND t3*)`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.OrFilterCondition.FilterCriteria)
 	assert.Len(t, res.OrFilterCondition.FilterCriteria, 1)
@@ -261,7 +261,7 @@ func TestAST_freeText_complexOrAnd_wildcard(t *testing.T) {
 
 func TestAST_freeText_complexAndOr(t *testing.T) {
 	json_body := []byte(`"t2" AND ("t1" OR t3)`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
@@ -278,7 +278,7 @@ func TestAST_freeText_complexAndOr(t *testing.T) {
 
 func TestAST_columnValue_complexString(t *testing.T) {
 	json_body := []byte(`click_id = "627af0a5-aeb4-4471-889f-6e850958d98e"`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
@@ -290,7 +290,7 @@ func TestAST_columnValue_complexString(t *testing.T) {
 
 func TestAST_columnValue_multiWordValue(t *testing.T) {
 	json_body := []byte(`utm_campaign = "Town apply record."`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
@@ -1061,9 +1061,10 @@ func TestSimpleEqual(t *testing.T) {
 
 func TestAST_simpleAnd_CommandsAgg(t *testing.T) {
 	json_body := []byte(`name="t1" AND surname="t2" | columns name`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
+	assert.Equal(t, 0, len(indexNames))
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "name")
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "t1")
@@ -1078,9 +1079,10 @@ func TestAST_simpleAnd_CommandsAgg(t *testing.T) {
 
 func TestAST_blankSearchFilter_CommandsAgg(t *testing.T) {
 	json_body := []byte(`| columns name`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
+	assert.Equal(t, 0, len(indexNames))
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal, "*")
@@ -1092,8 +1094,9 @@ func TestAST_blankSearchFilter_CommandsAgg(t *testing.T) {
 
 func TestAST_blankSearchFilter_ColumnAgg_List(t *testing.T) {
 	json_body := []byte(`| columns name,test`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
@@ -1108,8 +1111,9 @@ func TestAST_blankSearchFilter_ColumnAgg_List(t *testing.T) {
 
 func TestAST_simpleAnd_SegLevelStats(t *testing.T) {
 	json_body := []byte(`name="t1" AND surname="t2" | min(latency)`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "name")
@@ -1126,8 +1130,9 @@ func TestAST_simpleAnd_SegLevelStats(t *testing.T) {
 
 func TestAST_blankSearchFilter_SegLevelStats(t *testing.T) {
 	json_body := []byte(`| max(cnt)`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
@@ -1141,8 +1146,9 @@ func TestAST_blankSearchFilter_SegLevelStats(t *testing.T) {
 
 func TestAST_blankSearchFilter_ColumnAgg_ExcludeList(t *testing.T) {
 	json_body := []byte(`| columns - name,test`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
@@ -1157,8 +1163,9 @@ func TestAST_blankSearchFilter_ColumnAgg_ExcludeList(t *testing.T) {
 
 func TestAST_simpleAnd_ColumnAgg_Rename(t *testing.T) {
 	json_body := []byte(`name="t1" AND surname="t2" | columns newname = name`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "name")
@@ -1174,8 +1181,9 @@ func TestAST_simpleAnd_ColumnAgg_Rename(t *testing.T) {
 
 func TestAST_simpleAnd_LetAgg_Single(t *testing.T) {
 	json_body := []byte(`name="t1" AND surname="t2" | let isError=(status >= 399)`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "name")
@@ -1196,8 +1204,9 @@ func TestAST_simpleAnd_LetAgg_Single(t *testing.T) {
 
 func TestAST_simpleAnd_seglevelStats_commaSeparated(t *testing.T) {
 	json_body := []byte(`name="t1" AND surname="t2" | min(latency),max(latency)`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 2)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "name")
@@ -1215,8 +1224,9 @@ func TestAST_simpleAnd_seglevelStats_commaSeparated(t *testing.T) {
 
 func TestAST_GroupByseglevelStats_commaSeparated(t *testing.T) {
 	json_body := []byte(` min(latency),max(latency) groupby region`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
@@ -1234,8 +1244,9 @@ func TestAST_GroupByseglevelStats_commaSeparated(t *testing.T) {
 
 func TestAST_GroupByseglevelStats_commaSeparated_multipleGroups(t *testing.T) {
 	json_body := []byte(` min(latency),max(latency) groupby region,os_name`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
@@ -1254,8 +1265,9 @@ func TestAST_GroupByseglevelStats_commaSeparated_multipleGroups(t *testing.T) {
 
 func TestAST_GroupByseglevelStats_commaSeparated_multipleGroups_withPipe(t *testing.T) {
 	json_body := []byte(`| min(latency),max(latency) groupby region,os_name`)
-	res, aggNode, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, aggNode, indexNames, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.Nil(t, err)
+	assert.Equal(t, 0, len(indexNames))
 	assert.NotNil(t, res.AndFilterCondition.FilterCriteria)
 	assert.Len(t, res.AndFilterCondition.FilterCriteria, 1)
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[0].ExpressionFilter.LeftInput.Expression.LeftInput.ColumnName, "*")
@@ -1274,7 +1286,7 @@ func TestAST_GroupByseglevelStats_commaSeparated_multipleGroups_withPipe(t *test
 
 func TestAST_invalidSearch_SegLevelStats(t *testing.T) {
 	json_body := []byte(`| max(cnt).`)
-	res, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
+	res, _, _, err := parsePipeSearch(string(json_body), "Pipe QL", 1)
 	assert.NotNil(t, err)
 	assert.Nil(t, res)
 }

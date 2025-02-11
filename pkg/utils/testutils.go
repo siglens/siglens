@@ -22,11 +22,33 @@ import (
 	"time"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+type StringType uint8
+
+const (
+	Alpha StringType = iota
+	Numeric
+	AlphaNumeric
+)
+
+const alphabets = "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+const digits = "0123456789"
 
 var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func RandomStringWithCharset(length int) string {
+func GetRandomString(length int, stringType StringType) string {
+	var charset string
+	switch stringType {
+	case Alpha:
+		charset = alphabets
+	case Numeric:
+		charset = digits
+	case AlphaNumeric:
+		charset = alphabets + digits
+	default:
+		charset = alphabets + digits
+	}
+
 	b := make([]byte, length)
 	for i := range b {
 		b[i] = charset[seededRand.Intn(len(charset))]

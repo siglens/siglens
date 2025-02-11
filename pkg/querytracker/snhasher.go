@@ -25,6 +25,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 /*
@@ -113,11 +114,12 @@ func getHashForSearchQuery(sq *structs.SearchQuery) uint64 {
 		return 0
 	}
 
-	val := fmt.Sprintf("%v:%v:%v:%v",
+	val := fmt.Sprintf("%v:%v:%v:%v:%v",
 		getHashForSearchExpression(sq.ExpressionFilter),
 		getHashForMatchFilter(sq.MatchFilter),
 		sq.SearchType,
-		getHashForQueryInfo(sq.QueryInfo))
+		getHashForQueryInfo(sq.QueryInfo),
+		sq.FilterIsCaseInsensitive)
 	return xxhash.Sum64String(val)
 }
 
@@ -148,13 +150,27 @@ func getHashForMatchFilter(mf *structs.MatchFilter) uint64 {
 
 	sort.Strings(mwords)
 
-	val := fmt.Sprintf("%v:%v:%v:%v:%v",
+	val := fmt.Sprintf("%v:%v:%v:%v:%v:%v:%v:%v",
 		mf.MatchColumn,
 		mwords,
 		mf.MatchOperator,
 		mf.MatchPhrase,
-		mf.MatchType)
+		mf.MatchType,
+		mf.NegateMatch,
+		mf.RegexpString,
+		getHashForMatchDictArray(mf.MatchDictArray),
+	)
 
+	return xxhash.Sum64String(val)
+}
+
+func getHashForMatchDictArray(mda *structs.MatchDictArrayRequest) uint64 {
+
+	if mda == nil {
+		return 0
+	}
+
+	val := fmt.Sprintf("%v:%v", mda.MatchKey, getHashForDtypeEnclosure(mda.MatchValue))
 	return xxhash.Sum64String(val)
 }
 
@@ -202,6 +218,9 @@ func getHashForDtypeEnclosure(dte *utils.DtypeEnclosure) uint64 {
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.SignedVal)
 	case utils.SS_DT_FLOAT:
 		val = fmt.Sprintf("%v:%v", dte.Dtype, dte.FloatVal)
+	default:
+		log.Errorf("getHashForDtypeEnclosure: unsupported dtype: %v", dte.Dtype)
+		return 0
 	}
 
 	return xxhash.Sum64String(val)

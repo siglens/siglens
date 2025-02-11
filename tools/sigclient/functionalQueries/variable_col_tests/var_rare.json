@@ -1,0 +1,17 @@
+{
+    "queryText": "variable_col_9=S* | rare variable_col_16 useother=false percentfield=rare_pc countfield=rare_count showperc=true",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "bucketCount": 0,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "variable_col_16"
+        ],
+        "measureFunctions": [
+            "rare_count",
+            "rare_pc"
+        ],
+        "measure": [
+        ]
+    }
+}

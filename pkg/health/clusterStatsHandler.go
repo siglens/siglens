@@ -24,10 +24,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
@@ -38,9 +43,17 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var excludedInternalIndices = [...]string{"red-traces", "service-dependency"}
+const siglensId = -7828473396868711293
 
-func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
+var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
+
+// GetTraceStatsForAllSegments retrieves all trace-related statistics.
+func GetTraceStatsForAllSegments(myid int64) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+	allSegMetas := writer.ReadGlobalSegmetas()
+	return GetTracesStats(myid, allSegMetas)
+}
+
+func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var httpResp utils.ClusterStatsResponseInfo
 	var err error
@@ -52,80 +65,148 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid uint64) {
 			return
 		}
 	}
-	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes := getIngestionStats(myid)
-	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(myid)
+
+	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
+	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
+
+	if segmentsRLockFunc != nil && segmentsRUnlockFunc != nil {
+		segmentsRLockFunc()
+		defer segmentsRUnlockFunc()
+	}
+
+	allSegMetas := writer.ReadLocalSegmeta(true)
+
+	indexData, logsEventCount, logsIncomingBytes, logsOnDiskBytes, totalColumnsSet := GetIngestionStats(myid, allSegMetas)
+	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, queriesSinceInstall := usageStats.GetQueryStats(myid)
+	activeQueryCount := query.GetActiveQueryCount()
 
 	metricsIncomingBytes, metricsDatapointsCount, metricsOnDiskBytes := GetMetricsStats(myid)
-	metricsImMemBytes := metrics.GetTotalEncodedSize()
+	traceIndexData, traceSpanCount, totalTraceBytes, totalTraceOnDiskBytes, _ := GetTracesStats(myid, allSegMetas)
+	metricsInMemBytes := metrics.GetTotalEncodedSize()
 
 	if hook := hooks.GlobalHooks.AddMultinodeStatsHook; hook != nil {
 		hook(indexData, myid, &logsIncomingBytes, &logsOnDiskBytes, &logsEventCount,
 			&metricsIncomingBytes, &metricsOnDiskBytes, &metricsDatapointsCount,
-			&queryCount, &totalResponseTime)
+			&queryCount, &totalResponseTimeSinceRestart, &totalResponseTimeSinceInstall,
+			&queriesSinceInstall, totalColumnsSet)
+	}
+
+	logsColumnCount := len(totalColumnsSet)
+	// Remove the columns set from the index data
+	for _, idxData := range indexData.IndexToStats {
+		idxData.ColumnsSet = nil
 	}
 
 	httpResp.IngestionStats = make(map[string]interface{})
 	httpResp.QueryStats = make(map[string]interface{})
 	httpResp.MetricsStats = make(map[string]interface{})
+	httpResp.TraceStats = make(map[string]interface{})
 
-	httpResp.IngestionStats["Log Incoming Volume"] = convertBytesToGB(logsIncomingBytes)
-	httpResp.IngestionStats["Incoming Volume"] = convertBytesToGB(logsIncomingBytes + float64(metricsIncomingBytes))
+	httpResp.IngestionStats["Log Incoming Volume"] = logsIncomingBytes
+	httpResp.IngestionStats["Incoming Volume"] = logsIncomingBytes + float64(metricsIncomingBytes)
 
-	httpResp.IngestionStats["Metrics Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
+	httpResp.IngestionStats["Metrics Incoming Volume"] = float64(metricsIncomingBytes)
 
 	httpResp.IngestionStats["Event Count"] = humanize.Comma(int64(logsEventCount))
+	httpResp.IngestionStats["Column Count"] = humanize.Comma(int64(logsColumnCount))
 
 	httpResp.IngestionStats["Log Storage Used"] = convertBytesToGB(logsOnDiskBytes)
-	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsImMemBytes))
-	if logsIncomingBytes > 0 {
-		logsStorageSaved := (1 - (float64(logsOnDiskBytes) / float64(logsIncomingBytes))) * 100
-		httpResp.IngestionStats["Logs Storage Saved"] = logsStorageSaved
-	} else {
-		httpResp.IngestionStats["Logs Storage Saved"] = 0.0
-	}
-	if metricsIncomingBytes > 0 {
-		metricsStorageSaved := (1 - ((float64(metricsOnDiskBytes + metricsImMemBytes)) / float64(metricsIncomingBytes))) * 100
-		httpResp.IngestionStats["Metrics Storage Saved"] = metricsStorageSaved
-	} else {
-		httpResp.IngestionStats["Metrics Storage Saved"] = 0.0
-	}
+	httpResp.IngestionStats["Metrics Storage Used"] = convertBytesToGB(float64(metricsOnDiskBytes + metricsInMemBytes))
+	httpResp.IngestionStats["Logs Storage Saved"] = calculateStorageSavedPercentage(logsIncomingBytes, logsOnDiskBytes)
+	httpResp.IngestionStats["Metrics Storage Saved"] = calculateStorageSavedPercentage(float64(metricsIncomingBytes), float64(metricsOnDiskBytes+metricsInMemBytes))
 
 	if hook := hooks.GlobalHooks.SetExtraIngestionStatsHook; hook != nil {
 		hook(httpResp.IngestionStats)
 	}
 
-	httpResp.MetricsStats["Incoming Volume"] = convertBytesToGB(float64(metricsIncomingBytes))
+	httpResp.MetricsStats["Incoming Volume"] = float64(metricsIncomingBytes)
 	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(metricsDatapointsCount))
 
-	httpResp.QueryStats["Query Count"] = queryCount
-	httpResp.QueryStats["Queries Since Install"] = querieSinceInstall
+	httpResp.QueryStats["Query Count Since Restart"] = queryCount
+	httpResp.QueryStats["Query Count Since Install"] = queriesSinceInstall
+	httpResp.QueryStats["Active Query Count"] = activeQueryCount
 
-	if queryCount > 1 {
-		httpResp.QueryStats["Average Latency"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
+	if queriesSinceInstall > 1 {
+		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall/float64(queriesSinceInstall), 3)) + " ms"
 	} else {
-		httpResp.QueryStats["Average Latency"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
+		httpResp.QueryStats["Average Query Latency (since install)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall, 3)) + " ms"
 	}
 
+	if queryCount > 1 {
+		httpResp.QueryStats["Average Query Latency (since restart)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart/float64(queryCount), 3)) + " ms"
+	} else {
+		httpResp.QueryStats["Average Query Latency (since restart)"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart, 3)) + " ms"
+	}
+	httpResp.TraceStats["Trace Span Count"] = humanize.Comma(int64(traceSpanCount))
+	httpResp.TraceStats["Total Trace Volume"] = float64(totalTraceBytes)
+	httpResp.TraceStats["Trace Storage Used"] = convertBytesToGB(float64(totalTraceOnDiskBytes))
+	httpResp.TraceStats["Trace Storage Saved"] = calculateStorageSavedPercentage(float64(totalTraceBytes), float64(totalTraceOnDiskBytes))
+
 	httpResp.IndexStats = convertIndexDataToSlice(indexData)
+	httpResp.TraceIndexStats = convertTraceIndexDataToSlice(traceIndexData)
 	utils.WriteJsonResponse(ctx, httpResp)
 
 }
 
-func convertIndexDataToSlice(indexData map[string]utils.ResultPerIndex) []utils.ResultPerIndex {
-	retVal := make([]utils.ResultPerIndex, 0, len(indexData))
-	i := 0
-	for idx, v := range indexData {
-		nextVal := make(utils.ResultPerIndex)
-		nextVal[idx] = make(map[string]interface{})
-		nextVal[idx]["ingestVolume"] = convertBytesToGB(v[idx]["ingestVolume"].(float64))
-		nextVal[idx]["eventCount"] = humanize.Comma(int64(v[idx]["eventCount"].(uint64)))
-		retVal = append(retVal, nextVal)
-		i++
+func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64 {
+	storageSaved := 0.0
+	if incomingBytes > 0 {
+		storageSaved = (1 - (onDiskBytes / incomingBytes)) * 100
+		if storageSaved < 0 {
+			storageSaved = 0
+		}
 	}
-	return retVal[:i]
+	return storageSaved
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
+func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
+	segmentCountField, columnCountField, earliestEpochField, latestEpochField,
+	onDiskBytesField, cmiSizeField, csgSizeField, numIndexFilesField, numBlocksField string) []map[string]map[string]interface{} {
+
+	indices := make([]string, 0)
+	for index := range allIndexStats.IndexToStats {
+		indices = append(indices, index)
+	}
+	sort.Strings(indices)
+
+	retVal := make([]map[string]map[string]interface{}, 0)
+	for _, index := range indices {
+		indexStats, ok := allIndexStats.IndexToStats[index]
+		if !ok {
+			log.Errorf("convertDataToSlice: indexStats not found for index=%v", index)
+			continue
+		}
+
+		nextVal := make(map[string]map[string]interface{})
+		nextVal[index] = make(map[string]interface{})
+		nextVal[index][volumeField] = float64(indexStats.NumBytesIngested)
+		nextVal[index][countField] = humanize.Comma(int64(indexStats.NumRecords))
+		nextVal[index][segmentCountField] = humanize.Comma(int64(indexStats.NumSegments))
+		nextVal[index][columnCountField] = humanize.Comma(int64(indexStats.NumColumns))
+		nextVal[index][earliestEpochField] = time.Unix(int64(indexStats.EarliestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
+		nextVal[index][latestEpochField] = time.Unix(int64(indexStats.LatestTimestamp/1000), 0).UTC().Format("2006-01-02 15:04:05") + " UTC"
+		nextVal[index][onDiskBytesField] = float64(indexStats.TotalOnDiskBytes)
+
+		nextVal[index][cmiSizeField] = humanize.Bytes(indexStats.TotalCmiSize)
+		nextVal[index][csgSizeField] = humanize.Bytes(indexStats.TotalCsgSize)
+		nextVal[index][numIndexFilesField] = humanize.Comma(int64(indexStats.NumIndexFiles))
+		nextVal[index][numBlocksField] = humanize.Comma(int64(indexStats.NumBlocks))
+
+		retVal = append(retVal, nextVal)
+	}
+
+	return retVal
+}
+
+func convertIndexDataToSlice(indexData utils.AllIndexesStats) []map[string]map[string]interface{} {
+	return convertDataToSlice(indexData, "ingestVolume", "eventCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
+}
+
+func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[string]map[string]interface{} {
+	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
+}
+
+func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
@@ -161,15 +242,22 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId uint64) {
 
 	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
 	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
+
+	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
+		hook(rStats, pastXhours, uint8(granularity), orgId)
+	}
+
 	httpResp.ChartStats = make(map[string]map[string]interface{})
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
-		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.BytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.TotalBytesCount) / 1_000_000_000
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000
 		httpResp.ChartStats[k]["MetricsGBCount"] = float64(entry.MetricsBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TraceGBCount"] = float64(entry.TraceBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
 	}
 	utils.WriteJsonResponse(ctx, httpResp)
 }
@@ -237,7 +325,7 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 
 	return pastXhours, granularity
 }
-func isIndexExcluded(indexName string) bool {
+func isTraceRelatedIndex(indexName string) bool {
 	for _, value := range excludedInternalIndices {
 		if indexName == value {
 			return true
@@ -245,62 +333,160 @@ func isIndexExcluded(indexName string) bool {
 	}
 	return false
 }
-func getIngestionStats(myid uint64) (map[string]utils.ResultPerIndex, int64, float64, float64) {
 
-	totalIncomingBytes := float64(0)
+func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+	totalBytes := float64(0)
 	totalEventCount := int64(0)
 	totalOnDiskBytes := float64(0)
 
-	ingestionStats := make(map[string]utils.ResultPerIndex)
+	var stats utils.AllIndexesStats
+	stats.IndexToStats = make(map[string]utils.IndexStats)
+
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
-	sortedIndices := make([]string, 0, len(allVirtualTableNames))
-
-	for k := range allVirtualTableNames {
-		if isIndexExcluded(k) {
-			continue
-		}
-		sortedIndices = append(sortedIndices, k)
-	}
-	sort.Strings(sortedIndices)
-
 	if err != nil {
-		log.Errorf("getIngestionStats: Error in getting virtual table names, err:%v", err)
+		log.Errorf("getStats: Error in getting virtual table names, err:%v", err)
 	}
 
-	allvtableCnts := segwriter.GetVTableCountsForAll(myid)
+	indices := make([]string, 0)
+	for k := range allVirtualTableNames {
+		if filterFunc(k) {
+			indices = append(indices, k)
+		}
+	}
 
-	for _, indexName := range sortedIndices {
+	allVTableCounts := segwriter.GetVTableCountsForAll(myid, allSegMetas)
+
+	allIndexCols := make(map[string]map[string]struct{})
+	totalCols := make(map[string]struct{})
+
+	// Create a map to store segment counts per index
+	segmentCounts := make(map[string]int)
+	indexEarliestEpochMs := make(map[string]uint64)
+	indexLatestEpochMs := make(map[string]uint64)
+
+	tsKey := config.GetTimeStampKey()
+
+	updateTimestamps := func(indexName string, earliestEpochMs, latestEpochMs uint64) {
+		if earliestEpochMs > 0 {
+			if earliest, ok := indexEarliestEpochMs[indexName]; !ok || earliestEpochMs < earliest {
+				indexEarliestEpochMs[indexName] = earliestEpochMs
+			}
+		}
+		if latestEpochMs > 0 {
+			if latest, ok := indexLatestEpochMs[indexName]; !ok || latestEpochMs > latest {
+				indexLatestEpochMs[indexName] = latestEpochMs
+			}
+		}
+	}
+
+	for _, segMeta := range allSegMetas {
+		if segMeta == nil {
+			continue
+		}
+		if segMeta.OrgId != myid && myid != siglensId {
+			continue
+		}
+		indexName := segMeta.VirtualTableName
+		segmentCounts[indexName]++
+
+		updateTimestamps(indexName, segMeta.EarliestEpochMS, segMeta.LatestEpochMS)
+
+		_, exist := allIndexCols[indexName]
+		if !exist {
+			allIndexCols[indexName] = make(map[string]struct{})
+			allIndexCols[indexName][tsKey] = struct{}{}
+		}
+		for col := range segMeta.ColumnNames {
+			allIndexCols[indexName][col] = struct{}{}
+			totalCols[col] = struct{}{}
+		}
+	}
+	if len(allIndexCols) > 0 {
+		totalCols[tsKey] = struct{}{}
+	}
+
+	// Get unrotated timestamps for all indexes
+	unrotatedTimestamps := segwriter.GetUnrotatedVTableTimestamps(myid)
+
+	for _, indexName := range indices {
 		if indexName == "" {
-			log.Errorf("getIngestionStats: skipping an empty index name indexName=%v", indexName)
+			log.Errorf("getStats: skipping an empty index name indexName=%v", indexName)
 			continue
 		}
 
-		cnts, ok := allvtableCnts[indexName]
+		counts, ok := allVTableCounts[indexName]
 		if !ok {
+			// We still want to check for unrotated data, so don't skip this
+			// loop iteration.
+			counts = &structs.VtableCounts{}
+		}
+
+		indexSegStats, err := writer.GetIndexSizeStats(indexName, myid)
+		if err != nil {
+			log.Errorf("getStats: failed to get size stats for index %s: %v", indexName, err)
 			continue
 		}
 
-		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
+		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)
 
-		totalEventsForIndex := uint64(cnts.RecordCount) + uint64(unrotatedEventCount)
+		if unrotatedTS, ok := unrotatedTimestamps[indexName]; ok {
+			updateTimestamps(indexName, unrotatedTS.Earliest, unrotatedTS.Latest)
+		}
+
+		currentIndexCols := allIndexCols[indexName]
+		indexSegmentCount := segmentCounts[indexName]
+		// Add the unrotated columns and segments to the current index
+		if len(columnNamesSet) > 0 {
+			if currentIndexCols == nil {
+				currentIndexCols = columnNamesSet
+				allIndexCols[indexName] = currentIndexCols
+				indexSegmentCount = 1
+				segmentCounts[indexName] = 1
+			} else {
+				utils.AddMapKeysToSet(currentIndexCols, columnNamesSet)
+				indexSegmentCount++
+			}
+			utils.AddMapKeysToSet(totalCols, columnNamesSet)
+		}
+
+		totalEventsForIndex := uint64(counts.RecordCount) + uint64(unrotatedEventCount)
 		totalEventCount += int64(totalEventsForIndex)
 
-		totalBytesReceivedForIndex := float64(cnts.BytesCount + unrotatedByteCount)
-		totalIncomingBytes += totalBytesReceivedForIndex
+		totalBytesReceivedForIndex := float64(counts.BytesCount + unrotatedByteCount)
+		totalBytes += totalBytesReceivedForIndex
 
-		totalOnDiskBytesCountForIndex := uint64(cnts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
+		totalOnDiskBytesCountForIndex := uint64(counts.OnDiskBytesCount + unrotatedOnDiskBytesCount)
 		totalOnDiskBytes += float64(totalOnDiskBytesCountForIndex)
 
-		perIndexStat := make(map[string]map[string]interface{})
+		indexStats := utils.IndexStats{
+			NumBytesIngested:  uint64(totalBytesReceivedForIndex),
+			NumRecords:        totalEventsForIndex,
+			NumSegments:       uint64(indexSegmentCount),
+			NumColumns:        uint64(len(currentIndexCols)),
+			ColumnsSet:        currentIndexCols,
+			EarliestTimestamp: indexEarliestEpochMs[indexName],
+			LatestTimestamp:   indexLatestEpochMs[indexName],
+			TotalOnDiskBytes:  totalOnDiskBytesCountForIndex,
+			TotalCmiSize:      indexSegStats.TotalCmiSize,
+			TotalCsgSize:      indexSegStats.TotalCsgSize,
+			NumIndexFiles:     indexSegStats.NumIndexFiles,
+			NumBlocks:         indexSegStats.NumBlocks,
+		}
 
-		perIndexStat[indexName] = make(map[string]interface{})
-
-		perIndexStat[indexName]["ingestVolume"] = totalBytesReceivedForIndex
-		perIndexStat[indexName]["eventCount"] = totalEventsForIndex
-
-		ingestionStats[indexName] = perIndexStat
+		stats.IndexToStats[indexName] = indexStats
 	}
-	return ingestionStats, totalEventCount, totalIncomingBytes, totalOnDiskBytes
+
+	return stats, totalEventCount, totalBytes, totalOnDiskBytes, totalCols
+}
+
+func GetIngestionStats(myid int64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+	return getStats(myid, func(indexName string) bool {
+		return !isTraceRelatedIndex(indexName)
+	}, allSegMetas)
+}
+
+func GetTracesStats(myid int64, allSegMetas []*structs.SegMeta) (utils.AllIndexesStats, int64, float64, float64, map[string]struct{}) {
+	return getStats(myid, isTraceRelatedIndex, allSegMetas)
 }
 
 func convertBytesToGB(bytes float64) string {
@@ -309,7 +495,7 @@ func convertBytesToGB(bytes float64) string {
 	return finalStr
 }
 
-func GetMetricsStats(myid uint64) (uint64, uint64, uint64) {
+func GetMetricsStats(myid int64) (uint64, uint64, uint64) {
 	bytesCount := uint64(0)
 	onDiskBytesCount := uint64(0)
 	recCount := uint64(0)

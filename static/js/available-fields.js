@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,45 +17,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
-function renderAvailableFields(columnOrder) {
+//eslint-disable-next-line no-unused-vars
+function renderAvailableFields(columnOrder, columnCount) {
     let el = $('#available-fields .fields');
     let columnsToIgnore = ['timestamp', 'logs'];
     el.empty();
-    columnOrder.forEach((colName, index) => {
+    $('.column-count').html(columnCount);
+    columnOrder.forEach((colName, _index) => {
         if (columnsToIgnore.indexOf(colName) == -1) {
-            if (!availColNames.includes(colName)){
+            if (!availColNames.includes(colName)) {
                 availColNames.push(colName);
             }
         }
     });
-    
+
     // Render all the available fields
-    availColNames.forEach((colName, index) => {
+    availColNames.forEach((colName, _index) => {
         el.append(`<div class="available-fields-dropdown-item toggle-field toggle-${string2Hex(colName)}" data-index="${colName}">
                         <span class="fieldname-text">${colName}</span>
                         <img src="/assets/index-selection-check.svg">
                         </div>`);
     });
 
-let afieldDropDownItem = $(".fields .available-fields-dropdown-item");
-afieldDropDownItem.each(function (idx, li) {
-    li.style.width = "auto"; 
-});
+    let afieldDropDownItem = $('.fields .available-fields-dropdown-item');
+    afieldDropDownItem.each(function (idx, li) {
+        li.style.width = 'auto';
+    });
 
-let afieldDropDown = document.getElementById("available-fields");
-afieldDropDown.style.width = "auto"; 
+    let afieldDropDown = document.getElementById('available-fields');
+    afieldDropDown.style.width = 'auto';
 
-    if (updatedSelFieldList){
+    if (updatedSelFieldList) {
         selectedFieldsList = _.intersection(selectedFieldsList, availColNames);
-    }else{
+    } else {
         selectedFieldsList = _.union(selectedFieldsList, availColNames);
     }
 
     if (selectedFieldsList.length != 0) {
-        availColNames.forEach((colName, index) => {
-            if(selectedFieldsList.includes(colName)){
+        availColNames.forEach((colName, _index) => {
+            if (selectedFieldsList.includes(colName)) {
                 $(`.toggle-${string2Hex(colName)}`).addClass('active');
             } else {
                 $(`.toggle-${string2Hex(colName)}`).removeClass('active');
@@ -63,7 +63,7 @@ afieldDropDown.style.width = "auto";
         });
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetAvailableFields() {
     $('#available-fields .fields').html('');
 }

@@ -44,7 +44,7 @@ func convertTSVToJson(input string, output string) error {
 		return err
 	}
 	columns := strings.Split(scanner.Text(), "\t")
-	log.Infof("Assuming columns %+v for file %+v", columns, input)
+	log.Infof("convertTSVToJson: Assuming columns %+v for file %+v", columns, input)
 
 	jsonValue := make(map[string]interface{}, len(columns))
 	for _, column := range columns {
@@ -62,7 +62,7 @@ func convertTSVToJson(input string, output string) error {
 		count++
 
 		if count%1000 == 0 {
-			log.Infof("Still converting file. Total time %+v. Number of lines %+v", time.Since(sTime), count)
+			log.Infof("convertTSVToJson: Still converting file. Total time %+v. Number of lines %+v", time.Since(sTime), count)
 		}
 		rawValues := strings.Split(scanner.Text(), "\t")
 		for idx, column := range columns {
@@ -100,13 +100,13 @@ func convertTSVToJson(input string, output string) error {
 		}
 		rawVal, err := json.Marshal(jsonValue)
 		if err != nil {
-			log.Errorf("Failed to marshal json! %v", err)
+			log.Errorf("convertTSVToJson: Failed to marshal json! %v", err)
 			continue
 		}
 		_, _ = outFile.Write(rawVal)
 		_, _ = outFile.WriteString("\n")
 	}
-	log.Infof("Finished converting file. Total time %+v. Number of lines %+v", time.Since(sTime), count)
+	log.Infof("convertTSVToJson: Finished converting file. Total time %+v. Number of lines %+v", time.Since(sTime), count)
 	return scanner.Err()
 }
 
@@ -118,18 +118,18 @@ func main() {
 	inputStr, outputStr := *inputPtr, *outputPtr
 
 	if len(inputStr) == 0 {
-		log.Fatal("Input file cannot be empty")
+		log.Fatal("main: Input file cannot be empty")
 	}
 
 	if outputStr == inputStr {
-		log.Fatalf("Input string %+v cannot be the same as the output string %+v", inputStr, outputStr)
+		log.Fatalf("main: Input string %+v cannot be the same as the output string %+v", inputStr, outputStr)
 	}
 	if len(outputStr) == 0 {
 		outputStr = inputStr + ".json"
 	}
-	log.Infof("Converting %+v to a json file at %+v:", inputStr, outputStr)
+	log.Infof("main: Converting %+v to a json file at %+v:", inputStr, outputStr)
 	err := convertTSVToJson(inputStr, outputStr)
 	if err != nil {
-		log.Fatalf("Failed to convert %+v to json: %v", inputStr, err)
+		log.Fatalf("main: Failed to convert %+v to json: %v", inputStr, err)
 	}
 }

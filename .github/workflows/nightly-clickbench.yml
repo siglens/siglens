@@ -1,0 +1,166 @@
+name: Nightly-Clickbench-Test
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # Every day at 11PM EST (UTC-5)
+  workflow_dispatch:  # Allows manual trigger as well
+
+jobs:
+  Clickbench-Test:
+    timeout-minutes: 720 # 12 hrs
+    runs-on: [self-hosted, Linux, X64]
+    name: Clickbench
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+      - name: Install dependencies
+        run: |
+          sudo yum install python3-pip
+          pip install requests
+      - uses: actions/checkout@v3
+      - name: Build Siglens
+        run: make build
+      - name: Run Siglens
+        run: |
+            ./siglens --config server.yaml > output.log 2>&1 &
+      - name: Get Data Batch 1
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_1.tar
+            tar -xzvf splithits_1.tar
+            rm splithits_1.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_2.tar
+            tar -xzvf splithits_2.tar
+            rm splithits_2.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_3.tar
+            tar -xzvf splithits_3.tar
+            rm splithits_3.tar
+      - name: Send Data Batch 1
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_1 splithits_2 splithits_3
+      - name: Get Data Batch 2
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_4.tar
+            tar -xzvf splithits_4.tar
+            rm splithits_4.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_5.tar
+            tar -xzvf splithits_5.tar
+            rm splithits_5.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_6.tar
+            tar -xzvf splithits_6.tar
+            rm splithits_6.tar
+      - name: Send Data Batch 2
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_4 splithits_5 splithits_6
+      - name: Get Data Batch 3
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_7.tar
+            tar -xzvf splithits_7.tar
+            rm splithits_7.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_8.tar
+            tar -xzvf splithits_8.tar
+            rm splithits_8.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_9.tar
+            tar -xzvf splithits_9.tar
+            rm splithits_9.tar
+      - name: Send Data Batch 3
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_7 splithits_8 splithits_9
+      - name: Get Data Batch 4
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_10.tar
+            tar -xzvf splithits_10.tar
+            rm splithits_10.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_11.tar
+            tar -xzvf splithits_11.tar
+            rm splithits_11.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_12.tar
+            tar -xzvf splithits_12.tar
+            rm splithits_12.tar
+      - name: Send Data Batch 4
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_10 splithits_11 splithits_12
+      - name: Get Data Batch 5
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_13.tar
+            tar -xzvf splithits_13.tar
+            rm splithits_13.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_14.tar
+            tar -xzvf splithits_14.tar
+            rm splithits_14.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_15.tar
+            tar -xzvf splithits_15.tar
+            rm splithits_15.tar
+      - name: Send Data Batch 5
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_13 splithits_14 splithits_15
+      - name: Get Data Batch 6
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_16.tar
+            tar -xzvf splithits_16.tar
+            rm splithits_16.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_17.tar
+            tar -xzvf splithits_17.tar
+            rm splithits_17.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_18.tar
+            tar -xzvf splithits_18.tar
+            rm splithits_18.tar
+      - name: Send Data Batch 6
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_16 splithits_17 splithits_18
+      - name: Get Data Batch 7
+        run: |
+            cd tools/clickbench
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_19.tar
+            tar -xzvf splithits_19.tar
+            rm splithits_19.tar
+            wget https://github.com/siglens/pub-datasets/releases/download/5m-cb/splithits_20.tar
+            tar -xzvf splithits_20.tar
+            rm splithits_20.tar
+      - name: Send Data Batch 7
+        run: |
+            cd tools/clickbench
+            python3 send_datamulti.py
+            rm splithits_19 splithits_20
+      - name: Restart Siglens
+        run: |
+            pkill siglens
+            sleep 10
+            sed -i 's/pqsEnabled: true/pqsEnabled: false/' server.yaml
+            ./siglens --config server.yaml > output2.log 2>&1 &
+      - name: Run Clickbench Test
+        run: |
+            sleep 5  # Wait for Siglens to start
+            cd tools/sigclient
+            go run main.go clickBench -d localhost:5122
+      - name: Print server execution logs for ingestion # For crashes
+        if: always()
+        run: |
+            cat output.log
+      - name: Print server execution logs for query # For crashes
+        if: always()
+        run: |
+            cat output2.log
+      - name: Print siglens logs
+        if: always()
+        run: |
+            cat logs/siglens.log
+

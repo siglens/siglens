@@ -43,11 +43,31 @@ func BytesToBoolLittleEndian(bytes []byte) bool {
 	return bytes[0] == []byte{1}[0]
 }
 
+/*
+This function converts the float64 to bytes in place. It is the responsibility
+of the caller to make sure buf is atleast 8 bytes, else this func will crash
+*/
+func Float64ToBytesLittleEndianInplace(val float64, buf []byte) {
+
+	// Convert float64 to uint64 representation
+	bits := math.Float64bits(val)
+
+	// Write the uint64 value into the byte slice in little-endian order
+	buf[0] = byte(bits)
+	buf[1] = byte(bits >> 8)
+	buf[2] = byte(bits >> 16)
+	buf[3] = byte(bits >> 24)
+	buf[4] = byte(bits >> 32)
+	buf[5] = byte(bits >> 40)
+	buf[6] = byte(bits >> 48)
+	buf[7] = byte(bits >> 56)
+}
+
 func Float64ToBytesLittleEndian(val float64) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, val)
 	if err != nil {
-		log.Error("binary.Write failed:", err)
+		log.Errorf("Float64ToBytesLittleEndian: binary.Write failed, val: %v, err: %v", val, err)
 	}
 	return buf.Bytes()
 }
@@ -89,7 +109,7 @@ func Int16ToBytesLittleEndian(signedval int16) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, signedval)
 	if err != nil {
-		log.Errorf("binary.Write failed:%v\n", err)
+		log.Errorf("Int16ToBytesLittleEndian: binary.Write failed: val: %v, err: %v\n", signedval, err)
 	}
 	return buf.Bytes()
 }
@@ -98,7 +118,7 @@ func Int32ToBytesLittleEndian(signedval int32) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, signedval)
 	if err != nil {
-		log.Errorf("binary.Write failed:%v\n", err)
+		log.Errorf("Int32ToBytesLittleEndian: binary.Write failed: val: %v, err: %v\n", signedval, err)
 	}
 	return buf.Bytes()
 }
@@ -107,10 +127,34 @@ func Int64ToBytesLittleEndian(signedval int64) []byte {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, signedval)
 	if err != nil {
-		log.Errorf("binary.Write failed:%v\n", err)
+		log.Errorf("Int64ToBytesLittleEndian: binary.Write failed: val: %v, err: %v\n", signedval, err)
 	}
 	return buf.Bytes()
 }
+
+/*
+This function converts the int64 to bytes in place. It is the responsibility
+of the caller to make sure buf is atleast 8 bytes, else this func will crash
+*/
+func Int64ToBytesLittleEndianInplace(signedval int64, buf []byte) {
+	buf[0] = byte(signedval)
+	buf[1] = byte(signedval >> 8)
+	buf[2] = byte(signedval >> 16)
+	buf[3] = byte(signedval >> 24)
+	buf[4] = byte(signedval >> 32)
+	buf[5] = byte(signedval >> 40)
+	buf[6] = byte(signedval >> 48)
+	buf[7] = byte(signedval >> 56)
+}
+
+/*
+This function converts the uint64 to bytes in place. It is the responsibility
+of the caller to make sure buf is atleast 8 bytes, else this func will crash
+*/
+func Uint64ToBytesLittleEndianInplace(val uint64, buf []byte) {
+	Int64ToBytesLittleEndianInplace(int64(val), buf)
+}
+
 func BytesToInt64LittleEndian(bytes []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(bytes))
 }
@@ -170,4 +214,97 @@ func SearchStr(needle string, haystack []string) bool {
 // returns string using unsafe. This is zero-copy and uses unsafe
 func UnsafeByteSliceToString(haystack []byte) string {
 	return *(*string)(unsafe.Pointer(&haystack))
+}
+
+func isAlpha(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+}
+
+func BytesCaseInsensitiveEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			// Check if both are alphabetic characters and differ only by case
+			if !isAlpha(a[i]) || !isAlpha(b[i]) || a[i]^32 != b[i] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func PerformBytesEqualityCheck(isCaseInsensitive bool, a, b []byte) bool {
+	if isCaseInsensitive {
+		return BytesCaseInsensitiveEqual(a, b)
+	}
+	return bytes.Equal(a, b)
+}
+
+// This function converts the bytes to lower case in place
+func BytesToLowerInPlace(b []byte) []byte {
+	for i, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			b[i] = c + 32
+		}
+	}
+	return b
+}
+
+// Checks if there is an upper case letter
+func HasUpper(b []byte) bool {
+	for _, c := range b {
+		if c >= 'A' && c <= 'Z' {
+			return true
+		}
+	}
+	return false
+}
+
+// This function converts the bytes to lower case using the passed in bug
+func BytesToLower(b []byte, workBuf []byte) ([]byte, error) {
+
+	blen := len(b)
+
+	if len(workBuf) < blen {
+		return nil, fmt.Errorf("BytesToLower: passed in workbuf len was smaller than b")
+	}
+
+	for i := 0; i < blen; i++ {
+		if b[i] >= 'A' && b[i] <= 'Z' {
+			workBuf[i] = b[i] + 32
+		} else {
+			workBuf[i] = b[i]
+		}
+	}
+	return workBuf[:blen], nil
+}
+
+// This function converts int32 to bytes in place
+func Int32ToBytesLittleEndianInplace(val int32, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+	buf[2] = byte(val >> 16)
+	buf[3] = byte(val >> 24)
+}
+
+// This function converts uint32 to bytes in place
+func Uint32ToBytesLittleEndianInplace(val uint32, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+	buf[2] = byte(val >> 16)
+	buf[3] = byte(val >> 24)
+}
+
+// This function converts int16 to bytes in place
+func Int16ToBytesLittleEndianInplace(val int16, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
+}
+
+// This function converts uint16 to bytes in place
+func Uint16ToBytesLittleEndianInplace(val uint16, buf []byte) {
+	buf[0] = byte(val)
+	buf[1] = byte(val >> 8)
 }

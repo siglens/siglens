@@ -18,21 +18,25 @@
 package query
 
 import (
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 )
 
 type DistributedQueryServiceInterface interface {
 	Wait(qid uint64, querySummary *summary.QuerySummary) error
-	DistributeRotatedRequests(qI *QueryInformation, qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, uint64, error)
-	DistributeUnrotatedQuery(qI *QueryInformation) (uint64, error)
+	DistributeQuery(qI *QueryInformation) (uint64, error)
+	IsDistributed() bool
+	GetSegEncToKeyBaseValue() uint32
+	GetNumNodesDistributedTo() uint64
+	GetOwnedSegments(orgId int64) (map[string]struct{}, error)
 }
 
 type DistributedQueryService struct {
 	isDistributed bool // whether or not this is a distributed query
 }
 
-func InitDistQueryService(querySummary *summary.QuerySummary, allSegFileResults *segresults.SearchResults) *DistributedQueryService {
+func InitDistQueryService(querySummary *summary.QuerySummary, allSegFileResults *segresults.SearchResults, dqid string, segEncTokey uint32) *DistributedQueryService {
 
 	return &DistributedQueryService{
 		isDistributed: false,
@@ -49,17 +53,28 @@ func (d *DistributedQueryService) Wait(qid uint64, querySummary *summary.QuerySu
 	return nil
 }
 
-func (d *DistributedQueryService) DistributeRotatedRequests(qI *QueryInformation, qsrs []*QuerySegmentRequest) ([]*QuerySegmentRequest, uint64, error) {
-	if d == nil {
-		return qsrs, 0, nil
-	}
-
-	return qsrs, 0, nil
-}
-
-func (d *DistributedQueryService) DistributeUnrotatedQuery(qI *QueryInformation) (uint64, error) {
+func (d *DistributedQueryService) DistributeQuery(qI *QueryInformation) (uint64, error) {
 	if d == nil {
 		return 0, nil
 	}
 	return 0, nil
+}
+
+func (d *DistributedQueryService) IsDistributed() bool {
+	if d == nil {
+		return false
+	}
+	return d.isDistributed
+}
+
+func (d *DistributedQueryService) GetSegEncToKeyBaseValue() uint32 {
+	return 0
+}
+
+func (d *DistributedQueryService) GetNumNodesDistributedTo() uint64 {
+	return 0
+}
+
+func (d *DistributedQueryService) GetOwnedSegments(orgId int64) (map[string]struct{}, error) {
+	return metadata.GetAllSegKeysForOrg(orgId), nil
 }

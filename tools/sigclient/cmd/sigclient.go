@@ -18,12 +18,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
+
+	"verifier/pkg/alerts"
 	"verifier/pkg/ingest"
 	"verifier/pkg/metricsbench"
 	"verifier/pkg/query"
 	"verifier/pkg/trace"
+	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 
@@ -55,6 +60,32 @@ var esBulkCmd = &cobra.Command{
 		dataFile, _ := cmd.Flags().GetString("filePath")
 		indexName, _ := cmd.Flags().GetString("indexName")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		maxColumns, _ := cmd.Flags().GetUint32("maxColumns")
+		minColumns, _ := cmd.Flags().GetUint32("minColumns")
+		uniqColumns, _ := cmd.Flags().GetUint32("uniqColumns")
+		enableVariableNumColumns, _ := cmd.Flags().GetBool("enableVariableNumColumns")
+
+		if eventsPerDay > 0 {
+			if cmd.Flags().Changed("totalEvents") {
+				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+				return
+			}
+			continuous = true
+		}
+
+		var dataGeneratorConfig *utils.GeneratorDataConfig
+		if enableVariableNumColumns {
+			if maxColumns == 0 {
+				log.Fatalf("maxColumns must be greater than 0")
+				return
+			}
+			if uniqColumns != 0 && uniqColumns < maxColumns {
+				log.Fatalf("uniqColumns must be greater than or equal to maxColumns")
+				return
+			}
+			dataGeneratorConfig = ingest.GetGeneratorDataConfig(int(maxColumns), enableVariableNumColumns, int(minColumns), int(uniqColumns))
+		}
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -65,8 +96,164 @@ var esBulkCmd = &cobra.Command{
 		log.Infof("numIndices : %+v\n", numIndices)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v. Add timestamp: %+v\n", generatorType, ts)
+		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+		log.Infof("enableVariableNumColumns : %+v\n", enableVariableNumColumns)
+		if enableVariableNumColumns {
+			log.Infof("maxColumns : %+v\n", dataGeneratorConfig.MaxColumns)
+			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
+		}
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+	},
+}
+
+var functionalTestCmd = &cobra.Command{
+	Use:   "functional",
+	Short: "functional testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryDest, _ := cmd.Flags().GetString("queryDest")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		filePath, _ := cmd.Flags().GetString("queriesToRunFile")
+		longer, _ := cmd.Flags().GetBool("longer")
+		doIngest, _ := cmd.Flags().GetBool("doIngest")
+		doQuery, _ := cmd.Flags().GetBool("doQuery")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+		log.Infof("queriesToRunFile : %+v\n", filePath)
+		log.Infof("longer : %+v\n", longer)
+		log.Infof("doIngest : %+v\n", doIngest)
+		log.Infof("doQuery : %+v\n", doQuery)
+
+		totalEvents := 100_000
+		batchSize := 100
+		numIndices := 10
+		processCount := 1
+		indexPrefix := "ind"
+		indexName := ""
+		numFixedCols := 100
+		maxVariableCols := 20
+		sleepDuration := 15 * time.Second
+
+		if longer {
+			totalEvents = 20_000_000
+			batchSize = 100
+			numIndices = 10
+			processCount = 10
+			sleepDuration = 30 * time.Second
+		}
+
+		if doIngest {
+
+			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
+
+			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+
+			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
+			if err != nil {
+				log.Fatalf("Error while migrating lookups: %v", err)
+				return
+			}
+
+			if doQuery {
+				time.Sleep(sleepDuration)
+			}
+		}
+
+		if doQuery {
+			query.FunctionalTest(queryDest, filePath)
+		}
+	},
+}
+
+var performanceTestCmd = &cobra.Command{
+	Use:   "performance",
+	Short: "performance testing of SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryDest, _ := cmd.Flags().GetString("queryDest")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", queryDest)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		totalEvents := 1_000_000_000
+		batchSize := 50
+		numIndices := 10
+		processCount := 10
+		indexPrefix := "ind"
+		indexName := ""
+		numFixedCols := 100
+		maxVariableCols := 20
+		concurrentQueries := 5
+
+		logChan := make(chan utils.Log, 1000)
+
+		dataGenConfig := utils.InitPerformanceTestGeneratorDataConfig(numFixedCols, maxVariableCols, logChan)
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		go func(cancel context.CancelFunc) {
+			defer cancel()
+			// addTs should be false for performance testing
+			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
+				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+		}(cancel)
+
+		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				time.Sleep(1 * time.Second)
+			}
+		}
+	},
+}
+
+var concurrentQueriesTestCmd = &cobra.Command{
+	Use:   "concurrentQueries",
+	Short: "testing concurrent queries on SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		queryText, _ := cmd.Flags().GetString("queryText")
+		numOfConcurrentQueries, _ := cmd.Flags().GetInt("numOfConcurrentQueries")
+		iterations, _ := cmd.Flags().GetInt("iterations")
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+
+		log.Infof("dest : %+v\n", dest)
+		log.Infof("queryDest : %+v\n", dest)
+		log.Infof("queryText : %+v\n", queryText)
+		log.Infof("numOfConcurrentQueries : %+v\n", numOfConcurrentQueries)
+		log.Infof("iterations : %+v\n", iterations)
+		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		query.RunConcurrentQueries(dest, queryText, numOfConcurrentQueries, iterations)
+	},
+}
+
+var clickBenchTestCmd = &cobra.Command{
+	Use:   "clickBench",
+	Short: "testing clickBench queries on SigLens",
+	Run: func(cmd *cobra.Command, args []string) {
+		dest, _ := cmd.Flags().GetString("dest")
+		thresholdFactor, _ := cmd.Flags().GetFloat64("thresholdFactor")
+
+		log.Infof("dest : %+v\n", dest)
+
+		queriesAndRespTimes, err := query.GetClickBenchQueriesAndRespTimes()
+		if err != nil {
+			log.Fatalf("Error getting clickbench queries: %v", err)
+			return
+		}
+
+		query.ValidateClickBenchQueries(dest, queriesAndRespTimes, thresholdFactor)
 	},
 }
 
@@ -83,6 +270,16 @@ var metricsIngestCmd = &cobra.Command{
 		nMetrics, _ := cmd.Flags().GetInt("metrics")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
 		generatorType, _ := cmd.Flags().GetString("generator")
+		cardinality, _ := cmd.Flags().GetUint64("cardinality")
+		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+
+		if eventsPerDay > 0 {
+			if cmd.Flags().Changed("totalEvents") {
+				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+				return
+			}
+			continuous = true
+		}
 
 		log.Infof("processCount : %+v\n", processCount)
 		log.Infof("dest : %+v\n", dest)
@@ -90,7 +287,10 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
 		log.Infof("bearerToken : %+v\n", bearerToken)
 		log.Infof("generatorType : %+v.\n", generatorType)
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken)
+		log.Infof("cardinality : %+v.\n", cardinality)
+		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
 	},
 }
 
@@ -106,6 +306,9 @@ var esQueryCmd = &cobra.Command{
 		filepath, _ := cmd.Flags().GetString("filePath")
 		randomQueries, _ := cmd.Flags().GetBool("randomQueries")
 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		outputFile, _ := cmd.Flags().GetString("outputFile")
+		runResponseTime, _ := cmd.Flags().GetBool("runResponseTime")
+		lookupFiles, _ := cmd.Flags().GetStringSlice("lookups")
 
 		log.Infof("dest : %+v\n", dest)
 		log.Infof("numIterations : %+v\n", numIterations)
@@ -115,8 +318,19 @@ var esQueryCmd = &cobra.Command{
 		log.Infof("filePath : %+v\n", filepath)
 		log.Infof("randomQueries: %+v\n", randomQueries)
 		log.Infof("bearerToken : %+v\n", bearerToken)
+
+		err := query.MigrateLookups(lookupFiles)
+		if err != nil {
+			log.Fatalf("Error while migrating lookups: %v", err)
+			return
+		}
+
 		if filepath != "" {
-			query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
+			if runResponseTime {
+				query.RunQueryFromFileAndOutputResponseTimes(dest, filepath, outputFile)
+			} else {
+				query.RunQueryFromFile(dest, numIterations, indexPrefix, continuous, verbose, filepath, bearerToken)
+			}
 		} else {
 			query.StartQuery(dest, numIterations, indexPrefix, continuous, verbose, randomQueries, bearerToken)
 		}
@@ -135,6 +349,59 @@ var metricsBenchCmd = &cobra.Command{
 			log.Fatalf("destUrl is required")
 		}
 		metricsbench.ExecuteMetricsBenchQueries(destHost, numQueryIterations)
+	},
+}
+
+var alertsCmd = &cobra.Command{
+	Use:   "alerts",
+	Short: "alerts",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.Fatal("Alerts command should be used with e2e/load-test.")
+	},
+}
+
+var alertsE2ECmd = &cobra.Command{
+	Use:   "e2e",
+	Short: "Perform E2E tests for alerts: From creating contact points, creating alerts, sending alerts, and verifying alerts, and finally cleanup",
+	Run: func(cmd *cobra.Command, args []string) {
+		destHost, _ := cmd.Flags().GetString("dest")
+		log.Infof("destHost : %+v\n", destHost)
+		if destHost == "" {
+			log.Fatalf("Destination Host is required")
+		}
+		alerts.RunAlertsTest(destHost)
+	},
+}
+
+var alertsLoadTestCmd = &cobra.Command{
+	Use:   "load-test",
+	Short: "Perform Load test for alerts: Create `n` number of alerts, send alerts, and verify alerts",
+	Run: func(cmd *cobra.Command, args []string) {
+		destHost, _ := cmd.Flags().GetString("dest")
+		numAlerts, _ := cmd.Flags().GetUint64("numAlerts")
+		runVector, _ := cmd.Flags().GetInt8("runVector")
+		cleanup, _ := cmd.Flags().GetBool("cleanup")
+		log.Infof("destHost : %+v\n", destHost)
+
+		if cleanup {
+			alerts.RunAlertsCleanup(destHost)
+			return
+		}
+
+		log.Infof("numAlerts : %+v\n", numAlerts)
+		if destHost == "" {
+			log.Fatalf("Destination Host is required")
+		}
+		if numAlerts == 0 {
+			log.Fatalf("Number of alerts must be greater than 0")
+		}
+		if runVector > 1 {
+			runVector = 1
+		} else if runVector < -1 {
+			runVector = -1
+		}
+
+		alerts.RunAlertsLoadTest(destHost, numAlerts, runVector)
 	},
 }
 
@@ -251,22 +518,42 @@ var traceCmd = &cobra.Command{
 
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
-	rootCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
-	rootCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
 	rootCmd.PersistentFlags().StringP("bearerToken", "r", "", "Bearer token")
+
+	concurrentQueriesTestCmd.PersistentFlags().IntP("numOfConcurrentQueries", "c", 1, "Number of concurrent queries to run")
+	concurrentQueriesTestCmd.PersistentFlags().IntP("iterations", "i", 1, "Number of iterations to run")
+	concurrentQueriesTestCmd.PersistentFlags().StringP("queryText", "q", "", "Query to run")
+
+	clickBenchTestCmd.PersistentFlags().Float64P("thresholdFactor", "t", 1.5, "Threshold factor for clickbench queries")
 
 	ingestCmd.PersistentFlags().IntP("processCount", "p", 1, "Number of parallel process to ingest data from.")
 	ingestCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of events to send")
 	ingestCmd.PersistentFlags().BoolP("continuous", "c", false, "Continous ingestion will ingore -t and will constantly send events as fast as possible")
 	ingestCmd.PersistentFlags().IntP("batchSize", "b", 100, "Batch size")
+	ingestCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
+	ingestCmd.PersistentFlags().Uint64P("eventsPerDay", "e", 0, "Number of events per day")
+	ingestCmd.PersistentFlags().StringP("indexName", "a", "", "index name")
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
+	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate. Default is 100")
+	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate. Default is 0. if 0, it will be set to maxColumns")
+	esBulkCmd.PersistentFlags().Uint32P("uniqColumns", "", 0, "unique column names to generate")
+	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
+
+	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
+	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
+	functionalTestCmd.PersistentFlags().BoolP("longer", "l", false, "Run longer functional test")
+	functionalTestCmd.PersistentFlags().BoolP("doIngest", "i", true, "Perfom ingestion for functional Test")
+	functionalTestCmd.PersistentFlags().BoolP("doQuery", "u", true, "Perfom query for functional Test")
+
+	performanceTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
+	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
@@ -275,20 +562,36 @@ func init() {
 	queryCmd.PersistentFlags().StringP("filePath", "f", "", "filepath to csv file to use to run queries from")
 	queryCmd.PersistentFlags().BoolP("randomQueries", "", false, "generate random queries")
 	queryCmd.PersistentFlags().StringP("query", "q", "", "promql query to run")
+	queryCmd.PersistentFlags().StringP("outputFile", "o", "", "The filePath to output the Response time of Queries in csv format, When runResponseTime is set to True.")
+	queryCmd.PersistentFlags().BoolP("runResponseTime", "t", false, "Runs the given Queries and outputs the response time into a file in CSV format.")
+	queryCmd.PersistentFlags().StringSliceP("lookups", "l", []string{}, "List of lookups to migrate")
+	queryCmd.PersistentFlags().StringP("indexPrefix", "i", "ind", "index prefix")
+
+	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
+	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
+	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
 
 	metricsBenchCmd.PersistentFlags().IntP("numQueryIterations", "n", 1, "Number of query iterations loop")
+
+	alertsLoadTestCmd.PersistentFlags().Uint64P("numAlerts", "n", 1, "Number of alerts to create")
+	alertsLoadTestCmd.PersistentFlags().Int8P("runVector", "v", 0, "Run vector: -1 - Explicitly Disable running of Vector, 0 - Optional State: Will try to run vector, but will not stop the test if encountered and issue with Vector, 1 - Explictly Enable running of Vector")
+	alertsLoadTestCmd.PersistentFlags().BoolP("cleanup", "c", false, "Cleanup alerts. If this is set true, it will only cleanup alerts and not run the load test")
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
 	queryCmd.AddCommand(promQLQueryCmd)
 	ingestCmd.AddCommand(esBulkCmd)
 	ingestCmd.AddCommand(metricsIngestCmd)
-	traceCmd.PersistentFlags().StringP("filePrefix", "f", "", "Name of file to output to")
-	traceCmd.PersistentFlags().IntP("totalEvents", "t", 1000000, "Total number of traces to generate")
-	traceCmd.Flags().IntP("maxSpans", "s", 100, "max number of spans in a single trace")
+	alertsCmd.AddCommand(alertsLoadTestCmd)
+	alertsCmd.AddCommand(alertsE2ECmd)
 
 	rootCmd.AddCommand(ingestCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(functionalTestCmd)
+	rootCmd.AddCommand(performanceTestCmd)
 	rootCmd.AddCommand(traceCmd)
 	rootCmd.AddCommand(metricsBenchCmd)
+	rootCmd.AddCommand(alertsCmd)
+	rootCmd.AddCommand(concurrentQueriesTestCmd)
+	rootCmd.AddCommand(clickBenchTestCmd)
 }

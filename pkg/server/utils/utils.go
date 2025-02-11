@@ -36,8 +36,8 @@ const METRIC_PREFIX string = "/metrics-explorer"
 
 // This function reduces some boilerplate code by handling the logic for
 // injecting orgId if necessary, or using the default.
-func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
-	orgId := uint64(0)
+func CallWithMyIdQuery(handler func(*fasthttp.RequestCtx, int64), ctx *fasthttp.RequestCtx) {
+	orgId := int64(0)
 	var err error
 	if hook := hooks.GlobalHooks.GetOrgIdHookQuery; hook != nil {
 		orgId, err = hook(ctx)
@@ -50,8 +50,8 @@ func CallWithOrgIdQuery(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthtt
 	handler(ctx, orgId)
 }
 
-func CallWithOrgId(handler func(*fasthttp.RequestCtx, uint64), ctx *fasthttp.RequestCtx) {
-	orgId := uint64(0)
+func CallWithMyId(handler func(*fasthttp.RequestCtx, int64), ctx *fasthttp.RequestCtx) {
+	orgId := int64(0)
 	var err error
 	if hook := hooks.GlobalHooks.GetOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
@@ -77,7 +77,7 @@ func ExtractKibanaRequests(kibanaIndices []string, qid uint64) map[string]*struc
 	return ssr
 }
 
-func GetMyIds() []uint64 {
+func GetMyIds() []int64 {
 	if hook := hooks.GlobalHooks.GetIdsConditionHook; hook != nil {
 		alreadyHandled, ids := hook()
 		if alreadyHandled {
@@ -85,5 +85,5 @@ func GetMyIds() []uint64 {
 		}
 	}
 
-	return []uint64{0}
+	return []int64{0}
 }

@@ -70,7 +70,7 @@ func Test_IsDirEmpty(t *testing.T) {
 }
 
 func Test_RecursivelyDeleteParentDirectories(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t.TempDir())
 	type args struct {
 		filePath   string
 		testFile1  string

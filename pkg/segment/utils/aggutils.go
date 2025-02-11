@@ -36,6 +36,9 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 
 	// cannot reduce with incoming as string
 	if e2.Dtype == SS_DT_STRING {
+		if fun == Min || fun == Max {
+			return ReduceMinMax(e1, e2, fun == Min)
+		}
 		return e1, nil
 	}
 
@@ -43,18 +46,26 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	if e1.Dtype == SS_DT_FLOAT && e2.Dtype != SS_DT_FLOAT {
 		switch e2.Dtype {
 		case SS_DT_UNSIGNED_NUM:
-			e2 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e2.CVal.(uint64))}
+			e2.Dtype = SS_DT_FLOAT
+			e2.CVal = float64(e2.CVal.(uint64))
 		case SS_DT_SIGNED_NUM:
-			e2 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e2.CVal.(int64))}
+			e2.Dtype = SS_DT_FLOAT
+			e2.CVal = float64(e2.CVal.(int64))
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported e2 Dtype: %v", e2.Dtype)
 		}
 	}
 
 	if e2.Dtype == SS_DT_FLOAT && e1.Dtype != SS_DT_FLOAT {
 		switch e1.Dtype {
 		case SS_DT_UNSIGNED_NUM:
-			e1 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e1.CVal.(uint64))}
+			e1.Dtype = SS_DT_FLOAT
+			e1.CVal = float64(e1.CVal.(uint64))
 		case SS_DT_SIGNED_NUM:
-			e1 = CValueEnclosure{Dtype: SS_DT_FLOAT, CVal: float64(e1.CVal.(int64))}
+			e1.Dtype = SS_DT_FLOAT
+			e1.CVal = float64(e1.CVal.(int64))
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported e1 Dtype: %v", e1.Dtype)
 		}
 	}
 
@@ -63,36 +74,45 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 	switch e1.Dtype {
 	case SS_DT_UNSIGNED_NUM:
 		switch fun {
-		case Sum:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(uint64) + e2.CVal.(uint64)}, nil
+		case Sum, Count:
+			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
+			return e1, nil
 		case Min:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MinUint64(e1.CVal.(uint64), e2.CVal.(uint64))}, nil
+			e1.CVal = MinUint64(e1.CVal.(uint64), e2.CVal.(uint64))
+			return e1, nil
 		case Max:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))}, nil
-		case Count:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(uint64) + e2.CVal.(uint64)}, nil
+			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
+			return e1, nil
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
 		}
 	case SS_DT_SIGNED_NUM:
 		switch fun {
-		case Sum:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(int64) + e2.CVal.(int64)}, nil
+		case Sum, Count:
+			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)
+			return e1, nil
 		case Min:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MinInt64(e1.CVal.(int64), e2.CVal.(int64))}, nil
+			e1.CVal = MinInt64(e1.CVal.(int64), e2.CVal.(int64))
+			return e1, nil
 		case Max:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: MaxInt64(e1.CVal.(int64), e2.CVal.(int64))}, nil
-		case Count:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(int64) + e2.CVal.(int64)}, nil
+			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
+			return e1, nil
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
-		case Sum:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
+		case Sum, Count:
+			e1.CVal = e1.CVal.(float64) + e2.CVal.(float64)
+			return e1, nil
 		case Min:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Min(e1.CVal.(float64), e2.CVal.(float64))}, nil
+			e1.CVal = math.Min(e1.CVal.(float64), e2.CVal.(float64))
+			return e1, nil
 		case Max:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: math.Max(e1.CVal.(float64), e2.CVal.(float64))}, nil
-		case Count:
-			return CValueEnclosure{Dtype: e1.Dtype, CVal: e1.CVal.(float64) + e2.CVal.(float64)}, nil
+			e1.CVal = math.Max(e1.CVal.(float64), e2.CVal.(float64))
+			return e1, nil
+		default:
+			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for float", fun)
 		}
 	case SS_DT_STRING_SET:
 		{
@@ -105,14 +125,26 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 				for str := range set2 {
 					set1[str] = struct{}{}
 				}
-				return CValueEnclosure{Dtype: e1.Dtype, CVal: set1}, nil
+				return e1, nil
+			default:
+				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for string set", fun)
 			}
-			return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
+		}
+	case SS_DT_STRING_SLICE:
+		{
+			if fun == List {
+				list1 := e1.CVal.([]string)
+				list2 := e2.CVal.([]string)
+				list1 = append(list1, list2...)
+				e1.CVal = list1
+				return e1, nil
+			} else {
+				return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for slice", fun)
+			}
 		}
 	default:
 		return e1, fmt.Errorf("Reduce: unsupported CVal Dtype: %v", e1.Dtype)
 	}
-	return e1, fmt.Errorf("Reduce: unsupported reduce function: %v", fun)
 }
 
 func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
@@ -125,6 +157,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = e2int64
 		case SS_DT_FLOAT:
 			self.FloatVal = e2float64
+		default:
+			return fmt.Errorf("ReduceFast: unsupported e2 Dtype: %v", e2Dtype)
 		}
 		return nil
 	} else if e2Dtype == SS_INVALID { // if e2 is invalid, we live with whats in self
@@ -138,6 +172,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = e2int64
 		case SS_DT_FLOAT:
 			self.FloatVal = e2float64
+		default:
+			return fmt.Errorf("ReduceFast: unsupported e2 Dtype: %v", e2Dtype)
 		}
 		return nil
 	}
@@ -152,6 +188,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		switch e2Dtype {
 		case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
 			e2float64 = float64(e2int64)
+		default:
+			return fmt.Errorf("ReduceFast: unsupported e2 Dtype: %v", e2Dtype)
 		}
 	}
 
@@ -161,6 +199,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case SS_DT_UNSIGNED_NUM, SS_DT_SIGNED_NUM:
 			self.Ntype = SS_DT_FLOAT
 			self.FloatVal = float64(self.IntgrVal)
+		default:
+			return fmt.Errorf("ReduceFast: unsupported self Dtype: %v", self.Ntype)
 		}
 	}
 
@@ -181,6 +221,8 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
+		default:
+			return fmt.Errorf("ReduceFast: unsupported int function: %v", fun)
 		}
 	case SS_DT_FLOAT:
 		switch fun {
@@ -196,9 +238,68 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 		case Count:
 			self.FloatVal = self.FloatVal + e2float64
 			return nil
+		default:
+			return fmt.Errorf("ReduceFast: unsupported float function: %v", fun)
 		}
 	default:
 		return fmt.Errorf("Reduce: unsupported self CVal Dtype: %v", self.Ntype)
 	}
-	return fmt.Errorf("Reduce: unsupported reduce function: %v", fun)
+}
+
+func GetMinMaxString(str1 string, str2 string, isMin bool) string {
+	if isMin {
+		if str1 < str2 {
+			return str1
+		}
+		return str2
+	} else {
+		if str1 > str2 {
+			return str1
+		}
+		return str2
+	}
+}
+
+func ReduceMinMax(e1 CValueEnclosure, e2 CValueEnclosure, isMin bool) (CValueEnclosure, error) {
+	if e1.Dtype == SS_INVALID || e1.Dtype == SS_DT_BACKFILL {
+		return e2, nil
+	}
+	if e2.Dtype == SS_INVALID || e2.Dtype == SS_DT_BACKFILL {
+		return e1, nil
+	}
+
+	if e1.Dtype == e2.Dtype {
+		if e1.Dtype == SS_DT_STRING {
+			return CValueEnclosure{Dtype: e1.Dtype, CVal: GetMinMaxString(e1.CVal.(string), e2.CVal.(string), isMin)}, nil
+		} else {
+			if isMin {
+				return Reduce(e1, e2, Min)
+			} else {
+				return Reduce(e1, e2, Max)
+			}
+		}
+	} else {
+		if e1.IsNumeric() && e2.IsNumeric() {
+			if isMin {
+				return Reduce(e1, e2, Min)
+			} else {
+				return Reduce(e1, e2, Max)
+			}
+		} else if e1.IsNumeric() {
+			return e1, nil
+		} else {
+			return e2, nil
+		}
+	}
+}
+
+func AppendWithLimit(dest []string, src []string, limit int) []string {
+	remainingCapacity := limit - len(dest)
+	if remainingCapacity <= 0 {
+		return dest
+	}
+	if len(src) > remainingCapacity {
+		return append(dest, src[:remainingCapacity]...)
+	}
+	return append(dest, src...)
 }

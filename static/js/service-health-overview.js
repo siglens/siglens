@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,49 +17,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-let redMetrics ={
-    "indexName":  "red-traces",
-    "queryLanguage": "Splunk QL"
-   
-}
+let redMetrics = {
+    indexName: 'red-traces',
+    queryLanguage: 'Splunk QL',
+};
 var RateCountChart;
 var ErrCountChart;
 var LatenciesChart;
 $(document).ready(() => {
     setupEventHandlers();
-    $(".theme-btn").on("click", themePickerHandler);
+    $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', getOneServiceOverview);
 
-   
     const serviceName = getParameterFromUrl('service');
     const stDate = getParameterFromUrl('startEpoch');
     const endDate = getParameterFromUrl('endEpoch');
-    redMetrics['searchText']="service="  + serviceName + "";
+    redMetrics['searchText'] = 'service=' + serviceName + '';
     $('.service-name').text(serviceName);
-	$('.inner-range #' + stDate).addClass('active');
+    $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
-    
-    redMetrics = {... redMetrics, ... data}
-    getOneServiceOverview()
-   
-    $(".service-health-text").click(function () {
-        window.location.href = "../service-health.html";
-    })
+
+    redMetrics = { ...redMetrics, ...data };
+    getOneServiceOverview();
+
+    $('.service-health-text').click(function () {
+        window.location.href = '../service-health.html';
+    });
 });
 
 function isGraphsDatePickerHandler(evt) {
     evt.preventDefault();
-    getOneServiceOverview()
+    getOneServiceOverview();
     $('#daterangepicker').hide();
 }
 
 function getTimeRange() {
     return {
-        'startEpoch': filterStartDate || "now-1h",
-        'endEpoch': filterEndDate || "now",
+        startEpoch: filterStartDate || 'now-1h',
+        endEpoch: filterEndDate || 'now',
     };
 }
 function getParameterFromUrl(param) {
@@ -69,27 +66,26 @@ function getParameterFromUrl(param) {
 let gridLineColor;
 let tickColor;
 
-function getOneServiceOverview(){
+function getOneServiceOverview() {
     let data = getTimeRange();
-    redMetrics = {... redMetrics, ... data}
+    redMetrics = { ...redMetrics, ...data };
     $.ajax({
-        method: "POST",
-        url: "api/search",
+        method: 'POST',
+        url: 'api/search',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         data: JSON.stringify(redMetrics),
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        if ($('html').attr('data-theme') == "light") {
-            gridLineColor = "#DCDBDF";
-            tickColor = "#160F29";
-        }
-        else {
-            gridLineColor = "#383148";
-            tickColor = "#FFFFFF"
+        if ($('html').attr('data-theme') == 'light') {
+            gridLineColor = '#DCDBDF';
+            tickColor = '#160F29';
+        } else {
+            gridLineColor = '#383148';
+            tickColor = '#FFFFFF';
         }
         if (RateCountChart !== undefined) {
             RateCountChart.destroy();
@@ -97,24 +93,24 @@ function getOneServiceOverview(){
         if (ErrCountChart !== undefined) {
             ErrCountChart.destroy();
         }
-        if (LatenciesChart!==undefined){
+        if (LatenciesChart !== undefined) {
             LatenciesChart.destroy();
         }
-        rateChart(res.hits.records,gridLineColor,tickColor);
-        errorChart(res.hits.records,gridLineColor,tickColor);
-        latenciesChart(res.hits.records,gridLineColor,tickColor);
-    })
+        rateChart(res.hits.records, gridLineColor, tickColor);
+        errorChart(res.hits.records, gridLineColor, tickColor);
+        latenciesChart(res.hits.records, gridLineColor, tickColor);
+    });
 }
 
-function rateChart(rateData,gridLineColor,tickColor) {
-    let graph_data = []
-    for(let data of rateData){
+function rateChart(rateData, gridLineColor, tickColor) {
+    let graph_data = [];
+    for (let data of rateData) {
         graph_data.push({
-            x : new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' '),
-            y: data.rate
-        })
+            x: new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' '),
+            y: data.rate,
+        });
     }
-    var RateCountChartCanvas = $("#ServiceHealthChart").get(0).getContext("2d");
+    var RateCountChartCanvas = $('#ServiceHealthChart').get(0).getContext('2d');
     RateCountChart = new Chart(RateCountChartCanvas, {
         type: 'line',
         data: {
@@ -129,8 +125,7 @@ function rateChart(rateData,gridLineColor,tickColor) {
                     pointBorderColor: ['rgb(99,71,217)'],
                     fill: false,
                 },
-
-            ]
+            ],
         },
         options: {
             responsive: true,
@@ -155,28 +150,28 @@ function rateChart(rateData,gridLineColor,tickColor) {
                     grid: {
                         color: gridLineColor,
                     },
-                }
+                },
             },
             plugins: {
                 legend: {
-                    display: false
+                    display: false,
                 },
-            }
-        }
+            },
+        },
     });
     return RateCountChart;
 }
 
-function errorChart(errorData,gridLineColor,tickColor) {
-    let graph_data_err = []
-    for(let data of errorData){
-            let formatted_date = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
-            graph_data_err.push({
-                x : formatted_date,
-                y: data.error_rate
-            }) 
+function errorChart(errorData, gridLineColor, tickColor) {
+    let graph_data_err = [];
+    for (let data of errorData) {
+        let formatted_date = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
+        graph_data_err.push({
+            x: formatted_date,
+            y: data.error_rate,
+        });
     }
-    var ErrorCountChartCanvas = $("#ServiceHealthChartErr").get(0).getContext("2d");
+    var ErrorCountChartCanvas = $('#ServiceHealthChartErr').get(0).getContext('2d');
     ErrCountChart = new Chart(ErrorCountChartCanvas, {
         type: 'line',
         data: {
@@ -191,8 +186,7 @@ function errorChart(errorData,gridLineColor,tickColor) {
                     pointBorderColor: ['rgb(99,71,217)'],
                     fill: false,
                 },
-
-            ]
+            ],
         },
         options: {
             responsive: true,
@@ -217,20 +211,19 @@ function errorChart(errorData,gridLineColor,tickColor) {
                     grid: {
                         color: gridLineColor,
                     },
-                }
+                },
             },
             plugins: {
                 legend: {
-                    display: false
+                    display: false,
                 },
-            }
-        }
+            },
+        },
     });
     return ErrCountChart;
 }
 
-
-function latenciesChart(latenciesData,gridLineColor,tickColor) {
+function latenciesChart(latenciesData, gridLineColor, tickColor) {
     let graph_data_latencies = {
         p50: [],
         p90: [],
@@ -243,7 +236,7 @@ function latenciesChart(latenciesData,gridLineColor,tickColor) {
         graph_data_latencies.p90.push({ x: timestamp, y: data.p90 });
         graph_data_latencies.p99.push({ x: timestamp, y: data.p99 });
     }
-    var LatenciesChartCanvas = $("#ServiceHealthChart2").get(0).getContext("2d");
+    var LatenciesChartCanvas = $('#ServiceHealthChart2').get(0).getContext('2d');
     LatenciesChart = new Chart(LatenciesChartCanvas, {
         type: 'line',
         data: {
@@ -274,11 +267,11 @@ function latenciesChart(latenciesData,gridLineColor,tickColor) {
                     yAxisID: 'y',
                     pointStyle: 'circle',
                     pointRadius: 5,
-                    pointBorderColor: "#4BC0C0",
-                    borderColor: "#4BC0C0",
+                    pointBorderColor: '#4BC0C0',
+                    borderColor: '#4BC0C0',
                     fill: false,
                 },
-            ]
+            ],
         },
         options: {
             responsive: true,
@@ -303,18 +296,18 @@ function latenciesChart(latenciesData,gridLineColor,tickColor) {
                     grid: {
                         color: gridLineColor,
                     },
-                }
+                },
             },
-            plugins:{
+            plugins: {
                 legend: {
                     position: 'bottom',
                     labels: {
                         boxHeight: 10,
                         padding: 20,
-                    }
+                    },
                 },
-            }
-        }
+            },
+        },
     });
 
     return LatenciesChart;

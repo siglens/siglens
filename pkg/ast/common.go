@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/query"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
@@ -32,15 +33,28 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
+type CaseConversionInfo struct {
+	dualCaseCheckEnabled bool
+	caseInsensitive      bool
+	valueIsRegex         bool
+	IsString             bool
+	colValue             interface{}
+	originalColValue     interface{}
+}
+
+func (cci *CaseConversionInfo) ShouldAlsoSearchWithOriginalCase() bool {
+	return cci.IsString && cci.dualCaseCheckEnabled && cci.caseInsensitive && !cci.valueIsRegex && cci.colValue != cci.originalColValue
+}
+
 // When valueIsRegex is true, colValue should be a string containing the regex
 // to match and should not have quotation marks as the first and last character
 // unless those are intended to be matched.
-func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, valueIsRegex bool, qid uint64) ([]*FilterCriteria, error) {
+// If forceCaseSensitive is set to true, caseInsensitive will be ignored
+func ProcessSingleFilter(colName string, colValue interface{}, originalColValue interface{}, compOpr string, valueIsRegex bool, caseInsensitive bool, forceCaseSensitive bool, qid uint64) ([]*FilterCriteria, error) {
 	andFilterCondition := make([]*FilterCriteria, 0)
 	var opr FilterOperator = Equals
 	switch compOpr {
@@ -60,8 +74,25 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 		log.Errorf("qid=%d, ProcessSingleFilter: invalid comparison operator %v", qid, opr)
 		return nil, errors.New("ProcessSingleFilter: invalid comparison operator")
 	}
+
+	if forceCaseSensitive {
+		caseInsensitive = false
+		if originalColValue != nil {
+			colValue = originalColValue
+		}
+	}
+
+	caseConversion := &CaseConversionInfo{
+		dualCaseCheckEnabled: config.IsDualCaseCheckEnabled(),
+		caseInsensitive:      caseInsensitive,
+		valueIsRegex:         valueIsRegex,
+		colValue:             colValue,
+		originalColValue:     originalColValue,
+	}
+
 	switch t := colValue.(type) {
 	case string:
+		caseConversion.IsString = true
 		if t != "" {
 			if colName == "" || colName == "*" {
 				colName = "*"
@@ -70,9 +101,9 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
 						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
-						return nil, fmt.Errorf("Invalid regex: %s", t)
+						return nil, fmt.Errorf("invalid regex: %s", t)
 					}
-					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
+					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid, caseConversion)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
 					negateMatch := (opr == NotEquals)
@@ -81,15 +112,18 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 					}
 
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
+					if originalColValue != nil {
+						caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
+					}
 					if strings.Contains(t, "\"") {
-						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch, qid)
+						criteria := createMatchPhraseFilterCriteria(colName, cleanedColVal, And, negateMatch, caseConversion)
 						andFilterCondition = append(andFilterCondition, criteria)
 					} else {
 						if strings.Contains(t, "*") {
-							criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
+							criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion)
 							andFilterCondition = append(andFilterCondition, criteria)
 						} else {
-							criteria := createMatchFilterCriteria(colName, colValue, And, negateMatch, qid)
+							criteria := createMatchFilterCriteria(colName, colValue, And, negateMatch, qid, caseConversion)
 							andFilterCondition = append(andFilterCondition, criteria)
 						}
 					}
@@ -98,14 +132,17 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 				if valueIsRegex {
 					compiledRegex, err := regexp.Compile(t)
 					if err != nil {
-						log.Errorf("ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", t, err)
-						return nil, fmt.Errorf("Invalid regex: %s", t)
+						log.Errorf("qid=%d, ProcessSingleFilter: Failed to compile regex for %s. This may cause search failures. Err: %v", qid, t, err)
+						return nil, fmt.Errorf("invalid regex: %s", t)
 					}
-					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid)
+					criteria := CreateTermFilterCriteria(colName, compiledRegex, opr, qid, caseConversion)
 					andFilterCondition = append(andFilterCondition, criteria)
 				} else {
 					cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t), "\"", "")
-					criteria := CreateTermFilterCriteria(colName, cleanedColVal, opr, qid)
+					if originalColValue != nil {
+						caseConversion.originalColValue = strings.ReplaceAll(strings.TrimSpace(originalColValue.(string)), "\"", "")
+					}
+					criteria := CreateTermFilterCriteria(colName, cleanedColVal, opr, qid, caseConversion)
 					andFilterCondition = append(andFilterCondition, criteria)
 				}
 			}
@@ -113,36 +150,47 @@ func ProcessSingleFilter(colName string, colValue interface{}, compOpr string, v
 			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case bool:
-		criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
+		criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion)
 		andFilterCondition = append(andFilterCondition, criteria)
 	case json.Number:
 		if colValue.(json.Number) != "" {
 			if colName == "" {
 				colName = "*"
 			}
-			criteria := CreateTermFilterCriteria(colName, colValue, opr, qid)
+			criteria := CreateTermFilterCriteria(colName, colValue, opr, qid, caseConversion)
 			andFilterCondition = append(andFilterCondition, criteria)
 
 		} else {
 			return nil, errors.New("ProcessSingleFilter: colValue/ search Text can not be empty ")
 		}
 	case GrepValue:
+		caseConversion.IsString = true
 		cleanedColVal := strings.ReplaceAll(strings.TrimSpace(t.Field), "\"", "")
-		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid)
+		criteria := CreateTermFilterCriteria("*", cleanedColVal, opr, qid, caseConversion)
 		andFilterCondition = append(andFilterCondition, criteria)
 	default:
-		log.Errorf("ProcessSingleFilter: Invalid colValue type %v", t)
+		log.Errorf("qid=%d, ProcessSingleFilter: Invalid colValue type. ColValue=%v, ColValueType=%T", qid, t, t)
 		return nil, errors.New("ProcessSingleFilter: Invalid colValue type")
 	}
+	andFilterCondition[0].FilterIsCaseInsensitive = caseInsensitive
 	return andFilterCondition, nil
 }
 
-func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
+func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, cci *CaseConversionInfo) *FilterCriteria {
 	//match_phrase value will always be string
 	var rtInput = strings.TrimSpace(v.(string))
 	var matchWords = make([][]byte, 0)
 	for _, word := range strings.Split(rtInput, " ") {
 		matchWords = append(matchWords, [][]byte{[]byte(word)}...)
+	}
+	var originalRtInput string
+	var matchWordsOriginal [][]byte
+	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() {
+		originalRtInput = strings.TrimSpace(cci.originalColValue.(string))
+		matchWordsOriginal = make([][]byte, len(matchWords))
+		for _, word := range strings.Split(originalRtInput, " ") {
+			matchWordsOriginal = append(matchWordsOriginal, [][]byte{[]byte(word)}...)
+		}
 	}
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
 		MatchColumn:   k.(string),
@@ -151,18 +199,27 @@ func createMatchPhraseFilterCriteria(k, v interface{}, opr LogicalOperator, nega
 		MatchPhrase:   []byte(rtInput),
 		MatchType:     MATCH_PHRASE,
 		NegateMatch:   negateMatch}}
+
+	if len(matchWordsOriginal) > 0 {
+		criteria.MatchFilter.MatchWordsOriginal = matchWordsOriginal
+	}
+
+	if len(originalRtInput) > 0 {
+		criteria.MatchFilter.MatchPhraseOriginal = []byte(originalRtInput)
+	}
+
 	return &criteria
 }
 
-func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatch bool, qid uint64) *FilterCriteria {
+func createMatchFilterCriteria(colName, colValue interface{}, opr LogicalOperator, negateMatch bool, qid uint64, cci *CaseConversionInfo) *FilterCriteria {
 	var rtInput string
-	switch vtype := v.(type) {
+	switch vtype := colValue.(type) {
 	case json.Number:
 		rtInput = string(vtype)
 	case string:
 		rtInput = vtype
 	default:
-		log.Errorf("qid=%d, createMatchFilterCriteria: invalid value ", qid)
+		log.Errorf("qid=%d, createMatchFilterCriteria: invalid Column value. Value=%v, ValueType=%v ", qid, colValue, vtype)
 	}
 	words := strings.Split(rtInput, " ")
 	var matchWords = make([][]byte, 0)
@@ -173,32 +230,58 @@ func createMatchFilterCriteria(k, v interface{}, opr LogicalOperator, negateMatc
 		}
 	}
 
-	_, ok := k.(string)
+	_, ok := colName.(string)
 	if !ok {
-		log.Errorf("qid=%d, createMatchFilterCriteria: invalid type for key %+v", qid, k)
+		log.Errorf("qid=%d, createMatchFilterCriteria: colName=%v is expected to be of type string but got %T", qid, colName, colName)
 		return nil
 	}
 
+	var matchWordsOriginal [][]byte
+	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() {
+		matchWordsOriginal = make([][]byte, len(matchWords))
+		for _, word := range strings.Split(cci.originalColValue.(string), " ") {
+			matchWordsOriginal = append(matchWordsOriginal, []byte(word))
+		}
+	}
+
 	criteria := FilterCriteria{MatchFilter: &MatchFilter{
-		MatchColumn:   k.(string),
+		MatchColumn:   colName.(string),
 		MatchWords:    matchWords,
 		MatchOperator: opr,
 		NegateMatch:   negateMatch}}
 
+	if len(matchWordsOriginal) > 0 {
+		criteria.MatchFilter.MatchWordsOriginal = matchWordsOriginal
+	}
+
 	return &criteria
 }
 
-func CreateTermFilterCriteria(k string, v interface{}, opr FilterOperator, qid uint64) *FilterCriteria {
-	cVal, err := CreateDtypeEnclosure(v, qid)
+func CreateTermFilterCriteria(colName string, colValue interface{}, opr FilterOperator, qid uint64, cci *CaseConversionInfo) *FilterCriteria {
+	cVal, err := CreateDtypeEnclosure(colValue, qid)
 	if err != nil {
-		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure: %+v", qid, err)
+		log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for ColValue=%v. Error=%+v", qid, colValue, err)
+	} else {
+		if cci != nil && !cci.valueIsRegex {
+			cVal.UpdateRegexp(cci.caseInsensitive)
+		}
 	}
+
+	var originalCVal *DtypeEnclosure
+
+	if cci != nil && cci.ShouldAlsoSearchWithOriginalCase() {
+		originalCVal, err = CreateDtypeEnclosure(cci.originalColValue, qid)
+		if err != nil {
+			log.Errorf("qid=%d, createTermFilterCriteria: error creating DtypeEnclosure for OriginalColValue=%v. Error=%+v", qid, cci.originalColValue, err)
+		}
+	}
+
 	criteria := FilterCriteria{ExpressionFilter: &ExpressionFilter{
 		LeftInput: &FilterInput{Expression: &Expression{
-			LeftInput: &ExpressionInput{ColumnName: k}}},
+			LeftInput: &ExpressionInput{ColumnName: colName}}},
 		FilterOperator: opr,
 		RightInput: &FilterInput{Expression: &Expression{
-			LeftInput: &ExpressionInput{ColumnValue: cVal}}}}}
+			LeftInput: &ExpressionInput{ColumnValue: cVal, OriginalColumnValue: originalCVal}}}}}
 	return &criteria
 }
 
@@ -215,7 +298,7 @@ func getDefaultAstAndAggNode(qid uint64, timeRange *dtu.TimeRange) (*structs.AST
 }
 
 // Executes simple query to return a single column values in a given table
-func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid uint64) ([]interface{}, error) {
+func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, aggNode *structs.QueryAggregators, timeRange *dtu.TimeRange, qid uint64, orgid int64) ([]interface{}, error) {
 	var err error
 
 	if astNode == nil {
@@ -241,9 +324,9 @@ func GetColValues(cname string, indexNameIn string, astNode *structs.ASTNode, ag
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
 	qc := structs.InitQueryContextWithTableInfo(ti, segquery.MAX_GRP_BUCKS, 0, orgid, false)
 	queryResult := segment.ExecuteQuery(astNode, aggNode, qid, qc)
-	allJsons, _, err := record.GetJsonFromAllRrc(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode)
+	allJsons, _, err := record.GetJsonFromAllRrcOldPipeline(queryResult.AllRecords, false, qid, queryResult.SegEncToKey, aggNode, queryResult.AllColumnsInAggs)
 	if err != nil {
-		log.Errorf("qid=%v, GetColValues: get json from all records failed! %+v", qid, err)
+		log.Errorf("qid=%v, GetColValues: fetching JSON records from All RRC failed! %+v", qid, err)
 		return nil, err
 	}
 
@@ -266,37 +349,10 @@ func ParseTimeRange(startEpoch, endEpoch uint64, aggs *QueryAggregators, qid uin
 		//set default time range to last 90 days
 		return rutils.GetESDefaultQueryTimeRange(), nil
 	} else if startEpoch == 0 || endEpoch == 0 {
-		err := fmt.Errorf("parseTimeRange: , startEpoch/ endEpoch not set : %v %v", startEpoch, endEpoch)
+		err := fmt.Errorf("parseTimeRange: startEpoch/endEpoch is not set. Given startEpoch=%v, endEpoch=%v", startEpoch, endEpoch)
 		return nil, err
 	}
 	tRange.StartEpochMs = startEpoch
 	tRange.EndEpochMs = endEpoch
 	return tRange, nil
-}
-
-func GetDefaultTimechartSpanOptions(startEpoch, endEpoch uint64, qid uint64) (*structs.SpanOptions, error) {
-	if startEpoch == 0 || endEpoch == 0 {
-		err := fmt.Errorf("GetDefaultTimechartSpanOptions: , time range not set")
-		return nil, err
-	}
-
-	duration := endEpoch - startEpoch
-
-	// 15 minutes
-	if duration <= 15*60*1000 {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 10, TimeScalr: utils.TMSecond}}, nil
-	} else if duration <= 60*60*1000 {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMMinute}}, nil
-	} else if duration <= 4*60*60*1000 {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 5, TimeScalr: utils.TMMinute}}, nil
-	} else if duration <= 24*60*60*1000 {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 30, TimeScalr: utils.TMMinute}}, nil
-	} else if duration <= 7*24*60*60*1000 {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMHour}}, nil
-	} else if duration <= 180*24*60*60*1000 {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMDay}}, nil
-	} else {
-		return &structs.SpanOptions{SpanLength: &structs.SpanLength{Num: 1, TimeScalr: utils.TMMonth}}, nil
-	}
-
 }

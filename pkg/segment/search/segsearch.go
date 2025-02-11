@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,10 +29,10 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/querytracker"
+	"github.com/siglens/siglens/pkg/segment/aggregations"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/pqs"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
@@ -66,7 +65,7 @@ const BLOCK_BATCH_SIZE = 100
 
 func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismPerFile int64,
 	searchNode *structs.SearchNode, timeRange *dtu.TimeRange, sizeLimit uint64, aggs *structs.QueryAggregators,
-	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary) {
+	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary, nodeRes *structs.NodeResult) {
 	err := numConcurrentRawSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
 	if err != nil {
 		log.Errorf("qid=%d Failed to Acquire resources for raw search! error %+v", qid, err)
@@ -74,7 +73,7 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 		return
 	}
 	defer numConcurrentRawSearch.Release(1)
-	searchMemory := req.GetMaxSearchMemorySize(searchNode, parallelismPerFile, PQMR_INITIAL_SIZE)
+	searchMemory := req.GetMaxSearchMemorySize(parallelismPerFile, PQMR_INITIAL_SIZE)
 	err = limit.RequestSearchMemory(searchMemory)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
@@ -90,7 +89,7 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 	}
 
 	if !shouldChunk {
-		rawSearchColumnar(req, searchNode, timeRange, sizeLimit, aggs, parallelismPerFile, allSearchResults, qid, qs)
+		rawSearchColumnar(req, searchNode, timeRange, sizeLimit, aggs, parallelismPerFile, allSearchResults, qid, qs, nodeRes)
 		return
 	}
 	// if not match_all then do search in N chunk of blocks
@@ -117,35 +116,21 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 			i++
 		}
 		req.AllBlocksToSearch = nm
-		rawSearchColumnar(req, searchNode, timeRange, sizeLimit, aggs, parallelismPerFile, allSearchResults, qid, qs)
+		rawSearchColumnar(req, searchNode, timeRange, sizeLimit, aggs, parallelismPerFile, allSearchResults, qid, qs, nodeRes)
 	}
 }
 
 func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string,
-	virtualTableName string, qid uint64, pqid string, latestEpochMS uint64, cmiPassedCnames map[uint16]map[string]bool) error {
-	pqidFname := fmt.Sprintf("%v/pqmr/%v.pqmr", segmentKey, pqid)
+	virtualTableName string, qid uint64, pqid string, latestEpochMS uint64, cmiPassedCnames map[uint16]map[string]bool) (string, error) {
+	pqidFname := pqmr.GetPQMRFileNameFromSegKey(segmentKey, pqid)
 	reqLen := uint64(0)
-	allPqmrFile := make([]string, 0)
+
 	// Calculating the required size for the buffer that we need to write to
 	for _, blkSearchResult := range segmentSearchRecords.AllBlockStatus {
 
 		// Adding 2 bytes for blockNum and 2 bytes for blockLen
 		size := 4 + blkSearchResult.allRecords.GetInMemSize()
 		reqLen += size
-	}
-
-	var idxEmpty uint32
-	emptyBitset := pqmr.CreatePQMatchResults(0)
-	bufEmpty := make([]byte, (4+emptyBitset.GetInMemSize())*uint64(len(cmiPassedCnames)))
-	for blockNum := range cmiPassedCnames {
-		if _, ok := segmentSearchRecords.AllBlockStatus[blockNum]; !ok {
-			packedLen, err := emptyBitset.EncodePqmr(bufEmpty[idxEmpty:], blockNum)
-			if err != nil {
-				log.Errorf("qid=%d, writePqmrFiles: failed to encode pqmr. Err:%v", qid, err)
-				return err
-			}
-			idxEmpty += uint32(packedLen)
-		}
 	}
 
 	// Creating a buffer of a required length
@@ -155,40 +140,24 @@ func writePqmrFiles(segmentSearchRecords *SegmentSearchStatus, segmentKey string
 		packedLen, err := blkSearchResult.allRecords.EncodePqmr(buf[idx:], blockNum)
 		if err != nil {
 			log.Errorf("qid=%d, writePqmrFiles: failed to encode pqmr. Err:%v", qid, err)
-			return err
+			return pqidFname, err
 		}
 		idx += uint32(packedLen)
 	}
 
-	sizeToAdd := len(bufEmpty)
-	if sizeToAdd > 0 {
-		newArr := make([]byte, sizeToAdd)
-		buf = append(buf, newArr...)
-	}
-	copy(buf[idx:], bufEmpty)
-	idx += uint32(sizeToAdd)
 	err := pqmr.WritePqmrToDisk(buf[0:idx], pqidFname)
 	if err != nil {
 		log.Errorf("qid=%d, writePqmrFiles: failed to flush pqmr results to fname %s. Err:%v", qid, pqidFname, err)
-		return err
+		return pqidFname, err
 	}
-	writer.BackFillPQSSegmetaEntry(segmentKey, pqid)
-	pqs.AddPersistentQueryResult(segmentKey, virtualTableName, pqid)
-	allPqmrFile = append(allPqmrFile, pqidFname)
-	err = blob.UploadIngestNodeDir()
-	if err != nil {
-		log.Errorf("qid=%d, writePqmrFiles: failed to upload ingest node directory! Err: %v", qid, err)
-	}
-	err = blob.UploadSegmentFiles(allPqmrFile)
-	if err != nil {
-		log.Errorf("qid=%d, writePqmrFiles: failed to upload backfilled pqmr file! Err: %v", qid, err)
-	}
-	return nil
+	writer.AddToBackFillAndEmptyPQSChan(segmentKey, pqid, false)
+	pqs.AddPersistentQueryResult(segmentKey, pqid)
+	return pqidFname, nil
 }
 
 func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *structs.SearchNode, timeRange *dtu.TimeRange,
 	sizeLimit uint64, aggs *structs.QueryAggregators, fileParallelism int64, allSearchResults *segresults.SearchResults, qid uint64,
-	querySummary *summary.QuerySummary) {
+	querySummary *summary.QuerySummary, nodeRes *structs.NodeResult) {
 	if fileParallelism <= 0 {
 		log.Errorf("qid=%d, RawSearchSegmentFile: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))
@@ -226,10 +195,11 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 		return
 	}
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	executeRawSearchOnNode(searchNode, searchReq, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
-		qid, allSearchResults)
+	searchRes := executeRawSearchOnNode(searchNode, searchReq, allBlockSearchHelpers, queryMetrics,
+		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+	mergeSegmentSearchStatus(segmentSearchRecords, searchRes, utils.And, nodeRes)
 	err := applyAggregationsToResult(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
-		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults)
+		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%d RawSearchColumnar failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
@@ -249,17 +219,20 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	querySummary.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)
 
 	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
-		if finalMatched == 0 {
-			go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey, searchReq.VirtualTableName)
-		} else {
+		if config.IsNewQueryPipelineEnabled() {
 			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+		} else {
+			if finalMatched == 0 {
+				go writeEmptyPqmetaFilesWrapper(pqid, searchReq.SegmentKey)
+			} else {
+				go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
+			}
 		}
 	}
 }
 
-func writeEmptyPqmetaFilesWrapper(pqid string, segKey string, vTableName string) {
-	pqsmeta.AddEmptyResults(pqid, segKey, vTableName)
-	writer.BackFillPQSSegmetaEntry(segKey, pqid)
+func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
+	writer.AddToBackFillAndEmptyPQSChan(segKey, pqid, true)
 }
 
 func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest, qid uint64) (string, bool) {
@@ -281,19 +254,20 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 }
 
 func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {
-	if strings.Contains(searchReq.SegmentKey, "/active/") {
+	if writer.IsSegKeyUnrotated(searchReq.SegmentKey) {
 		return
 	}
-	if strings.Contains(searchReq.SegmentKey, config.GetHostID()) {
-		err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
-		if err != nil {
-			log.Errorf(" qid:%d, Failed to write pqmr file.  Error: %v", qid, err)
-		}
+
+	_, err := writePqmrFiles(segmentSearchRecords, searchReq.SegmentKey, searchReq.VirtualTableName, qid, pqid, searchReq.LatestEpochMS, searchReq.CmiPassedCnames)
+	if err != nil {
+		log.Errorf(" qid=%d, Failed to write pqmr file.  Error: %v", qid, err)
+		return
 	}
 }
 
 func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int64, timeRange *dtu.TimeRange, aggs *structs.QueryAggregators,
-	sizeLimit uint64, spqmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults, qid uint64, querySummary *summary.QuerySummary) {
+	sizeLimit uint64, spqmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults, qid uint64, querySummary *summary.QuerySummary,
+	nodeRes *structs.NodeResult) {
 	sTime := time.Now()
 
 	err := numConcurrentRawSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
@@ -313,7 +287,7 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 	defer segread.ReturnTimeBuffers(allTimestamps)
 
 	sharedReader, err := segread.InitSharedMultiColumnReaders(req.SegmentKey, req.AllPossibleColumns, req.AllBlocksToSearch,
-		req.SearchMetadata.BlockSummaries, int(fileParallelism), qid)
+		req.SearchMetadata.BlockSummaries, int(fileParallelism), req.ConsistentCValLenMap, qid, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%v, RawSearchPQMResults: failed to load all column files reader for %s. Needed cols %+v. Err: %+v",
 			qid, req.SegmentKey, req.AllPossibleColumns, err)
@@ -333,12 +307,14 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 	} else {
 		defer rupReader.Close()
 	}
+
+	segKeyEnc := allSearchResults.GetAddSegEnc(req.SegmentKey)
 	allBlocksToXRollup, aggsHasTimeHt, _ := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		runningBlockManagers.Add(1)
 		go rawSearchSingleSPQMR(sharedReader.MultiColReaders[i], req, aggs, runningBlockManagers,
 			filterBlockRequestsChan, spqmr, allSearchResults, allTimestamps, timeRange, sizeLimit, queryMetrics,
-			allBlocksToXRollup, aggsHasTimeHt, qid)
+			allBlocksToXRollup, aggsHasTimeHt, qid, nodeRes, segKeyEnc)
 	}
 
 	sortedAllBlks := spqmr.GetAllBlocks()
@@ -363,11 +339,30 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *structs.SegmentSearchRequest, aggs *structs.QueryAggregators,
 	runningWG *sync.WaitGroup, filterBlockRequestsChan chan uint16, sqpmr *pqmr.SegmentPQMRResults, allSearchResults *segresults.SearchResults,
 	allTimestamps map[uint16][]uint64, tRange *dtu.TimeRange, sizeLimit uint64, queryMetrics *structs.QueryProcessingMetrics,
-	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, aggsHasTimeHt bool, qid uint64) {
+	allBlocksToXRollup map[uint16]map[uint64]*writer.RolledRecs, aggsHasTimeHt bool, qid uint64, nodeRes *structs.NodeResult,
+	segKeyEnc uint32) {
 	defer runningWG.Done()
 
 	blkResults, err := blockresults.InitBlockResults(sizeLimit, aggs, qid)
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
+
+	aggsSortColKeyIdx := int(-1)
+	colsToReadIndices := make(map[int]struct{})
+	if aggs != nil && aggs.Sort != nil {
+		colKeyIdx, ok := multiReader.GetColKeyIndex(aggs.Sort.ColName)
+		if ok {
+			aggsSortColKeyIdx = colKeyIdx
+			colsToReadIndices[colKeyIdx] = struct{}{}
+		}
+	}
+
+	// start off with 256 bytes and caller will resize it and return back the new resized buf
+	aggsKeyWorkingBuf := make([]byte, 256)
+	var timeRangeBuckets []uint64
+	if aggs != nil && aggs.TimeHistogram != nil && aggs.TimeHistogram.Timechart != nil {
+		timeRangeBuckets = aggregations.GenerateTimeRangeBuckets(aggs.TimeHistogram)
+	}
+
 	for blockNum := range filterBlockRequestsChan {
 		if req.SearchMetadata == nil || int(blockNum) >= len(req.SearchMetadata.BlockSummaries) {
 			log.Errorf("qid=%d, rawSearchSingleSPQMR unable to extract block summary for block %d, segkey=%v", qid, blockNum, req.SegmentKey)
@@ -394,40 +389,74 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 			log.Errorf("qid=%d, rawSearchSingleSPQMR failed to get timestamps for block %d. Number of read ts blocks %+v, segkey=%v", qid, blockNum, len(allTimestamps), req.SegmentKey)
 			continue
 		}
+		err := multiReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
+		if err != nil {
+			log.Errorf("qid=%d, rawSearchSingleSPQMR: failed to validate and read sort column: %v for block %d, err: %v", qid, aggs.Sort.ColName, blockNum, err)
+			continue
+		}
+
 		isBlkFullyEncosed := tRange.AreTimesFullyEnclosed(blkSum.LowTs, blkSum.HighTs)
 		if blkResults.ShouldIterateRecords(aggsHasTimeHt, isBlkFullyEncosed, blkSum.LowTs, blkSum.HighTs, false) {
-			for recNum := uint(0); recNum < numRecsInBlock; recNum++ {
-				if pqmr.DoesRecordMatch(recNum) {
+
+			var recordNums []uint16
+			if req.BlockToValidRecNums != nil {
+				records, ok := req.BlockToValidRecNums[blockNum]
+				if !ok {
+					// TODO: do this check in the caller.
+					continue
+				}
+				recordNums = records
+			} else {
+				recordNums = make([]uint16, numRecsInBlock)
+				for i := 0; i < int(numRecsInBlock); i++ {
+					recordNums[i] = uint16(i)
+				}
+			}
+
+			for _, recNum := range recordNums {
+				if pqmr.DoesRecordMatch(uint(recNum)) {
 					if int(recNum) > len(currTS) {
 						log.Errorf("qid=%d, rawSearchSingleSPQMR tried to get the ts for recNum %+v but only %+v records exist, segkey=%v", qid, recNum, len(currTS), req.SegmentKey)
 						continue
 					}
 					recTs := currTS[recNum]
 					if !tRange.CheckInRange(recTs) {
-						pqmr.ClearBit(recNum)
+						pqmr.ClearBit(uint(recNum))
 						continue
 					}
-					convertedRecNum := uint16(recNum)
-					if err != nil {
-						log.Errorf("qid=%d, rawSearchSingleSPQMR failed to get time stamp for record %+v in block %+v, segkey=%v, Err: %v",
-							qid, recNum, blockNum, req.SegmentKey, err)
-						continue
-					}
-					if blkResults.ShouldAddMore() {
-						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, convertedRecNum, recTs, qid)
-						if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+					if config.IsNewQueryPipelineEnabled() {
+						sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+						if !invalidCol {
 							rrc := &utils.RecordResultContainer{
 								SegKeyInfo: utils.SegKeyInfo{
-									SegKeyEnc: allSearchResults.GetAddSegEnc(req.SegmentKey),
+									SegKeyEnc: segKeyEnc,
 									IsRemote:  false,
 								},
 								BlockNum:         blockNum,
-								RecordNum:        convertedRecNum,
+								RecordNum:        recNum,
 								SortColumnValue:  sortVal,
 								VirtualTableName: req.VirtualTableName,
 								TimeStamp:        recTs,
 							}
 							blkResults.Add(rrc)
+						}
+					} else {
+						if blkResults.ShouldAddMore() {
+							sortVal, invalidCol := extractSortVals(aggs, multiReader, blockNum, recNum, recTs, qid, aggsSortColKeyIdx, nodeRes)
+							if !invalidCol && blkResults.WillValueBeAdded(sortVal) {
+								rrc := &utils.RecordResultContainer{
+									SegKeyInfo: utils.SegKeyInfo{
+										SegKeyEnc: segKeyEnc,
+										IsRemote:  false,
+									},
+									BlockNum:         blockNum,
+									RecordNum:        recNum,
+									SortColumnValue:  sortVal,
+									VirtualTableName: req.VirtualTableName,
+									TimeStamp:        recTs,
+								}
+								blkResults.Add(rrc)
+							}
 						}
 					}
 				}
@@ -445,8 +474,9 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 		}
 		if aggs != nil && aggs.GroupByRequest != nil {
 			recIT := InitIteratorFromPQMR(pqmr, numRecsInBlock)
-			addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram, measureInfo, len(internalMops),
-				multiReader, blockNum, recIT, blkResults, qid)
+			aggsKeyWorkingBuf = addRecordToAggregations(aggs.GroupByRequest, aggs.TimeHistogram,
+				measureInfo, len(internalMops), multiReader, blockNum, recIT, blkResults,
+				qid, aggsKeyWorkingBuf, timeRangeBuckets, nodeRes)
 		}
 		numRecsMatched := uint64(pqmr.GetNumberOfSetBits())
 
@@ -462,46 +492,70 @@ func rawSearchSingleSPQMR(multiReader *segread.MultiColSegmentReader, req *struc
 	allSearchResults.AddBlockResults(blkResults)
 }
 
-func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
-	allBlockSearchHelpers []*structs.BlockSearchHelper, queryMetrics *structs.QueryProcessingMetrics,
-	qid uint64, allSearchResults *segresults.SearchResults) {
+func executeRawSearchOnNode(node *structs.SearchNode, searchReq *structs.SegmentSearchRequest, allBlockSearchHelpers []*structs.BlockSearchHelper,
+	queryMetrics *structs.QueryProcessingMetrics, qid uint64, allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult,
+	blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
+
+	searchRes := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
 
 	if node.AndSearchConditions != nil {
-		applyRawSearchToConditions(node.AndSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
-			utils.And, queryMetrics, qid, allSearchResults)
+		andSearchRes := applyRawSearchToConditions(node.AndSearchConditions, searchReq, allBlockSearchHelpers,
+			utils.And, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+		mergeSegmentSearchStatus(searchRes, andSearchRes, utils.And, nodeRes)
 	}
 
 	if node.OrSearchConditions != nil {
-		applyRawSearchToConditions(node.OrSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
-			utils.Or, queryMetrics, qid, allSearchResults)
+		orSearchRes := applyRawSearchToConditions(node.OrSearchConditions, searchReq, allBlockSearchHelpers,
+			utils.Or, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+		mergeSegmentSearchStatus(searchRes, orSearchRes, utils.And, nodeRes)
 	}
 
 	if node.ExclusionSearchConditions != nil {
-		applyRawSearchToConditions(node.ExclusionSearchConditions, searchReq, segmentSearch, allBlockSearchHelpers,
-			utils.Exclusion, queryMetrics, qid, allSearchResults)
+		notSearchRes := applyRawSearchToConditions(node.ExclusionSearchConditions, searchReq, allBlockSearchHelpers,
+			utils.Exclusion, queryMetrics, qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+		mergeSegmentSearchStatus(searchRes, notSearchRes, utils.And, nodeRes)
 	}
+
+	return searchRes
 }
 
-func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
+func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *structs.SegmentSearchRequest,
 	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
-	allSearchResults *segresults.SearchResults) {
+	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult, blockSummaries []*structs.BlockSummary, timeRange *dtu.TimeRange) *SegmentSearchStatus {
+
+	searchRes := InitBlocksToSearch(searchReq, blockSummaries, allSearchResults, timeRange)
 
 	if cond.SearchNode != nil {
 		for _, sNode := range cond.SearchNode {
-			executeRawSearchOnNode(sNode, searchReq, segmentSearch, allBlockSearchHelpers, queryMetrics,
-				qid, allSearchResults)
+			nodeSearchRes := executeRawSearchOnNode(sNode, searchReq, allBlockSearchHelpers, queryMetrics,
+				qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+			mergeSegmentSearchStatus(searchRes, nodeSearchRes, op, nodeRes)
 		}
 	}
 	if cond.SearchQueries != nil {
 		for _, query := range cond.SearchQueries {
-			RawSearchSingleQuery(query, searchReq, segmentSearch, allBlockSearchHelpers, op, queryMetrics,
-				qid, allSearchResults)
+			RawSearchSingleQuery(query, searchReq, searchRes, allBlockSearchHelpers, op, queryMetrics,
+				qid, allSearchResults, nodeRes)
+		}
+	}
+
+	return searchRes
+}
+
+func mergeSegmentSearchStatus(baseSearch *SegmentSearchStatus, searchToMerge *SegmentSearchStatus, op utils.LogicalOperator, nodeRes *structs.NodeResult) {
+	if searchToMerge == nil {
+		return
+	}
+	for blkNum, blkStatus := range searchToMerge.AllBlockStatus {
+		err := baseSearch.updateMatchedRecords(blkNum, blkStatus.allRecords, op)
+		if err != nil {
+			nodeRes.StoreGlobalSearchError("mergeSegmentSearchStatus: failed to merge segment search status", log.ErrorLevel, err)
 		}
 	}
 }
 
 func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.MultiColSegmentReader, blkNum uint16,
-	recNum uint16, recTs uint64, qid uint64) (float64, bool) {
+	recNum uint16, recTs uint64, qid uint64, aggsSortColKeyIdx int, nodeRes *structs.NodeResult) (float64, bool) {
 
 	var sortVal float64
 	var err error
@@ -516,8 +570,11 @@ func extractSortVals(aggs *structs.QueryAggregators, multiColReader *segread.Mul
 		return sortVal, invalidAggsCol
 	}
 
-	colVal, err := multiColReader.ExtractValueFromColumnFile(aggs.Sort.ColName, blkNum, recNum, qid)
+	var colVal utils.CValueEnclosure
+	err = multiColReader.ExtractValueFromColumnFile(aggsSortColKeyIdx, blkNum, recNum,
+		qid, false, &colVal)
 	if err != nil {
+		nodeRes.StoreGlobalSearchError(fmt.Sprintf("extractSortVals: Failed to extract value for column %v", aggs.Sort.ColName), log.ErrorLevel, err)
 		invalidAggsCol = true
 		return sortVal, invalidAggsCol
 	}
@@ -599,7 +656,7 @@ func AggsFastPathWrapper(req *structs.SegmentSearchRequest, parallelismPerFile i
 		return
 	}
 	defer numConcurrentRawSearch.Release(1)
-	searchMemory := req.GetMaxSearchMemorySize(searchNode, parallelismPerFile, PQMR_INITIAL_SIZE)
+	searchMemory := req.GetMaxSearchMemorySize(parallelismPerFile, PQMR_INITIAL_SIZE)
 	err = limit.RequestSearchMemory(searchMemory)
 	if err != nil {
 		log.Errorf("qid=%d, Failed to acquire memory from global pool for search! Error: %v", qid, err)
@@ -678,7 +735,8 @@ func aggsFastPath(searchReq *structs.SegmentSearchRequest, searchNode *structs.S
 // This function will check for timestamp and so should be used for partially enclosed segments, and unrotated segments.
 func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism int64,
 	searchNode *structs.SearchNode, timeRange *dtu.TimeRange, measureOps []*structs.MeasureAggregator,
-	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary) (map[string]*structs.SegStats, error) {
+	allSearchResults *segresults.SearchResults, qid uint64, qs *summary.QuerySummary,
+	nodeRes *structs.NodeResult) (map[string]*structs.SegStats, error) {
 
 	err := numConcurrentRawSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
 	if err != nil {
@@ -722,11 +780,12 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	}
 
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
-	executeRawSearchOnNode(searchNode, req, segmentSearchRecords, allBlockSearchHelpers, queryMetrics,
-		qid, allSearchResults)
+	searchStatus := executeRawSearchOnNode(searchNode, req, allBlockSearchHelpers, queryMetrics,
+		qid, allSearchResults, nodeRes, blockSummaries, timeRange)
+	mergeSegmentSearchStatus(segmentSearchRecords, searchStatus, utils.And, nodeRes)
 
 	segStats, err := applySegStatsToMatchedRecords(measureOps, segmentSearchRecords, req, blockSummaries, timeRange,
-		fileParallelism, queryMetrics, qid)
+		fileParallelism, queryMetrics, qid, nodeRes)
 	if err != nil {
 		log.Errorf("qid=%d, failed to raw compute segstats %+v", qid, err)
 		return nil, err
@@ -736,6 +795,7 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	segmentSearchRecords.Close()
 	queryMetrics.SetNumRecordsMatched(finalMatched)
 	queryMetrics.SetNumRecordsUnmatched(finalUnmatched)
+	allSearchResults.AddResultCount(finalMatched)
 
 	timeElapsed := time.Since(sTime)
 	qs.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)

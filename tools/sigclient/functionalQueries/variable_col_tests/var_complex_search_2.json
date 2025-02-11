@@ -1,0 +1,30 @@
+{
+    "queryText": "(variable_col_16=qatar AND ((NOT variable_col_3 != male) OR ((http_status > 404) AND variable_col_18 <= 0))) AND gender != fe* AND (first_name != CASE(CALE)) | fields ident, variable_col_16, variable_col_3, http_status, variable_col_18, gender, first_name",
+    "expectedResult": {
+         "verifyMinimal": true,
+         "totalMatched": {
+         },
+         "qtype": "logs-query",
+         "records": [
+         ],
+         "allColumns": [
+            "ident",
+            "variable_col_16",
+            "variable_col_3",
+            "http_status",
+            "variable_col_18",
+            "gender",
+            "first_name"
+        ],
+         "columnsOrder": [
+            "ident",
+            "variable_col_16",
+            "variable_col_3",
+            "http_status",
+            "variable_col_18",
+            "gender",
+            "first_name"
+        ]
+     }
+ }
+ 

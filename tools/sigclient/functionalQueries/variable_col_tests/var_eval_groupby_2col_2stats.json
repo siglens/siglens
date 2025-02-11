@@ -1,0 +1,69 @@
+{
+    "queryText": "variable_col_3=female | eval temp_value = variable_col_19%2 | stats count as count, sum(variable_col_18) BY variable_col_9, temp_value | sort -count",
+    "expectedResult": {
+         "totalMatched": {
+            "value": 78,
+            "relation": "eq"
+        },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "count": 4327,
+                "sum(variable_col_18)": 7963.379249999995
+            },
+            {
+                "count": 2222,
+                "sum(variable_col_18)": 2205.750571000004,
+                "temp_value": 0
+            },
+            {
+                "count": 2188,
+                "sum(variable_col_18)": -38.05810400000433,
+                "temp_value": 1
+            },
+            {
+                "count": 299,
+                "sum(variable_col_18)": 1646.705761000001,
+                "temp_value": 0,
+                "variable_col_9": "Analyst"
+            },
+            {
+                "count": 289,
+                "sum(variable_col_18)": 1553.5745749999983,
+                "temp_value": 1,
+                "variable_col_9": "Strategist"
+            },
+            {
+                "count": 288,
+                "sum(variable_col_18)": 3578.956563000001,
+                "temp_value": 1,
+                "variable_col_9": "Developer"
+            },
+            {
+                "count": 282,
+                "sum(variable_col_18)": 347.6613399999994,
+                "temp_value": 1,
+                "variable_col_9": "Analyst"
+            },
+            {
+                "count": 281,
+                "sum(variable_col_18)": -822.7911539999999,
+                "temp_value": 1,
+                "variable_col_9": "Representative"
+            }
+        ],
+         "allColumns": [
+            "variable_col_9",
+            "temp_value",
+            "sum(variable_col_18)",
+            "count"
+        ],
+         "columnsOrder": [
+            "count",
+            "sum(variable_col_18)",
+            "temp_value",
+            "variable_col_9"
+        ]
+     }
+ }
+ 

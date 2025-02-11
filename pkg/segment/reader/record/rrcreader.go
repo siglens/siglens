@@ -21,46 +21,38 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/siglens/siglens/pkg/config"
 	agg "github.com/siglens/siglens/pkg/segment/aggregations"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	nodeResMap = make(map[uint64]*structs.NodeResult)
-	mapMutex   sync.Mutex
-)
-
 func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
-	mapMutex.Lock()
-	defer mapMutex.Unlock()
-
-	// Check if the nodeRes instance exists for the given qid
-	if nr, exists := nodeResMap[qid]; exists {
-		return nr
+	nodeRes, err := query.GetOrCreateQuerySearchNodeResult(qid)
+	if err != nil {
+		// For synchronous queries, the query is deleted by this
+		// point, but segmap has all the segments that the query
+		// searched.
+		// For async queries, the segmap has just one segment
+		// because we process them as the search completes, but the
+		// query isn't deleted until all segments get processed, so
+		// we shouldn't get to this block for async queries.
+		nodeRes = &structs.NodeResult{}
 	}
-
-	// If not exists, create a new instance and add it to the map
-	nr := &structs.NodeResult{}
-	nodeResMap[qid] = nr
-
-	return nr
+	if len(nodeRes.FinalColumns) == 0 {
+		nodeRes.FinalColumns = make(map[string]bool)
+	}
+	return nodeRes
 }
 
-func deleteNodeResForQid(qid uint64) {
-	mapMutex.Lock()
-	delete(nodeResMap, qid)
-	mapMutex.Unlock()
-}
-
-func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint16]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
+func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint32]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
 
@@ -192,8 +184,8 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 }
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
-func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
-	segEncToKey map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
+func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
+	segEncToKey map[uint32]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 
 	sTime := time.Now()
 	nodeRes := GetOrCreateNodeRes(qid)
@@ -208,29 +200,40 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 	var resultRecMap map[string]bool
 
 	hasQueryAggergatorBlock := aggs.HasQueryAggergatorBlockInChain()
+	hasStatsAggregator := aggs.IsStatsAggPresentInChain()
 	transactionArgsExist := aggs.HasTransactionArgumentsInChain()
 	recsAggRecords := make([]map[string]interface{}, 0)
-	var numTotalSegments uint64
+
+	consistentCValLenPerSeg := segmetadata.GetSMIConsistentColValueLen(segmap)
 
 	processSingleSegment := func(currSeg string, virtualTableName string, blkRecIndexes map[uint16]map[uint16]uint64, isLastBlk bool) {
-		recs, cols, err := GetRecordsFromSegment(currSeg, virtualTableName, blkRecIndexes,
-			config.GetTimeStampKey(), esResponse, qid, aggs, colsIndexMap)
-		if err != nil {
-			log.Errorf("GetJsonFromAllRrc: failed to read recs from segfile=%v, err=%v", currSeg, err)
-			return
+		var recs map[string]map[string]interface{}
+		if currSeg != "" {
+			consistentCValLen := consistentCValLenPerSeg[currSeg]
+			_recs, cols, err := GetRecordsFromSegmentOldPipeline(currSeg, virtualTableName, blkRecIndexes, config.GetTimeStampKey(),
+				esResponse, qid, aggs, colsIndexMap, allColsInAggs, nodeRes, consistentCValLen)
+			if err != nil {
+				log.Errorf("GetJsonFromAllRrcOldPipeline: failed to read recs from segfile=%v, err=%v", currSeg, err)
+				return
+			}
+			recs = _recs
+			for cName := range cols {
+				finalCols[cName] = true
+			}
+
+			for key := range renameHardcodedColumns {
+				finalCols[key] = true
+			}
+		} else {
+			recs = make(map[string]map[string]interface{})
+			finalCols = nodeRes.FinalColumns
 		}
+
 		nodeRes.ColumnsOrder = colsIndexMap
-		for cName := range cols {
-			finalCols[cName] = true
-		}
 
-		for key := range renameHardcodedColumns {
-			finalCols[key] = true
-		}
+		if hasQueryAggergatorBlock || transactionArgsExist || hasStatsAggregator {
 
-		if hasQueryAggergatorBlock || transactionArgsExist {
-
-			numTotalSegments, err = query.GetTotalSegmentsToSearch(qid)
+			numTotalSegments, _, resultCount, rawSearchFinished, err := query.GetQuerySearchStateForQid(qid)
 			if err != nil {
 				// For synchronous queries, the query is deleted by this
 				// point, but segmap has all the segments that the query
@@ -240,6 +243,28 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// query isn't deleted until all segments get processed, so
 				// we shouldn't get to this block for async queries.
 				numTotalSegments = uint64(len(segmap))
+				resultCount = len(allrrc)
+				rawSearchFinished = true
+			}
+			nodeRes.RawSearchFinished = rawSearchFinished
+			nodeRes.CurrentSearchResultCount = resultCount
+
+			if len(nodeRes.AllSearchColumnsByTimeRange) == 0 && aggs.AllColumnsByTimeRangeIsRequired() {
+				vTableNames, timeRange, orgid, err := query.GetSearchQueryInformation(qid)
+				if err != nil {
+					nodeRes.AllSearchColumnsByTimeRange = make(map[string]bool, 0)
+				}
+				nodeRes.AllSearchColumnsByTimeRange = segmetadata.GetColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
+				unrotatedCols := writer.GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange, vTableNames, orgid)
+				for col := range unrotatedCols {
+					if _, exists := nodeRes.AllSearchColumnsByTimeRange[col]; !exists {
+						nodeRes.AllSearchColumnsByTimeRange[col] = true
+					}
+				}
+				nodeRes.AllSearchColumnsByTimeRange = applyColNameTransform(nodeRes.AllSearchColumnsByTimeRange, aggs, make(map[string]int), qid)
+				for colName := range renameHardcodedColumns {
+					nodeRes.AllSearchColumnsByTimeRange[colName] = true
+				}
 			}
 
 			/**
@@ -268,6 +293,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						// Reset the TransactionEventRecords and update aggs with NextQueryAgg to loop for next Aggs processing.
 						delete(nodeRes.TransactionEventRecords, "CHECK_NEXT_AGG")
 						aggs = &structs.QueryAggregators{Next: nodeRes.NextQueryAgg.Next}
+						nodeRes.CurrentSearchResultCount = len(recs)
 					} else {
 						break // Break out of the loop to process next segment.
 					}
@@ -281,6 +307,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 						if exists && boolVal {
 							// Update aggs with NextQueryAgg to loop for additional cleaning.
 							aggs = nodeRes.NextQueryAgg
+							nodeRes.CurrentSearchResultCount = len(recs)
 						} else {
 							break
 						}
@@ -323,7 +350,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 				// it's an async query we're running this function with
 				// len(segmap)=1 because we try to process the data as the
 				// searched complete.
-				log.Infof("qid=%d, GetJsonFromAllRrc: Did not find index for record indentifier %s.", qid, recInden)
+				nodeRes.StoreGlobalSearchError("GetJsonFromAllRrcOldPipeline: Did not find index for record identifier", log.ErrorLevel, nil)
 				unknownIndex = true
 			}
 			if logfmtRequest {
@@ -336,15 +363,15 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 					switch valType := val.(type) {
 					case []interface{}:
 						if actualIndex > len(valType)-1 || actualIndex < 0 {
-							log.Errorf("GetJsonFromAllRrc: index=%v out of bounds for column=%v of length %v", actualIndex, cname, len(valType))
+							log.Errorf("GetJsonFromAllRrcOldPipeline: index=%v out of bounds for column=%v of length %v", actualIndex, cname, len(valType))
 							continue
 						}
 						includeValues[valuesToLabels[cname]] = valType[actualIndex]
 					case interface{}:
-						log.Errorf("GetJsonFromAllRrc: accessing object in %v as array!", cname)
+						log.Errorf("GetJsonFromAllRrcOldPipeline: accessing object in %v as array!", cname)
 						continue
 					default:
-						log.Errorf("GetJsonFromAllRrc: unsupported value type")
+						log.Errorf("GetJsonFromAllRrcOldPipeline: unsupported value type")
 						continue
 					}
 				}
@@ -352,7 +379,7 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			}
 			for label, val := range includeValues {
 				if record[label] != nil {
-					log.Errorf("GetJsonFromAllRrc: accessing object in %v as array!", label) //case where label == original column
+					log.Errorf("GetJsonFromAllRrcOldPipeline: accessing object in %v as array!", label) //case where label == original column
 					continue
 				}
 				record[label] = val
@@ -378,25 +405,31 @@ func GetJsonFromAllRrc(allrrc []*utils.RecordResultContainer, esResponse bool, q
 			numProcessedRecords = 1
 		}
 	} else {
-		for currSeg, blkIds := range segmap {
-			blkIdsIndex := 0
-			for blkNum, recNums := range blkIds.BlkRecIndexes {
-				blkIdsIndex++
-				isLastBlk := blkIdsIndex == len(blkIds.BlkRecIndexes)
+		if len(segmap) == 0 && (len(nodeRes.FinalColumns) > 0 || aggs.HasGeneratedEventsWithoutSearch()) {
+			// Even if there are no segments, we still need to call processSingleSegment
+			// so that we can do processing of any Aggregations that wait for all segments to be processed.
+			processSingleSegment("", "", nil, true)
+		} else {
+			for currSeg, blkIds := range segmap {
+				blkIdsIndex := 0
+				for blkNum, recNums := range blkIds.BlkRecIndexes {
+					blkIdsIndex++
+					isLastBlk := blkIdsIndex == len(blkIds.BlkRecIndexes)
 
-				blkRecIndexes := make(map[uint16]map[uint16]uint64)
-				blkRecIndexes[blkNum] = recNums
-				processSingleSegment(currSeg, blkIds.VirtualTableName, blkRecIndexes, isLastBlk)
+					blkRecIndexes := make(map[uint16]map[uint16]uint64)
+					blkRecIndexes[blkNum] = recNums
+					processSingleSegment(currSeg, blkIds.VirtualTableName, blkRecIndexes, isLastBlk)
+				}
 			}
 		}
 	}
 
-	if nodeRes.RecsAggsProcessedSegments >= numTotalSegments {
-		deleteNodeResForQid(qid)
+	for col, shouldKeep := range finalCols {
+		nodeRes.FinalColumns[col] = shouldKeep
 	}
 
 	finalRecords, colsSlice := finalizeRecords(allRecords, finalCols, colsIndexMap, numProcessedRecords, recsAggRecords, transactionArgsExist)
-	log.Infof("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
+	log.Debugf("qid=%d, GetJsonFromAllRrc: Got %v raw records from files in %+v", qid, len(finalRecords), time.Since(sTime))
 
 	return finalRecords, colsSlice, nil
 }

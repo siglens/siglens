@@ -1,0 +1,4 @@
+{
+    "queryText": "search index=ind* group=\"group 1\"  Acting OR Karate | stats list(question) as lr by http_method | where NOT LIKE(lr, \"%five dollar%\") | where NOT LIKE(lr, \"%Thundercats + 1%\") | where NOT LIKE(lr, \"%ready%\") | stats count(lr) by http_method"
+}
+  

@@ -1,0 +1,4 @@
+{
+    "queryText": "search (_index=*ind* OR _index=*bidx*) http_method=POST [| gentimes start=-1 | eval host=\"Mozilla*,Opera*,Windows*,Mac*\" | makemv delim=\",\" host | mvexpand host | table host | format] | eval Status=if(like(http_status, \"%2%\"), 1, 0) | where Status=1 | rex field=app_version \"(?<major>\\d+)\\.(?<minor>\\d).*\" | stats sum(major) as major by http_method, app_name | eval appname_version=app_name . \":\" . major | stats values(appname_version) as app_data by host | rex field=host \"^(?<host>.*?)\\..*$\""
+}
+  

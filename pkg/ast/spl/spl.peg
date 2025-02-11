@@ -27,8 +27,68 @@ import (
     "github.com/siglens/siglens/pkg/segment/query"
     "github.com/siglens/siglens/pkg/segment/structs"
     "github.com/siglens/siglens/pkg/segment/utils"
+    toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/config"
     log "github.com/sirupsen/logrus"
 )
+
+func CalculateRelativeTime(timeModifier ast.TimeModifier, currTime time.Time) (int64, error) {
+    var epoch int64 = 0
+    var err error
+    if timeModifier.AbsoluteTime == "now" {
+        epoch = currTime.UnixMilli()
+    } else if timeModifier.AbsoluteTime == "1" {
+        return 1, nil
+    } else if timeModifier.AbsoluteTime != "" {
+        epoch, err = utils.ConvertCustomDateTimeFormatToEpochMs(timeModifier.AbsoluteTime)
+        if err != nil {
+            return 0, err
+        }
+    } else {
+        offsetNum := timeModifier.RelativeTime.RelativeTimeOffset.Offset
+        offsetTimeUnit := timeModifier.RelativeTime.RelativeTimeOffset.TimeUnit
+        snap := timeModifier.RelativeTime.Snap
+        finalTime := currTime
+        if offsetNum != 0 {
+            finalTime, err = utils.ApplyOffsetToTime(offsetNum, offsetTimeUnit, finalTime)
+            if err != nil {
+                return 0, err
+            }
+        }
+        if snap != "" {
+            finalTime, err = utils.ApplySnap(snap, finalTime)
+            if err != nil {
+                return 0, err
+            }
+        }
+        epoch = finalTime.UnixMilli()
+    }
+
+    return epoch, nil
+}
+
+func applyTimeModifiers(initialEpoch int64, chainedOffsets []ast.RelativeTimeOffset, chainedSnaps []string) (int64, error) {
+    offsetsLen := len(chainedOffsets)
+    snapsLen := len(chainedSnaps)
+
+    if offsetsLen != snapsLen {
+        return 0, fmt.Errorf("chainedOffsets and chainedSnaps length not equal")
+    }
+
+    var err error
+    for i := 0; i < offsetsLen; i++ {
+        var relativeTimeModifier ast.RelativeTimeModifier
+
+        relativeTimeModifier.RelativeTimeOffset = chainedOffsets[i]
+        relativeTimeModifier.Snap = chainedSnaps[i]
+
+        initialEpoch, err = CalculateRelativeTime(ast.TimeModifier{RelativeTime: relativeTimeModifier}, time.UnixMilli(initialEpoch))
+        if err != nil {
+            return 0, err
+        }
+    }
+    return initialEpoch, nil
+}
 
 func getParseError(err error) error {
     switch ev := err.(type) {
@@ -55,6 +115,69 @@ func removeQuotes(s any) string {
     }
 
     return str[1:len(str)-1]
+}
+
+func GetAggregateFunction(funcName string) utils.AggregateFunctions {
+    switch funcName {
+    case "count", "c":
+        return utils.Count 
+    case "sum":
+        return utils.Sum
+    case "avg":
+        return utils.Avg
+    case "min":
+        return utils.Min
+    case "max":
+        return utils.Max
+    case "range":
+        return utils.Range
+    case "distinct_count", "dc":
+        return utils.Cardinality
+    case "values":
+        return utils.Values
+    case "list":
+        return utils.List
+    case "estdc":
+        return utils.Estdc
+    case "estdc_error":
+        return utils.EstdcError
+    case "median":
+        return utils.Median
+    case "mode":
+        return utils.Mode
+    case "stdev":
+        return utils.Stdev
+    case "stdevp":
+        return utils.Stdevp
+    case "sumsq":
+        return utils.Sumsq
+    case "var":
+        return utils.Var
+    case "varp":
+        return utils.Varp
+    case "first":
+        return utils.First
+    case "last":
+        return utils.Last
+    case "earliest":
+        return utils.Earliest
+    case "latest":
+        return utils.Latest
+    case "earliest_time":
+        return utils.EarliestTime
+    case "latest_time":
+        return utils.LatestTime
+    case "rate":
+        return utils.StatsRate
+    case "perc":
+        return utils.Perc
+    case "exactperc":
+        return utils.ExactPerc
+    case "upperperc":
+        return utils.UpperPerc
+    default:
+        return utils.Invalid
+    }
 }
 
 // Check if it rename fields with similar names using a wildcard
@@ -148,6 +271,148 @@ func getRexColNames(pattern string) ([]string, error) {
     return rexColNames, nil
 }
 
+func SearchMatchGetFields(searchStr string) ([]string, error) {
+
+    kvPairs := strings.Fields(searchStr)
+    if len(kvPairs) == 0 {
+        return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+    }
+    fieldList := make([]string, 0)
+    
+    for _, kvPair := range kvPairs {
+        parts := strings.Split(kvPair, "=")
+        if len(parts) == 1 {
+            if len(kvPairs) == 1 {
+                fieldList = append(fieldList, "*")
+                return fieldList, nil
+            } else {
+                return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch") 
+            }
+        }
+        if len(parts) != 2 {
+            return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+        }
+        // fieldname is empty
+        if len(parts[0]) == 0 {
+            return []string{}, fmt.Errorf("Spl peg: Invalid syntax for searchmatch")
+        }
+        
+        fieldList = append(fieldList, parts[0])
+    }
+    
+    return fieldList, nil
+}
+
+
+func initializeStatsOptions() *structs.StatsOptions {
+    return &structs.StatsOptions {
+        Delim: " ",
+        Partitions: 1,
+        DedupSplitvals: false,
+        Allnum: false,
+    }
+}
+
+func initializeStreamStatsOptions() *structs.StreamStatsOptions {
+    return &structs.StreamStatsOptions {
+        Current: true,
+        Global: true,
+    }
+}
+
+func initializeGenTimesOption() (*structs.GenTimes, error) {
+    endTime := time.Now()
+    daySnap := fmt.Sprintf("%v", utils.TMDay)
+    endTime, err := utils.ApplySnap(daySnap, endTime)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Error while applying the snap: %v", err)
+    }
+
+    return &structs.GenTimes{
+        EndTime: uint64(endTime.UnixMilli()),
+        Interval: &structs.SpanLength{
+            Num: 1,
+            TimeScalr: utils.TMDay,
+        },
+    }, nil
+}
+
+func createSPathExpr(inputField, pathField, outputField string) (*structs.QueryAggregators, error) {
+
+    if inputField == "" {
+        inputField = "_raw"
+    }
+
+    spathExpr := &structs.SPathExpr{
+        InputColName: inputField,
+        Path: pathField,
+        OutputColName: outputField,
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                ValueColRequest: &structs.ValueExpr{
+                    ValueExprMode: structs.VEMStringExpr,
+                    StringExpr: &structs.StringExpr{
+                        StringExprMode: structs.SEMTextExpr,
+                        TextExpr: &structs.TextExpr{
+                            IsTerminal: true,
+                            Op: "spath",
+                            SPathExpr: spathExpr,
+                        },
+                    },
+                },
+                NewColName: outputField,
+            },
+        },
+    }, nil
+}
+func createEventCountExpr(indices []string, list_vix, report_size, summarize bool) (*structs.QueryAggregators, error) {
+    eventCountExpr := &structs.EventCountExpr{
+        Indices: indices,
+        ListVix: list_vix,
+        ReportSize: report_size,
+        Summarize: summarize,
+    }
+    return &structs.QueryAggregators{
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms{
+                LetColumns: &structs.LetColumnsRequest{
+                    EventCountRequest: eventCountExpr,
+                },
+            },
+        }, nil
+}
+func getDefaultFormatResultsExpr() *structs.FormatResultsRequest {
+    return &structs.FormatResultsRequest{
+        MVSeparator: "OR",
+        MaxResults: 0,
+        EmptyString: "NOT()",
+        RowColOptions: &structs.RowColOptions{
+            RowPrefix: "(",
+            ColumnPrefix: "(",
+            ColumnSeparator: "AND",
+            ColumnEnd: ")",
+            RowSeparator: "OR",
+            RowEnd: ")",
+        },
+    }
+}
+
+func chainAggregators(curQueryAgg *structs.QueryAggregators, queryAggs []any) {
+    for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+
+    // Link the remaining chains.
+    for i := range queryAggs {
+        queryAgg := queryAggs[i].(*structs.QueryAggregators)
+        curQueryAgg.Next = queryAgg
+
+        // Go to the end of this chain.
+        for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
+    }
+}
+
 type aggregator struct {
     measureAgg          *structs.MeasureAggregator
     renameOutputField   bool
@@ -166,12 +431,59 @@ type TxnArgs struct {
 
 type TimechartArgs struct {
     singleAggExpr *singleAggTemp
-    // Todo: Add eval clause expr.
+    // TODO: Add eval clause expr.
     tcOptions     *structs.TcOptions
 }
+
+type MultiValueColOptionArgs struct {
+    argOption string
+    mvColExpr *structs.MultiValueColLetRequest
 }
 
-Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+type HeadOptionArgs struct {
+    argOption string
+    headExpr *structs.HeadExpr
+}
+
+type BinOptionArgs struct {
+    argOption string
+    binOptions *structs.BinCmdOptions
+}
+
+type StreamStatsOptionArgs struct {
+    argOption string
+    streamStatsOptions *structs.StreamStatsOptions
+}
+
+type GenTimesOptionArgs struct {
+    argOption string
+    genTimesOption *structs.GenTimes
+}
+
+type InputLookupOptionArgs struct {
+    argOption string
+    inputLookupOption *structs.InputLookup
+}
+
+type SPathFieldExpr struct {
+    PathValue string
+    IsPathFieldName bool  
+}
+
+type FormatResultsRequestArguments struct {
+    argOption string
+    formatResultExpr *structs.FormatResultsRequest
+}
+
+type StringSearchRequest struct {
+    value interface{}
+    originalValue interface{}
+    caseInsensitive bool
+}
+
+}
+
+Start <- indexBlock:(IndexBlock)? SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
     var q ast.QueryStruct
     q.SearchFilter = initialSearch.(*ast.Node)
 
@@ -226,20 +538,237 @@ Start <- SPACE? initialSearch:(InitialSearchBlock) filterBlocks:(FilterBlock)* q
 
             // Go to the end of the first chain.
             curQueryAgg := q.PipeCommands
-            for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-
-            // Link the remaining chains.
-            for i := range queryAggSlice[1:] {
-                queryAgg := queryAggSlice[i + 1].(*structs.QueryAggregators)
-                curQueryAgg.Next = queryAgg
-
-                // Go to the end of this chain.
-                for ; curQueryAgg.Next != nil; curQueryAgg = curQueryAgg.Next {}
-            }
+            
+            chainAggregators(curQueryAgg, queryAggSlice[1:])
         }
     }
 
+    if indexBlock != nil {
+        q.IndexNames = indexBlock.([]string)
+    }
+
     return q, nil
+}
+/ SPACE? PIPE CMD_GENTIMES SPACE genTimesOption:(GenTimesOptionList) queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+    var q ast.QueryStruct
+    q.PipeCommands = &structs.QueryAggregators{
+        PipeCommandType: structs.GenerateEventType,
+        GenerateEvent: &structs.GenerateEvent{
+            GenTimes: genTimesOption.(*structs.GenTimes),
+        },
+        GentimesExpr: genTimesOption.(*structs.GenTimes),
+    }
+
+    if queryAggBlocks != nil {
+        queryAggSlice := queryAggBlocks.([]any)
+        curQueryAgg := q.PipeCommands
+
+        chainAggregators(curQueryAgg, queryAggSlice)
+    }
+
+    return q, nil
+}
+/ SPACE? inputLookup:InputLookupBlock queryAggBlocks:(QueryAggergatorBlock)* SPACE? EOF {
+    var q ast.QueryStruct
+    inpLookup := inputLookup.(*structs.QueryAggregators)
+    inpLookup.GenerateEvent.InputLookup.IsFirstCommand = true
+    q.PipeCommands = inpLookup
+
+    if queryAggBlocks != nil {
+        queryAggSlice := queryAggBlocks.([]any)
+        curQueryAgg := q.PipeCommands
+
+        chainAggregators(curQueryAgg, queryAggSlice)
+    }
+
+    return q, nil
+}
+
+IndexAssign <- index:("_index") EQUAL indexName:String {
+    return removeQuotes(indexName), nil
+}
+
+// TODO: Allow for multiple operators (AND, NOT, parenthesis) and make it flexible so that it can be used anywhere in the search filter.
+IndexExpression <- first:(IndexAssign) rest:(OR IndexAssign)* {
+    
+    if rest == nil {
+        if first.(string) == "" {
+            return []string{}, nil
+        }
+        return []string{first.(string)}, nil
+    }
+
+    finalIndexes := []string{}
+    if first.(string) != "" {
+        finalIndexes = append(finalIndexes, first.(string))
+    }
+    for _, v := range rest.([]any) {
+        parts := v.([]any)  // This will be [OR, IndexAssign].
+        index := parts[1].(string)
+        if index == "" {
+            continue
+        }
+        finalIndexes = append(finalIndexes, index)
+    }
+
+    return finalIndexes, nil
+}
+
+IndexBlock <- SPACE? indexName:(IndexExpression) PIPE? {
+    return indexName, nil
+}
+
+PartialTimestamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] {
+    timestamp := string(c.text)
+    completeTimestamp := fmt.Sprintf("%s:00:00:00", timestamp)
+
+    return completeTimestamp, nil
+}
+
+IntegerAsTimeToUnixEpochMs <- intStr:IntegerAsString {
+    timeOffset, err := strconv.ParseInt(intStr.(string), 10, 64)
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
+    }
+    finalTime, err := utils.ApplyOffsetToTime(timeOffset, utils.TMDay, time.Now())
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while applying the offset: %v", err)
+    }
+    daySnap := fmt.Sprintf("%v", utils.TMDay)
+    finalTime, err = utils.ApplySnap(daySnap, finalTime)
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while applying the snap: %v", err)
+    }
+
+    return finalTime.UnixMilli(), nil
+}
+
+DateTimeToUnixEpochMs <- timeStamp:(FullTimeStamp / PartialTimestamp) {
+    unixEpochInMs, err := utils.ConvertCustomDateTimeFormatToEpochMs(timeStamp.(string))
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while converting the timestamp: %v", err)
+    }
+    return unixEpochInMs, nil
+}
+
+
+GenTimestamp <- epochInMilli:(DateTimeToUnixEpochMs / IntegerAsTimeToUnixEpochMs) {
+    return epochInMilli, nil
+}
+
+GenTimesOptionEnd <- "end" EQUAL timeStamp:(GenTimestamp) {
+    return &GenTimesOptionArgs{
+        argOption: "end",
+        genTimesOption: &structs.GenTimes{
+            EndTime: uint64(timeStamp.(int64)),
+        },
+    }, nil
+}
+
+GenTimesOptionStart <- "start" EQUAL timeStamp:(GenTimestamp) {
+    return &GenTimesOptionArgs{
+        argOption: "start",
+        genTimesOption: &structs.GenTimes{
+            StartTime: uint64(timeStamp.(int64)),
+        },
+    }, nil
+}
+
+GenTimesOptionIncrement <- "increment" EQUAL intStr:IntegerAsString unitStr:("s" / "m" / "d" / "h")? {
+    spanNum, err := strconv.ParseInt(intStr.(string), 10, 64)
+    if err != nil {
+        return "", fmt.Errorf("Spl peg: Error while converting the integer: %v", err)
+    }
+    if spanNum == 0 {
+        return "", fmt.Errorf("Spl peg: increment cannot be 0")
+    }
+
+    timeUnit := utils.TMSecond
+
+    if unitStr != nil {
+        unit, err := transferUint8ToString(unitStr)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Unit specified is not string, err: %v", err)
+        }
+
+        if unit == "s" {
+            timeUnit = utils.TMSecond
+        } else if unit == "m" {
+            timeUnit = utils.TMMinute
+        } else if unit == "h" {
+            timeUnit = utils.TMHour
+        } else if unit == "d" {
+            timeUnit = utils.TMDay
+        } else {
+            return nil, fmt.Errorf("Spl peg: Invalid time unit: %v", unit)
+        }
+    }
+
+    return &GenTimesOptionArgs{
+        argOption: "increment",
+        genTimesOption: &structs.GenTimes{
+            Interval: &structs.SpanLength{
+                Num: int(spanNum),
+                TimeScalr: timeUnit,
+            },
+        },
+    }, nil
+}
+
+GenTimesOption <- genTimesOption:(GenTimesOptionEnd / GenTimesOptionStart / GenTimesOptionIncrement) {
+    return genTimesOption, nil
+}
+
+GenTimesOptionList <- first:GenTimesOption rest:(SPACE GenTimesOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]struct{})
+
+    numOptions := 1 + len(restSlice)
+
+    genTimeOption, err := initializeGenTimesOption()
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Error while initializing the GenTimesOption: %v", err)
+    }
+
+    for i := 0; i < numOptions; i++ {
+        var genTimeOptArg *GenTimesOptionArgs
+        if i == 0 {
+            genTimeOptArg = first.(*GenTimesOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            genTimeOptArg = separator[1].(*GenTimesOptionArgs)
+        }
+
+        argOption := genTimeOptArg.argOption
+        _, exist := optionWasSpecified[argOption]
+        if exist {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = struct{}{}
+
+        switch argOption {
+            case "start":
+                genTimeOption.StartTime = genTimeOptArg.genTimesOption.StartTime
+            case "end":
+                genTimeOption.EndTime = genTimeOptArg.genTimesOption.EndTime
+            case "increment":
+                genTimeOption.Interval = genTimeOptArg.genTimesOption.Interval
+            default:
+                return nil, fmt.Errorf("Not a Valid GenTimes Command Option: %v", argOption)
+        }
+    }
+
+    _, exist := optionWasSpecified["start"]
+    if !exist {
+        return nil, fmt.Errorf("Invalid Syntax, start time is not specified")
+    }
+
+    if genTimeOption.Interval.Num < 0 {
+        genTimeOption.StartTime, genTimeOption.EndTime = genTimeOption.EndTime, genTimeOption.StartTime
+		genTimeOption.Interval.Num = -genTimeOption.Interval.Num
+    }
+
+    return genTimeOption, nil
 }
 
 InitialSearchBlock <- CMD_SEARCH? clause:ClauseLevel4 {
@@ -250,12 +779,12 @@ SearchBlock <- !(ALLCMD) CMD_SEARCH? clause:ClauseLevel4 {
     return clause, nil
 }
 
-FilterBlock <- PIPE block:(SearchBlock / RegexBlock) {
+FilterBlock <- PIPE block:(SearchBlock / RegexBlock / TimeModifiers) {
     return block, nil
 }
 
 // Returns *structs.QueryAggregators
-QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock) {
+QueryAggergatorBlock <- block:(FieldSelectBlock / AggregatorBlock / EvalBlock / WhereBlock / HeadBlock / RegexAggBlock / RexBlock / StatisticBlock / RenameBlock / TimechartBlock / TransactionBlock / DedupBlock / SortBlock / MultiValueBlock / SPathBlock / FormatBlock / EventCountBlock / TailBlock / BinBlock / StreamStatsBlock / FillNullBlock / MvexpandBlock / InputLookupAggBlock / AppendBlock) {
     queryAgg := block.(*structs.QueryAggregators)
     return queryAgg, nil
 }
@@ -273,12 +802,13 @@ FieldSelectBlock <- PIPE CMD_FIELDS op:("-" / "+")? EMPTY_OR_SPACE fields:FieldN
         OutputTransforms: &structs.OutputTransforms {
             OutputColumns: columnsRequest,
         },
+        FieldsExpr: columnsRequest,
     }
 
     return queryAggregator, nil
 }
 
-AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? {
+CommonAggregatorBlock <- aggs:AggregationList byFields:(GroupbyBlock)? {
     aggNode := &structs.QueryAggregators{}
 
     // Extract the MeasureAggregators and check if any of the aggregation fields
@@ -287,12 +817,17 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
     measureAggs := make([]*structs.MeasureAggregator, len(aggsSlice))
     columnsRequest := &structs.ColumnsRequest{}
     columnsRequest.RenameAggregationColumns = make(map[string]string, 0)
+    renameExp := &structs.RenameExp{
+        RenameExprMode: structs.REMOverride,
+        RenameColumns: make(map[string]string, 0),
+    }
 
     for i, agg := range aggsSlice {
         measureAggs[i] = agg.measureAgg
 
         if agg.renameOutputField {
             columnsRequest.RenameAggregationColumns[measureAggs[i].String()] = agg.outputFieldNewName
+            renameExp.RenameColumns[measureAggs[i].String()] = agg.outputFieldNewName
         }
     }
 
@@ -303,6 +838,7 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
             OutputTransforms: &structs.OutputTransforms {
                 OutputColumns: columnsRequest,
             },
+            RenameExp: renameExp,
         }
 
         aggNode.Next = renameNode
@@ -310,17 +846,95 @@ AggregatorBlock <- PIPE CMD_STATS aggs:AggregationList byFields:(GroupbyBlock)? 
 
     if byFields == nil {
         aggNode.PipeCommandType = structs.MeasureAggsType
+        // TODO: remove the duplication; use StatsExpr instead of MeasureOperations
         aggNode.MeasureOperations = measureAggs
+        aggNode.StatsExpr = &structs.StatsExpr{
+            MeasureOperations: measureAggs,
+        }
     } else {
         aggNode.PipeCommandType = structs.GroupByType
+        // TODO: remove the duplication; use StatsExpr instead of GroupByRequest
         aggNode.GroupByRequest = &structs.GroupByRequest {
             MeasureOperations: measureAggs,
             GroupByColumns: byFields.([]string),
         }
         aggNode.BucketLimit = query.MAX_GRP_BUCKS
+        aggNode.StatsExpr = &structs.StatsExpr{
+            MeasureOperations: measureAggs,
+            GroupByRequest: &structs.GroupByRequest {
+                MeasureOperations: measureAggs,
+                GroupByColumns: byFields.([]string),
+            },
+        }
     }
 
     return aggNode, nil
+}
+
+
+AggregatorBlock <- PIPE CMD_STATS aggs:(CommonAggregatorBlock) options:(StatsOptions)?{
+    aggNode := aggs.(*structs.QueryAggregators)
+
+    if options != nil {
+        aggNode.StatsOptions = options.(*structs.StatsOptions)
+    } else {
+        aggNode.StatsOptions = initializeStatsOptions()
+    }
+
+    return aggNode, nil
+}
+
+// Todo: implement the processing logic
+// Optional arguments for stats block
+StatsOptions <- option:(StatsOption)*
+{
+    //Default value
+    options := initializeStatsOptions()
+
+    optionSlice := option.([]any)
+    for _, opt := range optionSlice {
+        optArr :=  opt.([]string)
+        // Check for matching option types
+        switch optArr[0] {
+        case "dedup_splitvals":
+            dedupSplitvalsBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for dedup_splitvals option, param: %v, err: %v", optArr[1], err)
+            }
+            options.DedupSplitvals = dedupSplitvalsBool
+        case "partitions":
+            pVal, err := strconv.ParseUint(optArr[1], 10, 64)
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for partitions option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Partitions = pVal
+        case "allnum":
+            allnumBool, err := strconv.ParseBool(optArr[1])
+            if err != nil {
+                return nil, fmt.Errorf("Spl peg: StatsBlock: Options: invalid param for allnum option, param: %v, err: %v", optArr[1], err)
+            }
+            options.Allnum = allnumBool
+        case "delim":
+            options.Delim = optArr[1]
+        default:
+            return nil, fmt.Errorf("Spl peg: StatisticBlock: Options: invalid option: %v", optArr[0])
+        }
+    }
+
+    return options, nil
+}
+
+StatsOption <- SPACE optionCMD:StatsOptionCMD EQUAL str:(IntegerAsString / EvalFieldToRead / QuotedString) {
+    optionArr := []string{optionCMD.(string), str.(string)}
+    return optionArr, nil
+}
+
+StatsOptionCMD <- option:("allnum" / "dedup_splitvals" / "delim" / "partitions") {
+    optionStr, err := transferUint8ToString(option)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: StatsOptionCMD: %v", err)
+    }
+    return optionStr, nil
 }
 
 GroupbyBlock <- BY fields:FieldNameList {
@@ -332,6 +946,203 @@ GroupbyBlock <- BY fields:FieldNameList {
     }
 
     return fields, nil
+}
+
+
+StreamStatsOptionResetOnChange <- "reset_on_change" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        ResetOnChange: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_on_change",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionCurrent <- "current" EQUAL boolVal:Boolean {
+    ssOption := &structs.StreamStatsOptions{
+        Current: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "current",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionGlobal <- "global" EQUAL boolVal:Boolean {
+    // TODO: Verify if needed, in splunk it does nothing as of now based on experiments.
+    ssOption := &structs.StreamStatsOptions{
+        Global: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "global",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionAllNum <- "allnum" EQUAL boolVal:Boolean {
+    // TODO: Verify if needed, in splunk it does nothing as of now based on experiments.
+    ssOption := &structs.StreamStatsOptions{
+        AllNum: boolVal.(bool),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "allnum",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionWindow <- "window" EQUAL windowSize:PositiveIntegerAsString {
+    window, err := strconv.ParseUint(windowSize.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be a positive integer", windowSize.(string))
+    }
+    if window > 10000 {
+        return nil, fmt.Errorf("Spl peg: Invalid window size: %v, must be less than or equal to 10000", window)
+    }
+    ssOption := &structs.StreamStatsOptions{
+        Window: window,
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "window",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+
+StreamStatsOptionResetBefore <- "reset_before" EQUAL L_PAREN boolExpr:BoolExpr R_PAREN {
+    ssOption := &structs.StreamStatsOptions{
+        ResetBefore: boolExpr.(*structs.BoolExpr),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_before",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionResetAfter <- "reset_after" EQUAL L_PAREN boolExpr:BoolExpr R_PAREN {
+    ssOption := &structs.StreamStatsOptions{
+        ResetAfter: boolExpr.(*structs.BoolExpr),
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "reset_after",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOptionTimeWindow <- "time_window" EQUAL spanLength:BinSpanLenOption {
+    spanLen := spanLength.(*structs.BinSpanLength)
+    if spanLen.TimeScale == utils.TMInvalid {
+        return nil, fmt.Errorf("Invalid Syntax, time_window option cannot be used without time scale")
+    }
+    ssOption := &structs.StreamStatsOptions{
+        TimeWindow: spanLen,
+    }
+    ssOptionArg := &StreamStatsOptionArgs{
+        argOption: "time_window",
+        streamStatsOptions: ssOption,
+    }
+    
+    return ssOptionArg, nil
+}
+
+StreamStatsOption <- ssOption:(StreamStatsOptionResetOnChange / StreamStatsOptionCurrent / StreamStatsOptionGlobal / StreamStatsOptionAllNum / StreamStatsOptionWindow / StreamStatsOptionResetBefore / StreamStatsOptionResetAfter / StreamStatsOptionTimeWindow) {
+    return ssOption, nil
+}
+
+StreamStatsOptionList <- first:StreamStatsOption rest:(SPACE StreamStatsOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+
+    numOptions := 1 + len(restSlice)
+
+    ssOption := initializeStreamStatsOptions()
+
+    for i := 0; i < numOptions; i++ {
+        var ssOptArg *StreamStatsOptionArgs
+        if i == 0 {
+            ssOptArg = first.(*StreamStatsOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            ssOptArg = separator[1].(*StreamStatsOptionArgs)
+        }
+
+        argOption := ssOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if exist && val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "reset_on_change":
+                ssOption.ResetOnChange = ssOptArg.streamStatsOptions.ResetOnChange
+            case "current":
+                ssOption.Current = ssOptArg.streamStatsOptions.Current
+            case "global":
+                ssOption.Global = ssOptArg.streamStatsOptions.Global
+            case "allnum":
+                ssOption.AllNum = ssOptArg.streamStatsOptions.AllNum
+            case "window":
+                ssOption.Window = ssOptArg.streamStatsOptions.Window
+            case "time_window":
+                ssOption.TimeWindow = ssOptArg.streamStatsOptions.TimeWindow
+            case "reset_before":
+                ssOption.ResetBefore = ssOptArg.streamStatsOptions.ResetBefore
+            case "reset_after":
+                ssOption.ResetAfter = ssOptArg.streamStatsOptions.ResetAfter
+            default:
+                return nil, fmt.Errorf("Not a Valid Streamstats Command Option: %v", argOption)
+        }
+    }
+
+    timeWindowSpecified, exist := optionWasSpecified["time_window"]
+    if exist && timeWindowSpecified {
+        if !ssOption.Current {
+            return nil, fmt.Errorf("Invalid Syntax, current cannot be set to false with time_window option")
+        }
+        if !ssOption.Global {
+            return nil, fmt.Errorf("Invalid Syntax, global cannot be set to false with time_window option")
+        }
+    }
+
+    return ssOption, nil
+}
+
+StreamStatsBlock <- PIPE CMD_STREAMSTATS ssOptionList:(StreamStatsOptionList) SPACE aggs:(CommonAggregatorBlock) {
+    aggNode := aggs.(*structs.QueryAggregators)
+    ssOptions := ssOptionList.(*structs.StreamStatsOptions)
+    
+    ssOptions.MeasureOperations = aggNode.MeasureOperations
+    ssOptions.GroupByRequest = aggNode.GroupByRequest
+    
+    aggNode.StreamStatsOptions = ssOptions
+    aggNode.StreamstatsExpr = aggNode.StreamStatsOptions
+    return aggNode, nil
+}
+/ PIPE CMD_STREAMSTATS aggs:(CommonAggregatorBlock) {
+    aggNode := aggs.(*structs.QueryAggregators)
+    ssOptions := initializeStreamStatsOptions()
+    
+    ssOptions.MeasureOperations = aggNode.MeasureOperations
+    ssOptions.GroupByRequest = aggNode.GroupByRequest
+    
+    aggNode.StreamStatsOptions = ssOptions
+    aggNode.StreamstatsExpr = aggNode.StreamStatsOptions
+    return aggNode, nil
 }
 
 RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString {
@@ -360,6 +1171,34 @@ RegexBlock <- CMD_REGEX keyAndOp:(FieldName EqualityOperator)? str:QuotedString 
     }
 
     return node, nil
+}
+
+RegexAggBlock <- PIPE node:RegexBlock {
+
+	astNode, ok := node.(*ast.Node)
+	if !ok {
+		return nil, fmt.Errorf("RegexAggBlock: Node is not ast.Node. node type is %T", node)
+	}
+
+	rawRegex, ok := astNode.Comparison.Values.(string)
+	if !ok {
+		return nil, fmt.Errorf("RegexAggBlock: regex given is not string. regex=%v, type=%T", astNode.Comparison.Values, astNode.Comparison.Values)
+	}
+
+    gobRegex := toputils.GobbableRegex{}
+	err := gobRegex.SetRegex(rawRegex)
+    if err != nil {
+        return nil, fmt.Errorf("RegexAggBlock: regex given is not valid. regexString=%v, Error=%v", rawRegex, err)
+    }
+
+	return &structs.QueryAggregators{
+		RegexExpr: &structs.RegexExpr{
+			Op:        astNode.Comparison.Op,
+			Field:     astNode.Comparison.Field,
+			RawRegex:  rawRegex,
+			GobRegexp: &gobRegex,
+		},
+	}, nil
 }
 
 ClauseLevel4 <- first:ClauseLevel3 rest:((AND / SPACE) ClauseLevel3)* {
@@ -434,6 +1273,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     measureAggs := make([]*structs.MeasureAggregator, 0)
 
     timechartExpr := &structs.TimechartExpr{}
+    aggNode.TimechartExpr = timechartExpr
     byField := ""
 
     if tcArgs == nil {
@@ -442,7 +1282,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
     
     timechartArgs := tcArgs.(*TimechartArgs)
     
-    // Todo: Should add || timechartArgs.evalExpr == nil
+    // TODO: Should add || timechartArgs.evalExpr == nil
     if timechartArgs.singleAggExpr == nil {
         return nil, fmt.Errorf("spl peg: timechart: either single-agg or eval-expression by split-by-clause is required")
     }
@@ -482,6 +1322,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
         MeasureOperations: measureAggs,
         GroupByColumns:    []string{"timestamp"},
     }
+    timechartExpr.GroupBy = aggNode.GroupByRequest
     aggNode.BucketLimit = query.MAX_GRP_BUCKS
 
     if bOptions == nil {
@@ -506,6 +1347,8 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
 
     timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
     aggNode.TimeHistogram = timeBucket
+    timechartExpr.TimeHistogram = timeBucket
+    timechartExpr.ByField = byField
 
     return aggNode, nil
 }
@@ -624,6 +1467,330 @@ TcOptionCMD <- option:("usenull" / "useother" / "nullstr" / "otherstr") {
     return optionStr, nil
 }
 
+AllTimeScale <- timeUnit:(Second / Month / Subseconds / Minute / Hour / Day / Week / Quarter / Year) {
+    return timeUnit, nil
+}
+
+BinSpanLenOption <- number:(FloatAsString / IntegerAsString) timeScale:(AllTimeScale)? {
+    if timeScale != nil {
+        num, err := strconv.ParseInt(number.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not an integer, err: %v", number.(string), err)
+        }
+        if num <= 0 {
+            return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
+        }
+
+        switch timeScale.(utils.TimeUnit) {
+            case utils.TMDecisecond:
+                if 10%num != 0 || num >= 10 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for decisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMCentisecond:
+                if 100%num != 0 || num >= 100 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for centisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMMillisecond:
+                if 1000%num != 0 || num >= 1000 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for millisecond %v, span value must be less than 1 second and 1 second must be evenly divisble by span", num)
+                }
+            case utils.TMMicrosecond:
+                return nil, fmt.Errorf("BinSpanLenOption: Invalid span microsecond is not supported!")
+            case utils.TMMonth:
+                if num > 12 || 12%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for month %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
+            case utils.TMQuarter:
+                if num > 4 || 4%num != 0 {
+                    return nil, fmt.Errorf("BinSpanLenOption: Invalid span for quarter %v, span value must be less or equal to 1 year and 1 year must be evenly divisble by span", num)
+                }
+        }
+
+        spanLength := &structs.BinSpanLength {
+            Num: float64(num),
+            TimeScale: timeScale.(utils.TimeUnit),
+        }
+
+        return spanLength, nil
+    } 
+
+    num, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("BinSpanLenOption: Invalid Number: %v is not a numerical value, err: %v", number.(string), err)
+    }
+    if num <= 0.0 {
+        return nil, fmt.Errorf("BinSpanLenOption: Invalid span %v, span value must be greater than 0", num)
+    }
+
+    spanLength := &structs.BinSpanLength {
+        Num: num,
+        TimeScale: utils.TMInvalid,
+    }
+
+    return spanLength, nil
+}
+
+BinOptionMinSpan <- "minspan" EQUAL spanLength:BinSpanLenOption {
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "minspan",
+        binOptions: &structs.BinCmdOptions {
+            MinSpan: spanLength.(*structs.BinSpanLength),
+        },
+    }
+    return binOptionArgs, nil
+}
+
+BinOptionMaxBins <- "bins" EQUAL intAsStr:IntegerAsString {
+    numBins, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    if numBins < 2 || numBins > 50000 {
+        return nil, fmt.Errorf("Invalid number of bins %v: must be between 2 and 50000", numBins)
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "bins",
+        binOptions: &structs.BinCmdOptions {
+            MaxBins: numBins,
+        },
+    }
+    return binOptionArgs, nil
+}
+
+
+
+// TODO: chain modifier and what else is supported?
+
+BinOptionAlignTime <- "aligntime" EQUAL utcEpoch:(PositiveIntegerAsString) {
+    epoch, err := strconv.ParseUint(utcEpoch.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid utc epoch value: %v for align time", utcEpoch.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "aligntime",
+        binOptions: &structs.BinCmdOptions {
+            AlignTime: &epoch,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+/ "aligntime" EQUAL timestamp:(AbsoluteTimestamp / RelativeTimestamp) {
+    var epoch uint64 = 0
+    var err error
+    relTimeModifier := timestamp.(ast.TimeModifier)
+    epochVal, err := CalculateRelativeTime(relTimeModifier, time.Now())
+    epoch = uint64(epochVal)
+    if err != nil {
+        return nil, err
+    }
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "aligntime",
+        binOptions: &structs.BinCmdOptions {
+            AlignTime: &epoch,
+        },
+    }
+    
+    return binOptionArgs, nil
+}
+
+BinOptionStart <- "start" EQUAL number:(FloatAsString / IntegerAsString) {
+    start, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "start",
+        binOptions: &structs.BinCmdOptions {
+            Start: &start,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+
+BinOptionEnd <- "end" EQUAL number:(FloatAsString / IntegerAsString) {
+    end, err := strconv.ParseFloat(number.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Cannot convert %v to float", number.(string))
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "end",
+        binOptions: &structs.BinCmdOptions {
+            End: &end,
+        },
+    }
+
+    return binOptionArgs, nil
+}
+
+BinOptionSpan <- "span" EQUAL num1:(FloatAsString / IntegerAsString)? "log" num2:(FloatAsString / IntegerAsString)? {
+    var coeff float64 = 1.0
+    var base float64 = 10.0
+    var err error
+
+    if num2 != nil {
+        base, err = strconv.ParseFloat(num2.(string), 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Invalid base in log span, %v cannot be converted to floar, err: %v", num2.(string), err)
+        }
+        if base <= 1.0 {
+            return nil, fmt.Errorf("Spl peg: Invalid base in log span, base must be greater than 1")
+        }
+    }
+    
+    if num1 != nil {
+        coeff, err = strconv.ParseFloat(num1.(string), 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, %v cannot be converted to float, err: %v", num1.(string), err)
+        }
+        if coeff < 1.0 {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, coefficient must be greater than or equal to 1")
+        }
+        if coeff >= base {
+            return nil, fmt.Errorf("Spl peg: Invalid coefficient in log span, coefficient must be less than base")
+        }
+    }
+    
+    logSpan := &structs.LogSpan {
+        Coefficient: coeff,
+        Base: base,
+    }
+    spanOptions := &structs.BinSpanOptions {
+        LogSpan: logSpan,
+    }
+    binOptionArgs := &BinOptionArgs {
+        argOption: "span",
+        binOptions: &structs.BinCmdOptions {
+            BinSpanOptions: spanOptions,
+        },
+    }
+    return binOptionArgs, nil
+}
+/ "span" EQUAL spanLen:BinSpanLenOption {
+
+    spanOptions := &structs.BinSpanOptions {
+        BinSpanLength: spanLen.(*structs.BinSpanLength),
+    }
+
+    binOptionArgs := &BinOptionArgs {
+        argOption: "span",
+        binOptions: &structs.BinCmdOptions {
+            BinSpanOptions: spanOptions,
+        },
+    }
+    return binOptionArgs, nil
+} 
+
+BinCmdOption <- option:(BinOptionAlignTime / BinOptionMinSpan / BinOptionMaxBins / BinOptionStart / BinOptionEnd / BinOptionSpan) {
+    return option, nil
+}
+
+BinCmdOptionsList <- first: BinCmdOption rest: (SPACE BinCmdOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]bool)
+
+    numOptions := 1 + len(restSlice)
+
+    binCmdOption := &structs.BinCmdOptions{}
+
+    for i := 0; i < numOptions; i++ {
+        var binOptArg *BinOptionArgs
+        if i == 0 {
+            binOptArg = first.(*BinOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            binOptArg = separator[1].(*BinOptionArgs)
+        }
+
+        argOption := binOptArg.argOption
+        val, exist := optionWasSpecified[argOption]
+        if exist && val {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = true
+
+        switch argOption {
+            case "minspan":
+                binCmdOption.MinSpan = binOptArg.binOptions.MinSpan
+            case "span":
+                binCmdOption.BinSpanOptions = binOptArg.binOptions.BinSpanOptions
+            case "bins":
+                binCmdOption.MaxBins = binOptArg.binOptions.MaxBins
+            case "start":
+                binCmdOption.Start = binOptArg.binOptions.Start
+            case "end":
+                binCmdOption.End = binOptArg.binOptions.End
+            case "aligntime":
+                binCmdOption.AlignTime = binOptArg.binOptions.AlignTime
+            default:
+                return nil, fmt.Errorf("Not a Valid Bin Command Option: %v", argOption)
+        }
+    }
+
+    return binCmdOption, nil
+}
+
+
+BinBlock <- PIPE CMD_BIN binCmdOption:(BinCmdOptionsList) SPACE field:FieldName newFieldName:(AsField)? {
+    letColReq := &structs.LetColumnsRequest {
+        NewColName: field.(string),
+    }
+    if newFieldName != nil {
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binOptions := binCmdOption.(*structs.BinCmdOptions)
+        binOptions.NewFieldName = toputils.NewOptionWithValue(newName)
+    }
+
+    letColReq.BinRequest = binCmdOption.(*structs.BinCmdOptions)
+    if letColReq.BinRequest.MaxBins == 0 {
+        letColReq.BinRequest.MaxBins = 100
+    }
+    letColReq.BinRequest.Field = field.(string)
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+        BinExpr: binCmdOption.(*structs.BinCmdOptions),
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_BIN field:FieldName newFieldName:(AsField)? {
+    letColReq := &structs.LetColumnsRequest {
+        NewColName: field.(string),
+    }
+    
+    binCmdOption := &structs.BinCmdOptions{
+        MaxBins: 100,
+    }
+
+    if newFieldName != nil {
+        newName := newFieldName.(string)
+        letColReq.NewColName = newName
+        binCmdOption.NewFieldName = toputils.NewOptionWithValue(newName)
+    }
+
+    letColReq.BinRequest = binCmdOption
+    letColReq.BinRequest.Field = field.(string)
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            LetColumns: letColReq,
+        },
+        BinExpr: binCmdOption,
+    }
+
+    return queryAgg, nil
+}
+
+
 // To be finished: bins=<int> | minspan=<span-length> | span | <start-end>: (end=<num> | start=<num>) | aligntime=(earliest | latest | <time-specifier>)
 BinOptions <- spanOptions:SpanOptions {
     binOptions := &structs.BinOptions {
@@ -640,7 +1807,10 @@ SpanOptions <- CMD_SPAN EQUAL spanLength:SpanLength {
     return spanOptions, nil
 }
 
-SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
+SpanLength <- intAsStr:IntegerAsString timeScale:AllTimeScale{
+    if timeScale.(utils.TimeUnit) == utils.TMYear {
+        return nil, fmt.Errorf("SpanLength: Invalid time unit, year is not supported")
+    }
     num, err := strconv.Atoi(intAsStr.(string))
     if err != nil {
         return nil, fmt.Errorf("SpanLength: Invalid num (%v): %v", intAsStr.(string), err)
@@ -651,10 +1821,6 @@ SpanLength <- intAsStr:IntegerAsString timeScale:TimeScale{
         TimeScalr: timeScale.(utils.TimeUnit),
     }
     return spanLength, nil
-}
-
-TimeScale <- timeUnit:(Second / Minute / Hour / Day/ Week / Month / Quarter/ Subseconds) {
-    return timeUnit, nil
 }
 
 // limit=topN keeps the N highest scoring distinct values of the split-by field
@@ -692,6 +1858,7 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        StatisticExpr: letColReq.StatisticColRequest,
     }
 
     measureAgg := &structs.MeasureAggregator {
@@ -711,6 +1878,12 @@ StatisticBlock <- PIPE statisticExpr:StatisticExpr {
         MeasureOperations: measureOperations,
         GroupByColumns: groupByColumns,
     }
+
+	if config.IsNewQueryPipelineEnabled() {
+		root.GroupByRequest = aggNode.GroupByRequest
+        root.StatisticExpr = statisticExpr.(*structs.StatisticExpr)
+		return root, nil
+	}
 
     return aggNode, nil
 }
@@ -836,8 +2009,10 @@ ByClause <- BY fieldList:FieldNameList {
 
 DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
 
+    dedupExp := dedupExpr.(*structs.DedupExpr)
+
     letColReq := &structs.LetColumnsRequest {
-        DedupColRequest: dedupExpr.(*structs.DedupExpr),
+        DedupColRequest: dedupExp,
     }
 
     root := &structs.QueryAggregators {
@@ -845,6 +2020,30 @@ DedupBlock <- PIPE CMD_DEDUP dedupExpr:DedupExpr {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        DedupExpr: dedupExp,
+    }
+
+    if len(dedupExp.DedupSortEles) > 0 {
+        sortExpr := &structs.SortExpr {
+            SortEles: dedupExp.DedupSortEles,
+            SortAscending: dedupExp.DedupSortAscending,
+            Limit: 1000000,
+        }
+        dedupExp.DedupSortEles = nil
+        dedupExp.DedupSortAscending = nil
+
+        sortAgg := &structs.QueryAggregators {
+            PipeCommandType: structs.OutputTransformType,
+            OutputTransforms: &structs.OutputTransforms {
+                LetColumns: &structs.LetColumnsRequest{
+                    SortColRequest: sortExpr,
+                },
+            },
+            SortExpr: sortExpr,
+        }
+
+        sortAgg.Next = root
+        return sortAgg, nil
     }
 
     return root, nil
@@ -913,6 +2112,19 @@ DedupExpr <- limitArr:(SPACE IntegerAsString)? options1:(DedupOptions)? fieldLis
 
 DedupFieldName <- !("sortby") field:FieldName {
     return field, nil
+}
+
+// Parses one or more FieldNames separate by a space
+// Returns a slice containing all the FieldNames
+SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
+    var fields []string
+    fields = append(fields, first.(string))
+    for _, r := range rest.([]any) {
+        // Extracting the field name from the tuple (SPACE, FieldName)
+        fields = append(fields, r.([]any)[1].(string))
+    }
+
+    return fields, nil
 }
 
 DedupFieldList <- SPACE first:DedupFieldName rest:(SPACE DedupFieldName !EQUAL)* {
@@ -1049,19 +2261,26 @@ RenameBlock <- PIPE CMD_RENAME renameExpr:RenameExpr {
     letColReq := &structs.LetColumnsRequest {
         RenameColRequest: renameExpr.(*structs.RenameExpr),
     }
+    renameExp := &structs.RenameExp {
+        RenameExprMode: letColReq.RenameColRequest.RenameExprMode,
+        RenameColumns: map[string]string{
+            letColReq.RenameColRequest.OriginalPattern: letColReq.RenameColRequest.NewPattern,
+        },
+    }
 
     root := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RenameExp: renameExp,
     }
 
     return root, nil
 }
 
 // Rename with a phrase
-RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
+RenameExpr <- originalPattern:FieldName AS newPattern:QuotedString {
     renameExpr := &structs.RenameExpr {
         RenameExprMode: structs.REMPhrase,
         OriginalPattern: originalPattern.(string),
@@ -1072,7 +2291,7 @@ RenameExpr <- originalPattern:RenamePattern AS newPattern:QuotedString {
 }
 // Rename fields with similar names using a wildcard
 // Or Rename to a existing field
-/ originalPattern:RenamePattern AS newPattern:RenamePattern {
+/ originalPattern:FieldName AS newPattern:RenamePattern {
     isRegex, err := isRegexRename(originalPattern.(string), newPattern.(string))
     if err != nil {
         return nil, fmt.Errorf("Spl peg: RenameExpr: %v", err)
@@ -1115,6 +2334,7 @@ RexBlock <- PIPE CMD_REX "field" EQUAL field:EvalFieldToRead SPACE str:QuotedStr
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        RexExpr: rexExpr,
     }
 
     return root, nil
@@ -1154,6 +2374,7 @@ SortBlock <- PIPE CMD_SORT limit:(SortLimit)? sortByEles:SortElements {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: letColReq,
         },
+        SortExpr: sortExpr,
     }
 
     return root, nil
@@ -1179,6 +2400,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
         OutputTransforms: &structs.OutputTransforms {
             LetColumns: first.(*structs.LetColumnsRequest),
         },
+        EvalExpr: &structs.EvalExpr{
+            ValueExpr: first.(*structs.LetColumnsRequest).ValueColRequest,
+            FieldName: first.(*structs.LetColumnsRequest).NewColName,
+        },
     }
 
     leafQueryAgg := root
@@ -1189,6 +2414,10 @@ EvalBlock <- PIPE CMD_EVAL first:SingleEval rest:(COMMA SingleEval)* {
             PipeCommandType: structs.OutputTransformType,
             OutputTransforms: &structs.OutputTransforms {
                 LetColumns: CommaSpaceAndEval[1].(*structs.LetColumnsRequest),
+            },
+            EvalExpr: &structs.EvalExpr{
+                ValueExpr: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).ValueColRequest,
+                FieldName: CommaSpaceAndEval[1].(*structs.LetColumnsRequest).NewColName,
             },
         }
 
@@ -1221,6 +2450,7 @@ EvalExpression <- value:ValueExpr {
     return letColReq, nil
 }
 
+//TODO: implement the processing logic for: case, coalesce, validate, nullif
 ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA falseValue:ValueExpr R_PAREN {
 
     node := &structs.ConditionExpr {
@@ -1232,82 +2462,336 @@ ConditionExpr <- "if" L_PAREN condition:BoolExpr COMMA trueValue:ValueExpr COMMA
 
     return node, nil
 }
-
-TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
+/ opName:("case" / "validate") L_PAREN pair:ConditionValuePair rest:(COMMA ConditionValuePair)* R_PAREN {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
-        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        return nil, fmt.Errorf("Spl peg: ConditionExpr: %v", err)
     }
-    node := &structs.TextExpr {
+    pairs := make([]*structs.ConditionValuePair, 1)
+    pairs[0] = pair.(*structs.ConditionValuePair)
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        for i := range restSlice {
+            ele := restSlice[i].([]any)
+            pairs = append(pairs, ele[1].(*structs.ConditionValuePair))
+        }
+    }
+
+    node := &structs.ConditionExpr {
         Op: opNameStr,
-        Value: stringExpr.(*structs.StringExpr),
-        StrToRemove: "",
+        ConditionValuePairs: pairs,
     }
 
     return node, nil
 }
+/ "coalesce" L_PAREN valueExpr:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
+    restSlice := rest.([]any)
+    valueList := make([]*structs.ValueExpr, 1 + len(restSlice))
+    valueList[0] = valueExpr.(*structs.ValueExpr)
 
-/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN )
-      {
-        opNameStr, err := transferUint8ToString(opName)
-        if err != nil {
-            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-        }
-        if rest == nil {
-            return firstVal, nil
-        }
+    for i := range restSlice {
+        valueAtom := restSlice[i].([]any)
+        valueList[i + 1] = valueAtom[1].(*structs.ValueExpr)
+    }
+
+    node := &structs.ConditionExpr {
+        Op: "coalesce",
+        ValueList: valueList,
+    }
+
+    return node, nil
+}
+/ "nullif" L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+    valueList := make([]*structs.ValueExpr, 2)
+    valueList[0] = leftValue.(*structs.ValueExpr)
+    valueList[1] = rightValue.(*structs.ValueExpr)
+
+    node := &structs.ConditionExpr {
+        Op: "nullif",
+        ValueList: valueList,
+    }
+
+    return node, nil
+}
+/ "null" L_PAREN R_PAREN {
+    node := &structs.ConditionExpr {
+        Op: "null",
+    }
+    return node, nil
+}
+
+ConditionValuePair <- condition:BoolExpr COMMA value:ValueExpr {
+    conditionValuePair := &structs.ConditionValuePair {
+        Condition: condition.(*structs.BoolExpr),
+        Value: value.(*structs.ValueExpr),
+    }
+    return conditionValuePair, nil
+}
+
+StringExprAsValueExpr <- stringExpr:StringExpr {
+    strExpr := stringExpr.(*structs.StringExpr)
+    valueExpr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMStringExpr,
+        StringExpr: strExpr,
+    }
+
+    return valueExpr, nil
+}
+
+MultiValueExprAsValueExpr <- multiValueExpr:MultiValueExpr {
+    valueExpr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMMultiValueExpr,
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+    }
+
+    return valueExpr, nil
+}
+
+StringOrMultiValueExpr <- strOrMVExpr:(MultiValueExprAsValueExpr / StringExprAsValueExpr) {
+    return strOrMVExpr.(*structs.ValueExpr), nil
+}
+
+MultiValueExpr <- (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr), delim.(*structs.StringExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvindex") L_PAREN multiValueExpr:MultiValueExpr COMMA startIndex:NumericExpr endIndex:(NumericParamExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        NumericExprParams: []*structs.NumericExpr{startIndex.(*structs.NumericExpr)},
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+    }
+    if endIndex != nil {
+        node.NumericExprParams = append(node.NumericExprParams, endIndex.(*structs.NumericExpr))
+    }
+
+    return node, nil
+}
+/ (opName:("mvdedup" / "mvsort") L_PAREN multiValueExpr:MultiValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvfilter") L_PAREN condition:BoolExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: Failed to recognize operator: %v, err= %v", opName, err)
+    }
+
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        Condition: condition.(*structs.BoolExpr),
+    }
+
+    return node, nil
+}
+/ (opName:("mvmap") L_PAREN multiValueExpr:MultiValueExpr COMMA expr:ValueExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+        ValueExprParams: []*structs.ValueExpr{expr.(*structs.ValueExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvrange") L_PAREN startIndex:NumericExpr COMMA endIndex:NumericExpr COMMA stringExpr:(StringExpr)? R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        NumericExprParams: []*structs.NumericExpr{startIndex.(*structs.NumericExpr), endIndex.(*structs.NumericExpr)},
+        StringExprParams: []*structs.StringExpr{stringExpr.(*structs.StringExpr)},
+    }
+
+    return node, nil
+}
+/ (opName:("mvzip") L_PAREN mvLeft:MultiValueExpr COMMA mvRight:MultiValueExpr rest:(COMMA StringExpr)? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{mvLeft.(*structs.MultiValueExpr), mvRight.(*structs.MultiValueExpr)},
+    }
+
+    if rest != nil {
         restSlice := rest.([]any)
-        values := make([]*structs.StringExpr, 1 + len(restSlice))
-        values[0] = firstVal.(*structs.StringExpr)
+        node.StringExprParams = []*structs.StringExpr{restSlice[1].(*structs.StringExpr)}
+    }
 
+    return node, nil
+}
+/ (opName:("mv_to_json_array") L_PAREN multiValueExpr:MultiValueExpr rest:(COMMA ("true" / "false") "()")? R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        MultiValueExprParams: []*structs.MultiValueExpr{multiValueExpr.(*structs.MultiValueExpr)},
+        InferTypes: false, // default value
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
+        inferTypes, err := transferUint8ToString(restSlice[1])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+        }
+        if inferTypes == "true" {
+            node.InferTypes = true
+        }
+    }
+
+    return node, nil
+}
+/ (opName:("mvappend") L_PAREN firstVal:StringOrMultiValueExpr rest:(COMMA StringOrMultiValueExpr)* R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: MultiValueExpr: %v", err)
+    }
+    node := &structs.MultiValueExpr {
+        Op: opNameStr,
+        ValueExprParams: []*structs.ValueExpr{firstVal.(*structs.ValueExpr)},
+    }
+
+    if rest != nil {
+        restSlice := rest.([]any)
         for i := range restSlice {
-            stringAtom := restSlice[i].([]any)
-            values[i + 1] = stringAtom[1].(*structs.StringExpr)
+            valueExprAtom := restSlice[i].([]any)
+            node.ValueExprParams = append(node.ValueExprParams, valueExprAtom[1].(*structs.ValueExpr))
         }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            MaxMinValues: values,
-        }
-        return node, nil
-      }
-/ (opName:("urldecode") L_PAREN url:StringExpr R_PAREN ){
-        opNameStr, err := transferUint8ToString(opName)
+    }
+
+    return node, nil
+}
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
+    expr := &structs.MultiValueExpr {
+        MultiValueExprMode: structs.MVEMField,
+        FieldName: field.(string),
+    }
+
+    return expr, nil
+}
+
+
+//TODO: implement the processing logic for: ipmask, object_to_array, printf, tojson, cluster, replace, spath, upper, trim
+// mvappend, mvcount, mvdedup, mvfilter, mvfind, mvindex, mvjoin, mvmap, mvrange, mvsort, mvzip, mv_to_json_array
+TextExpr <- (opName:("lower" / "upper" / "urldecode") L_PAREN stringExpr:StringExpr R_PAREN ){
+    opNameStr, err := transferUint8ToString(opName)
         if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-        node := &structs.TextExpr {
-            Op: opNameStr,
-            Value: url.(*structs.StringExpr),
-            StrToRemove: "",
-        }
-        return node, nil
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        Param: stringExpr.(*structs.StringExpr),
+        StrToRemove: "",
     }
-/ (opName:("split") L_PAREN stringExpr:StringExpr COMMA delim:StringExpr R_PAREN) {
+    return node, nil
+}
+/ (opName:("max" / "min") L_PAREN firstVal:StringExpr rest:(COMMA StringExpr)* R_PAREN ) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    if rest == nil {
+        return firstVal, nil
+    }
+    restSlice := rest.([]any)
+    values := make([]*structs.StringExpr, 1 + len(restSlice))
+    values[0] = firstVal.(*structs.StringExpr)
+
+    for i := range restSlice {
+        stringAtom := restSlice[i].([]any)
+        values[i + 1] = stringAtom[1].(*structs.StringExpr)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        ValueList: values,
+    }
+    return node, nil
+}
+/ (opName:("mvcount") L_PAREN multiValueExpr:MultiValueExpr R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr.(*structs.StringExpr),
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+    }
+    return node, nil
+}
+/ (opName:("mvjoin") L_PAREN multiValueExpr:MultiValueExpr COMMA delim:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+    }
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
         Delimiter: delim.(*structs.StringExpr),
     }
     return node, nil
 }
+/ (opName:("mvfind") L_PAREN multiValueExpr:MultiValueExpr COMMA regexPattern:StringExpr R_PAREN) {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: TextExpr: %v", err)
+    }
+    regex, ok := regexPattern.(*structs.StringExpr)
+    if !ok {
+        return nil, fmt.Errorf("spl peg: regexPattern type assertion to StringExpr failed")
+    }
+
+    gobRegex := toputils.GobbableRegex{}
+	err = gobRegex.SetRegex(regex.RawString)
+    if err != nil {
+        return nil, fmt.Errorf("spl peg: Regex compile: %v", err)
+    }
+
+    node := &structs.TextExpr {
+        Op: opNameStr,
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+        Regex: &gobRegex,
+    }
+    return node, nil
+}
+
 / (opName:("substr") L_PAREN stringExpr:StringExpr COMMA startIndex:NumericExpr lengthParam:(COMMA NumericExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
     }
-    stringExprConverted, ok := stringExpr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert stringExpr as *structs.StringExpr")
-    }
-    startIndexConverted, ok := startIndex.(*structs.NumericExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert startIndex as *structs.NumericExpr")
-    }
-  var lengthConverted *structs.NumericExpr
+    var lengthConverted *structs.NumericExpr
     if lengthParam != nil {
         lengthSlice, ok := lengthParam.([]interface{})
         if ok && len(lengthSlice) > 1 {
@@ -1321,13 +2805,13 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
     }
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExprConverted,
-        StartIndex: startIndexConverted,
+        Param: stringExpr.(*structs.StringExpr),
+        StartIndex: startIndex.(*structs.NumericExpr),
         LengthExpr: lengthConverted,
     }
     return node, nil
 }
-/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr )? R_PAREN {
+/ "tostring" L_PAREN value:ValueExpr format:(COMMA StringExpr)? R_PAREN {
     var formatExpr *structs.StringExpr
     if format != nil {
         formatSlice := format.([]interface{})
@@ -1337,18 +2821,13 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
         IsTerminal: false,
         Op:         "tostring",
         Val:        value.(*structs.ValueExpr),
-        Format:     formatExpr,
+        Param:     formatExpr,
     }, nil
 }
-/ (opName:("ltrim" / "rtrim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
+/ (opName:("ltrim" / "rtrim" / "trim") L_PAREN expr:(StringExpr) strToRemoveExpr:(StrToRemoveExpr)? R_PAREN) {
     opNameStr, err := transferUint8ToString(opName)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
-    }
-
-    stringExpr, ok := expr.(*structs.StringExpr)
-    if !ok {
-        return nil, fmt.Errorf("Spl peg: TextExpr: Failed to assert expr as *structs.StringExpr: %v", err)
     }
 
     strToRemove := " \t"
@@ -1358,11 +2837,173 @@ TextExpr <- (opName:("lower") L_PAREN stringExpr:StringExpr R_PAREN) {
 
     node := &structs.TextExpr {
         Op: opNameStr,
-        Value: stringExpr,
+        Param: expr.(*structs.StringExpr),
         StrToRemove: removeQuotes(strToRemove),
     }
 
     return node, nil
+}
+/ "spath" L_PAREN inputField:FieldNameStartWith_ COMMA path:(QuotedPathString / UnquotedPathValue) R_PAREN {
+    pathExpr := path.(*SPathFieldExpr)
+    return &structs.TextExpr{
+        Op: "spath",
+        SPathExpr: &structs.SPathExpr{
+            InputColName: inputField.(string),
+            Path: pathExpr.PathValue,
+            IsPathFieldName: pathExpr.IsPathFieldName,
+        },
+    }, nil
+}
+/ "ipmask" L_PAREN mask:StringExpr COMMA ip:ValueExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "ipmask",
+        Val: ip.(*structs.ValueExpr),
+        Param: mask.(*structs.StringExpr),
+    }, nil
+}
+/ "object_to_array" L_PAREN obj:ValueExpr COMMA key:QuotedString COMMA value:QuotedString R_PAREN {
+    stringExpr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawStringList,
+        StringList: []string{key.(string), value.(string)},
+    }
+    return &structs.TextExpr{
+        Op: "object_to_array",
+        Val: obj.(*structs.ValueExpr),
+        Param: stringExpr,
+    }, nil
+}
+/ "printf" L_PAREN format:StringExpr rest:(COMMA StringExpr)* R_PAREN {
+    textExpr := &structs.TextExpr{
+        Op: "printf",
+        Param: format.(*structs.StringExpr),
+    }
+    if rest != nil {
+        restSlice := rest.([]any)
+        valueList := make([]*structs.StringExpr, len(restSlice))
+
+        for i := range restSlice {
+            valueAtom := restSlice[i].([]any)
+            valueList[i] = valueAtom[1].(*structs.StringExpr)
+        }
+        textExpr.ValueList = valueList
+    }
+
+    return textExpr, nil
+}
+/ "tojson" L_PAREN containInternalFields:(("true" / "false") "()")? R_PAREN {
+    expr := &structs.StringExpr {
+        StringExprMode: structs.SEMRawString,
+        RawString: "true", // default value
+    }
+
+    if containInternalFields != nil {
+        restSlice := containInternalFields.([]any)
+        containInternalFieldsStr, err := transferUint8ToString(restSlice[0])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        if containInternalFieldsStr == "false" {
+            expr.RawString = "false"
+        }
+    }
+
+    return &structs.TextExpr{
+        Op: "tojson",
+        Param: expr,
+    }, nil
+}
+/ "cluster" L_PAREN field:EvalFieldToRead threshold:(COMMA "threshold:" FloatAsString)? match:(COMMA "match:" ("termlist" / "termset" / "ngramset"))? delims:(COMMA "delims:" QuotedString)? R_PAREN {
+    textExpr := &structs.TextExpr {
+        Op: "cluster",
+    }
+
+    cluster := &structs.Cluster {
+        Field: field.(string),
+        Threshold: 0.8,
+        Match: "termlist",
+    }
+
+    if threshold != nil {
+        slice := threshold.([]interface{})
+        thresholdStr := slice[2].(string)
+        val, err := strconv.ParseFloat(thresholdStr, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: invalid threshold: %v", thresholdStr)
+        }
+        cluster.Threshold = val
+    }
+
+    if match != nil {
+        slice := match.([]interface{})
+        matchStr, err := transferUint8ToString(slice[2])
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: TextExpr: %v", err)
+        }
+        cluster.Match = matchStr
+    }
+
+    if delims != nil {
+        slice := delims.([]interface{})
+        delimsStr := slice[2].(string)
+        cluster.Delims = delimsStr
+    }
+
+    textExpr.Cluster = cluster
+
+    return textExpr, nil
+}
+/ "getfields" L_PAREN filter:(StringExpr)? R_PAREN {
+    textExpr := &structs.TextExpr {
+        Op: "getfields",
+    }
+
+    if filter != nil {
+        textExpr.Param = filter.(*structs.StringExpr)
+    }
+
+    return textExpr, nil
+}
+/ "typeof" L_PAREN valueExpr:ValueExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "typeof",
+        Val: valueExpr.(*structs.ValueExpr),
+    }, nil
+}
+/ "replace" L_PAREN val:ValueExpr COMMA regex:StringExpr COMMA replacement:StringExpr R_PAREN {
+    return &structs.TextExpr {
+        Op: "replace",
+        Val: val.(*structs.ValueExpr),
+        ValueList: []*structs.StringExpr{regex.(*structs.StringExpr), replacement.(*structs.StringExpr)},
+    }, nil
+}
+/ "strftime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strftime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
+    }, nil
+}
+
+/ "strptime" L_PAREN val:ValueExpr COMMA format:StringExpr R_PAREN {
+    return &structs.TextExpr{
+        Op: "strptime",
+        Val: val.(*structs.ValueExpr),
+        Param: format.(*structs.StringExpr),
+    }, nil
+}
+
+QuotedPathString <- str:QuotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: false,
+    }, nil
+}
+
+UnquotedPathValue <- str:UnquotedString {
+    return &SPathFieldExpr{
+        PathValue: removeQuotes(str),
+        IsPathFieldName: true,
+    }, nil
 }
 
 StrToRemoveExpr <- COMMA strToRemove:String {
@@ -1371,7 +3012,7 @@ StrToRemoveExpr <- COMMA strToRemove:String {
 
 // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Eval#Syntax
 // Returns the field as a string with no quotation marks.
-EvalFieldToRead <- [a-zA-Z_]+ !("(") {
+EvalFieldToRead <- [a-zA-Z][_a-zA-Z0-9]* !("(") {
     return string(c.text), nil
 }
 / "'" field:FieldName "'" {
@@ -1385,6 +3026,7 @@ WhereBlock <- PIPE CMD_WHERE condition:BoolExpr {
         OutputTransforms: &structs.OutputTransforms {
             FilterRows: condition.(*structs.BoolExpr),
         },
+        WhereExpr: condition.(*structs.BoolExpr),
     }
 
     return queryAgg, nil
@@ -1454,7 +3096,12 @@ BoolExprLevel2 <- NOT L_PAREN first:BoolExprLevel1 R_PAREN {
 BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
     return first, nil
 }
-/ (op:("isbool" / "isint" / "isstr" / "isnull") L_PAREN value:ValueExpr R_PAREN ) {
+/ expr: (EvalComparisonExpr / BoolComparisonExpr) {
+    return expr, nil
+}
+
+//TODO: implement the processing logic for: searchmatch, isnotnull, isnum
+EvalComparisonExpr <- (op:("isbool" / "isint" / "isstr" / "isnull" / "isnotnull" / "isnum" / "searchmatch") L_PAREN value:ValueExpr R_PAREN ) {
     opNameStr, err := transferUint8ToString(op)
     if err != nil {
         return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
@@ -1465,67 +3112,39 @@ BoolExprLevel1 <- L_PAREN first:BoolExprLevel4 R_PAREN {
         RightValue: nil,
         ValueOp: opNameStr,
     }
+
+    if opNameStr == "searchmatch" {
+        valExpr := value.(*structs.ValueExpr)
+        if valExpr.StringExpr == nil {
+            return nil, fmt.Errorf("Spl peg: Searchmatch should only have string values as argument")
+        }
+
+        fieldsList, err := SearchMatchGetFields(valExpr.StringExpr.RawString)
+        if err != nil {
+            return nil, err
+        }
+
+        valExpr.StringExpr.StringExprMode = structs.SEMFieldList
+        valExpr.StringExpr.FieldList = fieldsList
+        expr.LeftValue = valExpr
+    }
+    
     return expr, nil
 }
-/ likeExpr: LikeExpr {
-    return likeExpr, nil
-}
-LikeExpr <- left:ValueExpr SPACE "LIKE" SPACE right:ValueExpr {
+/ opName:("like" / "Like" / "match" / "cidrmatch") L_PAREN leftValue:ValueExpr COMMA rightValue:ValueExpr R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: BoolExpr: %v", err)
+    }
     expr := &structs.BoolExpr {
         IsTerminal: true,
-        LeftValue: left.(*structs.ValueExpr),
-        RightValue: right.(*structs.ValueExpr),
-        ValueOp: "like",
+        LeftValue: leftValue.(*structs.ValueExpr),
+        RightValue: rightValue.(*structs.ValueExpr),
+        ValueOp: opNameStr,
     }
     return expr, nil
 }
-/ "like" L_PAREN stringr:ValueExpr COMMA pattern:ValueExpr R_PAREN {
-     expr := &structs.BoolExpr {
-         IsTerminal: true,
-         LeftValue: stringr.(*structs.ValueExpr),
-         RightValue: pattern.(*structs.ValueExpr),
-         ValueOp: "like",
-     }
-     return expr, nil
- }
-/ "match" L_PAREN stringVal:ValueExpr COMMA pattern:ValueExpr R_PAREN {
-     expr := &structs.BoolExpr {
-         IsTerminal: true,
-         LeftValue: stringVal.(*structs.ValueExpr),
-         RightValue: pattern.(*structs.ValueExpr),
-         ValueOp: "match",
-     }
-     return expr, nil
- }
-/ "cidrmatch" L_PAREN cidr:ValueExpr COMMA ip:ValueExpr R_PAREN {
-    expr := &structs.BoolExpr {
-        IsTerminal: true,
-        LeftValue: cidr.(*structs.ValueExpr),
-        RightValue: ip.(*structs.ValueExpr),
-        ValueOp: "cidrmatch",
-    }
-    return expr, nil
-}
-/ inExpr: InExpr {
-    return inExpr, nil
-}
-/ boolComparisonExpr:BoolComparisonExpr {
-    return boolComparisonExpr, nil
-}
-
-BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
-    expr := &structs.BoolExpr {
-        IsTerminal: true,
-        LeftValue: left.(*structs.ValueExpr),
-        RightValue: right.(*structs.ValueExpr),
-        ValueOp: op.(string),
-    }
-
-    return expr, nil
-}
-
-
-InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
+/ left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA ValueExpr)* R_PAREN {
     restSlice := rest.([]any)
     slice := make([]*structs.ValueExpr, 1 + len(restSlice))
     slice[0] = valueToJudge.(*structs.ValueExpr)
@@ -1559,6 +3178,17 @@ InExpr <- left:ValueExpr SPACE "in" L_PAREN valueToJudge:ValueExpr rest:(COMMA V
         ValueList: slice,
         ValueOp: "in",
     }
+    return expr, nil
+}
+
+BoolComparisonExpr <- left:ValueExpr op:EqualityOrInequality right:ValueExpr {
+    expr := &structs.BoolExpr {
+        IsTerminal: true,
+        LeftValue: left.(*structs.ValueExpr),
+        RightValue: right.(*structs.ValueExpr),
+        ValueOp: op.(string),
+    }
+
     return expr, nil
 }
 
@@ -1623,6 +3253,15 @@ ValueExpr <- condition:ConditionExpr {
 
     return expr, nil
 }
+/ multiValueExpr:MultiValueExpr {
+
+    expr := &structs.ValueExpr{
+        ValueExprMode: structs.VEMMultiValueExpr,
+        MultiValueExpr: multiValueExpr.(*structs.MultiValueExpr),
+    }
+
+    return expr, nil
+}
 
 StringExpr <- text:TextExpr !(EVAL_CONCAT) {
     expr := &structs.StringExpr {
@@ -1640,7 +3279,7 @@ StringExpr <- text:TextExpr !(EVAL_CONCAT) {
 
     return expr, nil
 }
-/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
     expr := &structs.StringExpr {
         StringExprMode: structs.SEMField,
         FieldName: field.(string),
@@ -1737,7 +3376,7 @@ NumericExprLevel3 <- first:NumericExprLevel2 rest:((OpPlus / OpMinus) NumericExp
 }
 
 // Returns *structs.NumericExpr
-NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLevel1)* {
+NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv / OpMod) NumericExprLevel1)* {
     if rest == nil {
         return first, nil
     }
@@ -1757,7 +3396,7 @@ NumericExprLevel2 <- first:NumericExprLevel1 rest:((OpMul / OpDiv) NumericExprLe
     return cur, nil
 }
 
-RoundPrecisionExpr <- COMMA expr:NumericExprLevel3 {
+NumericParamExpr <- COMMA expr:NumericExprLevel3 {
     rightNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1794,8 +3433,9 @@ NumericExprLevel1 <- L_PAREN expr:NumericExprLevel3 R_PAREN {
     return expr, nil
 }
 
+// Todo: implement the processing logic for ops: floor, pi, ln, log, sigfig, pow, random, time, relative_time, strftime
 //Currently involves abs, ceil, round, sqrt
-NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
+NumericEvalExpr <- (opName:("abs" / "ceil" / "ceiling" / "sqrt" / "exact" / "exp" / "floor" / "ln" / "sigfig" / "acosh" / "acos" / "asinh" / "asin" / "atanh" / "atan" / "cosh" / "cos" / "sinh" / "sin" / "tanh" / "tan") L_PAREN expr:(NumericExprLevel3) R_PAREN) {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1815,7 +3455,7 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(RoundPrecisionExpr)? R_PAREN {
+/ roundExpr:"round" L_PAREN expr:(NumericExprLevel3) roundPrecision:(NumericParamExpr)? R_PAREN {
     leftNumericExpr, ok := expr.(*structs.NumericExpr)
     if !ok {
         return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
@@ -1836,10 +3476,17 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 
     return node, nil
 }
-/ "now" "()" {
+/ (opName:("now" / "pi" / "random" / "time") L_PAREN R_PAREN) {
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
     return &structs.NumericExpr{
         IsTerminal: true,
-        Op:         "now",
+        Op: opNameStr,
     }, nil
 }
 / "tonumber" L_PAREN stringExpr:StringExpr baseExpr:(COMMA NumericExprLevel3)? R_PAREN {
@@ -1873,6 +3520,81 @@ NumericEvalExpr <- (opName:("abs" / "ceil" / "sqrt"/ "exact"/ "exp") L_PAREN exp
 / lenExpr: "len" L_PAREN expr:LenExpr R_PAREN {
     return expr, nil
 }
+/ (opName:("pow" / "atan2" / "hypot") L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr) R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param == nil {
+        return nil, fmt.Errorf("Function: %v 's param can not be nil", opNameStr)
+    }
+    rightNumericExpr, ok = param.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ (opName:"log" L_PAREN expr:(NumericExprLevel3) param:(NumericParamExpr)? R_PAREN) {
+    leftNumericExpr, ok := expr.(*structs.NumericExpr)
+    if !ok {
+        return nil, fmt.Errorf("Failed to assert expr as *structs.NumericExpr")
+    }
+
+    //transfer []uint8 to string
+    strData, ok := opName.([]byte)
+    if !ok {
+        return nil, fmt.Errorf("opName is not a []byte")
+    }
+
+    opNameStr := string(strData)
+
+    var rightNumericExpr *structs.NumericExpr
+    if param != nil {
+        rightNumericExpr, ok = param.(*structs.NumericExpr)
+        if !ok {
+            return nil, fmt.Errorf("Failed to assert param as *structs.NumericExpr")
+        }
+    }
+
+    node, err := createNumericExpr(opNameStr, leftNumericExpr, rightNumericExpr, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+
+    return node, nil
+}
+/ opName:("relative_time") L_PAREN expr:(NumericExprLevel3) COMMA QUOTE specifier:(RelativeTimeCommandTimestampFormat) QUOTE R_PAREN {
+    opNameStr, err := transferUint8ToString(opName)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: NumericExpr: %v", err)
+    }
+    node, err := createNumericExpr(opNameStr, expr.(*structs.NumericExpr), nil, structs.NEMNumericExpr)
+    if err != nil {
+        return nil, err
+    }
+    relTimeSpecifier, ok := specifier.(utils.RelativeTimeExpr)
+    if !ok {
+        return nil, fmt.Errorf("specifier is not of type RelativeTimeExpr")
+    }
+    node.RelativeTime = relTimeSpecifier
+    return node, nil
+}
 
 LenExpr <- str:QuotedString !(EVAL_CONCAT) {
 
@@ -1890,7 +3612,7 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
 
     return node, nil
 }
-/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / EVAL_CONCAT / "(") {
+/ field:EvalFieldToRead !(OpPlus / OpMinus / OpMul / OpDiv / OpMod / EVAL_CONCAT / "(") {
 
     leftNumericExpr := &structs.NumericExpr{
         IsTerminal: true,
@@ -1907,32 +3629,203 @@ LenExpr <- str:QuotedString !(EVAL_CONCAT) {
     return node, nil
 }
 
+HeadOptionNull <- "null" EQUAL boolVal:Boolean {
+    optionArg := &HeadOptionArgs{
+        argOption: "null",
+        headExpr: &structs.HeadExpr{
+            Null: boolVal.(bool),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionKeeplast <- "keeplast" EQUAL boolVal:Boolean {
+    optionArg := &HeadOptionArgs{
+        argOption: "keeplast",
+        headExpr: &structs.HeadExpr{
+            Keeplast: boolVal.(bool),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionLimit <- "limit" EQUAL intAsStr:IntegerAsString {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+    optionArg := &HeadOptionArgs{
+        argOption: "limit",
+        headExpr: &structs.HeadExpr{
+            MaxRows: limit,
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOptionExpr <- boolExpr:BoolExpr {
+    optionArg := &HeadOptionArgs{
+        argOption: "boolexpr",
+        headExpr: &structs.HeadExpr{
+            BoolExpr: boolExpr.(*structs.BoolExpr),
+        },
+    }
+
+    return optionArg, nil
+}
+
+HeadOption <- option:(HeadOptionKeeplast / HeadOptionNull / HeadOptionLimit / HeadOptionExpr) {
+    return option, nil
+}
+
+HeadOptionList <- first: HeadOption rest: (SPACE HeadOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]struct{})
+
+    numOptions := 1 + len(restSlice)
+
+    headExpr := &structs.HeadExpr{}
+
+    for i := 0; i < numOptions; i++ {
+        var headOptArg *HeadOptionArgs
+        if i == 0 {
+            headOptArg = first.(*HeadOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            headOptArg = separator[1].(*HeadOptionArgs)
+        }
+
+        argOption := headOptArg.argOption
+        _, exist := optionWasSpecified[argOption]
+        if exist {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = struct{}{}
+
+        switch argOption {
+            case "null":
+                headExpr.Null = headOptArg.headExpr.Null
+            case "keeplast":
+                headExpr.Keeplast = headOptArg.headExpr.Keeplast
+            case "limit":
+                headExpr.MaxRows = headOptArg.headExpr.MaxRows
+            case "boolexpr":
+                headExpr.BoolExpr = headOptArg.headExpr.BoolExpr
+            default:
+                return nil, fmt.Errorf("Not a Valid HeadOption: %v", argOption)
+        }
+    }
+
+    if headExpr.BoolExpr == nil {
+        if headExpr.Null {
+            return nil, fmt.Errorf("Invalid Syntax, null option can only be present with condition boolean expression")
+        }
+        if headExpr.Keeplast {
+            return nil, fmt.Errorf("Invalid Syntax, keeplast option can only be present with condition boolean expression")
+        }
+    } else {
+        _, hasLimit := optionWasSpecified["limit"]
+        if !hasLimit {
+            headExpr.MaxRows = math.MaxUint64
+        }
+    }
+
+    return headExpr, nil
+} 
+
+
 // Returns *structs.QueryAggregators
-HeadBlock <- PIPE CMD_HEAD ("limit" EQUAL)? intAsStr:IntegerAsString {
+HeadBlock <- PIPE CMD_HEAD headExpr:HeadOptionList {
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            HeadRequest: headExpr.(*structs.HeadExpr),
+        },
+        HeadExpr: headExpr.(*structs.HeadExpr),
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_HEAD intAsStr:IntegerAsString {
     limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
     if err != nil {
         return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
     }
 
+    headExpr := &structs.HeadExpr{
+        MaxRows: limit,
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            MaxRows: limit,
+            HeadRequest: headExpr,
         },
+        HeadExpr: headExpr,
     }
 
     return queryAgg, nil
 }
 / PIPE CMD_HEAD_NO_SPACE {
+
+    headExpr := &structs.HeadExpr{
+        MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+    }
+
     queryAgg := &structs.QueryAggregators {
         PipeCommandType: structs.OutputTransformType,
         OutputTransforms: &structs.OutputTransforms {
-            MaxRows: uint64(10), // From https://docs.splunk.com/Documentation/Splunk/9.1.0/SearchReference/Head
+            HeadRequest: headExpr,
         },
+        HeadExpr: headExpr,
     }
 
     return queryAgg, nil
 }
+
+// Returns *structs.QueryAggregators
+TailBlock <- PIPE CMD_TAIL intAsStr:IntegerAsString {
+    limit, err := strconv.ParseUint(intAsStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid limit (%v): %v", intAsStr.(string), err)
+    }
+
+    tExpr := &structs.TailExpr{
+        TailRecords: make(map[string]map[string]interface{}, 0),
+        TailRows: limit,
+    }
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            TailRequest: tExpr,
+        },
+        TailExpr: tExpr,
+    }
+
+    return queryAgg, nil
+}
+/ PIPE CMD_TAIL_NO_SPACE {
+
+    tExpr := &structs.TailExpr{
+        TailRecords: make(map[string]map[string]interface{}, 0),
+        TailRows: uint64(10), // From https://docs.splunk.com/Documentation/SplunkCloud/9.1.2308/SearchReference/Tail
+    }
+
+    queryAgg := &structs.QueryAggregators {
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms {
+            TailRequest: tExpr,
+        },
+        TailExpr: tExpr,
+    }
+
+    return queryAgg, nil
+}
+
 
 // Parses one or more AggFunctions separated by a comma and space.
 // Returns a slice containing all the AggFunctions.
@@ -1969,8 +3862,18 @@ Aggregator <- aggFunc:AggFunction asField:AsField? {
 // 1. min, max, sum, avg, and range can only evaluate boolComparisonExpr, as they need to compute the field value inside the expression. There should be only one field.
 // 2. count can evaluate boolExpr because it does not care about the field value inside the expression. It only cares about whether the current row should be counted or not.
 // 3. distinctCount and values can evaluate valueExpr because they just need to find out the distinct values of the result of the expression. As for the type of the expression result, it is not important.
-AggFunction <- agg:(AggCount / AggDistinctCount / AggAvg / AggMin / AggMax / AggRange / AggSum / AggValues) {
+AggFunction <- agg:(AggCount / AggPercCommon / AggCommon) {
     return agg, nil
+}
+
+// TODO Processing Logic: varp, var, sumsq, stdevp, stdev, rate, range, mode, mean, median, latest_time, latest, last, first, estdc_error, estdc, earliest_time, earliest
+CommonAggName <- ("values" / "varp" / "var" / "sumsq" / "sum" / "stdevp" / "stdev" / "rate" / "range" / "mode" / "min" / "median" / "mean" / "max" / 
+"list" / "latest_time" / "latest" / "last" / "first" / "estdc_error" / "estdc" / "earliest_time" / "earliest" / "distinct_count" / "dc" / "avg") {
+    return string(c.text), nil
+}
+
+CommonPercAggName <- ("upperperc" / "exactperc" / "perc") {
+    return string(c.text), nil
 }
 
 AsField <- AS field: (FieldName / String) {
@@ -1987,17 +3890,12 @@ AsField <- AS field: (FieldName / String) {
     return fieldStr, nil
 }
 
-AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolExpr.(*structs.BoolExpr),
-    }
-
+AggCount <- ("count" / "c") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
         MeasureFunc: utils.Count,
         StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
+        ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
@@ -2018,163 +3916,78 @@ AggCount <- ("count" / "c") L_PAREN "eval" boolExpr:BoolExpr R_PAREN {
     return agg, nil
 }
 
-AggDistinctCount <- ("distinct_count" / "dc") L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+AggCommon <- aggName:CommonAggName L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == utils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
-        MeasureFunc: utils.Cardinality,
+        MeasureFunc: measureFunc,
         StrEnc: string(c.text),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
     }
 
     return agg, nil
 }
-/ ("distinct_count" / "dc") L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonAggName L_PAREN field:FieldName R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == utils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
-        MeasureFunc: utils.Cardinality,
+        MeasureFunc: measureFunc,
     }
 
     return agg, nil
 }
 
-AggAvg <- "avg" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
+PercentileStr <- numStr:(FloatAsString / IntegerAsString) {
+    floatVal, err := strconv.ParseFloat(numStr.(string), 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid percentage value: %v", numStr.(string))
+    }
+    if floatVal < 0 || floatVal > 100 {
+        return nil, fmt.Errorf("Invalid percentage value must be between 0 and 100: %v", numStr.(string))
+    }
+
+    return numStr.(string), nil
+}
+
+AggPercCommon <- aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == utils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
     }
 
     agg := &structs.MeasureAggregator {
         MeasureCol: "",
-        MeasureFunc: utils.Avg,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-    }
-
-    return agg, nil
-}
-/ "avg" L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.Avg,
-    }
-
-    return agg, nil
-}
-
-AggMin <- "min" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.Min,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-    }
-
-    return agg, nil
-}
-/ "min" L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.Min,
-    }
-
-    return agg, nil
-}
-
-AggMax <- "max" L_PAREN "eval" L_PAREN  boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.Max,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-    }
-
-    return agg, nil
-}
-/ "max" L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.Max,
-    }
-
-    return agg, nil
-}
-
-AggRange <- "range" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.Range,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-    }
-
-    return agg, nil
-}
-/ "range" L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.Range,
-    }
-
-    return agg, nil
-}
-
-AggSum <- "sum" L_PAREN "eval" L_PAREN boolComparisonExpr:BoolComparisonExpr R_PAREN R_PAREN {
-    valueExpr := &structs.ValueExpr {
-        ValueExprMode: structs.VEMBooleanExpr,
-        BooleanExpr: boolComparisonExpr.(*structs.BoolExpr),
-    }
-
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.Sum,
-        StrEnc: string(c.text),
-        ValueColRequest: valueExpr,
-    }
-
-    return agg, nil
-}
-/ "sum" L_PAREN field:FieldName R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: field.(string),
-        MeasureFunc: utils.Sum,
-    }
-
-    return agg, nil
-}
-
-AggValues <- "values" L_PAREN "eval" valueExpr:ValueExpr R_PAREN {
-    agg := &structs.MeasureAggregator {
-        MeasureCol: "",
-        MeasureFunc: utils.Values,
+        MeasureFunc: measureFunc,
         StrEnc: string(c.text),
         ValueColRequest: valueExpr.(*structs.ValueExpr),
+        Param: percentileStr.(string),
     }
 
     return agg, nil
 }
-/ "values" L_PAREN field:FieldName R_PAREN {
+/ aggName:CommonPercAggName percentileStr:PercentileStr L_PAREN field:FieldName R_PAREN {
+    measureFunc := GetAggregateFunction(aggName.(string))
+    if measureFunc == utils.Invalid {
+        return nil, fmt.Errorf("Invalid measure function: %v", string(c.text))
+    }
+
     agg := &structs.MeasureAggregator {
         MeasureCol: field.(string),
-        MeasureFunc: utils.Values,
+        MeasureFunc: measureFunc,
+        Param: percentileStr.(string),
     }
 
     return agg, nil
 }
+
 
 FieldWithNumberValue <- keyValuePair:(NamedFieldWithNumberValue / UnnamedFieldWithNumberValue) {
     return keyValuePair, nil
@@ -2223,28 +4036,50 @@ FieldWithStringValue <- keyValuePair:(NamedFieldWithStringValue / UnnamedFieldWi
     return keyValuePair, nil
 }
 
-NamedFieldWithStringValue <- key:FieldName op:EqualityOperator value:String {
+NamedFieldWithStringValue <- key:FieldName op:EqualityOperator stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
+    ssr := stringSearchReq.(*StringSearchRequest)
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
         Comparison:ast.Comparison{
             Op: op.(string),
             Field: key.(string),
-            Values: value,
+            Values: ssr.value,
+            OriginalValues: ssr.originalValue,
+            CaseInsensitive: ssr.caseInsensitive,
         },
     }
     return node, nil
 }
 
-UnnamedFieldWithStringValue <- value:String {
+UnnamedFieldWithStringValue <- stringSearchReq:(CaseSensitiveString / CaseInsensitiveString) {
+    ssr := stringSearchReq.(*StringSearchRequest)
     node := &ast.Node{
         NodeType: ast.NodeTerminal,
         Comparison:ast.Comparison{
             Op: "=",
             Field: "*",
-            Values: value,
+            Values: ssr.value,
+            OriginalValues: ssr.originalValue,
+            CaseInsensitive: ssr.caseInsensitive,
         },
     }
     return node, nil
+}
+
+CaseSensitiveString <- "CASE" L_PAREN value:String R_PAREN {
+    return &StringSearchRequest{
+        value: value,
+        originalValue: value,
+        caseInsensitive: false,
+    }, nil
+}
+
+CaseInsensitiveString <- value:String {
+    return &StringSearchRequest{
+        value: strings.ToLower(value.(string)),
+        originalValue: value,
+        caseInsensitive: true,
+    }, nil
 }
 
 // Parses one or more FieldNames separated by a comma and space.
@@ -2266,10 +4101,245 @@ FieldNameList <- first:FieldName rest:(COMMA FieldName)* {
     return fields, nil
 }
 
+TimeModifiers <- EarliestAndLatest / EarliestOnly
+
+EarliestAndLatest <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) SPACE CMD_LATEST EQUAL latestTime:(AbsoluteTimestamp / RelativeTimestamp) {
+    var startEpoch int64 = 0
+    var endEpoch int64 = 0
+    var err error
+
+    earliestTimeModifier := earliestTime.(ast.TimeModifier)
+    latestTimeModifier := latestTime.(ast.TimeModifier)
+
+    currTime := time.Now()
+    startEpoch, err = CalculateRelativeTime(earliestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
+	}
+
+    // Apply chained modifiers to the start epoch
+    startEpoch, err = applyTimeModifiers(startEpoch, earliestTimeModifier.ChainedOffsets, earliestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
+    }
+
+    endEpoch, err = CalculateRelativeTime(latestTimeModifier, currTime)
+    if err != nil {
+        return nil, err
+    }
+    endEpoch, err = applyTimeModifiers(endEpoch, latestTimeModifier.ChainedOffsets, latestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(endEpoch),
+        },
+    }
+
+    return node, nil
+}
+
+EarliestOnly <- CMD_EARLIEST EQUAL earliestTime:(AbsoluteTimestamp / RelativeTimestamp) {
+    var startEpoch int64 = 0
+    var err error
+
+    earliestTimeModifier := earliestTime.(ast.TimeModifier)
+
+    startEpoch, err = CalculateRelativeTime(earliestTimeModifier, time.Now())
+    if err != nil {
+        return nil, err
+    }
+    
+    startEpoch, err = applyTimeModifiers(startEpoch, earliestTimeModifier.ChainedOffsets, earliestTimeModifier.ChainedSnaps)
+    if err != nil {
+        return nil, err
+    }
+
+    // Create AST node
+    node := &ast.Node{
+        NodeType: ast.TimeModifierNode,
+        TimeModifiers: &ast.TimeModifiers{
+            StartEpoch: uint64(startEpoch),
+            EndEpoch: uint64(time.Now().UnixMilli()),
+        },
+    }
+
+    return node, nil
+}
+
+RelIntegerAsString <- [-+][0-9]* {
+    return string(c.text), nil
+}
+
+WeekSnap <- ('w'[0-7]) {
+    return string(c.text), nil
+}
+
+RelTimeUnit <- timeUnit:(AllTimeScale) {
+    if utils.IsSubseconds(timeUnit.(utils.TimeUnit)) {
+        return nil, fmt.Errorf("Relative Time Format does not support subseconds")
+    }
+    return strconv.Itoa(int(timeUnit.(utils.TimeUnit))), nil
+}
+
+Snap <- '@' snap:(WeekSnap / RelTimeUnit) {
+    return snap.(string), nil
+}
+
+Offset <- off:(RelIntegerAsString) tuOff:(RelTimeUnit) {
+    var offsetNum int64 = 0
+    var err error
+    offStr := off.(string)
+    if offStr == "+" {
+        offsetNum = 1
+    } else if offStr == "-" {
+        offsetNum = -1
+    } else {
+        offsetNum, err = strconv.ParseInt(offStr, 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Invalid Relative Time Format time unit value: (%v): , err: %v", offStr, err)
+        }
+    }
+
+    timeUnit, err := strconv.Atoi(tuOff.(string))
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Time Unit value: (%v), err: %v", tuOff.(string), err)
+    }
+
+    relTimeOffset := ast.RelativeTimeOffset{
+        Offset: offsetNum,
+        TimeUnit: utils.TimeUnit(timeUnit),
+    }
+
+    return relTimeOffset, nil
+}
+
+ChainedRelativeTimestamp <- first:(Offset / Snap) rest:((Offset / Snap)*) {
+    var offsets []ast.RelativeTimeOffset
+    var snaps []string
+
+    // Append zero values to ensure corresponding offsets and snaps
+    // This ensures that each snap and offset correspond to the same index
+    appendDefaultValues := func() {
+        if len(offsets) > len(snaps) {
+            snaps = append(snaps, "")
+        } else if len(snaps) > len(offsets) {
+            offsets = append(offsets, ast.RelativeTimeOffset{})
+        }
+    }
+
+    // Process the first element
+    if first != nil {
+        switch v := first.(type) {
+        case ast.RelativeTimeOffset:
+            offsets = append(offsets, v)
+            snaps = append(snaps, "") // Append default value for Snap
+        case string:
+            snaps = append(snaps, v)
+            offsets = append(offsets, ast.RelativeTimeOffset{}) // Append default value for Offset
+        }
+    }
+
+    // Process the rest of the elements
+    restSlice := rest.([]any)
+    for _, item := range restSlice {
+        switch v := item.(type) {
+        case ast.RelativeTimeOffset:
+            offsets = append(offsets, v)
+            appendDefaultValues() // Ensure corresponding Snap
+        case string:
+            snaps = append(snaps, v)
+            appendDefaultValues() // Ensure corresponding Offset
+        }
+    }
+
+    timeModifier := ast.TimeModifier{
+        ChainedOffsets: offsets,
+        ChainedSnaps: snaps,
+    }
+
+    return timeModifier, nil
+}
+
+RelativeTimestamp <- defaultTime:("now" / "1")? chained:(ChainedRelativeTimestamp)? {
+
+    if defaultTime != nil {
+        if chained != nil {
+            return nil, fmt.Errorf("Invalid Relative timestamp, cannot combine default with chained offsets/snaps")
+        }
+        defTime, err := transferUint8ToString(defaultTime)
+        if err != nil {
+            return nil, fmt.Errorf("Spl peg: Relative timestamp for default time, err: %v", err)
+        }
+
+        timeModifier := ast.TimeModifier{
+            AbsoluteTime: defTime,
+        }
+
+        return timeModifier, nil
+    }
+
+    if chained == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need chained offsets or snaps")
+    }
+
+    return chained, nil
+}
+
+RelativeTimeCommandTimestampFormat <- offset:(Offset)? snapParam:(Snap)? {
+
+    if offset == nil && snapParam == nil {
+        return nil, fmt.Errorf("Invalid Relative Time Format: Need either offset or snap param")
+    }
+
+    relTimeOffset := utils.RelativeTimeExpr{}
+    snap := ""
+    if snapParam != nil {
+        snap = snapParam.(string)
+    }
+
+    if offset != nil {
+        relTimeOffset.Offset = offset.(ast.RelativeTimeOffset).Offset
+        relTimeOffset.TimeUnit = offset.(ast.RelativeTimeOffset).TimeUnit
+    } 
+
+    timeModifier := utils.RelativeTimeExpr{
+		Offset: relTimeOffset.Offset,
+		Snap:   snap,
+		TimeUnit: relTimeOffset.TimeUnit,
+    }
+
+    return timeModifier, nil
+}
+
+
+FullTimeStamp <- [0-9][0-9] '/' [0-9][0-9] '/' [0-9][0-9][0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] ':' [0-9][0-9] {
+    return string(c.text), nil
+}
+
+AbsoluteTimestamp <- timestamp:FullTimeStamp {
+    relTimeModifier := ast.TimeModifier{
+        AbsoluteTime: timestamp.(string),
+    }
+    return relTimeModifier, nil
+}
+
 // From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
 // This allows wildcards in a FieldName, but wildcard fields are not allowed in
 // some places; those rules should check whether the field has a wildcard.
 FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
+    return string(c.text), nil
+}
+/ QuotedString {
+    return removeQuotes(string(c.text)), nil
+}
+
+FieldNameStartWith_ <- [a-zA-Z0-9:_.*][a-zA-Z0-9:_.*]* {
     return string(c.text), nil
 }
 
@@ -2282,15 +4352,22 @@ QuotedString <- '"' [^"]* '"' {
     return string(c.text), nil
 }
 
-Boolean <- ("true" / "false") {
-    boolValue, _ := strconv.ParseBool(string(c.text))
-    return boolValue, nil
-}
-
 UnquotedString <- ("*" / (!(MAJOR_BREAK / "|" / EOF) .))+ {
     // Return the string wrapped in quotes.
     str := "\"" + string(c.text) + "\""
     return str, nil
+}
+
+
+AllowedChar <- [a-zA-Z0-9:_{}@.] / ("{" [0-9]* "}")
+
+UnquotedStringWithTemplateWildCard <- (AllowedChar / !(MAJOR_BREAK / "|" / EOF) .)+ {
+    return string(c.text), nil
+}
+
+Boolean <- ("true" / "false") {
+    boolValue, _ := strconv.ParseBool(string(c.text))
+    return boolValue, nil
 }
 
 //Can recognize fieldName or Regex Pattern for Rename Block
@@ -2317,6 +4394,18 @@ FloatAsString <- [-+]? [0-9]* "." [0-9]+ {
 // Allow leading zeros and a "+" before the number.
 IntegerAsString <- [-+]? [0-9]+ {
     return string(c.text), nil
+}
+
+PositiveIntegerAsString <- [0-9]+ {
+    return string(c.text), nil
+}
+
+PositiveInteger <- intStr:PositiveIntegerAsString {
+    num, err := strconv.ParseUint(intStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Spl peg: Invalid Positive Integer value: (%v): , err: %v", intStr.(string), err)
+    }
+    return num, nil
 }
 
 EqualityOperator <- EMPTY_OR_SPACE op:("=" / "!=") EMPTY_OR_SPACE {
@@ -2358,6 +4447,10 @@ OpDiv <- EMPTY_OR_SPACE "/" EMPTY_OR_SPACE {
     return "/", nil
 }
 
+OpMod <- EMPTY_OR_SPACE "%" EMPTY_OR_SPACE {
+    return "%", nil
+}
+
 // Add Empty space here
 Second <- ("seconds" / "second" / "secs" / "sec" / "s") {
     return utils.TMSecond, nil
@@ -2387,6 +4480,10 @@ Quarter <- ("quarters" / "quarter" / "qtrs" / "qtr" / "q") {
     return utils.TMQuarter, nil
 }
 
+Year <- ("years" / "year" / "yrs" / "yr" / "y") {
+    return utils.TMYear, nil
+}
+
 // Might not has effect for 'us', because smallest time unit for timestamp in siglens is ms
 Subseconds <- ("us" / "ms" / "cs" / "ds") {
     timeUnit, err := utils.ConvertSubseconds(string(c.text))
@@ -2401,6 +4498,7 @@ TransactionBlock <- PIPE CMD_TRANSACTION txnOptions:TransactionOptions {
     queryAgg := &structs.QueryAggregators{
         PipeCommandType: structs.TransactionType,
         TransactionArguments: txnOptions.(*structs.TransactionArguments),
+        TransactionExpr: txnOptions.(*structs.TransactionArguments),
     }
     return queryAgg, nil
 }
@@ -2456,24 +4554,15 @@ TransactionDefinitionOptionsList <- first:TransactionDefinitionOption rest:(SPAC
     return txnArgs, nil
 }
 
-TransactionDefinitionOption <- option:(SpaceSeparatedFieldNameList / StartsWithOption / EndsWithOption) {
+TransactionDefinitionOption <- option:(TransactionSpaceSeparatedFieldList / StartsWithOption / EndsWithOption) {
     return option, nil
 }
 
-// Parses one or more FieldNames separate by a space
-// Returns a slice containing all the FieldNames
-SpaceSeparatedFieldNameList <- first:FieldName !(EQUAL) rest:(SPACE FieldName !(EQUAL))* {
-    var fields []string
-    fields = append(fields, first.(string))
-    for _, r := range rest.([]any) {
-        // Extracting the field name from the tuple (SPACE, FieldName)
-        fields = append(fields, r.([]any)[1].(string))
-    }
-
+TransactionSpaceSeparatedFieldList <- fields:SpaceSeparatedFieldNameList {
     txnArg := &TxnArgs{
         argOption: "fields",
         arguments: &structs.TransactionArguments{
-            Fields: fields,
+            Fields: fields.([]string),
         },
     }
 
@@ -2548,16 +4637,711 @@ TransactionEval <- "eval" EMPTY_OR_SPACE L_PAREN condition:BoolExpr R_PAREN {
     return filterStrExpr, nil
 }
 
+// Returns *structs.QueryAggregators
+// Can Add more Multi Value StandAlone Commands by setting => mvQueryAggNode: (MakeMVBlock / MVCombineBlock / ...)
+MultiValueBlock <- PIPE mvQueryAggNode: (MakeMVBlock) {
+    return mvQueryAggNode, nil
+}
 
-// All cmd expect CMD_SEARCH
-ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT)
+MakeMVBlock <- CMD_MAKEMV SPACE mvColOptionExpr: MVBlockOptionsList? EMPTY_OR_SPACE field:FieldName {
+    var mvColExpr *structs.MultiValueColLetRequest
+
+    if mvColOptionExpr != nil {
+        mvColExpr = mvColOptionExpr.(*structs.MultiValueColLetRequest)
+    } else {
+        mvColExpr = &structs.MultiValueColLetRequest{}
+    }
+
+    mvColExpr.Command = "makemv"
+    mvColExpr.ColName = field.(string)
+
+    if mvColExpr.DelimiterString == "" {
+        mvColExpr.DelimiterString = " "  // default single space
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                MultiValueColRequest: mvColExpr,
+            },
+        },
+        MakeMVExpr: mvColExpr,
+    }
+
+    return queryAgg, nil
+}
+
+MVBlockOptionsList <- first: (MVBlockOption) rest: (SPACE MVBlockOption)* {
+    restSlice := rest.([]any)
+
+    numOptions := 1 + len(restSlice)
+
+    mvColExpr := &structs.MultiValueColLetRequest{}
+
+    for i := 0; i < numOptions; i++ {
+        var currMvColExpr *MultiValueColOptionArgs
+        if i == 0 {
+            currMvColExpr = first.(*MultiValueColOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            currMvColExpr = separator[1].(*MultiValueColOptionArgs)
+        }
+
+        argOption := currMvColExpr.argOption
+
+        switch argOption {
+            case "delimiter":
+                mvColExpr.DelimiterString = currMvColExpr.mvColExpr.DelimiterString
+                mvColExpr.IsRegex = currMvColExpr.mvColExpr.IsRegex
+            case "allowempty":
+                mvColExpr.AllowEmpty = currMvColExpr.mvColExpr.AllowEmpty
+            case "setsv":
+                mvColExpr.Setsv = currMvColExpr.mvColExpr.Setsv
+            default:
+                return nil, fmt.Errorf("Not a Valid MVBlockOption: %v", argOption)
+        }
+    }
+
+    return mvColExpr, nil
+}
+
+MVBlockOption <- option: (DelimOption / AllowEmptyOption / SetSvOption) {
+    return option, nil
+}
+
+DelimOption <- delimExpr: (StringDelimiter / RegexDelimiter) {
+    return delimExpr, nil
+}
+
+StringDelimiter <- "delim" EQUAL str:QuotedString {
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "delimiter",
+        mvColExpr : &structs.MultiValueColLetRequest{
+            DelimiterString: removeQuotes(str),
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+RegexDelimiter <- "tokenizer" EQUAL str:QuotedString {
+    pattern := removeQuotes(str)
+    _, err := regexp.Compile(pattern)
+    if err != nil {
+        return nil, fmt.Errorf("Error parsing tokenizer regular expression: %v. Error: %v", pattern, err)
+    }
+
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "delimiter",
+        mvColExpr: &structs.MultiValueColLetRequest{
+            DelimiterString: pattern,
+            IsRegex: true,
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+AllowEmptyOption <- "allowempty" EQUAL boolVal:Boolean {
+
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "allowempty", 
+        mvColExpr: &structs.MultiValueColLetRequest{
+            AllowEmpty: boolVal.(bool),
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+SetSvOption <- "setsv" EQUAL boolVal:Boolean {
+    mvColOptionArgs := &MultiValueColOptionArgs{
+        argOption: "setsv",
+        mvColExpr: &structs.MultiValueColLetRequest{
+            Setsv: boolVal.(bool),
+        },
+    }
+
+    return mvColOptionArgs, nil
+}
+
+// returns *structs.QueryAggregators
+SPathBlock <- PIPE CMD_SPATH spathExpr:SPathArgumentsList? {
+    if spathExpr == nil {
+        return createSPathExpr("", "", "")
+    }
+    return spathExpr, nil
+}
+
+SPathArgumentsList <- SPACE first:SPathArgument rest:(SPACE SPathArgument)* {
+
+    restSlice := rest.([]any)
+
+    inputField, pathField, outputField := "", "", ""
+
+    numArgs := 1 + len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "input="):
+            inputField = strings.TrimPrefix(arg, "input=")
+        case strings.HasPrefix(arg, "output="):
+            outputField = strings.TrimPrefix(arg, "output=")
+        case strings.HasPrefix(arg, "path="):
+            pathField = strings.TrimPrefix(arg, "path=")
+        default:
+            return nil, fmt.Errorf("SPathArguments: Invalid Spath Argument: %v", arg)
+        }
+    }
+    
+    return createSPathExpr(inputField, pathField, outputField)
+}
+
+SPathArgument <- arg:(InputField / OutputField / PathField) {
+    return arg, nil
+}
+
+InputField <- "input" EQUAL field:FieldName {
+    return "input=" + field.(string), nil
+}
+OutputField <- "output" EQUAL field:FieldName {
+    return "output=" + field.(string), nil
+}
+PathField <- ("path" EQUAL SPathFieldString / SPathFieldString ) {
+     pathField := string(c.text)
+    if strings.HasPrefix(pathField, "path") {
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path="))
+        pathField = strings.TrimSpace(strings.TrimPrefix(pathField, "path ="))
+        if pathField != "" && pathField[0] == '"' {
+            pathField = removeQuotes(pathField)
+        }
+    }
+    return "path=" + pathField, nil
+}
+
+SPathFieldString <- QuotedString / UnquotedStringWithTemplateWildCard
+
+// Returns *structs.QueryAggregators
+FormatBlock <- PIPE CMD_FORMAT formatArgExpr:FormatArgumentsList? {
+    var formatResultExpr *structs.FormatResultsRequest
+
+    if formatArgExpr != nil {
+        formatResultExpr = formatArgExpr.(*structs.FormatResultsRequest)
+    } else {
+        formatResultExpr = getDefaultFormatResultsExpr()
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                NewColName: "search",
+                FormatResults: formatResultExpr,
+            },
+        },
+    }
+
+    return queryAgg, nil
+}
+
+FormatArgumentsList <- SPACE first: FormatArgument rest:(SPACE FormatArgument)* {
+    restSlice := rest.([]any)
+
+    numOptions := 1 + len(restSlice)
+
+    formatResultExpr := getDefaultFormatResultsExpr()
+
+    for i := 0; i < numOptions; i++ {
+        var currFormatExpr *FormatResultsRequestArguments
+
+        if i == 0{
+            currFormatExpr = first.(*FormatResultsRequestArguments)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            currFormatExpr = separator[1].(*FormatResultsRequestArguments)
+        }
+
+        switch currFormatExpr.argOption {
+            case "mvsep":
+                formatResultExpr.MVSeparator = currFormatExpr.formatResultExpr.MVSeparator
+            case "maxresults":
+                formatResultExpr.MaxResults = currFormatExpr.formatResultExpr.MaxResults
+            case "emptystr":
+                formatResultExpr.EmptyString = currFormatExpr.formatResultExpr.EmptyString
+            case "rowColOptions":
+                formatResultExpr.RowColOptions = currFormatExpr.formatResultExpr.RowColOptions
+            default:
+                return nil, fmt.Errorf("not a valid Format Result Argument: %v", currFormatExpr.argOption)
+        }
+    }
+
+    return formatResultExpr, nil
+}
+
+FormatArgument <- argExpr:(FormatSeparator / FormatMaxResults / FormatEmptyStr / FormatRowColOptions) {
+    return argExpr, nil
+}
+
+FormatSeparator <- "mvsep" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "mvsep",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MVSeparator: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatMaxResults <- "maxresults" EQUAL numStr:IntegerAsString {
+    num, err := strconv.ParseUint(numStr.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid Max results value is set for format: (%v): Error=%v", numStr.(string), err)
+    }
+    return &FormatResultsRequestArguments{
+        argOption: "maxresults",
+        formatResultExpr: &structs.FormatResultsRequest{
+            MaxResults: num,
+        },
+    }, nil
+}
+
+FormatEmptyStr <- "emptystr" EQUAL str:QuotedString {
+    return &FormatResultsRequestArguments{
+        argOption: "emptystr",
+        formatResultExpr: &structs.FormatResultsRequest{
+            EmptyString: removeQuotes(str),
+        },
+    }, nil
+}
+
+FormatRowColOptions <- rowPrefix:QuotedString SPACE colPrefix:QuotedString SPACE colSeparator:QuotedString SPACE colEnd:QuotedString SPACE rowSeparator:QuotedString SPACE rowEnd:QuotedString {
+    rowColOptions := &structs.RowColOptions{
+        RowPrefix: removeQuotes(rowPrefix),       
+        ColumnPrefix: removeQuotes(colPrefix),    
+        ColumnSeparator: removeQuotes(colSeparator), 
+        ColumnEnd: removeQuotes(colEnd),       
+        RowSeparator: removeQuotes(rowSeparator),    
+        RowEnd: removeQuotes(rowEnd),          
+    }
+
+    return &FormatResultsRequestArguments{
+        argOption: "rowColOptions",
+        formatResultExpr: &structs.FormatResultsRequest{
+            RowColOptions: rowColOptions,
+        },
+    }, nil
+}
+
+EventCountBlock <- PIPE CMD_EVENTCOUNT eventCountExpr:EventCountArgumentsList? {
+	if eventCountExpr == nil {
+		return createEventCountExpr([]string{"*"}, true, false, true)
+	}
+	return eventCountExpr, nil
+}
+
+EventCountArgumentsList <- SPACE first:EventCountArgument? rest:(SPACE EventCountArgument)* {
+
+    restSlice := rest.([]any)
+
+    indices := []string{}
+    list_vix, report_size, summarize := true, false, true
+
+    numArgs := 0
+    if first != nil {
+        numArgs++
+    }
+    numArgs += len(restSlice)
+
+    for i := 0; i < numArgs; i++ {
+        var arg string
+        if i == 0 && first != nil {
+            arg = first.(string)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            arg = separator[1].(string)
+        }
+
+        switch {
+        case strings.HasPrefix(arg, "index="):
+            indices = append(indices, strings.TrimPrefix(arg, "index="))
+        case strings.HasPrefix(arg, "list_vix="):
+            var err error
+            list_vix, err = strconv.ParseBool(strings.TrimPrefix(arg, "list_vix="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for list_vix: %v", err)
+            }
+        case strings.HasPrefix(arg, "report_size="):
+            var err error
+            report_size, err = strconv.ParseBool(strings.TrimPrefix(arg, "report_size="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for report_size: %v", err)
+            }
+        case strings.HasPrefix(arg,"summarize="):
+            var err error
+            summarize, err = strconv.ParseBool(strings.TrimPrefix(arg, "summarize="))
+            if err != nil {
+                return nil, fmt.Errorf("EventCountArguments: Invalid value for summarize: %v", err)
+            }
+        default:
+            return nil, fmt.Errorf("EventCountArguments: Invalid EventCount Argument: %v", arg)
+        }
+    }
+
+    // If no indices were provided, use the default value "*"
+    if len(indices) == 0 {
+        indices = append(indices, "*")
+    }
+
+    return createEventCountExpr(indices, list_vix, report_size, summarize)
+}
+
+EventCountArgument <- arg:(IndexField / SummarizeField / ReportSizeField / ListVixField) {
+    return arg, nil
+}
+
+IndexField <- "index" EQUAL index:IndexName {
+    return "index=" + index.(string), nil
+}
+SummarizeField <- "summarize" EQUAL field:Boolean {
+    return "summarize=" + strconv.FormatBool(field.(bool)), nil
+}
+ReportSizeField <- "report_size" EQUAL field:Boolean {
+    return "report_size=" + strconv.FormatBool(field.(bool)), nil
+}
+ListVixField <- "list_vix" EQUAL field:Boolean {
+    return "list_vix=" + strconv.FormatBool(field.(bool)), nil
+}
+
+IndexName <- (!SPACE .)+ {
+	return string(c.text), nil
+}
+
+// return *structs.QueryAggregators
+FillNullBlock <- PIPE CMD_FILLNULL valueOption: FillNullValueOption? fields:FillNullFieldList? {
+    valueStr := "0"
+    fieldList := make([]string, 0)
+
+    if valueOption != nil {
+        valueStr = valueOption.(string)
+    }
+
+    if fields != nil {
+        fieldList = fields.([]string)
+    }
+
+    fillNullExpr := &structs.FillNullExpr{
+        Value: valueStr,
+        FieldList: fieldList,
+    }
+	fillNullExpr.Records = make(map[string]map[string]interface{}, 0)
+	fillNullExpr.FinalCols = make(map[string]bool, 0)
+
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                FillNullRequest: fillNullExpr,
+            },
+        },
+        FillNullExpr: fillNullExpr,
+    }, nil
+}
+
+FillNullValueOption <- SPACE "value" EQUAL str:String {
+    return removeQuotes(str), nil
+}
+
+FillNullFieldList <- SPACE fieldList:SpaceSeparatedFieldNameList {
+    return fieldList, nil
+}
+
+MvexpandBlock <- PIPE CMD_MVEXPAND field:MvexpandField limitStr:MvexpandLimit? {
+    limit := toputils.NewUnsetOption[int64]()
+    if limitStr != nil {
+        value, err := strconv.ParseInt(limitStr.(string), 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("Error parsing limit value: %v", err)
+        }
+
+        limit.Set(value)
+    }
+
+    mvexpandExpr := &structs.MultiValueColLetRequest{
+        Command: "mvexpand",
+        ColName: field.(string),
+        Limit: limit,
+    }
+
+    queryAgg := &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: &structs.LetColumnsRequest{
+                MultiValueColRequest: mvexpandExpr,
+            },
+        },
+        MVExpandExpr: mvexpandExpr,
+    }
+    return queryAgg, nil
+}
+
+MvexpandField <- SPACE fieldName:FieldName {
+    return fieldName, nil
+}
+
+MvexpandLimit <- SPACE "limit" EQUAL intValue:IntegerAsString {
+    return intValue, nil
+}
+
+WhereClause <- SPACE CMD_WHERE condition:BoolExpr {
+    return condition.(*structs.BoolExpr), nil
+}
+
+InputLookupOptionAppend <- "append" EQUAL boolVal:Boolean {
+    return &InputLookupOptionArgs{
+        argOption: "append",
+        inputLookupOption: &structs.InputLookup{
+            Append: boolVal.(bool),
+        },
+    }, nil
+}
+
+InputLookupOptionStrict <- "strict" EQUAL boolVal:Boolean {
+    return &InputLookupOptionArgs{
+        argOption: "strict",
+        inputLookupOption: &structs.InputLookup{
+            Strict: boolVal.(bool),
+        },
+    }, nil
+}
+
+InputLookupOptionStart <- "start" EQUAL posInt:PositiveInteger {
+    return &InputLookupOptionArgs{
+        argOption: "start",
+        inputLookupOption: &structs.InputLookup{
+            Start: posInt.(uint64),
+        },
+    }, nil
+}
+
+InputLookupOptionMax <- "max" EQUAL posInt:PositiveInteger {
+    return &InputLookupOptionArgs{
+        argOption: "max",
+        inputLookupOption: &structs.InputLookup{
+            Max: posInt.(uint64),
+        },
+    }, nil
+}
+
+InputLookupOption <- inputLookupOption:(InputLookupOptionAppend / InputLookupOptionStrict / InputLookupOptionStart / InputLookupOptionMax) {
+    return inputLookupOption, nil
+}
+
+InputLookupOptionList <- first: (InputLookupOption) rest:(SPACE InputLookupOption)* {
+    restSlice := rest.([]any)
+    optionWasSpecified := make(map[string]struct{})
+    numOptions := 1 + len(restSlice)
+
+    inputLookupOption := &structs.InputLookup{}
+
+    for i := 0; i < numOptions; i++ {
+        var inputLookupOptionArg *InputLookupOptionArgs
+        if i == 0 {
+            inputLookupOptionArg = first.(*InputLookupOptionArgs)
+        } else {
+            separator := restSlice[i - 1].([]any)
+            inputLookupOptionArg = separator[1].(*InputLookupOptionArgs)
+        }
+
+        argOption := inputLookupOptionArg.argOption
+        _, exist := optionWasSpecified[argOption]
+        if exist {
+            return nil, fmt.Errorf("Invalid Syntax, option: %v is already specified", argOption)
+        }
+        optionWasSpecified[argOption] = struct{}{}
+
+        switch argOption {
+            case "append":
+                inputLookupOption.Append = inputLookupOptionArg.inputLookupOption.Append
+            case "strict":
+                inputLookupOption.Strict = inputLookupOptionArg.inputLookupOption.Strict
+            case "start":
+                inputLookupOption.Start = inputLookupOptionArg.inputLookupOption.Start
+            case "max":
+                inputLookupOption.Max = inputLookupOptionArg.inputLookupOption.Max
+            default:
+                return nil, fmt.Errorf("Not a Valid InputLookup Option: %v", argOption)
+        }
+    }
+
+    return inputLookupOption, nil
+}
+
+
+
+InputLookupBlock <- PIPE CMD_INPUTLOOKUP inputLookupOption:(InputLookupOptionList SPACE)? filename:(String) whereClause:(WhereClause)? {
+    inputLookup := &structs.InputLookup{}
+    if inputLookupOption != nil {
+        inputLookupOption := inputLookupOption.([]any)
+        inputLookup = inputLookupOption[0].(*structs.InputLookup)
+    }
+    if whereClause != nil {
+        inputLookup.WhereExpr = whereClause.(*structs.BoolExpr)
+    }
+    inputLookup.Filename = removeQuotes(filename.(string))
+    if inputLookup.Max == 0 {
+        inputLookup.Max = 1000000000
+    }
+
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.GenerateEventType,
+        GenerateEvent: &structs.GenerateEvent{
+            InputLookup: inputLookup,
+        },
+        InputLookupExpr: inputLookup,
+    }, nil
+}
+
+InputLookupAggBlock <- inputLookupBlock:InputLookupBlock {
+    inputLookup := inputLookupBlock.(*structs.QueryAggregators)
+    if !inputLookup.GenerateEvent.InputLookup.Append {
+        return nil, fmt.Errorf("An Inputlookup command which is not the first command must have append as true")
+    }
+    inputLookup.GenerateEvent.InputLookup.HasPrevResults = true
+    
+    return inputLookup, nil
+}
+
+// Definitions for append command options
+AppendCmdOption <- option:(ExtendTimeRangeOption / MaxTimeOption / MaxOutOption) {
+    return option, nil
+}
+
+// Definitions for the individual options within append
+ExtendTimeRangeOption <- "extendtimerange" EQUAL boolean:Boolean {
+    return &structs.AppendCmdOption{
+        OptionType: "extendtimerange",
+        Value:      boolean == "true",
+    }, nil
+}
+
+MaxTimeOption <- "maxtime" EQUAL time:IntegerAsString {
+    maxTimeInt, err := strconv.ParseUint(time.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid maxtime (%v): %v", time.(string), err)
+    }
+    return &structs.AppendCmdOption{
+        OptionType: "maxtime",
+        Value:      maxTimeInt,
+    }, nil
+}
+
+MaxOutOption <- "maxout" EQUAL max:IntegerAsString {
+    maxOutInt, err := strconv.ParseUint(max.(string), 10, 64)
+    if err != nil {
+        return nil, fmt.Errorf("Invalid maxout (%v): %v", max.(string), err)
+    }
+    return &structs.AppendCmdOption{
+        OptionType: "maxout",
+        Value:      maxOutInt,
+    }, nil
+}
+
+// Subsearch definition using the existing SearchBlock rule
+Subsearch <- "[" SPACE? search:SearchBlock SPACE? "]" {
+    return search, nil
+}
+
+// Append command options extended to handle subsearches
+AppendCmdOptionsList <- first:AppendCmdOption rest:(SPACE AppendCmdOption)* {
+    restSlice := rest.([]any)
+    numOptions := 1 + len(restSlice)
+    appendCmdOptions := &structs.AppendCmdOptions{}
+
+    for i := 0; i < numOptions; i++ {
+        var option *structs.AppendCmdOption
+        if i == 0 {
+            option = first.(*structs.AppendCmdOption)
+        } else {
+            option = restSlice[i-1].([]any)[1].(*structs.AppendCmdOption)
+        }
+
+        switch option.OptionType {
+            case "extendtimerange":
+                appendCmdOptions.ExtendTimeRange = option.Value.(bool)
+            case "maxtime":
+                appendCmdOptions.MaxTime = option.Value.(int)
+            case "maxout":
+                appendCmdOptions.MaxOut = option.Value.(int)
+        }
+    }
+
+    return appendCmdOptions, nil
+}
+
+// AppendBlock with subsearch handling
+AppendBlock <- PIPE CMD_APPEND options:(AppendCmdOption SPACE?)* subsearch:Subsearch {
+    appendOptions := &structs.AppendCmdOptions{
+        ExtendTimeRange: false,
+        MaxTime:         60,
+        MaxOut:          50000,
+    }
+
+    for _, opt := range options.([]interface{}) {
+        if optSlice, ok := opt.([]interface{}); ok {
+            for _, appendOption := range optSlice {
+                if option, ok := appendOption.(*structs.AppendCmdOption); ok {
+                    switch option.OptionType {
+                        case "extendtimerange":
+                            appendOptions.ExtendTimeRange = option.Value.(bool)
+                        case "maxtime":
+                            appendOptions.MaxTime = int(option.Value.(uint64))
+                        case "maxout":
+                            appendOptions.MaxOut = int(option.Value.(uint64))
+                        default:
+                            return nil, fmt.Errorf("AppendBlock: Unknown OptionType: %v", option.OptionType)
+                    }
+                } 
+            }
+        } 
+    }
+
+    letColReq := &structs.LetColumnsRequest{
+        AppendRequest: &structs.AppendRequest{
+            ExtendTimeRange: appendOptions.ExtendTimeRange,
+            MaxTime:         appendOptions.MaxTime,
+            MaxOut:          appendOptions.MaxOut,
+            Subsearch:       subsearch,
+        },
+    }
+    return &structs.QueryAggregators{
+        PipeCommandType: structs.OutputTransformType,
+        OutputTransforms: &structs.OutputTransforms{
+            LetColumns: letColReq,
+        },
+    }, nil
+}
+
+
+// All commands except CMD_SEARCH
+ALLCMD <- (CMD_REGEX / CMD_STATS / CMD_FIELDS / CMD_WHERE / CMD_HEAD_NO_SPACE / CMD_HEAD / CMD_TAIL_NO_SPACE / CMD_TAIL / CMD_EVAL / CMD_REX / CMD_TOP / CMD_RARE / CMD_RENAME / CMD_TIMECHART / CMD_TRANSACTION / CMD_DEDUP / CMD_SORT / CMD_MAKEMV / CMD_SPATH / CMD_FORMAT / CMD_EARLIEST / CMD_LATEST / CMD_EVENTCOUNT / CMD_BIN / CMD_STREAMSTATS / CMD_FILLNULL / CMD_MVEXPAND / CMD_GENTIMES / CMD_INPUTLOOKUP / CMD_APPEND)
 CMD_SEARCH <- "search" SPACE
 CMD_REGEX <- "regex" SPACE
 CMD_STATS <- "stats" SPACE
+CMD_STREAMSTATS <- "streamstats" SPACE
 CMD_FIELDS <- "fields" SPACE
 CMD_WHERE <- "where" SPACE
 CMD_HEAD_NO_SPACE <- "head"
 CMD_HEAD <- CMD_HEAD_NO_SPACE SPACE
+CMD_TAIL_NO_SPACE <- "tail"
+CMD_TAIL <- CMD_TAIL_NO_SPACE SPACE
 CMD_EVAL <- "eval" SPACE
 CMD_REX <- "rex" SPACE
 CMD_SORT <- "sort" SPACE
@@ -2565,11 +5349,23 @@ CMD_TOP <- "top"
 CMD_RARE <- "rare"
 CMD_RENAME <- "rename" SPACE
 CMD_TIMECHART <- "timechart" SPACE
+CMD_BIN <- "bin" SPACE
 CMD_SPAN <- "span"
 CMD_TRANSACTION <- "transaction" SPACE
 CMD_DEDUP <- "dedup"
 CMD_DEDUP_SORTBY <- SPACE "sortby" SPACE
-EVAL_CONCAT <- SPACE? "." SPACE?
+CMD_MAKEMV <- "makemv"
+CMD_SPATH <- "spath"
+CMD_FORMAT <- "format"
+CMD_EARLIEST <- "earliest"
+CMD_LATEST <- "latest"
+CMD_EVENTCOUNT <- "eventcount"
+CMD_FILLNULL <- "fillnull"
+CMD_GENTIMES <- "gentimes"
+CMD_INPUTLOOKUP <- "inputlookup" SPACE
+EVAL_CONCAT <- SPACE? ("." / "+") SPACE?
+CMD_MVEXPAND <- "mvexpand"
+CMD_APPEND <- "append" SPACE
 
 // Major and Minor breaks from https://docs.splunk.com/Documentation/Splunk/9.0.4/Admin/Segmentersconf
 MAJOR_BREAK <- [[\]<>(){}|!;,'"*\n\r \t&?+] / "%21" / "%26" /
@@ -2588,11 +5384,13 @@ BY <- SPACE "BY"i SPACE // Case insensitive
 
 EQUAL <- EMPTY_OR_SPACE "=" EMPTY_OR_SPACE
 COMMA <- EMPTY_OR_SPACE "," EMPTY_OR_SPACE
+QUOTE <- '"'
 L_PAREN <- "(" EMPTY_OR_SPACE
 R_PAREN <- EMPTY_OR_SPACE ")"
 
 EOF <- !.
-SPACE <- (" "? COMMENT " "?) / " "+
+WHITESPACE <- " " / "\t" / "\n" / "\r"
+SPACE <- (WHITESPACE? COMMENT WHITESPACE?) / WHITESPACE+
 COMMENT <- "```" (!("```") .)* "```"
 EMPTY_OR_SPACE  <- SPACE / ""
 SPACE_OR_COMMA <- COMMA / SPACE

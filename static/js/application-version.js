@@ -36,8 +36,8 @@ function fetchVersionInfo() {
         dataType: 'json',
         crossDomain: true,
     }).then(function (res) {
-        const versionInfo = 'SigLens Version: ' + res.version;
-        $('#versionInfo').text(versionInfo);
+        const versionInfo = `<span style="color:var(--text-color)">SigLens Version: </span> ${res.version}`;
+        $('#versionInfo').html(versionInfo);
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.error('Error fetching version:', textStatus, errorThrown);
         $('#versionInfo').text('Error loading version');

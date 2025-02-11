@@ -1,0 +1,75 @@
+## Currently implemented in the new pipline
+simple_where.json
+simple_sort.json
+# complex_search.json // Timing out
+complex_search_2.json
+search_with_eval.json
+# search_1col_fields.json failing on unrotated data
+grpby_1col_4stats.json
+3stats.json
+# bin.json failing on unrotated data
+9stats.json
+stats_groupby_with_eval.json
+# 9stats_groupby_2col.json failing on unrotated data
+inputlookup.json 
+inputlookup_2.json
+inputlookup_3.json
+# head.json failing on unrotated data 
+# head2.json failing on unrotated data 
+# fillnull_with_eval.json flaky
+# stats_group_by_eval.json failing on unrotated data
+eval_groupby_2col_2stats.json
+# eval_fields_timechart.json failing on unrotated data
+# multi_value.json failing on unrotated data
+stats_eval.json
+gentimes.json
+gentimes_2.json
+# rex_stats_groupby_eval_stats.json failing on unrotated data
+# eval_stats_sort_stats_groupby_where.json // Timing out
+eval_stats_sort.json
+# eval_timechart_sort.json failing on unrotated data
+# search_timechart_no_groupby.json failing on unrotated data
+mvexpand.json
+# tail.json failing on unrotated data
+sort_tail_eval_newField.json
+tail_stats.json
+dedup_sortby_consecutive.json
+dedup_sortby.json
+# top.json flaky
+# rare.json flaky
+rare_top.json
+stats_top.json
+streamstats_win3.json
+streamstats_win4_currF.json
+streamstats_win4_grpby.json
+streamstats_win4_reset_before_after.json
+streamstats_win2_gloF_currF_grpby.json
+streamstats_win2_gloF_grpby.json
+streamstats_multi_resets_grpby.json
+streamstats_eval.json
+streamstats_after_stats.json
+streamstats_after_grpby.json
+
+
+
+## Queries not working for multi-index
+# transaction.json
+
+## Queries not working in generalized Unique spl queries
+# stats_with_timestamp.json
+# rex_eval_timechart.json  // where "NOT" is not implemented 
+# stats_where_stats.json // LIKE operator not implemented
+# eval_append_timechart_streamstats_sort.json  // not implemented append command
+# bin_rex_eval_timechart.json  // issue with bin command parsing
+# rex_eval_bin_stats_groupby_eval_timechart.json // issue with bin and eval commands parsing
+# eval_where_rex_stats_eval_stats.json // stats latest is not supported
+# gentimes_makemv_eval_rex_stats.json // subsearch not implemented
+# spath_stats_eval_stats_sort.json // spath not implemented
+# lookup_stats_sort.json // lookup not implemented
+# gentimes_makemv_bin_stats_eval_stats_eval_rex.json // subsearch not implemented
+# eval_stats_groupby_with_eval_eval_where.json  // IN operator not implemented
+# search_spath_search_spath_search_timechart.json // search anywhere is not supported
+# search_eval_timechart_filldown.json  // filldown command not supported
+
+## Inconsistent results
+# streamstats_without_sort.json

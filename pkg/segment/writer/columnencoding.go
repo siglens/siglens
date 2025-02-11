@@ -28,7 +28,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 	var idx uint32 = 0
 
 	noOfColumnValues := uint16(len(columnValueMap))
-	copy(columnValueSummary[idx:], utils.Uint16ToBytesLittleEndian(noOfColumnValues))
+	utils.Uint16ToBytesLittleEndianInplace(noOfColumnValues, columnValueSummary[idx:])
 	idx += 2
 
 	for key, val := range columnValueMap {
@@ -43,7 +43,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 			}
 			n := uint16(len(colValue.(string)))
 
-			copy(columnValueSummary[idx:], utils.Uint16ToBytesLittleEndian(n))
+			utils.Uint16ToBytesLittleEndianInplace(n, columnValueSummary[idx:])
 			idx += 2
 
 			copy(columnValueSummary[idx:], colValue.(string))
@@ -70,7 +70,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Uint64ToBytesLittleEndian(colValue.(uint64)))
+			utils.Uint64ToBytesLittleEndianInplace(colValue.(uint64), columnValueSummary[idx:])
 			idx += 8
 
 		case segutils.SS_DT_SIGNED_NUM:
@@ -82,7 +82,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Int64ToBytesLittleEndian(colValue.(int64)))
+			utils.Int64ToBytesLittleEndianInplace(colValue.(int64), columnValueSummary[idx:])
 			idx += 8
 
 		case segutils.SS_DT_FLOAT:
@@ -94,7 +94,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Float64ToBytesLittleEndian(colValue.(float64)))
+			utils.Float64ToBytesLittleEndianInplace(colValue.(float64), columnValueSummary[idx:])
 			idx += 8
 		case segutils.SS_DT_USIGNED_32_NUM:
 			columnValueSummary[idx] = byte(segutils.SS_DT_USIGNED_32_NUM)
@@ -105,7 +105,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Uint32ToBytesLittleEndian(colValue.(uint32)))
+			utils.Uint32ToBytesLittleEndianInplace(colValue.(uint32), columnValueSummary[idx:])
 			idx += 4
 		case segutils.SS_DT_SIGNED_32_NUM:
 			columnValueSummary[idx] = byte(segutils.SS_DT_SIGNED_32_NUM)
@@ -116,7 +116,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Int32ToBytesLittleEndian(colValue.(int32)))
+			utils.Int32ToBytesLittleEndianInplace(colValue.(int32), columnValueSummary[idx:])
 			idx += 4
 		case segutils.SS_DT_USIGNED_16_NUM:
 			columnValueSummary[idx] = byte(segutils.SS_DT_SIGNED_32_NUM)
@@ -127,7 +127,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Uint16ToBytesLittleEndian(colValue.(uint16)))
+			utils.Uint16ToBytesLittleEndianInplace(colValue.(uint16), columnValueSummary[idx:])
 			idx += 2
 		case segutils.SS_DT_SIGNED_16_NUM:
 			columnValueSummary[idx] = byte(segutils.SS_DT_SIGNED_32_NUM)
@@ -138,7 +138,7 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 				continue
 			}
 
-			copy(columnValueSummary[idx:], utils.Int16ToBytesLittleEndian(colValue.(int16)))
+			utils.Int16ToBytesLittleEndianInplace(colValue.(int16), columnValueSummary[idx:idx+2])
 			idx += 2
 		case segutils.SS_DT_USIGNED_8_NUM:
 			columnValueSummary[idx] = byte(segutils.SS_DT_SIGNED_8_NUM)
@@ -162,12 +162,14 @@ func EncodeDictionaryColumn(columnValueMap map[segutils.CValueDictEnclosure][]ui
 
 			copy(columnValueSummary[idx:], []byte{byte(colValue.(int8))})
 			idx += 1
+		default:
+			log.Errorf("EncodeDictionaryColumn: Unsupported data type: %v", key.Dtype)
 		}
-		copy(columnValueSummary[idx:], utils.Uint16ToBytesLittleEndian(uint16(len(val))))
+		utils.Uint16ToBytesLittleEndianInplace(uint16(len(val)), columnValueSummary[idx:])
 		idx += 2
 
 		for _, value := range val {
-			copy(columnValueSummary[idx:], utils.Uint16ToBytesLittleEndian(value))
+			utils.Uint16ToBytesLittleEndianInplace(value, columnValueSummary[idx:])
 			idx += 2
 		}
 	}
@@ -230,6 +232,8 @@ func DecodeDictionaryColumn(encodedBytes []byte) map[segutils.CValueDictEnclosur
 		case segutils.SS_DT_SIGNED_8_NUM:
 			colCVEnclosure.CValInt = int8(encodedBytes[idx+1])
 			idx += 1
+		default:
+			log.Errorf("DecodeDictionaryColumn: Unsupported data type: %v", colCVEnclosure.Dtype)
 		}
 
 		valuesLen := utils.BytesToUint16LittleEndian(encodedBytes[idx:(idx + 2)])

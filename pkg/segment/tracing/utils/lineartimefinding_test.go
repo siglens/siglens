@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"math"
 	"testing"
 )
 
@@ -25,34 +26,43 @@ func TestFindPercentileData(t *testing.T) {
 	testCases := []struct {
 		arr        []uint64
 		percentile int
-		expected   uint64
+		expected   float64
 	}{
 		{
 			arr:        []uint64{44, 11, 22},
 			percentile: 66,
-			expected:   22,
+			expected:   29.04,
 		},
 		{
 			arr:        []uint64{44, 11, 22},
-			percentile: 67,
-			expected:   44,
+			percentile: 50,
+			expected:   22,
 		},
 		{
 			arr:        []uint64{20, 50, 40, 30, 10},
 			percentile: 35,
-			expected:   20,
+			expected:   24,
 		},
 		{
 			arr:        []uint64{20, 50, 40, 30, 10},
 			percentile: 95,
-			expected:   50,
+			expected:   48,
+		},
+		{
+			arr:        []uint64{25, 75, 0, 50, 100},
+			percentile: 25,
+			expected:   25,
 		},
 	}
 
+	precision := 8
+	scale := math.Pow10(precision)
+
 	for _, tc := range testCases {
 		result := FindPercentileData(tc.arr, tc.percentile)
+		result = math.Round(result*scale) / scale
 		if result != tc.expected {
-			t.Errorf("Expected %d percentile to be %d, but got %d", tc.percentile, tc.expected, result)
+			t.Errorf("Expected %d percentile to be %f, but got %f", tc.percentile, tc.expected, result)
 		}
 	}
 }

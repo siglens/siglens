@@ -18,19 +18,14 @@
 package metadata
 
 import (
-	"sync"
-
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	log "github.com/sirupsen/logrus"
 )
 
 func InitMockMetricsMetadataStore(entryCount int) error {
-	globalMetricsMetadata = &allMetricsSegmentMetadata{
-		sortedMetricsSegmentMeta: make([]*MetricsSegmentMetadata, 0),
-		metricsSegmentMetaMap:    make(map[string]*MetricsSegmentMetadata),
-		updateLock:               &sync.RWMutex{},
-	}
+	metadata.ResetGlobalMetricsMetadataForTest()
 
 	_, err := writer.WriteMockMetricsSegment(true, entryCount)
 	if err != nil {
@@ -43,12 +38,13 @@ func InitMockMetricsMetadataStore(entryCount int) error {
 		return err
 	}
 
-	allMetricsSegmentMeta := make([]*MetricsSegmentMetadata, 0)
+	allMetricsSegmentMeta := make([]*metadata.MetricsSegmentMetadata, 0)
 	for _, mMetaInfo := range allMetricsMetas {
-		currMSegMetadata := InitMetricsMicroIndex(mMetaInfo)
+		currMSegMetadata := metadata.InitMetricsMicroIndex(mMetaInfo)
 		allMetricsSegmentMeta = append(allMetricsSegmentMeta, currMSegMetadata)
 	}
 
-	BulkAddMetricsSegment(allMetricsSegmentMeta)
+	metadata.BulkAddMetricsSegment(allMetricsSegmentMeta)
+
 	return nil
 }

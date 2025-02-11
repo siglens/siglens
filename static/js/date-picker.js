@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,8 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
+//eslint-disable-next-line no-unused-vars
 function datePickerHandler(startDate, endDate, label) {
     let displayLabel = 'Last 15 Mins';
     filterStartDate = startDate._i || startDate;
@@ -113,8 +112,8 @@ function datePickerHandler(startDate, endDate, label) {
     $('#app-container #date-picker-btn span').html(displayLabel);
     $('#alerting-container #date-picker-btn span').html(displayLabel);
     $('#cstats-time-picker #date-picker-btn span').html(displayLabel);
-    let currentPage=window.location.href
-    if(!(currentPage.includes("cluster-stats.html"))){
+    let currentPage = window.location.href;
+    if (!currentPage.includes('cluster-stats.html')) {
         Cookies.set('startEpoch', filterStartDate);
         Cookies.set('endEpoch', filterEndDate);
     }

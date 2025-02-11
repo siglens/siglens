@@ -18,14 +18,15 @@
 package aggregations
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -86,6 +87,8 @@ func GetIntervalInMillis(num int, timeUnit utils.TimeUnit) uint64 {
 		return uint64((numD * 30 * 24 * time.Hour).Milliseconds())
 	case utils.TMQuarter:
 		return uint64((numD * 120 * 24 * time.Hour).Milliseconds())
+	default:
+		log.Errorf("GetIntervalInMillis: unexpected time unit: %v", timeUnit)
 	}
 	return uint64((10 * time.Minute).Milliseconds()) // 10 Minutes
 }
@@ -152,7 +155,8 @@ func AddAggAvgToTimechartRunningStats(m *structs.MeasureAggregator, allConverted
 // Timechart will only display N highest/lowest scoring distinct values of the split-by field
 // For Single agg, the score is based on the sum of the values in the aggregation. Therefore, we can only know groupByColVal's ranking after processing all the runningStats
 // For multiple aggs, the score is based on the freq of the field. Which means we can rank groupByColVal at this time.
-func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByColValCnt map[string]int, groupValScoreMap map[string]*utils.CValueEnclosure, measureOperations []*structs.MeasureAggregator) map[string]bool {
+func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByColValCnt map[string]int, groupValScoreMap map[string]*utils.CValueEnclosure,
+	measureOperations []*structs.MeasureAggregator, batchErr *putils.BatchError) map[string]bool {
 
 	if timechart == nil || timechart.LimitExpr == nil {
 		return nil
@@ -176,7 +180,7 @@ func CheckGroupByColValsAgainstLimit(timechart *structs.TimechartExpr, groupByCo
 			valIsInLimit[groupByColVal] = false
 			score, err := cVal.GetFloatValue()
 			if err != nil {
-				log.Errorf("CheckGroupByColValsAgainstLimit: %v does not have a score", groupByColVal)
+				batchErr.AddError("CheckGroupByColValsAgainstLimit:score", fmt.Errorf("%v does not have a score", groupByColVal))
 				continue
 			}
 			scorePairs = append(scorePairs, scorePair{
@@ -263,32 +267,49 @@ func SortTimechartRes(timechart *structs.TimechartExpr, results *[]*structs.Buck
 	}
 
 	sort.Slice(*results, func(i, j int) bool {
-		bucketKey1, ok := (*results)[i].BucketKey.(string)
-		if !ok {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to string: %v", (*results)[i].BucketKey)
+		timestamp1, err := extractTimestamp((*results)[i].BucketKey)
+		if err != nil {
+			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", i, err)
 			return false
 		}
-
-		bucketKey2, ok := (*results)[j].BucketKey.(string)
-		if !ok {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to string: %v", (*results)[j].BucketKey)
+		timestamp2, err := extractTimestamp((*results)[j].BucketKey)
+		if err != nil {
+			log.Errorf("SortTimechartRes: bucketKey is invalid for index %d: %v", j, err)
 			return true
 		}
-
-		timestamp1, err := strconv.ParseUint(bucketKey1, 10, 64)
-		if err != nil {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to timestamp: %v", bucketKey1)
-			return false
-		}
-
-		timestamp2, err := strconv.ParseUint(bucketKey2, 10, 64)
-		if err != nil {
-			log.Errorf("SortTimechartRes: cannot convert bucketKey to timestamp: %v", bucketKey2)
-			return true
-		}
-
 		return timestamp1 < timestamp2
 	})
+}
+
+func extractTimestamp(bucketKey interface{}) (uint64, error) {
+	if bucketKey == nil {
+		return 0, errors.New("bucketKey is nil")
+	}
+
+	// Check if bucketKey is a slice and extract the first element
+	if bucketKeySlice, ok := bucketKey.([]interface{}); ok {
+		if len(bucketKeySlice) > 0 {
+			bucketKey = bucketKeySlice[0]
+		} else {
+			return 0, errors.New("bucketKey slice is empty")
+		}
+	}
+
+	// Attempt to assert bucketKey as uint64
+	if timestamp, ok := bucketKey.(uint64); ok {
+		return timestamp, nil
+	}
+
+	// Attempt to assert bucketKey as string and parse it
+	if bucketKeyStr, ok := bucketKey.(string); ok {
+		timestamp, err := strconv.ParseUint(bucketKeyStr, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot convert bucketKey to timestamp: %v", err)
+		}
+		return timestamp, nil
+	}
+
+	return 0, errors.New("bucketKey is not a string or uint64")
 }
 
 func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
@@ -304,8 +325,8 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 
 // For numeric agg(not include dc), we can simply use addition to merge them
 // For string values, it depends on the aggregation function
-func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *hyperloglog.Sketch, hllToMerge *hyperloglog.Sketch,
-	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool) {
+func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *putils.GobbableHll, hllToMerge *putils.GobbableHll,
+	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool, batchErr *putils.BatchError) {
 
 	tmp := utils.CValueEnclosure{
 		Dtype: eVal.Dtype,
@@ -329,11 +350,11 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		if useAdditionForMerge {
 			aggFunc = utils.Sum
 		} else {
-			err := hll.Merge(hllToMerge)
+			err := hll.StrictUnion(hllToMerge.Hll)
 			if err != nil {
-				log.Errorf("MergeVal: failed to merge hyperloglog stats: %v", err)
+				batchErr.AddError("MergeVal:HLL_STATS", err)
 			}
-			eVal.CVal = hll.Estimate()
+			eVal.CVal = hll.Cardinality()
 			eVal.Dtype = utils.SS_DT_UNSIGNED_NUM
 			return
 		}
@@ -350,16 +371,17 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 			uniqueStrings = append(uniqueStrings, str)
 		}
 		sort.Strings(uniqueStrings)
-		strVal := strings.Join(uniqueStrings, "&nbsp")
 
-		eVal.CVal = strVal
-		eVal.Dtype = utils.SS_DT_STRING
+		eVal.CVal = uniqueStrings
+		eVal.Dtype = utils.SS_DT_STRING_SLICE
 		return
+	default:
+		log.Errorf("MergeVal: unsupported aggregation function: %v", aggFunc)
 	}
 
 	retVal, err := utils.Reduce(eValToMerge, tmp, aggFunc)
 	if err != nil {
-		log.Errorf("MergeVal: failed to merge eVal into otherCVal: %v", err)
+		batchErr.AddError("MergeVal:eVAL_INTO_cVAL", err)
 		return
 	}
 	eVal.CVal = retVal.CVal
@@ -391,7 +413,8 @@ func IsRankBySum(timechart *structs.TimechartExpr) bool {
 }
 
 func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLimitResult, index int, eVal utils.CValueEnclosure,
-	hllToMerge *hyperloglog.Sketch, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string, isOtherCol bool) bool {
+	hllToMerge *putils.GobbableHll, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, groupByColVal string,
+	isOtherCol bool, batchErr *putils.BatchError) bool {
 
 	useAdditionForMerge := (tmLimitResult.OtherCValArr == nil)
 	isRankBySum := IsRankBySum(timechart)
@@ -399,12 +422,12 @@ func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLim
 	// If true, current col's val will be added into 'other' col. So its val should not be added into res at this time
 	if isOtherCol {
 		otherCVal := tmLimitResult.OtherCValArr[index]
-		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge)
+		MergeVal(otherCVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
 		return false
 	} else {
 		if isRankBySum && tmLimitResult.OtherCValArr == nil {
 			scoreVal := tmLimitResult.GroupValScoreMap[groupByColVal]
-			MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge)
+			MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
 			return false
 		}
 		return true

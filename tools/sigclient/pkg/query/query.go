@@ -19,12 +19,14 @@ package query
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -49,6 +51,67 @@ const (
 	freeText
 	random
 )
+
+func MigrateLookups(lookupFiles []string) error {
+
+	destDir := filepath.Join("../../data/lookups")
+	err := os.MkdirAll(destDir, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("MigrateLookups: Error creating destination directory: %v", err)
+	}
+
+	for _, lookupFile := range lookupFiles {
+		lookupSrcFile, err := os.Open(lookupFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error opening lookup file %v, err: %v", lookupFile, err)
+		}
+		defer lookupSrcFile.Close()
+
+		// Create the destination file
+		lookupDestPath := filepath.Join(destDir, filepath.Base(lookupFile))
+		lookupDestFile, err := os.Create(lookupDestPath)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error creating lookup file %v, err: %v", lookupDestPath, err)
+		}
+		defer lookupDestFile.Close()
+
+		// Copy the contents
+		_, err = io.Copy(lookupDestFile, lookupSrcFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error copying file %v, err: %v", lookupFile, err)
+		}
+
+		// Reset file position
+		_, err = lookupSrcFile.Seek(0, 0)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error resetting file position %v, err: %v", lookupFile, err)
+		}
+
+		// Create the destination gzip file
+		compressedLookupDestFile, err := os.Create(lookupDestPath + ".gz")
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error creating compressed lookup file %v, err: %v", lookupDestPath, err)
+		}
+		defer compressedLookupDestFile.Close()
+
+		// Create a gzip writer
+		gzipWriter := gzip.NewWriter(compressedLookupDestFile)
+
+		// Copy the contents from source to gzip writer
+		_, err = io.Copy(gzipWriter, lookupSrcFile)
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error compressing file %v, err: %v", lookupDestPath, err)
+		}
+
+		// Close the gzip writer
+		err = gzipWriter.Close()
+		if err != nil {
+			return fmt.Errorf("MigrateLookups: Error closing gzip writer %v err: %v", lookupDestPath, err)
+		}
+	}
+
+	return nil
+}
 
 func (q logsQueryTypes) String() string {
 	switch q {
@@ -541,6 +604,44 @@ func runContinuousQueries(client *http.Client, requestStr string, bearerToken st
 	}
 }
 
+func verifyResults(value interface{}, relation, expectedValue string, query string) bool {
+	var ok bool
+	var err error
+	var floatVal float64
+
+	switch value := value.(type) {
+	case float64:
+		ok, err = utils.VerifyInequality(value, relation, expectedValue)
+	case string:
+		floatVal, err = strconv.ParseFloat(value, 64)
+		if err == nil {
+			ok, err = utils.VerifyInequality(floatVal, relation, expectedValue)
+		} else {
+			ok, err = utils.VerifyInequalityForStr(value, relation, expectedValue)
+		}
+	case []interface{}:
+		valueStrings := make([]string, 0, len(value))
+		for _, item := range value {
+			valueStrings = append(valueStrings, fmt.Sprintf("%v", item))
+		}
+		strValue := strings.Join(valueStrings, ",")
+
+		ok, err = utils.VerifyInequalityForStr(strValue, relation, expectedValue)
+	default:
+		err = fmt.Errorf("unexpected type: %T for value: %v", value, value)
+	}
+
+	if err != nil {
+		log.Fatalf("RunQueryFromFile: Error in verifying aggregation/record: %v for query %v", err, query)
+		return false
+	} else if !ok {
+		log.Fatalf("RunQueryFromFile: Actual aggregate/record value: %v is not [%s %v] for query %v", value, expectedValue, relation, query)
+		return false
+	}
+
+	return true
+}
+
 // Run queries from a csv file. Expects search text, queryStartTime, queryEndTime, indexName,
 // evaluationType, relation, count, and queryLanguage in each row
 // relation is one of "eq", "gt", "lt"
@@ -559,6 +660,8 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 	}
 
 	defer f.Close()
+
+	index := 1
 
 	// read csv values using csv.Reader
 	csvReader := csv.NewReader(f)
@@ -587,6 +690,14 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 		evaluationType := rec[4]
 		relation := rec[5]
 		expectedValue := rec[6]
+
+		if skipIndexes[index] {
+			log.Infof("RunQueryFromFile: Skipping index=%v, query: %v", index, rec[0])
+			index++
+			continue
+		}
+
+		log.Infof("RunQueryFromFile: index=%v Running query: %v", index, rec[0])
 
 		// create websocket connection
 		conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:5122/api/search/ws", nil)
@@ -657,37 +768,7 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 
 							if reflect.DeepEqual(groupByValuesStrs, groupData[2:]) {
 								measureVal := groupMap["MeasureVal"].(map[string]interface{})
-								actualValue, ok := measureVal[groupData[1]].(float64)
-								actualValueIsNumber := true
-								if !ok {
-									// Try converting it to a string and then a float.
-									actualValueStr, ok := measureVal[groupData[1]].(string)
-									if !ok {
-										log.Fatalf("RunQueryFromFile: Returned aggregate is not a string: %v", measureVal[groupData[1]])
-									}
-
-									var err error
-									actualValue, err = strconv.ParseFloat(actualValueStr, 64)
-
-									if err != nil {
-										actualValueIsNumber = false
-									}
-								}
-
-								if actualValueIsNumber {
-									ok, err = utils.VerifyInequality(actualValue, relation, expectedValue)
-								} else {
-									ok, err = utils.VerifyInequalityForStr(measureVal[groupData[1]].(string), relation, expectedValue)
-								}
-
-								if err != nil {
-									log.Fatalf("RunQueryFromFile: Error in verifying aggregation: %v", err)
-								} else if !ok {
-									log.Fatalf("RunQueryFromFile: Actual aggregate value: %v is not [%s %v] for query: %v",
-										actualValue, expectedValue, relation, rec[0])
-								} else {
-									validated = true
-								}
+								validated = verifyResults(measureVal[groupData[1]], relation, expectedValue, rec[0])
 							}
 						}
 
@@ -696,11 +777,226 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						} else {
 							log.Fatalf("RunQueryFromFile: specified group item not found for query %v", rec[0])
 						}
+					} else if strings.HasPrefix(evaluationType, "countRecord") && eKey == "hits" {
+						groupData := strings.Split(evaluationType, ":")
+						col := groupData[1]
+						_ = col
+						if readEvent["hits"] == nil {
+							log.Fatalf("RunQueryFromFile: No hits found for query %v", rec[0])
+						}
+						hits := readEvent["hits"].(map[string]interface{})
+						records := hits["records"].([]interface{})
+						if len(records) != 1 {
+							log.Fatalf("RunQueryFromFile: Expected records for this special case is 1 found: %v. Query= %v", len(records), rec[0])
+						}
+						data := records[0].(map[string]interface{})
+						if len(data) == 0 {
+							log.Fatalf("RunQueryFromFile: Expected number of columns for this special case to be not zero. Query= %v", rec[0])
+						}
+						actualValue, ok := data[col]
+						if !ok {
+							log.Fatalf("RunQueryFromFile: Expected col %v is not in the data record", col)
+						}
+						validated := verifyResults(actualValue, relation, expectedValue, rec[0])
+
+						if validated {
+							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
+						} else {
+							log.Fatalf("RunQueryFromFile: Error validating the query %v", rec[0])
+						}
 					}
 				}
 			default:
 				log.Infof("Received unknown message from server: %+v\n", readEvent)
 			}
 		}
+
+		index++
 	}
+}
+
+func RunQueryFromFileAndOutputResponseTimes(dest string, filepath string, queryResultFile string) {
+	webSocketURL := dest + "/api/search/ws"
+	if queryResultFile == "" {
+		queryResultFile = "./query_results.csv"
+	}
+
+	log.Infof("Using Websocket URL %+s", webSocketURL)
+	log.Infof("Using query result file %+s", queryResultFile)
+
+	csvFile, err := os.Open(filepath)
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to open query file: %v", err)
+	}
+	defer csvFile.Close()
+
+	reader := csv.NewReader(csvFile)
+	records, err := reader.ReadAll()
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to read query file: %v", err)
+	}
+
+	outputCSVFile, err := os.Create(queryResultFile)
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to create CSV file: %v", err)
+	}
+	defer outputCSVFile.Close()
+
+	writer := csv.NewWriter(outputCSVFile)
+	defer writer.Flush()
+
+	// Write header to the output CSV
+	err = writer.Write([]string{"Query", "Response Time (ms)"})
+	if err != nil {
+		log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to write header to CSV file: %v", err)
+	}
+
+	for index, record := range records {
+
+		qid := index + 1
+
+		query := record[0]
+		// Default values
+		startEpoch := "now-1h"
+		endEpoch := "now"
+		queryLanguage := "Splunk QL"
+
+		// Update values if provided in the CSV
+		if len(record) > 1 && record[1] != "" {
+			startEpoch = record[1]
+		}
+		if len(record) > 2 && record[2] != "" {
+			endEpoch = record[2]
+		}
+		if len(record) > 3 && record[3] != "" {
+			queryLanguage = record[3]
+		}
+
+		data := map[string]interface{}{
+			"state":         "query",
+			"searchText":    query,
+			"startEpoch":    startEpoch,
+			"endEpoch":      endEpoch,
+			"indexName":     "*",
+			"queryLanguage": queryLanguage,
+		}
+
+		log.Infof("qid=%v, Running query=%v", qid, query)
+		conn, _, err := websocket.DefaultDialer.Dial(webSocketURL, nil)
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error connecting to WebSocket server: %v", qid, err)
+			return
+		}
+		defer conn.Close()
+
+		startTime := time.Now()
+		err = conn.WriteJSON(data)
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error sending query to server: %v", qid, err)
+			break
+		}
+
+		readEvent := make(map[string]interface{})
+		for {
+			err = conn.ReadJSON(&readEvent)
+			if err != nil {
+				log.Infof("RunQueryFromFileAndOutputResponseTimes: qid=%v, Error reading response from server for query. Error=%v", qid, err)
+				break
+			}
+			if state, ok := readEvent["state"]; ok && state == "COMPLETE" {
+				break
+			}
+		}
+		responseTime := time.Since(startTime).Milliseconds()
+		log.Infof("RunQueryFromFileAndOutputResponseTimes: qid=%v, Query=%v,Response Time: %vms", qid, query, responseTime)
+
+		// Write query and response time to output CSV
+		err = writer.Write([]string{query, strconv.FormatInt(responseTime, 10)})
+		if err != nil {
+			log.Fatalf("RunQueryFromFileAndOutputResponseTimes: Failed to write query result to CSV file: %v", err)
+		}
+	}
+
+	log.Infof("RunQueryFromFileAndOutputResponseTimes: Query results written to CSV file: %v", queryResultFile)
+}
+
+var skipIndexes = map[int]bool{
+
+	// Misc
+	35:  true, // Log QL Query: IQR.AsResult: error getting final result for GroupBy: IQR.getFinalStatsResults: knownValues is empty
+	161: true, // Unused Query: Older pipeline removes the groupByCol/value if something else is renamed to it
+
+	// SQL NORESULT
+	22: true, // SQL query order by. NO RESULT
+	23: true, // SQL query order by. NO RESULT
+	24: true, // SQL query order by. NO RESULT
+
+	// NOT IMPLEMENTED
+	// TOP/RARE
+	158: true, // rare
+	159: true, // top
+
+	// STREAMSTATS
+	313: true,
+	314: true,
+	315: true,
+	316: true,
+	317: true,
+	318: true,
+	319: true,
+	320: true,
+	321: true,
+	322: true,
+	323: true,
+	324: true,
+	325: true,
+	326: true,
+	327: true,
+	328: true,
+	329: true,
+	330: true,
+	331: true,
+	332: true,
+	333: true,
+	334: true,
+	335: true,
+	336: true,
+	337: true,
+	338: true,
+	339: true,
+	340: true,
+	341: true,
+	342: true,
+	343: true,
+	344: true,
+	345: true,
+	346: true,
+	347: true,
+	348: true,
+	349: true,
+	350: true,
+	351: true,
+	352: true,
+	353: true,
+	354: true,
+	355: true,
+	356: true,
+	357: true,
+	358: true,
+	359: true,
+	360: true,
+	361: true,
+	362: true,
+	363: true,
+	364: true,
+	365: true,
+	366: true,
+	367: true,
+	368: true,
+	369: true,
+	370: true,
+	371: true,
+	372: true,
+	373: true,
+	374: true,
 }

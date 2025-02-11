@@ -18,10 +18,10 @@
 package writer
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	jp "github.com/buger/jsonparser"
@@ -30,15 +30,13 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	segment "github.com/siglens/siglens/pkg/segment/utils"
 
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 
-	// segstructs "github.com/siglens/siglens/pkg/segment/structs"
-
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -56,7 +54,29 @@ const CREATE_TOP_STR string = "create"
 const UPDATE_TOP_STR string = "update"
 const INDEX_UNDER_STR string = "_index"
 
-func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) {
+const MAX_INDEX_NAME_LEN = 256
+const RESP_ITEMS_INITIAL_LEN = 4000
+
+var resp_status_201 map[string]interface{}
+
+var respItemsPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		slice := make([]interface{}, RESP_ITEMS_INITIAL_LEN)
+		return &slice
+	},
+}
+
+func init() {
+	resp_status_201 = make(map[string]interface{})
+	statusbody := make(map[string]interface{})
+	statusbody["status"] = 201
+	resp_status_201["index"] = statusbody
+}
+
+func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid int64, useIngestHook bool) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_ES_BULK, useIngestHook)
 		if alreadyHandled {
@@ -64,10 +84,26 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 		}
 	}
 
-	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, myid, useIngestHook)
+	var rid uint64
+	if hook := hooks.GlobalHooks.BeforeHandlingBulkRequest; hook != nil {
+		var alreadyHandled bool
+		alreadyHandled, rid = hook(ctx, myid)
+		if alreadyHandled {
+			return
+		}
+	}
+
+	processedCount, response, err := HandleBulkBody(ctx.PostBody(), ctx, rid, myid, useIngestHook)
 	if err != nil {
 		PostBulkErrorResponse(ctx)
 		return
+	}
+
+	if hook := hooks.GlobalHooks.AfterHandlingBulkRequest; hook != nil {
+		alreadyHandled := hook(ctx, rid)
+		if alreadyHandled {
+			return
+		}
 	}
 
 	//request body empty
@@ -78,9 +114,8 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid uint64, useIngestHook boo
 	}
 }
 
-func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useIngestHook bool) (int, map[string]interface{}, error) {
-
-	r := bytes.NewReader(postBody)
+func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid int64,
+	useIngestHook bool) (int, map[string]interface{}, error) {
 
 	response := make(map[string]interface{})
 	//to have a check if there are any errors in the request
@@ -93,23 +128,56 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 	var inCount int = 0
 	var processedCount int = 0
 	tsNow := utils.GetCurrentTimeInMs()
-	scanner := bufio.NewScanner(r)
-	scanner.Split(bufio.ScanLines)
+	tsKey := config.GetTimeStampKey()
 
 	var bytesReceived int
-	// store all request index
-	var items = make([]interface{}, 0)
+
+	items := *respItemsPool.Get().(*[]interface{})
+	// if we end up extending items, then save the orig pointer, so that we can put it back
+	origItems := items
+	defer respItemsPool.Put(&origItems)
+
 	atleastOneSuccess := false
 	localIndexMap := make(map[string]string)
-	for scanner.Scan() {
+
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	// stack-allocated array for allocation-free unescaping of small strings
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
+	allPLEs := make([]*writer.ParsedLogEvent, 0)
+	defer func() {
+		writer.ReleasePLEs(allPLEs)
+	}()
+
+	var err error
+	var line []byte
+	remainingPostBody := postBody
+	for {
+		line, remainingPostBody = utils.ReadLine(remainingPostBody)
+		if len(remainingPostBody) == 0 {
+			break
+		}
+
 		inCount++
-		esAction, indexName, idVal := extractIndexAndValidateAction(scanner.Bytes())
+		if inCount >= len(items) {
+			newArr := make([]interface{}, 100)
+			items = append(items, newArr...)
+		}
+
+		esAction, indexName, idVal := extractIndexAndValidateAction(line)
+
 		switch esAction {
 
 		case INDEX, CREATE:
-			scanner.Scan()
-			rawJson := scanner.Bytes()
-			numBytes := len(rawJson)
+			line, remainingPostBody = utils.ReadLine(remainingPostBody)
+			if len(line) == 0 && len(remainingPostBody) == 0 {
+				success = false
+				log.Errorf("HandleBulkBody: expected another line after INDEX/CREATE")
+				break
+			}
+
+			numBytes := len(line)
 			bytesReceived += numBytes
 			//update only if body is less than MAX_RECORD_SIZE
 			if numBytes < segment.MAX_RECORD_SIZE {
@@ -122,7 +190,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 					}
 					request := make(map[string]interface{})
 					var json = jsoniter.ConfigCompatibleWithStandardLibrary
-					decoder := json.NewDecoder(bytes.NewReader(rawJson))
+					decoder := json.NewDecoder(bytes.NewReader(line))
 					decoder.UseNumber()
 					err := decoder.Decode(&request)
 					if err != nil {
@@ -132,37 +200,44 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 						if hook := hooks.GlobalHooks.EsBulkIngestInternalHook; hook != nil {
 							err = hook(ctx, request, indexNameConverted, false, idVal, tsNow, myid)
 							if err != nil {
+								log.Errorf("HandleBulkBody: failed to call EsBulkIngestInternalHook, err=%v", err)
 								success = false
 							}
 						}
 					}
 				} else {
-					err := ProcessIndexRequest(rawJson, tsNow, indexName, uint64(numBytes), false, localIndexMap, myid)
+					ple, err := writer.GetNewPLE(line, tsNow, indexName, &tsKey, jsParsingStackbuf[:])
 					if err != nil {
+						log.Errorf("HandleBulkBody: failed to get new PLE line: %v, err: %v", line, err)
 						success = false
+					} else {
+						allPLEs = append(allPLEs, ple)
 					}
 				}
 			} else {
 				success = false
 				maxRecordSizeExceeded = true
 			}
-
 		case UPDATE:
 			success = false
-			scanner.Scan()
+			line, remainingPostBody = utils.ReadLine(remainingPostBody)
+			if len(line) == 0 && len(remainingPostBody) == 0 {
+				log.Errorf("HandleBulkBody: expected another line after UPDATE")
+				break
+			}
 		default:
 			success = false
 		}
 
-		responsebody := make(map[string]interface{})
 		if !success {
+			responsebody := make(map[string]interface{})
 			if maxRecordSizeExceeded {
 				error_response := utils.BulkErrorResponse{
 					ErrorResponse: *utils.NewBulkErrorResponseInfo("request entity too large", "request_entity_exception"),
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 413
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			} else {
 				overallError = true
 				error_response := utils.BulkErrorResponse{
@@ -170,21 +245,33 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 				}
 				responsebody["index"] = error_response
 				responsebody["status"] = 400
-				items = append(items, responsebody)
+				items[inCount-1] = responsebody
 			}
 		} else {
 			atleastOneSuccess = true
-			statusbody := make(map[string]interface{})
-			statusbody["status"] = 201
-			responsebody["index"] = statusbody
-			items = append(items, responsebody)
+			items[inCount-1] = resp_status_201
 		}
 	}
+
+	pleBatches := utils.ConvertSliceToMap(allPLEs, func(ple *writer.ParsedLogEvent) string {
+		return ple.GetIndexName()
+	})
+
+	for indexName, plesInBatch := range pleBatches {
+		err = ProcessIndexRequestPle(tsNow, indexName, false, localIndexMap,
+			myid, rid, idxToStreamIdCache, cnameCacheByteHashToStr,
+			jsParsingStackbuf[:], plesInBatch)
+		if err != nil {
+			log.Errorf("HandleBulkBody: failed to process index request, indexName=%v, err=%v", indexName, err)
+			// TODO: update `atleastOneSuccess`
+		}
+	}
+
 	usageStats.UpdateStats(uint64(bytesReceived), uint64(inCount), myid)
 	timeTook := time.Now().UnixNano() - (startTime)
 	response["took"] = timeTook / 1000
-	response["error"] = overallError
-	response["items"] = items
+	response["errors"] = overallError
+	response["items"] = items[0:inCount]
 
 	if atleastOneSuccess {
 		return processedCount, response, nil
@@ -194,6 +281,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, myid uint64, useI
 }
 
 func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
+
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
 		idVal, err := jp.GetString(val, "_id")
@@ -201,11 +289,12 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 			idVal = ""
 		}
 
-		idxVal, err := jp.GetString(val, INDEX_UNDER_STR)
-		if err != nil {
-			idxVal = ""
+		idxVal, idxDType, _, err := jp.Get(val, INDEX_UNDER_STR)
+		if err != nil || idxDType != jp.String {
+			idxVal = []byte("")
 		}
-		return INDEX, idxVal, idVal
+
+		return INDEX, string(idxVal), idVal
 	}
 
 	val, dType, _, err = jp.Get(rawJson, CREATE_TOP_STR)
@@ -237,7 +326,7 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 	return DELETE, "eventType", ""
 }
 
-func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid uint64) string {
+func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid int64) string {
 
 	// first check localCopy of map, if it exists then avoid the lock inside vtables.
 	// note that this map gets reset on every bulk request
@@ -257,45 +346,71 @@ func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string,
 
 	err := vtable.AddVirtualTable(&indexNameConverted, myid)
 	if err != nil {
-		log.Errorf("AddAndGetRealIndexName: failed to add virtual table, err=%v", err)
+		log.Errorf("AddAndGetRealIndexName: failed to add virtual table=%v, err=%v", indexNameConverted, err)
 	}
 	return indexNameConverted
 }
 
-func ProcessIndexRequest(rawJson []byte, tsNow uint64, indexNameIn string,
-	bytesReceived uint64, flush bool, localIndexMap map[string]string, myid uint64) error {
+func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
+	var totalBytes uint64
+	for _, ple := range pleArray {
+		totalBytes += uint64(len(ple.GetRawJson()))
+	}
+	return totalBytes
+}
+
+func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
+	localIndexMap map[string]string, myid int64, rid uint64,
+	idxToStreamIdCache map[string]string, cnameCacheByteHashToStr map[uint64]string,
+	jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
+
+	for _, ple := range pleArray {
+		if ple.GetIndexName() != indexNameIn {
+			return utils.TeeErrorf("ProcessIndexRequestPle: indexName mismatch; want %v, got %v",
+				indexNameIn, ple.GetIndexName())
+		}
+	}
 
 	indexNameConverted := AddAndGetRealIndexName(indexNameIn, localIndexMap, myid)
-	cfgkey := config.GetTimeStampKey()
+	tsKey := config.GetTimeStampKey()
 
 	var docType segment.SIGNAL_TYPE
 	if strings.HasPrefix(indexNameConverted, "jaeger-") {
 		docType = segment.SIGNAL_JAEGER_TRACES
-		cfgkey = "startTimeMillis"
+		tsKey = "startTimeMillis"
 	} else {
 		docType = segment.SIGNAL_EVENTS
 	}
 
-	ts_millis := utils.ExtractTimeStamp(rawJson, &cfgkey)
-	if ts_millis == 0 {
-		ts_millis = tsNow
+	for _, ple := range pleArray {
+		ple.SetTimestamp(utils.ExtractTimeStamp(ple.GetRawJson(), &tsKey))
+		if ple.GetTimestamp() == 0 {
+			ple.SetTimestamp(tsNow)
+		}
 	}
-	streamid := utils.CreateStreamId(indexNameConverted, myid)
+
+	var streamid string
+	var ok bool
+	streamid, ok = idxToStreamIdCache[indexNameConverted]
+	if !ok {
+		streamid = utils.CreateStreamId(indexNameConverted, myid)
+		idxToStreamIdCache[indexNameConverted] = streamid
+	}
 
 	// TODO: we used to add _index in the json_source doc, since it is needed during
 	// json-rsponse formation during query-resp. We should either add it in this AddEntryToInMemBuf
 	// OR in json-resp creation we add it in the resp using the vtable name
 
-	err := writer.AddEntryToInMemBuf(streamid, rawJson, ts_millis, indexNameConverted, bytesReceived, flush,
-		docType, myid)
+	err := writer.AddEntryToInMemBuf(streamid, indexNameConverted, flush,
+		docType, myid, rid, cnameCacheByteHashToStr, jsParsingStackbuf, pleArray)
 	if err != nil {
-		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, err=%v", err)
+		log.Errorf("ProcessIndexRequest: failed to add entry to in mem buffer, StreamId=%v, err=%v", streamid, err)
 		return err
 	}
 	return nil
 }
 
-func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid int64) {
 
 	r := string(ctx.PostBody())
 	indexName := ctx.UserValue("indexName").(string)
@@ -307,7 +422,7 @@ func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		_, err = ctx.Write([]byte("Failed to put index/mapping"))
 		if err != nil {
-			log.Errorf("ProcessPutIndex: failed to write response, err=%v", err)
+			log.Errorf("ProcessPutIndex: failed to write byte response, err=%v", err)
 		}
 		ctx.SetContentType(utils.ContentJson)
 		return
@@ -329,11 +444,22 @@ func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
 }
 
 // Accepts wildcard index names e.g. "ind-*"
-func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid int64) {
 	inIndexName := utils.ExtractParamAsString(ctx.UserValue("indexName"))
-
-	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
+	if hook := hooks.GlobalHooks.OverrideDeleteIndexRequestHook; hook != nil {
+		alreadyHandled := hook(ctx, myid, inIndexName)
+		if alreadyHandled {
+			return
+		}
+	}
 	responseBody := make(map[string]interface{})
+	if inIndexName == "traces" {
+		ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
+		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
+		utils.WriteJsonResponse(ctx, responseBody)
+		return
+	}
+	convertedIndexNames, indicesNotFound := deleteIndex(inIndexName, myid)
 	if indicesNotFound == len(convertedIndexNames) {
 		ctx.SetStatusCode(fasthttp.StatusNotFound)
 		responseBody["error"] = *utils.NewDeleteIndexErrorResponseInfo(inIndexName)
@@ -346,7 +472,7 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 }
 
-func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
+func deleteIndex(inIndexName string, myid int64) ([]string, int) {
 	convertedIndexNames := vtable.ExpandAndReturnIndexNames(inIndexName, myid, true)
 	indicesNotFound := 0
 	for _, indexName := range convertedIndexNames {
@@ -360,9 +486,9 @@ func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
 		ok, _ := vtable.IsAlias(indexName, myid)
 		if ok {
 			aliases, _ := vtable.GetAliasesAsArray(indexName, myid)
-			error := vtable.RemoveAliases(indexName, aliases, myid)
-			if error != nil {
-				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v ", indexName, aliases)
+			err := vtable.RemoveAliases(indexName, aliases, myid)
+			if err != nil {
+				log.Errorf("deleteIndex : No Aliases removed for indexName = %v, alias: %v, Error=%v", indexName, aliases, err)
 			}
 		}
 		err := vtable.DeleteVirtualTable(&indexName, myid)
@@ -370,8 +496,7 @@ func deleteIndex(inIndexName string, myid uint64) ([]string, int) {
 			log.Errorf("deleteIndex : Failed to delete virtual table for indexName = %v err: %v", indexName, err)
 		}
 
-		currSegmeta := writer.GetLocalSegmetaFName()
-		writer.DeleteSegmentsForIndex(currSegmeta, indexName)
+		writer.DeleteSegmentsForIndex(indexName)
 		writer.DeleteVirtualTableSegStore(indexName)
 		metadata.DeleteVirtualTable(indexName, myid)
 	}

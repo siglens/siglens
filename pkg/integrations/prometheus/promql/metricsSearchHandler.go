@@ -19,9 +19,12 @@ package promql
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -32,10 +35,12 @@ import (
 
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
@@ -150,7 +155,7 @@ func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32,
 	return searchText, startTime, endTime, 0, granularity, nil
 }
 
-func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	searchText := string(ctx.FormValue("query"))
 	timeParam := string(ctx.FormValue("time"))
@@ -175,16 +180,9 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		}
 	}
 
-	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, endTime-1, endTime, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, endTime-1, endTime, myid)
 	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: Error parsing query err=%+v", qid, err)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessPromqlMetricsSearchRequest: could not write error message err=%v", qid, err)
-		}
+		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
 	if len(metricQueryRequest) == 0 {
@@ -192,19 +190,30 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		WriteJsonResponse(ctx, map[string]interface{}{})
 		return
 	}
-	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	metricQueriesList := make([]*structs.MetricsQuery, 0)
+	var timeRange *dtu.MetricsTimeRange
+	hashList := make([]uint64, 0)
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
+	}
+	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ProcessPromqlMetricsSearchRequest: Error getting results! %+v", err)
+		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	searchText := string(ctx.FormValue("query"))
 	startParam := string(ctx.FormValue("start"))
@@ -247,24 +256,28 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 
 	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	metricQueryRequest, pqlQuerytype, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
-		ctx.SetContentType(ContentJson)
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		WriteJsonResponse(ctx, nil)
-		log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: Error parsing query err=%+v", qid, err)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessPromqlMetricsRangeSearchRequest: could not write error message err=%v", qid, err)
-		}
+		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
-	segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[0], qid)
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, qid)
+
+	metricQueriesList := make([]*structs.MetricsQuery, 0)
+	var timeRange *dtu.MetricsTimeRange
+	hashList := make([]uint64, 0)
+	for i := range metricQueryRequest {
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
+		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
+		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
+		timeRange = &metricQueryRequest[i].TimeRange
+	}
+	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
 	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
 	if err != nil {
-		log.Errorf("ProcessPromqlMetricsRangeSearchRequest: Error getting results! %+v", err)
+		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		return
 	}
 	mQResponse.Data.ResultType = parser.ValueTypeMatrix
 	WriteJsonResponse(ctx, &mQResponse)
@@ -272,7 +285,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid uint6
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
 }
-func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(PromQLBuildInfo))
 	if err != nil {
@@ -280,7 +293,7 @@ func ProcessPromqlBuildInfoRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 }
 
-func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
 
@@ -317,7 +330,7 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		return
 	}
 
-	uniqueTagKeys, err := metadata.GetUniqueTagKeysForRotated(timeRange, myid)
+	uniqueTagKeys, err := segmetadata.GetUniqueTagKeysForRotated(timeRange, myid)
 	if err != nil {
 		log.Errorf("ProcessGetLabelsRequest: Error getting unique tag keys for rotated, err:%v", err)
 		return
@@ -341,7 +354,7 @@ func ProcessGetLabelsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetContentType("application/json")
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
-func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	labelName := utils.ExtractParamAsString(ctx.UserValue("labelName"))
 	startParam := string(ctx.FormValue("start"))
 	endParam := string(ctx.FormValue("end"))
@@ -388,7 +401,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	searchText := fmt.Sprintf(`(fake_metricname{%s="*"})`, labelName)
-	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, _, _, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		ctx.SetContentType(ContentJson)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -424,7 +437,7 @@ func ProcessGetLabelValuesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
-func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	matches := make([]string, 0)
 	ctx.QueryArgs().VisitAll(func(key []byte, value []byte) {
@@ -454,7 +467,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	for _, match := range matches {
 
-		metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+		metricQueryRequest, _, _, err := ConvertPromQLToMetricsQuery(match, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 		if err != nil {
 			ctx.SetContentType(ContentJson)
 			ctx.SetStatusCode(fasthttp.StatusBadRequest)
@@ -484,7 +497,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	result, err := metricsResult.GetSeriesByLabel()
 	if err != nil {
-		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid: %v, Matches: %+v", qid, matches), err)
+		utils.SendError(ctx, "Failed to get series", fmt.Sprintf("qid=%v, Matches: %+v", qid, matches), err)
 		return
 	}
 
@@ -497,7 +510,7 @@ func ProcessGetSeriesByLabelRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
 		log.Errorf(" ProcessMetricsSearchRequest: received empty search request body ")
@@ -562,22 +575,23 @@ func ProcessUiMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
-		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
 		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
 		timeRange = &metricQueryRequest[i].TimeRange
 	}
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 	mQResponse, err := res.GetResultsPromQlForUi(metricQueriesList[0], pqlQuerytype, startTime, endTime)
 	if err != nil {
-		log.Errorf("ExecuteAsyncQuery: Error getting results! %+v", err)
+		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
 		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricNamesRequest: empty json body received", errors.New("empty json body received"))
@@ -624,7 +638,7 @@ func ProcessGetAllMetricNamesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	rawJSON := ctx.PostBody()
 	if len(rawJSON) == 0 {
 		utils.SendError(ctx, "empty json body received", "ProcessGetAllMetricTagsRequest: empty json body received", errors.New("empty json body received"))
@@ -670,9 +684,9 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	searchText := fmt.Sprintf("(%v)", metricName)
 
-	metricQueryRequest, _, _, err := ConvertPqlToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
+	metricQueryRequest, _, _, err := ConvertPromQLToMetricsQuery(searchText, timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 	if err != nil {
-		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		utils.SendError(ctx, "Failed to parse the Metric Name as a Query", fmt.Sprintf("Metric Name: %+v; qid=%v", metricName, qid), err)
 		return
 	}
 
@@ -684,7 +698,7 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	uniqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid: %v", metricName, qid), err)
+		utils.SendError(ctx, "Failed to get metric tags", fmt.Sprintf("Metric Name: %+v; qid=%v", metricName, qid), err)
 		return
 	}
 
@@ -697,22 +711,10 @@ func ProcessGetAllMetricTagsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
-	rawJSON := ctx.PostBody()
-	if len(rawJSON) == 0 {
-		utils.SendError(ctx, "empty json body received", "", nil)
-		return
+func ProcessMetricsQueryRequest(queries []map[string]interface{}, formulas []map[string]interface{}, startTime, endTime uint32, myid int64, qid uint64) (*mresults.MetricsResult, []*structs.MetricsQuery, parser.ValueType, string, error) {
+	if qid == 0 {
+		qid = rutils.GetNextQid()
 	}
-	qid := rutils.GetNextQid()
-
-	start, end, queries, formulas, errorLog, err := parseMetricTimeSeriesRequest(rawJSON)
-	if err != nil {
-		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid: %v, Error: %+v", qid, errorLog), err)
-		return
-	}
-
-	// Todo:
-	// Some of the Formulas are not being executed properly. Need to fix.
 	queryFormulaMap := make(map[string]string)
 
 	for _, query := range queries {
@@ -721,27 +723,48 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	finalSearchText, err := buildMetricQueryFromFormulaAndQueries(fmt.Sprintf("%v", formulas[0]["formula"]), queryFormulaMap)
 	if err != nil {
-		utils.SendError(ctx, "Error building metrics query", fmt.Sprintf("qid: %v, Error: %+v", qid, err), err)
-		return
+		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid=%v, queryForumlaMap: %v, formulas: %v", qid, queryFormulaMap, formulas[0]["formula"]), fmt.Errorf("error building metrics query: %v", err)
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPqlToMetricsQuery(finalSearchText, start, end, myid)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(finalSearchText, startTime, endTime, myid)
 	if err != nil {
-		utils.SendError(ctx, "Error parsing metrics query", fmt.Sprintf("qid: %v, Metrics Query: %+v", qid, finalSearchText), err)
-		return
+		return nil, nil, parser.ValueTypeNone, fmt.Sprintf("qid=%v, SearchText: %v", qid, finalSearchText), fmt.Errorf("error parsing promql query: %v", err)
 	}
 
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
-		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.HashedMName)
+		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
 		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
 		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid)
+	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, true)
+
+	return res, metricQueriesList, pqlQuerytype, finalSearchText, nil
+}
+
+func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	rawJSON := ctx.PostBody()
+	if len(rawJSON) == 0 {
+		utils.SendError(ctx, "empty json body received", "", nil)
+		return
+	}
+	qid := rutils.GetNextQid()
+
+	start, end, queries, formulas, errorLog, _, err := ParseMetricTimeSeriesRequest(rawJSON)
+	if err != nil {
+		utils.SendError(ctx, err.Error(), fmt.Sprintf("qid=%v, Error: %+v", qid, errorLog), err)
+		return
+	}
+
+	res, metricQueriesList, pqlQuerytype, extraMsgToLog, err := ProcessMetricsQueryRequest(queries, formulas, start, end, myid, qid)
+	if err != nil {
+		utils.SendError(ctx, err.Error(), extraMsgToLog, err)
+		return
+	}
 
 	if len(res.ErrList) > 0 {
 		var errorMessages []string
@@ -749,13 +772,20 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			errorMessages = append(errorMessages, err.Error())
 		}
 		allErrors := strings.Join(errorMessages, "; ")
-		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid: %v", qid), fmt.Errorf(allErrors))
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid=%v", qid), fmt.Errorf(allErrors))
 		return
 	}
 
-	mQResponse, err := res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
+	var mQResponse MetricStatsResponse
+
+	if res.IsScalar {
+		// extraMsgToLog is the final search text
+		mQResponse, err = res.FetchScalarMetricsForUi(extraMsgToLog, pqlQuerytype, start, end)
+	} else {
+		mQResponse, err = res.FetchPromqlMetricsForUi(metricQueriesList[0], pqlQuerytype, start, end)
+	}
 	if err != nil {
-		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid: %v", qid), err)
+		utils.SendError(ctx, "Failed to get metric time series: "+err.Error(), fmt.Sprintf("qid=%v, finalSearchText=%v", qid, extraMsgToLog), err)
 		return
 	}
 	WriteJsonResponse(ctx, &mQResponse)
@@ -765,24 +795,45 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 func buildMetricQueryFromFormulaAndQueries(formula string, queries map[string]string) (string, error) {
 
-	finalSearchText := formula
-	for key, value := range queries {
-		finalSearchText = strings.ReplaceAll(finalSearchText, key, fmt.Sprintf("%v", value))
+	if len(queries) == 0 {
+		return "", errors.New("no queries found")
 	}
+
+	pattern := ""
+	for key := range queries {
+		if pattern == "" {
+			pattern = fmt.Sprintf(`\b%s\b`, key)
+		} else {
+			pattern = fmt.Sprintf(`%s|\b%s\b`, pattern, key)
+		}
+	}
+
+	pattern = fmt.Sprintf("(%s)", pattern)
+
+	regEx, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to compile regex pattern: %v, Error=%v", pattern, err)
+	}
+
+	replacer := func(match string) string {
+		return queries[match]
+	}
+
+	finalSearchText := regEx.ReplaceAllStringFunc(formula, replacer)
 
 	log.Infof("buildMetricQueryFromFormulAndQueries: finalSearchText=%v", finalSearchText)
 
 	return finalSearchText, nil
 }
 
-func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGetMetricFunctionsRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	ctx.SetContentType("application/json")
 	_, err := ctx.Write([]byte(metricFunctions))
 	if err != nil {
 		log.Errorf("ProcessGetMetricFunctionsRequest: failed to write response, err=%v", err)
 	}
 }
-func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, error) {
+func ParseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]interface{}, []map[string]interface{}, string, map[string]interface{}, error) {
 	var start = uint32(0)
 	var end = uint32(0)
 	queries := make([]map[string]interface{}, 0)
@@ -798,28 +849,28 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	if err != nil {
 		respBodyErr = errors.New("failed to parse request body")
 		errorLog = fmt.Sprintf("the request JSON body received is : %v and err: %v", string(rawJSON), err)
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, nil, respBodyErr
 	}
 
 	start, err = parseTimeStringToUint32(readJSON["start"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse startTime from JSON body")
 		errorLog = "failed to parse startTime from JSON body"
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 
 	}
 	end, err = parseTimeStringToUint32(readJSON["end"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse endTime from JSON body")
 		errorLog = "failed to parse endTime from JSON body"
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 	}
 
 	queryInterfaces, ok := readJSON["queries"].([]interface{})
 	if !ok {
 		respBodyErr = errors.New("failed to parse 'queries' from JSON body")
 		errorLog = fmt.Sprintf("failed to parse 'queries' from JSON body as []interface{} with value: %v", readJSON["queries"])
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 	}
 
 	queries = make([]map[string]interface{}, len(queryInterfaces))
@@ -828,27 +879,27 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'query' from JSON body")
 			errorLog = fmt.Sprintf("failed to parse 'query' object as a map[string]interface{}, 'query' value: %v", qi)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 		_, ok = queryMap["name"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'name' from JSON body")
 			errorLog = fmt.Sprintf("name is either missing or not a string in the query object: %v", queryMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		_, ok = queryMap["query"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'query' field from 'query' object in JSON body")
 			errorLog = fmt.Sprintf("JSON property 'query' is either missing or not a string in the query object: %v", queryMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		_, ok = queryMap["qlType"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'qlType' from JSON body")
 			errorLog = fmt.Sprintf("qlType is either missing or not a string in the query object: %v", queryMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 		queries[i] = queryMap
 	}
@@ -857,7 +908,7 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 	if !ok {
 		respBodyErr = errors.New("failed to parse 'formulas' from JSON body")
 		errorLog = fmt.Sprintf("failed to parse 'formulas' from JSON body as []interface{} with value: %v", readJSON["formulas"])
-		return start, end, queries, formulas, errorLog, respBodyErr
+		return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 	}
 
 	formulas = make([]map[string]interface{}, len(formulaInterfaces))
@@ -866,23 +917,305 @@ func parseMetricTimeSeriesRequest(rawJSON []byte) (uint32, uint32, []map[string]
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'formula' object from JSON body")
 			errorLog = fmt.Sprintf("failed to parse 'formula' object as a map[string]interface{}, 'formula' value: %v", fi)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		_, ok = formulaMap["formula"].(string)
 		if !ok {
 			respBodyErr = errors.New("failed to parse 'formula' field from 'formula' object in JSON body")
 			errorLog = fmt.Sprintf("formula is either missing or not a string in the formula object: %v", formulaMap)
-			return start, end, queries, formulas, errorLog, respBodyErr
+			return start, end, queries, formulas, errorLog, readJSON, respBodyErr
 		}
 
 		formulas[i] = formulaMap
 	}
 
-	return start, end, queries, formulas, errorLog, nil
+	return start, end, queries, formulas, errorLog, readJSON, nil
 }
 
-func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid uint64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
+func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+	}
+	type outputStruct struct {
+		SeriesCardinality uint64 `json:"seriesCardinality"`
+	}
+
+	input := inputStruct{}
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	cardinality, err := query.GetSeriesCardinalityOverTimeRange(timeRange, myid)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to compute cardinality", "", err)
+	}
+
+	output := outputStruct{
+		SeriesCardinality: cardinality,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	WriteJsonResponse(ctx, &output)
+}
+
+func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
+	}
+	type tagKeySeriesCount struct {
+		Key       string `json:"key"`
+		NumSeries uint64 `json:"numSeries"`
+	}
+	type outputStruct struct {
+		TagKeys []tagKeySeriesCount `json:"tagKeys"`
+	}
+
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	limit := input.Limit
+	noLimit := (limit == 0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagKeys := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+	}
+
+	seriesCounts := make([]tagKeySeriesCount, 0, len(tagKeys))
+	for tagKey := range tagKeys {
+		tsidsForKey := make(map[uint64]struct{})
+		for _, segmentTagTreeReader := range tagsTreeReaders {
+			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			if err != nil {
+				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
+				return
+			}
+
+			tsidsForKey = utils.MergeMaps(tsidsForKey, tsids)
+		}
+
+		keyAndCount := tagKeySeriesCount{
+			Key:       tagKey,
+			NumSeries: uint64(len(tsidsForKey)),
+		}
+		seriesCounts = append(seriesCounts, keyAndCount)
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if !noLimit && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	output := outputStruct{
+		TagKeys: seriesCounts,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &output)
+}
+
+func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
+	}
+	type tagPairSeriesCount struct {
+		Key       string `json:"key"`
+		Value     string `json:"value"`
+		NumSeries uint64 `json:"numSeries"`
+	}
+	type outputStruct struct {
+		TagPairs []tagPairSeriesCount `json:"tagPairs"`
+	}
+
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	limit := input.Limit
+	noLimit := (limit == 0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagPairs := make(map[string]map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs, err := segmentTagTreeReader.GetAllTagPairs()
+		if err != nil {
+			utils.SendInternalError(ctx, "Failed to search metrics", "", err)
+			return
+		}
+		for key, valueSet := range segmentTagPairs {
+			if _, ok := tagPairs[key]; !ok {
+				tagPairs[key] = valueSet
+			} else {
+				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
+			}
+		}
+	}
+
+	seriesCounts := make([]tagPairSeriesCount, 0)
+	for key, valueSet := range tagPairs {
+		for value := range valueSet {
+			for _, segmentTagTreeReader := range tagsTreeReaders {
+				tsids, err := segmentTagTreeReader.GetTSIDsForTagPair(key, value)
+				if err != nil {
+					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", key, value), err)
+					return
+				}
+
+				keyAndCount := tagPairSeriesCount{
+					Key:       key,
+					Value:     value,
+					NumSeries: uint64(len(tsids)),
+				}
+				seriesCounts = append(seriesCounts, keyAndCount)
+			}
+		}
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if !noLimit && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	output := outputStruct{
+		TagPairs: seriesCounts,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &output)
+}
+
+func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	type inputStruct struct {
+		StartEpoch utils.Epoch `json:"startEpoch"`
+		EndEpoch   utils.Epoch `json:"endEpoch"`
+		Limit      uint64      `json:"limit"`
+	}
+	type keyAndNumValues struct {
+		Key       string `json:"key"`
+		NumValues uint64 `json:"numValues"`
+	}
+	type outputStruct struct {
+		TagKeys []keyAndNumValues `json:"tagKeys"`
+	}
+
+	input := inputStruct{Limit: 10} // Set defaults
+	err := json.Unmarshal(ctx.PostBody(), &input)
+	if err != nil {
+		utils.SendError(ctx, "Failed to parse request body", fmt.Sprintf("request body: %s", ctx.PostBody()), err)
+		return
+	}
+
+	timeRange, err := utils.GetMetricsTimeRange(input.StartEpoch, input.EndEpoch, time.Now())
+	if err != nil {
+		utils.SendError(ctx, "Invalid time range", fmt.Sprintf("input: %+v", input), err)
+		return
+	}
+
+	limit := input.Limit
+	noLimit := (limit == 0)
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		return
+	}
+
+	tagPairs := make(map[string]map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		segmentTagPairs, err := segmentTagTreeReader.GetAllTagPairs()
+		if err != nil {
+			utils.SendInternalError(ctx, "Failed to search metrics", "", err)
+			return
+		}
+		for key, valueSet := range segmentTagPairs {
+			if _, ok := tagPairs[key]; !ok {
+				tagPairs[key] = valueSet
+			} else {
+				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
+			}
+		}
+	}
+
+	keysAndNumValues := make([]keyAndNumValues, 0)
+	for key, valueSet := range tagPairs {
+		element := keyAndNumValues{
+			Key:       key,
+			NumValues: uint64(len(valueSet)),
+		}
+
+		keysAndNumValues = append(keysAndNumValues, element)
+	}
+
+	sort.Slice(keysAndNumValues, func(i, j int) bool {
+		return keysAndNumValues[i].NumValues > keysAndNumValues[j].NumValues
+	})
+
+	if !noLimit && limit < uint64(len(keysAndNumValues)) {
+		keysAndNumValues = keysAndNumValues[:limit]
+	}
+
+	output := outputStruct{
+		TagKeys: keysAndNumValues,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, &output)
+}
+
+func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid int64) ([]structs.MetricsQueryRequest, parser.ValueType, []structs.QueryArithmetic, error) {
 	// call prometheus promql parser
 	expr, err := parser.ParseExpr(searchText)
 	if err != nil {
@@ -940,6 +1273,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Avg
 				case "count":
 					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.GetAllLabels = true
 				case "sum":
 					mquery.Aggregator.AggregatorFunction = segutils.Sum
 				case "max":
@@ -948,12 +1282,25 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Min
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+				case "topk":
+					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.GetAllLabels = true
+				case "bottomk":
+					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.GetAllLabels = true
+				case "stddev":
+					mquery.Aggregator.AggregatorFunction = segutils.Stddev
+				case "stdvar":
+					mquery.Aggregator.AggregatorFunction = segutils.Stdvar
+				case "group":
+					mquery.Aggregator.AggregatorFunction = segutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
 					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
 			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
+				mquery.Aggregator.GroupByFields = sort.StringSlice(grouping)
 				aggFunc := extractFuncFromPath(path)
 				for _, grp := range grouping {
 					groupby = true
@@ -971,6 +1318,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Avg
 				case "count":
 					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.GetAllLabels = true
+					mquery.TagsFilters = make([]*structs.TagsFilter, 0)
 				case "sum":
 					mquery.Aggregator.AggregatorFunction = segutils.Sum
 				case "max":
@@ -979,6 +1328,18 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Aggregator.AggregatorFunction = segutils.Min
 				case "quantile":
 					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+				case "topk":
+					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.GetAllLabels = true
+				case "bottomk":
+					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.GetAllLabels = true
+				case "stddev":
+					mquery.Aggregator.AggregatorFunction = segutils.Stddev
+				case "stdvar":
+					mquery.Aggregator.AggregatorFunction = segutils.Stdvar
+				case "group":
+					mquery.Aggregator.AggregatorFunction = segutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
 					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
@@ -1050,6 +1411,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 					mquery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
 				case "present_over_time":
 					mquery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+				case "mad_over_time":
+					mquery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow}
 				case "quantile_over_time":
 					if len(expr.Args) != 2 {
 						return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
@@ -1178,6 +1541,8 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		arithmeticOperation := structs.QueryArithmetic{}
 		var lhsValType, rhsValType parser.ValueType
 		var lhsRequest, rhsRequest []structs.MetricsQueryRequest
+		lhsIsVector := false
+		rhsIsVector := false
 		if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
 			arithmeticOperation.ConstantOp = true
 			arithmeticOperation.Constant = constant.Val
@@ -1187,7 +1552,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
 			arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.HashedMName
-
+			lhsIsVector = true
 		}
 
 		if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
@@ -1199,13 +1564,43 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, err
 			}
 			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.HashedMName
-
+			rhsIsVector = true
 		}
-		arithmeticOperation.Operation = getLogicalAndArithmeticOperation(expr.Op)
+		arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
+		arithmeticOperation.ReturnBool = expr.ReturnBool
 		if rhsValType == parser.ValueTypeVector {
 			lhsValType = parser.ValueTypeVector
 		}
-		return append(lhsRequest, rhsRequest...), lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
+
+		req := append(lhsRequest, rhsRequest...)
+
+		if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
+			if putils.IsLogicalOperator(arithmeticOperation.Operation) {
+				return []structs.MetricsQueryRequest{}, "", []structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
+			}
+
+			arithmeticOperation.VectorMatching = &structs.VectorMatching{
+				Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
+				MatchingLabels: expr.VectorMatching.MatchingLabels,
+				On:             expr.VectorMatching.On,
+			}
+			sort.Strings(arithmeticOperation.VectorMatching.MatchingLabels)
+
+			for i := 0; i < len(req); i++ {
+				if len(req[i].MetricsQuery.TagsFilters) > 0 {
+					req[i].MetricsQuery.SelectAllSeries = true
+				}
+			}
+		}
+
+		// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
+		// Logical operations also require checking whether the label sets between the vectors match
+		if putils.IsLogicalOperator(arithmeticOperation.Operation) || (lhsIsVector && rhsIsVector) {
+			for i := 0; i < len(req); i++ {
+				req[i].MetricsQuery.GetAllLabels = true
+			}
+		}
+		return req, lhsValType, []structs.QueryArithmetic{arithmeticOperation}, nil
 	case *parser.ParenExpr:
 		return ConvertPqlToMetricsQuery(expr.Expr.String(), startTime, endTime, myid)
 	default:
@@ -1251,38 +1646,6 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 		},
 	}
 	return []structs.MetricsQueryRequest{*metricQueryRequest}, pqlQuerytype, []structs.QueryArithmetic{}, nil
-}
-
-func getLogicalAndArithmeticOperation(op parser.ItemType) segutils.LogicalAndArithmeticOperator {
-	switch op {
-	case parser.ADD:
-		return segutils.LetAdd
-	case parser.SUB:
-		return segutils.LetSubtract
-	case parser.MUL:
-		return segutils.LetMultiply
-	case parser.DIV:
-		return segutils.LetDivide
-	case parser.MOD:
-		return segutils.LetModulo
-	case parser.POW:
-		return segutils.LetPower
-	case parser.GTR:
-		return segutils.LetGreaterThan
-	case parser.GTE:
-		return segutils.LetGreaterThanOrEqualTo
-	case parser.LSS:
-		return segutils.LetLessThan
-	case parser.LTE:
-		return segutils.LetLessThanOrEqualTo
-	case parser.EQLC:
-		return segutils.LetEquals
-	case parser.NEQ:
-		return segutils.LetNotEquals
-	default:
-		log.Errorf("getArithmeticOperation: unexpected op: %v", op)
-		return 0
-	}
 }
 
 func parseTimeFromString(timeStr string) (uint32, error) {

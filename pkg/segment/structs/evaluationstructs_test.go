@@ -23,6 +23,7 @@ import (
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -227,6 +228,43 @@ func Test_NumericExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, float64(164))
 
+}
+
+func Test_NumericExpr_Mod(t *testing.T) {
+	numericExpr := &NumericExpr{
+		IsTerminal:      true,
+		ValueIsField:    true,
+		Value:           "number",
+		NumericExprMode: NEMNumberField,
+	}
+
+	numericExpr2 := &NumericExpr{
+		IsTerminal:   true,
+		ValueIsField: false,
+		Value:        "5",
+	}
+
+	numericExpr3 := &NumericExpr{
+		IsTerminal: false,
+		Op:         "%",
+		Left:       numericExpr,
+		Right:      numericExpr2,
+	}
+
+	values := []float64{10, 12, 23, 39, 91}
+	expectedValues := []float64{0, 2, 3, 4, 1}
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	for i, value := range values {
+		fieldToValue["number"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_FLOAT,
+			CVal:  value,
+		}
+
+		result, err := numericExpr3.Evaluate(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedValues[i], result)
+	}
 }
 
 func Test_ValueExpr(t *testing.T) {
@@ -542,26 +580,194 @@ func Test_BoolExpr(t *testing.T) {
 		RightValue: valueExprC, // Evaluates to string
 	}
 
-	_, err = boolExprBadOpForStringValues.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	value, err = boolExprBadOpForStringValues.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
 
 	// When fieldToValue is missing fields, Evaluate() should error.
 	delete(fieldToValue, "Max")
 	delete(fieldToValue, "FieldWithNumbers")
-	_, err = boolExprA.Evaluate(fieldToValue)
+	value, err = boolExprA.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
+
+	value, err = boolExprB.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
+
+	value, err = boolExprC.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
+
+	value, err = boolExprD.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, false)
+
+	value, err = boolExprE.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, value, true)
+}
+
+func EvaluateForInputLookup_Helper(t *testing.T, boolExpr *BoolExpr, colValues []string, expectedOutput []bool, valueOps []string, colName string) {
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+
+	for i, valueOp := range valueOps {
+		boolExpr.ValueOp = valueOp
+		fieldToValue[colName] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colValues[i],
+		}
+		value, err := boolExpr.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
+}
+
+func Test_EvaluateForInputLookup(t *testing.T) {
+	valueExprA := &ValueExpr{
+		ValueExprMode: VEMNumericExpr,
+		NumericExpr: &NumericExpr{
+			IsTerminal:      true,
+			ValueIsField:    true,
+			Value:           "Test",
+			NumericExprMode: NEMNumberField,
+		},
+	}
+
+	valueExprB := &ValueExpr{
+		ValueExprMode: VEMStringExpr,
+		StringExpr: &StringExpr{
+			StringExprMode: SEMRawString,
+			RawString:      "test*",
+		},
+	}
+
+	valueExprC := &ValueExpr{
+		ValueExprMode: VEMNumericExpr,
+		NumericExpr: &NumericExpr{
+			IsTerminal:   true,
+			ValueIsField: false,
+			Value:        "100",
+		},
+	}
+
+	valueExprD := &ValueExpr{
+		ValueExprMode: VEMNumericExpr,
+		NumericExpr: &NumericExpr{
+			IsTerminal:      true,
+			ValueIsField:    true,
+			Value:           "Check",
+			NumericExprMode: NEMNumberField,
+		},
+	}
+
+	boolExprStr := &BoolExpr{
+		IsTerminal: true,
+		LeftValue:  valueExprA,
+		RightValue: valueExprB,
+	}
+
+	boolExprNum := &BoolExpr{
+		IsTerminal: true,
+		LeftValue:  valueExprA,
+		RightValue: valueExprC,
+	}
+
+	boolExprNum2 := &BoolExpr{
+		IsTerminal: true,
+		LeftValue:  valueExprD,
+		RightValue: valueExprC,
+	}
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	valueOps := []string{"=", "!=", ">", "<", ">=", "<="}
+
+	// Test String Comparisons
+	colStrValues := []string{"Testing", "test", "xyz", "tester", "sun", "Test"}
+	expectedOutput := []bool{true, false, true, false, false, true}
+	EvaluateForInputLookup_Helper(t, boolExprStr, colStrValues, expectedOutput, valueOps, "Test")
+
+	// Test Numeric Comparisons
+	colNumValues := []string{"100", "100", "101", "0", "99", "100"}
+	expectedOutput = []bool{true, false, true, true, false, true}
+	EvaluateForInputLookup_Helper(t, boolExprNum, colNumValues, expectedOutput, valueOps, "Test")
+
+	// Test String and Numeric Comparisons
+	colValues := []string{"Testing", "100", "sun", "12", "-10", "-3"}
+	expectedOutput = []bool{true, true, false, true, false, true}
+	EvaluateForInputLookup_Helper(t, boolExprStr, colValues, expectedOutput, valueOps, "Test")
+
+	// Test Invalid ValueOp
+	boolExprStr.ValueOp = "invalid"
+	_, err := boolExprStr.EvaluateForInputLookup(fieldToValue)
 	assert.NotNil(t, err)
 
-	_, err = boolExprB.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	// Test AND
+	boolExprAnd := &BoolExpr{
+		IsTerminal: false,
+		BoolOp:     BoolOpAnd,
+		LeftBool:   boolExprStr,
+		RightBool:  boolExprNum2,
+	}
+	expectedOutput = []bool{true, false, true, false, false, true}
+	for i, valueOp := range valueOps {
+		boolExprStr.ValueOp = valueOp
+		fieldToValue["Test"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colStrValues[i],
+		}
+		boolExprNum2.ValueOp = valueOp
+		fieldToValue["Check"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colNumValues[i],
+		}
+		value, err := boolExprAnd.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
 
-	_, err = boolExprC.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	// Test OR
+	boolExprOr := &BoolExpr{
+		IsTerminal: false,
+		BoolOp:     BoolOpOr,
+		LeftBool:   boolExprStr,
+		RightBool:  boolExprNum2,
+	}
+	expectedOutput = []bool{true, false, true, true, false, true}
+	for i, valueOp := range valueOps {
+		boolExprStr.ValueOp = valueOp
+		fieldToValue["Test"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colStrValues[i],
+		}
+		boolExprNum2.ValueOp = valueOp
+		fieldToValue["Check"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colNumValues[i],
+		}
+		value, err := boolExprOr.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
 
-	_, err = boolExprD.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	// Test NOT
+	boolExprNot := &BoolExpr{
+		IsTerminal: false,
+		BoolOp:     BoolOpNot,
+		LeftBool:   boolExprStr,
+	}
+	expectedOutput = []bool{false, true, false, true, true, false}
 
-	_, err = boolExprE.Evaluate(fieldToValue)
-	assert.NotNil(t, err)
+	for i, valueOp := range valueOps {
+		boolExprStr.ValueOp = valueOp
+		fieldToValue["Test"] = segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
+			CVal:  colStrValues[i],
+		}
+		value, err := boolExprNot.EvaluateForInputLookup(fieldToValue)
+		assert.Nil(t, err)
+		assert.Equal(t, expectedOutput[i], value)
+	}
 }
 
 func Test_ConditionExpr(t *testing.T) {
@@ -1316,7 +1522,7 @@ func Test_StringExpr(t *testing.T) {
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "urldecode",
-				Value: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader",
 				},
@@ -1331,41 +1537,13 @@ func Test_StringExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, "http://www.splunk.com/download?r=header")
 
-	strExpr1 :=
-		&StringExpr{
-			StringExprMode: SEMTextExpr,
-			TextExpr: &TextExpr{
-				IsTerminal: false,
-				Op:         "split",
-				Value: &StringExpr{
-					StringExprMode: SEMField,
-					FieldName:      "ident",
-				},
-				Delimiter: &StringExpr{
-					StringExprMode: SEMRawString,
-					RawString:      "-",
-				},
-			},
-		}
-	assert.Equal(t, strExpr1.GetFields(), []string{"ident"})
-
-	// Test Evaluate()
-	fieldToValue["ident"] = segutils.CValueEnclosure{
-		Dtype: segutils.SS_DT_STRING,
-		CVal:  "a111d29d-dd70-48b2-8987-a807b4b8bbae",
-	}
-
-	value, err = strExpr1.Evaluate(fieldToValue)
-	assert.Nil(t, err)
-	assert.Equal(t, value, "a111d29d&nbspdd70&nbsp48b2&nbsp8987&nbspa807b4b8bbae")
-
 	strMax :=
 		&StringExpr{
 			StringExprMode: SEMTextExpr,
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "max",
-				MaxMinValues: []*StringExpr{
+				ValueList: []*StringExpr{
 					{
 						StringExprMode: SEMConcatExpr,
 						ConcatExpr: &ConcatExpr{
@@ -1418,7 +1596,7 @@ func Test_StringExpr(t *testing.T) {
 			TextExpr: &TextExpr{
 				IsTerminal: false,
 				Op:         "min",
-				MaxMinValues: []*StringExpr{
+				ValueList: []*StringExpr{
 					{
 						StringExprMode: SEMConcatExpr,
 						ConcatExpr: &ConcatExpr{
@@ -1474,7 +1652,7 @@ func Test_StringExpr(t *testing.T) {
 					TextExpr: &TextExpr{
 						IsTerminal: false,
 						Op:         "substr",
-						Value: &StringExpr{
+						Param: &StringExpr{
 							StringExprMode: SEMRawString,
 							RawString:      "splendid",
 						},
@@ -1497,7 +1675,7 @@ func Test_StringExpr(t *testing.T) {
 					TextExpr: &TextExpr{
 						IsTerminal: false,
 						Op:         "substr",
-						Value: &StringExpr{
+						Param: &StringExpr{
 							StringExprMode: SEMRawString,
 							RawString:      "chunk",
 						},
@@ -1572,7 +1750,7 @@ func Test_StringExpr(t *testing.T) {
 						Value:           "15",
 					},
 				},
-				Format: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "hex",
 				},
@@ -1599,7 +1777,7 @@ func Test_StringExpr(t *testing.T) {
 						Value:           "12345.6789",
 					},
 				},
-				Format: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "commas",
 				},
@@ -1626,7 +1804,7 @@ func Test_StringExpr(t *testing.T) {
 						Value:           "615",
 					},
 				},
-				Format: &StringExpr{
+				Param: &StringExpr{
 					StringExprMode: SEMRawString,
 					RawString:      "duration",
 				},
@@ -1741,7 +1919,7 @@ func Test_StatisticExpr(t *testing.T) {
 		ByClause:  []string{"app_name"},
 	}
 
-	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetGroupByCols())
+	assert.Equal(t, []string{"http_method", "weekday", "app_name"}, statisticExpr.GetFields())
 
 	bucketResult := &BucketResult{
 		ElemCount:   333,
@@ -1778,4 +1956,312 @@ func Test_StatisticExpr(t *testing.T) {
 	assert.Equal(t, 2, len(results))
 	assert.Equal(t, bucketResult2, results[0])
 	assert.Equal(t, bucketResult1, results[1])
+}
+
+func TestFormatTime(t *testing.T) {
+	cases := []struct {
+		time     time.Time
+		format   string
+		expected string
+	}{
+		{
+			time:     time.Date(2023, 3, 14, 1, 59, 26, 0, time.UTC),
+			format:   "%Y-%m-%d %H:%M:%S",
+			expected: "2023-03-14 01:59:26",
+		},
+		{
+			time:     time.Date(2020, 12, 31, 23, 59, 59, 999999000, time.UTC),
+			format:   "%Y-%m-%d %I:%M:%S %p %f",
+			expected: "2020-12-31 11:59:59 PM .999999",
+		},
+		{
+			time:     time.Date(1999, 1, 1, 15, 0, 0, 0, time.UTC),
+			format:   "%A, %B %d, %Y",
+			expected: "Friday, January 01, 1999",
+		},
+		{
+			time:     time.Date(2023, 3, 14, 1, 59, 26, 0, time.UTC),
+			format:   "%F %T",
+			expected: "2023-03-14 01:59:26",
+		},
+		{
+			time:     time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+			format:   "%s",
+			expected: "0",
+		},
+		{
+			time:     time.Date(2022, 2, 28, 12, 34, 56, 789000000, time.Local),
+			format:   "%c",
+			expected: "Mon Feb 28 12:34:56 2022",
+		},
+		{
+			time:     time.Date(2021, 10, 10, 10, 10, 10, 10000000, time.UTC),
+			format:   "%x %X %N %Q",
+			expected: "10/10/21 10:10:10 010000000 10",
+		},
+		{
+			time:     time.Date(1998, 5, 17, 0, 0, 0, 0, time.UTC),
+			format:   "%V",
+			expected: "20",
+		},
+		{
+			time:     time.Date(2000, 1, 2, 3, 4, 5, 678000000, time.UTC),
+			format:   "%Y-%m-%d %H:%M:%S%f",
+			expected: "2000-01-02 03:04:05.678000",
+		},
+		{
+			time:     time.Date(2000, 12, 25, 23, 59, 59, 999000000, time.UTC),
+			format:   "%c",
+			expected: "Mon Dec 25 23:59:59 2000",
+		},
+	}
+
+	for _, c := range cases {
+		formattedTime := formatTime(c.time, c.format)
+		if formattedTime != c.expected {
+			t.Errorf("Test failed for time: %v, format: %s, expected: %s, got: %s",
+				c.time, c.format, c.expected, formattedTime)
+		}
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	tests := []struct {
+		dateStr     string
+		format      string
+		expected    time.Time
+		shouldError bool
+	}{
+		{
+			dateStr:     "01-02-2006 15:04:05",
+			format:      "%d-%m-%Y %H:%M:%S",
+			expected:    time.Date(2006, time.February, 1, 15, 4, 5, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "01:08 PM",
+			format:      "%I:%M %p",
+			expected:    time.Date(1970, time.January, 1, 13, 8, 0, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "31/12/99",
+			format:      "%d/%m/%y",
+			expected:    time.Date(1999, time.December, 31, 0, 0, 0, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "Monday, 01-January-06 15:04",
+			format:      "%A, %d-%B-%y %H:%M",
+			expected:    time.Date(2006, time.January, 1, 15, 4, 0, 0, time.UTC),
+			shouldError: false,
+		},
+		{
+			dateStr:     "invalid date",
+			format:      "%d-%m-%Y",
+			expected:    time.Time{},
+			shouldError: true,
+		},
+	}
+
+	for _, test := range tests {
+		got, err := parseTime(test.dateStr, test.format)
+		if test.shouldError && err == nil {
+			t.Errorf("parseTime(%q, %q) expected an error, but got nil", test.dateStr, test.format)
+		} else if !test.shouldError && err != nil {
+			t.Errorf("parseTime(%q, %q) unexpected error: %v", test.dateStr, test.format, err)
+		} else if !test.shouldError && !got.Equal(test.expected) {
+			t.Errorf("parseTime(%q, %q) = %v, want %v", test.dateStr, test.format, got, test.expected)
+		}
+	}
+}
+
+func Test_MultiValueExpr(t *testing.T) {
+	mvExpr := &MultiValueExpr{
+		MultiValueExprMode: MVEMMultiValueExpr,
+		Op:                 "split",
+		StringExprParams: []*StringExpr{
+			{
+				StringExprMode: SEMField,
+				FieldName:      "test_field",
+			},
+			{
+				StringExprMode: SEMRawString,
+				RawString:      ":",
+			},
+		},
+	}
+	assert.Equal(t, mvExpr.GetFields(), []string{"test_field"})
+
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
+	fieldToValue["test_field"] = segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  "a:dc:b2c:123",
+	}
+
+	value, err := mvExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.True(t, utils.CompareStringSlices(value, []string{"a", "dc", "b2c", "123"}))
+
+	strExpr := &StringExpr{
+		StringExprMode: SEMTextExpr,
+		TextExpr: &TextExpr{
+			Op:             "mvjoin",
+			MultiValueExpr: mvExpr,
+			Delimiter: &StringExpr{
+				StringExprMode: SEMRawString,
+				RawString:      "?",
+			},
+		},
+	}
+	assert.Equal(t, strExpr.GetFields(), []string{"test_field"})
+
+	joinedStr, err := strExpr.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "a?dc?b2c?123", joinedStr)
+
+	strExpr2 := &StringExpr{
+		StringExprMode: SEMTextExpr,
+		TextExpr: &TextExpr{
+			Op:             "mvcount",
+			MultiValueExpr: mvExpr,
+		},
+	}
+	assert.Equal(t, strExpr.GetFields(), []string{"test_field"})
+
+	countVal, err := strExpr2.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "4", countVal)
+
+	gobRegex := toputils.GobbableRegex{}
+	err = gobRegex.SetRegex("b2*")
+	assert.Nil(t, err)
+
+	strExpr3 := &StringExpr{
+		StringExprMode: SEMTextExpr,
+		TextExpr: &TextExpr{
+			Op:             "mvfind",
+			MultiValueExpr: mvExpr,
+			Regex:          &gobRegex,
+		},
+	}
+	assert.Equal(t, strExpr3.GetFields(), []string{"test_field"})
+
+	foundVal, err := strExpr3.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "2", foundVal)
+
+	err = gobRegex.SetRegex("b3c")
+	assert.Nil(t, err)
+	strExpr3.TextExpr.Regex = &gobRegex
+
+	foundVal, err = strExpr3.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.Equal(t, "", foundVal)
+
+	mvExpr2 := &MultiValueExpr{
+		MultiValueExprMode: MVEMMultiValueExpr,
+		Op:                 "mvindex",
+		MultiValueExprParams: []*MultiValueExpr{
+			mvExpr,
+		},
+		NumericExprParams: []*NumericExpr{
+			{
+				NumericExprMode: NEMNumber,
+				IsTerminal:      true,
+				Value:           "1",
+			},
+		},
+	}
+	assert.Equal(t, mvExpr2.GetFields(), []string{"test_field"})
+
+	value, err = mvExpr2.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.True(t, utils.CompareStringSlices(value, []string{"dc"}))
+
+	mvExpr2.NumericExprParams = append(mvExpr2.NumericExprParams, &NumericExpr{
+		NumericExprMode: NEMNumber,
+		IsTerminal:      true,
+		Value:           "2",
+	})
+
+	value, err = mvExpr2.Evaluate(fieldToValue)
+	assert.Nil(t, err)
+	assert.True(t, utils.CompareStringSlices(value, []string{"dc", "b2c"}))
+}
+
+func Test_GetDefaultTimechartSpanOptions(t *testing.T) {
+	type args struct {
+		startEpoch uint64
+		endEpoch   uint64
+		qid        uint64
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *SpanOptions
+		wantErr bool
+	}{
+		{"startEpoch = 0 should be error", args{0, 1, 1}, nil, true},
+		{"endEpoch = 0 should be error", args{1, 0, 1}, nil, true},
+		{"<15*60*1000 should be TMSecond with Num = 10",
+			args{1, 5*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}, DefaultSettings: false},
+			false},
+		{"15*60*1000 should be TMSecond with Num = 10",
+			args{1, 15*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 10, TimeScalr: segutils.TMSecond}, DefaultSettings: false},
+			false},
+		{"<60*60*1000 should be TMMinute with Num = 1",
+			args{1, 30*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"60*60*1000 should be TMMinute with Num = 1",
+			args{1, 60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"<4*60*60*1000 should be TMMinute with Num = 5",
+			args{1, 2*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"4*60*60*1000 should be TMMinute with Num = 5",
+			args{1, 4*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 5, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"<24*60*60*1000 should be TMMinute with Num = 30",
+			args{1, 20*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"24*60*60*1000 should be TMMinute with Num = 30",
+			args{1, 24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 30, TimeScalr: segutils.TMMinute}, DefaultSettings: false},
+			false},
+		{"<7*24*60*60*1000 should be TMHour with Num = 1",
+			args{1, 6*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}, DefaultSettings: false},
+			false},
+		{"7*24*60*60*1000 should be TMHour with Num = 1",
+			args{1, 7*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMHour}, DefaultSettings: false},
+			false},
+		{"<180*24*60*60*1000 should be TMDay with Num = 1",
+			args{1, 179*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}, DefaultSettings: false},
+			false},
+		{"180*24*60*60*1000 should be TMDay with Num = 1",
+			args{1, 180*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMDay}, DefaultSettings: false},
+			false},
+		{">180*24*60*60*1000 should be TMDay with Num = 1",
+			args{1, 181*24*60*60*1000 + 1, 1},
+			&SpanOptions{SpanLength: &SpanLength{Num: 1, TimeScalr: segutils.TMMonth}, DefaultSettings: false},
+			false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetDefaultTimechartSpanOptions(tt.args.startEpoch, tt.args.endEpoch, tt.args.qid)
+			assert.Equal(t, err != nil, tt.wantErr)
+			assert.Equal(t, got, tt.want)
+		})
+	}
 }

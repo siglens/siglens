@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 )
@@ -96,8 +96,8 @@ func TestParseAndValidateRequestBody(t *testing.T) {
 
 func TestGetTotalUniqueTraceIds(t *testing.T) {
 	//Non-empty PipeSearchResponseOuter
-	pipeSearchResponseOuter := &pipesearch.PipeSearchResponseOuter{
-		Aggs: map[string]pipesearch.AggregationResults{
+	pipeSearchResponseOuter := &structs.PipeSearchResponseOuter{
+		Aggs: map[string]structs.AggregationResults{
 			"": {
 				Buckets: []map[string]interface{}{
 					{"key": "trace1"},
@@ -111,15 +111,15 @@ func TestGetTotalUniqueTraceIds(t *testing.T) {
 	assert.Equal(t, 3, totalTraces)
 
 	//Empty PipeSearchResponseOuter
-	pipeSearchResponseOuter = &pipesearch.PipeSearchResponseOuter{}
+	pipeSearchResponseOuter = &structs.PipeSearchResponseOuter{}
 	totalTraces = GetTotalUniqueTraceIds(pipeSearchResponseOuter)
 	assert.Equal(t, 0, totalTraces)
 }
 
 func TestGetUniqueTraceIds(t *testing.T) {
 	// Non-empty PipeSearchResponseOuter
-	pipeSearchResponseOuter := &pipesearch.PipeSearchResponseOuter{
-		Aggs: map[string]pipesearch.AggregationResults{
+	pipeSearchResponseOuter := &structs.PipeSearchResponseOuter{
+		Aggs: map[string]structs.AggregationResults{
 			"": {
 				Buckets: []map[string]interface{}{
 					{"key": "trace1"},
@@ -133,7 +133,7 @@ func TestGetUniqueTraceIds(t *testing.T) {
 	assert.Equal(t, []string{"trace1", "trace2", "trace3"}, traceIds)
 
 	// Empty PipeSearchResponseOuter
-	pipeSearchResponseOuter = &pipesearch.PipeSearchResponseOuter{}
+	pipeSearchResponseOuter = &structs.PipeSearchResponseOuter{}
 	traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, 0, 0, 1)
 	assert.Equal(t, []string{}, traceIds)
 }

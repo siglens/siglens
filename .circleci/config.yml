@@ -1,66 +1,16 @@
 version: 2.1
+
+setup: true
+
 orbs:
-  browser-tools: circleci/browser-tools@1.4.4
+  path-filtering: circleci/path-filtering@1.1.0
 
-jobs:
-  e2e-server:
-    working_directory: ~/repo
-    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
-    docker:
-      - image: cimg/go:1.19
-    # Add steps to the job
-    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
-    steps:
-      - checkout
-      - setup_remote_docker:
-          version: docker23
-      - run:
-          name: Build Siglens
-          command: make build
-      - run:
-          name: Run Siglens
-          command: ./siglens --config server.yaml
-          background: true
-      - run:
-          name: Tail logs file
-          command: |
-            sleep 10
-            ls -l
-            tail -f logs/siglens.log
-          background: true
-      - run:
-          name: Run E2E Test
-          command: |
-            cd tools/sigclient
-            go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 100_000
-            go run main.go ingest metrics -d http://localhost:8081/otsdb -t 1_000 -m 5 -p 1 -b 10_000 -g benchmark
-            sleep 40
-            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv
-            go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
-            go run main.go query otsdb -d http://localhost:5122/metrics-explorer/api/v1/timeseries -f ../../cicd/metrics_test.csv
-            go run main.go query promql -d http://localhost:5122/promql/api/v1/query_range -v -f ../../cicd/promql_test.csv
-      - run:
-          name: Kill Siglens
-          command: |
-            pkill siglens
-            sleep 2
-      - run:
-          name: Restart Siglens
-          command: make run
-          background: true
-
-      - run:
-          name: Run Restart CI/CD tests
-          command: |
-            cd tools/sigclient
-            sleep 5
-            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/restart.csv
-            go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
-
-# Invoke jobs via workflows
-# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
-  test_and_lint:
+  setup-workflow:
     jobs:
-      - e2e-server
+      - path-filtering/filter:
+          base-revision: develop
+          config-path: .circleci/continue-config.yml
+          mapping: |
+            .* run-tests true
+            pkg/config/version.go run-tests false

@@ -1,0 +1,56 @@
+name: Playwright UI Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  check-changed-files:
+    uses: ./.github/workflows/check-changed-files.yml
+  playwright-tests:
+    runs-on: ubuntu-latest
+    needs: check-changed-files
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true'  && github.event.pull_request.base.ref != 'main' }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.21'
+
+      - name: Build SigLens
+        run: |
+          go mod tidy
+          make build
+
+      - name: Run SigLens
+        run: |
+          ./siglens --config server.yaml &
+          sleep 10
+
+      - name: Ingest Logs & Metrics
+        run: |
+          cd tools/sigclient
+          go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 10_000
+          go run main.go ingest metrics -d http://localhost:8081/otsdb -t 1_000 -m 5 -p 1 -b 10_000 -g benchmark
+          sleep 40
+
+      - name: Install Playwright Dependencies
+        run: |
+          cd playwright-tests
+          npm init -y
+          npm install @playwright/test
+          npx playwright install --with-deps
+
+      - name: Run Playwright Tests
+        run: |
+          cd playwright-tests
+          npx playwright test --workers=5
+        env:
+          CI: true

@@ -5,6 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+WORKDIR /usr/app
 RUN go build -o sigclient main.go
 
-CMD ["./sigclient"]
+ENTRYPOINT ["./sigclient"]

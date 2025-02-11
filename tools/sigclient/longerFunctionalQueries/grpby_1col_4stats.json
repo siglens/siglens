@@ -1,0 +1,44 @@
+{
+    "queryText": "* | stats min(http_status), max(latency), sum(longitude), count BY gender | eval temp_value = 1",
+    "expectedResult": {
+         "bucketCount": 2,
+         "qtype": "aggs-query",
+         "groupByCols": [
+             "gender"
+         ],
+         "measureFunctions": [
+            "count(*)",
+            "temp_value",
+            "min(http_status)",
+            "max(latency)",
+            "sum(longitude)"
+        ],
+         "measure": [
+            {
+                "GroupByValues": [
+                    "female"
+                ],
+                "MeasureVal": {
+                    "count(*)": 10001392,
+                    "max(latency)": 10000000,
+                    "min(http_status)": 200,
+                    "sum(longitude)": -20493.525678998936,
+                    "temp_value": 1
+                }
+            },
+            {
+                "GroupByValues": [
+                    "male"
+                ],
+                "MeasureVal": {
+                    "count(*)": 9998608,
+                    "max(latency)": 9999999,
+                    "min(http_status)": 200,
+                    "sum(longitude)": -248180.01273399784,
+                    "temp_value": 1
+                }
+            }
+        ]
+     }
+ }
+ 

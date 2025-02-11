@@ -64,7 +64,7 @@ type SharedTimeSeriesSegmentReader struct {
 	rwLock                       *sync.Mutex
 }
 
-var globalPool = memorypool.NewMemoryPool(4, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
+var globalPool = memorypool.NewMemoryPool(0, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
 
 /*
 Exposes init functions for timeseries block readers.
@@ -324,9 +324,9 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error
 /*
 TODO: Use the buffer pools for such kinds of memory accesses, it will reduce GC pressures.
 */
-func (tssr *TimeSeriesSegmentReader) GetAllMetricNames() (map[string]bool, error) {
+func GetAllMetricNames(mKey string) (map[string]bool, error) {
 
-	filePath := fmt.Sprintf("%s.mnm", tssr.mKey)
+	filePath := fmt.Sprintf("%s.mnm", mKey)
 
 	fd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 	if err != nil {

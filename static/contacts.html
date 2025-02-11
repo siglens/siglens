@@ -44,7 +44,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/lib/tippy.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -53,6 +54,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
@@ -74,7 +76,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="upper-header">
                 <p class="caption">Determine how to notify contact points when an alert fires
                 </p>
-                <button class="btn" id="new-contact-point">
+                <button class="btn btn-primary" id="new-contact-point">
                     <span>
                         <img src="./assets/add-icon.svg" class="add-icon">Add Contact Point
                     </span>
@@ -91,11 +93,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div class="popupContent">
                 <h3 class="header">Confirmation</h3>
-                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?
-                </p>
-                <button type="button" id="cancel-btn">Cancel</button>
-                <button type="button" id="delete-btn">Delete</button>
-            </div>
+                <p>Are you sure you want to delete the <strong id="contact-name-placeholder"></strong> contact point?</p>
+                <div class="btncontainer">
+                    <button type="button" id="cancel-btn" class="btn btn-primary">Cancel</button>
+                    <button type="button" id="delete-btn" class="btn btn-secondary">Delete</button>
+                </div>
+            </div>                    
             <div class="delete-dialog">
                 <h3 class="header">Cannot delete contact point</h3>
                 <p>
@@ -107,14 +110,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
                         title="Alert Name to search on">
                         <span>View associated Alerts</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        <i class="dropdown-arrow"></i>
                     </button>
                     <div class="dropdown-menu box-shadow" aria-labelledby="alert-btn" id="associated-alerts">
-                        <div id="alert-listing"></div>
                     </div>
                 </div>
-                <button type="button" id="cancel-btn">Close</button>
+                <button type="button" id="cancel-btn" class="btn btn-secondary">Close</button>
             </div>
 
         </div>
@@ -139,3 +140,4 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </body>
 
 </html>
+

@@ -19,6 +19,7 @@ package utils
 
 import (
 	"bufio"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -35,7 +36,17 @@ import (
 	"github.com/valyala/fastrand"
 )
 
+type ConfigType uint8
+
+const (
+	Default ConfigType = iota
+	FunctionalTest
+	PerformanceTest
+)
+
 var json = jsoniter.ConfigFastest
+
+var allFixedColumns = []string{}
 
 type Generator interface {
 	Init(fName ...string) error
@@ -74,18 +85,213 @@ type K8sGenerator struct {
 }
 
 type DynamicUserGenerator struct {
-	baseBody  map[string]interface{}
-	tNowEpoch uint64
-	ts        bool
-	faker     *gofakeit.Faker
-	seed      int64
+	baseBody     map[string]interface{}
+	tNowEpoch    uint64
+	ts           bool
+	faker        *gofakeit.Faker
+	seed         int64
+	accFakerSeed int64
+	accountFaker *gofakeit.Faker
+	DataConfig   *GeneratorDataConfig
 }
 
-func InitDynamicUserGenerator(ts bool, seed int64) *DynamicUserGenerator {
-	return &DynamicUserGenerator{
-		ts:   ts,
-		seed: seed,
+type GeneratorDataConfig struct {
+	ConfigType      ConfigType
+	MaxColumns      int                   // Mximumn Number of columns per record.
+	VariableColumns bool                  // Flag to indicate variable columns per record
+	MinColumns      int                   // Minimum number of columns per record
+	functionalTest  *FunctionalTestConfig // It exclusively used for functional test
+	perfTestConfig  *PerfTestConfig       // It exclusively used for performance test
+	EndTimestamp    time.Time
+	MaxColSuffix    []int
+}
+
+type FunctionalTestConfig struct {
+	FixedColumns       int // Fixed columns for testing
+	MaxVariableColumns int // Max columns,
+	EndTimestamp       uint64
+	variableFaker      *gofakeit.Faker
+	fixedFaker         *gofakeit.Faker
+	jsonFaker          *gofakeit.Faker
+	xmlFaker           *gofakeit.Faker
+	variableColNames   []string
+}
+
+type PerfTestConfig struct {
+	LogChan        chan Log
+	LogToSend      Log
+	ShouldSendData bool
+}
+
+type Log struct {
+	Data            map[string]interface{}
+	AllFixedColumns []string
+	Timestamp       time.Time
+}
+
+func (dataGenConfig *GeneratorDataConfig) SendLog() {
+	if dataGenConfig.ConfigType != PerformanceTest {
+		return
 	}
+	if dataGenConfig.perfTestConfig == nil {
+		log.Errorf("SendLog: Perf test config is nil")
+		return
+	}
+	if dataGenConfig.perfTestConfig.LogChan == nil {
+		log.Errorf("SendLog: Log channel is nil")
+		return
+	}
+
+	dataGenConfig.perfTestConfig.LogToSend.Timestamp = time.Now()
+
+	select {
+	case dataGenConfig.perfTestConfig.LogChan <- dataGenConfig.perfTestConfig.LogToSend:
+		dataGenConfig.perfTestConfig.ShouldSendData = true
+	default:
+		// skip if the channel is full
+	}
+}
+
+func GetVariableColumnNames(maxVariableColumns int) []string {
+	variableColNames := make([]string, 0)
+	for i := 0; i < maxVariableColumns; i++ {
+		variableColNames = append(variableColNames, fmt.Sprintf("variable_col_%d", i))
+	}
+	return variableColNames
+}
+
+func GetVariablesColsNamesFromConfig(dataGenConfig *GeneratorDataConfig) []string {
+	if dataGenConfig.functionalTest != nil {
+		return dataGenConfig.functionalTest.variableColNames
+	}
+	return []string{}
+}
+
+func InitFunctionalTestGeneratorDataConfig(fixedColumns, maxVariableColumns int) *GeneratorDataConfig {
+	return &GeneratorDataConfig{
+		ConfigType: FunctionalTest,
+		functionalTest: &FunctionalTestConfig{
+			FixedColumns:       fixedColumns,
+			MaxVariableColumns: maxVariableColumns,
+			variableColNames:   GetVariableColumnNames(maxVariableColumns),
+		},
+	}
+}
+
+func InitPerformanceTestGeneratorDataConfig(fixedColumns, maxVariableColumns int, logChan chan Log) *GeneratorDataConfig {
+	return &GeneratorDataConfig{
+		ConfigType: PerformanceTest,
+		functionalTest: &FunctionalTestConfig{
+			FixedColumns:       fixedColumns,
+			MaxVariableColumns: maxVariableColumns,
+			variableColNames:   GetVariableColumnNames(maxVariableColumns),
+		},
+		perfTestConfig: &PerfTestConfig{
+			LogChan: logChan,
+		},
+	}
+}
+
+func InitGeneratorDataConfig(maxColumns int, variableColumns bool, minColumns int, uniqColumns int) *GeneratorDataConfig {
+	if minColumns > maxColumns {
+		minColumns = maxColumns
+	}
+
+	if minColumns == 0 {
+		minColumns = maxColumns
+	}
+
+	if minColumns == maxColumns {
+		variableColumns = false
+	}
+
+	genConfig := &GeneratorDataConfig{
+		MaxColumns:      maxColumns,
+		VariableColumns: variableColumns,
+		MinColumns:      minColumns,
+	}
+
+	if uniqColumns > 0 {
+		MaxColSuffix := make([]int, maxColumns)
+		extra := uniqColumns % maxColumns
+		each := uniqColumns / maxColumns
+		for i := 0; i < maxColumns; i++ {
+			MaxColSuffix[i] = each
+			if extra > 0 {
+				MaxColSuffix[i]++
+				extra--
+			}
+		}
+		genConfig.MaxColSuffix = MaxColSuffix
+	}
+
+	return genConfig
+}
+
+func InitDynamicUserGenerator(ts bool, seed int64, accfakerSeed int64, dataConfig *GeneratorDataConfig) *DynamicUserGenerator {
+	return &DynamicUserGenerator{
+		ts:           ts,
+		seed:         seed,
+		accFakerSeed: accfakerSeed,
+		DataConfig:   dataConfig,
+	}
+}
+
+func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
+	fixedfakerSeed := 1000 + processIndex*20
+	jsonFakerSeed := 10 + processIndex
+	xmlFakerSeed := 20 + processIndex
+	varFakerSeed := 30 + processIndex
+
+	fixFaker := gofakeit.NewUnlocked(int64(fixedfakerSeed)) // Cols to test should use fixedFaker only
+	jsonFaker := gofakeit.NewUnlocked(int64(jsonFakerSeed))
+	xmlFaker := gofakeit.NewUnlocked(int64(xmlFakerSeed))
+	varFaker := gofakeit.NewUnlocked(int64(varFakerSeed))
+
+	if dataConfig.functionalTest == nil {
+		return nil, fmt.Errorf("Functional test config is nil")
+	}
+
+	functionalTest := &FunctionalTestConfig{
+		FixedColumns:       dataConfig.functionalTest.FixedColumns,
+		MaxVariableColumns: dataConfig.functionalTest.MaxVariableColumns,
+		variableColNames:   dataConfig.functionalTest.variableColNames,
+		fixedFaker:         fixFaker,
+		jsonFaker:          jsonFaker,
+		xmlFaker:           xmlFaker,
+		variableFaker:      varFaker,
+	}
+
+	endTimestamp := dataConfig.EndTimestamp
+	if processIndex > 0 {
+		endTimestamp = dataConfig.EndTimestamp.Add(3 * time.Duration(-processIndex) * time.Hour)
+	}
+	functionalTest.EndTimestamp = uint64(endTimestamp.UnixMilli())
+
+	return &DynamicUserGenerator{
+		ts:           ts,
+		seed:         seed,
+		accFakerSeed: accFakerSeed,
+		DataConfig: &GeneratorDataConfig{
+			ConfigType:     FunctionalTest,
+			functionalTest: functionalTest,
+		},
+	}, nil
+}
+
+func InitPerfTestGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
+	if dataConfig.perfTestConfig == nil {
+		return nil, fmt.Errorf("Perf test config is nil")
+	}
+	gen, err := InitFunctionalUserGenerator(ts, seed, accFakerSeed, dataConfig, processIndex)
+	if err != nil {
+		return nil, fmt.Errorf("InitPerfTestGenerator: Failed to initialize functional test generator: %v", err)
+	}
+	gen.DataConfig.ConfigType = PerformanceTest
+	gen.DataConfig.perfTestConfig = &PerfTestConfig{
+		LogChan: dataConfig.perfTestConfig.LogChan,
+	}
+	return gen, nil
 }
 
 func InitK8sGenerator(ts bool, seed int64) *K8sGenerator {
@@ -157,53 +363,292 @@ func replacePlaceholders(template string) string {
 	return template
 }
 
-func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool) {
+func getColumnName(name string, colIndex int) string {
+	if colIndex == 0 {
+		return name
+	}
+	return fmt.Sprintf("%s_c%d", name, colIndex)
+}
 
-	m["batch"] = fmt.Sprintf("batch-%d", f.Number(1, 1000))
-	p := f.Person()
-	m["first_name"] = p.FirstName
-	m["last_name"] = p.LastName
-	m["gender"] = p.Gender
-	m["ssn"] = p.SSN
-	m["image"] = p.Image
-	m["hobby"] = p.Hobby
-
-	m["job_description"] = p.Job.Descriptor
-	m["job_level"] = p.Job.Level
-	m["job_title"] = p.Job.Title
-	m["job_company"] = p.Job.Company
-
-	m["address"] = p.Address.Address
-	m["street"] = p.Address.Street
-	m["city"] = p.Address.City
-	m["state"] = p.Address.State
-	m["zip"] = p.Address.Zip
-	m["country"] = p.Address.Country
-	m["latitude"] = p.Address.Latitude
-	m["longitude"] = p.Address.Longitude
-	m["user_phone"] = p.Contact.Phone
-	m["user_email"] = p.Contact.Email
-
-	m["user_color"] = f.Color()
-	m["weekday"] = f.WeekDay()
-	m["http_method"] = f.HTTPMethod()
-	m["http_status"] = f.HTTPStatusCodeSimple()
-	m["app_name"] = f.AppName()
-	m["app_version"] = f.AppVersion()
-	m["ident"] = f.UUID()
-	m["user_agent"] = f.UserAgent()
-	m["url"] = f.URL()
-	m["group"] = fmt.Sprintf("group %d", f.Number(0, 2))
-	m["question"] = f.Question()
-	m["latency"] = f.Number(0, 10_000_000)
+func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, accountFaker *gofakeit.Faker) {
+	getStaticUserColumnValue(f, m, accountFaker)
 
 	if addts {
 		m["timestamp"] = uint64(time.Now().UnixMilli())
 	}
 }
 
+func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
+	for col := range m {
+		delete(m, col)
+	}
+
+	dynamicUserColumnsLen := len(dynamicUserColumnNames)
+	dynamicUserColIndex := 0
+
+	numColumns := 0
+
+	colSuffix := 1
+
+	var skipIndexes map[int]struct{}
+
+	if config != nil {
+		numColumns = config.MaxColumns
+		if config.VariableColumns {
+			rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+			columnsToBeInserted := rng.Intn(config.MaxColumns-config.MinColumns+1) + config.MinColumns
+			skipColumnsCount := config.MaxColumns - columnsToBeInserted
+			skipIndexes = make(map[int]struct{}, skipColumnsCount)
+			for skipColumnsCount > 0 {
+				index := rng.Intn(config.MaxColumns)
+				if _, ok := skipIndexes[index]; !ok {
+					skipIndexes[index] = struct{}{}
+					skipColumnsCount--
+				}
+			}
+		}
+	}
+
+	colCount := 0
+
+	loopCount := numColumns
+
+	if numColumns == 0 {
+		loopCount = len(dynamicUserColumnNames)
+		colSuffix = 0
+	}
+
+	p := f.Person()
+
+	for colCount < loopCount {
+
+		if dynamicUserColIndex >= dynamicUserColumnsLen {
+			dynamicUserColIndex = 0
+			colSuffix++
+			p = f.Person()
+		}
+
+		cname := dynamicUserColumnNames[dynamicUserColIndex]
+		insertColName := getColumnName(cname, colSuffix)
+
+		if skipIndexes != nil {
+			if _, ok := skipIndexes[colCount]; ok {
+				colCount++
+				dynamicUserColIndex++
+				delete(m, insertColName)
+				continue
+			}
+		}
+
+		if len(config.MaxColSuffix) > 0 {
+			insertColName = fmt.Sprintf("%v_%v", insertColName, rand.Intn(config.MaxColSuffix[colCount]))
+		}
+
+		m[insertColName] = getDynamicUserColumnValue(f, cname, p)
+		colCount++
+		dynamicUserColIndex++
+	}
+
+	if addts {
+		m["timestamp"] = uint64(time.Now().UnixMilli())
+	}
+}
+
+type Data struct {
+	Person      *Person                    `json:"person" xml:"person"`
+	CreditCards []*gofakeit.CreditCardInfo `json:"credit_cards" xml:"credit_cards"`
+	IPAddress   string                     `json:"ip_address" xml:"ip_address"`
+	Numbers     []int                      `json:"numbers" xml:"numbers"`
+}
+
+type Person struct {
+	Name    *Name                 `json:"name" xml:"name"`
+	Address *Address              `json:"address" xml:"address"`
+	Contact *gofakeit.ContactInfo `json:"contact" xml:"contact"`
+	Hobbies []string              `json:"hobbies" xml:"hobbies"`
+	Gender  string                `json:"gender" xml:"gender"`
+}
+
+type Name struct {
+	FirstName string `json:"first_name" xml:"first_name"`
+	LastName  string `json:"last_name" xml:"last_name"`
+}
+
+type Address struct {
+	City    string `json:"city" xml:"city"`
+	State   string `json:"state" xml:"state"`
+	Zip     string `json:"zip" xml:"zip"`
+	Country string `json:"country" xml:"country"`
+}
+
+func getData(f *gofakeit.Faker) Data {
+	data := Data{}
+	data.Person = &Person{}
+	data.Person.Name = &Name{
+		FirstName: f.FirstName(),
+		LastName:  f.LastName(),
+	}
+	if f.Bool() {
+		data.Person.Contact = f.Contact()
+	}
+	if f.Bool() {
+		addr := &Address{}
+		addr.City = f.City()
+		addr.State = f.State()
+		if f.Bool() {
+			addr.Zip = f.Zip()
+		}
+		if f.Bool() {
+			addr.Country = f.Country()
+		}
+		data.Person.Address = addr
+	}
+
+	num := f.Number(0, 6)
+	hobbies := []string{}
+	for i := 0; i < num; i++ {
+		hobbies = append(hobbies, f.Hobby())
+	}
+	data.Person.Hobbies = hobbies
+	data.Person.Gender = f.Gender()
+
+	// credit cards
+	num = f.Number(0, 3)
+	credit_cards := make([]*gofakeit.CreditCardInfo, num)
+	for i := 0; i < num; i++ {
+		credit_cards[i] = f.CreditCard()
+	}
+	if num != 0 {
+		data.CreditCards = credit_cards
+	}
+
+	data.IPAddress = f.IPv4Address()
+
+	num = f.Number(0, 4)
+	numbers := make([]int, num)
+	for i := 0; i < num; i++ {
+		numbers[i] = f.Number(1, 9999999999)
+	}
+	data.Numbers = numbers
+
+	return data
+}
+
+func randomizeBody_functionalTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *FunctionalTestConfig, accountFaker *gofakeit.Faker) {
+	// Fixed faker is reserved for default columns that will be used for testing.
+	m["bool_col"] = config.fixedFaker.Bool()
+	lang := config.fixedFaker.Language()
+	if config.fixedFaker.Bool() {
+		lang = "_" + lang
+	}
+	m["language"] = lang
+
+	lenDynamicUserCols := len(dynamicUserColumnNames)
+	getStaticUserColumnValue(config.fixedFaker, m, accountFaker)
+	fixedCols := 4 + lenDynamicUserCols
+
+	data := getData(config.jsonFaker)
+	jsonData, err := json.Marshal(data)
+	if err == nil {
+		m["json_data"] = string(jsonData)
+	} else {
+		log.Errorf("Failed to generate JSON data: %+v", err)
+	}
+
+	XMLdata := getData(config.xmlFaker)
+	xmlData, err := xml.Marshal(XMLdata)
+	if err == nil {
+		m["xml_data"] = string(xmlData)
+	} else {
+		log.Errorf("Failed to generate XML data: %+v", err)
+	}
+
+	suffix := 0
+	curP := f.Person()
+	for i := 0; fixedCols < config.FixedColumns; i++ {
+		if i%lenDynamicUserCols == 0 {
+			curP = f.Person()
+			suffix++
+		}
+		cname := dynamicUserColumnNames[i%lenDynamicUserCols]
+		colName := getColumnName(cname, suffix)
+		m[colName] = getDynamicUserColumnValue(f, cname, curP)
+		fixedCols++
+	}
+
+	if len(allFixedColumns) == 0 {
+		for col := range m {
+			allFixedColumns = append(allFixedColumns, col)
+		}
+	}
+
+	variableP := config.variableFaker.Person()
+	for i, col := range config.variableColNames {
+		if i%lenDynamicUserCols == 0 {
+			variableP = config.variableFaker.Person()
+		}
+		m[col] = getDynamicUserColumnValue(config.variableFaker, dynamicUserColumnNames[i%lenDynamicUserCols], variableP)
+	}
+
+	deleteCols := config.variableFaker.Number(0, config.MaxVariableColumns-1)
+	deletedCols := map[int]struct{}{}
+	for deleteCols > 0 {
+		index := config.variableFaker.Number(0, config.MaxVariableColumns-1)
+		if _, ok := deletedCols[index]; !ok {
+			delete(m, config.variableColNames[index])
+			deletedCols[index] = struct{}{}
+			deleteCols--
+		}
+	}
+
+	if addts {
+		m["timestamp"] = config.EndTimestamp
+		config.EndTimestamp -= 1
+	}
+}
+
+func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig, accountFaker *gofakeit.Faker) {
+	randomizeBody_functionalTest(f, m, addts, config.functionalTest, accountFaker)
+
+	if !config.perfTestConfig.ShouldSendData {
+		return
+	}
+
+	data := make(map[string]interface{})
+
+	for _, col := range config.functionalTest.variableColNames {
+		if val, ok := m[col]; ok {
+			data[col] = val
+		}
+	}
+
+	for _, col := range dynamicUserColumnNames {
+		if val, ok := m[col]; ok {
+			data[col] = val
+		}
+	}
+
+	logToSend := Log{
+		Data:            data,
+		AllFixedColumns: allFixedColumns,
+	}
+
+	config.perfTestConfig.ShouldSendData = false
+	config.perfTestConfig.LogToSend = logToSend
+}
+
 func (r *DynamicUserGenerator) generateRandomBody() {
-	randomizeBody(r.faker, r.baseBody, r.ts)
+	if r.DataConfig != nil {
+		if r.DataConfig.ConfigType == PerformanceTest {
+			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker)
+		} else if r.DataConfig.ConfigType == FunctionalTest {
+			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
+		} else {
+			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
+		}
+	} else {
+		randomizeBody(r.faker, r.baseBody, r.ts, r.accountFaker)
+	}
 }
 
 func (r *K8sGenerator) createK8sBody() {
@@ -242,6 +687,7 @@ func (r *K8sGenerator) Init(fName ...string) error {
 func (r *DynamicUserGenerator) Init(fName ...string) error {
 	gofakeit.Seed(r.seed)
 	r.faker = gofakeit.NewUnlocked(r.seed)
+	r.accountFaker = gofakeit.NewUnlocked(r.accFakerSeed)
 	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
 	r.generateRandomBody()
@@ -252,6 +698,10 @@ func (r *DynamicUserGenerator) Init(fName ...string) error {
 	stringSize := len(body) + int(unsafe.Sizeof(body))
 	log.Infof("Size of a random log line is %+v bytes", stringSize)
 	r.tNowEpoch = uint64(time.Now().UnixMilli()) - 80*24*3600*1000
+	if r.DataConfig != nil && r.DataConfig.perfTestConfig != nil {
+		r.DataConfig.perfTestConfig.ShouldSendData = true
+	}
+
 	return nil
 }
 
@@ -278,7 +728,7 @@ func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 func (r *StaticGenerator) Init(fName ...string) error {
 	m := make(map[string]interface{})
 	f := gofakeit.NewUnlocked(int64(fastrand.Uint32n(1_000)))
-	randomizeBody(f, m, r.ts)
+	randomizeBody(f, m, r.ts, gofakeit.NewUnlocked(10000))
 	body, err := json.Marshal(m)
 	if err != nil {
 		return err

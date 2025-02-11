@@ -33,7 +33,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	bbp "github.com/valyala/bytebufferpool"
 )
 
 func TestBlockSumEncodeDecode(t *testing.T) {
@@ -89,7 +88,7 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 	}
 }
 func TestRecordEncodeDecode(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath())
 	cases := []struct {
 		input []byte
@@ -142,31 +141,33 @@ func TestRecordEncodeDecode(t *testing.T) {
 			}`,
 			)},
 	}
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-%d", i)
-		segstore, err := getSegStore(sId, cTime, "test", 0)
+		segstore, err := getOrCreateSegStore(sId, "test", 0)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS)
-
-		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
+		_, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
 		assert.Nil(t, err)
-		assert.GreaterOrEqual(t, maxIdx, uint32(0))
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
-			val, _, _ := GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29)
+			var val CValueEnclosure
+			_, _ = GetCvalFromRec(colwip.cbuf.Slice(int(colwip.cstartidx), int(colwip.cbufidx)), 29, &val)
 			log.Infof("recNum %+v col %+v:%+v. type %+v", i, key, val, val.Dtype)
 		}
 	}
 }
 
 func TestJaegerRecordEncodeDecode(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	defer os.RemoveAll(config.GetDataPath())
 	cases := []struct {
 		input []byte
@@ -198,77 +199,80 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 				"type": "int64",
 				"value": "1"
 			}
-			
+
 			],
 		"logs": [
-    {
-      "timestamp": 1670445474307949,
-      "fields": [
-        {
-          "key": "event",
-          "type": "string",
-          "value": "Searching for nearby drivers"
-        },
-        {
-          "key": "level",
-          "type": "string",
-          "value": "info"
-        },
-        {
-          "key": "location",
-          "type": "string",
-          "value": "577,322"
-        }
-      ]
-    },
-    {
-      "timestamp": 1670445474370633,
-      "fields": [
-        {
-          "key": "event",
-          "type": "string",
-          "value": "Retrying GetDriver after error"
-        },
-        {
-          "key": "level",
-          "type": "string",
-          "value": "error"
-        },
-        {
-          "key": "retry_no",
-          "type": "int64",
-          "value": "1"
-        },
-        {
-          "key": "error",
-          "type": "string",
-          "value": "redis timeout"
-        }
+	{
+	  "timestamp": 1670445474307949,
+	  "fields": [
+		{
+		  "key": "event",
+		  "type": "string",
+		  "value": "Searching for nearby drivers"
+		},
+		{
+		  "key": "level",
+		  "type": "string",
+		  "value": "info"
+		},
+		{
+		  "key": "location",
+		  "type": "string",
+		  "value": "577,322"
+		}
+	  ]
+	},
+	{
+	  "timestamp": 1670445474370633,
+	  "fields": [
+		{
+		  "key": "event",
+		  "type": "string",
+		  "value": "Retrying GetDriver after error"
+		},
+		{
+		  "key": "level",
+		  "type": "string",
+		  "value": "error"
+		},
+		{
+		  "key": "retry_no",
+		  "type": "int64",
+		  "value": "1"
+		},
+		{
+		  "key": "error",
+		  "type": "string",
+		  "value": "redis timeout"
+		}
 
-      
+
 		]
 	}],
 		}`,
 			)},
 	}
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
 	for i, test := range cases {
 		cTime := uint64(time.Now().UnixMilli())
 		sId := fmt.Sprintf("test-%d", i)
-		segstore, err := getSegStore(sId, cTime, "test", 0)
+		segstore, err := getOrCreateSegStore(sId, "test", 0)
 		if err != nil {
 			log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
 			t.Errorf("failed to get segstore! %v", err)
 		}
 		tsKey := config.GetTimeStampKey()
-		maxIdx, _, err := segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES)
-
-		t.Logf("encoded len: %v, origlen=%v", maxIdx, len(test.input))
+		_, err = segstore.EncodeColumns(test.input, cTime, &tsKey, SIGNAL_JAEGER_TRACES,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 
 		assert.Nil(t, err)
-		assert.GreaterOrEqual(t, maxIdx, uint32(0))
 		colWips := allSegStores[sId].wipBlock.colWips
 		for key, colwip := range colWips {
-			val, _, _ := GetCvalFromRec(colwip.cbuf[colwip.cstartidx:colwip.cbufidx], 29)
+			var val CValueEnclosure
+			_, _ = GetCvalFromRec(colwip.cbuf.Slice(int(colwip.cstartidx), int(colwip.cbufidx)), 29, &val)
 			log.Infof("recNum %+v col %+v:%+v. type %+v", i, key, val, val.Dtype)
 		}
 	}
@@ -276,7 +280,7 @@ func TestJaegerRecordEncodeDecode(t *testing.T) {
 
 func TestTimestampRollups(t *testing.T) {
 
-	wipBlock := createMockTsRollupWipBlock("data/test-segkey")
+	wipBlock := createMockTsRollupWipBlock(t, "data/test-segkey")
 
 	// top-of-day validations
 	expectedData := make(map[uint64]uint16)
@@ -440,10 +444,8 @@ func Test_addSegStatsStr(t *testing.T) {
 	sst := make(map[string]*SegStats)
 	numRecs := uint64(2000)
 
-	bb := bbp.Get()
-
 	for i := uint64(0); i < numRecs; i++ {
-		addSegStatsStr(sst, cname, fmt.Sprintf("%v", i), bb)
+		addSegStatsStrIngestion(sst, cname, []byte(fmt.Sprintf("%v", i)))
 	}
 
 	assert.Equal(t, numRecs, sst[cname].Count)
@@ -453,17 +455,156 @@ func Test_addSegStatsNums(t *testing.T) {
 
 	cname := "mycol1"
 	sst := make(map[string]*SegStats)
-	bb := bbp.Get()
 
-	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, "2345", bb)
-	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
-	assert.Equal(t, int64(2345), sst[cname].NumStats.Min.IntgrVal)
+	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
+	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, int64(2345), sst[cname].Min.CVal)
 
-	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), "345.1", bb)
-	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Min.Ntype)
-	assert.Equal(t, float64(345.1), sst[cname].NumStats.Min.FloatVal)
+	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, float64(345.1), sst[cname].Min.CVal)
 
 	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
 	assert.Equal(t, float64(345.1+2345), sst[cname].NumStats.Sum.FloatVal)
 
+	assert.Equal(t, uint64(2), sst[cname].NumStats.NumericCount)
+}
+
+func Test_addSegStatsNumsMixed(t *testing.T) {
+
+	cname := "mycol1"
+	sst := make(map[string]*SegStats)
+
+	addSegStatsStrIngestion(sst, cname, []byte("abc"))
+	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(100), 0, []byte("100"))
+	addSegStatsStrIngestion(sst, cname, []byte("def"))
+	addSegStatsNums(sst, cname, SS_FLOAT64, 0, 0, float64(123.45), []byte("123.45"))
+	addSegStatsStrIngestion(sst, cname, []byte("20"))
+	addSegStatsStrIngestion(sst, cname, []byte("xyz"))
+
+	assert.Equal(t, uint64(6), sst[cname].Count)
+
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
+	assert.Equal(t, float64(20), sst[cname].Min.CVal)
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].Max.Dtype)
+	assert.Equal(t, float64(123.45), sst[cname].Max.CVal)
+
+	assert.Equal(t, SS_DT_FLOAT, sst[cname].NumStats.Sum.Ntype)
+	assert.Equal(t, float64(20+123.45+100), sst[cname].NumStats.Sum.FloatVal)
+	assert.Equal(t, uint64(3), sst[cname].NumStats.NumericCount)
+}
+
+func Test_SegStoreAllColumnsRecLen(t *testing.T) {
+	config.InitializeTestingConfig(t.TempDir())
+	defer os.RemoveAll(config.GetDataPath())
+	records := []struct {
+		input []byte
+	}{
+		{ // record#1
+			[]byte(`{
+			   "a":"val1",
+			   "b":1.456,
+			   "c":true,
+			   "d":"John",
+			   "e":null
+			 }`,
+			)},
+		{ // record#2
+			[]byte(`{
+			   "a": "val5",
+			   "b": 123456789012345678,
+			   "c": true,
+			   "d": "born",
+			   "e": null
+			 }`,
+			)},
+		{
+			//record#3
+			[]byte(`{
+				"a": "val9",
+				"b": 1234,
+				"c": false,
+				"d": "four",
+				"e": null,
+				"f":-128,
+				"g":-2147483649
+			}`,
+			)},
+		{
+			//record#4
+			[]byte(`{
+					"a":"val1",
+					"b":1.456,
+					"c":true,
+					"d":"John",
+					"e":null,
+					"f":-12,
+					"g":51456,
+					"h":7551456,
+					"i":13887551456,
+					"j":12,
+					"k":-200,
+					"l":-7551456,
+					"m":-3887551456,
+					"n":-1.323232
+			}`,
+			)},
+		{
+			//record#5
+			[]byte(`{
+					"a":"val3",
+					"b":1.456,
+					"d": "Kennedy",
+					"e":null,
+					"n":-1.323232,
+					"o":-12343435565.323232
+			}`,
+			)},
+	}
+
+	// column `a` has constant length of 4. So this column should have size as 4.
+	// column `c` also has constant length until 4th record. It does not exist in the 5th record. So this should be INCONSISTENT_CVAL_SIZE.
+	// column `d` also has constant length until 4th record. In 5th record, its length changes. So this should be INCONSISTENT_CVAL_SIZE.
+	// column `e` is consistently set to null. So this should have size of 1.
+
+	expectedColSizes := []map[string]uint32{
+		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
+		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
+		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
+		{"a": 3 + 4, "c": 1 + 1, "d": 3 + 4, "e": 1},
+		{"a": 3 + 4, "c": INCONSISTENT_CVAL_SIZE, "d": INCONSISTENT_CVAL_SIZE, "e": 1},
+	}
+
+	cTime := uint64(time.Now().UnixMilli())
+	sId := fmt.Sprintf("test-%d", cTime)
+	segstore, err := getOrCreateSegStore(sId, "test", 0)
+	if err != nil {
+		log.Errorf("AddEntryToInMemBuf, getSegstore err=%v", err)
+		t.Errorf("failed to get segstore! %v", err)
+	}
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [64]byte
+
+	for idx, record := range records {
+		err := segstore.WritePackedRecord(record.input, cTime, SIGNAL_EVENTS,
+			cnameCacheByteHashToStr, jsParsingStackbuf[:])
+		assert.Nil(t, err, "failed to write packed record %v", idx)
+
+		assert.Equal(t, idx+1, segstore.RecordCount, "idx=%v", idx)
+
+		expectedColSizeAfterIdx := expectedColSizes[idx]
+
+		assertTheColRecSize(t, segstore, expectedColSizeAfterIdx, idx)
+	}
+
+	err = CleanupUnrotatedSegment(segstore, sId, true, true)
+	assert.Nil(t, err)
+}
+
+func assertTheColRecSize(t *testing.T, ss *SegStore, expectedColValSizes map[string]uint32, idx int) {
+	for colName, expectedSize := range expectedColValSizes {
+		actualSize := ss.AllSeenColumnSizes[colName]
+		assert.Equal(t, expectedSize, actualSize, "idx=%v, colName=%v", idx, colName)
+	}
 }

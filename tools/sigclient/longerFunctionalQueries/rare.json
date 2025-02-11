@@ -1,0 +1,106 @@
+{
+    "queryText": "city=Boston | rare http_method useother=false percentfield=rare_pc countfield=rare_count showperc=true",
+    "expectedResult": {
+        "bucketCount": 6,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "http_method"
+        ],
+        "measureFunctions": [
+            "rare_count",
+            "rare_pc"
+        ],
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    }
+                ],
+                "GroupByValues": [
+                    "PATCH"
+                ],
+                "MeasureVal": {
+                    "rare_count": 33732,
+                    "rare_pc": 16.539591
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT"
+                ],
+                "MeasureVal": {
+                    "rare_count": 33814,
+                    "rare_pc": 16.579798
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    }
+                ],
+                "GroupByValues": [
+                    "POST"
+                ],
+                "MeasureVal": {
+                    "rare_count": 33867,
+                    "rare_pc": 16.605785
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    }
+                ],
+                "GroupByValues": [
+                    "GET"
+                ],
+                "MeasureVal": {
+                    "rare_count": 33894,
+                    "rare_pc": 16.619024
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE"
+                ],
+                "MeasureVal": {
+                    "rare_count": 34154,
+                    "rare_pc": 16.746508
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD"
+                ],
+                "MeasureVal": {
+                    "rare_count": 34486,
+                    "rare_pc": 16.909295
+                }
+            }
+        ]
+    }
+}

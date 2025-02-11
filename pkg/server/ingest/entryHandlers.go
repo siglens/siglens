@@ -18,6 +18,10 @@
 package ingestserver
 
 import (
+	"sync/atomic"
+	"time"
+
+	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/siglens/siglens/pkg/config"
 	esutils "github.com/siglens/siglens/pkg/es/utils"
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
@@ -33,11 +37,50 @@ import (
 	"github.com/siglens/siglens/pkg/otlp"
 	"github.com/siglens/siglens/pkg/sampledataset"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
+var diskUsageExceeded atomic.Bool
+
+func MonitorDiskUsage() {
+	for {
+		usage, err := getDiskUsagePercent()
+		if err != nil {
+			time.Sleep(30 * time.Second)
+			continue
+		}
+		if usage >= config.GetDataDiskThresholdPercent() {
+			log.Errorf("MonitorDiskUsage: Disk usage (%+v%%) exceeded the dataDiskThresholdPercent (%+v%%)", usage, config.GetDataDiskThresholdPercent())
+			diskUsageExceeded.Store(true)
+		} else {
+			diskUsageExceeded.Store(false)
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
+func getDiskUsagePercent() (uint64, error) {
+	s, err := disk.Usage(config.GetDataPath())
+	if err != nil {
+		log.Errorf("getDiskUsagePercent: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
+		return 0, err
+	}
+	percentUsed := (s.Used * 100) / s.Total
+	return percentUsed, nil
+}
+
+func canIngest() bool {
+	return !diskUsageExceeded.Load()
+}
 func esPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
+		if !canIngest() {
+			utils.SendErrorWithoutLogging(ctx, "Ingestion request rejected due to no storage available", nil)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			return
+		}
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 
 		if hook := hooks.GlobalHooks.KibanaIngestHandlerHook; hook != nil {
@@ -63,37 +106,44 @@ func getSafeHealthHandler() func(ctx *fasthttp.RequestCtx) {
 func splunkHecIngestHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(splunk.ProcessSplunkHecIngestRequest, ctx)
+		serverutils.CallWithMyId(splunk.ProcessSplunkHecIngestRequest, ctx)
 	}
 }
 
 func EsPutIndexHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(eswriter.ProcessPutIndex, ctx)
+		serverutils.CallWithMyId(eswriter.ProcessPutIndex, ctx)
+	}
+}
+
+func esPutPostSingleDocHandler(update bool) func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
+		eswriter.ProcessPutPostSingleDocRequest(ctx, update, 0)
 	}
 }
 
 func otsdbPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(otsdbwriter.PutMetrics, ctx)
+		serverutils.CallWithMyId(otsdbwriter.PutMetrics, ctx)
 	}
 }
 
 func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxwriter.PutMetrics, ctx)
+		serverutils.CallWithMyId(influxwriter.PutMetrics, ctx)
 	}
 }
 
 func influxQueryGetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxquery.GetQueryHandler, ctx)
+		serverutils.CallWithMyId(influxquery.GetQueryHandler, ctx)
 	}
 }
 
 func influxQueryPostHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithOrgId(influxquery.PostQueryHandler, ctx)
+		serverutils.CallWithMyId(influxquery.PostQueryHandler, ctx)
 	}
 }
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
@@ -104,26 +154,26 @@ func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 
 func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		prometheuswriter.PutMetrics(ctx)
+		serverutils.CallWithMyId(prometheuswriter.PutMetrics, ctx)
 	}
 }
 
 func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		otlp.ProcessTraceIngest(ctx)
+		serverutils.CallWithMyId(otlp.ProcessTraceIngest, ctx)
+	}
+}
+
+func otlpIngestLogsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyId(otlp.ProcessLogIngest, ctx)
 	}
 }
 
 func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(sampledataset.ProcessSyntheicDataRequest, ctx)
-	}
-}
-
-func postSetconfigHandler(persistent bool) func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		config.ProcessSetConfig(persistent, ctx)
+		serverutils.CallWithMyId(sampledataset.ProcessSyntheicDataRequest, ctx)
 	}
 }
 
@@ -142,6 +192,6 @@ func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithOrgId(loki.ProcessLokiLogsIngestRequest, ctx)
+		serverutils.CallWithMyId(loki.ProcessLokiLogsIngestRequest, ctx)
 	}
 }

@@ -1,0 +1,63 @@
+{
+    "queryText": "variable_col_8=A* | sort ident | tail 2 | eval varField=12 | fields city, app_name, ident, var*",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "city",
+            "app_name",
+            "ident",
+            "varField",
+            "variable_col_0",
+            "variable_col_1",
+            "variable_col_10",
+            "variable_col_11",
+            "variable_col_12",
+            "variable_col_13",
+            "variable_col_14",
+            "variable_col_15",
+            "variable_col_16",
+            "variable_col_17",
+            "variable_col_18",
+            "variable_col_19",
+            "variable_col_2",
+            "variable_col_3",
+            "variable_col_4",
+            "variable_col_5",
+            "variable_col_6",
+            "variable_col_7",
+            "variable_col_8",
+            "variable_col_9"
+        ],
+        "columnsOrder": [
+            "city",
+            "app_name",
+            "ident",
+            "varField",
+            "variable_col_0",
+            "variable_col_1",
+            "variable_col_10",
+            "variable_col_11",
+            "variable_col_12",
+            "variable_col_13",
+            "variable_col_14",
+            "variable_col_15",
+            "variable_col_16",
+            "variable_col_17",
+            "variable_col_18",
+            "variable_col_19",
+            "variable_col_2",
+            "variable_col_3",
+            "variable_col_4",
+            "variable_col_5",
+            "variable_col_6",
+            "variable_col_7",
+            "variable_col_8",
+            "variable_col_9"
+        ]
+    }
+}

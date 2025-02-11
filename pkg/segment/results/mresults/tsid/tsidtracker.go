@@ -270,3 +270,12 @@ func (tr *AllMatchedTSIDs) GetAllTSIDs() map[uint64]*bytebufferpool.ByteBuffer {
 func (tr *AllMatchedTSIDs) GetTSIDInfoMap() map[uint64]*AllMatchedTSIDsInfo {
 	return tr.tsidInfoMap
 }
+
+func (tsidInfo *AllMatchedTSIDs) MergeTSIDs(other *AllMatchedTSIDs) {
+	for k, v := range other.allTSIDs {
+		tsidInfo.allTSIDs[k] = v
+	}
+	for k, v := range other.tsidInfoMap {
+		tsidInfo.tsidInfoMap[k] = v
+	}
+}

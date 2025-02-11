@@ -1,0 +1,138 @@
+{
+    "queryText": "country=United* | fields app_name, app_version, country, city, user_email, http_status, http_method | transaction app_name startswith=eval(http_status=301 OR http_status=200) endswith=eval(http_status>=400) | fields app_name, duration, eventcount, event",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 1654,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "uniqueKeyCols": ["app_name"],
+        "records": [
+            {
+                "app_name": "Regimentis",
+                "duration": 1020,
+                "event": [
+                    {
+                        "_index": "ind-6",
+                        "app_name": "Regimentis",
+                        "app_version": "3.5.10",
+                        "city": "Boston",
+                        "country": "United States Minor Outlying Islands",
+                        "http_method": "GET",
+                        "http_status": 301,
+                        "user_email": "darrelarmstrong@renner.net"
+                    },
+                    {
+                        "_index": "ind-6",
+                        "app_name": "Regimentis",
+                        "app_version": "2.12.12",
+                        "city": "Cincinnati",
+                        "country": "United Kingdom of Great Britain and Northern Ireland",
+                        "http_method": "DELETE",
+                        "http_status": 404,
+                        "user_email": "gregoriastroman@jacobi.biz"
+                    }
+                ],
+                "eventcount": 2,
+                "transactionKey": "_Regimentis"
+            },
+            {
+                "app_name": "Grasshopperhad",
+                "duration": 834,
+                "event": [
+                    {
+                        "_index": "ind-4",
+                        "app_name": "Grasshopperhad",
+                        "app_version": "3.14.1",
+                        "city": "Newark",
+                        "country": "United States of America",
+                        "http_method": "POST",
+                        "http_status": 200,
+                        "user_email": "jedidiahdickens@crona.biz"
+                    },
+                    {
+                        "_index": "ind-8",
+                        "app_name": "Grasshopperhad",
+                        "app_version": "3.11.13",
+                        "city": "Washington",
+                        "country": "United Kingdom of Great Britain and Northern Ireland",
+                        "http_method": "PATCH",
+                        "http_status": 404,
+                        "user_email": "prestonroob@kohler.io"
+                    }
+                ],
+                "eventcount": 2,
+                "transactionKey": "_Grasshopperhad"
+            },
+            {
+                "app_name": "Coyotecan",
+                "duration": 1391,
+                "event": [
+                    {
+                        "_index": "ind-5",
+                        "app_name": "Coyotecan",
+                        "app_version": "2.4.18",
+                        "city": "Seattle",
+                        "country": "United Kingdom of Great Britain and Northern Ireland",
+                        "http_method": "PATCH",
+                        "http_status": 200,
+                        "user_email": "presleydickens@bergstrom.net"
+                    },
+                    {
+                        "_index": "ind-8",
+                        "app_name": "Coyotecan",
+                        "app_version": "4.9.14",
+                        "city": "Lubbock",
+                        "country": "United Arab Emirates",
+                        "http_method": "GET",
+                        "http_status": 404,
+                        "user_email": "summergulgowski@bartell.biz"
+                    }
+                ],
+                "eventcount": 2,
+                "transactionKey": "_Coyotecan"
+            },
+            {
+                "app_name": "Sheepshould",
+                "duration": 4611,
+                "event": [
+                    {
+                        "_index": "ind-9",
+                        "app_name": "Sheepshould",
+                        "app_version": "2.20.2",
+                        "city": "Nashville-Davidson",
+                        "country": "United Arab Emirates",
+                        "http_method": "PATCH",
+                        "http_status": 301,
+                        "user_email": "joshsteuber@hickle.biz"
+                    },
+                    {
+                        "_index": "ind-0",
+                        "app_name": "Sheepshould",
+                        "app_version": "4.10.16",
+                        "city": "Los Angeles",
+                        "country": "United States Minor Outlying Islands",
+                        "http_method": "DELETE",
+                        "http_status": 500,
+                        "user_email": "cathrinekiehn@reynolds.biz"
+                    }
+                ],
+                "eventcount": 2,
+                "transactionKey": "_Sheepshould"
+            }
+        ],
+        "allColumns": [
+            "app_name",
+            "duration",
+            "eventcount",
+            "event"
+        ],
+        "columnsOrder": [
+            "app_name",
+            "duration",
+            "eventcount",
+            "event"
+        ]
+    }
+        
+}

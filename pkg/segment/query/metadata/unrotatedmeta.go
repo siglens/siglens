@@ -22,6 +22,7 @@ import (
 	"sync/atomic"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -68,7 +69,7 @@ func createSearchRequestForUnrotated(fileName string, tableName string,
 // filters unrotated blocks based on search conditions
 // returns the final search request, total blocks, sum of filtered blocks, and any errors
 func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRange *dtu.TimeRange, indexNames []string,
-	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, bloomOp utils.LogicalOperator, rangeFilter map[string]string,
+	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp utils.LogicalOperator, rangeFilter map[string]string,
 	rangeOp utils.FilterOperator, isRange bool, wildcardValue bool, qid uint64) (map[string]*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	writer.UnrotatedInfoLock.RLock()
@@ -80,11 +81,14 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 	totalUnrotatedBlocks := uint64(0)
 	totalFilteredBlocks := uint64(0)
 
+	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
+
 	for _, rawSearchKeys := range allBlocksToSearch {
 		for segKey, blkTracker := range rawSearchKeys {
 			usi, ok := writer.AllUnrotatedSegmentInfo[segKey]
 			if !ok {
-				log.Errorf("qid=%d, CheckMicroIndicesForUnrotated: SegKey %+v does not exist in unrotated information", qid, segKey)
+				isRecentlyRotated := writer.IsRecentlyRotatedSegKey(segKey)
+				log.Errorf("qid=%d, CheckMicroIndicesForUnrotated: SegKey %+v does not exist in unrotated, was recentlyRotated: %v", qid, segKey, isRecentlyRotated)
 				continue
 			}
 			wg.Add(1)
@@ -92,7 +96,7 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 				defer wg.Done()
 
 				filteredBlocks, maxBlocks, numFiltered, err := store.DoCMICheckForUnrotated(currQuery, lookupTimeRange,
-					blkT, bloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardValue, qid)
+					blkT, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardValue, qid, dualCaseCheckEnabled)
 				atomic.AddUint64(&totalUnrotatedBlocks, maxBlocks)
 				atomic.AddUint64(&totalFilteredBlocks, numFiltered)
 				if err != nil {
@@ -121,13 +125,13 @@ func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRan
 }
 
 func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.TimeRange, indexNames []string,
-	rawSearchKeys map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary, qid uint64) map[string]*structs.SegmentSearchRequest {
+	allBlocksToSearch map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary, qid uint64) map[string]*structs.SegmentSearchRequest {
 	// todo: better joining of intermediate results of block summaries
 	finalList := make(map[string]*structs.SegmentSearchRequest)
 
 	if node.AndSearchConditions != nil {
 		andSegmentFiles := extractUnrotatedSSRFromCondition(node.AndSearchConditions, segutils.And, timeRange, indexNames,
-			rawSearchKeys, querySummary, qid)
+			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range andSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
@@ -139,7 +143,7 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 
 	if node.OrSearchConditions != nil {
 		orSegmentFiles := extractUnrotatedSSRFromCondition(node.OrSearchConditions, segutils.Or, timeRange, indexNames,
-			rawSearchKeys, querySummary, qid)
+			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range orSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
@@ -152,7 +156,7 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 	// exclusion conditions should not influence raw blocks to search
 	if node.ExclusionSearchConditions != nil {
 		exclustionSegmentFiles := extractUnrotatedSSRFromCondition(node.ExclusionSearchConditions, segutils.And, timeRange, indexNames,
-			rawSearchKeys, querySummary, qid)
+			allBlocksToSearch, querySummary, qid)
 		for fileName, searchReq := range exclustionSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				continue
@@ -165,16 +169,16 @@ func ExtractUnrotatedSSRFromSearchNode(node *structs.SearchNode, timeRange *dtu.
 }
 
 func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op segutils.LogicalOperator, timeRange *dtu.TimeRange,
-	indexNames []string, rawSearchKeys map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary,
+	indexNames []string, allBlocksToSearch map[string]map[string]*structs.BlockTracker, querySummary *summary.QuerySummary,
 	qid uint64) map[string]*structs.SegmentSearchRequest {
 	finalSegFiles := make(map[string]*structs.SegmentSearchRequest)
 	if condition.SearchQueries != nil {
 
 		for _, query := range condition.SearchQueries {
 			rangeFilter, rangeOp, isRange := query.ExtractRangeFilterFromQuery(qid)
-			bloomWords, wildcardBloom, bloomOp := query.GetAllBlockBloomKeysToSearch()
+			bloomWords, originalBloomWords, wildcardBloom, bloomOp := query.GetAllBlockBloomKeysToSearch()
 			res, totalUnrotatedBlocks, filteredUnrotatedBlocks, err := CheckMicroIndicesForUnrotated(query, timeRange, indexNames,
-				rawSearchKeys, bloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardBloom, qid)
+				allBlocksToSearch, bloomWords, originalBloomWords, bloomOp, rangeFilter, rangeOp, isRange, wildcardBloom, qid)
 
 			if err != nil {
 				log.Errorf("qid=%d, extractUnrotatedSSRFromCondition: an error occurred while checking unrotated data %+v", qid, err)
@@ -193,7 +197,7 @@ func extractUnrotatedSSRFromCondition(condition *structs.SearchCondition, op seg
 
 	if condition.SearchNode != nil {
 		for _, node := range condition.SearchNode {
-			segmentFiles := ExtractUnrotatedSSRFromSearchNode(node, timeRange, indexNames, rawSearchKeys, querySummary, qid)
+			segmentFiles := ExtractUnrotatedSSRFromSearchNode(node, timeRange, indexNames, allBlocksToSearch, querySummary, qid)
 			for fileName, searchReq := range segmentFiles {
 				if _, ok := finalSegFiles[fileName]; !ok {
 					finalSegFiles[fileName] = searchReq

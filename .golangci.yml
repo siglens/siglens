@@ -3,3 +3,11 @@ issues:
     - linters:
         - staticcheck
       text: "SA6002:"
+
+linters:
+  enable:
+    - exhaustive
+
+linters-settings:
+  exhaustive:
+    default-signifies-exhaustive: true

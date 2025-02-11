@@ -18,9 +18,11 @@
 package fileutils
 
 import (
+	"bufio"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -48,7 +50,7 @@ func init() {
 	var rLimit syscall.Rlimit
 	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	if err != nil {
-		log.Errorf("Failed to get max possible number of open file descriptors. Defaulting to %+v. Error: %v",
+		log.Errorf("init: Failed to get max possible number of open file descriptors. Defaulting to %+v. Error: %v",
 			DEFAULT_MAX_OPEN_FDs, err)
 		numFiles = DEFAULT_MAX_OPEN_FDs
 	} else {
@@ -60,7 +62,7 @@ func init() {
 
 	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &newLimit)
 	if err != nil {
-		log.Errorf("Failed to set max possible number of open file descriptors. Defaulting to %+v. Error: %v",
+		log.Errorf("init: Failed to set max possible number of open file descriptors. Defaulting to %+v. Error: %v",
 			rLimit.Cur, err)
 	} else {
 		numFiles = newLimit.Cur
@@ -71,7 +73,7 @@ func init() {
 }
 
 func LogMaxOpenFiles() {
-	log.Infof("Initialized FD limiter with %+v as max number of open files", GLOBAL_FD_LIMITER.MaxSize)
+	log.Infof("LogMaxOpenFiles: Initialized FD limiter with %+v as max number of open files", GLOBAL_FD_LIMITER.MaxSize)
 }
 
 func IsDirEmpty(name string) bool {
@@ -108,7 +110,7 @@ func GetAllFilesInDirectory(path string) []string {
 	files, err := os.ReadDir(path)
 
 	if err != nil {
-		log.Errorf("GetAllFilesInDirectory Error: %v", err)
+		log.Errorf("GetAllFilesInDirectory: err: %v", err)
 		return retVal
 	}
 
@@ -121,4 +123,103 @@ func GetAllFilesInDirectory(path string) []string {
 		}
 	}
 	return retVal
+}
+
+func GetAllFilesWithSameNameInDirectory(dir string, fname string) []string {
+	result := make([]string, 0)
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Errorf("GetAllFilesWithSameNameInDirectory: Error walking path: %v, dir: %v, fname: %v, err: %v", path, dir, fname, err)
+			return nil // Continue walking, but log the error
+		}
+
+		// Check if the current file is the one we're looking for
+		if !info.IsDir() && info.Name() == fname {
+			result = append(result, path)
+		}
+
+		// Return nil to continue walking
+		return nil
+	})
+
+	if err != nil {
+		log.Errorf("GetAllFilesWithSameNameInDirectory: Error during filepath.Walk, dir: %v, fname: %v, err: %v", dir, fname, err)
+	}
+
+	return result
+}
+
+func GetAllFilesWithSpecificExtensions(dir string, ext map[string]struct{}) []string {
+	result := make([]string, 0)
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Errorf("GetAllFilesWithSpecificExtensions: Error walking path: %v, dir: %v, ext: %v, err: %v", path, dir, ext, err)
+			return nil // Continue walking, but log the error
+		}
+
+		// Check if the current file is the one we're looking for
+		if !info.IsDir() {
+			_, extExists := ext[filepath.Ext(path)]
+			if extExists {
+				result = append(result, path)
+			}
+		}
+
+		// Return nil to continue walking
+		return nil
+	})
+
+	if err != nil {
+		log.Errorf("GetAllFilesWithSpecificExtensions: Error during filepath.Walk, dir: %v, ext: %v, err: %v", dir, ext, err)
+	}
+
+	return result
+}
+
+// Note: if your processLine handler needs to keep a copy of the line, you have
+// to copy the bytes to a new slice; the contents may be overwritten by the
+// next call to processLine.
+func ReadLineByLine(filePath string, processLine func(line []byte) error) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Errorf("ReadLineByLine: Error opening file %v: %v", filePath, err)
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		err = processLine(scanner.Bytes())
+		if err != nil {
+			log.Errorf("ReadLineByLine: Error processing line %v: %v", scanner.Text(), err)
+			return err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Errorf("ReadLineByLine: Error scanning file %v: %v", filePath, err)
+		return err
+	}
+
+	return nil
+}
+
+func DoesFileExist(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
+}
+
+func GetDirSize(path string) (uint64, error) {
+	var size uint64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += uint64(info.Size())
+		}
+		return nil
+	})
+	return size, err
 }

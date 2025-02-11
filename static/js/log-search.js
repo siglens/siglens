@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,42 +17,117 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 let originalIndexValues = [];
+//eslint-disable-next-line no-unused-vars
 let indexValues = [];
 
 $(document).ready(async () => {
+    toggleClearButtonVisibility();
+    // Call the function for each tooltip
+    createTooltip('#add-index', 'Add New Index');
+    createTooltip('#date-picker-btn', 'Pick the Time Window');
+    createTooltip('#query-builder-btn', 'Run Query');
+    createTooltip('#logs-settings', 'Settings');
+    createTooltip('#saveq-btn', 'Save Query');
+    createTooltip('#add-logs-to-db-btn', 'Add to Dashboards');
+    createTooltip('#alert-from-logs-btn', 'Create Alert');
+    createTooltip('.download-all-logs-btn', 'Download Logs');
+    createTooltip('#show-record-intro-btn', 'View Query Results Info');
+    createTooltip('#log-opt-single-btn', 'Single Line View');
+    createTooltip('#log-opt-multi-btn', 'Multi Line View');
+    createTooltip('#log-opt-table-btn', 'Tabular View');
+    createTooltip('.avail-fields-btn', 'Select Field to Display');
+    createTooltip('#run-filter-btn', 'Run query');
+
+    function updateTooltip(element) {
+        if (element && element._tippy) {
+            const newContent = element.classList.contains('cancel-search') ? 'Cancel Query' : 'Run Query';
+            element._tippy.setContent(newContent);
+        }
+    }
+
+    function handleClassChange(event) {
+        updateTooltip(event.target);
+    }
+
+    $(document).on('classChange', '#run-filter-btn, #query-builder-btn', handleClassChange);
+
+    const observerCallback = (mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                updateTooltip(mutation.target);
+            }
+        });
+    };
+
+    const observer = new MutationObserver(observerCallback);
+    const config = { attributes: true, attributeFilter: ['class'] };
+
+    ['run-filter-btn', 'query-builder-btn'].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            observer.observe(element, config);
+        }
+    });
+
     setSaveQueriesDialog();
     let indexes = await getListIndices();
-    if (indexes){
-        originalIndexValues = indexes.map(item => item.index);
+    if (indexes) {
+        originalIndexValues = indexes.map((item) => item.index);
         indexValues = [...originalIndexValues];
     }
     initializeIndexAutocomplete();
+    let queryMode = Cookies.get('queryMode');
+    if (queryMode !== undefined) {
+        const searchParams = new URLSearchParams(window.location.search);
+
+        // Check if the URL has the 'filterTab' parameter
+        const hasFilterTab = searchParams.has('filterTab');
+
+        if (!hasFilterTab) {
+            //If filter tab is not present then do trigger.
+            if (queryMode === 'Builder') {
+                $('.custom-code-tab a:first').trigger('click');
+            } else {
+                $('.custom-code-tab a[href="#tabs-2"]').trigger('click');
+            }
+        }
+        // Add active class to dropdown options based on the queryMode selected.
+        updateQueryModeUI(queryMode);
+    }
+    // If query string found , then do search
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
+        initialSearchData = data;
+        doSearch(data);
     } else {
-        //No query string found, using default search filter
-        data = getSearchFilter(false, false);
+        setIndexDisplayValue(selectedSearchIndex);
+        let stDate = Cookies.get('startEpoch') || 'now-15m';
+        let endDate = Cookies.get('endEpoch') || 'now';
+        if (!isNaN(stDate)) {
+            stDate = Number(stDate);
+            endDate = Number(endDate);
+            datePickerHandler(stDate, endDate, 'custom');
+            loadCustomDateTimeFromEpoch(stDate, endDate);
+        } else if (stDate !== 'now-15m') {
+            datePickerHandler(stDate, endDate, stDate);
+        } else {
+            datePickerHandler(stDate, endDate, '');
+        }
+        $('#run-filter-btn').html(' ');
+        $('#query-builder-btn').html(' ');
+        $('#custom-chart-tab').hide();
+        $('#initial-response').show();
     }
-    doSearch(data);
-    $('body').css('cursor', 'default');
 
-    const currentUrl = window.location.href;
-    if (currentUrl.includes("live-tail.html")) {
-        $(".nav-live").addClass("active");
-        $(".nav-search").removeClass("active");
-    }else{
-        $(".nav-search").addClass("active");
-    }
+    $('body').css('cursor', 'default');
 
     $('.theme-btn').on('click', themePickerHandler);
     let ele = $('#available-fields .select-unselect-header');
 
-    if (theme === "light"){
+    if (theme === 'light') {
         ele.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-    }else{
+    } else {
         ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
     }
 
@@ -60,146 +135,81 @@ $(document).ready(async () => {
 
     resetDashboard();
 
-    if (Cookies.get('startEpoch') && Cookies.get('endEpoch')){
+    if (Cookies.get('startEpoch') && Cookies.get('endEpoch')) {
         let cookieVar = Cookies.get('endEpoch');
-        if(cookieVar === "now"){
+        if (cookieVar === 'now') {
             filterStartDate = Cookies.get('startEpoch');
-            filterEndDate =  Cookies.get('endEpoch');
+            filterEndDate = Cookies.get('endEpoch');
             $('.inner-range #' + filterStartDate).addClass('active');
         } else {
             filterStartDate = Number(Cookies.get('startEpoch'));
-            filterEndDate =  Number(Cookies.get('endEpoch'));
+            filterEndDate = Number(Cookies.get('endEpoch'));
         }
     }
 
-    if (Cookies.get('customStartDate')){
+    if (Cookies.get('customStartDate')) {
         let cookieVar = new Date(Cookies.get('customStartDate'));
-        $('#date-start').val(cookieVar.toISOString().substring(0,10));
+        $('#date-start').val(cookieVar.toISOString().substring(0, 10));
         $('#date-start').addClass('active');
     }
-    if (Cookies.get('customEndDate')){
+    if (Cookies.get('customEndDate')) {
         let cookieVar = new Date(Cookies.get('customEndDate'));
-        $('#date-end').val(cookieVar.toISOString().substring(0,10));
+        $('#date-end').val(cookieVar.toISOString().substring(0, 10));
         $('#date-end').addClass('active');
     }
-    if (Cookies.get('customStartTime')){
+    if (Cookies.get('customStartTime')) {
         $('#time-start').val(Cookies.get('customStartTime'));
         $('#time-start').addClass('active');
     }
-    if (Cookies.get('customEndTime')){
+    if (Cookies.get('customEndTime')) {
         $('#time-end').val(Cookies.get('customEndTime'));
         $('#time-end').addClass('active');
     }
 
-	$("#info-icon-sql").tooltip({
-		delay: { show: 0, hide: 300 },
-		trigger: 'click'
-	});
+    $('#info-icon-sql').tooltip({
+        delay: { show: 0, hide: 300 },
+        trigger: 'click',
+    });
 
-	$('#info-icon-sql').on('click', function (e) {
-		$('#info-icon-sql').tooltip('show');
-	});
+    $('#info-icon-sql').on('click', function (_e) {
+        $('#info-icon-sql').tooltip('show');
+    });
 
-	$(document).mouseup(function (e) {
-		if ($(e.target).closest(".tooltip-inner").length === 0) {
-			$('#info-icon-sql').tooltip('hide');
-		}
-	});
-
-	$("#info-icon-logQL").tooltip({
-		delay: { show: 0, hide: 300 },
-		trigger: 'click'
-	});
-
-	$('#info-icon-logQL').on('click', function (e) {
-		$('#info-icon-logQL').tooltip('show');
-	});
-
-	$(document).mouseup(function (e) {
-		if ($(e.target).closest(".tooltip-inner").length === 0) {
-			$('#info-icon-logQL').tooltip('hide');
-		}
-	});
-
-    $("#info-icon-spl").tooltip({
-		delay: { show: 0, hide: 300 },
-		trigger: 'click'
-	});
-
-	$('#info-icon-spl').on('click', function (e) {
-		$('#info-icon-spl').tooltip('show');
-	});
-
-	$(document).mouseup(function (e) {
-		if ($(e.target).closest(".tooltip-inner").length === 0) {
-			$('#info-icon-spl').tooltip('hide');
-		}
-	});
-
-
-    $("#filter-input").focus(function() {
-        if ($(this).val() === "*") {
-          $(this).val("");
+    $(document).mouseup(function (e) {
+        if ($(e.target).closest('.tooltip-inner').length === 0) {
+            $('#info-icon-sql').tooltip('hide');
         }
     });
-});
-function displayQueryLangToolTip(selectedQueryLangID) {
-    $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
-    $("#clearInput").hide();
-    switch (selectedQueryLangID) {
-        case "1":
-            $('#info-icon-sql').show();
-            $("#filter-input").attr("placeholder", "Enter your SQL query here, or click the 'i' icon for examples");
-            break;
-        case "2":
-            $('#info-icon-logQL').show();
-            $("#filter-input").attr("placeholder", "Enter your LogQL query here, or click the 'i' icon for examples");
-            break;
-        case "3":
-            $('#info-icon-spl').show();
-            $("#filter-input").attr("placeholder", "Enter your SPL query here, or click the 'i' icon for examples");
-            break;
-    }
-}
 
-$("#filter-input").on("input", function() {
-    if ($(this).val().trim() !== "") {
-      $("#clearInput").show();
-    } else {
-      $("#clearInput").hide();
-    }
-});
+    $('#info-icon-logQL').tooltip({
+        delay: { show: 0, hide: 300 },
+        trigger: 'click',
+    });
 
-$("#clearInput").click(function() {
-    $("#filter-input").val("").focus();
-    $(this).hide();
-});
+    $('#info-icon-logQL').on('click', function (_e) {
+        $('#info-icon-logQL').tooltip('show');
+    });
 
-/*
-Function to clear the query input field, search filter tags, and related elements
-*/
-function clearQueryInput() {
-    // Clear the query input field
-    $("#query-input").val("*").focus();
+    $(document).mouseup(function (e) {
+        if ($(e.target).closest('.tooltip-inner').length === 0) {
+            $('#info-icon-logQL').tooltip('hide');
+        }
+    });
 
-    // Hide the clear button for the query input field if it's empty
-    if ($("#query-input").val().trim() !== "") {
-        $("#clear-query-btn").show();
-    } else {
-        $("#clear-query-btn").hide();
-    }
+    $('#info-icon-spl').tooltip({
+        delay: { show: 0, hide: 300 },
+        trigger: 'click',
+    });
 
-    // Clear all search filter tags and related elements
-    $("#tags, #tags-second, #tags-third").empty();
-    firstBoxSet.clear();
-    secondBoxSet.clear();
-    thirdBoxSet.clear();
+    $('#info-icon-spl').on('click', function (_e) {
+        $('#info-icon-spl').tooltip('show');
+    });
 
-    // Show the default text for search filters, aggregation attribute, and aggregations
-    $("#search-filter-text, #aggregate-attribute-text, #aggregations").show();
-}
+    $(document).mouseup(function (e) {
+        if ($(e.target).closest('.tooltip-inner').length === 0) {
+            $('#info-icon-spl').tooltip('hide');
+        }
+    });
 
-// Event handler for the clear button associated with the query input field
-$("#clear-query-btn").click(function() {
-    clearQueryInput();
+    initializeFilterInputEvents();
 });

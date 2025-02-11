@@ -18,99 +18,94 @@
 package suffix
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	log "github.com/sirupsen/logrus"
 )
 
-type SuffixEntry struct {
-	Suffix uint64 `json:"suffix"`
+type entry struct {
+	NextSuffix uint64 `json:"suffix"`
 }
 
-func getSuffixFromFile(fileName string) (uint64, error) {
-	f, err := os.OpenFile(fileName, os.O_RDWR, 0764)
+func getSuffix(fileName string) (*entry, error) {
+	jsonBytes, err := os.ReadFile(fileName)
 	if os.IsNotExist(err) {
-		err := os.MkdirAll(path.Dir(fileName), 0764)
-		if err != nil {
-			return 0, err
-		}
-		f, err := os.Create(fileName)
-		if err != nil {
-			return 0, err
-		}
-		defer f.Close()
-		if err != nil {
-			return 0, err
-		}
+		return &entry{NextSuffix: 0}, nil
+	}
+	if err != nil {
+		log.Errorf("getSuffix: Cannot read file %v, err=%v", fileName, err)
+		return nil, err
+	}
 
-		initialSuffix := &SuffixEntry{Suffix: 1}
-		raw, err := json.Marshal(initialSuffix)
-		if err != nil {
-			return 0, err
-		}
-		_, err = f.Write(raw)
-		if err != nil {
-			return 0, err
-		}
-		_, err = f.WriteString("\n")
-		if err != nil {
-			return 0, err
-		}
+	var entry entry
+	err = json.Unmarshal(jsonBytes, &entry)
+	if err != nil {
+		log.Errorf("getSuffix: Cannot unmarshal json=%s from file=%v; err=%v", jsonBytes, fileName, err)
+		return nil, err
+	}
 
-		err = f.Sync()
-		if err != nil {
-			return 0, err
-		}
-		return 0, err
-	}
+	return &entry, nil
+}
+
+func writeSuffix(fileName string, entry *entry) error {
+	jsonBytes, err := json.Marshal(entry)
 	if err != nil {
-		log.Errorf("getSuffixFromFile: Cannot open file %v, err= %v", fileName, err)
-		return 0, err
+		log.Errorf("writeSuffix: Cannot marshal entry=%v to json; err=%v", entry, err)
+		return err
 	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	scanner.Scan()
-	rawbytes := scanner.Bytes()
-	if len(rawbytes) == 0 {
-		log.Errorf("getSuffixFromFile: Empty suffix file %v", fileName)
-		return 0, fmt.Errorf("empty suffix file %v", fileName)
-	}
-	var suffxE SuffixEntry
-	err = json.Unmarshal(rawbytes, &suffxE)
+
+	err = os.WriteFile(fileName, jsonBytes, 0644)
 	if err != nil {
-		log.Errorf("getSuffixFromFile: Cannot unmarshal file = %v with data = %v, err= %v", fileName, string(rawbytes), err)
-		return 0, err
+		log.Errorf("writeSuffix: Cannot write json=%s to file=%v; err=%v", jsonBytes, fileName, err)
+		return err
 	}
-	retVal := suffxE.Suffix
-	suffxE.Suffix++
-	raw, err := json.Marshal(suffxE)
+
+	return nil
+}
+
+func getAndIncrementSuffixFromFile(fileName string, getSegKey func(suffix uint64) string) (uint64, error) {
+	dir := path.Dir(fileName)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
-		return 0, err
-	}
-	err = f.Truncate(0)
-	if err != nil {
-		return 0, err
-	}
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return 0, err
-	}
-	_, err = f.Write(raw)
-	if err != nil {
-		return 0, err
-	}
-	_, err = f.WriteString("\n")
-	if err != nil {
+		log.Errorf("getAndIncrementSuffixFromFile: Cannot create directory %v; err=%v", dir, err)
 		return 0, err
 	}
 
-	return retVal, nil
+	entry, err := getSuffix(fileName)
+	if err != nil {
+		log.Errorf("getAndIncrementSuffixFromFile: Cannot get suffix from file %v; err=%v", fileName, err)
+		return 0, err
+	}
+
+	if hook := hooks.GlobalHooks.GetNextSuffixHook; hook != nil {
+		if getSegKey == nil {
+			return 0, fmt.Errorf("getAndIncrementSuffixFromFile: getSegKey is nil")
+		}
+
+		suffix, err := hook(entry.NextSuffix, getSegKey)
+		if err != nil {
+			log.Errorf("getAndIncrementSuffixFromFile: Cannot get suffix from hook; err=%v", err)
+			return 0, err
+		}
+
+		entry.NextSuffix = suffix
+	}
+
+	resultSuffix := entry.NextSuffix
+
+	entry.NextSuffix++
+	err = writeSuffix(fileName, entry)
+	if err != nil {
+		log.Errorf("getAndIncrementSuffixFromFile: Cannot write suffix to file %v; err=%v", fileName, err)
+		return 0, err
+	}
+
+	return resultSuffix, nil
 }
 
 /*
@@ -118,24 +113,17 @@ Get the next suffix for the given streamid and table combination
 
 Internally, creates & reads the suffix file persist suffixes
 */
-func GetSuffix(streamid, table string) (uint64, error) {
-
-	fileName := getSuffixFile(table, streamid)
-	nextSuffix, err := getSuffixFromFile(fileName)
-	if err != nil {
-		log.Errorf("GetSuffix: Error generating suffix for streamid %v. Err: %v", streamid, err)
+func GetNextSuffix(streamid, table string) (uint64, error) {
+	fileName := config.GetSuffixFile(table, streamid)
+	getSegKey := func(suffix uint64) string {
+		return config.GetSegKey(streamid, table, suffix)
 	}
-	return nextSuffix, err
-}
 
-func getSuffixFile(virtualTable string, streamId string) string {
-	var sb strings.Builder
-	sb.WriteString(config.GetDataPath())
-	sb.WriteString(config.GetHostID())
-	sb.WriteString("/suffix/")
-	sb.WriteString(virtualTable)
-	sb.WriteString("/")
-	sb.WriteString(streamId)
-	sb.WriteString(".suffix")
-	return sb.String()
+	nextSuffix, err := getAndIncrementSuffixFromFile(fileName, getSegKey)
+	if err != nil {
+		log.Errorf("GetSuffix: Error generating suffix for streamid=%v, table=%v. Err: %v", streamid, table, err)
+		return 0, err
+	}
+
+	return nextSuffix, nil
 }

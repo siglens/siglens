@@ -1,0 +1,145 @@
+{
+    "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 global=false reset_on_change=true avg(http_status) as avg_http_status BY bool_col | streamstats window=3 global=false current=false reset_on_change=true sum(http_status) as sum_http_status BY bool_col  | streamstats window=4 global=false reset_before=(last_name=\"Murazik\") reset_after=(last_name=\"Larson\") sum(latency) as sum_latency by bool_col | streamstats window=4 current=false reset_before=(latency>9333128 AND latency < 9333130) avg(latency) as avg_latency by bool_col | fields city, first_name, last_name, bool_col, http_status, avg_http_status, sum_http_status, latency, sum_latency, avg_latency",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 100,
+             "relation": "gte"
+         },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "avg_http_status": 500,
+                "avg_latency": "",
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Abshire",
+                "latency": 3538965,
+                "sum_http_status": "",
+                "sum_latency": 3538965
+            },
+            {
+                "avg_http_status": 301,
+                "avg_latency": "",
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 301,
+                "last_name": "Armstrong",
+                "latency": 5919164,
+                "sum_http_status": "",
+                "sum_latency": 5919164
+            },
+            {
+                "avg_http_status": 500,
+                "avg_latency": 3538965,
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Bailey",
+                "latency": 9069431,
+                "sum_http_status": "",
+                "sum_latency": 12608396
+            },
+            {
+                "avg_http_status": 500,
+                "avg_latency": 5919164,
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Batz",
+                "latency": 8375300,
+                "sum_http_status": "",
+                "sum_latency": 14294464
+            },
+            {
+                "avg_http_status": 500,
+                "avg_latency": 6304198,
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 500,
+                "last_name": "Bednar",
+                "latency": 6335018,
+                "sum_http_status": "",
+                "sum_latency": 18943414
+            },
+            {
+                "avg_http_status": 401,
+                "avg_latency": 7702224.5,
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 302,
+                "last_name": "Beer",
+                "latency": 9021473,
+                "sum_http_status": 500,
+                "sum_latency": 27964887
+            },
+            {
+                "avg_http_status": 334,
+                "avg_latency": 8141974,
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 200,
+                "last_name": "Bins",
+                "latency": 1912618,
+                "sum_http_status": 802,
+                "sum_latency": 26338540
+            },
+            {
+                "avg_http_status": 301,
+                "avg_latency": 8375300,
+                "bool_col": true,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 301,
+                "last_name": "Blanda",
+                "latency": 1637237,
+                "sum_http_status": "",
+                "sum_latency": 15931701
+            },
+            {
+                "avg_http_status": 404,
+                "avg_latency": 5756369.666666667,
+                "bool_col": false,
+                "city": "Boston",
+                "first_name": "Aaliyah",
+                "http_status": 404,
+                "last_name": "Bode",
+                "latency": 1532642,
+                "sum_http_status": "",
+                "sum_latency": 18801751
+            }
+        ],
+         "allColumns": [
+            "city",
+            "first_name",
+            "last_name",
+            "bool_col",
+            "http_status",
+            "avg_http_status",
+            "sum_http_status",
+            "latency",
+            "sum_latency",
+            "avg_latency"
+        ],
+         "columnsOrder": [
+            "city",
+            "first_name",
+            "last_name",
+            "bool_col",
+            "http_status",
+            "avg_http_status",
+            "sum_http_status",
+            "latency",
+            "sum_latency",
+            "avg_latency"
+        ]
+     }
+ }
+ 

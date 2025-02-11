@@ -1,0 +1,2420 @@
+{
+    "queryText": "city=Boston AND (app_name=Cheet* OR variable_col_3=ma*) | stats avg(eval(if(variable_col_17 > 300, 100, 10))) as avg, sum(eval(if(variable_col_17 > 400, 100, 10))) as sum, min(eval(if(variable_col_17 > 400, \"abc\", \"ABC\"))) as min, max(eval(if(variable_col_17 > 400, \"Error\", \"Success\"))) as max, range(eval(if(variable_col_17 > 400, latitude, longitude))) as range, count(eval(variable_col_17 > 300 AND http_method=\"PATCH\")) as count, values(eval(if(variable_col_17 > 302, \"Error\", variable_col_17))) as values, dc(eval(if(variable_col_17 > 310, \"Error\", variable_col_17))) as dc, list(eval(if(variable_col_17 > 400, 1, 1))) as list BY variable_col_8, bool_col",
+    "expectedResult": {
+         "bucketCount": 67,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "variable_col_8",
+            "bool_col"
+        ],
+         "measureFunctions": [
+            "max",
+            "avg",
+            "sum",
+            "count",
+            "values",
+            "range",
+            "min",
+            "dc",
+            "list"
+        ],
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Markets"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Markets",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 85.06768199999999,
+                    "sum": 30,
+                    "values": [
+                        "-69.589722",
+                        "22.342555",
+                        "45.026689"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Metrics"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Metrics",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 5,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 277.642329,
+                    "sum": 60,
+                    "values": [
+                        "-1.959741",
+                        "-18.386474",
+                        "-75.84725",
+                        "72.631258",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Factors"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Factors",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 279.405435,
+                    "sum": 20,
+                    "values": [
+                        "73.966699",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Interactions"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Interactions",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "10.369517"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Interactions"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Interactions",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 2.6892210000000034,
+                    "sum": 20,
+                    "values": [
+                        "-41.43758",
+                        "16.695559"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Infrastructure"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Infrastructure",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 275.078419,
+                    "sum": 30,
+                    "values": [
+                        "-5.500367",
+                        "69.178327",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Program"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Program",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-50.447236"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Group"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Group",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 265.11773800000003,
+                    "sum": 70,
+                    "values": [
+                        "13.079379",
+                        "54.248685",
+                        "82.103399",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Integration"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Integration",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "27.183028"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Implementation"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Implementation",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 172.88199300000002,
+                    "sum": 30,
+                    "values": [
+                        "-11.497278",
+                        "-16.520975",
+                        "25.198551"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 8,
+                        "CVal": null
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 28,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 343.805484,
+                    "sum": 420,
+                    "values": [
+                        "-0.035245",
+                        "-15.866176",
+                        "-3.437316",
+                        "-39.348205",
+                        "-51.65289",
+                        "-54.332737",
+                        "-66.988988",
+                        "-7.332418",
+                        "-72.592171",
+                        "-82.817833",
+                        "-89.604008",
+                        "1.828577",
+                        "11.697653",
+                        "17.703385",
+                        "19.75075",
+                        "2.027542",
+                        "3.270383",
+                        "48.720739",
+                        "48.857982",
+                        "59.954633",
+                        "66.686799",
+                        "71.097842",
+                        "72.109812",
+                        "76.62843",
+                        "80.509914",
+                        "85.213873",
+                        "85.263084",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Paradigm"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Paradigm",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 271.164404,
+                    "sum": 40,
+                    "values": [
+                        "-43.668905",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Communications"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Communications",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 329.898636,
+                    "sum": 30,
+                    "values": [
+                        "-6.854698",
+                        "-83.294081",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Security"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Security",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 138.063221,
+                    "sum": 20,
+                    "values": [
+                        "-35.975243",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Metrics"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Metrics",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 77.188355,
+                    "sum": 20,
+                    "values": [
+                        "-61.963192",
+                        "60.456715"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Tactics"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Tactics",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 11.276469,
+                    "sum": 20,
+                    "values": [
+                        "-31.158607",
+                        "83.008643"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Creative"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Creative",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 308.468218,
+                    "sum": 30,
+                    "values": [
+                        "-25.777156",
+                        "-29.008896",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Branding"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Branding",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 132.77292699999998,
+                    "sum": 20,
+                    "values": [
+                        "68.02221",
+                        "74.118728"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Research"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Research",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 21.340672999999995,
+                    "sum": 20,
+                    "values": [
+                        "28.556873",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Data"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Data",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Applications"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Applications",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-37.436157"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Brand"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Brand",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 281.294679,
+                    "sum": 30,
+                    "values": [
+                        "-48.684605",
+                        "0.333055",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Marketing"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Marketing",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-75.898692"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Response"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Response",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 220.806693,
+                    "sum": 30,
+                    "values": [
+                        "-52.063456",
+                        "4.345814",
+                        "77.776492"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Optimization"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Optimization",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 50.778628999999995,
+                    "sum": 20,
+                    "values": [
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Program"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Program",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 45.68801500000001,
+                    "sum": 30,
+                    "values": [
+                        "21.697249",
+                        "88.159604",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Identity"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Identity",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 15.966268999999997,
+                    "sum": 20,
+                    "values": [
+                        "-45.865627",
+                        "67.991561"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Intranet"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Intranet",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 23.608816000000004,
+                    "sum": 20,
+                    "values": [
+                        "21.596184",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Tactics"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Tactics",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Paradigm"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Paradigm",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 230.936523,
+                    "sum": 40,
+                    "values": [
+                        "-89.942464",
+                        "20.11291",
+                        "61.100249",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Operations"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Operations",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "23.168003"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Accountability"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Accountability",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Division"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Division",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 5,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 174.730921,
+                    "sum": 50,
+                    "values": [
+                        "-21.817972",
+                        "-52.50962",
+                        "3.817802",
+                        "46.890644",
+                        "50.563222"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Research"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Research",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 7,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 305.55626,
+                    "sum": 80,
+                    "values": [
+                        "-14.858104",
+                        "-83.803182",
+                        "21.262225",
+                        "30.49273",
+                        "48.998897",
+                        "6.062194",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Configuration"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Configuration",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 298.848029,
+                    "sum": 50,
+                    "values": [
+                        "-45.897144",
+                        "-53.865263",
+                        "-62.187846",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Implementation"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Implementation",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 287.309733,
+                    "sum": 50,
+                    "values": [
+                        "-38.266434",
+                        "-62.519109",
+                        "20.137106",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Solutions"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Solutions",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 248.644207,
+                    "sum": 50,
+                    "values": [
+                        "-11.025711",
+                        "60.700507",
+                        "61.355542",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Communications"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Communications",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-58.035854"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Data"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Data",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 118.59466900000001,
+                    "sum": 30,
+                    "values": [
+                        "-26.851213",
+                        "73.343911",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Solutions"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Solutions",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 218.43246299999998,
+                    "sum": 30,
+                    "values": [
+                        "49.744148",
+                        "54.60013",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 8,
+                        "CVal": null
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 19,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 343.100735,
+                    "sum": 390,
+                    "values": [
+                        "-10.376708",
+                        "-19.028053",
+                        "-36.516535",
+                        "-40.375739",
+                        "-51.139894",
+                        "-52.142009",
+                        "-72.152596",
+                        "-79.730135",
+                        "-9.775502",
+                        "11.411498",
+                        "15.956649",
+                        "17.210213",
+                        "22.42287",
+                        "23.706107",
+                        "41.83499",
+                        "55.724842",
+                        "61.393129",
+                        "67.21164",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Accountability"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Accountability",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 128.702858,
+                    "sum": 20,
+                    "values": [
+                        "81.435852",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Web"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Web",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 148.642932,
+                    "sum": 20,
+                    "values": [
+                        "-37.543162",
+                        "-6.270219"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Factors"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Factors",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 25.823542000000003,
+                    "sum": 30,
+                    "values": [
+                        "-16.597914",
+                        "-34.476425",
+                        "40.245022"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Functionality"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Functionality",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 263.234213,
+                    "sum": 40,
+                    "values": [
+                        "-9.834364",
+                        "60.611404",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Assurance"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Assurance",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 322.984519,
+                    "sum": 30,
+                    "values": [
+                        "-42.954218",
+                        "-75.803236",
+                        "-88.5172"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Directives"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Directives",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "12.715296"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Division"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Division",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-50.020645"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Intranet"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Intranet",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 159.150429,
+                    "sum": 30,
+                    "values": [
+                        "-67.289515",
+                        "71.466511",
+                        "89.691694"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Response"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Response",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 163.96504199999998,
+                    "sum": 20,
+                    "values": [
+                        "-60.721825",
+                        "65.323769"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Web"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Web",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 47.549611999999996,
+                    "sum": 20,
+                    "values": [
+                        "25.943608",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Security"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Security",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 15.239371000000006,
+                    "sum": 20,
+                    "values": [
+                        "-45.715513",
+                        "35.628415"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Creative"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Creative",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-63.118764"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Optimization"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Optimization",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 279.59307,
+                    "sum": 30,
+                    "values": [
+                        "-32.348978",
+                        "17.347198",
+                        "22.69732"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Mobility"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Mobility",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "40.514213"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Assurance"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Assurance",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "48.259529"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Mobility"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Mobility",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 211.75669,
+                    "sum": 40,
+                    "values": [
+                        "-33.560362",
+                        "-45.651497",
+                        "69.946426",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Branding"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Branding",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 156.067507,
+                    "sum": 20,
+                    "values": [
+                        "-13.041563",
+                        "71.434482"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Identity"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Identity",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 273.953103,
+                    "sum": 40,
+                    "values": [
+                        "-26.138794",
+                        "-51.734279",
+                        "67.007731",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Infrastructure"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Infrastructure",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 154.359419,
+                    "sum": 20,
+                    "values": [
+                        "-46.661913",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Usability"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Usability",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 4,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 329.782474,
+                    "sum": 40,
+                    "values": [
+                        "-80.882029",
+                        "72.185136",
+                        "83.79219",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Accounts"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Accounts",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 8.826700999999986,
+                    "sum": 20,
+                    "values": [
+                        "-14.080392",
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Usability"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Usability",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 140.275294,
+                    "sum": 20,
+                    "values": [
+                        "-13.527781",
+                        "-3.051038"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Operations"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Operations",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 0,
+                    "sum": 10,
+                    "values": [
+                        "-80.821429"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Accounts"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": false
+                    }
+                ],
+                "GroupByValues": [
+                    "Accounts",
+                    "false"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 2,
+                    "list": [
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 66.17839899999998,
+                    "sum": 20,
+                    "values": [
+                        "22.824479",
+                        "76.233424"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Quality"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Quality",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 1,
+                    "list": [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 35.042282,
+                    "sum": 30,
+                    "values": [
+                        "<nil>"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Brand"
+                    },
+                    {
+                        "Dtype": 1,
+                        "CVal": true
+                    }
+                ],
+                "GroupByValues": [
+                    "Brand",
+                    "true"
+                ],
+                "MeasureVal": {
+                    "avg": 10,
+                    "count": 0,
+                    "dc": 3,
+                    "list": [
+                        "1",
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "max": "Success",
+                    "min": "ABC",
+                    "range": 182.017309,
+                    "sum": 40,
+                    "values": [
+                        "-58.781142",
+                        "62.889433",
+                        "<nil>"
+                    ]
+                }
+            }
+        ]
+    }
+}

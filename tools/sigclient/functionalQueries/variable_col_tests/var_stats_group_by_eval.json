@@ -1,0 +1,50 @@
+{
+    "queryText": "http_method=POST AND (app_name=Bracecould OR variable_col_7=*r*) | regex variable_col_9=\"D.*\" | stats avg(variable_col_18) as avg_latency, max(variable_col_18) as max, min(variable_col_19) as min, sum(latitude) as sum, range(variable_col_18), count as cnt, values(weekday), dc(weekday) as distinct_count, list(http_method) BY gender, variable_col_3 | eval abs_sum=abs(sum) | eval concated=abs_sum.sum.\"_\".ltrim(gender, \"fem\") | eval round_sum=round(sum, 2) | eval avg_sum_min_max= (sum + max + min)/3 | eval len_gender=len(gender) | eval request_status=if(variable_col_3 = \"male\", \"Error\", \"Success\") | eval bool_success=if(in(variable_col_3, \"male\", \"female\"), \"0\", 1) | eval is_string=if(isstr(bool_success), bool_success, 0) | eval decoded_url=urldecode(\"http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader\") | where request_status in(\"Success\") | eval splitVal=split(concated, \".\") | eval max_cnt=max(162, cnt) | eval exact_per=exact(cnt/max_cnt) | eval gender_short=if(match(gender, \"^m\"), \"A\", \"F\") | eval toNumber=tonumber(bool_success) | eval status_hex=tostring(variable_col_3, \"hex\") | eval substr_res=substr(\"splendid\", 1, 3) . substr(\"chunk\", -3) | eval logValue=log(variable_col_3, 2) | eval formatted_time=strftime(1719415380000, \"%Y\") | eval timeType=typeof(formatted_time) | eval short_gen=if(searchmatch(\"gender=m*e\"), \"M\", \"F\") | eval x=\"hi\" | eval y=\"a\" | eval z=\"great\" | eval match=if(searchmatch(\"x=hi y=a? z=*\"), \"yes\", \"no\") | eval nowResult=relative_time(now(), \"-1h\") | eval timeResult=relative_time(time()/1000, \"-1h\") | eval finalResult=if(nowResult=timeResult, \"Pass\", \"Fail\") | fields -nowResult, timeResult", 
+    "expectedResult": {        
+         "verifyMinimal": true,
+         "bucketCount": 4,
+         "qtype": "aggs-query",
+         "groupByCols": [
+            "gender",
+            "variable_col_3"
+        ],
+        "measureFunctions": [
+            "z",
+            "avg_sum_min_max",
+            "gender_short",
+            "list(http_method)",
+            "avg_latency",
+            "exact_per",
+            "formatted_time",
+            "x",
+            "y",
+            "max",
+            "min",
+            "is_string",
+            "splitVal",
+            "max_cnt",
+            "finalResult",
+            "distinct_count",
+            "values(weekday)",
+            "cnt",
+            "decoded_url",
+            "len_gender",
+            "match",
+            "range(variable_col_18)",
+            "concated",
+            "round_sum",
+            "request_status",
+            "bool_success",
+            "toNumber",
+            "timeType",
+            "abs_sum",
+            "sum",
+            "logValue",
+            "short_gen",
+            "status_hex",
+            "substr_res"
+        ],
+        "measure": [
+        ]
+    }
+}

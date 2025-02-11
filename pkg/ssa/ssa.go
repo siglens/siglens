@@ -30,8 +30,8 @@ import (
 	"time"
 
 	"github.com/segmentio/analytics-go/v3"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/health"
 	"github.com/siglens/siglens/pkg/localnodeid"
@@ -40,7 +40,6 @@ import (
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
-	"github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -78,13 +77,13 @@ func FetchIPAddressDetails() (IPAddressDetails, error) {
 	var details IPAddressDetails
 	resp, err := http.Get("https://ipinfo.io")
 	if err != nil {
-		log.Errorf("Failed to fetch IP address details: %v", err)
+		log.Errorf("FetchIPAddressDetails: Failed to fetch IP address details: %v", err)
 		return details, err
 	}
 	defer resp.Body.Close()
 
 	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
-		log.Errorf("Failed to decode IP address details: %v", err)
+		log.Errorf("FetchIPAddressDetails: Failed to decode IP address details: %v", err)
 		return details, err
 	}
 
@@ -94,19 +93,16 @@ func FetchIPAddressDetails() (IPAddressDetails, error) {
 		if lat, err := strconv.ParseFloat(locParts[0], 64); err == nil {
 			details.Latitude = lat
 		} else {
-			log.Errorf("Failed to parse latitude: %v", err)
+			log.Errorf("FetchIPAddressDetails: Failed to parse latitude %s, Error: %v", locParts[0], err)
 		}
 		if lon, err := strconv.ParseFloat(locParts[1], 64); err == nil {
 			details.Longitude = lon
 		} else {
-			log.Errorf("Failed to parse longitude: %v", err)
+			log.Errorf("FetchIPAddressDetails: Failed to parse longitude %s, Error: %v", locParts[1], err)
 		}
 	} else {
-		log.Errorf("Failed to parse location: %v", details.Loc)
+		log.Errorf("FetchIPAddressDetails: Failed to parse location from: %s", details.Loc)
 	}
-
-	log.Infof("Successfully fetched and decoded IP address details")
-
 	return details, nil
 }
 func InitSsa() {
@@ -119,12 +115,12 @@ func InitSsa() {
 	)
 
 	if err != nil {
-		log.Errorf("Error initializing ssa: %v", err)
+		log.Errorf("InitSsa: Error initializing ssa: %v", err)
 		return
 	}
 	ipDetails, err := FetchIPAddressDetails()
 	if err != nil {
-		log.Errorf("Failed to fetch IP address details: %v", err)
+		log.Errorf("InitSsa: Failed to fetch IP address details: %v", err)
 	}
 
 	IPAddressInfo = ipDetails
@@ -143,7 +139,7 @@ func InitSsa() {
 		// Write the timestamp to the file (Unix time in milliseconds)
 		err = os.WriteFile(timestampFilePath, []byte(strconv.FormatInt(int64(oldestSegmentEpoch), 10)), 0644)
 		if err != nil {
-			log.Errorf("InitSsa: Failed to write timestamp to file: %v", err)
+			log.Errorf("InitSsa: Failed to write timestamp to file: %v, timestamp filepath=%v", err, timestampFilePath)
 		}
 	} else if err != nil {
 		log.Errorf("InitSsa: Failed to check if timestamp file exists: %v", err)
@@ -152,20 +148,15 @@ func InitSsa() {
 	go waitForInitialEvent()
 }
 
-func GetOldestSegmentEpoch(ingestNodeDir string, orgid uint64) (uint64, error) {
+func GetOldestSegmentEpoch(ingestNodeDir string, orgid int64) (uint64, error) {
 	// Read segmeta entries
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("GetOldestSegmentEpoch: Failed to read segmeta, err: %v", err)
-		return 0, err
-	}
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
 	if err != nil {
-		log.Errorf("GetOldestSegmentEpoch: Failed to get all metric meta entries, err: %v", err)
+		log.Errorf("GetOldestSegmentEpoch: Failed to get all metric meta entries, err: %v, metrics meta: %v", err, currentMetricsMeta)
 		return 0, err
 	}
 
@@ -248,7 +239,7 @@ func StopSsa() {
 	})
 	err := client.Close()
 	if err != nil {
-		log.Debugf("Failed to stop ssa module! Error: %v", err)
+		log.Debugf("StopSsa: Failed to stop ssa module! Error: %v", err)
 	}
 }
 
@@ -275,11 +266,11 @@ func flushSsa() {
 	// Read the timestamp from the file (Unix time in milliseconds)
 	data, err := os.ReadFile(timestampFilePath)
 	if err != nil {
-		log.Errorf("Failed to read timestamp from file: %v", err)
+		log.Errorf("flushSsa: Failed to read timestamp from file: %v", err)
 	} else {
 		timestamp, err := strconv.ParseInt(string(data), 10, 64)
 		if err != nil {
-			log.Errorf("Failed to parse timestamp: %v", err)
+			log.Errorf("flushSsa: Failed to parse timestamp: %v", err)
 		} else {
 			days = int(time.Now().UnixMilli()-timestamp) / (60 * 60 * 24 * 1000)
 		}
@@ -333,42 +324,43 @@ func populateDeploymentSsa(m map[string]interface{}) {
 	m["country"] = IPAddressInfo.Country
 }
 
-func populateIngestSsa(m map[string]interface{}, myid uint64) {
-	allVirtualTableNames, _ := virtualtable.GetVirtualTableNames(myid)
+func populateIngestSsa(m map[string]interface{}, myid int64) {
 
 	totalEventCount := uint64(0)
 	totalOnDiskBytes := uint64(0)
 	totalIncomingBytes := uint64(0)
-
+	totalTracesCount := uint64(0)
 	largestIndexEventCount := uint64(0)
-	for indexName := range allVirtualTableNames {
+
+	allSegmetas := segwriter.ReadGlobalSegmetas()
+
+	allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
+	segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+	for indexName, cnts := range allCnts {
 		if indexName == "" {
 			log.Debugf("populateIngestSsa: one of nil indexName=%v", indexName)
 			continue
 		}
-		bytesReceivedCount, eventCount, onDiskBytesCount := segwriter.GetVTableCounts(indexName, myid)
-		unrotatedBytesCount, unrotatedEventCount, unrotatedOnDiskBytesCount := segwriter.GetUnrotatedVTableCounts(indexName, myid)
-		bytesReceivedCount += unrotatedBytesCount
-		eventCount += unrotatedEventCount
-		onDiskBytesCount += unrotatedOnDiskBytesCount
-		totalEventCount += uint64(eventCount)
-		totalOnDiskBytes += onDiskBytesCount
-		totalIncomingBytes += bytesReceivedCount
 
-		if totalEventCount > largestIndexEventCount {
-			largestIndexEventCount = totalEventCount
+		if indexName == "traces" {
+			totalTracesCount = uint64(cnts.RecordCount)
+		}
+
+		totalEventCount += uint64(cnts.RecordCount)
+		totalOnDiskBytes += cnts.OnDiskBytesCount
+		totalIncomingBytes += cnts.BytesCount
+
+		if cnts.RecordCount > largestIndexEventCount {
+			largestIndexEventCount = cnts.RecordCount
 		}
 	}
-	_, eventCount, _ := segwriter.GetVTableCounts("traces", myid)
-	_, unrotatedEventCount, _ := segwriter.GetUnrotatedVTableCounts("traces", myid)
 
-	eventCount += unrotatedEventCount
-	totalTracesCount := uint64(eventCount)
 	_, metricsDatapointsCount, _ := health.GetMetricsStats(myid)
 	m["total_event_count"] = totalEventCount
 	m["total_on_disk_bytes"] = totalOnDiskBytes
 	m["total_incoming_bytes"] = totalIncomingBytes
-	m["total_table_count"] = len(allVirtualTableNames)
+	m["total_table_count"] = len(allCnts)
 	m["largest_index_event_count"] = largestIndexEventCount
 	m["total_traces_count"] = totalTracesCount
 	m["metrics_datapoints_count"] = metricsDatapointsCount
@@ -379,7 +371,7 @@ func populateIngestSsa(m map[string]interface{}, myid uint64) {
 }
 
 func populateQuerySsa(m map[string]interface{}) {
-	queryCount, totalResponseTime, querieSinceInstall := usageStats.GetQueryStats(0)
+	queryCount, totalResponseTimeSinceRestart, totalResponseTimeSinceInstall, querieSinceInstall := usageStats.GetQueryStats(0)
 	m["num_queries"] = queryCount
 	m["queries_since_install"] = querieSinceInstall
 	m["ip"] = IPAddressInfo.IP
@@ -387,9 +379,14 @@ func populateQuerySsa(m map[string]interface{}) {
 	m["region"] = IPAddressInfo.Region
 	m["country"] = IPAddressInfo.Country
 	if queryCount > 1 {
-		m["avg_query_latency_ms"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime/float64(queryCount), 3)) + " ms"
+		m["avg_query_latency_ms_since_last_restart"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart/float64(queryCount), 3)) + " ms"
 	} else {
-		m["avg_query_latency_ms"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTime, 3)) + " ms"
+		m["avg_query_latency_ms_since_last_restart"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceRestart, 3)) + " ms"
+	}
+	if querieSinceInstall > 1 {
+		m["avg_query_latency_ms_since_installation"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall/float64(querieSinceInstall), 3)) + " ms"
+	} else {
+		m["avg_query_latency_ms_since_installation"] = fmt.Sprintf("%v", utils.ToFixed(totalResponseTimeSinceInstall, 3)) + " ms"
 	}
 }
 

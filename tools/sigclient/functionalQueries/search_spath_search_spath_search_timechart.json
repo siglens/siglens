@@ -1,0 +1,3 @@
+{
+  "queryText": "search _index=*ind* http_status=*1* | spath \"http.request.path\" | search \"http.request.path\"=\"*/metaAlias/*\" | spath realm | search realm=*** | timechart count by response.status"
+}

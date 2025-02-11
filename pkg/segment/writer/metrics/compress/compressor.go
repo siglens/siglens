@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"io"
 	"math"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,7 +50,9 @@ func NewCompressor(w io.Writer, header uint32) (c *Compressor, finish func() err
 		leadingZeros: math.MaxUint8,
 	}
 	if err := c.bw.writeBits(uint64(header), 32); err != nil {
-		return nil, nil, fmt.Errorf("failed to write header: %w", err)
+		err = fmt.Errorf("NewCompressor: failed to write header %v, err=%v", header, err)
+		log.Errorf(err.Error())
+		return nil, nil, err
 	}
 	return c, c.finish, nil
 }
@@ -68,10 +72,12 @@ func (c *Compressor) Compress(t uint32, v float64) (uint64, error) {
 		c.value = math.Float64bits(v)
 
 		if err := c.bw.writeBits(uint64(delta), firstDeltaBits); err != nil {
+			log.Errorf("Compressor.Compress: failed to write bits. delta=%v, firstDeltaBits=%v, err=%v", delta, firstDeltaBits, err)
 			return 0, fmt.Errorf("failed to write first timestamp: %w", err)
 		}
 		// The first value is stored with no compression.
 		if err := c.bw.writeBits(c.value, 64); err != nil {
+			log.Errorf("Compressor.Compress: failed to write value bits. value=%v, err=%v", c.value, err)
 			return 0, fmt.Errorf("failed to write first value: %w", err)
 		}
 		writtenBytes := uint64(math.Round((firstDeltaBits + 64) / 8))
@@ -86,12 +92,14 @@ func (c *Compressor) compress(t uint32, v float64) (uint64, error) {
 	tsSize, err := c.compressTimestamp(t)
 	writtenBits += tsSize
 	if err != nil {
+		log.Errorf("Compressor.compress: failed to compress timestamp. compressor=%+v, timestamp=%v, err=%v", c, t, err)
 		return 0, fmt.Errorf("failed to compress timestamp: %w", err)
 	}
 
 	valSize, err := c.compressValue(v)
 	writtenBits += valSize
 	if err != nil {
+		log.Errorf("Compressor.compress: failed to compress value. compressor=%+v, value=%v, err=%v", c, v, err)
 		return 0, fmt.Errorf("failed to compress value: %w", err)
 	}
 
@@ -118,43 +126,52 @@ func (c *Compressor) compressTimestamp(t uint32) (uint64, error) {
 	switch {
 	case dod == 0:
 		if err := c.bw.writeBit(zero); err != nil {
+			log.Errorf("Compressor.compressTimestamp: failed to write zero bit. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
 			return 0, fmt.Errorf("failed to write timestamp zero: %w", err)
 		}
 		writtenBits++
 	case -63 <= dod && dod <= 64:
 		// 0x02 == '10'
 		if err := c.bw.writeBits(0x02, 2); err != nil {
-			return 0, fmt.Errorf("failed to write 2 bits header: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 2-bit header. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
+			return 0, fmt.Errorf("failed to write 2-bit header: %w", err)
 		}
 		if err := writeInt64Bits(c.bw, dod, 7); err != nil {
-			return 0, fmt.Errorf("failed to write 7 bits dod: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 7-bit dod. compressor=%+v, bitWriter=%+v, dod=%v, err=%v", c, c.bw, dod, err)
+			return 0, fmt.Errorf("failed to write 7-bit dod: %w", err)
 		}
 		writtenBits += 9
 	case -255 <= dod && dod <= 256:
 		// 0x06 == '110'
 		if err := c.bw.writeBits(0x06, 3); err != nil {
-			return 0, fmt.Errorf("failed to write 3 bits header: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 3-bit header. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
+			return 0, fmt.Errorf("failed to write 3-bit header: %w", err)
 		}
 		if err := writeInt64Bits(c.bw, dod, 9); err != nil {
-			return 0, fmt.Errorf("failed to write 9 bits dod: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 9-bit dod. compressor=%+v, bitWriter=%+v, dod=%v, err=%v", c, c.bw, dod, err)
+			return 0, fmt.Errorf("failed to write 9-bit dod: %w", err)
 		}
 		writtenBits += 12
 	case -2047 <= dod && dod <= 2048:
 		// 0x0E == '1110'
 		if err := c.bw.writeBits(0x0E, 4); err != nil {
-			return 0, fmt.Errorf("failed to write 4 bits header: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 4-bit header. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
+			return 0, fmt.Errorf("failed to write 4-bit header: %w", err)
 		}
 		if err := writeInt64Bits(c.bw, dod, 12); err != nil {
-			return 0, fmt.Errorf("failed to write 12 bits dod: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 12-bit dod. compressor=%+v, bitWriter=%+v, dod=%v, err=%v", c, c.bw, dod, err)
+			return 0, fmt.Errorf("failed to write 12-bit dod: %w", err)
 		}
 		writtenBits += 16
 	default:
 		// 0x0F == '1111'
 		if err := c.bw.writeBits(0x0F, 4); err != nil {
-			return 0, fmt.Errorf("failed to write 4 bits header: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 4-bit header. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
+			return 0, fmt.Errorf("failed to write 4-bit header: %w", err)
 		}
 		if err := writeInt64Bits(c.bw, dod, 32); err != nil {
-			return 0, fmt.Errorf("failed to write 32 bits dod: %w", err)
+			log.Errorf("Compressor.compressTimestamp: failed to write 32-bit dod. compressor=%+v, bitWriter=%+v, dod=%v, err=%v", c, c.bw, dod, err)
+			return 0, fmt.Errorf("failed to write 32-bit dod: %w", err)
 		}
 		writtenBits += 36
 	}
@@ -189,6 +206,7 @@ func (c *Compressor) compressValue(v float64) (uint64, error) {
 	trailingZeros := trailingZeros(xor)
 
 	if err := c.bw.writeBit(one); err != nil {
+		log.Errorf("Compressor.compressValue: failed to write one bit. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
 		return 0, fmt.Errorf("failed to write one bit: %w", err)
 	}
 	writtenBits++
@@ -198,10 +216,13 @@ func (c *Compressor) compressValue(v float64) (uint64, error) {
 	// use that information for the block position and just store the meaningful XORed valuc.
 	if c.leadingZeros <= leadingZeros && c.trailingZeros <= trailingZeros {
 		if err := c.bw.writeBit(zero); err != nil {
+			log.Errorf("Compressor.compressValue: failed to write zero bit. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
 			return 0, fmt.Errorf("failed to write zero bit: %w", err)
 		}
 		significantBits := int(64 - c.leadingZeros - c.trailingZeros)
 		if err := c.bw.writeBits(xor>>c.trailingZeros, significantBits); err != nil {
+			log.Errorf("Compresseor.compressValue: failed to write xor value. value=%v, significantBits=%v, compressor=%+v, bitWriter=%+v, err=%v",
+				(xor >> c.trailingZeros), significantBits, c, c.bw, err)
 			return 0, fmt.Errorf("failed to write xor value: %w", err)
 		}
 		writtenBits += (uint64(significantBits + 1))
@@ -212,9 +233,11 @@ func (c *Compressor) compressValue(v float64) (uint64, error) {
 	c.trailingZeros = trailingZeros
 
 	if err := c.bw.writeBit(one); err != nil {
+		log.Errorf("Compressor.compressValue: failed to write one bit. compressor=%+v, bitWriter=%+v, err=%v", c, c.bw, err)
 		return 0, fmt.Errorf("failed to write one bit: %w", err)
 	}
 	if err := c.bw.writeBits(uint64(leadingZeros), 5); err != nil {
+		log.Errorf("Compressor.compressValue: failed to write five leading zeros. leadingZeros=%v, compressor=%+v, bitWriter=%+v, err=%v", leadingZeros, c, c.bw, err)
 		return 0, fmt.Errorf("failed to write leading zeros: %w", err)
 	}
 	writtenBits += 6
@@ -226,9 +249,12 @@ func (c *Compressor) compressValue(v float64) (uint64, error) {
 	// So instead we write out a 0 and adjust it back to 64 on unpacking.
 	significantBits := 64 - leadingZeros - trailingZeros
 	if err := c.bw.writeBits(uint64(significantBits), 6); err != nil {
+		log.Errorf("Compressor.compressValue: failed to write six significant bits. significantBits=%v, compressor=%+v, bitWriter=%+v, err=%v", significantBits, c, c.bw, err)
 		return 0, fmt.Errorf("failed to write significant bits: %w", err)
 	}
 	if err := c.bw.writeBits(xor>>c.trailingZeros, int(significantBits)); err != nil {
+		log.Errorf("Compressor.compressValue: failed to write xor value. value=%v, significantBits=%v, compressor=%+v, bitWriter=%+v, err=%v",
+			(xor >> c.trailingZeros), significantBits, c, c.bw, err)
 		return 0, fmt.Errorf("failed to write xor value")
 	}
 	writtenBits += (6 + uint64(significantBits))
@@ -259,10 +285,12 @@ func (c *Compressor) finish() error {
 		// Add finish marker with delta = 0x3FFF (firstDeltaBits = 14 bits), and first value = 0
 		err := c.bw.writeBits(1<<firstDeltaBits-1, firstDeltaBits)
 		if err != nil {
+			log.Errorf("Compressor.finish: failed to write finish marker. firstDeltaBits=%v, err=%v", firstDeltaBits, err)
 			return err
 		}
 		err = c.bw.writeBits(0, 64)
 		if err != nil {
+			log.Errorf("Compressor.finish: failed to write zero padding. err=%v", err)
 			return err
 		}
 		return c.bw.flush(zero)
@@ -271,15 +299,25 @@ func (c *Compressor) finish() error {
 	// Add finish marker with deltaOfDelta = 0xFFFFFFFF, and value xor = 0
 	err := c.bw.writeBits(0x0F, 4)
 	if err != nil {
+		log.Errorf("Compressor.finish: failed to write finish markeri 0x0F. compressor=%+v, err=%v", c, err)
 		return err
 	}
 	err = c.bw.writeBits(0xFFFFFFFF, 32)
 	if err != nil {
+		log.Errorf("Compressor.finish: failed to write finish marker 0xFFFFFFFF. compressor=%+v, err=%v", c, err)
 		return err
 	}
 	err = c.bw.writeBit(zero)
 	if err != nil {
+		log.Errorf("Compressor.finish: failed to write 1 zero-bit padding. compressor=%+v, err=%v", c, err)
 		return err
 	}
-	return c.bw.flush(zero)
+
+	err = c.bw.flush(zero)
+	if err != nil {
+		log.Errorf("Compressor.finish: failed to flush. compressor=%+v, err=%v", c, err)
+		return err
+	}
+
+	return nil
 }

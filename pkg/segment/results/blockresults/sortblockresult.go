@@ -44,7 +44,7 @@ func GetRrsFromRrc(rec *utils.RecordResultContainer, sortReq *structs.SortReques
 
 func InitializeSort(count uint64, sort *structs.SortRequest) (*SortResults, error) {
 	if sort == nil {
-		return nil, errors.New("received a sort request with no aggregations")
+		return nil, errors.New("InitializeSort: received a sort request with no aggregations")
 	}
 	var sortedResRecs SortedResultRecords
 	heap.Init(&sortedResRecs)

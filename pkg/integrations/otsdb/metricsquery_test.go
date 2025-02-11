@@ -21,13 +21,13 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
@@ -36,12 +36,12 @@ import (
 )
 
 func Test_MetricsQuery(t *testing.T) {
-	config.InitializeTestingConfig()
+	go query.PullQueriesToRun()
+	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()
 	err = metadata.InitMockMetricsMetadataStore(10000)
 	assert.Nil(t, err)
@@ -52,6 +52,10 @@ func Test_MetricsQuery(t *testing.T) {
 	mQRequest, err := otsdbquery.ParseRequest(startTime, endTime, m, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, mQRequest)
+	mQRequest.MetricsQuery.MQueryAggs = &structs.MetricQueryAgg{
+		AggBlockType:    structs.AggregatorBlock,
+		AggregatorBlock: &mQRequest.MetricsQuery.Aggregator,
+	}
 	res := segment.ExecuteMetricsQuery(&mQRequest.MetricsQuery, &mQRequest.TimeRange, uint64(0))
 	mQResponse, err := res.GetOTSDBResults(&mQRequest.MetricsQuery)
 	assert.NotNil(t, mQRequest)
@@ -72,12 +76,11 @@ func Test_MetricsQuery(t *testing.T) {
 }
 
 func Test_MetricsQueryMultipleTagValues(t *testing.T) {
-	config.InitializeTestingConfig()
+	config.InitializeTestingConfig(t.TempDir())
 	limit.InitMemoryLimiter()
 	writer.InitWriterNode()
 	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	assert.Nil(t, err)
-	_ = localstorage.InitLocalStorage()
 	metrics.InitTestingConfig()
 	assert.Nil(t, err)
 	startTime := "1d-ago"
@@ -89,6 +92,10 @@ func Test_MetricsQueryMultipleTagValues(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, mQRequest)
 	assert.Len(t, mQRequest.MetricsQuery.TagsFilters, 3)
+	mQRequest.MetricsQuery.MQueryAggs = &structs.MetricQueryAgg{
+		AggBlockType:    structs.AggregatorBlock,
+		AggregatorBlock: &mQRequest.MetricsQuery.Aggregator,
+	}
 	for _, tags := range mQRequest.MetricsQuery.TagsFilters {
 		assert.Contains(t, expectedTagKeys, tags.TagKey)
 		if tags.TagKey == "group" {

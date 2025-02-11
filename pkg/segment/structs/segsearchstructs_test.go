@@ -31,7 +31,7 @@ func Test_getSearchInputFromFilter(t *testing.T) {
 		SubtreeResult: "literal1",
 	}
 
-	search := getSearchInputFromFilterInput(simpleFilter, 0)
+	search := getSearchInputFromFilterInput(simpleFilter, false, 0)
 	log.Info(search)
 	assert.Equal(t, search.ColumnValue.StringVal, "literal1")
 
@@ -45,7 +45,7 @@ func Test_getSearchInputFromFilter(t *testing.T) {
 		Expression: exp,
 	}
 
-	search = getSearchInputFromFilterInput(expressionColumnFilter, 0)
+	search = getSearchInputFromFilterInput(expressionColumnFilter, false, 0)
 	log.Info(search)
 	assert.Nil(t, search.ColumnValue)
 	assert.Equal(t, 1, len(search.getAllColumnsInSearch()))
@@ -66,7 +66,7 @@ func Test_getSearchInputFromFilter(t *testing.T) {
 	expressionComplexFilter := &FilterInput{
 		Expression: exp,
 	}
-	search = getSearchInputFromFilterInput(expressionComplexFilter, 0)
+	search = getSearchInputFromFilterInput(expressionComplexFilter, false, 0)
 	assert.Nil(t, search.ColumnValue)
 	assert.Equal(t, 0, len(search.ColumnName))
 	assert.Equal(t, 2, len(search.getAllColumnsInSearch()))
@@ -100,7 +100,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 			RightSearchInput: rightInput,
 		},
 	}
-	allKeys, wildcard, op := query.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op := query.GetAllBlockBloomKeysToSearch()
 	assert.Len(t, allKeys, 1, "only 1 key")
 	_, ok := allKeys["1"]
 	assert.True(t, ok, "value exists")
@@ -108,7 +108,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 	assert.Equal(t, And, op)
 
 	query.ExpressionFilter.LeftSearchInput = leftLiteralInput
-	allKeys, wildcard, op = query.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = query.GetAllBlockBloomKeysToSearch()
 	assert.Len(t, allKeys, 1, "only 1 key")
 	_, ok = allKeys["abc"]
 	assert.True(t, ok, "abc key exists")
@@ -116,7 +116,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 	assert.Equal(t, And, op)
 
 	query.ExpressionFilter.LeftSearchInput = leftWildCardInput
-	allKeys, wildcard, op = query.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = query.GetAllBlockBloomKeysToSearch()
 	assert.Len(t, allKeys, 0, "no keys")
 	_, ok = allKeys["abc*"]
 	assert.False(t, ok, "abc* should not exist bc of wildcard")
@@ -130,7 +130,7 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 			MatchOperator: Or,
 		},
 	}
-	allKeys, wildcard, op = matchTest.GetAllBlockBloomKeysToSearch()
+	allKeys, _, wildcard, op = matchTest.GetAllBlockBloomKeysToSearch()
 	assert.True(t, wildcard)
 	assert.Len(t, allKeys, 2, "2 keys")
 	_, ok = allKeys["a"]
@@ -142,4 +142,34 @@ func Test_extractBlockBloomTokens(t *testing.T) {
 	_, ok = allKeys["*"]
 	assert.False(t, ok, "key * does not exists")
 	assert.Equal(t, Or, op)
+}
+
+func Test_GetAllBlockBloomKeysToSearch_MatchPhrase(t *testing.T) {
+	matchFilterNoWildcard := &MatchFilter{
+		MatchColumn:   "*",
+		MatchWords:    [][]byte{[]byte("foo"), []byte("bar"), STAR_BYTE},
+		MatchPhrase:   []byte("foo bar"),
+		MatchOperator: And,
+		MatchType:     MATCH_PHRASE,
+	}
+
+	allKeys, _, wildcard, op := matchFilterNoWildcard.GetAllBlockBloomKeysToSearch(false, false)
+	assert.Equal(t, 1, len(allKeys))
+	_, ok := allKeys["foo bar"]
+	assert.True(t, ok)
+	assert.False(t, wildcard)
+	assert.Equal(t, And, op)
+
+	matchFilterWithWildcard := &MatchFilter{
+		MatchColumn:   "*",
+		MatchWords:    [][]byte{[]byte("foo*"), []byte("bar"), STAR_BYTE},
+		MatchPhrase:   []byte("foo* bar"),
+		MatchOperator: And,
+		MatchType:     MATCH_PHRASE,
+	}
+
+	allKeys, _, wildcard, op = matchFilterWithWildcard.GetAllBlockBloomKeysToSearch(false, false)
+	assert.Equal(t, 0, len(allKeys))
+	assert.True(t, wildcard)
+	assert.Equal(t, And, op)
 }

@@ -1,0 +1,118 @@
+{
+    "queryText": "app_name=Bracecould | bin http_status as bin_http | bin bins=2 http_status as bin_http_2 | bin span=5s http_status as bin_http_3 | bin span=2log3 http_status as bin_http_4 | bin minspan=500 http_status as bin_http_5 | bin bins=50000 http_status as bin_http_6 | bin bins=50000 minspan=2 http_status as bin_http_7 | bin end=100000 http_status as bin_http_8 | bin start=-10000 http_status as bin_http_9 | fields bin_http, bin_http_2, bin_http_3, bin_http_4, bin_http_5, bin_http_6, bin_http_7, bin_http_8, bin_http_9, http_status, ident",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 6,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["ident"],
+         "records": [
+            {
+                "bin_http": "500-510",
+                "bin_http_2": "0-1000",
+                "bin_http_3": 500,
+                "bin_http_4": "486-1458",
+                "bin_http_5": "0-1000",
+                "bin_http_6": "500-500.01",
+                "bin_http_7": "500-510",
+                "bin_http_8": "0-10000",
+                "bin_http_9": "0-1000",
+                "http_status": 500,
+                "ident": "8b647051-4bb4-44ac-9e75-4412a950bcb1"
+            },
+            {
+                "bin_http": "400-410",
+                "bin_http_2": "0-1000",
+                "bin_http_3": 400,
+                "bin_http_4": "162-486",
+                "bin_http_5": "0-1000",
+                "bin_http_6": "404-404.01",
+                "bin_http_7": "400-410",
+                "bin_http_8": "0-10000",
+                "bin_http_9": "0-1000",
+                "http_status": 404,
+                "ident": "9d833dd6-4e32-42b7-a108-1dfd35fc42fc"
+            },
+            {
+                "bin_http": "300-310",
+                "bin_http_2": "0-1000",
+                "bin_http_3": 300,
+                "bin_http_4": "162-486",
+                "bin_http_5": "0-1000",
+                "bin_http_6": "302-302.01",
+                "bin_http_7": "300-310",
+                "bin_http_8": "0-10000",
+                "bin_http_9": "0-1000",
+                "http_status": 302,
+                "ident": "05cf3570-3cc4-4cad-809e-535ec349ca8b"
+            },
+            {
+                "bin_http": "200-210",
+                "bin_http_2": "0-1000",
+                "bin_http_3": 200,
+                "bin_http_4": "162-486",
+                "bin_http_5": "0-1000",
+                "bin_http_6": "200-200.01",
+                "bin_http_7": "200-210",
+                "bin_http_8": "0-10000",
+                "bin_http_9": "0-1000",
+                "http_status": 200,
+                "ident": "8372750c-cfc7-47e2-bcc4-26233e0607a2"
+            },
+            {
+                "bin_http": "300-310",
+                "bin_http_2": "0-1000",
+                "bin_http_3": 300,
+                "bin_http_4": "162-486",
+                "bin_http_5": "0-1000",
+                "bin_http_6": "302-302.01",
+                "bin_http_7": "300-310",
+                "bin_http_8": "0-10000",
+                "bin_http_9": "0-1000",
+                "http_status": 302,
+                "ident": "46ea99d9-f3ff-4d1b-b6c1-85016484f1d9"
+            },
+            {
+                "bin_http": "400-410",
+                "bin_http_2": "0-1000",
+                "bin_http_3": 400,
+                "bin_http_4": "162-486",
+                "bin_http_5": "0-1000",
+                "bin_http_6": "404-404.01",
+                "bin_http_7": "400-410",
+                "bin_http_8": "0-10000",
+                "bin_http_9": "0-1000",
+                "http_status": 404,
+                "ident": "9e2b2977-0ce9-42e1-b4d7-bf79cad9081b"
+            }
+        ],
+        "allColumns": [
+            "bin_http",
+            "bin_http_2",
+            "bin_http_3",
+            "bin_http_4",
+            "bin_http_5",
+            "bin_http_6",
+            "bin_http_7",
+            "bin_http_8",
+            "bin_http_9",
+            "http_status",
+            "ident"
+        ],
+        "columnsOrder": [
+            "bin_http",
+            "bin_http_2",
+            "bin_http_3",
+            "bin_http_4",
+            "bin_http_5",
+            "bin_http_6",
+            "bin_http_7",
+            "bin_http_8",
+            "bin_http_9",
+            "http_status",
+            "ident"
+        ]
+     }
+ }
+ 

@@ -19,12 +19,15 @@ package utils
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/google/uuid"
 	"github.com/rogpeppe/fastuuid"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_IsSubWordPresent(t *testing.T) {
@@ -192,11 +195,60 @@ func Test_IsSubWordPresent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsSubWordPresent(tt.args.haystack, tt.args.needle); got != tt.want {
+			if got := IsSubWordPresent(tt.args.haystack, tt.args.needle, false); got != tt.want {
 				t.Errorf("IsSubWordPresent() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func Test_GetSegBaseDirFromFilename(t *testing.T) {
+	expectedDir := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/"
+
+	segKey := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/3/abc.txt"
+	dir, err := GetSegBaseDirFromFilename(segKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDir, dir)
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/3"
+	dir, err = GetSegBaseDirFromFilename(segKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDir, dir)
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/"
+	dir, err = GetSegBaseDirFromFilename(segKey)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedDir, dir)
+
+	segKey = "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3"
+	_, err = GetSegBaseDirFromFilename(segKey)
+	assert.Error(t, err)
+}
+
+func Test_SegmentValidityFile_SimpleBase(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll("data") })
+
+	dataDir := "data"
+	segBaseDir := filepath.Join(dataDir, "hostid/final/index/streamid/suffix/")
+	filename := filepath.Join(segBaseDir, "foo/bar.txt")
+	assert.False(t, IsFileForRotatedSegment(filename))
+
+	err := WriteValidityFile(segBaseDir)
+	assert.NoError(t, err)
+	assert.True(t, IsFileForRotatedSegment(filename))
+}
+
+func Test_SegmentValidityFile_NestedBase(t *testing.T) {
+	t.Cleanup(func() { os.RemoveAll("foo") })
+
+	dataDir := "foo/data/baz"
+	segBaseDir := filepath.Join(dataDir, "hostid/final/index/streamid/suffix/")
+	filename := filepath.Join(segBaseDir, "foo/bar.txt")
+	assert.False(t, IsFileForRotatedSegment(filename))
+
+	err := WriteValidityFile(segBaseDir)
+	assert.NoError(t, err)
+	assert.True(t, IsFileForRotatedSegment(filename))
 }
 
 func Benchmark_UUIDNew(b *testing.B) {

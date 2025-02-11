@@ -1,0 +1,177 @@
+{
+    "queryText": "city=Boston | sort first_name, last_name | streamstats window=3 global=false avg(eval(if(http_status > 300 AND http_status < 401, 201, http_status))) as avg by gender | streamstats window=3 global=false current=false sum(eval(2)) as sum by gender | streamstats window=3 current=false min(eval(if(http_status = 200, \"XYZ\", http_status))) as min by gender | streamstats window=3 values(eval(if(http_status = 200, \"def\", http_status))) as values by gender | streamstats window=3 max(eval(if(http_status = 200, http_status, \"abc\"))) as max | streamstats window=3 current=false count(eval(http_status > 400)) as count | fields city, first_name, last_name, gender, http_status, avg, sum, min, max, count, values",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 100,
+             "relation": "gte"
+         },
+         "qtype": "logs-query",
+         "records": [
+            {
+                "avg": 500,
+                "city": "Boston",
+                "count": 0,
+                "first_name": "Aaliyah",
+                "gender": "male",
+                "http_status": 500,
+                "last_name": "Abshire",
+                "max": "abc",
+                "min": "",
+                "sum": "",
+                "values": [
+                    "500"
+                ]
+            },
+            {
+                "avg": 201,
+                "city": "Boston",
+                "count": 1,
+                "first_name": "Aaliyah",
+                "gender": "female",
+                "http_status": 301,
+                "last_name": "Armstrong",
+                "max": "abc",
+                "min": "",
+                "sum": "",
+                "values": [
+                    "301"
+                ]
+            },
+            {
+                "avg": 350.5,
+                "city": "Boston",
+                "count": 1,
+                "first_name": "Aaliyah",
+                "gender": "female",
+                "http_status": 500,
+                "last_name": "Bailey",
+                "max": "abc",
+                "min": 301,
+                "sum": 2,
+                "values": [
+                    "301",
+                    "500"
+                ]
+            },
+            {
+                "avg": 500,
+                "city": "Boston",
+                "count": 2,
+                "first_name": "Aaliyah",
+                "gender": "male",
+                "http_status": 500,
+                "last_name": "Batz",
+                "max": "abc",
+                "min": 500,
+                "sum": 2,
+                "values": [
+                    "500"
+                ]
+            },
+            {
+                "avg": 500,
+                "city": "Boston",
+                "count": 2,
+                "first_name": "Aaliyah",
+                "gender": "male",
+                "http_status": 500,
+                "last_name": "Bednar",
+                "max": "abc",
+                "min": 500,
+                "sum": 4,
+                "values": [
+                    "500"
+                ]
+            },
+            {
+                "avg": 400.3333333333333,
+                "city": "Boston",
+                "count": 3,
+                "first_name": "Aaliyah",
+                "gender": "male",
+                "http_status": 302,
+                "last_name": "Beer",
+                "max": "abc",
+                "min": 500,
+                "sum": 6,
+                "values": [
+                    "302",
+                    "500"
+                ]
+            },
+            {
+                "avg": 300.3333333333333,
+                "city": "Boston",
+                "count": 2,
+                "first_name": "Aaliyah",
+                "gender": "female",
+                "http_status": 200,
+                "last_name": "Bins",
+                "max": 200,
+                "min": "",
+                "sum": 4,
+                "values": [
+                    "def"
+                ]
+            },
+            {
+                "avg": 300.3333333333333,
+                "city": "Boston",
+                "count": 1,
+                "first_name": "Aaliyah",
+                "gender": "female",
+                "http_status": 301,
+                "last_name": "Blanda",
+                "max": 200,
+                "min": "XYZ",
+                "sum": 6,
+                "values": [
+                    "301",
+                    "def"
+                ]
+            },
+            {
+                "avg": 368.3333333333333,
+                "city": "Boston",
+                "count": 0,
+                "first_name": "Aaliyah",
+                "gender": "male",
+                "http_status": 404,
+                "last_name": "Bode",
+                "max": 200,
+                "min": 302,
+                "sum": 6,
+                "values": [
+                    "404"
+                ]
+            }
+        ],
+         "allColumns": [
+            "city",
+            "first_name",
+            "last_name",
+            "gender",
+            "http_status",
+            "avg",
+            "sum",
+            "min",
+            "max",
+            "count",
+            "values"
+        ],
+         "columnsOrder": [
+            "city",
+            "first_name",
+            "last_name",
+            "gender",
+            "http_status",
+            "avg",
+            "sum",
+            "min",
+            "max",
+            "count",
+            "values"
+        ]
+     }
+ }
+ 

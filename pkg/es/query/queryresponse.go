@@ -105,7 +105,7 @@ func GetQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		httpResp.Hits = make([]utils.Hits, 0)
 	} else {
 		var _id string
-		allJsons, _, err := record.GetJsonFromAllRrc(nodeResult.AllRecords, true, qid, nodeResult.SegEncToKey, aggs)
+		allJsons, _, err := record.GetJsonFromAllRrcOldPipeline(nodeResult.AllRecords, true, qid, nodeResult.SegEncToKey, aggs, nodeResult.AllColumnsInAggs)
 		if err != nil {
 			log.Errorf("qid=%d, GetQueryResponseJson: failed to get allrecords from rrc, err=%v", qid, err)
 			return httpRespOuter

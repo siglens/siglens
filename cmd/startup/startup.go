@@ -31,7 +31,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/blob"
-	local "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	commonconfig "github.com/siglens/siglens/pkg/config/common"
@@ -43,8 +42,12 @@ import (
 	"github.com/siglens/siglens/pkg/retention"
 	"github.com/siglens/siglens/pkg/scroll"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	"github.com/siglens/siglens/pkg/segment/query"
 	tracinghandler "github.com/siglens/siglens/pkg/segment/tracing/handler"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	entryHandler "github.com/siglens/siglens/pkg/server/ingest"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
+
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	ingestserver "github.com/siglens/siglens/pkg/server/ingest"
 	queryserver "github.com/siglens/siglens/pkg/server/query"
@@ -115,6 +118,8 @@ func Main() {
 		os.Exit(1)
 	}
 
+	checkAndMigrateSiglensDB()
+
 	serverCfg := *config.GetRunningConfig() // Init the Configuration
 	var logOut string
 	if config.GetLogPrefix() == "" {
@@ -133,7 +138,7 @@ func Main() {
 		log.SetOutput(&lumberjack.Logger{
 			Filename:   logOut,
 			MaxSize:    serverCfg.Log.LogFileRotationSizeMB,
-			MaxBackups: 30,
+			MaxBackups: 50,
 			MaxAge:     1, //days
 			Compress:   serverCfg.Log.CompressLogFile,
 		})
@@ -195,17 +200,26 @@ func Main() {
 	}
 }
 
+func checkAndMigrateSiglensDB() {
+	_, err := os.Stat("siglens.db")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		log.Errorf("Error checking siglens.db file: %v", err)
+		return
+	}
+	newLocation := config.GetDataPath() + "siglens.db"
+	err = os.Rename("siglens.db", newLocation)
+	if err != nil {
+		log.Errorf("Error moving siglens.db to new location: %v", err)
+	}
+}
+
 // Licenses should be checked outside of this function
 func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) error {
 	if nodeID == "" {
 		return fmt.Errorf("nodeID cannot be empty")
-	}
-
-	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
-		err := hook(nodeID)
-		if err != nil {
-			return err
-		}
 	}
 
 	err := alertsHandler.ConnectSiglensDB()
@@ -228,11 +242,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		log.Fatalf("TLS is enabled but certificate or private key path is not provided")
 	}
 
-	err = vtable.InitVTable()
-	if err != nil {
-		log.Fatalf("error in InitVTable: %v", err)
-	}
-
 	log.Infof("StartSiglensServer: Initialilizing Blob Store")
 	err = blob.InitBlobStore()
 	if err != nil {
@@ -252,27 +261,39 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		log.Errorf("error in init retention cleaner: %v", err)
 		return err
 	}
-	err = dashboards.InitDashboards()
+	err = dashboards.InitDashboards(0)
 	if err != nil {
 		log.Errorf("error in init Dashboards: %v", err)
 		return err
 	}
 
+	querytracker.InitQT()
+	fileutils.InitLogFiles()
+
 	siglensStartupLog := fmt.Sprintf("----- Siglens server type %s starting up ----- \n", nodeType)
+	siglensVersionLog := fmt.Sprintf("----- Siglens version %s ----- \n", config.SigLensVersion)
 	if config.GetLogPrefix() != "" {
 		StdOutLogger.Infof(siglensStartupLog)
+		StdOutLogger.Infof(siglensVersionLog)
 	}
 	log.Infof(siglensStartupLog)
-	if queryNode {
-		err := usq.InitUsq()
+	log.Infof(siglensVersionLog)
+
+	if hook := hooks.GlobalHooks.SigLensDBExtrasHook; hook != nil {
+		err := hook()
 		if err != nil {
-			log.Errorf("error in init UserSavedQueries: %v", err)
 			return err
 		}
+	}
 
-		err = dashboards.InitDashboards()
+	err = vtable.InitVTable(server_utils.GetMyIds)
+	if err != nil {
+		log.Fatalf("error in InitVTable: %v", err)
+	}
+
+	if hook := hooks.GlobalHooks.StartSiglensExtrasHook; hook != nil {
+		err := hook(nodeID)
 		if err != nil {
-			log.Errorf("error in init Dashboards: %v", err)
 			return err
 		}
 	}
@@ -284,17 +305,25 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 		startQueryServer(queryServer)
 	}
 
-	instrumentation.InitMetrics()
-	querytracker.InitQT()
+	if config.IsLowMemoryModeEnabled() {
+		StdOutLogger.Infof("----- Low Memory Mode is enabled ----- \n")
+	}
 
-	fileutils.InitLogFiles()
+	instrumentation.InitMetrics()
+
 	go tracinghandler.MonitorSpansHealth()
 	go tracinghandler.DependencyGraphThread()
+	go entryHandler.MonitorDiskUsage()
 
 	return nil
 }
 
 func ShutdownSiglensServer() {
+
+	if hook := hooks.GlobalHooks.ShutdownSiglensPreHook; hook != nil {
+		hook()
+	}
+
 	// force write unsaved data to segfile and flush bloom, range, updates to meta
 	writer.ForcedFlushToSegfile()
 	metrics.ForceFlushMetricsBlock()
@@ -302,11 +331,11 @@ func ShutdownSiglensServer() {
 	if err != nil {
 		log.Errorf("flushing of aliasmap file failed, err=%v", err)
 	}
-	local.ForceFlushSegSetKeysToFile()
 	scroll.ForcedFlushToScrollFile()
 	ssa.StopSsa()
 	usageStats.ForceFlushStatstoFile()
 	alertsHandler.Disconnect()
+	writer.WaitForSortedIndexToComplete()
 
 	if hook := hooks.GlobalHooks.ShutdownSiglensExtrasHook; hook != nil {
 		hook()
@@ -347,6 +376,9 @@ func startQueryServer(serverAddr string) {
 		StdOutLogger.Infof(siglensStartupLog)
 		StdOutLogger.Infof(siglensUIStartupLog)
 	}
+	if config.IsNewQueryPipelineEnabled() {
+		StdOutLogger.Infof("----- New Query Pipeline is enabled ----- \n")
+	}
 	log.Infof(siglensStartupLog)
 	log.Infof(siglensUIStartupLog)
 	cfg := config.DefaultQueryServerHttpConfig()
@@ -360,9 +392,12 @@ func startQueryServer(serverAddr string) {
 				"safeHTML": func(htmlContent string) htmltemplate.HTML {
 					return htmltemplate.HTML(htmlContent)
 				},
-				"EntMsg": func(htmlContent string) htmltemplate.HTML {
-					emptyHtmlContent := "<div id=\"empty-response\">This feature is available in Enterprise version</div>"
-					return htmltemplate.HTML(emptyHtmlContent)
+				"EntMsg": func() string {
+					emptyHtmlContent := "This feature is available in Enterprise version"
+					return emptyHtmlContent
+				},
+				"CSSVersion": func() string {
+					return config.SigLensVersion
 				},
 			})
 			textTemplate := texttemplate.New("other")
@@ -385,4 +420,7 @@ func startQueryServer(serverAddr string) {
 			}
 		}
 	}()
+
+	query.InitMaxRunningQueries()
+	go query.PullQueriesToRun()
 }

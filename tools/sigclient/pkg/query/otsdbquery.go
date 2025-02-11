@@ -35,6 +35,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const tagFilterSeparator string = ",__,"
+
 type metricsQueryTypes int
 
 // QueryRequest represents the request structure for the API
@@ -211,8 +213,8 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 			return
 		}
 
-		if len(rec) != 5 {
-			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 5", rec)
+		if len(rec) != 7 {
+			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 7", rec)
 			return
 		}
 
@@ -221,8 +223,24 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 		end := rec[2]
 		expectedValuesStr := rec[3]
 		relation := rec[4]
+		metricNames := rec[5]
+		tagFilters := rec[6]
 
 		expectedValuesStrs := strings.Split(expectedValuesStr, ",")
+
+		metricNamesMap := make(map[string]struct{})
+		if metricNames != "" {
+			for _, metricName := range strings.Split(metricNames, ",") {
+				metricNamesMap[metricName] = struct{}{}
+			}
+		}
+
+		tagFiltersMap := make(map[string]struct{})
+		if tagFilters != "" {
+			for _, tagFilter := range strings.Split(tagFilters, tagFilterSeparator) {
+				tagFiltersMap[tagFilter] = struct{}{}
+			}
+		}
 
 		requestBody := QueryRequest{
 			Start: start,
@@ -243,44 +261,98 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 
 		requestData, err := json.Marshal(requestBody)
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in marshaling request data: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in marshaling request data: %v, Query=%v", err, query)
 		}
 
 		resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(requestData))
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in making HTTP request: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in making HTTP request for Query: %v. Error=%v", query, err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			log.Fatalf("RunQueryFromFile: Non-OK HTTP status: %v, body: %s", resp.StatusCode, string(body))
+			log.Fatalf("RunQueryFromFile: Non-OK HTTP status: %v, body: %s, Query: %s", resp.StatusCode, string(body), query)
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in reading response body: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in reading response body: %v, Query=%v", err, query)
 		}
 
 		var queryResponse QueryResponse
 		err = json.Unmarshal(body, &queryResponse)
 		if err != nil {
-			log.Fatalf("RunQueryFromFile: Error in unmarshaling response data: %v", err)
+			log.Fatalf("RunQueryFromFile: Error in unmarshaling response data: %v, Query=%v", err, query)
 		}
 
-		if len(queryResponse.Values) == 0 || len(queryResponse.Values[0]) != len(expectedValuesStrs) {
-			log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v", queryResponse.Values)
+		// If the expected string is empty, then the actual retrieved string should also be empty.
+		if len(expectedValuesStr) != 0 {
+			if len(queryResponse.Values) == 0 || len(queryResponse.Values[0]) != len(expectedValuesStrs) {
+				log.Fatalf("RunQueryFromFile: Unexpected number of values in response: %v, ExpectedValues=%v, Query=%v", queryResponse.Values, expectedValuesStrs, query)
+			}
 		}
 
-		for i, actualValue := range queryResponse.Values[0] {
-			isEqual, err := utils.VerifyInequality(actualValue, relation, expectedValuesStrs[i])
-			if !isEqual {
-				log.Fatalf("RunQueryFromFile: Actual value: %v does not meet condition: [%s %v] at index %d", actualValue, relation, expectedValuesStrs[i], i)
-			} else if err != nil {
-				log.Fatalf("RunQueryFromFile: Error in verifying results: %v", err)
+		if len(expectedValuesStr) > 0 {
+			for i, actualValue := range queryResponse.Values[0] {
+				isEqual, err := utils.VerifyInequality(actualValue, relation, expectedValuesStrs[i])
+				if !isEqual {
+					log.Fatalf("RunQueryFromFile: For Query=%v, Actual value: %v does not meet condition: [%s %v] at index %d", query, actualValue, relation, expectedValuesStrs[i], i)
+				} else if err != nil {
+					log.Fatalf("RunQueryFromFile: For Query=%v, Error in verifying results: %v", query, err)
+				}
+			}
+		}
+
+		actualMetricNames := make(map[string]struct{})
+		if len(metricNamesMap) > 0 {
+			for _, seriesId := range queryResponse.Series {
+				mName := ExtractMetricNameFromSeriesID(seriesId)
+				if _, exists := metricNamesMap[mName]; !exists {
+					log.Fatalf("RunQueryFromFile: Query: %v was successful. But the metric name: %v is not expected. Expected Metric Names: %v", query, mName, metricNamesMap)
+				}
+				actualMetricNames[mName] = struct{}{}
+			}
+
+			if len(actualMetricNames) != len(metricNamesMap) {
+				log.Fatalf("RunQueryFromFile: Query: %v was successful. But the query response metric names: %v do not match the expected metric names: %v", query, actualMetricNames, metricNamesMap)
+			}
+		}
+
+		actualTagFilters := make(map[string]struct{})
+		if len(tagFiltersMap) > 0 {
+			for _, seriesId := range queryResponse.Series {
+				tagKeyValue := ExtractTagKeyValuePairsFromSeriesId(seriesId)
+				if _, exists := tagFiltersMap[tagKeyValue]; !exists {
+					log.Fatalf("RunQueryFromFile: Query: %v was successful. But the tag key-value: %v is not expected. Expected Tag Key-Values: %v", query, tagKeyValue, tagFiltersMap)
+				}
+				actualTagFilters[tagKeyValue] = struct{}{}
+			}
+
+			if len(actualTagFilters) != len(tagFiltersMap) {
+				log.Fatalf("RunQueryFromFile: Query: %v was successful. But the query response tag key-values: %v do not match the expected tag key-values: %v", query, actualTagFilters, tagFiltersMap)
 			}
 		}
 
 		log.Printf("RunQueryFromFile: Query: %v was successful. Response matches expected values.", query)
+	}
+}
+
+func ExtractMetricNameFromSeriesID(seriesId string) string {
+	stringVals := strings.Split(seriesId, "{")
+	if len(stringVals) != 2 {
+		return seriesId
+	} else {
+		return stringVals[0]
+	}
+}
+
+func ExtractTagKeyValuePairsFromSeriesId(seriesId string) string {
+	stringVals := strings.Split(seriesId, "{")
+	if len(stringVals) != 2 {
+		return ""
+	} else {
+		// remove the trailing "}"
+		return stringVals[1][:len(stringVals[1])-1]
 	}
 }

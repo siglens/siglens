@@ -18,6 +18,7 @@
 package pqmr
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,6 +49,10 @@ func CreatePQMatchResultsFromBs(b *bitset.BitSet) *PQMatchResults {
 	retval := &PQMatchResults{}
 	retval.b = b
 	return retval
+}
+
+func GetPQMRFileNameFromSegKey(segmentKey string, pqid string) string {
+	return fmt.Sprintf("%v/pqmr/%v.pqmr", segmentKey, pqid)
 }
 
 func (pqmr *PQMatchResults) AddMatchedRecord(recNum uint) {
@@ -168,6 +173,23 @@ func (spqmr *SegmentPQMRResults) SetBlockResults(blkNum uint16, og *PQMatchResul
 	spqmr.accessLock.Unlock()
 }
 
+func (spqmr *SegmentPQMRResults) GetCopyOfBlockResults(blkNums []uint16) *SegmentPQMRResults {
+	spqmr.accessLock.Lock()
+	defer spqmr.accessLock.Unlock()
+
+	new := &SegmentPQMRResults{
+		allBlockResults: make(map[uint16]*PQMatchResults),
+		accessLock:      &sync.RWMutex{},
+	}
+	for _, blkNum := range blkNums {
+		if pqmr, ok := spqmr.allBlockResults[blkNum]; ok {
+			new.allBlockResults[blkNum] = pqmr.Copy()
+		}
+	}
+
+	return new
+}
+
 // [blkNum - uint16][bitSetLen - uint16][raw bitset….]
 func (pqmr *PQMatchResults) FlushPqmr(fname *string, blkNum uint16) error {
 
@@ -175,7 +197,7 @@ func (pqmr *PQMatchResults) FlushPqmr(fname *string, blkNum uint16) error {
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirName, os.FileMode(0764))
 		if err != nil {
-			log.Errorf("Failed to create directory %s: %v", dirName, err)
+			log.Errorf("FlushPqmr: Failed to create directory %s: Error=%v", dirName, err)
 			return err
 		}
 	}
@@ -296,11 +318,11 @@ func (pqmr *PQMatchResults) WriteTo(fd *os.File) error {
 func (pqmr *PQMatchResults) EncodePqmr(buf []byte, blkNum uint16) (uint16, error) {
 	var idx uint16
 	// write blkNum
-	copy(buf[idx:], utils.Uint16ToBytesLittleEndian(blkNum))
+	utils.Uint16ToBytesLittleEndianInplace(blkNum, buf[idx:])
 	idx += 2
 	// write the size of bitset
 	bitsetSize := uint16(pqmr.b.BinaryStorageSize())
-	copy(buf[idx:], utils.Uint16ToBytesLittleEndian(bitsetSize))
+	utils.Uint16ToBytesLittleEndianInplace(bitsetSize, buf[idx:])
 	idx += 2
 	// write actual bitset
 	actualBitset, err := pqmr.b.MarshalBinary()
@@ -319,7 +341,7 @@ func WritePqmrToDisk(buf []byte, fileName string) error {
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirName, os.FileMode(0764))
 		if err != nil {
-			log.Errorf("Failed to create directory %s: %v", dirName, err)
+			log.Errorf("WritePqmrToDisk: Failed to create directory %s: %v", dirName, err)
 			return err
 		}
 	}

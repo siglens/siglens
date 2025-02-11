@@ -1,0 +1,121 @@
+{
+    "queryText": "city=Boston | top http_method useother=true countfield=count percentfield=percent",
+    "expectedResult": {
+        "bucketCount": 7,
+        "qtype": "aggs-query",
+        "groupByCols": [
+            "http_method"
+        ],
+        "measureFunctions": [
+            "percent",
+            "count"
+        ],
+        "measure": [
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "HEAD"
+                    }
+                ],
+                "GroupByValues": [
+                    "HEAD"
+                ],
+                "MeasureVal": {
+                    "count": 34486,
+                    "percent": 16.909295
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "DELETE"
+                    }
+                ],
+                "GroupByValues": [
+                    "DELETE"
+                ],
+                "MeasureVal": {
+                    "count": 34154,
+                    "percent": 16.746508
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "GET"
+                    }
+                ],
+                "GroupByValues": [
+                    "GET"
+                ],
+                "MeasureVal": {
+                    "count": 33894,
+                    "percent": 16.619024
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "POST"
+                    }
+                ],
+                "GroupByValues": [
+                    "POST"
+                ],
+                "MeasureVal": {
+                    "count": 33867,
+                    "percent": 16.605785
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PUT"
+                    }
+                ],
+                "GroupByValues": [
+                    "PUT"
+                ],
+                "MeasureVal": {
+                    "count": 33814,
+                    "percent": 16.579798
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "PATCH"
+                    }
+                ],
+                "GroupByValues": [
+                    "PATCH"
+                ],
+                "MeasureVal": {
+                    "count": 33732,
+                    "percent": 16.539591
+                }
+            },
+            {
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "other"
+                    }
+                ],
+                "GroupByValues": [
+                    "other"
+                ],
+                "MeasureVal": {
+                    "count": 0,
+                    "percent": 0
+                }
+            }
+        ]
+    }
+}

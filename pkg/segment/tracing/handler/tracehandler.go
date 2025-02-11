@@ -28,18 +28,25 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	pipesearch "github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/es/writer"
+	"github.com/siglens/siglens/pkg/health"
+	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/utils"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
+	"github.com/siglens/siglens/pkg/usageStats"
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
 const OneHourInMs = 60 * 60 * 1000
+const TRACE_PAGE_LIMIT = 50
 
-func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessSearchTracesRequest", "could not parse and validate request body", err)
@@ -47,7 +54,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	page := 1
 	pageVal, ok := readJSON["page"]
@@ -58,7 +65,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		case json.Number:
 			pageInt, err := val.Int64()
 			if err != nil {
-				log.Errorf("ProcessSearchTracesRequest: error converting page to int: %v", err)
+				log.Errorf("ProcessSearchTracesRequest: error converting page Val=%v to int: %v", val, err)
 			}
 			page = int(pageInt)
 		default:
@@ -84,6 +91,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 			writeErrMsg(ctx, "ProcessSearchTracesRequest", err.Error(), nil)
 			return
 		}
+
 		traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
 	}
 
@@ -94,7 +102,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		searchRequestBody.SearchText = "trace_id=" + traceId + " AND parent_span_id=\"\" | fields start_time, end_time, name, service"
 		pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
 			continue
 		}
 
@@ -132,7 +140,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		searchRequestBody.SearchText = "trace_id=" + traceId + " | stats count BY status"
 		pipeSearchResponseOuter, err = processSearchRequest(searchRequestBody, myid)
 		if err != nil {
-			log.Errorf("ProcessSearchTracesRequest: traceId:%v, %v", traceId, err)
+			log.Errorf("ProcessSearchTracesRequest: traceId:%v, Error=%v", traceId, err)
 			continue
 		}
 
@@ -147,7 +155,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody, _, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessTotalTracesRequest", "could not parse and validate request body", err)
@@ -176,9 +184,9 @@ func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchRequestBody, map[string]interface{}, error) {
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("Received empty search request body")
+		log.Errorf("ParseAndValidateRequestBody: Received empty search request body")
 		putils.SetBadMsg(ctx, "")
-		return nil, nil, errors.New("Received empty search request body")
+		return nil, nil, errors.New("received empty search request body")
 	}
 
 	readJSON := make(map[string]interface{})
@@ -201,22 +209,47 @@ func ParseAndValidateRequestBody(ctx *fasthttp.RequestCtx) (*structs.SearchReque
 	return searchRequestBody, readJSON, nil
 }
 
-func GetTotalUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter) int {
+func GetTotalUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter) int {
+	if config.IsNewQueryPipelineEnabled() {
+		return pipeSearchResponseOuter.BucketCount
+	}
 	return len(pipeSearchResponseOuter.Aggs[""].Buckets)
 }
-func GetUniqueTraceIds(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
-	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*50 {
+
+func GetUniqueTraceIds(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, startEpoch uint64, endEpoch uint64, page int) []string {
+	if config.IsNewQueryPipelineEnabled() {
+		totalTracesIds := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+		if totalTracesIds < (page-1)*TRACE_PAGE_LIMIT {
+			return []string{}
+		}
+
+		endIndex := page * TRACE_PAGE_LIMIT
+		if endIndex > totalTracesIds {
+			endIndex = totalTracesIds
+		}
+
+		traceIds := make([]string, 0)
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
+			if len(bucket.GroupByValues) == 1 {
+				traceIds = append(traceIds, bucket.GroupByValues[0])
+			}
+		}
+
+		return traceIds
+	}
+
+	if len(pipeSearchResponseOuter.Aggs[""].Buckets) < (page-1)*TRACE_PAGE_LIMIT {
 		return []string{}
 	}
 
-	endIndex := page * 50
+	endIndex := page * TRACE_PAGE_LIMIT
 	if endIndex > len(pipeSearchResponseOuter.Aggs[""].Buckets) {
 		endIndex = len(pipeSearchResponseOuter.Aggs[""].Buckets)
 	}
 
 	traceIds := make([]string, 0)
 	// Only Process up to 50 traces per page
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*50 : endIndex] {
+	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets[(page-1)*TRACE_PAGE_LIMIT : endIndex] {
 		traceId, exists := bucket["key"]
 		if !exists {
 			continue
@@ -243,31 +276,53 @@ func ExtractTraceID(searchText string) (bool, string) {
 	return true, matches[1]
 }
 
-func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
+func AddTrace(pipeSearchResponseOuter *segstructs.PipeSearchResponseOuter, traces *[]*structs.Trace, traceId string, traceStartTime uint64,
 	traceEndTime uint64, serviceName string, operationName string) {
 	spanCnt := 0
 	errorCnt := 0
-	for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
-		statusCode, exists := bucket["key"].(string)
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'key' from bucket")
-			return
+	if config.IsNewQueryPipelineEnabled() {
+		for _, bucket := range pipeSearchResponseOuter.MeasureResults {
+			if len(bucket.GroupByValues) == 1 {
+				statusCode := bucket.GroupByValues[0]
+				count, exists := bucket.MeasureVal["count(*)"]
+				if !exists {
+					log.Error("AddTrace: Unable to extract 'count(*)' from measure results")
+					return
+				}
+				countVal, isFloat := count.(float64)
+				if !isFloat {
+					log.Error("AddTrace: count is not a float64")
+					return
+				}
+				spanCnt += int(countVal)
+				if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+					errorCnt += int(countVal)
+				}
+			}
 		}
-		countMap, exists := bucket["count(*)"].(map[string]interface{})
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'count(*)' from bucket")
-			return
-		}
-		countFloat64, exists := countMap["value"].(float64)
-		if !exists {
-			log.Error("AddTrace: Unable to extract 'value' from bucket")
-			return
-		}
+	} else {
+		for _, bucket := range pipeSearchResponseOuter.Aggs[""].Buckets {
+			statusCode, exists := bucket["key"].(string)
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'key' from bucket Map")
+				return
+			}
+			countMap, exists := bucket["count(*)"].(map[string]interface{})
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'count(*)' from bucket Map")
+				return
+			}
+			countFloat64, exists := countMap["value"].(float64)
+			if !exists {
+				log.Error("AddTrace: Unable to extract 'value' from bucket Map")
+				return
+			}
 
-		count := int(countFloat64)
-		spanCnt += count
-		if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
-			errorCnt += count
+			count := int(countFloat64)
+			spanCnt += count
+			if statusCode == string(structs.Status_STATUS_CODE_ERROR) {
+				errorCnt += count
+			}
 		}
 	}
 
@@ -282,15 +337,14 @@ func AddTrace(pipeSearchResponseOuter *pipesearch.PipeSearchResponseOuter, trace
 	}
 
 	*traces = append(*traces, trace)
-
 }
 
 // Call /api/search endpoint
-func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uint64) (*pipesearch.PipeSearchResponseOuter, error) {
+func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid int64) (*segstructs.PipeSearchResponseOuter, error) {
 
 	modifiedData, err := json.Marshal(searchRequestBody)
 	if err != nil {
-		return nil, fmt.Errorf("processSearchRequest: could not marshal to json body, err=%v", err)
+		return nil, fmt.Errorf("processSearchRequest: could not marshal to json body=%v, err=%v", *searchRequestBody, err)
 	}
 
 	// Get initial data
@@ -298,7 +352,7 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 	rawTraceCtx.Request.Header.SetMethod("POST")
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
-	pipeSearchResponseOuter := pipesearch.PipeSearchResponseOuter{}
+	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
 
 	// Parse initial data
 	if err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter); err != nil {
@@ -311,12 +365,18 @@ func processSearchRequest(searchRequestBody *structs.SearchRequestBody, myid uin
 func MonitorSpansHealth() {
 	time.Sleep(1 * time.Minute) // Wait for initial traces ingest first
 	for {
-		ProcessRedTracesIngest()
+		myids := server_utils.GetMyIds()
+		for _, myid := range myids {
+			_, traceIndexCount, _, _, _ := health.GetTraceStatsForAllSegments(myid)
+			if traceIndexCount > 0 {
+				ProcessRedTracesIngest(myid)
+			}
+		}
 		time.Sleep(5 * time.Minute)
 	}
 }
 
-func ProcessRedTracesIngest() {
+func ProcessRedTracesIngest(myid int64) {
 	// Initial request
 	searchRequestBody := structs.SearchRequestBody{
 		IndexName:     "traces",
@@ -334,11 +394,14 @@ func ProcessRedTracesIngest() {
 	// We should use this array to record all the spans
 	spans := make([]*structs.Span, 0)
 
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
+
 	for {
 		ctx := &fasthttp.RequestCtx{}
 		requestData, err := json.Marshal(searchRequestBody)
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: could not marshal to json body, err=%v", err)
+			log.Errorf("ProcessRedTracesIngest: could not marshal to json body=%v, err=%v", searchRequestBody, err)
 			return
 		}
 
@@ -346,7 +409,7 @@ func ProcessRedTracesIngest() {
 		ctx.Request.SetBody(requestData)
 
 		// Get initial data
-		pipesearch.ProcessPipeSearchRequest(ctx, 0)
+		pipesearch.ProcessPipeSearchRequest(ctx, myid)
 
 		// Parse initial data
 		rawSpanData := structs.RawSpanData{}
@@ -355,7 +418,7 @@ func ProcessRedTracesIngest() {
 			return
 		}
 
-		if rawSpanData.Hits.Spans == nil || len(rawSpanData.Hits.Spans) == 0 {
+		if len(rawSpanData.Hits.Spans) == 0 {
 			break
 		}
 
@@ -394,6 +457,10 @@ func ProcessRedTracesIngest() {
 		entrySpans = append(entrySpans, span)
 	}
 
+	indexName := "red-traces"
+	shouldFlush := false
+	tsKey := config.GetTimeStampKey()
+
 	// Map the service name to: the number of entry spans, erroring entry spans, duration list of span
 	for _, entrySpan := range entrySpans {
 		spanCnt, exists := serviceToSpanCnt[entrySpan.Service]
@@ -421,6 +488,11 @@ func ProcessRedTracesIngest() {
 
 		serviceToSpanDuration[entrySpan.Service] = durationList
 	}
+
+	idxToStreamIdCache := make(map[string]string)
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
+	numBytes := 0
 
 	// Map from the service name to the RED metrics
 	for service, spanCnt := range serviceToSpanCnt {
@@ -451,26 +523,34 @@ func ProcessRedTracesIngest() {
 
 		jsonData, err := redMetricsToJson(redMetrics, service)
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: failed to marshal redMetrics %v: %v", redMetrics, err)
+			log.Errorf("ProcessRedTracesIngest: failed to marshal redMetrics=%v: Error=%v", redMetrics, err)
 			continue
 		}
 
 		// Setup ingestion parameters
 		now := putils.GetCurrentTimeInMs()
-		indexName := "red-traces"
-		shouldFlush := false
-		lenJsonData := uint64(len(jsonData))
-		localIndexMap := make(map[string]string)
-		orgId := uint64(0)
 
-		// Ingest red metrics
-		err = writer.ProcessIndexRequest(jsonData, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+		ple, err := segwriter.GetNewPLE(jsonData, now, indexName, &tsKey, jsParsingStackbuf[:])
 		if err != nil {
-			log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+			log.Errorf("ProcessRedTracesIngest: failed to get new PLE: %v", err)
 			continue
 		}
-
+		pleArray = append(pleArray, ple)
+		numBytes += len(jsonData)
 	}
+
+	localIndexMap := make(map[string]string)
+	tsNow := putils.GetCurrentTimeInMs()
+
+	err := writer.ProcessIndexRequestPle(tsNow, indexName, shouldFlush, localIndexMap,
+		myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+		jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessRedTracesIngest: failed to process ingest request: %v", err)
+		return
+	}
+
+	usageStats.UpdateTracesStats(uint64(numBytes), uint64(len(pleArray)), myid)
 }
 
 func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, error) {
@@ -493,16 +573,25 @@ func DependencyGraphThread() {
 
 		time.Sleep(sleepDuration)
 
-		// Calculate startEpoch and endEpoch for the last hour
-		endEpoch := time.Now().UnixMilli()
-		startEpoch := time.Now().Add(-time.Hour).UnixMilli()
+		myids := server_utils.GetMyIds()
 
-		depMatrix := MakeTracesDependancyGraph(startEpoch, endEpoch)
-		writeDependencyMatrix(depMatrix)
+		for _, myid := range myids {
+			_, traceIndexCount, _, _, _ := health.GetTraceStatsForAllSegments(myid)
+			if traceIndexCount > 0 {
+				// Calculate startEpoch and endEpoch for the last hour
+				endEpoch := time.Now().UnixMilli()
+				startEpoch := time.Now().Add(-time.Hour).UnixMilli()
+
+				depMatrix := MakeTracesDependancyGraph(startEpoch, endEpoch, myid)
+				if len(depMatrix) > 0 {
+					writeDependencyMatrix(depMatrix, myid)
+				}
+			}
+		}
 	}
 }
 
-func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64) map[string]map[string]int {
+func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64, myid int64) map[string]map[string]int {
 
 	requestBody := map[string]interface{}{
 		"indexName":     "traces",
@@ -513,14 +602,14 @@ func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64) map[string]map[
 	}
 	requestBodyJSON, err := json.Marshal(requestBody)
 	if err != nil {
-		fmt.Println("Error marshaling request body:", err)
+		fmt.Printf("MakeTracesDependancyGraph: Error marshaling request body=%v, Error=%v", requestBody, err)
 		return nil
 	}
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.SetBody(requestBodyJSON)
 
 	ctx.Request.Header.SetMethod("POST")
-	pipesearch.ProcessPipeSearchRequest(ctx, 0)
+	pipesearch.ProcessPipeSearchRequest(ctx, myid)
 
 	rawSpanData := structs.RawSpanData{}
 	if err := json.Unmarshal(ctx.Response.Body(), &rawSpanData); err != nil {
@@ -552,10 +641,10 @@ func MakeTracesDependancyGraph(startEpoch int64, endEpoch int64) map[string]map[
 	return dependencyMatrix
 }
 
-func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
+func writeDependencyMatrix(dependencyMatrix map[string]map[string]int, myid int64) {
 	dependencyMatrixJSON, err := json.Marshal(dependencyMatrix)
 	if err != nil {
-		log.Errorf("Error marshaling dependency matrix:err=%v", err)
+		log.Errorf("writeDependencyMatrix: Error marshaling dependency matrix:err=%v", err)
 		return
 	}
 
@@ -563,25 +652,37 @@ func writeDependencyMatrix(dependencyMatrix map[string]map[string]int) {
 	now := putils.GetCurrentTimeInMs()
 	indexName := "service-dependency"
 	shouldFlush := false
-	lenJsonData := uint64(len((dependencyMatrixJSON)))
 	localIndexMap := make(map[string]string)
-	orgId := uint64(0)
+	tsKey := config.GetTimeStampKey()
 
-	// Ingest
-	err = writer.ProcessIndexRequest(dependencyMatrixJSON, now, indexName, lenJsonData, shouldFlush, localIndexMap, orgId)
+	idxToStreamIdCache := make(map[string]string)
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [putils.UnescapeStackBufSize]byte
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
+
+	ple, err := segwriter.GetNewPLE(dependencyMatrixJSON, now, indexName, &tsKey, jsParsingStackbuf[:])
+	if err != nil {
+		log.Errorf("MakeTracesDependancyGraph: failed to get new PLE: %v", err)
+		return
+	}
+	pleArray = append(pleArray, ple)
+
+	err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache,
+		cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
 	if err != nil {
 		log.Errorf("MakeTracesDependancyGraph: failed to process ingest request: %v", err)
-
+		return
 	}
 }
 
 // ProcessAggregatedDependencyGraphs handles the /dependencies endpoint.
 // It aggregates already computed dependency graphs based on the provided start and end epochs.
-func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	// Extract startEpoch and endEpoch from the request
 	_, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		log.Errorf("ProcessDependencyRequest: %v", err)
+		log.Errorf("ProcessAggregatedDependencyGraphs: Unable to Parse Request Body, Error=%v", err)
 		return
 	}
 	searchRequestBody := &structs.SearchRequestBody{}
@@ -592,7 +693,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 	searchRequestBody.EndEpoch = readJSON["endEpoch"].(string)
 	dependencyResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
-		log.Errorf("ProcessSearchRequest: %v", err)
+		log.Errorf("ProcessAggregatedDependencyGraphs: processSearchRequest: Error=%v", err)
 		return
 	}
 	processedData := make(map[string]interface{})
@@ -600,7 +701,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		_, writeErr := ctx.WriteString("no dependencies graphs have been generated")
 		if writeErr != nil {
-			log.Errorf("ProcessDependencyRequest: Error writing to context: %v", writeErr)
+			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
 		return
 	} else {
@@ -646,7 +747,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 		_, writeErr := ctx.WriteString(fmt.Sprintf("Error encoding JSON: %s", err.Error()))
 		if writeErr != nil {
-			log.Errorf("Error writing to context: %v", writeErr)
+			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
 		return
 	}
@@ -655,22 +756,22 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid uint64) {
 
 // ProcessGeneratedDepGraph handles the /generate-dep-graph endpoint.
 // It generates a new dependency graph based on the provided start and end epochs and displays it without storing.
-func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid int64) {
 	// Extract startEpoch and endEpoch from the request
 	_, readJSON, err := ParseAndValidateRequestBody(ctx)
 	if err != nil {
-		log.Errorf("ProcessDepgraphRequest: %v", err)
+		log.Errorf("ProcessGeneratedDepGraph: Unable to Parse Request Body, Error=%v", err)
 		return
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	startEpochInt64 := int64(startEpoch)
 	endEpochInt64 := int64(endEpoch)
 
 	// Generate the dependency graph
-	depMatrix := MakeTracesDependancyGraph(startEpochInt64, endEpochInt64)
+	depMatrix := MakeTracesDependancyGraph(startEpochInt64, endEpochInt64, myid)
 
 	processedData := make(map[string]interface{})
 	for key, value := range depMatrix {
@@ -688,20 +789,20 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid uint64) {
 	err = json.NewEncoder(ctx).Encode(processedData)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
-		_, writeErr := ctx.WriteString(fmt.Sprintf("ProcessDepgraphRequest: Error encoding JSON: %s", err.Error()))
+		_, writeErr := ctx.WriteString(fmt.Sprintf("ProcessGeneratedDepGraph: Error encoding JSON: %s", err.Error()))
 		if writeErr != nil {
-			log.Errorf("ProcessDepgraphRequest: Error writing to context: %v", writeErr)
+			log.Errorf("ProcessGeneratedDepGraph: Error writing to context: %v", writeErr)
 		}
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf("ProcessGanttChartRequest: received empty search request body ")
+		log.Errorf("ProcessGanttChartRequest: received empty search request body")
 		putils.SetBadMsg(ctx, "")
 		return
 	}
@@ -791,7 +892,7 @@ func ProcessGanttChartRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 
 			jsonData, err := json.Marshal(spanMap)
 			if err != nil {
-				log.Errorf("ProcessGanttChartRequest: could not marshal to json body, err=%v", err)
+				log.Errorf("ProcessGanttChartRequest: could not marshal to json body spanMap, err=%v", err)
 				continue
 			}
 			if err := json.Unmarshal(jsonData, &span); err != nil {

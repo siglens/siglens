@@ -22,9 +22,11 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/siglens/siglens/pkg/config"
 	writer "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -66,9 +68,9 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, orgId int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_FAKE_DATA, false)
+		alreadyHandled := hook(ctx, orgId, grpc.INGEST_FUNC_FAKE_DATA, false)
 		if alreadyHandled {
 			return
 		}
@@ -96,22 +98,52 @@ func ProcessSyntheicDataRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	scanner := bufio.NewScanner(r)
 	scanner.Split(bufio.ScanLines)
 	localIndexMap := make(map[string]string)
+	tsKey := config.GetTimeStampKey()
+
+	idxToStreamIdCache := make(map[string]string)
+
+	cnameCacheByteHashToStr := make(map[uint64]string)
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+
+	pleArray := make([]*segwriter.ParsedLogEvent, 0)
+	defer segwriter.ReleasePLEs(pleArray)
 
 	responsebody := make(map[string]interface{})
+	totalBytes := 0
 	for scanner.Scan() {
 		scanner.Scan()
 		rawJson := scanner.Bytes()
-		numBytes := len(rawJson)
-		err = writer.ProcessIndexRequest(rawJson, tsNow, "test-data", uint64(numBytes), false, localIndexMap, myid)
+		jsonCopy := make([]byte, len(rawJson))
+		copy(jsonCopy, rawJson)
+		totalBytes += len(rawJson)
+
+		ple, err := segwriter.GetNewPLE(jsonCopy, tsNow, "test-data", &tsKey, jsParsingStackbuf[:])
 		if err != nil {
 			utils.SendError(ctx, "Failed to ingest data", "", err)
 			return
 		}
-		usageStats.UpdateStats(uint64(numBytes), 1, myid)
+		pleArray = append(pleArray, ple)
 	}
+	if err := scanner.Err(); err != nil {
+		log.Errorf("ProcessSyntheicDataRequest: Error scanning payload %v, err: %v", payload, err)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		responsebody["message"] = "Failed to ingest all of the data"
+		utils.WriteJsonResponse(ctx, responsebody)
+		return
+	}
+
+	err = writer.ProcessIndexRequestPle(tsNow, "test-data", false, localIndexMap,
+		orgId, 0, idxToStreamIdCache, cnameCacheByteHashToStr,
+		jsParsingStackbuf[:], pleArray)
+	if err != nil {
+		log.Errorf("ProcessSyntheicDataRequest: failed to process request, err: %v", err)
+		utils.SendError(ctx, "Failed to process request", "", err)
+		return
+	}
+
+	usageStats.UpdateStats(uint64(totalBytes), uint64(len(pleArray)), orgId)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responsebody["message"] = "Successfully ingested 20k lines of logs!"
 	utils.WriteJsonResponse(ctx, responsebody)
-
 }

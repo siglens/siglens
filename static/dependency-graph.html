@@ -44,8 +44,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
-    <link rel="stylesheet" href="./css/tracing.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/tracing.css?v={{ CSSVersion }}" />
 
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -75,15 +75,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="app-side-nav">
         </div>
 
-        <div id="dashboard" class="p-20">
+        <div id="dashboard" class="p-3">
             <div class="subsection-navbar align-items-end justify-content-between">
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown"
                         aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown"
                         title="Pick the time window">
                         <span>Time Picker</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        <i class="dropdown-arrow"></i>
                     </button>
                     <div class="dropdown-menu daterangepicker dep" aria-labelledby="index-btn" id="daterangepicker ">
                         <p class="dt-header">Search the last</p>

@@ -1,0 +1,40 @@
+{
+    "queryText": "search variable_col_0=batch* group=\"group 0\" user_agent=Mozilla*Mac* AND user_agent!=Opera* variable_col_17 > 0 | earliest=-12h@h | eval hobby_http=hobby+\"@\"+http_method | timechart span=15m max(variable_col_19) as max_latency by hobby_http | sort -max_latency",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "max_latency: Drawing@DELETE",
+            "max_latency: Genealogy@GET",
+            "max_latency: Herping@DELETE",
+            "max_latency: Horseback riding@GET",
+            "max_latency: Knife making@PUT",
+            "max_latency: Sand art@PATCH",
+            "max_latency: Squash@PUT",
+            "max_latency: Tourism@PATCH",
+            "max_latency: Transit map collecting@DELETE",
+            "max_latency: Water sports@DELETE",
+            "max_latency: other",
+            "timestamp"
+        ],
+        "columnsOrder": [
+            "max_latency: Drawing@DELETE",
+            "max_latency: Genealogy@GET",
+            "max_latency: Herping@DELETE",
+            "max_latency: Horseback riding@GET",
+            "max_latency: Knife making@PUT",
+            "max_latency: Sand art@PATCH",
+            "max_latency: Squash@PUT",
+            "max_latency: Tourism@PATCH",
+            "max_latency: Transit map collecting@DELETE",
+            "max_latency: Water sports@DELETE",
+            "max_latency: other",
+            "timestamp"
+        ]
+    }
+}
+  

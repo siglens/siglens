@@ -22,11 +22,15 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	putils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1393,7 +1397,7 @@ func Test_performValueColRequestWithoutGroupBy_VEMConditionExpr(t *testing.T) {
 		if httpStatus == 400 || httpStatus == 500 {
 			assert.Equal(t, "Failure", record["http_status_mod"])
 		} else {
-			assert.Equal(t, fmt.Sprint(httpStatus), record["http_status_mod"])
+			assert.Equal(t, int64(httpStatus), record["http_status_mod"])
 		}
 	}
 }
@@ -2100,4 +2104,1352 @@ func Test_performArithmeticOperation_BitwiseExclusiveOr(t *testing.T) {
 func Test_performArithmeticOperation_WrongOp(t *testing.T) {
 	_, err := performArithmeticOperation(5, 3, 100)
 	assert.Equal(t, errors.New("performArithmeticOperation: invalid arithmetic operator"), err)
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_OnlyDelimiter(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com,jane@example.com,doe@example.com"},
+		"2": {"senders": "foo@example.com,,bar@example.com"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[string]map[string][]string)
+	expectedResults["1"] = map[string][]string{
+		"senders": {"john@example.com", "jane@example.com", "doe@example.com"},
+	}
+	expectedResults["2"] = map[string][]string{
+		"senders": {"foo@example.com", "bar@example.com"},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], values)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_OnlyRegexDelimiter(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com|jane@example.com|doe@example.com"},
+		"2": {"senders": "foo@example.com||bar@example.com"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: `([^|]+)\|?`,
+			IsRegex:         true,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := map[string]map[string][]string{
+		"1": {"senders": {"john@example.com", "jane@example.com", "doe@example.com"}},
+		"2": {"senders": {"foo@example.com", "bar@example.com"}},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	// Verify the results
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], values)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_DelimiterWithAllowEmptyValues(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com,jane@example.com,,doe@example.com"},
+		"2": {"senders": ",foo@example.com,,bar@example.com,"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      true,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := map[string]map[string][]string{
+		"1": {"senders": {"john@example.com", "jane@example.com", "", "doe@example.com"}},
+		"2": {"senders": {"", "foo@example.com", "", "bar@example.com", ""}},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	// Verify the results
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], values)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestWithoutGroupby_Setsv(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": "john@example.com jane@example.com  doe@example.com"},
+		"2": {"senders": "foo@example.com  bar@example.com"},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: " ",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           true,
+		},
+	}
+
+	expectedResults := map[string]map[string]string{
+		"1": {"senders": "john@example.com jane@example.com doe@example.com"},
+		"2": {"senders": "foo@example.com bar@example.com"},
+	}
+
+	err := performMultiValueColRequestWithoutGroupby(letColReq, recs)
+	assert.Nil(t, err)
+
+	// Verify the results
+	for recNum, rec := range recs {
+		for colName, value := range rec {
+			assert.Equal(t, expectedResults[recNum][colName], value)
+		}
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_OnlyDelimiter(t *testing.T) {
+
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com,jane@example.com,doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"foo@example.com,,bar@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{[]string{"john@example.com", "jane@example.com", "doe@example.com"}, "host@id.com"}
+
+	expectedResults[2] = []interface{}{[]string{"foo@example.com", "bar@example.com"}, "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_OnlyRegexDelimiter(t *testing.T) {
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com|jane@example.com|doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"foo@example.com||bar@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: `([^|]+)\|?`,
+			IsRegex:         true,
+			AllowEmpty:      false,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{[]string{"john@example.com", "jane@example.com", "doe@example.com"}, "host@id.com"}
+	expectedResults[2] = []interface{}{[]string{"foo@example.com", "bar@example.com"}, "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_DelimiterWithAllowEmptyValues(t *testing.T) {
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com,jane@example.com,,doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							",foo@example.com,,bar@example.com,", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: ",",
+			IsRegex:         false,
+			AllowEmpty:      true,
+			Setsv:           false,
+		},
+	}
+
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{[]string{"john@example.com", "jane@example.com", "", "doe@example.com"}, "host@id.com"}
+	expectedResults[2] = []interface{}{[]string{"", "foo@example.com", "", "bar@example.com", ""}, "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_performMultiValueColRequestOnHistogram_Setsv(t *testing.T) {
+	nodeRes := &structs.NodeResult{
+		Histogram: map[string]*structs.AggregationResult{
+			"1": {
+				Results: []*structs.BucketResult{
+					{
+						ElemCount: 1,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"john@example.com jane@example.com  doe@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+					{
+						ElemCount: 2,
+						StatRes:   map[string]utils.CValueEnclosure{},
+						BucketKey: []string{
+							"foo@example.com  bar@example.com", "host@id.com",
+						},
+						GroupByKeys: []string{"senders", "host"},
+					},
+				},
+			},
+		},
+	}
+
+	letColReq := &structs.LetColumnsRequest{
+		MultiValueColRequest: &structs.MultiValueColLetRequest{
+			Command:         "makemv",
+			ColName:         "senders",
+			DelimiterString: " ",
+			IsRegex:         false,
+			AllowEmpty:      false,
+			Setsv:           true,
+		},
+	}
+
+	expectedResults := make(map[uint64][]interface{})
+	expectedResults[1] = []interface{}{"john@example.com jane@example.com doe@example.com", "host@id.com"}
+	expectedResults[2] = []interface{}{"foo@example.com bar@example.com", "host@id.com"}
+
+	err := performMultiValueColRequestOnHistogram(nodeRes, letColReq)
+	assert.Nil(t, err)
+
+	for _, bucketResult := range nodeRes.Histogram["1"].Results {
+		assert.Equal(t, expectedResults[bucketResult.ElemCount], bucketResult.BucketKey)
+	}
+}
+
+func Test_findBucketMonth(t *testing.T) {
+	testTime := time.Date(2024, time.August, 1, 12, 16, 18, 20, time.UTC)
+	bucket := findBucketMonth(testTime, 3)
+	expectedTime := uint64(time.Date(2024, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+
+	bucket = findBucketMonth(testTime, 4)
+	expectedTime = uint64(time.Date(2024, time.May, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+
+	bucket = findBucketMonth(testTime, 6)
+	expectedTime = uint64(time.Date(2024, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+
+	bucket = findBucketMonth(testTime, 12)
+	expectedTime = uint64(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, bucket)
+}
+
+func Test_performBinWithSpan(t *testing.T) {
+	spanOpt := &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num:       10,
+			TimeScale: utils.TMInvalid,
+		},
+	}
+
+	val, err := performBinWithSpan(300, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "300-310", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(295, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "290-300", fmt.Sprintf("%v", val))
+
+	spanOpt.BinSpanLength.TimeScale = utils.TMSecond
+
+	val, err = performBinWithSpan(300, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "300", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(295, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "290", fmt.Sprintf("%v", val))
+
+	spanOpt.BinSpanLength = nil
+	spanOpt.LogSpan = &structs.LogSpan{
+		Base:        3,
+		Coefficient: 2,
+	}
+
+	val, err = performBinWithSpan(301, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "162-486", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(-301, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "-301", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(1, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "0.6666666666666666-2", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(-1, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "-1", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(-0.01, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "-0.01", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(0, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "0", fmt.Sprintf("%v", val))
+
+	val, err = performBinWithSpan(0.1, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "0.07407407407407407-0.2222222222222222", fmt.Sprintf("%v", val))
+
+	spanOpt.LogSpan = &structs.LogSpan{
+		Base:        1.2,
+		Coefficient: 1,
+	}
+
+	val, err = performBinWithSpan(500, spanOpt)
+	assert.Nil(t, err)
+	assert.Equal(t, "492.22352429520225-590.6682291542427", fmt.Sprintf("%v", val))
+}
+
+func Test_getTimeBucketWithAlign(t *testing.T) {
+	testTime := time.Date(2024, time.July, 7, 17, 0, 35, 398*1000000, time.UTC)
+	assert.Equal(t, 1720371635398, int(testTime.UnixMilli()))
+
+	spanOpt := &structs.BinSpanOptions{
+		BinSpanLength: &structs.BinSpanLength{
+			Num: 2,
+		},
+	}
+
+	val := getTimeBucketWithAlign(testTime, time.Duration(time.Second), spanOpt, nil)
+	expectedTime := int(time.Date(2024, time.July, 7, 17, 0, 34, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, val)
+
+	alignTime := uint64(time.Date(2024, time.July, 7, 0, 0, 0, 0, time.UTC).UnixMilli())
+	spanOpt.BinSpanLength.Num = 7
+
+	val = getTimeBucketWithAlign(testTime, time.Duration(time.Minute), spanOpt, &alignTime)
+	expectedTime = int(time.Date(2024, time.July, 7, 16, 55, 0, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, val)
+
+	alignTime = uint64(time.Date(2024, time.July, 7, 17, 0, 36, 0, time.UTC).UnixMilli())
+	spanOpt.BinSpanLength.Num = 10
+
+	val = getTimeBucketWithAlign(testTime, time.Duration(time.Second), spanOpt, &alignTime)
+	expectedTime = int(time.Date(2024, time.July, 7, 17, 0, 26, 0, time.UTC).UnixMilli())
+	assert.Equal(t, expectedTime, val)
+}
+
+func Test_findSpan(t *testing.T) {
+	spanOpt, err := findSpan(301, 500, 100, nil, "abc")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+
+	spanOpt, err = findSpan(301, 500, 2, nil, "abc")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(1000), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+
+	minSpan := &structs.BinSpanLength{
+		Num:       1001,
+		TimeScale: utils.TMInvalid,
+	}
+
+	spanOpt, err = findSpan(301, 500, 100, minSpan, "abc")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(10000), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+
+	minTime := time.Date(2024, time.July, 7, 17, 0, 0, 0, time.UTC).UnixMilli()
+	maxTime := time.Date(2024, time.July, 7, 17, 0, 35, 0, time.UTC).UnixMilli()
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 100, nil, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(1), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, nil, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
+
+	minSpan.Num = 2
+	minSpan.TimeScale = utils.TMMinute
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, minSpan, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+
+	maxTime = time.Date(2024, time.July, 7, 17, 2, 35, 0, time.UTC).UnixMilli()
+
+	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 2, nil, "timestamp")
+	assert.Nil(t, err)
+	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
+	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+
+}
+
+func compareValues(cValue1 utils.CValueEnclosure, cValue2 utils.CValueEnclosure) bool {
+	if cValue1.Dtype != cValue2.Dtype {
+		return false
+	}
+	if cValue1.Dtype == utils.SS_DT_STRING {
+		return cValue1.CVal.(string) == cValue2.CVal.(string)
+	}
+	if cValue1.Dtype == utils.SS_DT_FLOAT {
+		return cValue1.CVal.(float64) == cValue2.CVal.(float64)
+	}
+	if cValue1.Dtype == utils.SS_INVALID {
+		return cValue1.CVal == cValue2.CVal
+	}
+
+	return false
+}
+
+func WindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedValues2 [][]utils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
+
+	for i, measureAgg := range measureAggs {
+		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
+		for j, value := range values {
+			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, true)
+			assert.Nil(t, err)
+			if !ssOption.Current {
+				if j == 0 {
+					assert.False(t, exist)
+					assert.True(t, compareValues(utils.CValueEnclosure{}, res))
+				} else {
+					assert.True(t, exist)
+					assert.True(t, compareValues(expectedValues[i][j-1], res))
+				}
+			} else {
+				assert.True(t, exist)
+				if measureAgg.MeasureFunc == utils.Avg {
+					assert.True(t, compareValues(expectedValues[i][j], res))
+				}
+			}
+			assert.Equal(t, expectedLen[i][j], ssResults.Window.Len())
+			if measureAgg.MeasureFunc == utils.Range || measureAgg.MeasureFunc == utils.Min || measureAgg.MeasureFunc == utils.Max {
+				assert.Equal(t, expectedSecondaryLen[i][j], ssResults.SecondaryWindow.Len())
+			}
+			if measureAgg.MeasureFunc == utils.Avg {
+				assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
+			} else {
+				assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
+			}
+		}
+	}
+}
+
+func WindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
+
+	for i, measureAgg := range measureAggs {
+		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
+		for j, value := range values {
+			res, exist, err := PerformWindowStreamStatsOnSingleFunc(j, ssOption, ssResults, windowSize, measureAgg, value, timestamps[j], true, true)
+			assert.Nil(t, err)
+			if !ssOption.Current {
+				if j == 0 {
+					assert.False(t, exist)
+					assert.True(t, compareValues(utils.CValueEnclosure{}, res))
+				} else {
+					assert.True(t, compareValues(expectedValues[i][j-1], res))
+				}
+			} else {
+				assert.True(t, exist)
+				assert.True(t, compareValues(expectedValues[i][j], res))
+			}
+			assert.Equal(t, expectedLen[i][j], ssResults.Window.Len())
+			assert.Equal(t, expectedSecondaryLen[i][j], ssResults.SecondaryWindow.Len())
+		}
+	}
+}
+
+func StreamStatsValuesHelper(t *testing.T, colValues []utils.CValueEnclosure, expectedValues [][]string, ssOption *structs.StreamStatsOptions, timestamps []uint64, windowSize int) {
+	var result utils.CValueEnclosure
+	var exist bool
+	var err error
+
+	measureAgg := &structs.MeasureAggregator{
+		MeasureFunc: utils.Values,
+	}
+
+	ssResult := InitRunningStreamStatsResults(utils.Values)
+	for i, colValue := range colValues {
+		if windowSize == 0 && ssOption.TimeWindow == nil {
+			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, measureAgg, colValue, true)
+			ssOption.NumProcessedRecords++
+		} else {
+			result, exist, err = PerformWindowStreamStatsOnSingleFunc(i, ssOption, ssResult, windowSize, measureAgg, colValue, timestamps[i], true, true)
+		}
+
+		assert.Nil(t, err)
+		if !ssOption.Current {
+			if i == 0 {
+				assert.False(t, exist)
+			} else {
+				assert.True(t, exist)
+				assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
+				assert.True(t, putils.CompareStringSlices(expectedValues[i-1], result.CVal.([]string)))
+			}
+		} else {
+			assert.True(t, exist)
+			assert.True(t, putils.CompareStringSlices(expectedValues[i], result.CVal.([]string)))
+		}
+	}
+}
+
+func getDtypes(len int, stringTypeIndex []int, inValidIndex []int) []utils.SS_DTYPE {
+	var dtypes []utils.SS_DTYPE
+	for i := 0; i < len; i++ {
+		dtypes = append(dtypes, utils.SS_DT_FLOAT)
+	}
+
+	for _, index := range stringTypeIndex {
+		dtypes[index] = utils.SS_DT_STRING
+	}
+
+	for _, index := range inValidIndex {
+		dtypes[index] = utils.SS_INVALID
+	}
+
+	return dtypes
+}
+
+func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedValues2 [][]utils.CValueEnclosure, expectedValues3 [][]utils.CValueEnclosure) {
+
+	for i, measureAgg := range measureAggs {
+		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
+		ssOption.NumProcessedRecords = 0
+		for j, value := range values {
+			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, true)
+			ssOption.NumProcessedRecords++
+			assert.Nil(t, err)
+			if !ssOption.Current {
+				if j == 0 {
+					assert.False(t, exist)
+					assert.True(t, compareValues(utils.CValueEnclosure{}, result))
+				} else {
+					assert.True(t, exist)
+					assert.True(t, compareValues(expectedValues[i][j-1], result))
+				}
+			} else {
+				assert.Equal(t, 0, ssResults.Window.Len())
+				assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
+				if measureAgg.MeasureFunc == utils.Avg {
+					assert.True(t, compareValues(expectedValues[i][j], result))
+					assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
+				} else if measureAgg.MeasureFunc == utils.Range {
+					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
+					assert.True(t, compareValues(expectedValues2[i][j], utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Max}))
+					assert.True(t, compareValues(expectedValues3[i][j], utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Min}))
+				} else {
+					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
+				}
+			}
+		}
+	}
+}
+
+func NoWindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure) {
+
+	for i, measureAgg := range measureAggs {
+		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
+		ssOption.NumProcessedRecords = 0
+		for j, value := range values {
+			result, exist, err := PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResults, measureAgg, value, true)
+			ssOption.NumProcessedRecords++
+			assert.Nil(t, err)
+			if !ssOption.Current {
+				if j == 0 {
+					assert.False(t, exist)
+					assert.True(t, compareValues(utils.CValueEnclosure{}, result))
+				} else {
+					assert.True(t, compareValues(expectedValues[i][j-1], result))
+				}
+			} else {
+				assert.Equal(t, 0, ssResults.Window.Len())
+				assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
+				assert.True(t, compareValues(expectedValues[i][j], result))
+			}
+		}
+	}
+}
+
+func getMeasureAggs(measureFuncs []utils.AggregateFunctions) []*structs.MeasureAggregator {
+	var measureAggs []*structs.MeasureAggregator
+	for _, measureFunc := range measureFuncs {
+		measureAggs = append(measureAggs, &structs.MeasureAggregator{
+			MeasureFunc: measureFunc,
+		})
+	}
+	return measureAggs
+
+}
+
+func createCValues(values []interface{}, dtypes []utils.SS_DTYPE) []utils.CValueEnclosure {
+	var expectedValues []utils.CValueEnclosure
+	for i, value := range values {
+		if dtypes[i] == utils.SS_DT_FLOAT {
+			floatVal, _ := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
+			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: floatVal})
+		} else if dtypes[i] == utils.SS_INVALID {
+			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: utils.SS_INVALID, CVal: nil})
+		} else {
+			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: dtypes[i], CVal: value})
+		}
+	}
+	return expectedValues
+}
+
+func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	expectedMaxLen := []int{1, 2, 2, 2, 1, 2, 1, 2, 1, 2}
+	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 2, 2, 1}
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	expectedValuesCount := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	values := []interface{}{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
+	expectedValuesSum := []interface{}{7, 9, 14, 8, 12, 10, 17, 15, 21, 15}
+	expectedValuesAvg := []interface{}{7, 4.5, 4.666666666666667, 2.6666666666666665, 4, 3.3333333333333335, 5.666666666666667, 5, 7, 5}
+	expectedValuesMax := []interface{}{7, 7, 7, 5, 6, 6, 8, 8, 9, 9}
+	expectedValuesMin := []interface{}{7, 2, 2, 1, 1, 1, 3, 3, 4, 2}
+	expectedValuesRange := []interface{}{0, 5, 5, 4, 5, 5, 5, 5, 5, 7}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+
+	dtypes := getDtypes(len(values), []int{}, []int{})
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesAvg, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+	optionValue := []bool{true, false}
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+
+			WindowStreamStatsHelperTest(t, createCValues(values, dtypes), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+		}
+	}
+}
+
+func Test_Time_Window(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+		TimeWindow: &structs.BinSpanLength{
+			Num:       2,
+			TimeScale: utils.TMSecond,
+		},
+	}
+
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
+	expectedMaxLen := []int{1, 2, 2, 1, 1, 2, 1, 1, 1, 1}
+	expectedMinLen := []int{1, 1, 2, 1, 2, 2, 2, 1, 2, 1}
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	expectedValuesCount := []interface{}{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
+	values := []interface{}{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
+	expectedValuesSum := []interface{}{7, 9, 14, 1, 7, 10, 17, 4, 13, 2}
+	expectedValuesAvg := []interface{}{7, 4.5, 4.666666666666667, 1, 3.5, 3.3333333333333335, 5.666666666666667, 4, 6.5, 2}
+	expectedValuesMax := []interface{}{7, 7, 7, 1, 6, 6, 8, 4, 9, 2}
+	expectedValuesMin := []interface{}{7, 2, 2, 1, 1, 1, 3, 4, 4, 2}
+	expectedValuesRange := []interface{}{0, 5, 5, 0, 5, 5, 5, 0, 5, 0}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 1, 2, 3, 3, 1, 2, 1}
+
+	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 7300, 10000, 11500, 20000}
+
+	dtypes := getDtypes(len(values), []int{}, []int{})
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesAvg, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
+	expectedPrimaryLen := [][]int{expectedLen, expectedLen, expectedLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedNilLen, expectedMinLen, expectedNilLen}
+
+	WindowStreamStatsHelperTest(t, createCValues(values, dtypes), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+}
+
+func Test_NoWindow_StreamStats(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	expectedValuesCount := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	values := []interface{}{7, 2, 5, 1, 6, 3, 8, 4, 9, 2}
+	expectedValuesSum := []interface{}{7, 9, 14, 15, 21, 24, 32, 36, 45, 47}
+	expectedValuesAvg := []interface{}{7, 4.5, 4.666666666666667, 3.75, 4.2, 4, 4.571428571428571, 4.5, 5, 4.7}
+	expectedValuesMax := []interface{}{7, 7, 7, 7, 7, 7, 8, 8, 9, 9}
+	expectedValuesMin := []interface{}{7, 2, 2, 1, 1, 1, 1, 1, 1, 1}
+	expectedValuesRange := []interface{}{0, 5, 5, 6, 6, 6, 7, 7, 8, 8}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 9}
+
+	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	dtypes := getDtypes(len(values), []int{}, []int{})
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesAvg, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesRange, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
+	expectedFuncValues3 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesSum, dtypes),
+		createCValues(expectedValuesMax, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesMin, dtypes),
+		createCValues(expectedValuesCardinality, dtypes),
+	}
+
+	optionValue := []bool{true, false}
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+
+			NoWindowStreamStatsHelperTest(t, createCValues(values, dtypes), ssOption, measureAggs, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+		}
+	}
+}
+
+func Test_Cardinality(t *testing.T) {
+	values := []interface{}{7, 2, 2, 2, 1, 2, 3, 2, 4, 5}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+	dtypes := getDtypes(len(values), []int{}, []int{})
+
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	expectedPrimaryLen := [][]int{expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen}
+	expectedValuesCardinality := []interface{}{1, 2, 2, 1, 2, 2, 3, 2, 3, 3}
+	expectedValuesNoWindowCardinality := []interface{}{1, 2, 2, 2, 3, 3, 4, 4, 5, 6}
+	measureAggs := []*structs.MeasureAggregator{
+		{
+			MeasureFunc: utils.Cardinality,
+		},
+	}
+	expectedFuncValues := [][]utils.CValueEnclosure{createCValues(expectedValuesCardinality, dtypes)}
+	expectedNoWindowFuncValues := [][]utils.CValueEnclosure{createCValues(expectedValuesNoWindowCardinality, dtypes)}
+	CValues := createCValues(values, dtypes)
+
+	optionSettings := []bool{true, false}
+
+	for i := 0; i < len(optionSettings); i++ {
+		for j := 0; j < len(optionSettings); j++ {
+			ssOption.Current = optionSettings[i]
+			ssOption.Global = optionSettings[j]
+
+			WindowStreamStatsHelperTest(t, CValues, ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+			NoWindowStreamStatsHelperTest(t, CValues, ssOption, measureAggs, expectedNoWindowFuncValues, expectedNoWindowFuncValues, expectedNoWindowFuncValues)
+		}
+	}
+}
+
+func createExpectedStrings(collection []interface{}) []string {
+	uniqueStr := make(map[string]struct{}, 0)
+	result := []string{}
+	for _, value := range collection {
+		valueStr := fmt.Sprintf("%v", value)
+		uniqueStr[valueStr] = struct{}{}
+	}
+	for key := range uniqueStr {
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func Test_Values(t *testing.T) {
+	values := []interface{}{1, "abc", "abc", "Abc", 10, "DEF", 9, "def", 21, "Ab2"}
+	dtypes := getDtypes(len(values), []int{1, 2, 3, 5, 7, 9}, []int{})
+	expectedValuesWindow := [][]string{}
+	expectedValuesNoWindow := [][]string{}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	CValues := createCValues(values, dtypes)
+	windowSize := 3
+	for i := range values {
+		if i < windowSize {
+			expectedValuesWindow = append(expectedValuesWindow, createExpectedStrings(values[:i+1]))
+		} else {
+			expectedValuesWindow = append(expectedValuesWindow, createExpectedStrings(values[i-windowSize+1:i+1]))
+		}
+	}
+	for i := range values {
+		expectedValuesNoWindow = append(expectedValuesNoWindow, createExpectedStrings(values[:i+1]))
+	}
+
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	optionValue := []bool{true, false}
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+
+			StreamStatsValuesHelper(t, CValues, expectedValuesWindow, ssOption, timestamps, windowSize)
+			StreamStatsValuesHelper(t, CValues, expectedValuesNoWindow, ssOption, timestamps, 0)
+		}
+	}
+}
+
+func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	expectedSumLen := []int{1, 2, 2, 2, 1, 2, 1, 1, 1}
+	expectedMaxLen := []int{1, 1, 1, 1, 1, 2, 1, 1, 1}
+	expectedMaxSecondaryLen := []int{0, 0, 1, 1, 1, 1, 2, 1, 1}
+	expectedMinLen := []int{1, 2, 2, 2, 1, 1, 1, 1, 1}
+	expectedMinSecondaryLen := []int{0, 0, 1, 1, 2, 1, 1, 2, 2}
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	values := []interface{}{-3, 11, "ABC", 100, "Def", -1, "DEF", "abc", 20}
+	dtypesValues := getDtypes(len(values), []int{2, 4, 6, 7}, []int{})
+	expectedValuesCount := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
+	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
+	expectedValuesSum := []interface{}{-3, 8, 8, 111, 100, 99, -1, -1, 20}
+	expectedValuesAvg := []interface{}{-3, 4, 4, 55.5, 100, 49.5, -1, -1, 20}
+	expectedValuesMax := []interface{}{-3, 11, 11, 100, 100, 100, -1, -1, 20}
+	expectedValuesMin := []interface{}{-3, -3, -3, 11, 100, -1, -1, -1, 20}
+	expectedValuesRange := []interface{}{0, 14, 14, 89, 0, 101, 0, 0, 0}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesAvg, dtypesFloats),
+		createCValues(expectedValuesMax, dtypesFloats),
+		createCValues(expectedValuesMin, dtypesFloats),
+		createCValues(expectedValuesRange, dtypesFloats),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesMax, dtypesFloats),
+		createCValues(expectedValuesMin, dtypesFloats),
+		createCValues(expectedValuesRange, dtypesFloats),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+	expectedPrimaryLen := [][]int{expectedLen, expectedSumLen, expectedSumLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedMaxSecondaryLen, expectedMinSecondaryLen, expectedMinLen, expectedNilLen}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+	optionValue := []bool{true, false}
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+
+			WindowStreamStatsHelperTest(t, createCValues(values, dtypesValues), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedFuncValues2, expectedPrimaryLen, expectedSecondaryLen)
+		}
+	}
+}
+
+func Test_PerformWindowStreamStatsOnSingleFunc_3(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 3, 3, 3, 3, 3, 3, 3}
+	expectedSumLen := []int{1, 2, 2, 1, 0, 1, 1, 2, 2}
+
+	expectedMaxLen := []int{1, 2, 2, 1, 0, 1, 1, 2, 1}
+	expectedMaxSecondaryLen := []int{0, 0, 1, 1, 2, 2, 1, 1, 1}
+
+	expectedMinLen := []int{1, 1, 1, 1, 0, 1, 1, 1, 2}
+	expectedMinSecondaryLen := []int{0, 0, 1, 2, 2, 1, 2, 1, 1}
+
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	values := []interface{}{11, -3, "ABC", "Def", "DEF", 100, "abc", -1, 20}
+	dtypesValues := getDtypes(len(values), []int{2, 3, 4, 6}, []int{})
+	expectedValuesCount := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
+	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
+	dtypesSum := getDtypes(len(expectedValuesCount), []int{}, []int{4})
+	expectedValuesSum := []interface{}{11, 8, 8, -3, nil, 100, 100, 99, 19}
+	expectedValuesAvg := []interface{}{11, 4, 4, -3, nil, 100, 100, 49.5, 9.5}
+	expectedValuesMax := []interface{}{11, 11, 11, -3, "Def", 100, 100, 100, 20}
+	dtypesMax := getDtypes(len(expectedValuesSum), []int{4}, []int{})
+	expectedValuesMin := []interface{}{11, -3, -3, -3, "ABC", 100, 100, -1, -1}
+	expectedValuesRange := []interface{}{0, 14, 14, 0, nil, 0, 0, 101, 21}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesSum),
+		createCValues(expectedValuesAvg, dtypesSum),
+		createCValues(expectedValuesMax, dtypesMax),
+		createCValues(expectedValuesMin, dtypesMax),
+		createCValues(expectedValuesRange, dtypesSum),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+
+	expectedPrimaryLen := [][]int{expectedLen, expectedSumLen, expectedSumLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedMaxSecondaryLen, expectedMinSecondaryLen, expectedMinLen, expectedNilLen}
+	timestamps := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+	optionValue := []bool{true, false}
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+
+			WindowStreamStatsHelperTest2(t, createCValues(values, dtypesValues), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+		}
+	}
+}
+
+func Test_Time_Window_2(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+		TimeWindow: &structs.BinSpanLength{
+			Num:       2,
+			TimeScale: utils.TMSecond,
+		},
+	}
+
+	windowSize := 3
+	expectedLen := []int{1, 2, 3, 1, 2, 3, 1, 2, 3}
+	expectedSumLen := []int{1, 2, 2, 0, 0, 1, 0, 1, 2}
+
+	expectedMaxLen := []int{1, 2, 2, 0, 0, 1, 0, 1, 1}
+	expectedMaxSecondaryLen := []int{0, 0, 1, 1, 2, 2, 1, 1, 1}
+
+	expectedMinLen := []int{1, 1, 1, 0, 0, 1, 0, 1, 2}
+	expectedMinSecondaryLen := []int{0, 0, 1, 1, 1, 1, 1, 1, 1}
+
+	expectedNilLen := []int{0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+	values := []interface{}{11, -3, "ABC", "Def", "DEF", 100, "abc", -1, 20}
+	dtypesValues := getDtypes(len(values), []int{2, 3, 4, 6}, []int{})
+	expectedValuesCount := []interface{}{1, 2, 3, 1, 2, 3, 1, 2, 3}
+	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
+	dtypesSum := getDtypes(len(expectedValuesCount), []int{}, []int{3, 4, 6})
+	expectedValuesSum := []interface{}{11, 8, 8, nil, nil, 100, nil, -1, 19}
+	expectedValuesAvg := []interface{}{11, 4, 4, nil, nil, 100, nil, -1, 9.5}
+	expectedValuesMax := []interface{}{11, 11, 11, "Def", "Def", 100, "abc", -1, 20}
+	dtypesMax := getDtypes(len(expectedValuesSum), []int{3, 4, 6}, []int{})
+	expectedValuesMin := []interface{}{11, -3, -3, "Def", "DEF", 100, "abc", -1, -1}
+	expectedValuesRange := []interface{}{0, 14, 14, nil, nil, 0, nil, 0, 21}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 1, 2, 3, 1, 2, 3}
+
+	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 10000, 11500, 12000}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesSum),
+		createCValues(expectedValuesAvg, dtypesSum),
+		createCValues(expectedValuesMax, dtypesMax),
+		createCValues(expectedValuesMin, dtypesMax),
+		createCValues(expectedValuesRange, dtypesSum),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+
+	expectedPrimaryLen := [][]int{expectedLen, expectedSumLen, expectedSumLen, expectedMaxLen, expectedMinLen, expectedMaxLen, expectedLen}
+	expectedSecondaryLen := [][]int{expectedNilLen, expectedNilLen, expectedNilLen, expectedMaxSecondaryLen, expectedMinSecondaryLen, expectedMinLen, expectedNilLen}
+
+	WindowStreamStatsHelperTest2(t, createCValues(values, dtypesValues), ssOption, windowSize, timestamps, measureAggs, expectedFuncValues, expectedPrimaryLen, expectedSecondaryLen)
+}
+
+func Test_NoWindow_StreamStats_2(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	values := []interface{}{-3, 11, "ABC", 100, "Def", -1, "DEF", "abc", 20}
+	dtypesValues := getDtypes(len(values), []int{2, 4, 6, 7}, []int{})
+	expectedValuesCount := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
+	expectedValuesSum := []interface{}{-3, 8, 8, 108, 108, 107, 107, 107, 127}
+	expectedValuesAvg := []interface{}{-3, 4, 4, 36, 36, 26.75, 26.75, 26.75, 25.4}
+	expectedValuesMax := []interface{}{-3, 11, 11, 100, 100, 100, 100, 100, 100}
+	expectedValuesMin := []interface{}{-3, -3, -3, -3, -3, -3, -3, -3, -3}
+	expectedValuesRange := []interface{}{0, 14, 14, 103, 103, 103, 103, 103, 103}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesAvg, dtypesFloats),
+		createCValues(expectedValuesMax, dtypesFloats),
+		createCValues(expectedValuesMin, dtypesFloats),
+		createCValues(expectedValuesRange, dtypesFloats),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+	expectedFuncValues2 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesMax, dtypesFloats),
+		createCValues(expectedValuesMin, dtypesFloats),
+		createCValues(expectedValuesMax, dtypesFloats),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+	expectedFuncValues3 := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesFloats),
+		createCValues(expectedValuesMax, dtypesFloats),
+		createCValues(expectedValuesMin, dtypesFloats),
+		createCValues(expectedValuesMin, dtypesFloats),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+
+	optionValue := []bool{true, false}
+	cValues := createCValues(values, dtypesValues)
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+			NoWindowStreamStatsHelperTest(t, cValues, ssOption, measureAggs, expectedFuncValues, expectedFuncValues2, expectedFuncValues3)
+		}
+	}
+}
+
+func Test_NoWindow_StreamStats_3(t *testing.T) {
+	ssOption := &structs.StreamStatsOptions{
+		Current: true,
+		Global:  true,
+	}
+
+	values := []interface{}{"ABC", "Def", -1, 100, 11, -3, "DEF", "abc", 20}
+	dtypesValues := getDtypes(len(values), []int{0, 1, 6, 7}, []int{})
+	expectedValuesCount := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
+	dtypesFloats := getDtypes(len(expectedValuesCount), []int{}, []int{})
+	expectedValuesSum := []interface{}{nil, nil, -1, 99, 110, 107, 107, 107, 127}
+	dtypesSum := getDtypes(len(expectedValuesCount), []int{}, []int{0, 1})
+	expectedValuesAvg := []interface{}{nil, nil, -1, 49.5, 36.666666666666664, 26.75, 26.75, 26.75, 25.4}
+	expectedValuesMax := []interface{}{"ABC", "Def", -1, 100, 100, 100, 100, 100, 100}
+	dtypesMax := getDtypes(len(expectedValuesCount), []int{0, 1}, []int{})
+	expectedValuesMin := []interface{}{"ABC", "ABC", -1, -1, -1, -3, -3, -3, -3}
+	expectedValuesRange := []interface{}{nil, nil, 0, 101, 101, 103, 103, 103, 103}
+	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	measureFunctions := []utils.AggregateFunctions{
+		utils.Count,
+		utils.Sum,
+		utils.Avg,
+		utils.Max,
+		utils.Min,
+		utils.Range,
+		utils.Cardinality,
+	}
+	measureAggs := getMeasureAggs(measureFunctions)
+
+	expectedFuncValues := [][]utils.CValueEnclosure{
+		createCValues(expectedValuesCount, dtypesFloats),
+		createCValues(expectedValuesSum, dtypesSum),
+		createCValues(expectedValuesAvg, dtypesSum),
+		createCValues(expectedValuesMax, dtypesMax),
+		createCValues(expectedValuesMin, dtypesMax),
+		createCValues(expectedValuesRange, dtypesSum),
+		createCValues(expectedValuesCardinality, dtypesFloats),
+	}
+
+	optionValue := []bool{true, false}
+	cValues := createCValues(values, dtypesValues)
+
+	for i := 0; i < len(optionValue); i++ {
+		for j := 0; j < len(optionValue); j++ {
+			ssOption.Current = optionValue[i]
+			ssOption.Global = optionValue[j]
+			NoWindowStreamStatsHelperTest2(t, cValues, ssOption, measureAggs, expectedFuncValues)
+		}
+	}
+}
+
+func Test_PerformMVExpand(t *testing.T) {
+	recs := map[string]map[string]interface{}{
+		"1": {"senders": []string{"john@example.com", "jane@example.com", "doe@example.com"}},
+		"2": {"senders": []string{"foo@example.com", "", "bar@example.com"}},
+		"3": {"numbers": []int{1, 2, 3, 4}},
+		"4": {"prices": []float64{10.5, 20.75, 30.0}},
+		"5": {"flags": []bool{true, false, true}},
+		"6": {"invalid": "not a slice"}, // Non-slice input.
+	}
+
+	expectedResults := map[string]map[string][]interface{}{
+		"1": {"senders": {"john@example.com", "jane@example.com", "doe@example.com"}},
+		"2": {"senders": {"foo@example.com", "", "bar@example.com"}},
+		"3": {"numbers": {1, 2, 3, 4}},
+		"4": {"prices": {10.5, 20.75, 30.0}},
+		"5": {"flags": {true, false, true}},
+		"6": {"invalid": nil}, // Expect nil as this input should fail.
+	}
+
+	for recNum, rec := range recs {
+		for colName, values := range rec {
+			expandedValues := performMVExpand(values)
+			assert.Equal(t, expectedResults[recNum][colName], expandedValues, fmt.Sprintf("Test failed for record %s, column %s", recNum, colName))
+		}
+	}
 }

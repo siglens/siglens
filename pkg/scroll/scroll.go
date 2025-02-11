@@ -73,7 +73,7 @@ func checkStaleScrollContext() {
 					log.Errorf("checkStaleScrollContext: failed to flush scroll context %v, err=%v", scroll_id, err)
 					continue
 				}
-				log.Infof("Scroll Context Expired %v", scroll_id)
+				log.Infof("checkStaleScrollContext: Scroll Context Expired %v", scroll_id)
 				//delete result file with scroll_id
 				removeScrollResultFile(scroll_id)
 			}
@@ -86,7 +86,7 @@ func removeScrollResultFile(scroll_id string) {
 	filename := getScrollResultsFilename(getBaseScrollDir(), scroll_id)
 	e := os.Remove(filename)
 	if e != nil {
-		log.Errorf("Error in removeScrollResultFile %v", e)
+		log.Errorf("removeScrollResultFile: Error in removeScrollResultFile %v", e)
 	}
 }
 
@@ -189,7 +189,7 @@ func (scrollRecord *Scroll) WriteScrollResultToFile() error {
 }
 
 func ForcedFlushToScrollFile() {
-	log.Infof("Flushing scroll context to file")
+	log.Infof("ForcedFlushToScrollFile: Flushing scroll context to file")
 	allScrollRecordsLock.Lock()
 	for _, scrollRecord := range allScrollRecords {
 		err := scrollRecord.FlushScrollContextToFile()
@@ -224,7 +224,7 @@ func GetScrollTimeOut(scrollTimeout string, qid uint64) (uint64, error) {
 		if scrollTimeValue, err := strconv.ParseUint(scrollTime[1], 10, 64); err == nil {
 			switch scrollTime[2] {
 			case "d":
-				log.Errorf("qid=%d, InvalidTimeUnit for scroll %v", qid, scrollTime)
+				log.Errorf("GetScrollTimeOut: qid=%d, InvalidTimeUnit for scroll %v", qid, scrollTime)
 				return 0, errors.New("InvalidTimeUnit for scroll")
 			case "h":
 				scrollExpiry = scrollExpiry + scrollTimeValue*60*60*1000
@@ -235,21 +235,21 @@ func GetScrollTimeOut(scrollTimeout string, qid uint64) (uint64, error) {
 			case "ms":
 				scrollExpiry = scrollExpiry + scrollTimeValue
 			case "micros":
-				log.Errorf("qid=%d, InvalidTimeUnit for scroll %v", qid, scrollTime)
+				log.Errorf("GetScrollTimeOut: qid=%d, InvalidTimeUnit for scroll %v", qid, scrollTime)
 				return 0, errors.New("InvalidTimeUnit for scroll")
 			case "nanos":
-				log.Errorf("qid=%d, InvalidTimeUnit for scroll %v", qid, scrollTime)
+				log.Errorf("GetScrollTimeOut: qid=%d, InvalidTimeUnit for scroll %v", qid, scrollTime)
 				return 0, errors.New("InvalidTimeUnit for scroll")
 			default:
-				log.Errorf("qid=%d, InvalidTimeUnit for scroll %v ", qid, scrollTime)
+				log.Errorf("GetScrollTimeOut: qid=%d, InvalidTimeUnit for scroll %v ", qid, scrollTime)
 				return 0, errors.New("InvalidTimeUnit for scroll")
 			}
 		} else {
-			log.Errorf("qid=%d, InvalidTimeUnit for scroll %v ", qid, scrollTime)
+			log.Errorf("GetScrollTimeOut: qid=%d, InvalidTimeUnit for scroll %v ", qid, scrollTime)
 			return 0, errors.New("InvalidTimeUnit for scroll")
 		}
 	} else {
-		log.Errorf("qid=%d, InvalidTimeUnit for scroll %v ", qid, scrollTime)
+		log.Errorf("GetScrollTimeOut: qid=%d, InvalidTimeUnit for scroll %v ", qid, scrollTime)
 		return 0, errors.New("InvalidTimeUnit for scroll")
 	}
 

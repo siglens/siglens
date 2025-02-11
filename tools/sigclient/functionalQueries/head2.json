@@ -1,0 +1,37 @@
+{
+    "queryText": "app_name = Bracecould | head gender=\"female\" OR city=\"Norfolk\" keeplast=true | fields city, gender, app_name",
+    "expectedResult": {
+        "totalMatched": {
+            "value": 3,
+            "relation": "eq"
+        },
+        "qtype": "logs-query",
+        "records": [
+            {
+                "app_name": "Bracecould",
+                "city": "Norfolk",
+                "gender": "male"
+            },
+            {
+                "app_name": "Bracecould",
+                "city": "Albuquerque",
+                "gender": "female"
+            },
+            {
+                "app_name": "Bracecould",
+                "city": "Phoenix",
+                "gender": "male"
+            }
+        ],
+        "allColumns": [
+            "city",
+            "gender",
+            "app_name"
+        ],
+        "columnsOrder": [
+            "city",
+            "gender",
+            "app_name"
+        ]
+    }
+}

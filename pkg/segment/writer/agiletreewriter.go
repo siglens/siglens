@@ -18,6 +18,7 @@
 package writer
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
@@ -26,23 +27,38 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
-	buf []byte) uint32 {
+// write in 128k chunks so we avoid accumulating too much in stb.buf
+const ATREE_FD_CHUNK_SIZE = 128_000
 
-	idx := uint32(0)
+func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
+	writer *bufio.Writer) (uint32, error) {
+
+	size := uint32(0)
 
 	// copy colname strlen
 	l1 := uint16(len(colName))
-	copy(buf[idx:], utils.Uint16ToBytesLittleEndian(l1))
-	idx += 2
+	_, err := writer.Write(utils.Uint16ToBytesLittleEndian(l1))
+	if err != nil {
+		log.Errorf("StarTreeBuilder.encodeDictEnc: failed to write length of colName; err=%v", err)
+		return 0, err
+	}
+	size += 2
 
 	// copy the colname str
-	copy(buf[idx:], colName)
-	idx += uint32(l1)
+	_, err = writer.WriteString(colName)
+	if err != nil {
+		log.Errorf("StarTreeBuilder.encodeDictEnc: failed to write colName; err=%v", err)
+		return 0, err
+	}
+	size += uint32(l1)
 
 	numKeysForCol := stb.segDictLastNum[colNum]
-	copy(buf[idx:], utils.Uint32ToBytesLittleEndian(numKeysForCol))
-	idx += 4
+	_, err = writer.Write(utils.Uint32ToBytesLittleEndian(numKeysForCol))
+	if err != nil {
+		log.Errorf("StarTreeBuilder.encodeDictEnc: failed to write numKeysForCol; err=%v", err)
+		return 0, err
+	}
+	size += 4
 
 	for i := uint32(0); i < numKeysForCol; i++ {
 
@@ -50,72 +66,119 @@ func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
 
 		// copy enc col val strlen
 		l1 := uint16(len(curString))
-		copy(buf[idx:], utils.Uint16ToBytesLittleEndian(l1))
-		idx += 2
+		_, err = writer.Write(utils.Uint16ToBytesLittleEndian(l1))
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeDictEnc: failed to write length of column value; err=%v", err)
+			return 0, err
+		}
+		size += 2
 
 		// copy the enc col val str
-		copy(buf[idx:], curString)
-		idx += uint32(l1)
+		_, err = writer.WriteString(curString)
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeDictEnc: failed to write column value; err=%v", err)
+			return 0, err
+		}
+		size += uint32(l1)
 	}
-	return idx
+	return size, nil
 }
 
 func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
+	writer := bufio.NewWriter(strMFd)
+	if writer == nil {
+		err := fmt.Errorf("StarTreeBuilder.encodeMetadata: failed to create writer for %v", strMFd.Name())
+		log.Errorf(err.Error())
+		return 0, err
+	}
 
-	sizeNeeded := stb.estimateMetaSize()
-	stb.buf = utils.ResizeSlice(stb.buf, sizeNeeded)
+	metadataSize := uint32(0)
 
-	idx := uint32(0)
-	idx += 4 // reserve for metabyteslen
+	// The first 4 bytes specify the length of the metadata, which we don't know yet.
+	_, err := writer.Write([]byte{0, 0, 0, 0})
+	if err != nil {
+		log.Errorf("StarTreeBuilder.encodeMetadata: failed to skip bytes for metadata length; err=%v", err)
+		return 0, err
+	}
+	metadataSize += 4
 
 	// Len of groupByKeys
-	copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(stb.numGroupByCols))
-	idx += 2
+	_, err = writer.Write(utils.Uint16ToBytesLittleEndian(stb.numGroupByCols))
+	if err != nil {
+		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write number of groupby columns; err=%v", err)
+		return 0, err
+	}
+	metadataSize += 2
 
 	// each groupbyKey
 	for i := uint16(0); i < stb.numGroupByCols; i++ {
 		// copy strlen
 		l1 := uint16(len(stb.groupByKeys[i]))
-		copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(l1))
-		idx += 2
+		_, err = writer.Write(utils.Uint16ToBytesLittleEndian(l1))
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeMetadata: failed to write length of groupby column; err=%v", err)
+			return 0, err
+		}
+		metadataSize += 2
 
 		// copy the str
-		copy(stb.buf[idx:], stb.groupByKeys[i])
-		idx += uint32(l1)
+		_, err = writer.WriteString(stb.groupByKeys[i])
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeMetadata: failed to write groupby column; err=%v", err)
+			return 0, err
+		}
+		metadataSize += uint32(l1)
 	}
 
 	// Len of MeasureColNames
-	copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(uint16(len(stb.mColNames))))
-	idx += 2
+	_, err = writer.Write(utils.Uint16ToBytesLittleEndian(uint16(len(stb.mColNames))))
+	if err != nil {
+		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write number of measure columns; err=%v", err)
+		return 0, err
+	}
+	metadataSize += 2
 
 	// each aggFunc
 	for _, mCname := range stb.mColNames {
-
 		// Mcol len
 		l1 := uint16(len(mCname))
-		copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(l1))
-		idx += 2
+		_, err = writer.Write(utils.Uint16ToBytesLittleEndian(l1))
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeMetadata: failed to write length of measure column; err=%v", err)
+			return 0, err
+		}
+		metadataSize += 2
 
 		// copy the Mcol strname
-		copy(stb.buf[idx:], mCname)
-		idx += uint32(l1)
+		_, err = writer.WriteString(mCname)
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeMetadata: failed to write measure column; err=%v", err)
+			return 0, err
+		}
+		metadataSize += uint32(l1)
 	}
 
 	for colNum, cName := range stb.groupByKeys {
-		size := stb.encodeDictEnc(cName, uint16(colNum), stb.buf[idx:])
-		idx += size
+		size, err := stb.encodeDictEnc(cName, uint16(colNum), writer)
+		if err != nil {
+			log.Errorf("StarTreeBuilder.encodeMetadata: failed to encodeDictEnc; err=%v", err)
+			return 0, err
+		}
+		metadataSize += size
 	}
 
-	// metaDataLen
-	copy(stb.buf[0:], utils.Uint32ToBytesLittleEndian(idx-4))
+	writer.Flush()
 
-	_, err := strMFd.Write(stb.buf[:idx])
+	// Now we know the size of the metadata, so we can write it. The value we
+	// write doesn't include the 4 bytes we use to store the value.
+	// We need to write from the 2nd byte, since the first byte is the file type.
+	_, err = strMFd.WriteAt(utils.Uint32ToBytesLittleEndian(metadataSize-4), 1)
 	if err != nil {
-		log.Errorf("encodeMetadata: meta write failed fname=%v, err=%v", strMFd.Name(), err)
-		return idx, err
+		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write metadata length; err=%v", err)
+		return 0, err
 	}
 
-	return idx, nil
+	return metadataSize, nil
 }
 
 func (stb *StarTreeBuilder) encodeNddWrapper(segKey string, levsOffsets []int64,
@@ -144,30 +207,45 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	// save current level offset
 	levsOffsets[level] = strLevFileOff
 
-	sizeNeeded := stb.estimateNodeSize(len(curLevNodes))
-	stb.buf = utils.ResizeSlice(stb.buf, sizeNeeded)
-
 	idx := uint32(0)
 	// encode levelNum
-	copy(stb.buf[idx:], utils.Uint16ToBytesLittleEndian(uint16(level)))
+	utils.Uint16ToBytesLittleEndianInplace(uint16(level), stb.buf[idx:])
 	idx += 2
 
 	// numOfNodes at this level
-	copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(uint32(len(curLevNodes))))
+	utils.Uint32ToBytesLittleEndianInplace(uint32(len(curLevNodes)), stb.buf[idx:])
 	idx += 4
 
-	nextLevelNodes := []*Node{}
+	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)
+	if err != nil {
+		log.Errorf("encodeNodeDetails: meta write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+		return idx, err
+	}
+	strLevFileOff += int64(idx)
+
+	numNodesNeeded := 0
+	for _, n := range curLevNodes {
+		numNodesNeeded += len(n.children)
+	}
+
+	stb.treeTravNodePtrs[level] = utils.ResizeSlice(stb.treeTravNodePtrs[level], numNodesNeeded)
+
+	nextLevelNodes := stb.treeTravNodePtrs[level][:numNodesNeeded]
+	nlIdx := 0
+
+	clBufIdx := uint32(0) // cur level buf idx for intermediary writes
 	for _, n := range curLevNodes {
 
 		// save nextlevel children
 		for _, child := range n.children {
-			nextLevelNodes = append(nextLevelNodes, child)
+			nextLevelNodes[nlIdx] = child
+			nlIdx++
 		}
 		// encode curr nodes details
 
 		// mapKey
-		copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(n.myKey))
-		idx += 4
+		utils.Uint32ToBytesLittleEndianInplace(n.myKey, stb.buf[clBufIdx:])
+		clBufIdx += 4
 
 		// add Parent keys, don't add parents for root (level-0) and level-1 (since their parent is root)
 		ancestor := n.parent
@@ -177,8 +255,8 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 				break
 			}
 
-			copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(ancestor.myKey))
-			idx += 4
+			utils.Uint32ToBytesLittleEndianInplace(ancestor.myKey, stb.buf[clBufIdx:])
+			clBufIdx += 4
 			ancestor = ancestor.parent
 		}
 
@@ -187,31 +265,33 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 			log.Errorf("encodeNodeDetails: ancestor is not the root, level: %v, nodeKey: %+v", level, n.myKey)
 		}
 
-		for agIdx, e := range n.aggValues {
-			copy(stb.buf[idx:], []byte{uint8(e.Dtype)})
-			idx += 1
+		for _, e := range n.aggValues {
+			e.CopyToBuffer(stb.buf[clBufIdx:])
+			clBufIdx += 9
+		}
 
-			switch e.Dtype {
-			case SS_DT_UNSIGNED_NUM:
-				copy(stb.buf[idx:], utils.Uint64ToBytesLittleEndian(e.CVal.(uint64)))
-			case SS_DT_SIGNED_NUM:
-				copy(stb.buf[idx:], utils.Int64ToBytesLittleEndian(e.CVal.(int64)))
-			case SS_DT_FLOAT:
-				copy(stb.buf[idx:], utils.Float64ToBytesLittleEndian(e.CVal.(float64)))
-			case SS_DT_BACKFILL: // even for backfill we will have empty bytes in to keep things uniform
-			default:
-				return 0, fmt.Errorf("encodeNodeDetails: unsupported Dtype: %v, agIdx: %v, nodeKey: %+v, e: %+v",
-					e.Dtype, agIdx, n.myKey, e)
+		if clBufIdx >= ATREE_FD_CHUNK_SIZE {
+			_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
+			if err != nil {
+				log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+				return idx, err
 			}
-			idx += 8
+			strLevFileOff += int64(clBufIdx)
+			idx += clBufIdx
+			clBufIdx = 0
 		}
 	}
-	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)
-	if err != nil {
-		log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
-		return idx, err
+
+	if clBufIdx > 0 {
+		_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
+		if err != nil {
+			log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+			return idx, err
+		}
+		strLevFileOff += int64(clBufIdx)
+		idx += clBufIdx
 	}
-	strLevFileOff += int64(idx)
+
 	levsSizes[level] = idx
 
 	if len(nextLevelNodes) > 0 {
@@ -263,7 +343,7 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 		return 0, err
 	}
 
-	_, err = strMFd.Write(STAR_TREE_BLOCK)
+	_, err = strMFd.Write(VERSION_STAR_TREE_BLOCK)
 	if err != nil {
 		log.Errorf("EncodeStarTree: compression Type write failed fname=%v, err=%v", strMetaFname, err)
 		strMFd.Close()
@@ -301,15 +381,6 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 	return nddSize + metaSize, nil
 }
 
-func (stb *StarTreeBuilder) estimateNodeSize(numNodes int) int {
-
-	// 9 for CvalEnc
-	lenAggVals := len(stb.mColNames) * TotalMeasFns * 9
-	// 4 (for curNode mapkey) + 4 per parent path to root + 1000 for buffer
-	return numNodes*(lenAggVals+4+4*int(stb.numGroupByCols)) + 1000
-
-}
-
 func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 	levsSizes []uint32) error {
 
@@ -317,9 +388,9 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 
 	// encode level offsets and sizes
 	for i := range levsOffsets {
-		copy(stb.buf[idx:], utils.Int64ToBytesLittleEndian(levsOffsets[i]))
+		utils.Int64ToBytesLittleEndianInplace(levsOffsets[i], stb.buf[idx:])
 		idx += 8
-		copy(stb.buf[idx:], utils.Uint32ToBytesLittleEndian(levsSizes[i]))
+		utils.Uint32ToBytesLittleEndianInplace(levsSizes[i], stb.buf[idx:])
 		idx += 4
 	}
 
@@ -329,18 +400,4 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 		return err
 	}
 	return nil
-}
-
-func (stb *StarTreeBuilder) estimateMetaSize() int {
-
-	// 55: estimate for width of colNames
-	colsMeta := (int(stb.numGroupByCols) + len(stb.mColNames)) * 55
-
-	deSize := int(0)
-	for colNum := range stb.groupByKeys {
-		// 60 : estimate for colnamelen, columnname, 55: for enc len
-		deSize += 60 + int(stb.segDictLastNum[colNum])*55
-	}
-
-	return colsMeta + deSize + 1000
 }

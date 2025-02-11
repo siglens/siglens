@@ -39,7 +39,7 @@ var (
 func openAndLogRestartMarker(filename string) (*os.File, error) {
 	logFile, err := os.OpenFile(config.GetLogPrefix()+filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		log.Errorf("Unable to open %s file, err=%v", filename, err)
+		log.Errorf("openAndLogRestartMarker: Unable to open file: %s, err: %v", filename, err)
 		return nil, err
 	}
 	logRestartMarker(logFile)
@@ -70,13 +70,13 @@ func logRestartMarker(logFile *os.File) {
 	restartTime := time.Now().Format("2006-01-02 15:04:05")
 	_, err := logFile.WriteString(fmt.Sprintf("===== Application Restarted at %s =====\n", restartTime))
 	if err != nil {
-		log.Errorf("Unable to write restart marker to log file, err=%v", err)
+		log.Errorf("logRestartMarker: Unable to write restart marker to log file, err: %v", err)
 	}
 
 	// Write the column names after the restart marker
 	_, err = logFile.WriteString(fmt.Sprintf("%s\n", columnNames))
 	if err != nil {
-		log.Errorf("Unable to write column names to log file, err=%v", err)
+		log.Errorf("logRestartMarker: Unable to write column names to log file, err: %v", err)
 	}
 }
 
@@ -126,7 +126,7 @@ func AddLogEntry(data dtypeutils.LogFileData, allowWebsocket bool, logFile *os.F
 		data.Duration),
 	)
 	if err != nil {
-		log.Errorf("Unable to write to access.log file, err=%v", err)
+		log.Errorf("AddLogEntry: Unable to write to access.log file, err: %v", err)
 		return
 	}
 }

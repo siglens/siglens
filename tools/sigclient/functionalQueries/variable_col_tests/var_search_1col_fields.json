@@ -1,0 +1,25 @@
+{
+   "queryText": "variable_col_1=Orion | fields variable_col_1, batch, http_status, ident, variable_col_0",
+   "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "variable_col_1",
+            "batch",
+            "http_status",
+            "ident",
+            "variable_col_0"
+          ],
+        "columnsOrder": [
+            "variable_col_1",
+            "batch",
+            "http_status",
+            "ident",
+            "variable_col_0"
+          ]
+    }
+}

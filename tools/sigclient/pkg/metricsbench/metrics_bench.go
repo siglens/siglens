@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Payload structure for the request
@@ -60,7 +61,7 @@ func FetchMetrics(wg *sync.WaitGroup, destHost, startTime, query, queryName stri
 
 	data, err := CreateDataPayload(startTime, query, queryName)
 	if err != nil {
-		log.Printf("%s error: %v", queryName, err)
+		log.Errorf("FetchMetrics: can not create data payload for query: %s, error: %v", queryName, err)
 		return
 	}
 
@@ -68,7 +69,7 @@ func FetchMetrics(wg *sync.WaitGroup, destHost, startTime, query, queryName stri
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		log.Printf("%s error: %v", queryName, err)
+		log.Errorf("FetchMetrics: can not send request to url: %v, error: %v", url, err)
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -76,31 +77,31 @@ func FetchMetrics(wg *sync.WaitGroup, destHost, startTime, query, queryName stri
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("%s error: %v", queryName, err)
+		log.Errorf("FetchMetrics: Error executing query: %s, error: %v", queryName, err)
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("%s error: %v", queryName, err)
+		log.Errorf("FetchMetrics: failed to read response body for query: %s, error: %v", queryName, err)
 		return
 	}
 
 	var result map[string]interface{}
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		log.Printf("%s error: %v", queryName, err)
+		log.Errorf("FetchMetrics: failed to unmarshal response body for query: %s, error: %v", queryName, err)
 		return
 	}
 
 	reqEndTime := time.Now()
 
 	if series, ok := result["series"].([]interface{}); ok {
-		log.Printf("%s: Series Count: %d, respTime: %.3fs", queryName, len(series),
+		log.Infof("FetchMetrics: %s: Series Count: %d, respTime: %.3fs", queryName, len(series),
 			reqEndTime.Sub(reqStartTime).Seconds())
 	} else {
-		log.Printf("%s: Series Count: 0, respTime: %.3fs", queryName,
+		log.Infof("FetchMetrics: %s: Series Count: 0, respTime: %.3fs", queryName,
 			reqEndTime.Sub(reqStartTime).Seconds())
 	}
 }

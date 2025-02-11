@@ -22,27 +22,26 @@ import (
 	"os"
 	"testing"
 
-	localstorage "github.com/siglens/siglens/pkg/blob/local"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_GetJsonFromAllRrc(t *testing.T) {
-	dir := "test/"
-	config.InitializeDefaultConfig()
-	_ = localstorage.InitLocalStorage()
+func Test_GetJsonFromAllRrcOldPipeline(t *testing.T) {
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
+	assert.Nil(t, err)
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(dir, numSegKeys, numBlocks, numRecords)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
-	segkey := dir + "query_test_" + fmt.Sprint(0)
-
-	segencmap := make(map[uint16]string)
-	segencmap[uint16(0)] = segkey
+	segencmap := make(map[uint32]string)
+	segencmap[uint32(0)] = segkey
 
 	allrrc := []*utils.RecordResultContainer{
 		{
@@ -69,7 +68,7 @@ func Test_GetJsonFromAllRrc(t *testing.T) {
 		},
 	}
 	qid := uint64(0)
-	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, &structs.QueryAggregators{})
+	allRecords, _, err := GetJsonFromAllRrcOldPipeline(allrrc, false, qid, segencmap, &structs.QueryAggregators{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
 
@@ -105,18 +104,17 @@ func Test_GetJsonFromAllRrc(t *testing.T) {
 }
 
 func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
-	dir := "test/"
-	config.InitializeDefaultConfig()
-	_ = localstorage.InitLocalStorage()
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
+	assert.Nil(t, err)
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(dir, numSegKeys, numBlocks, numRecords)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
-	segkey := dir + "query_test_" + fmt.Sprint(0)
-
-	segencmap := make(map[uint16]string)
-	segencmap[uint16(0)] = segkey
+	segencmap := make(map[uint32]string)
+	segencmap[uint32(0)] = segkey
 
 	allrrc := []*utils.RecordResultContainer{
 		{
@@ -148,7 +146,7 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	aggNode.OutputTransforms = &structs.OutputTransforms{}
 	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
 	aggNode.OutputTransforms.OutputColumns.IncludeColumns = append(aggNode.OutputTransforms.OutputColumns.IncludeColumns, "key0")
-	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, aggNode)
+	allRecords, _, err := GetJsonFromAllRrcOldPipeline(allrrc, false, qid, segencmap, aggNode, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
 
@@ -169,18 +167,17 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 }
 
 func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
-	dir := "test/"
-	config.InitializeDefaultConfig()
-	_ = localstorage.InitLocalStorage()
+	dir := t.TempDir()
+	config.InitializeTestingConfig(dir)
+	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
+	assert.Nil(t, err)
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(dir, numSegKeys, numBlocks, numRecords)
+	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
 
-	segkey := dir + "query_test_" + fmt.Sprint(0)
-
-	segencmap := make(map[uint16]string)
-	segencmap[uint16(0)] = segkey
+	segencmap := make(map[uint32]string)
+	segencmap[uint32(0)] = segkey
 
 	allrrc := []*utils.RecordResultContainer{
 		{
@@ -212,7 +209,7 @@ func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	aggNode.OutputTransforms = &structs.OutputTransforms{}
 	aggNode.OutputTransforms.OutputColumns = &structs.ColumnsRequest{}
 	aggNode.OutputTransforms.OutputColumns.ExcludeColumns = append(aggNode.OutputTransforms.OutputColumns.ExcludeColumns, "key0")
-	allRecords, _, err := GetJsonFromAllRrc(allrrc, false, qid, segencmap, aggNode)
+	allRecords, _, err := GetJsonFromAllRrcOldPipeline(allrrc, false, qid, segencmap, aggNode, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(allRecords))
 

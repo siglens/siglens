@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -44,7 +44,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./component/dashboard/folders-dropdown.css?v={{ CSSVersion }}" />
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -67,24 +68,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="app-side-nav">
         </div>
         <div id="dashboard" class="launch-dashboard">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="myOrg-heading">Dashboards</h1>
+                    <p class="caption">Create and manage dashboards to visualize your data</p>
+                </div>
+                <div class="dashboard-header">
+                    <div id="add-new-container"></div>
+                </div>
+            </div>
+
             <div id="db-search-container">
                 <div>
-                    <input type="text" class="form-control search-db-input" placeholder="Search dashboards by name"
-                        title="Search your dashboards">
-                </div>
-                <div class="text-end">
-                    <button class="btn" id="run-search" title="Run your search">Search</button>
+                    <input type="text" id="search-input" class="form-control search-db-input"
+                        placeholder="Search for dashboards and folders">
                 </div>
             </div>
-
-            <div class="dashboard-header">
-                <button class="btn" id="create-db-btn" title="Create new Dashboard">
-                    <span>
-                        <img src="./assets/add-icon.svg" class="add-icon">
-                    </span>New Dashboard</button>
-
+            <div class="mt-2 d-flex align-items-center justify-content-end">
+                <div class="filter-controls">
+                    <label class="starred-filter">
+                        <input type="checkbox" id="starred-filter" class="checkbox">
+                        <span>Starred</span>
+                    </label>
+                </div>
+                <div id="sort-container"></div>
             </div>
-            <div id="empty-response">Dashboard Not Found</div>
+            <!-- <div id="empty-response">Dashboard Not Found</div> -->
             <div id="dashboard-grid-container">
                 <div id="dashboard-grid" class="ag-theme-mycustomtheme">
 
@@ -93,28 +102,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
             <div class="popupOverlay">
             </div>
-            <div class="popupContent" id="new-dashboard-modal">
-                <h3 class="header">New Dashboard</h3>
+            <div class="popupContent" id="delete-folder-modal">
+                <h3 class="header">Delete</h3>
                 <div>
-                    <input type="text" placeholder="Name" class="input" id="db-name">
-                    <p class="error-tip">Dashboard name is required!</p>
-
-                    <input type="text" placeholder="Description (Optional)" class="input" id="db-description">
+                    <p>This action will delete the following content:</p>
+                    <p class="content-count"></p>
+                    <p>To confirm deletion, type "Delete" below:</p>
+                    <input type="text" class="confirm-input" placeholder="Type 'Delete' to confirm">
                 </div>
-                <div id="buttons-popupContent">
-                    <button type="button" id="cancel-dbbtn">Cancel</button>
-                    <button type="button" id="save-dbbtn">Save</button>
-                </div>
-            </div>
-
-            <div id="delete-db-prompt" class="popupContent">
-                <h3 class="header">Confirmation</h3>
-                <div class="prompt-text-container">
-                    <div class="delete-db-text">Are you sure you want to delete this dashboard?</div>
-                </div>
-                <div id="buttons-db-prompt">
-                    <button type="button" id="cancel-db-prompt">Cancel</button>
-                    <button type="button" id="delete-dbbtn">Delete</button>
+                <div class="btncontainer">
+                    <button type="button" class="btn btn-primary cancel-btn">Cancel</button>
+                    <button type="button" class="btn btn-secondary delete-btn" disabled>Delete</button>
                 </div>
             </div>
         </div>
@@ -135,6 +133,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/saved-query.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/dashboards-home.js?cb=1_1_10"></script>
+    <script src="./js/dashboard-common.js"></script>
+    <script src="./component/dashboard/add-new.js"></script>
+    <script src="./component/dashboard/dashboard-grid.js"></script>
+    <script src="./component/dashboard/sort-dropdown.js"></script>
+    <script src="./component/dashboard/folders-dropdown.js"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

@@ -1,28 +1,25 @@
 name: siglens-lint-ut
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 permissions:
   contents: read
 jobs:
+  check-changed-files:
+    uses: ./.github/workflows/check-changed-files.yml
   golang-cicd:
-    if: '! github.event.pull_request.draft'
     name: golang-cicd
     runs-on: ubuntu-latest
+    needs: check-changed-files
+    if: ${{ !github.event.pull_request.draft && needs.check-changed-files.outputs.skip_tests != 'true' && github.event.pull_request.base.ref != 'main' }}
     steps:
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: 1.21
       - uses: actions/checkout@v3
       - name: Check goimports
         run: |
-          go install golang.org/x/tools/cmd/goimports@latest
+          go install golang.org/x/tools/cmd/goimports@v0.17.0
           export PATH=$PATH:$(go env GOPATH)/bin
           if [[ -n $(goimports -d .) ]]; then
             echo "Go code is not formatted with goimports"
@@ -37,11 +34,22 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:
-           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}            
+           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
+          skip-cache: true
           working-directory: ./
-          version: latest
-          skip-pkg-cache: true
-          skip-build-cache: true
+          version: v1.59.1
+  ESLint:
+    runs-on: ubuntu-latest
+    name: ESLint JS Files
+    needs: check-changed-files
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true'  && github.event.pull_request.base.ref != 'main' }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18.18.0"
+      - run: npm ci
+      - run: npm run lint:js

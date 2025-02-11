@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -17,17 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 // @todo - get rid of these global variables
-
+/*eslint-disable*/
 let timestampDateFmt = 'MMM Do, YYYY @ HH:mm:ss';
 let defaultColumnCount = 2;
-let dataTable = null;
-let aggsDataTable = null;
+// let dataTable = null;
+// let aggsDataTable = null;
 let shouldCloseAllDetails = false;
-let filterStartDate = "now-15m";
-let filterEndDate = "now";
+let filterStartDate = 'now-15m';
+let filterEndDate = 'now';
 let displayStart = moment().subtract(15, 'minutes').valueOf();
 let displayEnd = moment().valueOf();
 let selectedSearchIndex = '';
@@ -36,13 +34,14 @@ let scrollFrom = 0;
 let totalRrcCount = 0;
 let pageScrollPos = 0;
 let scrollPageNo = 1;
+let currentPanel;
 let availColNames = [];
 let startQueryTime;
 let renderTime = 0;
 let wsState = 'query';
 let newUri = null;
 let socket = null;
-let myUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+let myUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
 let data = null;
 let theme = 'light';
 let selectedFieldsList = [];
@@ -64,8 +63,12 @@ let measureFunctions = [];
 let measureInfo = [];
 let isTimechart = false;
 let isQueryBuilderSearch = false;
-let sortByTimestampAtDefault = true;
-
+let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
+let initialSearchData = {};
+let columnsWithNonNullValues = new Set();
+let columnsWithNullValues = new Set();
+let allColumns = new Set();
+let isMetricsScreen = false;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -80,44 +83,46 @@ let aggGridOptions = {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
             sortDescending: '<i class="fa fa-sort-alpha-down"/>',
         },
-        cellRenderer: params => params.value ? params.value : 'null',
+        cellRenderer: (params) => (params.value ? params.value : 'null'),
     },
     icons: {
         sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
         sortDescending: '<i class="fa fa-sort-alpha-down"/>',
-    }
+    },
 };
-
+/*eslint-enable*/
 {{ .CommonExtraFunctions }}
 
 function showError(errorMsg) {
-    $("#logs-result-container").hide();
-    $("#agg-result-container").hide();
-    $("#data-row-container").hide();
+    $('#logs-result-container').hide();
+    $('#agg-result-container').hide();
+    $('#data-row-container').hide();
     $('#empty-response').hide();
-    let currentTab = $("#custom-chart-tab").tabs("option", "active");
+    $('#initial-response').hide();
+    let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
-      $("#logs-view-controls").show();
+        $('#save-query-div').children().show();
+        $('#views-container').show();
     } else {
-      $("#logs-view-controls").hide();
+        $('#save-query-div').children().hide();
+        $('#views-container').show();
     }
-    $("#custom-chart-tab").show();
+    $('#custom-chart-tab').show().css({ height: '100%' });
     $('#corner-popup .corner-text').html(errorMsg);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html(' ');
-    $("#run-filter-btn").removeClass("cancel-search");
+    $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
-     $("#query-builder-btn").html(" ");
-     $("#query-builder-btn").removeClass("cancel-search");
-     $("#query-builder-btn").removeClass("active");
-    $("#live-tail-btn").html("Live Tail");
-    $("#live-tail-btn").removeClass("active");
-    $('#run-metrics-query-btn').removeClass('active');
+    $('#query-builder-btn').html(' ');
+    $('#query-builder-btn').removeClass('cancel-search');
+    $('#query-builder-btn').removeClass('active');
+    $('#live-tail-btn').html('Live Tail');
+    $('#live-tail-btn').removeClass('active');
 
     wsState = 'query';
 }
-
+//eslint-disable-next-line no-unused-vars
 function showInfo(infoMsg) {
     $('#corner-popup .corner-text').html(infoMsg);
     $('#corner-popup').show();
@@ -125,13 +130,13 @@ function showInfo(infoMsg) {
     $('#corner-popup').css('bottom', '3rem');
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html(' ');
-    $("#run-filter-btn").removeClass("cancel-search");
+    $('#run-filter-btn').removeClass('cancel-search');
     $('#run-filter-btn').removeClass('active');
-    $("#query-builder-btn").html(" ");
-    $("#query-builder-btn").removeClass("cancel-search");
-    $("#query-builder-btn").removeClass("active");
-    $("#live-tail-btn").html("Live Tail");
-    $("#live-tail-btn").removeClass("active");
+    $('#query-builder-btn').html(' ');
+    $('#query-builder-btn').removeClass('cancel-search');
+    $('#query-builder-btn').removeClass('active');
+    $('#live-tail-btn').html('Live Tail');
+    $('#live-tail-btn').removeClass('active');
     wsState = 'query';
 }
 
@@ -139,27 +144,40 @@ function hideError() {
     $('#corner-popup').hide();
 }
 
+function hideCornerPopupError() {
+    let message = $('.corner-text').text();
+    $('#corner-popup').hide();
+    $('#progress-div').html(``);
+    $('#record-searched').html(``);
+    processEmptyQueryResults(message);
+}
+//eslint-disable-next-line no-unused-vars
 function decodeJwt(token) {
-    let base64Payload = token.split(".")[1];
+    let base64Payload = token.split('.')[1];
     let payload = decodeURIComponent(
         atob(base64Payload)
-            .split("")
+            .split('')
             .map(function (c) {
-                return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             })
-            .join("")
+            .join('')
     );
     return JSON.parse(payload);
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetDashboard() {
     resetAvailableFields();
-    $("#LogResultsGrid").html('');
-    $("#measureAggGrid").html('');
+    $('#LogResultsGrid').html('');
+    $('#measureAggGrid').html('');
+    columnsWithNonNullValues.clear();
+    columnsWithNullValues.clear();
+    allColumns.clear();
+    $('#hide-null-column-box').hide();
+    columnCount = 0;
     gridDiv = null;
     eGridDiv = null;
 }
-
+//eslint-disable-next-line no-unused-vars
 function string2Hex(tmp) {
     let str = '';
     for (let i = 0; i < tmp.length; i++) {
@@ -167,30 +185,31 @@ function string2Hex(tmp) {
     }
     return str;
 }
-
+//eslint-disable-next-line no-unused-vars
 function addQSParm(name, value) {
-    let re = new RegExp("([?&]" + name + "=)[^&]+", "");
+    let re = new RegExp('([?&]' + name + '=)[^&]+', '');
 
     function add(sep) {
-        myUrl += sep + name + "=" + encodeURIComponent(value);
+        myUrl += sep + name + '=' + encodeURIComponent(value);
     }
 
     function change() {
-        myUrl = myUrl.replace(re, "$1" + encodeURIComponent(value));
+        myUrl = myUrl.replace(re, '$1' + encodeURIComponent(value));
     }
-    if (myUrl.indexOf("?") === -1) {
-        add("?");
+    if (myUrl.indexOf('?') === -1) {
+        add('?');
     } else {
         if (re.test(myUrl)) {
             change();
         } else {
-            add("&");
+            add('&');
         }
     }
 }
 
-function resetQueryResAttr(res, panelId){
-    if (panelId == -1 && currentPanel) // if the query has been made from the editPanelScreen
+function resetQueryResAttr(res, panelId) {
+    if (panelId == -1 && currentPanel)
+        // if the query has been made from the editPanelScreen
         currentPanel.queryRes = res;
     else {
         for (let i = 0; i < localPanels.length; i++) {
@@ -202,20 +221,22 @@ function resetQueryResAttr(res, panelId){
     }
 }
 
-function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
+function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
     //if data source is metrics
-      if(!res.qtype) {
-        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId);
+    if (!res.qtype) {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
         return;
     }
-    if(res.hits){
-        if (panelId == -1) { // for panel on the editPanelScreen page
-            $(".panelDisplay #panelLogResultsGrid").show();
-            $(".panelDisplay #empty-response").empty();
+    if (res.hits) {
+        if (panelId == -1) {
+            // for panel on the editPanelScreen page
+            $('.panelDisplay #panelLogResultsGrid').show();
+            $('.panelDisplay #empty-response').empty();
             $('.panelDisplay #corner-popup').hide();
-            $(".panelDisplay #empty-response").hide();
+            $('.panelDisplay #empty-response').hide();
             $('.panelDisplay .panEdit-panel').hide();
-        } else { // for panels on the dashboard page
+        } else {
+            // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).show();
             $(`#panel${panelId} #empty-response`).empty();
             $(`#panel${panelId} #corner-popup`).hide();
@@ -223,89 +244,101 @@ function renderPanelLogsQueryRes(data, panelId, logLinesViewType, res) {
             $(`#panel${panelId} .panEdit-panel`).hide();
         }
         //for aggs-query and segstats-query
-        if (res.measure && (res.qtype === "aggs-query" || res.qtype === "segstats-query")) {
-            let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-                columnOrder = res.columnsOrder
-            }else{
+        if (res.measure && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query')) {
+            let columnOrder = [];
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder;
+            } else {
                 if (res.groupByCols) {
-                    columnOrder = _.uniq(_.concat(
-                        res.groupByCols));
+                    columnOrder = _.uniq(_.concat(res.groupByCols));
                 }
                 if (res.measureFunctions) {
-                    columnOrder = _.uniq(_.concat(
-                        columnOrder, res.measureFunctions));
+                    columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
                 }
             }
-            renderPanelAggsGrid(columnOrder, res ,panelId)
-        }//for logs-query
-        else if(res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
-            let columnOrder = []
-            if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-                columnOrder = res.columnsOrder
-            }else{
-                columnOrder = res.allColumns
+            $('#avail-field-container ').css('display', 'none');
+            renderPanelAggsGrid(columnOrder, res, panelId);
+        } //for logs-query
+        else if (res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
+            let columnOrder = [];
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                columnOrder = res.columnsOrder;
+            } else {
+                columnOrder = res.allColumns;
             }
-            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, logLinesViewType);
+            if (currentPanel.selectedFields) {
+                selectedFieldsList = currentPanel.selectedFields;
+            } else {
+                selectedFieldsList = columnOrder;
+            }
+            $('#avail-field-container ').css('display', 'inline-flex');
+            renderAvailableFields(columnOrder);
+            renderPanelLogsGrid(columnOrder, res.hits.records, panelId, currentPanel);
         }
         allResultsDisplayed--;
-        if(allResultsDisplayed <= 0 || panelId === -1) {
+        if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
         }
     }
     canScrollMore = res.can_scroll_more;
     scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount &&  (res.qtype === "aggs-query" || res.qtype === "segstats-query"))) {
-        panelProcessEmptyQueryResults("", panelId);
+    if (res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) {
+        panelProcessEmptyQueryResults('', panelId);
     }
 
-    wsState = 'query'
+    wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
 }
 
-function runPanelLogsQuery(data, panelId,currentPanel,queryRes) {
-    return new Promise(function(resolve, reject) {
+function fetchLogsPanelData(data, panelId) {
+    return $.ajax({
+        method: 'post',
+        url: 'api/search/' + panelId,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        crossDomain: true,
+        dataType: 'json',
+        data: JSON.stringify(data),
+    });
+}
+
+//eslint-disable-next-line no-unused-vars
+function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
+    return new Promise(function (resolve, reject) {
         $('body').css('cursor', 'progress');
+
         if (queryRes) {
-            renderChartByChartType(data,queryRes,panelId,currentPanel)
-        }
-        else {
-            $.ajax({
-                method: 'post',
-                url: 'api/search/' + panelId,
-                headers: {
-                    'Content-Type': 'application/json; charset=utf-8',
-                    'Accept': '*/*'
-                },
-                crossDomain: true,
-                dataType: 'json',
-                data: JSON.stringify(data)
-            })
+            renderChartByChartType(data, queryRes, panelId, currentPanel);
+            $('body').css('cursor', 'default');
+        } else {
+            fetchLogsPanelData(data, panelId)
                 .then((res) => {
                     resetQueryResAttr(res, panelId);
-                    renderChartByChartType(data,res,panelId,currentPanel);
+                    renderChartByChartType(data, res, panelId, currentPanel);
                     resolve();
                 })
-                .catch(function (xhr, err) {
+                .catch(function (xhr, _err) {
                     if (xhr.status === 400) {
                         panelProcessSearchError(xhr, panelId);
-                    }currentPanel
+                    }
                     $('body').css('cursor', 'default');
                     $(`#panel${panelId} .panel-body #panel-loading`).hide();
                     reject();
-                })
+                });
         }
-    })
+    });
 }
 
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
     let msg;
-    if (errorMsg !== "") {
+    if (errorMsg !== '') {
         msg = errorMsg;
     } else {
-        msg = "Your query returned no data, adjust your query.";
+        msg = 'Your query returned no data, adjust your query.';
     }
     if (panelId == -1) {
         $(`.panelDisplay .big-number-display-container`).hide();
@@ -361,9 +394,8 @@ function panelProcessSearchError(res, panelId) {
         el.append(`<span>${res.responseText}</span>`);
     }
     wsState = 'query';
-
 }
-
+//eslint-disable-next-line no-unused-vars
 function resetPanelContainer(firstQUpdate) {
     if (firstQUpdate) {
         $('#empty-response').hide();
@@ -372,11 +404,6 @@ function resetPanelContainer(firstQUpdate) {
 
         hideError();
     }
-}
-
-function resetPanelGrid() {
-    panelLogsRowData = [];
-    panelGridDiv == null
 }
 
 function showPanelInfo(infoMsg) {
@@ -388,28 +415,39 @@ function showPanelInfo(infoMsg) {
 
     wsState = 'query';
 }
-
+//eslint-disable-next-line no-unused-vars
 function getQueryParamsData(scrollingTrigger) {
     let sFrom = 0;
-    let queryLanguage = $('.queryInput-container #query-language-btn span').html();
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
     if (scrollingTrigger) {
         sFrom = scrollFrom;
     }
-    let data = {
-        'state': wsState,
-        'searchText': queryStr,
-        'startEpoch': filterStartDate,
-        'endEpoch': filterEndDate,
-        'indexName': selectedSearchIndex,
-        'from': sFrom,
-        'queryLanguage' : queryLanguage,
+
+    isQueryBuilderSearch = $('#custom-code-tab').tabs('option', 'active') === 0;
+    if (isQueryBuilderSearch) {
+        queryStr = getQueryBuilderCode();
+        queryMode = 'Builder';
+    } else {
+        queryStr = $('#filter-input').val();
+        queryMode = 'Code';
     }
+
+    let data = {
+        state: wsState,
+        searchText: queryStr,
+        startEpoch: filterStartDate,
+        endEpoch: filterEndDate,
+        indexName: selectedSearchIndex,
+        from: sFrom,
+        queryLanguage: queryLanguage,
+        queryMode: queryMode,
+    };
     return data;
 }
-
+//eslint-disable-next-line no-unused-vars
 function getCookie(cname) {
-    let name = cname + "=";
+    let name = cname + '=';
     let decodedCookie = decodeURIComponent(document.cookie);
     let ca = decodedCookie.split(';');
     for (let i = 0; i < ca.length; i++) {
@@ -421,144 +459,249 @@ function getCookie(cname) {
             return c.substring(name.length, c.length);
         }
     }
-    return "";
+    return '';
 }
 
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
     resetQueryResAttr(res, panelId);
     //if data source is metrics
-    if(!res.qtype && chartType != "number") {
-        panelProcessEmptyQueryResults("Unsupported chart type. Please select a different chart type.",panelId)
+    if (!res.qtype && chartType != 'number') {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
-    if (res.qtype === "logs-query") {
-        panelProcessEmptyQueryResults("", panelId);
+    if (res.qtype === 'logs-query') {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
-    
-    if (res.qtype === "aggs-query" || res.qtype === "segstats-query") {
-        if (panelId == -1) { // for panel on the editPanelScreen page
-            $(".panelDisplay #panelLogResultsGrid").hide();
-            $(".panelDisplay #empty-response").empty();
+
+    if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
+        if (panelId == -1) {
+            // for panel on the editPanelScreen page
+            $('.panelDisplay #panelLogResultsGrid').hide();
+            $('.panelDisplay #empty-response').empty();
             $('.panelDisplay #corner-popup').hide();
-            $(".panelDisplay #empty-response").hide();
+            $('.panelDisplay #empty-response').hide();
             $('.panelDisplay .panEdit-panel').show();
             $(`.panelDisplay .big-number-display-container`).empty();
-	        $(`.panelDisplay .big-number-display-container`).hide();
-        } else { // for panels on the dashboard page
+            $(`.panelDisplay .big-number-display-container`).hide();
+        } else {
+            // for panels on the dashboard page
             $(`#panel${panelId} #panelLogResultsGrid`).hide();
             $(`#panel${panelId} #empty-response`).empty();
             $(`#panel${panelId} #corner-popup`).hide();
             $(`#panel${panelId} #empty-response`).hide();
             $(`#panel${panelId} .panEdit-panel`).show();
             $(`.panelDisplay .big-number-display-container`).empty();
-	        $(`.panelDisplay .big-number-display-container`).hide();
+            $(`.panelDisplay .big-number-display-container`).hide();
         }
 
-        let columnOrder = []
-        if (res.columnsOrder !=undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder
-        }else{
+        let columnsOrder = [];
+        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+            columnsOrder = res.columnsOrder;
+        } else {
             if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(
-                    res.groupByCols));
+                columnsOrder = _.uniq(_.concat(res.groupByCols));
             }
             if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(
-                    columnOrder, res.measureFunctions));
+                columnsOrder = _.uniq(_.concat(columnsOrder, res.measureFunctions));
             }
         }
         if (res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
             let resultVal;
-            if (chartType === "number") {
+            if (chartType === 'number') {
                 resultVal = Object.values(res.measure[0].MeasureVal)[0];
             }
 
-            if ((chartType === "Pie Chart" || chartType === "Bar Chart") && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
-                panelProcessEmptyQueryResults("", panelId);
-            } else if (chartType === "number" && (resultVal === undefined || resultVal === null)) {
-                panelProcessEmptyQueryResults("", panelId);
+            if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
+                if (res.qtype === 'segstats-query') {
+                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);  
+                } else {
+                    panelProcessEmptyQueryResults('', panelId);
+                }
+            } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {
+                panelProcessEmptyQueryResults('', panelId);
             } else {
                 // for number, bar and pie charts
-                if(panelId ===-1)
-                    renderPanelAggsGrid(columnOrder, res, panelId);
-
-                panelChart = renderBarChart(columnOrder, res.measure, panelId, chartType, dataType, panelIndex);
+                if (panelId === -1) renderPanelAggsGrid(columnsOrder, res, panelId);
+                panelChart = renderBarChart(columnsOrder, res, panelId, chartType, dataType, panelIndex);
             }
         }
         allResultsDisplayed--;
-        if(allResultsDisplayed <= 0 || panelId === -1) {
+        if (allResultsDisplayed <= 0 || panelId === -1) {
             $('body').css('cursor', 'default');
         }
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, queryRes) {
     $('body').css('cursor', 'progress');
     if (queryRes) {
-        renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, queryRes)
+        renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, queryRes);
     } else {
         $.ajax({
             method: 'post',
             url: 'api/search/' + panelId,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
+                Accept: '*/*',
             },
             crossDomain: true,
             dataType: 'json',
-            data: JSON.stringify(data)
+            data: JSON.stringify(data),
         })
             .then(function (res) {
-                renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res)
+                renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res);
             })
-            .catch(function (xhr, err) {
+            .catch(function (xhr, _err) {
                 if (xhr.status === 400) {
                     panelProcessSearchError(xhr, panelId);
                 }
                 $('body').css('cursor', 'default');
-            })
+            });
     }
 }
 
-function runMetricsQuery(data, panelId, currentPanel, queryRes) {
+async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
     $('body').css('cursor', 'progress');
-    if (queryRes) {
-        renderChartByChartType(data,queryRes,panelId,currentPanel)
+    if (panelId == -1) {
+        // for panel on the editPanelScreen page
+        $('.panelDisplay #panelLogResultsGrid').hide();
+        $('.panelDisplay #empty-response').empty();
+        $('.panelDisplay #corner-popup').hide();
+        $('.panelDisplay #empty-response').hide();
+        $('.panelDisplay .panEdit-panel').show();
     } else {
-        $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/timeseries',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Accept': '*/*'
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data)
-        })
-            .then((res) => {
-                renderChartByChartType(data,res,panelId,currentPanel)
-            })
-            .catch(function (xhr, err) {
-                if (xhr.status === 400) {
-                    panelProcessSearchError(xhr, panelId);
+        // for panels on the dashboard page
+        $(`#panel${panelId} #panelLogResultsGrid`).hide();
+        $(`#panel${panelId} #empty-response`).empty();
+        $(`#panel${panelId} #corner-popup`).hide();
+        $(`#panel${panelId} #empty-response`).hide();
+        $(`#panel${panelId} .panEdit-panel`).show();
+    }
+    var chartType = currentPanel.chartType;
+    if (chartType === 'number') {
+        let bigNumVal = null;
+        let dataType = currentPanel.dataType;
+        let rawTimeSeriesData;
+        for (const queryData of data.queriesData) {
+            rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+            const parsedQueryObject = parsePromQL(queryData.queries[0]);
+            await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
+        }
+        $.each(rawTimeSeriesData.values, function (_index, valueArray) {
+            $.each(valueArray, function (_index, value) {
+                if (value > bigNumVal) {
+                    bigNumVal = value;
                 }
-                $('body').css('cursor', 'default')
-            })
-    }  
+            });
+        });
+        if (bigNumVal === undefined || bigNumVal === null) {
+            panelProcessEmptyQueryResults('', panelId);
+        } else {
+            displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
+            allResultsDisplayed--;
+            if (allResultsDisplayed <= 0 || panelId === -1) {
+                $('body').css('cursor', 'default');
+            }
+            $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        }
+    } else if (chartType === 'Line Chart') {
+        chartDataCollection = {};
+        if (panelId === -1) {
+            formulas = {};
+            // for panel on the editPanelScreen page
+            for (const queryData of data.queriesData) {
+                const parsedQueryObject = parsePromQL(queryData.queries[0]);
+                await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
+            }
+            for (const formulaData of data.formulasData) {
+                let uniqueId = generateUniqueId();
+                addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
+            }
+        } else {
+            // for panels on the dashboard page
+            for (const queryData of data.queriesData) {
+                try {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    const queryString = queryData.queries[0].query;
+                    addVisualizationContainer(queryData.queries[0].name, chartData, queryString, panelId);
+                } catch (error) {
+                    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas = $(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    if (isDashboardScreen) {
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
+                    } else {
+                        console.error('Error fetching time series data:', error);
+                    }
+                }
+            }
+
+            for (const formulaData of data.formulasData) {
+                try {
+                    const rawTimeSeriesData = await fetchTimeSeriesData(formulaData);
+                    const chartData = await convertDataForChart(rawTimeSeriesData);
+                    let formulaString = formulaData.formulas[0].formula;
+
+                    // Replace a, b, etc., with actual query values
+                    formulaData.queries.forEach((query) => {
+                        const regex = new RegExp(`\\b${query.name}\\b`, 'g');
+                        formulaString = formulaString.replace(regex, query.query);
+                    });
+
+                    addVisualizationContainer(formulaData.formulas[0].formula, chartData, formulaString, panelId);
+                } catch (error) {
+                    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+                    const errorCanvas = $(`#panel${panelId} .panel-body .panEdit-panel canvas`);
+                    if (isDashboardScreen) {
+                        if (errorCanvas.length > 0) {
+                            errorCanvas.remove();
+                        }
+                        displayErrorMessage($(`#panel${panelId} .panel-body`), errorMessage);
+                    } else {
+                        console.error('Error fetching time series data:', error);
+                    }
+                }
+            }
+        }
+        if (currentPanel && currentPanel.style) {
+            toggleLineOptions(currentPanel.style.display);
+            chartType = currentPanel.style.display;
+            toggleChartType(chartType);
+            updateChartTheme(currentPanel.style.color);
+            updateLineCharts(currentPanel.style.lineStyle, currentPanel.style.lineStroke);
+        }
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        allResultsDisplayed--;
+        if (allResultsDisplayed <= 0 || panelId === -1) {
+            $('body').css('cursor', 'default');
+        }
+        $('body').css('cursor', 'default');
+    } else {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
+        return;
+    }
 }
 
-function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex,dataType) {
+function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
+    if (queryType === 'logs') {
+        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
+        return;
+    }
     resetQueryResAttr(res, panelId);
     let bigNumVal = null;
-    if (panelId == -1) { // for panel on the editPanelScreen page
-        $(".panelDisplay #panelLogResultsGrid").hide();
-        $(".panelDisplay #empty-response").empty();
+    if (panelId == -1) {
+        // for panel on the editPanelScreen page
+        $('.panelDisplay #panelLogResultsGrid').hide();
+        $('.panelDisplay #empty-response').empty();
         $('.panelDisplay #corner-popup').hide();
-        $(".panelDisplay #empty-response").hide();
+        $('.panelDisplay #empty-response').hide();
         $('.panelDisplay .panEdit-panel').show();
-    } else { // for panels on the dashboard page
+    } else {
+        // for panels on the dashboard page
         $(`#panel${panelId} #panelLogResultsGrid`).hide();
         $(`#panel${panelId} #empty-response`).empty();
         $(`#panel${panelId} #corner-popup`).hide();
@@ -567,64 +710,64 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
     }
 
     if (res.series && res.series.length === 0) {
-        panelProcessEmptyQueryResults("", panelId);
+        panelProcessEmptyQueryResults('', panelId);
         allResultsDisplayed--;
         $('body').css('cursor', 'default');
-	    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+        $(`#panel${panelId} .panel-body #panel-loading`).hide();
     } else {
-        if (chartType === 'number'){
+        if (chartType === 'number') {
             $.each(res.values, function (index, valueArray) {
                 $.each(valueArray, function (index, value) {
                     if (value > bigNumVal) {
                         bigNumVal = value;
                     }
                 });
-            }); 
-            if(bigNumVal === undefined || bigNumVal === null){
-                panelProcessEmptyQueryResults("", panelId);
-            }else{
+            });
+            if (bigNumVal === undefined || bigNumVal === null) {
+                panelProcessEmptyQueryResults('', panelId);
+            } else {
                 displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
                 allResultsDisplayed--;
-                if(allResultsDisplayed <= 0 || panelId === -1) {
+                if (allResultsDisplayed <= 0 || panelId === -1) {
                     $('body').css('cursor', 'default');
                 }
-                $(`#panel${panelId} .panel-body #panel-loading`).hide();   
-            } 
+                $(`#panel${panelId} .panel-body #panel-loading`).hide();
+            }
         } else {
             hideError();
             let seriesArray = [];
-            if (res.hasOwnProperty('series') && res.hasOwnProperty('timestamps') && res.hasOwnProperty('values')) {
+            if (Object.prototype.hasOwnProperty.call(res, 'series') && Object.prototype.hasOwnProperty.call(res, 'timestamps') && Object.prototype.hasOwnProperty.call(res, 'values')) {
                 for (let i = 0; i < res.series.length; i++) {
                     let series = {
                         seriesName: res.series[i],
-                        values: {}
+                        values: {},
                     };
-        
+
                     for (let j = 0; j < res.timestamps.length; j++) {
                         // Convert epoch seconds to milliseconds by multiplying by 1000
                         let timestampInMilliseconds = res.timestamps[j] * 1000;
                         let localDate = new Date(timestampInMilliseconds);
                         let formattedDate = localDate.toLocaleString();
-        
+
                         series.values[formattedDate] = res.values[i][j];
                     }
-        
+
                     seriesArray.push(series);
                 }
             }
             renderLineChart(seriesArray, panelId);
             allResultsDisplayed--;
-            if(allResultsDisplayed <= 0 || panelId === -1) {
+            if (allResultsDisplayed <= 0 || panelId === -1) {
                 $('body').css('cursor', 'default');
             }
         }
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function processMetricsSearchError() {
     showError(`Your query returned no data, adjust your query.`);
 }
-
+//eslint-disable-next-line no-unused-vars
 function createMetricsColorsArray() {
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
@@ -634,142 +777,68 @@ function createMetricsColorsArray() {
     }
     return colorArray;
 }
-
+//eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
-    let dateVal = new Date(startEpoch);
-    $('#date-start').val(dateVal.toISOString().substring(0,10));
-    $('#date-start').addClass('active');
-    $('.panelEditor-container #date-start').val(dateVal.toISOString().substring(0,10));
-    $('.panelEditor-container #date-start').addClass('active');
-    let hours = addZero(dateVal.getUTCHours());
-    let mins = addZero(dateVal.getUTCMinutes());
-    $('#time-start').val(hours+':'+mins);
-    $('#time-start').addClass('active');
-    $('.panelEditor-container #time-start').val(hours+':'+mins);
-    $('.panelEditor-container #time-start').addClass('active');
+    function setDateTimeInputs(epochTime, dateId, timeId) {
+        let dateVal = new Date(epochTime);
+        let dateString = dateVal.toISOString().split('T')[0];
+        let timeString = dateVal.toTimeString().substring(0, 5);
 
-    dateVal = new Date(endEpoch);
-    $('#date-end').val(dateVal.toISOString().substring(0,10));
-    $('#date-end').addClass('active');
-    $('.panelEditor-container #date-end').val(dateVal.toISOString().substring(0,10));
-    $('.panelEditor-container #date-end').addClass('active');
-    hours = addZero(dateVal.getUTCHours());
-    mins = addZero(dateVal.getUTCMinutes());
-    $('#time-end').val(hours+':'+mins);
-    $('#time-end').addClass('active');
-    $('.panelEditor-container #time-end').val(hours+':'+mins);
-    $('.panelEditor-container #time-end').addClass('active');
+        $(`#${dateId}, .panelEditor-container #${dateId}`).val(dateString).addClass('active');
+        $(`#${timeId}, .panelEditor-container #${timeId}`).val(timeString).addClass('active');
+
+        return { date: dateString, time: timeString };
+    }
+
+    let startValues = setDateTimeInputs(startEpoch, 'date-start', 'time-start');
+    let endValues = setDateTimeInputs(endEpoch, 'date-end', 'time-end');
+
+    appliedStartDate = tempStartDate = startValues.date;
+    appliedStartTime = tempStartTime = startValues.time;
+    appliedEndDate = tempEndDate = endValues.date;
+    appliedEndTime = tempEndTime = endValues.time;
+
+    Cookies.set('customStartDate', appliedStartDate);
+    Cookies.set('customStartTime', appliedStartTime);
+    Cookies.set('customEndDate', appliedEndDate);
+    Cookies.set('customEndTime', appliedEndTime);
+
+    $('.range-item, .db-range-item').removeClass('active');
 }
 
 function addZero(i) {
-    if (i < 10) {i = "0" + i}
+    if (i < 10) {
+        i = '0' + i;
+    }
     return i;
 }
 
-function setTimePicker() {
-    // set time picker of next page with updated time
-    let stDate = Cookies.get('startEpoch') || "now-1h";
-    let endDate = Cookies.get('endEpoch') || "now";
-    if (stDate && endDate) {
-        if(endDate === "now") {
-            filterStartDate = stDate;
-            filterEndDate =  endDate;
-            $('.inner-range #' + filterStartDate).addClass('active');
-            datePickerHandler(filterStartDate, filterEndDate, filterStartDate)
-        } else {
-            if (!isNaN(stDate)) {
-                stDate = Number(stDate);
-                endDate = Number(endDate);
-                datePickerHandler(stDate, endDate, "custom");
-                loadCustomDateTimeFromEpoch(stDate, endDate);
-                filterStartDate = stDate;
-                filterEndDate =  endDate;
-            }
-        }
+//eslint-disable-next-line no-unused-vars
+function showToast(msg, type = 'error') {
+    let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
+    let toast = `
+        <div class="${toastTypeClass}" id="message-toast"> 
+            <button type="button" aria-label="Close" class="toast-close">×</button>
+            ${msg}
+            <div class="toast-buttons">
+                <button type="button" class="toast-ok btn btn-secondary">OK</button>
+            </div>
+        </div>`;
+
+    $('body').prepend(toast);
+
+    if (type === 'success') {
+        setTimeout(removeToast, 3000);
+    }
+    $('.toast-close').on('click', removeToast);
+    $('.toast-ok').on('click', removeToast);
+
+    function removeToast() {
+        $('#message-toast').remove();
     }
 }
 
-// my org page
-function showToastMyOrgPage(msg) {
-    let toast =
-        `<div class="div-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-function showSendTestDataUpdateToast(msg) {
-    let toast =
-        `<div class="test-data-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-function showSendTestDataUpdateToast(msg) {
-    let toast =
-        `<div class="test-data-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-function removeToast() {
-    $('.div-toast').remove();
-    $('.test-data-toast').remove();
-    $('.ret-days-toast').remove();
-    $('.usage-stats-toast').remove();
-}
-
-function showDeleteIndexToast(msg) {
-    let toast =
-        `<div class="usage-stats-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('#logs-stats-header').append(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-function showRetDaysUpdateToast(msg) {
-    let toast =
-        `<div class="ret-days-toast">
-        ${msg}
-        <button type="button" aria-label="Close" class="toast-close">✖</button>
-    <div>`
-    $('body').prepend(toast);
-    $('.toast-close').on('click', removeToast);
-    setTimeout(removeToast, 3000);
-}
-
-
-
-
-
-function myOrgSendTestData(token) {
-    $('#test-data-btn').on('click', (e) => {
-        if (selectedLogSource === 'Send Test Data') {
-            var testDataBtn = document.getElementById("test-data-btn");
-            // Disable testDataBtn
-            testDataBtn.disabled = true;
-            sendTestData(e, token);
-        }
-        else {
-            showSendTestDataUpdateToast('Select Test Data');
-        }
-    })
-}
-
+//eslint-disable-next-line no-unused-vars
 function getIngestUrl() {
     return new Promise((resolve, reject) => {
         $.ajax({
@@ -777,83 +846,372 @@ function getIngestUrl() {
             url: '/api/config',
             crossDomain: true,
             dataType: 'json',
-            credentials: 'include'
+            credentials: 'include',
         })
-        .then((res) => {
-            resolve(res.IngestUrl);
-        })
-        .catch((err) => {
-            console.log(err);
-            reject(err);
-        });
+            .then((res) => {
+                resolve(res.IngestUrl);
+            })
+            .catch((err) => {
+                console.log(err);
+                reject(err);
+            });
     });
 }
 
 //renders the response from logs or metrics query to respective selected chart type
-function renderChartByChartType(data,queryRes,panelId,currentPanel){
-    if(!currentPanel.chartType){
-        panelProcessEmptyQueryResults("Please select a suitable chart type.",panelId)
+function renderChartByChartType(data, queryRes, panelId, currentPanel) {
+    if (!currentPanel.chartType) {
+        panelProcessEmptyQueryResults('Please select a suitable chart type.', panelId);
     }
     switch (currentPanel.chartType) {
-        case "Data Table":
-        case "loglines":
+        case 'Data Table':
+        case 'loglines':
             $('.panelDisplay .panEdit-panel').hide();
-            renderPanelLogsQueryRes(data, panelId,currentPanel.logLinesViewType,queryRes);
+            renderPanelLogsQueryRes(data, panelId, currentPanel, queryRes);
             break;
-        case "Bar Chart":
-        case "Pie Chart":
-            renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
+        case 'Bar Chart':
+        case 'Pie Chart':
+            renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             break;
-        case "Line Chart":
-            let startTime = (new Date()).getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,"")
+        case 'Line Chart': {
+            let startTime = new Date().getTime();
+            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, currentPanel.queryType);
             break;
-        case "number":
-            
-            if (currentPanel.unit === "" || currentPanel.dataType === "none" || currentPanel.dataType === ""){
-                currentPanel.unit = "misc"
-                currentPanel.dataType = "none"
+        }
+        case 'number':
+            if (currentPanel.unit === '' || currentPanel.dataType === 'none' || currentPanel.dataType === '') {
+                currentPanel.unit = 'misc';
+                currentPanel.dataType = 'none';
             }
-            if (currentPanel.queryType == 'metrics'){
-                let startTime = (new Date()).getTime();
-                processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex,currentPanel.dataType)
-            }else{
-                renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes)
+            if (currentPanel.queryType == 'metrics') {
+                runMetricsQuery(data, panelId, currentPanel);
+            } else {
+                renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             }
             break;
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 function findColumnIndex(columnsMap, columnName) {
     // Iterate over the Map entries
-    for (const [ index,name] of columnsMap.entries()) {
+    for (const [index, name] of columnsMap.entries()) {
         if (name === columnName) {
             return index; // Return the index if the column name matches
         }
     }
     return -1; // Return -1 if the column name is not found
 }
-
-function setIndexDisplayValue(selectedSearchIndex){
+//eslint-disable-next-line no-unused-vars
+function setIndexDisplayValue(selectedSearchIndex) {
     if (selectedSearchIndex) {
         // Remove all existing selected indexes
-        $(".index-container .selected-index").remove();
+        $('.index-container .selected-index').remove();
         const selectedIndexes = selectedSearchIndex.split(',');
-        selectedIndexes.forEach(function(index) {
+        selectedIndexes.forEach(function (index) {
             addSelectedIndex(index);
             // Remove the selectedSearchIndex from indexValues
-            const indexIndex = indexValues.indexOf(index);
-            if (indexIndex !== -1) {
-                indexValues.splice(indexIndex, 1);
-            }
-            if (index.endsWith('*')) {
-                const prefix = index.slice(0, -1); // Remove the '*'
-                const filteredIndexValues = indexValues.filter(function(option) {
-                    return !option.startsWith(prefix);
-                });
-                indexValues = filteredIndexValues;
-                $("#index-listing").autocomplete("option", "source", filteredIndexValues);
+            if(indexValues && indexValues.length > 0){
+                const indexIndex = indexValues.indexOf(index);
+                if (indexIndex !== -1) {
+                    indexValues.splice(indexIndex, 1);
+                }
             }
         });
     }
+}
+//eslint-disable-next-line no-unused-vars
+function displayQueryLangToolTip(selectedQueryLangID) {
+    $('#info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
+    switch (selectedQueryLangID) {
+        case '1':
+        case 1:
+            $('#info-icon-sql').show();
+            $('#filter-input').attr('placeholder', "Enter your SQL query here, or click the 'i' icon for examples");
+            break;
+        case '2':
+        case 2:
+            $('#info-icon-logQL').show();
+            $('#filter-input').attr('placeholder', "Enter your LogQL query here, or click the 'i' icon for examples");
+            break;
+        case '3':
+        case 3:
+            $('#info-icon-spl').show();
+            $('#filter-input').attr('placeholder', "Enter your SPL query here, or click the 'i' icon for examples");
+            break;
+    }
+}
+function toggleClearButtonVisibility() {
+    var filterInputValue = $('#filter-input').val().trim();
+    if (filterInputValue === '') {
+        $('#clearInput').hide();
+    } else {
+        $('#clearInput').show();
+    }
+}
+//eslint-disable-next-line no-unused-vars
+function initializeFilterInputEvents() {
+    // Function to check the visibility of the Format button
+    function checkFormatButtonVisibility() {
+        const selectedLanguage = $('#query-language-btn span').text().trim();
+        const selectedTab = $('.tab-list .tab-li.ui-tabs-active').attr('id');
+        const formatButton = $('#formatInput');
+        if (selectedLanguage === 'Splunk QL' && selectedTab === 'tab-title2') {
+            formatButton.show();
+        } else {
+            formatButton.hide();
+        }
+    }
+
+    // Function to handle tab clicks
+    function handleTabClick() {
+        $('.tab-li').removeClass('active');
+        $(this).addClass('active');
+        checkFormatButtonVisibility();
+    }
+
+    // Initial visibility check
+    checkFormatButtonVisibility();
+
+    // Event listener for tab clicks
+    $('.tab-list .tab-li').click(handleTabClick);
+
+    // Event listeners for query language changes
+    $('#query-language-options').on('click', '.query-language-option', function () {
+        setTimeout(checkFormatButtonVisibility, 10);
+    });
+
+    // Handle input focus
+    $('#filter-input').focus(function () {
+        if ($(this).val() === '*') {
+            $(this).val('');
+        }
+    });
+
+    const LINE_HEIGHT = 20;
+    const MAX_VISIBLE_LINES = 5;
+    const PADDING = 4;
+
+    // Create a clone of the textarea to measure its height
+    function createTextAreaClone($textarea) {
+        const $clone = $('<div id="textarea-clone"></div>')
+            .css({
+                position: 'absolute',
+                top: -9999,
+                left: -9999,
+                width: $textarea.width(),
+                height: 'auto',
+                wordWrap: 'break-word',
+                whiteSpace: 'pre-wrap',
+                visibility: 'hidden',
+            })
+            .appendTo('body');
+
+        const stylesToCopy = ['fontFamily', 'fontSize', 'fontWeight', 'letterSpacing', 'lineHeight', 'textTransform', 'wordSpacing', 'padding'];
+        stylesToCopy.forEach((style) => {
+            $clone.css(style, $textarea.css(style));
+        });
+
+        return $clone;
+    }
+
+    // Update the textarea height and ellipsis
+    function updateTextarea() {
+        const $textarea = $('#filter-input');
+        const $clone = $('#textarea-clone');
+        let $ellipsis = $('#textarea-ellipsis');
+
+        if (!$clone.length) {
+            createTextAreaClone($textarea);
+        }
+
+        if (!$ellipsis.length) {
+            $ellipsis = $('<div id="textarea-ellipsis">...</div>');
+            $textarea.parent().append($ellipsis);
+        }
+
+        $('#textarea-clone')
+            .width($textarea.width())
+            .text($textarea.val() + ' ');
+
+        const contentHeight = $('#textarea-clone').height();
+        const lines = Math.ceil((contentHeight - PADDING) / LINE_HEIGHT);
+        const isFocused = $textarea.is(':focus');
+
+        let newHeight;
+        if (isFocused || lines <= MAX_VISIBLE_LINES) {
+            newHeight = contentHeight + PADDING;
+        } else {
+            newHeight = MAX_VISIBLE_LINES * LINE_HEIGHT + PADDING;
+        }
+
+        $textarea.css('height', newHeight + 'px');
+
+        // Show/hide ellipsis (...)
+        if (lines > MAX_VISIBLE_LINES && !isFocused) {
+            $ellipsis.show();
+        } else {
+            $ellipsis.hide();
+        }
+    }
+
+    // Event listeners for input and window resize
+    $('#filter-input').on('focus blur input', updateTextarea);
+    $(window).on('resize', updateTextarea);
+
+    // Initial setup for textarea
+    updateTextarea();
+
+    // Toggle visibility of the clear button
+    $('#filter-input').on('input', function () {
+        toggleClearButtonVisibility();
+    });
+
+    $('#clearInput').click(function () {
+        $('#filter-input').val('').focus();
+        toggleClearButtonVisibility();
+    });
+
+    // Format button click event
+    $('#formatInput').click(function () {
+        let input = $('#filter-input');
+        let value = input.val();
+
+        // Format the input value by ensuring each '|' is preceded by a newline
+        let formattedValue = '';
+        for (let i = 0; i < value.length; i++) {
+            if (value[i] === '|' && (i === 0 || value[i - 1] !== '\n')) {
+                formattedValue += '\n|';
+            } else {
+                formattedValue += value[i];
+            }
+        }
+
+        input.val(formattedValue);
+        updateTextarea();
+    });
+
+    $('#filter-input').keydown(function (e) {
+        toggleClearButtonVisibility();
+    });
+}
+
+//eslint-disable-next-line no-unused-vars
+function getMetricsQData() {
+    let endDate = filterEndDate || 'now';
+    let stDate = filterStartDate || 'now-15m';
+    let queriesData = [];
+    let formulasData = [];
+
+    // Process each query
+    for (const queryName of Object.keys(queries)) {
+        let queryDetails = queries[queryName];
+        let queryString;
+
+        if (queryDetails.state === 'builder') {
+            queryString = createQueryString(queryDetails);
+        } else {
+            queryString = queryDetails.rawQueryInput;
+        }
+
+        const query = {
+            name: queryName,
+            query: `(${queryString})`,
+            qlType: 'promql',
+            state: queryDetails.state,
+        };
+
+        queriesData.push({
+            end: endDate,
+            queries: [query],
+            start: stDate,
+            formulas: [{ formula: query.name }],
+        });
+    }
+
+    // Process formulas
+    if (Object.keys(formulas).length > 0) {
+        for (const key of Object.keys(formulas)) {
+            const formulaDetails = formulas[key];
+            const queriesInFormula = formulaDetails.queryNames.map((name) => {
+                const queryDetails = queries[name];
+                let queryString;
+
+                if (queryDetails.state === 'builder') {
+                    queryString = createQueryString(queryDetails);
+                } else {
+                    queryString = queryDetails.rawQueryInput;
+                }
+
+                return {
+                    name: name,
+                    query: `(${queryString})`,
+                    qlType: 'promql',
+                };
+            });
+            let functionsArray = formulaDetailsMap[key].functions || [];
+            // Update the formula by wrapping it with each function in the functionsArray
+            let formula = formulas[key].formula;
+
+            for (let func of functionsArray) {
+                // Create a regex to match the function being applied
+                const funcRegex = new RegExp(`\\b${func}\\(`);
+
+                // Check if the formula does not already contain the function
+                if (!funcRegex.test(formula)) {
+                    formula = `${func}(${formula})`;
+                }
+            }
+            formulasData.push({
+                end: endDate,
+                formulas: [{ formula: formula }],
+                queries: queriesInFormula,
+                start: stDate,
+            });
+        }
+    }
+
+    return { queriesData, formulasData };
+}
+
+//eslint-disable-next-line no-unused-vars
+function updateQueryModeUI(queryMode) {
+    $('.query-mode-option').removeClass('active');
+
+    if (queryMode === 'Builder') {
+        $('#query-mode-options #mode-option-1').addClass('active');
+        $('#query-mode-btn span').html('Builder');
+    } else {
+        $('#query-mode-options #mode-option-2').addClass('active');
+        $('#query-mode-btn span').html('Code');
+    }
+}
+
+function calculateMutedFor(silenceEndTime) {
+    if (!silenceEndTime) return '';
+    const now = Math.floor(Date.now() / 1000);
+    const remainingSeconds = silenceEndTime - now;
+    if (remainingSeconds <= 0) return '';
+
+    const days = Math.floor(remainingSeconds / 86400);
+    const hours = Math.floor((remainingSeconds % 86400) / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+    const seconds = Math.floor(remainingSeconds % 60);
+
+    let result = '';
+    if (days > 0) result += `${days} day${days > 1 ? 's' : ''} `;
+    if (hours > 0) result += `${hours} hr${hours > 1 ? 's' : ''} `;
+    if (minutes > 0) result += `${minutes} min${minutes > 1 ? 's' : ''} `;
+    if (minutes === 0 && seconds > 0) result += `${seconds} sec${seconds > 1 ? 's' : ''}`;
+
+    return result.trim();
+}
+
+function createTooltip(selector, content) {
+    //eslint-disable-next-line no-undef
+    tippy(selector, {
+        content: content,
+        placement: 'top',
+        arrow: true,
+        animation: 'fade',
+    });
 }

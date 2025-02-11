@@ -22,18 +22,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fasthttp/websocket"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
+	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -44,10 +46,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const MIN_IN_MS = 60_000
-const HOUR_IN_MS = 3600_000
-const DAY_IN_MS = 86400_000
-
 /*
 Example incomingBody
 
@@ -57,10 +55,11 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
+	var includeNulls bool
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
@@ -69,7 +68,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case string:
 			searchText = val
 		default:
-			log.Errorf("parseSearchBody searchText is not a string! Val %+v", val)
+			log.Errorf("ParseSearchBody: searchText is not a string! val: %+v", val)
 		}
 	}
 
@@ -95,7 +94,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			}
 
 		default:
-			log.Errorf("parseSearchBody indexName is not a string! Val %+v, type: %T", val, iText)
+			log.Errorf("ParseSearchBody: indexName is not a string! val: %+v, type: %T", val, iText)
 		}
 	}
 
@@ -115,7 +114,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 			startEpoch = uint64(val)
 		case string:
 			defValue := nowTs - (15 * 60 * 1000)
-			startEpoch = parseAlphaNumTime(nowTs, string(val), defValue)
+			startEpoch = utils.ParseAlphaNumTime(nowTs, string(val), defValue)
 		default:
 			startEpoch = nowTs - (15 * 60 * 1000)
 		}
@@ -136,7 +135,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case uint64:
 			endEpoch = uint64(val)
 		case string:
-			endEpoch = parseAlphaNumTime(nowTs, string(val), nowTs)
+			endEpoch = utils.ParseAlphaNumTime(nowTs, string(val), nowTs)
 		default:
 			endEpoch = nowTs
 		}
@@ -204,118 +203,135 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case int:
 			scrollFrom = val
 		default:
-			log.Infof("parseSearchBody: unknown type for scroll=%T", val)
+			log.Infof("ParseSearchBody: unknown type %T for scroll", val)
 			scrollFrom = 0
 		}
 	}
+
+	includeNullsVal, ok := jsonSource["includeNulls"]
+	if !ok {
+		includeNulls = false
+	} else {
+		switch val := includeNullsVal.(type) {
+		case bool:
+			includeNulls = val
+		case string:
+			includeNulls = val == "true"
+		default:
+			log.Infof("ParseSearchBody: unexpected type for includeNulls: %T, value: %+v. Defaulting to false", val, val)
+			includeNulls = false
+		}
+	}
+
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls
 }
 
-func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams) int {
+// ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
+func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
+	orgid int64) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
 
-	queryData := fmt.Sprintf(`{
-		"from": "0",
-		"indexName": "*",
-		"queryLanguage": "%s",
-		"searchText": "%s",
-		"startEpoch": "%s",
-		"endEpoch" : "%s",
-		"state": "query"
-	}`, queryParams.QueryLanguage, utils.EscapeQuotes(queryParams.QueryText), queryParams.StartTime, queryParams.EndTime)
-	orgid := uint64(0)
 	dbPanelId := "-1"
 	queryStart := time.Now()
 
-	rawJSON := []byte(queryData)
-	if rawJSON == nil {
-		log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest: received empty search request body ")
-		return -1
-	}
-
 	qid := rutils.GetNextQid()
 	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	var err error
+	readJSON["from"] = "0"
+	readJSON["indexName"] = "*"
+	readJSON["queryLanguage"] = queryParams.QueryLanguage
+	readJSON["searchText"] = queryParams.QueryText
+	readJSON["startEpoch"] = queryParams.StartTime
+	readJSON["endEpoch"] = queryParams.EndTime
+	readJSON["state"] = "query"
+
+	httpRespOuter, isScrollMax, timeRange, err := ParseAndExecutePipeRequest(readJSON, qid, orgid, queryStart, dbPanelId)
 	if err != nil {
-		log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+		return nil, nil, err
 	}
+
+	if isScrollMax {
+		return nil, nil, fmt.Errorf("scrollFrom is greater than 10_000")
+	}
+
+	return httpRespOuter, timeRange, nil
+}
+
+func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid int64, queryStart time.Time, dbPanelId string) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
+	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
-		return -1
+		return nil, true, nil, nil
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, orgid, false)
-	log.Infof("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: index=[%s], searchString=[%v] ",
+	ti := structs.InitTableInfo(indexNameIn, myid, false)
+	log.Infof("qid=%v, ParseAndExecutePipeRequest: index=[%s], searchString=[%v] ",
 		qid, ti.String(), searchText)
 
 	queryLanguageType := readJSON["queryLanguage"]
 	var simpleNode *structs.ASTNode
 	var aggs *structs.QueryAggregators
-	if queryLanguageType == "Pipe QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
-		if err != nil {
-			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err=%+v", qid, err)
-			return -1
-		}
-
-		sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
-		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
-		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
-
-		if httpRespOuter.MeasureResults != nil && len(httpRespOuter.MeasureResults) > 0 && httpRespOuter.MeasureResults[0].MeasureVal != nil {
-			measureVal, ok := httpRespOuter.MeasureResults[0].MeasureVal[queryParams.QueryText].(string)
-			if ok {
-				measureVal = strings.ReplaceAll(measureVal, ",", "")
-
-				measureNum, err := strconv.Atoi(measureVal)
-				if err != nil {
-					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest Error parsing int from a string: %s", err)
-					return -1
-				}
-				return measureNum
-			}
-		}
+	var parsedIndexNames []string
+	if queryLanguageType == "SQL" {
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
+	} else if queryLanguageType == "Pipe QL" {
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
+	} else if queryLanguageType == "Log QL" {
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
 	} else if queryLanguageType == "Splunk QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 		if err != nil {
-			log.Errorf("qid=%v, ALERTSERVICE: ProcessAlertsPipeSearchRequest: Error parsing query err=%+v", qid, err)
-			return -1
+			err = fmt.Errorf("qid=%v, ParseAndExecutePipeRequest: Error parsing query: %+v, err: %+v", qid, searchText, err)
+			log.Error(err.Error())
+			return nil, false, nil, err
 		}
-
-		if aggs != nil && (aggs.GroupByRequest != nil || aggs.MeasureOperations != nil) {
-			sizeLimit = 0
-		}
-		qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
-		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
-		if httpRespOuter.MeasureResults != nil && len(httpRespOuter.MeasureResults) > 0 && httpRespOuter.MeasureResults[0].MeasureVal != nil {
-			measureVal, ok := httpRespOuter.MeasureResults[0].MeasureVal[httpRespOuter.MeasureFunctions[0]].(string)
-			if ok {
-				measureVal = strings.ReplaceAll(measureVal, ",", "")
-				measureNum, err := strconv.ParseFloat(measureVal, 64)
-				if err != nil {
-					log.Errorf("ALERTSERVICE: ProcessAlertsPipeSearchRequest Error parsing int from a string: %s", err)
-					return -1
-				}
-				return int(measureNum)
-			}
-		}
+		err = structs.CheckUnsupportedFunctions(aggs)
 	} else {
-		log.Infof("ProcessAlertsPipeSearchRequest: unknown queryLanguageType: %v;", queryLanguageType)
+		log.Infof("ParseAndExecutePipeRequest: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
+		simpleNode, aggs, parsedIndexNames, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 	}
 
-	return -1
+	if err != nil {
+		err = fmt.Errorf("qid=%v, ParseAndExecutePipeRequest: Error parsing query:%+v, err: %+v", qid, searchText, err)
+		log.Error(err.Error())
+		return nil, false, nil, err
+	}
+	// This is for SPL queries where the index name is parsed from the query
+	if len(parsedIndexNames) > 0 {
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), myid, false)
+	}
+
+	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
+
+	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
+	// to it. Currently MaxRows is only valid as the root QueryAggregators.
+	if aggs != nil && aggs.Limit != 0 {
+		sizeLimit = uint64(aggs.Limit)
+	}
+	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
+		indexNameIn = aggs.TableName
+		ti = structs.InitTableInfo(indexNameIn, myid, false) // Re-initialize ti with the updated indexNameIn
+	}
+
+	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
+	qc.IncludeNulls = includeNulls
+	qc.RawQuery = searchText
+	if config.IsNewQueryPipelineEnabled() {
+		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, qc)
+	} else {
+		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
+		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
+		log.Infof("qid=%v, Finished execution in %+v", qid, time.Since(result.QueryStartTime))
+
+		return &httpRespOuter, false, simpleNode.TimeRange, nil
+	}
 }
 
-func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
+func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	qid := rutils.GetNextQid()
 	defer fileutils.DeferableAddAccessLogEntry(
 		time.Now(),
@@ -341,7 +357,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 	queryStart := time.Now()
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" ProcessPipeSearchRequest: received empty search request body ")
+		log.Errorf("ProcessPipeSearchRequest: received empty search request body")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -355,72 +371,30 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid uint64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
+			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message, err: %v", qid, err)
 		}
-		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! Err=%+v", qid, err)
+		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
 	}
 
-	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom := ParseSearchBody(readJSON, nowTs)
+	httpRespOuter, isScrollMax, _, err := ParseAndExecutePipeRequest(readJSON, qid, myid, queryStart, dbPanelId)
+	if err != nil {
+		utils.SendError(ctx, fmt.Sprintf("Error processing search request: %v", err), "", err)
+		return
+	}
 
-	if scrollFrom > 10_000 {
+	if isScrollMax {
 		processMaxScrollCount(ctx, qid)
 		return
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, myid, false)
-	log.Infof("qid=%v, ProcessPipeSearchRequest: index=[%s], searchString=[%v] ",
-		qid, ti.String(), searchText)
-
-	queryLanguageType := readJSON["queryLanguage"]
-	var simpleNode *structs.ASTNode
-	var aggs *structs.QueryAggregators
-	if queryLanguageType == "SQL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "SQL", indexNameIn)
-	} else if queryLanguageType == "Pipe QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
-	} else if queryLanguageType == "Log QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Log QL", indexNameIn)
-	} else if queryLanguageType == "Splunk QL" {
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
-	} else {
-		log.Infof("ProcessPipeSearchRequest: unknown queryLanguageType: %v; using Pipe QL instead", queryLanguageType)
-		simpleNode, aggs, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Pipe QL", indexNameIn)
-	}
-
-	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		_, err = ctx.WriteString(err.Error())
-		if err != nil {
-			log.Errorf("qid=%v, ProcessPipeSearchRequest: could not write error message err=%v", qid, err)
-		}
-		log.Errorf("qid=%v, ProcessPipeSearchRequest: Error parsing query err=%+v", qid, err)
-		return
-	}
-
-	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
-
-	// If MaxRows is used to limit the number of returned results, set `sizeLimit`
-	// to it. Currently MaxRows is only valid as the root QueryAggregators.
-	if aggs != nil && aggs.Limit != 0 {
-		sizeLimit = uint64(aggs.Limit)
-	}
-	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
-		indexNameIn = aggs.TableName
-		ti = structs.InitTableInfo(indexNameIn, myid, false) // Re-initialize ti with the updated indexNameIn
-	}
-
-	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
-	result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
-	httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId)
 	utils.WriteJsonResponse(ctx, httpRespOuter)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
-func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string) PipeSearchResponseOuter {
-	var httpRespOuter PipeSearchResponseOuter
-	var httpResp PipeSearchResponse
+func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, queryStart time.Time, sizeLimit uint64, qid uint64, aggs *structs.QueryAggregators, numRRCs uint64, dbPanelId string, allColsInAggs map[string]struct{}, includeNulls bool) structs.PipeSearchResponseOuter {
+	var httpRespOuter structs.PipeSearchResponseOuter
+	var httpResp structs.PipeSearchResponse
 
 	// aggs exist, so just return aggregations instead of all results
 	httpRespOuter.Aggs = convertBucketToAggregationResponse(nodeResult.Histogram)
@@ -437,10 +411,14 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		measFuncs = nodeResult.MeasureFunctions
 	}
 
-	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid, nodeResult.SegEncToKey, aggs)
+	json, allCols, err := convertRRCsToJSONResponse(nodeResult.AllRecords, sizeLimit, qid,
+		nodeResult.SegEncToKey, aggs, allColsInAggs, includeNulls)
 	if err != nil {
 		httpRespOuter.Errors = append(httpRespOuter.Errors, err.Error())
 		return httpRespOuter
+	}
+	if nodeResult.RemoteLogs != nil {
+		json = append(json, nodeResult.RemoteLogs...)
 	}
 
 	var canScrollMore bool
@@ -449,7 +427,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		canScrollMore = true
 	}
 	httpResp.Hits = json
-	httpResp.TotalMatched = convertQueryCountToTotalResponse(nodeResult.TotalResults)
+	httpResp.TotalMatched = query.ConvertQueryCountToTotalResponse(nodeResult.TotalResults)
 	httpRespOuter.Hits = httpResp
 	httpRespOuter.AllPossibleColumns = allCols
 	httpRespOuter.ElapedTimeMS = time.Since(queryStart).Milliseconds()
@@ -468,6 +446,13 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		httpRespOuter.ColumnsOrder = query.GetFinalColsOrder(nodeResult.ColumnsOrder)
 	}
 
+	if nodeResult.RecsAggsType == structs.GroupByType && nodeResult.GroupByRequest != nil {
+		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.GroupByRequest.MeasureOperations)
+	} else if nodeResult.RecsAggsType == structs.MeasureAggsType && nodeResult.MeasureOperations != nil {
+		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.MeasureOperations)
+	}
+	httpRespOuter.RenameColumns = nodeResult.RenameColumns
+
 	log.Infof("qid=%d, Query Took %+v ms", qid, httpRespOuter.ElapedTimeMS)
 
 	return httpRespOuter
@@ -475,27 +460,42 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 
 // returns converted json, all columns, or any errors
 func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
-	qid uint64, segencmap map[uint16]string, aggs *structs.QueryAggregators) ([]map[string]interface{}, []string, error) {
+	qid uint64, segencmap map[uint32]string, aggs *structs.QueryAggregators,
+	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 
 	hits := make([]map[string]interface{}, 0)
-	if sizeLimit == 0 || len(rrcs) == 0 {
+	// if sizeLimit is 0, return empty hits
+	// And Even if len(rrcs) is 0, we will still proceed to the json records
+	// So that any Aggregations that require all the segments to be processed can be done.
+	if sizeLimit == 0 {
 		return hits, []string{}, nil
 	}
 
-	allJsons, allCols, err := record.GetJsonFromAllRrc(rrcs, false, qid, segencmap, aggs)
+	allJsons, allCols, err := record.GetJsonFromAllRrcOldPipeline(rrcs, false, qid, segencmap, aggs, allColsInAggs)
 	if err != nil {
-		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err=%v", qid, err)
+		log.Errorf("qid=%d, convertRRCsToJSONResponse: failed to get allrecords from rrc, err: %v", qid, err)
 		return allJsons, allCols, err
 	}
 
 	if sizeLimit < uint64(len(allJsons)) {
 		allJsons = allJsons[:sizeLimit]
 	}
+
+	if !includeNulls {
+		for _, record := range allJsons {
+			for key, value := range record {
+				if value == nil {
+					delete(record, key)
+				}
+			}
+		}
+	}
+
 	return allJsons, allCols, nil
 }
 
-func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]AggregationResults {
-	resp := make(map[string]AggregationResults)
+func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationResult) map[string]structs.AggregationResults {
+	resp := make(map[string]structs.AggregationResults)
 	for aggName, aggRes := range buckets {
 		allBuckets := make([]map[string]interface{}, len(aggRes.Results))
 
@@ -521,74 +521,17 @@ func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationR
 
 			allBuckets[idx] = res
 		}
-		resp[aggName] = AggregationResults{Buckets: allBuckets}
+		resp[aggName] = structs.AggregationResults{Buckets: allBuckets}
 	}
 	return resp
 }
 
-func convertQueryCountToTotalResponse(qc *structs.QueryCount) interface{} {
-	if !qc.EarlyExit {
-		return qc.TotalCount
-	}
-
-	return utils.HitsCount{Value: qc.TotalCount, Relation: qc.Op.ToString()}
-}
-
-/*
-   Supports "now-[Num][Unit]"
-   Num ==> any positive integer
-   Unit ==> m(minutes), h(hours), d(days)
-*/
-
-func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) uint64 {
-
-	sanTime := strings.ReplaceAll(inp, " ", "")
-	nowPrefix := "now-"
-
-	if sanTime == "now" {
-		return nowTs
-	}
-
-	retVal := defValue
-
-	strln := len(sanTime)
-	if strln < len(nowPrefix)+2 {
-		return defValue
-	}
-
-	// check for prefix 'now-' in the input string
-	if !strings.HasPrefix(sanTime, nowPrefix) {
-		return defValue
-	}
-
-	// check for invalid time units
-	unit := sanTime[strln-1]
-	if unit != 'm' && unit != 'h' && unit != 'd' {
-		return defValue
-	}
-
-	num, err := strconv.ParseInt(sanTime[len(nowPrefix):strln-1], 10, 64)
-	if err != nil || num < 0 {
-		return defValue
-	}
-
-	switch unit {
-	case 'm':
-		retVal = nowTs - MIN_IN_MS*uint64(num)
-	case 'h':
-		retVal = nowTs - HOUR_IN_MS*uint64(num)
-	case 'd':
-		retVal = nowTs - DAY_IN_MS*uint64(num)
-	}
-	return retVal
-}
-
-func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
+func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var resp utils.AutoCompleteDataInfo
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
-		log.Errorf("GetAutoCompleteData: failed to get all virtual table names, err=%v", err)
+		log.Errorf("GetAutoCompleteData: failed to get all virtual table names, err: %v", err)
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 	}
 
@@ -602,20 +545,20 @@ func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid uint64) {
 
 	for _, indexName := range sortedIndices {
 		if indexName == "" {
-			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName=%v", indexName)
+			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName: %v", indexName)
 			continue
 		}
 
 	}
 
-	resp.ColumnNames = metadata.GetAllColNames(sortedIndices)
+	resp.ColumnNames = segmetadata.GetAllColNames(sortedIndices)
 	resp.MeasureFunctions = []string{"min", "max", "avg", "count", "sum", "cardinality"}
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
-	resp := &PipeSearchResponseOuter{
+	resp := &structs.PipeSearchResponseOuter{
 		CanScrollMore: false,
 	}
 	qType := query.GetQueryType(qid)
@@ -623,4 +566,157 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 
+}
+
+func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
+	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+	isAsync := conn != nil
+
+	rQuery, err := query.StartQueryAsCoordinator(qid, isAsync, nil, root, aggs, qc, nil, false)
+	if err != nil {
+		log.Errorf("qid=%v, RunQueryForNewPipeline: failed to start query, err: %v", qid, err)
+		return nil, false, nil, err
+	}
+
+	var httpRespOuter *structs.PipeSearchResponseOuter
+
+	for {
+		queryStateData, ok := <-rQuery.StateChan
+		if !ok {
+			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+			query.LogGlobalSearchErrors(qid)
+			query.DeleteQuery(qid)
+			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+		}
+
+		if queryStateData.Qid != qid {
+			continue
+		}
+
+		switch queryStateData.StateName {
+		case query.READY:
+			go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+		case query.RUNNING:
+			if isAsync {
+				processQueryStateUpdate(conn, qid, queryStateData.StateName)
+			}
+		case query.QUERY_UPDATE:
+			if isAsync {
+				wErr := conn.WriteJSON(queryStateData.UpdateWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
+				}
+			}
+		case query.COMPLETE:
+			defer query.DeleteQuery(qid)
+
+			if isAsync {
+				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
+				if wErr != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
+				}
+				return nil, false, root.TimeRange, nil
+			} else {
+				httpRespOuter = queryStateData.HttpResponse
+				return httpRespOuter, false, root.TimeRange, nil
+			}
+		case query.ERROR:
+			if rQuery.IsCoordinator() && utils.IsRPCUnavailableError(queryStateData.Error) {
+				newRQuery, newQid, err := listenToRestartQuery(qid, rQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query for rpc failure, err: %v", qid, err)
+				} else {
+					rQuery = newRQuery
+					qid = newQid
+
+					continue
+				}
+			}
+
+			defer query.DeleteQuery(qid)
+			if isAsync {
+				wErr := conn.WriteJSON(createErrorResponse(queryStateData.Error.Error()))
+				if wErr != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to write json to websocket, err: %v", qid, wErr)
+				}
+				return nil, false, root.TimeRange, nil
+			} else {
+				return nil, false, root.TimeRange, queryStateData.Error
+			}
+		case query.QUERY_RESTART:
+			newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
+			if err != nil {
+				log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
+				continue
+			}
+
+			rQuery = newRQuery
+			qid = newQid
+
+		case query.TIMEOUT:
+			defer query.DeleteQuery(qid)
+			if isAsync {
+				processTimeoutUpdate(conn, qid)
+			} else {
+				return nil, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: query timed out", qid)
+			}
+		case query.CANCELLED:
+			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
+			defer query.DeleteQuery(qid)
+
+			if isAsync {
+				processCancelQuery(conn, qid)
+			}
+			return nil, false, root.TimeRange, nil
+		}
+	}
+}
+
+func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
+	if rQuery == nil {
+		return nil, 0, fmt.Errorf("listenToRestartQuery: rQuery is nil")
+	}
+
+	timeout := time.After(10 * time.Second) // wait for 10 seconds for query restart before timing out
+
+	for {
+		select {
+		case queryStateData, ok := <-rQuery.StateChan:
+			if !ok {
+				query.LogGlobalSearchErrors(qid)
+				query.DeleteQuery(qid)
+				return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: Got non ok, state: %v", qid, queryStateData.StateName)
+			}
+
+			if queryStateData.Qid != qid {
+				continue
+			}
+
+			if queryStateData.StateName == query.QUERY_RESTART {
+				return handleRestartQuery(qid, rQuery, isAsync, conn)
+			}
+		case <-timeout:
+			return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: timed out waiting for query restart", qid)
+		}
+	}
+}
+
+func handleRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync bool, conn *websocket.Conn) (*query.RunningQueryState, uint64, error) {
+	newRQuery, newQid, err := rQuery.RestartQuery(true)
+	if err != nil {
+		errorState := &query.QueryStateChanData{
+			Qid:       qid,
+			StateName: query.ERROR,
+			Error:     err,
+		}
+		rQuery.StateChan <- errorState
+
+		return nil, 0, err
+	}
+
+	if isAsync {
+		processQueryStateUpdate(conn, qid, query.QUERY_RESTART)
+	}
+
+	return newRQuery, newQid, nil
 }

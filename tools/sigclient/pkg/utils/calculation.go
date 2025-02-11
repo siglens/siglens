@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const TOLERANCE = 0.000001
+const TOLERANCE = 0.001
 const MIN_IN_SEC = 60
 const HOUR_IN_SEC = 3600
 const DAY_IN_SEC = 86400
@@ -109,4 +109,69 @@ func ConvertStringToEpochSec(nowTs uint64, inp string, defValue uint64) uint64 {
 		log.Errorf("convertStringToEpochSec: Unknown time unit %v", unit)
 	}
 	return retVal
+}
+
+func RemoveValues[K comparable, T any](values []K, valuesToRemove map[K]T) []K {
+	finalValues := []K{}
+	for _, value := range values {
+		if _, exist := valuesToRemove[value]; !exist {
+			finalValues = append(finalValues, value)
+		}
+	}
+
+	return finalValues
+}
+
+func CompareSlices[K comparable](a []K, b []K) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func ElementsMatch[K comparable](a []K, b []K) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	mp := make(map[K]int)
+	for _, v := range a {
+		mp[v]++
+	}
+	for _, v := range b {
+		if _, ok := mp[v]; !ok {
+			return false
+		}
+		mp[v]--
+		if mp[v] == 0 {
+			delete(mp, v)
+		}
+	}
+
+	return len(mp) == 0
+}
+
+func AlmostEqual(actual, expected, tolerancePercentage float64) bool {
+	if actual == expected {
+		return true
+	}
+	diff := math.Abs(actual - expected)
+	if expected == 0 {
+		return diff < tolerancePercentage
+	}
+
+	return (diff / math.Abs(expected)) < tolerancePercentage
+}
+
+func GetKeysOfMap[K comparable, T any](m map[K]T) []K {
+	keys := make([]K, 0)
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

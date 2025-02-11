@@ -54,10 +54,11 @@ const (
 // A Search query is either an expression or match filter
 // Never will both be defined
 type SearchQuery struct {
-	ExpressionFilter *SearchExpression
-	MatchFilter      *MatchFilter
-	SearchType       SearchQueryType // type of query
-	QueryInfo        *QueryInfo      // query info
+	ExpressionFilter        *SearchExpression
+	MatchFilter             *MatchFilter
+	SearchType              SearchQueryType // type of query
+	QueryInfo               *QueryInfo      // query info
+	FilterIsCaseInsensitive bool            // whether the filter is case sensitive
 }
 
 type QueryInfo struct {
@@ -311,17 +312,18 @@ func GetAllColumnsFromCondition(cond *SearchCondition) (map[string]bool, bool) {
 // returns map[string]bool, bool, LogicalOperator
 // map is all non-wildcard block bloom keys, bool is if any keyword contained a wildcard, LogicalOperator
 // is if any/all of map keys need to exist
-func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, bool, LogicalOperator) {
+func (query *SearchQuery) GetAllBlockBloomKeysToSearch() (map[string]bool, map[string]string, bool, LogicalOperator) {
+	dualCaseCheckEnabled := config.IsDualCaseCheckEnabled()
 
 	if query.MatchFilter != nil {
-		matchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch()
-		return matchKeys, wildcardExists, matchOp
+		matchKeys, originalMatchKeys, wildcardExists, matchOp := query.MatchFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
+		return matchKeys, originalMatchKeys, wildcardExists, matchOp
 	} else {
-		blockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch()
+		blockBloomKeys, originalBlockBloomKeys, wildcardExists, err := query.ExpressionFilter.GetAllBlockBloomKeysToSearch(dualCaseCheckEnabled, query.FilterIsCaseInsensitive)
 		if err != nil {
-			return make(map[string]bool), false, And
+			return make(map[string]bool), make(map[string]string), false, And
 		}
-		return blockBloomKeys, wildcardExists, And
+		return blockBloomKeys, originalBlockBloomKeys, wildcardExists, And
 	}
 }
 
@@ -366,8 +368,8 @@ func ExtractRangeFilterFromSearch(leftSearch *SearchExpressionInput, filterOp Fi
 
 		return rangeFilter, finalOp, true
 	} else {
-		// TODO: simply complex relations for range filters -> col1 * 2 > 5 --> col1 > 2.5
-		log.Warningf("qid=%d, Unable to extract range filter from %+v, and %+v", qid, leftSearch, rightSearch)
+		// TODO: simplify complex relations for range filters -> col1 * 2 > 5 --> col1 > 2.5
+		log.Warningf("ExtractRangeFilterFromSearch: qid=%d, Unable to extract range filter from %+v, and %+v", qid, leftSearch, rightSearch)
 	}
 
 	return rangeFilter, filterOp, false

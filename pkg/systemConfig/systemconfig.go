@@ -20,13 +20,17 @@ package systemconfig
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"syscall"
 
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/disk"
-	"github.com/shirou/gopsutil/v3/host"
-	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/disk"
+	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/valyala/fasthttp"
 
+	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 
@@ -54,6 +58,37 @@ type DiskInfo struct {
 	UsedPercent float64 `json:"used_percent"`
 }
 
+type InodeStats struct {
+	TotalInodes uint64 `json:"totalInodes"`
+	UsedInodes  uint64 `json:"usedInodes"`
+	FreeInodes  uint64 `json:"freeInodes"`
+}
+
+func getMemoryInfo() (*MemoryInfo, error) {
+	memoryInUse, err := config.GetContainerMemoryUsage()
+	if err != nil {
+		memInfo, err := mem.VirtualMemory()
+		if err != nil {
+			return nil, err
+		}
+
+		return &MemoryInfo{
+			Total:       memInfo.Total,
+			Free:        memInfo.Free,
+			UsedPercent: memInfo.UsedPercent,
+		}, nil
+	}
+
+	totalMemory := config.GetMemoryMax()
+	freeMemory := totalMemory - memoryInUse
+
+	return &MemoryInfo{
+		Total:       totalMemory,
+		Free:        freeMemory,
+		UsedPercent: float64(memoryInUse) / float64(totalMemory) * 100,
+	}, nil
+}
+
 func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 	cpuInfo, err := cpu.Info()
 	if err != nil {
@@ -67,14 +102,14 @@ func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 		totalCores += int(info.Cores)
 	}
 
-	memInfo, err := mem.VirtualMemory()
+	memInfo, err := getMemoryInfo()
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		log.Errorf("GetSystemInfo: Failed to retrieve memory info: %v", err)
 		return
 	}
 
-	diskInfo, err := disk.Usage("/")
+	diskInfo, err := disk.Usage(config.GetDataPath())
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		log.Errorf("GetSystemInfo: Failed to retrieve disk info: %v", err)
@@ -115,4 +150,47 @@ func GetSystemInfo(ctx *fasthttp.RequestCtx) {
 
 	ctx.SetContentType("application/json")
 	ctx.SetBody(response)
+}
+
+func GetInodeStats(ctx *fasthttp.RequestCtx) {
+	dataPath := config.GetDataPath()
+	var stat syscall.Statfs_t
+
+	err := syscall.Statfs(filepath.Clean(dataPath), &stat)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("GetInodeStats: Failed to retrieve inode stats: %v", err)
+		return
+	}
+
+	total := stat.Files
+	free := stat.Ffree
+	used := total - free
+
+	inodeStats := InodeStats{
+		TotalInodes: total,
+		UsedInodes:  used,
+		FreeInodes:  free,
+	}
+
+	response, err := json.Marshal(inodeStats)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		fmt.Fprintf(ctx, "Failed to marshal inode stats: %v", err)
+		return
+	}
+
+	ctx.SetContentType("application/json")
+	ctx.SetBody(response)
+}
+
+func ProcessVersionInfo(ctx *fasthttp.RequestCtx) {
+	if hook := hooks.GlobalHooks.ProcessVersionInfoHook; hook != nil {
+		hook(ctx)
+	} else {
+		responseBody := make(map[string]interface{})
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		responseBody["version"] = config.SigLensVersion
+		utils.WriteJsonResponse(ctx, responseBody)
+	}
 }

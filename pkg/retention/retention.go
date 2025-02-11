@@ -19,8 +19,12 @@ package retention
 
 import (
 	"math"
+	"os"
 	"path"
+	"path/filepath"
 	"sort"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -28,16 +32,20 @@ import (
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
-	"github.com/siglens/siglens/pkg/segment/query/metadata"
-	pqsmeta "github.com/siglens/siglens/pkg/segment/query/pqs/meta"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	mmeta "github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
+	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
 const MAXIMUM_WARNINGS_COUNT = 5
+
+const RETENTION_LOOP_SLEEP_MINUTES = 30
+
+const MAX_INODE_USAGE_PERCENT = 85
 
 // Starting the periodic retention based deletion
 func InitRetentionCleaner() error {
@@ -62,12 +70,13 @@ func internalRetentionCleaner() {
 
 	deletionWarningCounter := 0
 	for {
-		time.Sleep(1 * time.Hour)
+		time.Sleep(RETENTION_LOOP_SLEEP_MINUTES * time.Minute)
 		if hook := hooks.GlobalHooks.InternalRetentionCleanerHook2; hook != nil {
 			hook(hook1Result, deletionWarningCounter)
 		} else {
 			DoRetentionBasedDeletion(config.GetCurrentNodeIngestDir(), config.GetRetentionHours(), 0)
-			doVolumeBasedDeletion(config.GetCurrentNodeIngestDir(), 4000, deletionWarningCounter)
+			doVolumeBasedDeletion(config.GetCurrentNodeIngestDir(), 60000, deletionWarningCounter)
+			doInodeBasedDeletion(config.GetCurrentNodeIngestDir(), deletionWarningCounter)
 		}
 		if deletionWarningCounter <= MAXIMUM_WARNINGS_COUNT {
 			deletionWarningCounter++
@@ -75,23 +84,18 @@ func internalRetentionCleaner() {
 	}
 }
 
-func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid uint64) {
+func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid int64) {
 	currTime := time.Now()
 	deleteBefore := GetRetentionTimeMs(retentionHours, currTime)
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, err: %v", err)
-		return
-	}
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	// Read metrics meta entries
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
 	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		log.Errorf("DoRetentionBasedDeletion: Failed to get all metric meta entries, FilePath=%v, err: %v", currentMetricsMeta, err)
 		return
 	}
 
@@ -157,25 +161,20 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid ui
 		len(allEntries), len(segmentsToDelete), len(metricSegmentsToDelete), oldest, orgid)
 
 	// Delete all segment data
-	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
-	deleteEmptyIndices(ingestNodeDir, orgid)
+	DeleteEmptyIndices(ingestNodeDir, orgid)
 }
 
-func deleteEmptyIndices(ingestNodeDir string, myid uint64) {
+func DeleteEmptyIndices(ingestNodeDir string, myid int64) {
 	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
 		log.Errorf("deleteEmptyIndices: Error in getting virtual table names, err: %v", err)
 		return
 	}
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
+	segMetaEntries := writer.ReadLocalSegmeta(false)
 
-	segMetaEntries, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("deleteEmptyIndices: Error in reading segmeta file, err: %v", err)
-		return
-	}
 	// Create a set of virtualTableName values from segMetaEntries
 	virtualTableNames := make(map[string]struct{})
 	for _, entry := range segMetaEntries {
@@ -202,7 +201,7 @@ func GetRetentionTimeMs(retentionHours int, currTime time.Time) uint64 {
 func deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete map[string]*structs.SegMeta) {
 	for _, segmetaEntry := range segmentsToDelete {
 		for pqid := range segmetaEntry.AllPQIDs {
-			pqsmeta.DeleteSegmentFromPqid(pqid, segmetaEntry.SegmentKey)
+			writer.RemoveSegmentFromEmptyPqmeta(pqid, segmetaEntry.SegmentKey)
 		}
 	}
 }
@@ -232,17 +231,12 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 		return
 	}
 
-	currentSegmeta := path.Join(ingestNodeDir, writer.SegmetaSuffix)
-	allSegMetas, err := writer.ReadSegmeta(currentSegmeta)
-	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to read segmeta, err: %v", err)
-		return
-	}
+	allSegMetas := writer.ReadLocalSegmeta(false)
 
 	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
 	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
 	if err != nil {
-		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, err: %v", err)
+		log.Errorf("doVolumeBasedDeletion: Failed to get all metric meta entries, filepath=%v, err: %v", currentMetricsMeta, err)
 		return
 	}
 
@@ -296,27 +290,25 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 			}
 		}
 	}
-	DeleteSegmentData(currentSegmeta, segmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete, true)
 	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
 }
 
 func getSystemVolumeBytes() (uint64, error) {
 	currentVolume := uint64(0)
 
-	allVirtualTableNames, err := vtable.GetVirtualTableNames(0)
-	if err != nil {
-		log.Errorf("getSystemVolumeBytes: Error in getting virtual table names, err: %v", err)
-		return currentVolume, err
-	}
-	for indexName := range allVirtualTableNames {
+	allSegmetas := writer.ReadGlobalSegmetas()
+
+	allCnts := writer.GetVTableCountsForAll(0, allSegmetas)
+	writer.GetUnrotatedVTableCountsForAll(0, allCnts)
+
+	for indexName, cnts := range allCnts {
 		if indexName == "" {
 			log.Errorf("getSystemVolumeBytes: skipping an empty index name indexName=%v", indexName)
 			continue
 		}
-		byteCount, _, _ := writer.GetVTableCounts(indexName, 0)
-		unrotatedByteCount, _, _ := writer.GetUnrotatedVTableCounts(indexName, 0)
 
-		totalVolumeForIndex := uint64(byteCount) + uint64(unrotatedByteCount)
+		totalVolumeForIndex := uint64(cnts.BytesCount)
 		currentVolume += uint64(totalVolumeForIndex)
 	}
 
@@ -332,30 +324,54 @@ func getSystemVolumeBytes() (uint64, error) {
 	return currentVolume, nil
 }
 
-func DeleteSegmentData(segmetaFile string, segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
+func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
 
 	if len(segmentsToDelete) == 0 {
 		return
 	}
-	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
-	// Delete segment key from all SiglensMetadata structs
+
+	// 1) First delete from segmeta.json
+	segBaseDirs := writer.RemoveSegMetas(segmentsToDelete)
+
+	// 2) Then from in memory metadata
 	for _, segMetaEntry := range segmentsToDelete {
-		metadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+	}
+
+	// 3) then iterate through blob
+	for _, segMetaEntry := range segmentsToDelete {
 
 		// Delete segment files from s3
 		dirPath := segMetaEntry.SegmentKey
 		filesToDelete := fileutils.GetAllFilesInDirectory(path.Dir(dirPath) + "/")
-
+		svFileName := ""
 		for _, file := range filesToDelete {
+			if strings.Contains(file, utils.SegmentValidityFname) {
+				svFileName = file
+				continue
+			}
 			err := blob.DeleteBlob(file)
 			if err != nil {
-				log.Infof("deleteSegmentData: Error in deleting segment file %v in s3", file)
+				log.Errorf("deleteSegmentData: Error in deleting segment file %v in blob, err: %v",
+					file, err)
 				continue
 			}
 		}
+		if svFileName != "" {
+			err := blob.DeleteBlob(svFileName)
+			if err != nil {
+				log.Errorf("deleteSegmentData: Error deleting validity file %v in blob, err: %v",
+					svFileName, err)
+			}
+		}
+		log.Infof("DeleteSegmentData: deleted seg: %v", segMetaEntry.SegmentKey)
 	}
 
-	writer.RemoveSegments(segmetaFile, segmentsToDelete)
+	// 4) then recursively delete local files
+	writer.RemoveSegBasedirs(segBaseDirs)
+
+	//	5) then emptyPqMeta files
+	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
 
 	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
 	if !updateBlob {
@@ -375,7 +391,7 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 
 	// Delete segment key from all SiglensMetadata structs
 	for _, metricsSegmentMeta := range metricSegmentsToDelete {
-		err := metadata.DeleteMetricsSegmentKey(metricsSegmentMeta.MSegmentDir)
+		err := segmetadata.DeleteMetricsSegmentKey(metricsSegmentMeta.MSegmentDir)
 		if err != nil {
 			log.Errorf("deleteMetricsSegmentData: failed to delete metrics segment. Error:%v", err)
 			return
@@ -405,4 +421,136 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 		log.Errorf("deleteMetricsSegmentData: failed to upload ingestnodes dir to s3 err=%v", err)
 		return
 	}
+}
+
+func doInodeBasedDeletion(ingestNodeDir string, deletionWarningCounter int) {
+	var fsStats syscall.Statfs_t
+	dataPath := config.GetDataPath()
+
+	err := syscall.Statfs(filepath.Clean(dataPath), &fsStats)
+	if err != nil {
+		log.Errorf("doInodeBasedDeletion: Failed to get inode stats: %v", err)
+		return
+	}
+
+	totalInodes := fsStats.Files
+	freeInodes := fsStats.Ffree
+	usedInodes := totalInodes - freeInodes
+
+	if totalInodes == 0 {
+		log.Errorf("doInodeBasedDeletion: Invalid total inodes count: %d", totalInodes)
+		return
+	}
+
+	currentUsagePercent := (usedInodes * 100) / totalInodes
+
+	log.Infof("doInodeBasedDeletion: Current inode usage: %v%% (%d used of %d total), Max allowed: %v%%, IngestNodeDir: %v",
+		currentUsagePercent, usedInodes, totalInodes, MAX_INODE_USAGE_PERCENT, ingestNodeDir)
+
+	if currentUsagePercent <= MAX_INODE_USAGE_PERCENT {
+		return
+	}
+
+	if deletionWarningCounter < MAXIMUM_WARNINGS_COUNT {
+		log.Warnf("Skipping inode-based deletion since try %d, Current usage: %v%%, Max allowed: %v%%",
+			deletionWarningCounter, currentUsagePercent, MAX_INODE_USAGE_PERCENT)
+		return
+	}
+
+	// Get all segments sorted by time
+	allSegMetas := writer.ReadLocalSegmeta(false)
+	currentMetricsMeta := path.Join(ingestNodeDir, mmeta.MetricsMetaSuffix)
+	allMetricMetas, err := mmeta.ReadMetricsMeta(currentMetricsMeta)
+	if err != nil {
+		log.Errorf("doInodeBasedDeletion: Failed to get metric meta entries, filepath=%v, err: %v", currentMetricsMeta, err)
+		return
+	}
+
+	allEntries := make([]interface{}, 0, len(allMetricMetas)+len(allSegMetas))
+	for i := range allMetricMetas {
+		allEntries = append(allEntries, allMetricMetas[i])
+	}
+	for i := range allSegMetas {
+		allEntries = append(allEntries, allSegMetas[i])
+	}
+
+	sort.Slice(allEntries, func(i, j int) bool {
+		var timeI uint64
+		if segMeta, ok := allEntries[i].(*structs.SegMeta); ok {
+			timeI = segMeta.LatestEpochMS
+		} else if metricMeta, ok := allEntries[i].(*structs.MetricsMeta); ok {
+			timeI = uint64(metricMeta.LatestEpochSec * 1000)
+		} else {
+			log.Errorf("doInodeBasedDeletion: Unexpected entry type in allEntries: %T", allEntries[i])
+			return false
+		}
+
+		var timeJ uint64
+		if segMeta, ok := allEntries[j].(*structs.SegMeta); ok {
+			timeJ = segMeta.LatestEpochMS
+		} else if metricMeta, ok := allEntries[j].(*structs.MetricsMeta); ok {
+			timeJ = uint64(metricMeta.LatestEpochSec * 1000)
+		} else {
+			log.Errorf("doInodeBasedDeletion: Unexpected entry type in allEntries: %T", allEntries[j])
+			return false
+		}
+		return timeI < timeJ
+	})
+
+	segmentsToDelete := make(map[string]*structs.SegMeta)
+	metricSegmentsToDelete := make(map[string]*structs.MetricsMeta)
+
+	targetInodes := uint64(float64(totalInodes) * float64(MAX_INODE_USAGE_PERCENT) / 100.0)
+	inodesToFree := usedInodes - targetInodes
+	inodesMarked := uint64(0)
+
+	for _, metaEntry := range allEntries {
+		if inodesMarked >= inodesToFree {
+			break
+		}
+
+		switch entry := metaEntry.(type) {
+		case *structs.MetricsMeta:
+			dirInodes, err := calculateSegmentInodeCount(path.Dir(entry.MSegmentDir))
+			if err != nil {
+				log.Errorf("doInodeBasedDeletion: Failed to count inodes for metric segment %s: %v", entry.MSegmentDir, err)
+				continue
+			}
+			if inodesMarked+uint64(dirInodes) <= inodesToFree {
+				metricSegmentsToDelete[entry.MSegmentDir] = entry
+				inodesMarked += uint64(dirInodes)
+			}
+		case *structs.SegMeta:
+			dirInodes, err := calculateSegmentInodeCount(path.Dir(entry.SegmentKey))
+			if err != nil {
+				log.Errorf("doInodeBasedDeletion: Failed to count inodes for segment %s: %v", entry.SegmentKey, err)
+				continue
+			}
+			if inodesMarked+uint64(dirInodes) <= inodesToFree {
+				segmentsToDelete[entry.SegmentKey] = entry
+				inodesMarked += uint64(dirInodes)
+			}
+		}
+	}
+
+	log.Infof("doInodeBasedDeletion: Deleting %d segments and %d metric segments to free approximately %d inodes",
+		len(segmentsToDelete), len(metricSegmentsToDelete), inodesMarked)
+
+	DeleteSegmentData(segmentsToDelete, true)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+}
+
+func calculateSegmentInodeCount(dirPath string) (int, error) {
+	inodeCount := 0
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		inodeCount++
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return inodeCount, nil
 }

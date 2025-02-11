@@ -42,7 +42,7 @@ func Benchmark_ApplyFilterOpAndAggs(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(b.TempDir())
 
 	fullTimeRange := &dtu.TimeRange{
 		StartEpochMs: 0,

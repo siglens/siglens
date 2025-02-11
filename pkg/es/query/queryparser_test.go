@@ -200,7 +200,7 @@ func Test_ParseRequest_must_range_gt_lt_Condition(t *testing.T) {
 }
 
 func Test_ParseRequest_must_range_timerange(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t.TempDir())
 	json_body := []byte(`
 					 {"query":{
 					   "bool": {
@@ -496,7 +496,7 @@ func Test_ParseRequest_filter_range_gt_lt_Condition(t *testing.T) {
 }
 
 func Test_ParseRequest_filter_range_timerange(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t.TempDir())
 	json_body := []byte(`
 					 {"query":{
 					   "bool": {
@@ -841,7 +841,7 @@ func Test_ParseRequest_should_range_gt_lt_Condition(t *testing.T) {
 }
 
 func Test_ParseRequest_should_range_timerange(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t.TempDir())
 	json_body := []byte(`
                      {"query":{
                        "bool": {
@@ -1304,7 +1304,7 @@ func Test_ParseRequest_must_not_range_gt_lt_Condition(t *testing.T) {
 }
 
 func Test_ParseRequest_must_not_range_timerange(t *testing.T) {
-	config.InitializeDefaultConfig()
+	config.InitializeDefaultConfig(t.TempDir())
 	json_body := []byte(`
                      {"query":{
                        "bool": {

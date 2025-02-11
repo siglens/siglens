@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func FindPercentileData(arr []uint64, percentile int) uint64 {
+func FindPercentileData(arr []uint64, percentile int) float64 {
 	if len(arr) == 0 {
 		log.Error("FindPercentileData: no duration exists")
 		return 0
@@ -35,8 +35,18 @@ func FindPercentileData(arr []uint64, percentile int) uint64 {
 		return 0
 	}
 
-	k := math.Floor(float64(percentile*(len(arr))) / float64(100))
-	return quickSelect(arr, int(k), &rand.Rand{})
+	k := float64(percentile*(len(arr)-1)) / float64(100)
+	floorK := int(math.Floor(k))
+	ceilK := int(math.Ceil(k))
+
+	if floorK == ceilK {
+		return float64(quickSelect(arr, floorK, &rand.Rand{}))
+	} else {
+		lower := float64(quickSelect(arr, floorK, &rand.Rand{}))
+		upper := float64(quickSelect(arr, ceilK, &rand.Rand{}))
+		weight := k - float64(floorK)
+		return lower + (upper-lower)*weight
+	}
 }
 
 // https://rcoh.me/posts/linear-time-median-finding/

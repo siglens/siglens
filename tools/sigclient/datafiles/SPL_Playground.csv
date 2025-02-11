@@ -1,0 +1,119 @@
+* | search hobby=Walking
+search app_name=Codhave
+search http_status>400
+http_status=20*
+* | hobby=Act*
+"""* | hobby=""""Slot car*"""""""
+"""search app_name=Martencan address=""""157 Overpass berg, Buffalo, Alaska 51094"""""""
+* | search Walking OR Running
+* | search hobby=Walking OR Running
+"""search """"Chambray goth whatever locavore beard tacos truffaut bitters jean shorts bicycle rights?"""""""
+"* | search question=""Chambray goth whatever locavore beard tacos truffaut bitters jean shorts bicycle rights?"""
+whatever*
+question=whatever* | fields question
+search latency<18580 AND app_name= Wildebeestwould
+search MintCream AND Thursday OR Monday
+search NOT (city!=Boston OR NOT weekday=Friday)
+"search batch=batch-5 | regex city!=""^[A-L][a-z]+\s[a-zA-Z]+$"""
+"* | regex address=""^[0-9]{4} North"""
+"* | regex address=""^[0-9]{4} North"" | fields address"
+"* | regex address=""^[0-9]{4} North"" | fields address, app_name, hobby"
+"* | search Walking | fields address, app_name, hobby"
+"* | search app_name=Codhave | fields address, app_name, hobby"
+latency<10000 | search latitude>0 | search longitude>0
+"app_name=""Albumis"" (Wednesday OR Tuesday) NOT asdfjklnvwer"
+"* | search app_name=Was* | fields address, app_name, hobby, http_status | where like(http_status, ""%2%"")"
+"* | search app_name=Wasp* | fields address, app_name, hobby, http_status | where match(hobby, ""ing*"")"
+* | search app_name=Was* | where http_status >= 400
+"* | search app_name=Was* | where like(app_name, ""%could%"")"
+"* | search app_name=""Wasp*""  | fields address, app_name, hobby, http_status  | where (http_status >= 200 AND http_status < 400) AND like(hobby, ""%ing%"")"
+"* | search app_name=""Wasp*""  | stats sum(http_status) as http_status by app_name, hobby  | where (http_status >= 200 AND http_status < 400) AND like(hobby, ""%ing%"")"
+"search app_name=Hyena* | fields gender, http_method, http_status | transaction gender http_method startswith=http_status=301  endswith=(http_status=404 OR http_status=500) | where duration>1000"
+* | head limit=10
+* | head 10
+"* | search app_name=""Waspsing""  | head 10"
+* | search app_name=Stadium* | stats count(*) by app_name | head 15
+"* | search app_name=* | stats count(*) by app_name, http_method | head 5"
+* | head 100 | stats count(*)
+"* | search app_name=""W*""  | fields app_name, batch | head 2"
+"search app_name=Hyena* | fields gender, http_method, http_status | transaction gender http_method startswith=http_status=301  endswith=(http_status=404 OR http_status=500) | head 2"
+* | stats count(*)
+* | stats count(*) by http_status
+* | stats count(*) by http_method
+* | stats count(*) by app_name
+* | stats count(*) by hobby
+"* | stats count(http_status) by http_method, app_name"
+"* | stats count(http_status) by hobby, app_name, http_method"
+"* | stats count(http_status) by hobby, http_method"
+* | stats sum(latency)
+* | stats sum(http_status)
+* | stats sum(http_status) by http_method
+"* | stats sum(http_status) by hobby, http_method"
+"* | stats sum(http_status) by hobby, app_name, http_method"
+* | stats avg(latency)
+* | stats avg(http_status)
+* | stats avg(http_status) by app_name
+* | stats avg(http_status) by http_method
+"* | stats avg(http_status) by hobby, http_method"
+"* | stats avg(http_status) by hobby, app_name, http_method"
+batch=batch-10 | stats distinct_count(http_method)
+city=Boston | stats min(latitude)
+city=Boston | stats max(latitude)
+city=Boston | stats range(latitude)
+city=Boston | stats values(gender)
+* | timechart avg(latency) by http_method span=1h
+* | timechart avg(latency) span=1h
+"* | eval rlatitude=round(latitude, 2)"
+"* | eval rlatitude=round(latitude, 2) | fields rlatitude, latitude"
+"* | eval status_category=if(in(http_status, 400, 404, 500), ""Failure"", http_status)"
+"* | eval status_category=if(in(http_status, 400, 404, 500), ""Failure"", ""Success"") | eval stats_cat_map=http_status.""=>"".status_category"
+* | stats avg(latency) as avg_lat by http_method | eval r_avg_lat=round(avg_lat)
+* | stats avg(latency) as avg_lat by app_name | eval r_avg_lat=round(avg_lat)
+"* | stats avg(latency) as avg_lat by http_method | eval r_avg_lat=round(avg_lat, 2)"
+"search http_status=500 | stats count(*) as ""Internal Server Errors"""
+"* | stats count(eval(http_status=500)) as ""Internal Server Errors"""
+city=Boston | stats count AS Count BY weekday | eval Append123=Count . 123
+city=Boston | stats count AS Count BY zip | eval Average=(Count + zip) / 2
+city=Boston | stats count AS Count BY http_status | eval abs=abs(http_status - 1000)
+city=Boston | stats count AS Count BY weekday | eval ceil=ceil(Count + 0.1)
+city=Detroit | stats count AS Count BY latitude | where latitude > 89.6 | eval round=round(latitude)
+city=Columbus | stats count AS Count BY http_status | eval sqrt=sqrt(http_status + 200)
+city=Boston | stats count AS Count BY app_name | eval len=len(app_name) | where len > 22
+"city=Boston | stats count AS Count BY state | eval myField=ltrim(state, ""Ma"") . "" test end"""
+"city=Boston | stats count AS Count BY state | eval myField=""test "" . "" start:"" . rtrim(state, ""nd"")"
+"city=Boston | stats count AS Count BY http_status | eval myField=if(http_status > 400, http_status + 10, ""Error"")"
+"city=Boston | stats count AS Count BY http_status | where http_status in(404, 301, ""abc"")"
+"city=Boston | stats count AS Count BY state | eval myField=if(in(state, ""Mary"" . ""land"", ""Hawaii"", 99 + 1), state . "" Success"", ""Error"")"
+"city=Boston | stats count AS Count BY country | eval result=if(isstr(country), ""This is a string"", ""This is not a string"")"
+"city=Boston | stats count AS Count BY http_status | eval result=if(isint(http_status), ""This is an integer"", ""This is not an integer"")"
+"city=Boston | stats count AS Count BY city | eval result=if(isbool(city), ""This is a boolean value"", ""This is not a boolean value"")"
+"city=Boston | stats count AS Count BY state | eval result=if(isnull(state), ""This is a null value"", ""This is not a null value"")"
+"city=Boston | stats count AS Count BY http_status | eval result=urldecode(""http%3A%2F%2Fwww.splunk.com%2Fdownload%3Fr%3Dheader"")"
+"city=Boston | stats count AS Count BY ident | eval result=split(ident,""-"")"
+"city=Boston | stats count AS Count BY http_status | eval result=max(1, 3, 450, http_status)"
+"city=Boston | stats count AS Count BY http_status | eval result=min(1, 3, 450, http_status)"
+city=Boston | stats count AS Count BY http_status | eval result=exact(3.14 * http_status)
+city=Boston | stats count AS Count BY http_status | eval result=exp(3)
+"city=Boston | stats count AS Count BY http_status | eval result=if(like(http_status, ""4%""), ""True"", ""False"")"
+"city=Boston | stats count AS Count BY country | eval result=if(match(country, ""^Sa""), ""yes"", ""no"")"
+"city=Boston | stats count AS Count BY http_status | eval result=if(cidrmatch(""192.0.2.0/24"", ""192.0.2.5""), ""local"", ""not local"")"
+"city=Boston | stats count AS Count BY state | eval result=substr(""splendid"", 1, 3) . substr(""chunk"", -3)"
+"city=Boston | stats count AS Count BY state | eval result=tonumber(""0A4"",16)"
+city=Boston | stats count AS Count BY state | eval result=tostring((2 > 1))
+"city=Boston | stats count AS Count BY state | eval result=tostring(15,""hex"")"
+"city=Boston | stats count AS Count BY state | eval result=tostring(12345.6789,""commas"")"
+"city=Boston | stats count AS Count BY state | eval result=tostring(615,""duration"")"
+"* | rex field=app_version ""(?<major>\d+)\.(?<minor>\d).*"""
+"* | rex field=app_version ""(?<major>\d+)\.(?<minor>\d).*"" | eval app_name_major=app_name."":"".major.""-"".minor | fields app_name_major, app_name, major, minor, app_version"
+"city=Boston | stats count AS Count BY weekday | rex field=weekday ""(?<first>.{3})(?<second>.*)"""
+"city=Boston | stats count AS Count BY http_status | rex field=http_status ""(?<first>\d)(?<second>\d)(?<third>\d)"""
+city=Boston | rare country useother=true otherstr=testOther percentfield=pc countfield=ct showperc=false
+city=Boston | stats count AS gg BY state | top 10 state useother=true countfield=true percentfield=percent
+"city=Boston | stats count AS Count BY http_method | rename http_method AS ""test"""
+"city=Boston | stats count AS Count BY http_status, http_method | eval newField=(http_status - 1000) | rename newField AS http_method"
+city=Boston | stats count AS Count BY http_method | eval newField=lower(http_method) | rename new* AS start*end
+"city=Boston | stats max(latitude), range(eval(latitude >= 0)) AS range"
+"city=Boston | stats count(eval(latitude < 0)) AS count, dc(eval(lower(app_name)))"
+"city=Boston | stats min(eval(latitude < 0)), max(eval(latitude < 0)) AS max, range(eval(latitude < 0)) BY weekday"
+"search app_name=Hyena* | fields app_name, app_version, gender, http_method, http_status | transaction gender http_method startswith=http_status=301  endswith=(http_status=404 OR http_status=500)"
+"country=United* | fields app_name, app_version, country, city, user_email, http_status, http_method | transaction app_name startswith=eval(http_status=301 OR http_status=200) endswith=eval(http_status>=400)"

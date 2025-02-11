@@ -19,7 +19,7 @@ package writer
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -44,18 +44,18 @@ type PrometheusPutResp struct {
 func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 	reqBuf, err := snappy.Decode(nil, compressed)
 	if err != nil {
-		log.Errorf("decodeWriteRequest: Error decompressing request body, err: %v", err)
+		log.Errorf("decodeWriteRequest: Error decompressing request body. Compressed length: %v, data: %v, err=%v", len(compressed), compressed, err)
 		return nil, err
 	}
 	var req prompb.WriteRequest
 	if err := proto.Unmarshal(reqBuf, &req); err != nil {
-		log.Errorf("decodeWriteRequest: Error unmarshalling request body, err: %v", err)
+		log.Errorf("decodeWriteRequest: Error unmarshalling request body %v, err=%v", reqBuf, err)
 		return nil, err
 	}
 	return &req, nil
 }
 
-func PutMetrics(ctx *fasthttp.RequestCtx) {
+func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
 		if alreadyHandled {
@@ -68,39 +68,42 @@ func PutMetrics(ctx *fasthttp.RequestCtx) {
 	var err error
 	version := string(ctx.Request.Header.Peek("X-Prometheus-Remote-Write-Version"))
 	if version != "0.1.0" {
-		log.Errorf("PutMetrics: Unsupported remote write protocol version %v", version)
+		log.Errorf("PutMetrics: Unsupported remote write protocol version %v, expected 0.1.0", version)
 		writePrometheusResponse(ctx, processedCount, failedCount, "unsupported remote write protocol", fasthttp.StatusBadRequest)
 		return
 	}
 	cType := string(ctx.Request.Header.ContentType())
 	if cType != "application/x-protobuf" {
-		log.Errorf("PutMetrics: unknown content type [%s]! %v", cType, err)
+		log.Errorf("PutMetrics: unknown content type: %s, expected application/x-protobuf", cType)
 		writePrometheusResponse(ctx, processedCount, failedCount, "unknown content type", fasthttp.StatusBadRequest)
 		return
 	}
 	encoding := string(ctx.Request.Header.ContentEncoding())
 	if encoding != "snappy" {
-		log.Errorf("PutMetrics: unknown content encoding [%s]! %v", encoding, err)
+		log.Errorf("PutMetrics: unknown content encoding %s, expected snappy", encoding)
 		writePrometheusResponse(ctx, processedCount, failedCount, "unknown content encoding", fasthttp.StatusBadRequest)
 		return
 	}
 
 	compressed := ctx.PostBody()
-	processedCount, failedCount, err = HandlePutMetrics(compressed)
+	processedCount, failedCount, err = HandlePutMetrics(compressed, myid)
 	if err != nil {
+		log.Errorf("PutMetrics: failed to handle put metrics for compressed data: %v. err=%+v", compressed, err)
 		writePrometheusResponse(ctx, processedCount, failedCount, err.Error(), fasthttp.StatusBadRequest)
 		return
 	}
 	writePrometheusResponse(ctx, processedCount, failedCount, "", fasthttp.StatusOK)
 }
 
-func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
+func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	var successCount uint64 = 0
 	var failedCount uint64 = 0
 
 	req, err := decodeWriteRequest(compressed)
 	if err != nil {
-		return successCount, failedCount, nil
+		err = fmt.Errorf("HandlePutMetrics: failed to decode request %v, err=%v", compressed, err)
+		log.Errorf(err.Error())
+		return successCount, failedCount, err
 	}
 
 	for _, ts := range req.Timeseries {
@@ -119,7 +122,7 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 			data, err := sample.MarshalJSON()
 			if err != nil {
 				failedCount++
-				log.Errorf("HandlePutMetrics: failed to marshal data, err: %+v", err)
+				log.Errorf("HandlePutMetrics: failed to marshal sample=%+v to json, err=%v", sample, err)
 				continue
 			}
 
@@ -127,48 +130,20 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 			err = json.Unmarshal(data, &dataJson)
 			if err != nil {
 				failedCount++
-				log.Errorf("HandlePutMetrics: failed to Unmarshal data, err: %+v", err)
+				log.Errorf("HandlePutMetrics: failed to Unmarshal data=%+v, err=%v", data, err)
 				continue
 			}
 
-			var metricName string
-			tags := "{"
-			for key, val := range dataJson {
-				if key == "metric" {
-					valMap, ok := val.(map[string]interface{})
-					if ok {
-						for k, v := range valMap {
-							if k == "__name__" {
-								valString, ok := v.(string)
-								if ok {
-									metricName = valString
-								}
-								continue // skip metric __name__ as tag
-							}
-							valString, ok := v.(string)
-							if ok {
-								tags += `"` + k + `":"` + valString + `",`
-							}
-						}
-					}
-				}
-			}
-			if tags[len(tags)-1] == ',' {
-				tags = tags[:len(tags)-1]
-			}
-			tags += "}"
-
-			if metricName == "" {
-				failedCount++
-				log.Errorf("HandlePutMetrics: the Metric name is empty. json data payload: %+v", dataJson)
-				continue
-			}
-
-			modifiedData := `{"metric":"` + metricName + `","tags":` + tags + `,"timestamp":` + strconv.FormatInt(s.Timestamp, 10) + `,"value":` + strconv.FormatFloat(s.Value, 'f', -1, 64) + `}`
-
-			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, uint64(0))
+			modifiedData, err := ConvertToOTSDBFormat(data, s.Timestamp, s.Value)
 			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry %+v", err)
+				failedCount++
+				log.Errorf("HandlePutMetrics: failed to convert data=%+v to OTSDB format, err=%v", data, err)
+				continue
+			}
+
+			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
+			if err != nil {
+				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", modifiedData, err)
 				failedCount++
 			} else {
 				successCount++
@@ -176,8 +151,64 @@ func HandlePutMetrics(compressed []byte) (uint64, uint64, error) {
 		}
 	}
 	bytesReceived := uint64(len(compressed))
-	usageStats.UpdateMetricsStats(bytesReceived, successCount, 0)
+	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
+}
+
+func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, error) {
+	var dataJson map[string]interface{}
+	err := json.Unmarshal(data, &dataJson)
+	if err != nil {
+		return nil, err
+	}
+
+	type Metric struct {
+		Name      string            `json:"metric"`
+		Tags      map[string]string `json:"tags"`
+		Timestamp int64             `json:"timestamp"`
+		Value     float64           `json:"value"`
+	}
+
+	var metricName string
+	tags := make(map[string]string)
+	for key, val := range dataJson {
+		if key == "metric" {
+			valMap, ok := val.(map[string]interface{})
+			if ok {
+				for k, v := range valMap {
+					if k == "__name__" {
+						valString, ok := v.(string)
+						if ok {
+							metricName = valString
+						}
+						continue // skip metric __name__ as tag
+					}
+					valString, ok := v.(string)
+					if ok {
+						tags[k] = valString
+					}
+				}
+			}
+		}
+	}
+
+	if metricName == "" {
+		return nil, fmt.Errorf("ConvertToOTSDBFormat: the Metric name is empty. json data payload: %+v", dataJson)
+	}
+
+	modifiedMetric := Metric{
+		Name:      metricName,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	}
+
+	modifiedData, err := json.Marshal(modifiedMetric)
+	if err != nil {
+		return nil, err
+	}
+
+	return modifiedData, nil
 }
 
 func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedCount uint64, err string, code int) {
@@ -191,13 +222,13 @@ func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, fa
 	ctx.SetContentType(utils.ContentJson)
 	jval, mErr := json.Marshal(resp)
 	if mErr != nil {
-		log.Errorf("writePrometheusResponse: failed to marshal resp %+v", mErr)
+		log.Errorf("writePrometheusResponse: failed to marshal %v to json, err=%v", resp, mErr)
 		return
 	}
 	_, mErr = ctx.Write(jval)
 
 	if mErr != nil {
-		log.Errorf("writePrometheusResponse: failed to write jval to http request %+v", mErr)
+		log.Errorf("writePrometheusResponse: failed to write jval=%v to http context, err=%v", jval, mErr)
 		return
 	}
 }

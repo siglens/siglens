@@ -46,10 +46,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css" />
-    <link rel="stylesheet" href="./css/query-builder.css" />
+    <link rel="stylesheet" href="./css/lib/tippy.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
 
-    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
+    <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -57,6 +58,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
@@ -64,62 +66,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         $('html').attr('data-theme', defaultTheme);
     </script>
     {{ .RunCheck1 | safeHTML }}
-    <style>
-        /* JQUERY AUTOCOMPLETE */
-        .ui-autocomplete {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            z-index: 1000;
-            display: none;
-            float: left;
-            min-width: 160px;
-            padding: 0;
-            margin: 2px 0 0;
-            list-style: none;
-            font-size: 14px;
-            text-align: left;
-            background-color: #ffffff;
-            border: 1px solid #cccccc;
-            border: 1px solid rgba(0, 0, 0, 0.15);
-            border-radius: 4px;
-            -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-            background-clip: padding-box;
-        }
-
-        .ui-autocomplete > li > div {
-            display: block;
-            padding: 3px 20px;
-            clear: both;
-            font-weight: normal;
-            height: 34px;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-        }
-
-        .ui-state-hover,
-        .ui-state-active,
-        .ui-state-focus {
-            color: #ffffff;
-            text-decoration: none;
-            background-color: #2D69BC;
-            cursor: pointer;
-            height: 34px;
-        }
-
-        .ui-helper-hidden-accessible {
-            border: 0;
-            clip: rect(0 0 0 0);
-            height: 1px;
-            margin: -1px;
-            overflow: hidden;
-            padding: 0;
-            position: absolute;
-            width: 1px;
-        }
-    </style>
 </head>
 
 <body>
@@ -131,126 +77,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="dashboard" class="dashboard-box">
-            <div id = "custom-code-tab" class="custom-code-tab">
-                <ul class="tab-list">
-                    <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Query Builder</a></li>
-                    <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Free Text</a></li>
-                </ul>
-                <div id = "tabs-1">
-                    <div class="query-box">
-                        <div class="position-relative"> <!-- Position relative -->
-                            <input class="form-control query-text" id="query-input" type="text" disabled="disabled">
-                            <button id="clear-query-btn" class="clear-query-btn">x</button> <!-- Added clear button -->
-                        </div>
-                        <button class="search-img" id="query-builder-btn"></button>
-                    </div>
-                    <div class="filter-info">
-                        <div id="filter-container">
-                            <div class="filter-con">
-                                <div class="filter-box" id="filter-box-1">
-                                    <span class = "aggregations" id="search-filter-text">Search Filter</span>
-                                    <ul id="tags" class="tags-list"></ul>
-                                    <button id="add-con" class="add-con btn">+</button>
-                                </div>
-                                <div class="add-filter" id="add-filter">
-                                    <input id="column-first" class="column-first" type="hidden" onkeyup="checkContent(this)"/>
-                                    <input id="symbol" class="symbol" type="hidden" onkeyup="checkContent(this)"/>
-                                    <input id="value-first" class="value-first" type="hidden" onkeyup="checkContent(this)"/>
-                                    <button id="completed" class="completed btn"></button>
-                                    <button id="cancel-enter" class="cancel-enter btn">x</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="display-rule">
-                            <div class="filter-con second-enter">
-                                <div class="filter-box" id="filter-box-2">
-                                    <span class = "aggregations" id="aggregate-attribute-text">Aggregate Attribute</span>
-                                    <ul id="tags-second" class="tags-list"></ul>
-                                    <button id="add-con-second" class="add-con btn">+</button>
-                                </div>
-                                <div class="add-filter add-filters" id="add-filter-second">
-                                    <input id="column-second" class="column-first" type="hidden" onkeyup="checkSecondContent(this)"/>
-                                    <input id="value-second" class="value-first" type="hidden" onkeyup="checkSecondContent(this)"/>
-                                    <button id="completed-second" class="completed btn" ></button>
-                                    <button id="cancel-enter-second" class="cancel-enter btn">x</button>
-                                </div>
-                            </div>
-                            <div class="filter-con third-enter">
-                                <div class="filter-box third-box"  id="filter-box-3">
-                                    <span class = "aggregations" id="aggregations">Search Criteria</span>
-                                    <ul id="tags-third" class="tags-list"></ul>
-                                    <button id="add-con-third" class="add-con btn">+</button>
-                                </div>
-                                <div class="add-filter add-third" id="add-filter-third">
-                                    <input id="column-third" class="column-third" type="hidden" />
-                                    <button id="cancel-enter-third" class="cancel-enter btn">x</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div id = "tabs-2">
-                    <div class="filter-container">
-                        <div class="position-relative search-bar-container">
-                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql" style="display: none;"
-                                title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
-                                                                    SELECT * FROM `ind-0`
-                                                                    SELECT * FROM `ind-0` ORDER BY latency ASC
-                                                                    SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
-                                                                    SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
-                                                                    SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-                        
-                            </i>
-                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
-                                title=' {app="mysql",name="mysql-backup"}
-                                                                    {job="mysql"} |= "error"
-                                                                    {name="cassandra"} |~ error=\w+
-                                                                    {job="mysql"} |= "error" != "timeout"
-                                                                    {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
-                                                                    '>
-                            </i>
-                            <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl" style="display: block;"
-                                title=' app_version!=2.14.2 AND weekday=T*day
-                                                                    city=Boston | stats count, avg(latency) BY weekday, http_method
-                                                                    city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
-                                                                    city=Boston | ```This is a comment``` fields http*
-                                                                    http_method=POST | regex city="^[a-zA-Z]+\s[a-zA-Z]+$" | fields city
-                                                                    city=Boston | stats count AS Count BY weekday | where Count / 2 > 6 OR weekday = "Saturday"
-                                                                    '>
-                            </i>
-                            <input class="form-control" id="filter-input"
-                                placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text">
-                            <span class="clear-icon" id="clearInput" title="Clear"></span>
-                        </div>
-                        <div class="text-end">
-                            <button class="btn run-filter-btn" id="run-filter-btn" title="Run your search"></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
             <div class="dropdown-box">
-                <div class="index-container">
-                    <input type="text" name="" id="index-listing">
-                </div>
-                <div class="dropdown">
-                    <button class="btn dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Select Query Type">
-                        <span>Splunk QL</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
-                    </button>
-                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                        <li id="option-1" class="query-language-option">SQL</li>
-                        <li id="option-2" class="query-language-option">Log QL</li>
-                        <li id="option-3" class="query-language-option active">Splunk QL</li>
+                <div class="d-flex align-items-center">
+                    <div style="margin-right: 5px;">Indexes:</div>
+                    <div class="index-container">
+                        <input type="text" name="" id="index-listing">
+                        <button id="add-index" class="add-con btn">+</button>
                     </div>
                 </div>
                 <div class="dropdown">
                     <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
-                        aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
+                        aria-expanded="false" data-bs-toggle="dropdown">
                         <span>Time Picker</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        <i class="dropdown-arrow"></i>
                     </button>
                     <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
                         <p class="dt-header">Search the last</p>
@@ -294,61 +133,193 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
             </div>
+            <div id = "custom-code-tab" class="custom-code-tab">
+                <div class="query-builder-container">
+                    <div class="d-flex justify-content-end logcontainer">
+                        <button class="format-icon" id="formatInput">Format</button>
+                        <ul class="tab-list">
+                            <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
+                            <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
+                        </ul>
+                        <button class="btn settings-btn" id="logs-settings">
+                        </button>
+                        <div class="" id="setting-container">
+                            <div class="mb-1">Query Language:</div>
+                            <div class="dropdown">
+                                <button class="btn btn-grey dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
+                                    <span>Splunk QL</span>
+                                    <i class="dropdown-arrow"></i>
+                                </button>
+                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                                    {{ .Dropdown2 | safeHTML }}
+                                    <li id="option-3" class="query-language-option active">Splunk QL</li>
+                                </div>
+                            </div>
+                            <div class="mt-2 mb-1">Query Mode:</div>
+                            <div class="dropdown">
+                                <button class="btn btn-grey dropdown-toggle w-100" type="button" id="query-mode-btn" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                    <span>Builder</span>
+                                    <i class="dropdown-arrow"></i>
+                                </button>
+                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
+                                    <li id="mode-option-1" class="query-mode-option">Builder</li>
+                                    <li id="mode-option-2" class="query-mode-option">Code</li>
+                                </div>
+                            </div>
+                        
+                        </div>
+                    </div>
+                    <div class="d-flex">
+                        <div id = "tabs-1">
+                            <div class="filter-info">
+                                <div id="filter-container">
+                                    <div class="filter-con">
+                                        <div class="filter-box" id="filter-box-1">
+                                            <span class = "aggregations" id="search-filter-text">Search filter</span>
+                                            <ul id="tags" class="tags-list"></ul>
+                                            <button id="add-con" class="add-con btn">+</button>
+                                        </div>
+                                        <div class="add-filter" id="add-filter">
+                                            <input id="column-first" class="column-first" type="hidden" onkeyup="checkContent(this)"/>
+                                            <input id="symbol" class="symbol" type="hidden" onkeyup="checkContent(this)"/>
+                                            <input id="value-first" class="value-first" type="hidden" onkeyup="checkContent(this)"/>
+                                            <button id="completed" class="completed btn"></button>
+                                            <button id="cancel-enter" class="cancel-enter btn">×</button>
+                                        </div>
+                                    </div>
+                                    <div class="builder-div">stats</div>
+                                    <div class="filter-con second-enter">
+                                        <div class="filter-box" id="filter-box-2">
+                                            <span class = "aggregations" id="aggregate-attribute-text">Aggregation attribute</span>
+                                            <ul id="tags-second" class="tags-list"></ul>
+                                            <button id="add-con-second" class="add-con btn">+</button>
+                                        </div>
+                                        <div class="add-filter add-filters" id="add-filter-second">
+                                            <input id="column-second" class="column-first" type="hidden" onkeyup="checkSecondContent(this)"/>
+                                            <input id="value-second" class="value-first" type="hidden" onkeyup="checkSecondContent(this)"/>
+                                            <button id="completed-second" class="completed btn" ></button>
+                                            <button id="cancel-enter-second" class="cancel-enter btn">×</button>
+                                        </div>
+                                    </div>
+                                    <div class="builder-div">group by</div>
+                                    <div class="filter-con third-enter">
+                                        <div class="filter-box third-box"  id="filter-box-3">
+                                            <span class = "aggregations" id="aggregations">Group by column name</span>
+                                            <ul id="tags-third" class="tags-list"></ul>
+                                            <button id="add-con-third" class="add-con btn">+</button>
+                                        </div>
+                                        <div class="add-filter add-third" id="add-filter-third">
+                                            <input id="column-third" class="column-third" type="hidden" />
+                                            <button id="cancel-enter-third" class="cancel-enter btn">×</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="search-img" id="query-builder-btn"></button>
+                            </div>
+                        </div>
+                        <div id = "tabs-2">
+                            <div class="filter-container">
+                                <div class="position-relative search-bar-container">
+                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql" style="display: none;"
+                                        title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
+                                                                            SELECT * FROM `ind-0`
+                                                                            SELECT * FROM `ind-0` ORDER BY latency ASC
+                                                                            SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
+                                                                            SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
+                                                                            SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
+                    
+                                    </i>
+                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
+                                        title=' {app="mysql",name="mysql-backup"}
+                                                                            {job="mysql"} |= "error"
+                                                                            {name="cassandra"} |~ error=\w+
+                                                                            {job="mysql"} |= "error" != "timeout"
+                                                                            {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
+                                                                            '>
+                                    </i>
+                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl" style="display: block;"
+                                        title=' app_version!=2.14.2 AND weekday=T*day
+                                                                            city=Boston | stats count, avg(latency) BY weekday, http_method
+                                                                            city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
+                                                                            city=Boston | ```This is a comment``` fields http*
+                                                                            http_method=POST | regex city="^[a-zA-Z]+\s[a-zA-Z]+$" | fields city
+                                                                            city=Boston | stats count AS Count BY weekday | where Count / 2 > 6 OR weekday = "Saturday"
+                                                                            '>
+                                    </i>
+                                    <textarea class="form-control expandable-textarea" id="filter-input"
+                                        placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text"></textarea>
+                                    <span class="clear-icon" id="clearInput"></span>
+                                </div>
+                                <div class="text-end">
+                                    <button class="btn run-filter-btn" id="run-filter-btn"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="record-searched"></div>
             <div id="progress-div"></div>
 
             
             <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
-                <ul class="tab-chart-list">
-                    <li class="tab-li" id="tab-table-title"><a href="#showTable" class="custom-query-builder">Table</a>
-                    </li>
-                    <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart" class="custom-query-builder">Visualization</a>
-                    </li>
-                </ul>
-                <div id="logs-view-controls">
-                    <div id="save-query-div" class="save-query-div">
-                        <button class="btn saveq-btn below-btn-img" id="saveq-btn" title="Save Query"></button>
-                        <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3" title="Add panel to dashboard"></button>
-                        <button class="btn mx-2 alert-from-logs-btn below-btn-img" id="alert-from-logs-btn" title="Create Alert"></button>
-                        <div class="dropdown download-btn">
-                            <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown"
-                                aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Download Logs">
-                            </button>
-                            <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
-                                <li id="csv-block" class="query-language-option">Download as CSV</li>
-                                <li id="json-block" class="query-language-option">Download as JSON</li>
-                                <li id="xml-block" class="query-language-option">Download as XML</li>
-                                <li id="sql-block" class="query-language-option">Download as SQL</li>
+                <div class="d-flex align-items-center">
+                    <ul class="tab-chart-list">
+                        <li class="tab-li" id="tab-table-title"><a href="#showTable" class="custom-query-builder">Table</a>
+                        </li>
+                        <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart" class="custom-query-builder">Visualization</a>
+                        </li>
+                    </ul>
+                    <div id="logs-view-controls">
+                        <div id="save-query-div">
+                            <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
+                            <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3" ></button>
+                            <button class="btn alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
+                            <div class="dropdown download-btn">
+                                <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                </button>
+                                <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
+                                    <li id="csv-block" class="query-language-option">Download as CSV</li>
+                                    <li id="json-block" class="query-language-option">Download as JSON</li>
+                                    <li id="xml-block" class="query-language-option">Download as XML</li>
+                                    <li id="sql-block" class="query-language-option">Download as SQL</li>
+                                </div>
                             </div>
+                            <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
                         </div>
-                        <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"  title="Query Response Information"></button>
                     </div>
                     <div id="views-container">
+                        <label id="hide-null-column-box">
+                            <input type="checkbox" id="hide-null-columns-checkbox" checked="" class="active checkbox">Hide Null Columns
+                        </label>
                         <div class="btn-group" role="group" id="log-view">
                             <button class="btn log-opt-single-btn" id="log-opt-single-btn">
-                                <span class="single-line-icon" title="Single Line Display View"></span>
+                                <span class="single-line-icon" ></span>
                             </button>
                             <button class="btn log-opt-multi-btn" id="log-opt-multi-btn">
-                                <span class="multi-line-icon" title="Wrap Line Display View"></span>
+                                <span class="multi-line-icon"></span>
                             </button>
                             <button class="btn log-opt-table-btn" id="log-opt-table-btn">
-                                <span class="table-view-icon" title="Table Display View"></span>
+                                <span class="table-view-icon" ></span>
                             </button>
                         </div>
                         <div class="dropdown">
-                            <button class="btn dropdown-toggle avail-fields-btn" title="Select field names to display" type="button"
+                            <button class="btn btn-grey dropdown-toggle avail-fields-btn"  type="button"
                                 id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                 data-bs-toggle="dropdown">
-                                <i class="fa-solid fa-list-check" title="Select field names to display"></i>&nbsp;
+                                <i class="fa-solid fa-list-check"></i>&nbsp;
                                 Available Fields
-                                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                <i class="dropdown-arrow"></i>
                             </button>
                             <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
-                
                                 <div class="select-unselect-header" id="select-unselect-header">
                                     Select/Unselect All
                                     <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
                                 </div>
+                                <div class="column-count-header">Column Count: <span class="column-count"></span></div>
                                 <div class="fields"></div>
                             </div>
                         </div>
@@ -370,6 +341,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </div>
             </div>
             <div id="empty-response"></div>
+            <div id="initial-response">Create a query using the builder to access and view the logs.</div>
             
            
 
@@ -382,7 +354,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         </div>
 
-        <div id="save-queries" title="Save Query">
+        <div id="save-queries">
             <p class="validateTips"></p>
             <form>
                 <fieldset>
@@ -395,14 +367,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </fieldset>
             </form>
         </div>
-        <div class="show-record-popup" id="show-record-popup" title="record">
+        <div class="show-record-popup" id="show-record-popup">
             <form>
                 <fieldset>
                     <div id="hits-summary" class="hits-summary"></div>
                 </fieldset>
             </form>
         </div>
-        <div id="download-info" title="Download" class="save-query">
+        <div id="download-info"  class="save-query">
             <p class="validateTips" id="validateTips"></p>
             <form>
                 <fieldset>
@@ -415,7 +387,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
         <div class="pop-download" id="pop-box">
             <div class="pop-text">Downloading Logs</div>
-            <button class="btn cancel-loading" id="cancel-loading">Cancel</button>
+            <button class="btn btn-secondary" id="cancel-loading">Cancel</button>
         </div>
         <div id="progressbar" class="progress-download"></div>
         <!-- Dashboard Popup-->
@@ -424,8 +396,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <h3 class="header mb-2">Add panel to dashboard</h3>
             <p>Choose where to add the panel</p>
             <div class="section-buttons mt-2">
-                <div class="section-button active new-dashboard-btn" style="width: 155px;"><a>New Dashboard</a></div>
-                <div class="section-button existing-dashboard-btn" style="width: 185px;"><a>Existing Dashboard</a></div>
+                <div class="section-button active new-dashboard-btn"><a>New Dashboard</a></div>
+                <div class="section-button existing-dashboard-btn"><a>Existing Dashboard</a></div>
             </div>
             <div class="new-dashboard">
                 <div>
@@ -437,20 +409,50 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="existing-dashboard">
                 <p for="" class="mt-3 mb-3"><small>Select in which dashboard the panel will be created.</small></p>
                 <div class="dropdown">
-                    <button class="btn dropdown-toggle" type="button" id="selected-dashboard" data-toggle="dropdown"
-                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" title="Choose Dashboard">
+                    <button class="btn dropdown-toggle btn-grey w-100" type="button" id="selected-dashboard" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
                         <span>Choose Dashboard</span>
-                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                        <i class="dropdown-arrow"></i>
                     </button>
                     <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="dashboard-options">
                     </div>
                 </div>
             </div>
             <div class="d-flex align-items-center justify-content-center mt-4">
-                <button type="button" id="cancel-dbbtn" class="my-0 btn">Cancel</button>
+                <button type="button" id="cancel-dbbtn" class="my-0 btn btn-secondary">Cancel</button>
                 <button type="button" id="create-db" class="btn create-db">Create Dashboard</button>
                 <button type="button" id="create-panel" class="btn create-db">Create Panel</button>
+            </div>
+        </div>
+        <div class="addrulepopupOverlay"></div>
+            <div class="addrulepopupContent popupContent">
+                <h3 class="header">Create Alert</h3>
+                <div class="popupcont mt-3">
+                <label>Enter alert rule name</label>
+                <input type="text" id="rule-name" name="rule-name" required placeholder="Name">
+                <p class="rule-name-error"></p>
+                </div>
+                <div class="btncontainer mt-3">
+                    <button type="button" id="addrule-cancel-btn" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="addrule-save-btn" class="btn btn-primary">Add
+                        <img src="assets/new-tab-white-icon.svg">
+                    </button>
+                </div>
+            </div>
+        
+        <div class="popupContent" id="error-popup">
+            <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
+            <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
+            <div class="d-flex align-items-center justify-content-end mt-3">
+                <button type="button" id="okay-button" class="btn">OK</button>
+            </div>
+        </div>
+
+        <div class="popupContent" id="error-popup">
+            <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
+            <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
+            <div class="d-flex align-items-center justify-content-end mt-3">
+                <button type="button" id="okay-button" class="btn">OK</button>
             </div>
         </div>
 
@@ -472,7 +474,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/download-logs.js?cb=1_1_10"></script>
     <script src="./js/index.js?cb=1_1_10"></script>
     <script src="./js/log-search.js?cb=1_1_10"></script>
-    <script src="./js/dashboard-from-logs.js?cb=1_1_10"></script>
+    <script src="./js/dashboard-from-logs-metrics.js?cb=1_1_10"></script>
     <script src="./js/query-builder.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
 

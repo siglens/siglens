@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -18,414 +18,462 @@
  */
 
 var lineChart;
-var pieOptions, barOptions;
-
 function loadBarOptions(xAxisData, yAxisData) {
-	// colors for dark & light modes
-	let root = document.querySelector(':root');
-	let rootStyles = getComputedStyle(root);
-	let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
-	let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
-	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
+    // colors for dark & light modes
+    let root = document.querySelector(':root');
+    let rootStyles = getComputedStyle(root);
+    let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
+    let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
+    let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
+    let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
 
-	barOptions = {
-		xAxis: {
-			type: 'category',
-			data: xAxisData,
-			axisLine: {
-				lineStyle: {
-					color: gridLineDarkThemeColor,
-				}
-			},
-			axisLabel: {
-				interval: 0, // Set this to 0 to display all labels
-				rotate: 45, // You can adjust this value to rotate the labels
-				margin: 10, // You can adjust this value to add or reduce spacing between the labels and the axis line
-				color: function () {
-					return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
-				}
-			}
-		},
-		yAxis: {
-			type: 'value',
-			axisLabel: {
-				color: function () {
-					return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
-				}
-			},
-			splitLine: {
-				lineStyle: {
-					color: gridLineDarkThemeColor,
-				},
-			},
-		},
-		series: [
-			{
-				data: yAxisData,
-				type: 'bar',
-				barWidth: 10,
-				itemStyle: {
-					// color: '#6347D9' // You can set any color code here
-					color: function (params) {
-						var colorList = ['#6347D9', '#FF8700']; // Define an array of colors
-						return colorList[params.dataIndex % colorList.length]; // Use the modulus operator to alternate between colors
-					}
-				},
-				barCategoryGap: '10%', // You can adjust this value to add space between bars
-				barGap: '15%',
-				tooltip: {
-					trigger: 'axis', // Set the trigger type for the tooltip
-					axisPointer: { // Set the type of pointer that shows up when hovering over the bars
-						type: 'shadow' // 'line' or 'shadow' for vertical or horizontal lines, respectively
-					},
-					formatter: function (params) { // Add a formatter function to show the value of the bar in the tooltip
-						return params[0].name + ': ' + params[0].value;
-					}
-				},
-				emphasis: {
-					itemStyle: {
-						color: '#FFC107' // Set the color of the bars when hovering over them
-					},
-					label: {
-						show: true,
-						position: 'top',
-						formatter: function (params) { // Add a formatter function to show the value of the bar on hover
-							return params.value;
-						}
-					}
-				}
-			},
+    let legendData = [];
+    let seriesData = [];
+    let colorList = ['#6347D9', '#FF8700'];
 
-		]
-	}
-	if ($('html').attr('data-theme') == "dark") {
-		barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
-		barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
-	} else {
-		barOptions.xAxis.axisLine.lineStyle.color = gridLineLightThemeColor;
-		barOptions.yAxis.splitLine.lineStyle.color = gridLineLightThemeColor;
-	}
+    yAxisData.forEach((dataset, index) => {
+        legendData.push(dataset.name); // Add dataset names to legend
+        seriesData.push({
+            name: dataset.name,
+            type: 'bar',
+            data: dataset.data,
+            barWidth: 10,
+            itemStyle: {
+                color: colorList[index % colorList.length],
+            },
+            barCategoryGap: '10%', // space between bars
+            barGap: '15%',
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: {
+                    type: 'shadow',
+                },
+                formatter: function (params) {
+                    return params[0].name + ': ' + params[0].value;
+                },
+            },
+            emphasis: {
+                itemStyle: {
+                    color: colorList[index % colorList.length],
+                },
+                label: {
+                    show: false,
+                    position: 'top',
+                    formatter: function (params) {
+                        return params.value;
+                    },
+                },
+            },
+        });
+    });
+
+    let barOptions = {
+        legend: {
+            data: legendData,
+            textStyle: {
+                color: function () {
+                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+                },
+            },
+        },
+        xAxis: {
+            type: 'category',
+            data: xAxisData,
+            axisLine: {
+                lineStyle: {
+                    color: function () {
+                        return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+                    },
+                },
+            },
+            axisLabel: {
+                interval: 0,
+                rotate: 45,
+                margin: 10,
+                color: function () {
+                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+                },
+            },
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: function () {
+                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+                },
+            },
+            splitLine: {
+                lineStyle: {
+                    lineStyle: {
+                        color: gridLineDarkThemeColor,
+                    },
+                },
+            },
+        },
+        series: seriesData,
+    };
+    if ($('html').attr('data-theme') == 'dark') {
+        barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
+        barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
+    } else {
+        barOptions.xAxis.axisLine.lineStyle.color = gridLineLightThemeColor;
+        barOptions.yAxis.splitLine.lineStyle.color = gridLineLightThemeColor;
+    }
+    return barOptions;
 }
 function loadPieOptions(xAxisData, yAxisData) {
-	let pieDataMapList = [];
-	// loop
-	for (let i = 0; i < xAxisData.length; i++) {
-		let mapVal1 = yAxisData[i];
-		let mapVal2 = xAxisData[i];
-		let pieDataMap = {};
-		pieDataMap['value'] = mapVal1;
-		pieDataMap['name'] = mapVal2;
-		pieDataMapList.push(pieDataMap);
-	}
-	let root = document.querySelector(':root');
-	let rootStyles = getComputedStyle(root);
-	let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let labelLightThemeColor = rootStyles.getPropertyValue('--black-1')
+    let pieDataMapList = [];
+    // loop
+    for (let i = 0; i < xAxisData.length; i++) {
+        let mapVal1 = yAxisData[i];
+        let mapVal2 = xAxisData[i];
+        let pieDataMap = {};
+        pieDataMap['value'] = mapVal1;
+        pieDataMap['name'] = mapVal2;
+        pieDataMapList.push(pieDataMap);
+    }
+    let root = document.querySelector(':root');
+    let rootStyles = getComputedStyle(root);
+    let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
+    let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
 
-	pieOptions = {
-		xAxis: {
-			show: false
-		},
-		tooltip: {
-			trigger: 'item',
-			formatter: "{a} <br/>{b} : {c} ({d}%)"
-		},
-		legend: {
-			orient: 'vertical',
-			left: 'left',
-			data: xAxisData,
-			textStyle: {
-				color: labelDarkThemeColor,
-				borderColor: labelDarkThemeColor,
+    let pieOptions = {
+        tooltip: {
+            trigger: 'item',
+            formatter: '{a} <br/>{b} : {c} ({d}%)',
+        },
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: xAxisData,
+            textStyle: {
+                color: labelDarkThemeColor,
+                borderColor: labelDarkThemeColor,
+            },
+        },
+        series: [
+            {
+                name: 'Pie Chart',
+                type: 'pie',
+                radius: '55%',
+                center: ['50%', '60%'],
+                data: pieDataMapList,
+                itemStyle: {
+                    emphasis: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)',
+                    },
+                },
+                label: {
+                    color: labelDarkThemeColor,
+                },
+            },
+        ],
+    };
 
-			},
-		},
-		series: [
-			{
-				name: 'Pie Chart',
-				type: 'pie',
-				radius: '55%',
-				center: ['50%', '60%'],
-				data: pieDataMapList,
-				itemStyle: {
-					emphasis: {
-						shadowBlur: 10,
-						shadowOffsetX: 0,
-						shadowColor: 'rgba(0, 0, 0, 0.5)'
-					}
-				},
-				label: {
-					color: labelDarkThemeColor,
-				}
-			}
-		]
-	}
-	if ($('html').attr('data-theme') == "dark") {
-		pieOptions.series[0].label.color = labelDarkThemeColor;
-		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
-		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
-	} else {
-		pieOptions.series[0].label.color = labelLightThemeColor;
-		pieOptions.legend.textStyle.color = labelLightThemeColor;
-		pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
-	}
+    if ($('html').attr('data-theme') == 'dark') {
+        pieOptions.series[0].label.color = labelDarkThemeColor;
+        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
+        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
+    } else {
+        pieOptions.series[0].label.color = labelLightThemeColor;
+        pieOptions.legend.textStyle.color = labelLightThemeColor;
+        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
+    }
 
+    return pieOptions;
 }
-function renderBarChart(columns, hits, panelId, chartType, dataType, panelIndex) {
-	$(".panelDisplay #panelLogResultsGrid").hide();
-	$(".panelDisplay #empty-response").empty();
-	$('.panelDisplay #corner-popup').hide();
-	$(".panelDisplay #empty-response").hide();
-	$(`.panelDisplay .big-number-display-container`).empty();
-	$(`.panelDisplay .big-number-display-container`).hide();
-	$('.panelDisplay .panEdit-panel').empty();
-	let bigNumVal = null;
-	let xAxisData = [];
-	let yAxisData = [];
 
-	if (columns.length == 1) {
-		bigNumVal = hits[0].MeasureVal[columns[0]];
-	}
+//eslint-disable-next-line no-unused-vars
+function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) {
+    $('.panelDisplay #panelLogResultsGrid').hide();
+    $('.panelDisplay #empty-response').empty();
+    $('.panelDisplay #corner-popup').hide();
+    $('.panelDisplay #empty-response').hide();
+    $(`.panelDisplay .big-number-display-container`).empty();
+    $(`.panelDisplay .big-number-display-container`).hide();
+    $('.panelDisplay .panEdit-panel').empty();
 
-	// loop through the hits and create the data for the bar chart
-	for (let i = 0; i < hits.length; i++) {
-		let hit = hits[i];
+    let bigNumVal = null;
+    let hits = res.measure;
+    if (columns.length == 1) {
+        bigNumVal = hits[0].MeasureVal[columns[0]];
+    }
 
-		let xAxisValue = hit.GroupByValues[0];
-		let yAxisValue;
-		let measureVal = hit.MeasureVal;
-		yAxisValue = measureVal[columns[1]]
-		xAxisData.push(xAxisValue);
-		yAxisData.push(yAxisValue);
-	}
+    let panelChart;
+    if (panelId == -1) {
+        let panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
+        panelChart = echarts.init(panelChartEl);
+    } else if (chartType !== 'number') {
+        let panelChartEl = $(`#panel${panelId} .panEdit-panel`);
+        panelChartEl.css('width', '100%').css('height', '100%');
+        panelChart = echarts.init(document.querySelector(`#panel${panelId} .panEdit-panel`));
+    }
 
-	let panelChart;
-	if (panelId == -1) {
-		let panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
-		panelChart = echarts.init(panelChartEl);
-	} else if(chartType !== 'number'){
-		let panelChartEl = $(`#panel${panelId} .panEdit-panel`);
-		panelChartEl.css("width", "100%").css("height", "100%");
-		panelChart = echarts.init(document.querySelector(`#panel${panelId} .panEdit-panel`));
-	}
+    if (bigNumVal != null) {
+        chartType = 'number';
+    }
+    /* eslint-disable */
+    switch (chartType) {
+        case 'Bar Chart':
+            $(`.panelDisplay .big-number-display-container`).hide();
 
-	if (bigNumVal != null) {
-		chartType = 'number';
-	}
+            // Determine if multiple group by values are used
+            var multipleGroupBy = hits[0].GroupByValues.length > 1;
+            let measureFunctions = res.measureFunctions;
 
-	switch (chartType) {
-		case 'Bar Chart':
-			$(`.panelDisplay .big-number-display-container`).hide();
-			loadBarOptions(xAxisData, yAxisData);
-			panelChart.setOption(barOptions);
-			break;
-		case 'Pie Chart':
-			$(`.panelDisplay .big-number-display-container`).hide();
-			loadPieOptions(xAxisData, yAxisData);
-			panelChart.setOption(pieOptions);
-			break;
-		case 'number':
-			displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
-	}
-	$(`#panel${panelId} .panel-body #panel-loading`).hide();
+            // Prepare series data for the bar chart
+            var seriesData = measureFunctions.map(function (measureFunction) {
+                return {
+                    name: measureFunction,
+                    data: hits.map(function (item) {
+                        return item.MeasureVal[measureFunction] || 0;
+                    }),
+                };
+            });
 
-	return panelChart;
+            let xData = hits.map((item) => {
+                let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
+
+                // If groupByValue is null, set it to "NULL" or any other default label
+                if (groupByValue === null || groupByValue === undefined || groupByValue === '') {
+                    groupByValue = 'NULL'; // or "Unknown", "N/A", etc.
+                }
+
+                return groupByValue;
+            });
+            var barOptions = loadBarOptions(xData, seriesData);
+            panelChart.setOption(barOptions);
+            break;
+        case 'Pie Chart':
+            $(`.panelDisplay .big-number-display-container`).hide();
+
+            let xAxisData = [];
+            let yAxisData = [];
+            // loop through the hits and create the data for the bar chart
+            for (let i = 0; i < hits.length; i++) {
+                let hit = hits[i];
+                let xAxisValue = hit.GroupByValues[0];
+                let yAxisValue;
+                let measureVal = hit.MeasureVal;
+                yAxisValue = Object.values(measureVal)[0];
+
+                if (xAxisValue === null || xAxisValue === undefined || xAxisValue === '') {
+                    xAxisValue = 'NULL'; // or "Unknown", "N/A", etc.
+                }
+
+                xAxisData.push(xAxisValue);
+                yAxisData.push(yAxisValue);
+            }
+
+            var pieOptions = loadPieOptions(xAxisData, yAxisData);
+            panelChart.setOption(pieOptions);
+            break;
+        case 'number':
+            displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
+            break;
+    }
+    /* eslint-enable */
+    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+
+    return panelChart;
 }
+
 let mapIndexToAbbrev = new Map([
-	["", ""],
-	["none", ""],
-	["percent(0-100)", "%"],
-	["bytes", "B"],
-	["kB", "KB"],
-	["MB", "MB"],
-	["GB", "GB"],
-	["TB", "TB"],
-	["PB", "PB"],
-	["EB", "EB"],
-	["ZB", "ZB"],
-	["YB", "YB"],
-	["counts/sec", "c/s"],
-	["writes/sec", "wr/s"],
-	["reads/sec", "rd/s"],
-	["requests/sec", "req/s"],
-	["ops/sec", "ops/s"],
-	["hertz(1/s)", "Hz"],
-	["nanoseconds(ns)", "ns"],
-	["microsecond(µs)", "µs"],
-	["milliseconds(ms)", "ms"],
-	["seconds(s)", "s"],
-	["minutes(m)", "m"],
-	["hours(h)", "h"],
-	["days(d)", "d"],
-	["packets/sec", "p/s"],
-	["bytes/sec", "B/s"],
-	["bits/sec", "b/s"],
-	["kilobytes/sec", "KB/s"],
-	["kilobits/sec", "Kb/s"],
-	["megabytes/sec", "MB/s"],
-	["megabits/sec", "Mb/s"],
-	["gigabytes/sec", "GB/s"],
-	["gigabits/sec", "Gb/s"],
-	["terabytes/sec", "TB/s"],
-	["terabits/sec", "Tb/s"],
-	["petabytes/sec", "PB/s"],
-	["petabits/sec", "Pb/s"],
-])
+    ['', ''],
+    ['none', ''],
+    ['percent(0-100)', '%'],
+    ['bytes', 'B'],
+    ['kB', 'KB'],
+    ['MB', 'MB'],
+    ['GB', 'GB'],
+    ['TB', 'TB'],
+    ['PB', 'PB'],
+    ['EB', 'EB'],
+    ['ZB', 'ZB'],
+    ['YB', 'YB'],
+    ['counts/sec', 'c/s'],
+    ['writes/sec', 'wr/s'],
+    ['reads/sec', 'rd/s'],
+    ['requests/sec', 'req/s'],
+    ['ops/sec', 'ops/s'],
+    ['hertz(1/s)', 'Hz'],
+    ['nanoseconds(ns)', 'ns'],
+    ['microsecond(µs)', 'µs'],
+    ['milliseconds(ms)', 'ms'],
+    ['seconds(s)', 's'],
+    ['minutes(m)', 'm'],
+    ['hours(h)', 'h'],
+    ['days(d)', 'd'],
+    ['packets/sec', 'p/s'],
+    ['bytes/sec', 'B/s'],
+    ['bits/sec', 'b/s'],
+    ['kilobytes/sec', 'KB/s'],
+    ['kilobits/sec', 'Kb/s'],
+    ['megabytes/sec', 'MB/s'],
+    ['megabits/sec', 'Mb/s'],
+    ['gigabytes/sec', 'GB/s'],
+    ['gigabits/sec', 'Gb/s'],
+    ['terabytes/sec', 'TB/s'],
+    ['terabits/sec', 'Tb/s'],
+    ['petabytes/sec', 'PB/s'],
+    ['petabits/sec', 'Pb/s'],
+]);
 
 function addSuffix(number) {
-	let suffix = '';
-	if (number >= 1e24) {
-		suffix = "Y";
-		number /= 1e24;
-	} else if (number >= 1e21) {
-		suffix = "Z";
-		number /= 1e21;
-	} else if (number >= 1e18) {
-	  suffix = "E";
-	  number /= 1e18;
-	} else if (number >= 1e15) {
-	  suffix = "P";
-	  number /= 1e15;
-	} else if (number >= 1e12) {
-	  suffix = "T";
-	  number /= 1e12;
-	} else if (number >= 1e9) {
-	  suffix = "G";
-	  number /= 1e9;
-	} else if (number >= 1e6) {
-	  suffix = "M";
-	  number /= 1e6;
-	}
-  
-	return [number.toFixed(2), suffix];
-  }
-  
+    let suffix = '';
+    if (number >= 1e24) {
+        suffix = 'Y';
+        number /= 1e24;
+    } else if (number >= 1e21) {
+        suffix = 'Z';
+        number /= 1e21;
+    } else if (number >= 1e18) {
+        suffix = 'E';
+        number /= 1e18;
+    } else if (number >= 1e15) {
+        suffix = 'P';
+        number /= 1e15;
+    } else if (number >= 1e12) {
+        suffix = 'T';
+        number /= 1e12;
+    } else if (number >= 1e9) {
+        suffix = 'G';
+        number /= 1e9;
+    } else if (number >= 1e6) {
+        suffix = 'M';
+        number /= 1e6;
+    }
+
+    return [number.toFixed(2), suffix];
+}
+
 function findSmallestGreaterOne(number) {
-  const hours = number / 3600; // Convert seconds to hours
-  const minutes = number / 60; // Convert seconds to minutes
-  const years = number / (3600 * 24 * 365); // Convert seconds to years
+    const hours = number / 3600; // Convert seconds to hours
+    const minutes = number / 60; // Convert seconds to minutes
+    const years = number / (3600 * 24 * 365); // Convert seconds to years
 
-  let smallest = Infinity;
-  let suffix = '';
+    let smallest = Infinity;
+    let suffix = '';
 
-  if (hours > 1 && hours < smallest) {
-    smallest = hours;
-    suffix = 'h';
-  }
-  if (minutes > 1 && minutes < smallest) {
-    smallest = minutes;
-    suffix = 'm';
-  }
-  if (years > 1 && years < smallest) {
-    smallest = years;
-    suffix = 'year';
-  }
+    if (hours > 1 && hours < smallest) {
+        smallest = hours;
+        suffix = 'h';
+    }
+    if (minutes > 1 && minutes < smallest) {
+        smallest = minutes;
+        suffix = 'm';
+    }
+    if (years > 1 && years < smallest) {
+        smallest = years;
+        suffix = 'year';
+    }
 
-  if (smallest === Infinity) {
-    smallest = number;
-    suffix = 's';
-  }
+    if (smallest === Infinity) {
+        smallest = number;
+        suffix = 's';
+    }
 
-  return [smallest.toFixed(2),suffix];
+    return [smallest.toFixed(2), suffix];
 }
 
+//eslint-disable-next-line no-unused-vars
 function displayBigNumber(value, panelId, dataType, panelIndex) {
-	if (panelId === -1) {
-		$('.panelDisplay .panEdit-panel').hide();
-		$(`.panelDisplay .big-number-display-container`).show();
-		$(`.panelDisplay .big-number-display-container`).empty();
-	} else {
-		$(`#panel${panelId} .panEdit-panel`).hide();
-		$(`#panel${panelId} .big-number-display-container`).show();
-		$(`#panel${panelId} .big-number-display-container`).empty();
-	}
+    if (panelId === -1) {
+        $('.panelDisplay .panEdit-panel').hide();
+        $(`.panelDisplay .big-number-display-container`).show();
+        $(`.panelDisplay .big-number-display-container`).empty();
+    } else {
+        $(`#panel${panelId} .panEdit-panel`).hide();
+        $(`#panel${panelId} .big-number-display-container`).show();
+        $(`#panel${panelId} .big-number-display-container`).empty();
+    }
 
-	let panelChartEl;
+    let panelChartEl;
 
-	if (panelId == -1) {
-		panelChartEl = $('.panelDisplay .big-number-display-container');
-	} else {
-		panelChartEl = $(`#panel${panelId} .big-number-display-container`);
-		$(`#panel${panelId} .panEdit-panel`).hide();
-		panelChartEl = $(`#panel${panelId} .big-number-display-container`);
-		panelChartEl.css("width", "100%").css("height", "100%");
-	}
+    if (panelId == -1) {
+        panelChartEl = $('.panelDisplay .big-number-display-container');
+    } else {
+        panelChartEl = $(`#panel${panelId} .big-number-display-container`);
+        $(`#panel${panelId} .panEdit-panel`).hide();
+        panelChartEl = $(`#panel${panelId} .big-number-display-container`);
+        panelChartEl.css('width', '100%').css('height', '100%');
+    }
 
-	if (!value) {
-		panelChartEl.append(`<div class="big-number">NA</div> `);
-	} else {
-		if (dataType != null && dataType != undefined && dataType != ''){
-			var bigNum = [];
-			let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
-			let number = parseFloat(value.replace(/,/g, ''));
-			let dataTypeAbbrevCap = dataTypeAbbrev.substring(0,2).toUpperCase()
-			if (["KB",'MB',"GB","TB","PB","EB","ZB","YB"].includes(dataTypeAbbrevCap)){
-				dataTypeAbbrev = dataTypeAbbrev.substring(1)
-				if(dataTypeAbbrevCap === "KB"){
-					number = number * 1000;
-				}else if (dataTypeAbbrevCap === "MB"){
-					number = number * 1e6;
-				} else if(dataTypeAbbrevCap === "GB"){
-					number = number * 1e9;
-				} else if(dataTypeAbbrevCap === "TB"){
-					number = number * 1e12;
-				} else if(dataTypeAbbrevCap === "PB"){
-					number = number * 1e15;
-				} else if (dataTypeAbbrevCap === "EB") {
-					number *= 1e18;
-				} else if (dataTypeAbbrevCap === "ZB") {
-					number *= 1e21;
-				} else if (dataTypeAbbrevCap === "YB") {
-					number *= 1e24;
-				}
-				bigNum = addSuffix(number);
+    if (!value) {
+        panelChartEl.append(`<div class="big-number">NA</div> `);
+    } else {
+        if (dataType != null && dataType != undefined && dataType != '') {
+            var bigNum = [];
+            let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
+            let number = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : parseFloat(value);
+            let dataTypeAbbrevCap = dataTypeAbbrev.substring(0, 2).toUpperCase();
+            if (['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].includes(dataTypeAbbrevCap)) {
+                dataTypeAbbrev = dataTypeAbbrev.substring(1);
+                if (dataTypeAbbrevCap === 'KB') {
+                    number = number * 1000;
+                } else if (dataTypeAbbrevCap === 'MB') {
+                    number = number * 1e6;
+                } else if (dataTypeAbbrevCap === 'GB') {
+                    number = number * 1e9;
+                } else if (dataTypeAbbrevCap === 'TB') {
+                    number = number * 1e12;
+                } else if (dataTypeAbbrevCap === 'PB') {
+                    number = number * 1e15;
+                } else if (dataTypeAbbrevCap === 'EB') {
+                    number *= 1e18;
+                } else if (dataTypeAbbrevCap === 'ZB') {
+                    number *= 1e21;
+                } else if (dataTypeAbbrevCap === 'YB') {
+                    number *= 1e24;
+                }
+                bigNum = addSuffix(number);
+            } else if (['ns', 'µs', 'ms', 'd', 'm', 's', 'h'].includes(dataTypeAbbrev)) {
+                if (dataTypeAbbrev === 'ns') {
+                    number = number / 1e9;
+                } else if (dataTypeAbbrev === 'µs') {
+                    number = number / 1e6;
+                } else if (dataTypeAbbrev === 'ms') {
+                    number = number / 1e3;
+                } else if (dataTypeAbbrev === 'd') {
+                    number = number * 24 * 60 * 60;
+                } else if (dataTypeAbbrev === 'm') {
+                    number = number * 60;
+                } else if (dataTypeAbbrev === 'h') {
+                    number = number * 3600;
+                }
+                dataTypeAbbrev = '';
+                bigNum = findSmallestGreaterOne(number);
+            } else if (dataTypeAbbrev === '' || dataTypeAbbrev === '%') {
+                bigNum[1] = '';
+                bigNum[0] = number;
+            } else {
+                bigNum = addSuffix(number);
+            }
+            panelChartEl.append(`<div class="big-number">${bigNum[0]} </div> <div class="unit">${bigNum[1] + dataTypeAbbrev} </div> `);
+        } else {
+            panelChartEl.append(`<div class="big-number">${value} </div> `);
+        }
+    }
 
-			} else if(['ns',"µs", "ms", "d","m","s","h"].includes(dataTypeAbbrev)){				
-				if (dataTypeAbbrev === "ns"){
-					number = number / 1e9;
-				} else if (dataTypeAbbrev === "µs"){
-					number = number / 1e6;
-				}else if (dataTypeAbbrev === "ms"){
-					number = number / 1e3;
-				}else if (dataTypeAbbrev === "d"){
-					number = number * 24 * 60 * 60
-				}else if (dataTypeAbbrev === "m"){
-					number = number * 60
-				}else if (dataTypeAbbrev === "s"){
-					number = number 
-				}else if (dataTypeAbbrev === "h"){
-					number = number * 3600;
-				}
-				dataTypeAbbrev = ""
-				bigNum = findSmallestGreaterOne(number);		
-			} else if (dataTypeAbbrev === "" || dataTypeAbbrev === "%"){
-				bigNum[1]  = ""
-				bigNum[0] = number
-			} else{
-				bigNum = addSuffix(number);		
-			}	
-			panelChartEl.append(`<div class="big-number">${bigNum[0]} </div> <div class="unit">${bigNum[1]+dataTypeAbbrev} </div> `);
-		}else{
-			panelChartEl.append(`<div class="big-number">${value} </div> `);
-		}
-	}
-
-
-	if(panelId === -1) {
-		let parentWidth = $(".panelDisplay").width();
-		let numWidth = $(".panelDisplay .big-number-display-container").width();
-		if (numWidth > parentWidth){
-			$(".big-number").css("font-size","5.5em");
-			$(".unit").css("font-size","55px");
-		}
-	}
-	if(panelId !== -1) {
-		var newSize = $('#' + panelId).width() / 8;
-		$('#' + panelId).find('.big-number, .unit').css('font-size', newSize + 'px');
-	}
+    if (panelId === -1) {
+        let parentWidth = $('.panelDisplay').width();
+        let numWidth = $('.panelDisplay .big-number-display-container').width();
+        if (numWidth > parentWidth) {
+            $('.big-number').css('font-size', '5.5em');
+            $('.unit').css('font-size', '55px');
+        }
+    }
+    if (panelId !== -1) {
+        var newSize = $('#' + panelId).width() / 8;
+        $('#' + panelId)
+            .find('.big-number, .unit')
+            .css('font-size', newSize + 'px');
+    }
 }
 
+//eslint-disable-next-line no-unused-vars
 function createColorsArray() {
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
@@ -436,39 +484,41 @@ function createColorsArray() {
     return colorArray;
 }
 
+//eslint-disable-next-line no-unused-vars
 function renderLineChart(seriesData, panelId) {
-	let classic = ["#a3cafd", "#5795e4", "#d7c3fa", "#7462d8", "#f7d048", "#fbf09e"]
-	let root = document.querySelector(':root');
-	let rootStyles = getComputedStyle(root);
-	let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
-	let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
-	let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-	let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
-
+    let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
+    let root = document.querySelector(':root');
+    let rootStyles = getComputedStyle(root);
+    let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
+    let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
+    let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
+    let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
+    var labels, datasets;
+    var panelChartEl;
     // Extract labels and datasets from seriesData
     if (seriesData.length > 0) {
-        var labels = Object.keys(seriesData[0].values);
-        var datasets = seriesData.map(function(series, index) {
+        labels = Object.keys(seriesData[0].values);
+        datasets = seriesData.map(function (series, index) {
             return {
                 label: series.seriesName,
                 data: Object.values(series.values),
                 borderColor: classic[index % classic.length],
-                backgroundColor : classic[index % classic.length] + 70,
+                backgroundColor: classic[index % classic.length] + 70,
                 borderWidth: 2,
-                fill: false
+                fill: false,
             };
         });
-    }else{
-        var labels = [];
-        var datasets = [];
+    } else {
+        labels = [];
+        datasets = [];
     }
 
-	var chartData = {
+    var chartData = {
         labels: labels,
-        datasets: datasets
+        datasets: datasets,
     };
 
-	const config = {
+    const config = {
         type: 'line',
         data: chartData,
         options: {
@@ -477,64 +527,64 @@ function renderLineChart(seriesData, panelId) {
             title: {
                 display: true,
             },
-			plugins: {
+            plugins: {
                 legend: {
                     position: 'bottom',
                     align: 'start',
                     labels: {
                         boxWidth: 10,
                         boxHeight: 2,
-                        fontSize: 10
-                    }
-                }
+                        fontSize: 10,
+                    },
+                },
             },
             scales: {
                 x: {
                     grid: {
-						display: false,
+                        display: false,
                     },
                     ticks: {
                         color: function () {
-							return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
-                    }
+                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+                        },
+                    },
                 },
-			},
                 y: {
                     grid: {
                         color: function () {
-							return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
-						},
+                            return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+                        },
                     },
                     ticks: {
                         color: function () {
-							return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
-						},
+                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+                        },
+                    },
                 },
-            }
-        }
-	}
+            },
+        },
+    };
+    if (panelId == -1) {
+        panelChartEl = $(`.panelDisplay .panEdit-panel`);
+    } else {
+        panelChartEl = $(`#panel${panelId} .panEdit-panel`);
+        panelChartEl.css('width', '100%').css('height', '100%');
     }
-	if (panelId == -1) {
-		var panelChartEl = $(`.panelDisplay .panEdit-panel`);
-	} else {
-		var panelChartEl = $(`#panel${panelId} .panEdit-panel`);
-		panelChartEl.css("width", "100%").css("height", "100%");
-	}
 
-	let can = `<canvas class="line-chart-canvas" ></canvas>`
-	panelChartEl.append(can)
-	var lineCanvas = (panelChartEl).find('canvas')[0].getContext('2d');
-	lineChart = new Chart(lineCanvas, config);
-	$(`#panel${panelId} .panel-body #panel-loading`).hide();
-	if (panelId === -1){
-		panelChartEl.append(`<div class="lineChartLegend"></div>`)
-	}
+    let can = `<canvas class="line-chart-canvas" ></canvas>`;
+    panelChartEl.append(can);
+    var lineCanvas = panelChartEl.find('canvas')[0].getContext('2d');
+    lineChart = new Chart(lineCanvas, config);
+    $(`#panel${panelId} .panel-body #panel-loading`).hide();
+    if (panelId === -1) {
+        panelChartEl.append(`<div class="lineChartLegend"></div>`);
+    }
 
-	return lineChart;
-};
+    return lineChart;
+}
 
-window.addEventListener('resize', function (event) {
-    if ($('.panelEditor-container').css('display') !== 'none' && panelChart){
-		panelChart.resize();
+window.addEventListener('resize', function (_event) {
+    if ($('.panelEditor-container').css('display') !== 'none' && panelChart) {
+        panelChart.resize();
     }
 });

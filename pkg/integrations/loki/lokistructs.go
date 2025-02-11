@@ -17,6 +17,15 @@
 
 package loki
 
+type LokiLogStream struct {
+	Stream map[string]string `json:"stream"`
+	Values [][]interface{}   `json:"values"`
+}
+
+type LokiLogData struct {
+	Streams []LokiLogStream `json:"streams"`
+}
+
 type LokiMetricsResponse struct {
 	Status string      `json:"status"`
 	Data   MetricsData `json:"data"`
@@ -124,21 +133,21 @@ type Stats struct {
 }
 
 type Ingester struct {
-	CompressedBytes    int `json:"compressedBytes"`
-	DecompressedBytes  int `json:"decompressedBytes"`
-	DecompressedLines  int `json:"decompressedLines"`
-	HeadChunkBytes     int `json:"headChunkBytes"`
-	HeadChunkLines     int `json:"headChunkLines"`
-	TotalBatches       int `json:"totalBatches"`
-	TotalChunksMatched int `json:"totalChunksMatched"`
-	TotalDuplicates    int `json:"totalDuplicates"`
-	TotalLinesSent     int `json:"totalLinesSent"`
-	TotalReached       int `json:"totalReached"`
+	CompressedBytes    uint64 `json:"compressedBytes"`
+	DecompressedBytes  uint64 `json:"decompressedBytes"`
+	DecompressedLines  uint64 `json:"decompressedLines"`
+	HeadChunkBytes     uint64 `json:"headChunkBytes"`
+	HeadChunkLines     uint64 `json:"headChunkLines"`
+	TotalBatches       int    `json:"totalBatches"`
+	TotalChunksMatched int    `json:"totalChunksMatched"`
+	TotalDuplicates    int    `json:"totalDuplicates"`
+	TotalLinesSent     int    `json:"totalLinesSent"`
+	TotalReached       int    `json:"totalReached"`
 }
 
 type Store struct {
 	CompressedBytes       int     `json:"compressedBytes"`
-	DecompressedBytes     int     `json:"decompressedBytes"`
+	DecompressedBytes     uint64  `json:"decompressedBytes"`
 	DecompressedLines     int     `json:"decompressedLines"`
 	ChunksDownloadTime    float64 `json:"chunksDownloadTime"`
 	TotalChunksRef        int     `json:"totalChunksRef"`
@@ -151,6 +160,6 @@ type Summary struct {
 	ExecTime                float64 `json:"execTime"`
 	LinesProcessedPerSecond int     `json:"linesProcessedPerSecond"`
 	QueueTime               float64 `json:"queueTime"`
-	TotalBytesProcessed     int     `json:"totalBytesProcessed"`
+	TotalBytesProcessed     uint64  `json:"totalBytesProcessed"`
 	TotalLinesProcessed     int     `json:"totalLinesProcessed"`
 }

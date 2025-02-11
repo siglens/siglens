@@ -1,0 +1,44 @@
+{
+    "queryText": "city=Boston | eval names=\"Frank,Grace,Heidi,Ivan\"| makemv delim=\",\" names | head 4 | mvexpand names limit=2 | fields names",
+    "expectedResult": {
+         "totalMatched": {
+             "value": 8,
+             "relation": "eq"
+         },
+         "qtype": "logs-query",
+         "uniqueKeyCols": ["names"],
+         "records": [
+             {
+                 "names": "Frank"
+             },
+             {
+                 "names": "Grace"
+             },
+             {
+                 "names": "Frank"
+             },
+             {
+                 "names": "Grace"
+             },
+             {
+                 "names": "Frank"
+             },
+             {
+                 "names": "Grace"
+             },
+             {
+                 "names": "Frank"
+             },
+             {
+                 "names": "Grace"
+             }
+         ],
+         "allColumns": [
+             "names"
+         ],
+         "columnsOrder": [
+             "names"
+         ]
+     }
+ }
+ 

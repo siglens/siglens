@@ -20,6 +20,7 @@ package search
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ import (
 )
 
 func getMockRecsAndFinalCols(numRecs uint64) (map[string]map[string]interface{}, map[string]bool) {
-	rand.Seed(time.Now().UnixNano()) // Ensure random behavior is not repetitive.
+	rng := rand.New(rand.NewSource(time.Now().UnixNano())) // Ensure random behavior is not repetitive.
 
 	recs := make(map[string]map[string]interface{}, numRecs)
 	finalCols := make(map[string]bool)
@@ -38,8 +39,8 @@ func getMockRecsAndFinalCols(numRecs uint64) (map[string]map[string]interface{},
 	for i := uint64(1); i <= numRecs; i++ {
 		recID := fmt.Sprintf("rec%d", i)
 		recData := map[string]interface{}{
-			"measure1": rand.Float64() * 100,     // Random float value
-			"measure2": rand.Intn(100),           // Random integer value
+			"measure1": rng.Float64() * 100,      // Random float value
+			"measure2": rng.Intn(100),            // Random integer value
 			"measure3": fmt.Sprintf("info%d", i), // Incremental info string
 		}
 		recs[recID] = recData
@@ -372,6 +373,72 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 			assert.Equal(t, recsSize, len(recs), "The records size should be equal to the recsSize as each record in a segment is unique and is repeated across segments.")
 			for _, record := range recs {
 				assert.Equal(t, uint64(2), record["count(*)"], "The count should be equal to number of Segments as each record in a segment is unique and is repeated across segments.")
+			}
+		} else {
+			assert.Nil(t, resultMap, "The resultMap should be nil until the last segment is processed")
+		}
+	}
+}
+
+// Tests the case where number or records exceed list size limit.
+func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
+	numSegments := 2
+	sizeLimit := 0
+	recsSize := utils.MAX_SPL_LIST_SIZE * 2
+	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
+		{
+			MeasureCol:  "measure1",
+			MeasureFunc: utils.List,
+			StrEnc:      "list(measure1)",
+		},
+	}}
+	aggs := &structs.QueryAggregators{Limit: sizeLimit}
+	for i := 0; i < numSegments; i++ {
+		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
+		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
+
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+
+		if i == numSegments-1 {
+			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
+			assert.True(t, resultMap["CHECK_NEXT_AGG"], "The last Segment should return a resultMap with a key CHECK_NEXT_AGG set to true.")
+			assert.Equal(t, 1, len(recs), "MeasureAggs: Should return only a single record containing result of the aggregation.")
+			for _, record := range recs {
+				len := len(strings.Split(record["list(measure1)"].(string), " "))
+				assert.Equal(t, 100, len, "The list(measure1) value should be Equal to list of all records of all the Segments.")
+			}
+		} else {
+			assert.Nil(t, resultMap, "The resultMap should be nil until the last segment is processed")
+		}
+	}
+}
+
+// Tests the normal list aggregation.
+func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
+	numSegments := 2
+	sizeLimit := 0
+	recsSize := 20
+	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
+		{
+			MeasureCol:  "measure1",
+			MeasureFunc: utils.List,
+			StrEnc:      "list(measure1)",
+		},
+	}}
+	aggs := &structs.QueryAggregators{Limit: sizeLimit}
+	for i := 0; i < numSegments; i++ {
+		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
+		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
+
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+
+		if i == numSegments-1 {
+			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
+			assert.True(t, resultMap["CHECK_NEXT_AGG"], "The last Segment should return a resultMap with a key CHECK_NEXT_AGG set to true.")
+			assert.Equal(t, 1, len(recs), "MeasureAggs: Should return only a single record containing result of the aggregation.")
+			for _, record := range recs {
+				len := len(strings.Split(record["list(measure1)"].(string), " "))
+				assert.Equal(t, 40, len, "The list(measure1) value should be Equal to list of all records of all the Segments.")
 			}
 		} else {
 			assert.Nil(t, resultMap, "The resultMap should be nil until the last segment is processed")

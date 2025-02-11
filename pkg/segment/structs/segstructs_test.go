@@ -20,6 +20,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -102,8 +103,10 @@ func Test_HasQueryAggergatorBlock_HasNoLetColumnsRequest(t *testing.T) {
 
 func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 	ot := &OutputTransforms{
-		MaxRows:   12,
-		RowsAdded: 1,
+		HeadRequest: &HeadExpr{
+			MaxRows:   12,
+			RowsAdded: 1,
+		},
 	}
 
 	qa := &QueryAggregators{
@@ -113,19 +116,6 @@ func Test_HasQueryAggergatorBlock_MaxRowsGreaterThanRowAdded(t *testing.T) {
 	assert.True(t, qa.HasQueryAggergatorBlock())
 }
 
-func Test_HasQueryAggergatorBlock_MaxRowsLessThanRowAdded(t *testing.T) {
-	ot := &OutputTransforms{
-		MaxRows:   1,
-		RowsAdded: 9,
-	}
-
-	qa := &QueryAggregators{
-		OutputTransforms: ot,
-	}
-
-	assert.False(t, qa.HasQueryAggergatorBlock())
-}
-
 func Test_HasQueryAggergatorBlock(t *testing.T) {
 	lcr := &LetColumnsRequest{
 		RexColRequest: &RexExpr{},
@@ -133,8 +123,10 @@ func Test_HasQueryAggergatorBlock(t *testing.T) {
 
 	ot := &OutputTransforms{
 		LetColumns: lcr,
-		MaxRows:    5,
-		RowsAdded:  1,
+		HeadRequest: &HeadExpr{
+			MaxRows:   5,
+			RowsAdded: 1,
+		},
 	}
 
 	qa := &QueryAggregators{
@@ -219,31 +211,24 @@ func Test_HasQueryAggergatorBlockInChain_EmptyChain(t *testing.T) {
 func Test_HasQueryAggergatorBlockInChain_SingleNodeWithBlock(t *testing.T) {
 	qa := &QueryAggregators{
 		OutputTransforms: &OutputTransforms{
-			MaxRows:   10,
-			RowsAdded: 1,
+			HeadRequest: &HeadExpr{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
 		},
 	}
 
 	assert.True(t, qa.HasQueryAggergatorBlockInChain(), "Expected true when single node has a query aggregator block, got false")
 }
 
-func Test_HasQueryAggergatorBlockInChain_SingleNodeWithoutBlock(t *testing.T) {
-	qa := &QueryAggregators{
-		OutputTransforms: &OutputTransforms{
-			MaxRows:   1,
-			RowsAdded: 10,
-		},
-	}
-
-	assert.False(t, qa.HasQueryAggergatorBlockInChain(), "Expected false when single node does not have a query aggregator block, got true")
-}
-
 func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtEnd(t *testing.T) {
 	qa := &QueryAggregators{
 		Next: &QueryAggregators{
 			OutputTransforms: &OutputTransforms{
-				MaxRows:   10,
-				RowsAdded: 1,
+				HeadRequest: &HeadExpr{
+					MaxRows:   10,
+					RowsAdded: 1,
+				},
 			},
 		},
 	}
@@ -262,8 +247,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithoutBlock(t *testing.T)
 func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockAtStart(t *testing.T) {
 	qa := &QueryAggregators{
 		OutputTransforms: &OutputTransforms{
-			MaxRows:   10,
-			RowsAdded: 1,
+			HeadRequest: &HeadExpr{
+				MaxRows:   10,
+				RowsAdded: 1,
+			},
 		},
 		Next: &QueryAggregators{},
 	}
@@ -276,8 +263,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInEnd(t *testing.
 		Next: &QueryAggregators{
 			Next: &QueryAggregators{
 				OutputTransforms: &OutputTransforms{
-					MaxRows:   10,
-					RowsAdded: 1,
+					HeadRequest: &HeadExpr{
+						MaxRows:   10,
+						RowsAdded: 1,
+					},
 				},
 			},
 		},
@@ -290,8 +279,10 @@ func Test_HasQueryAggergatorBlockInChain_MultipleNodesWithBlockInMiddle(t *testi
 	qa := &QueryAggregators{
 		Next: &QueryAggregators{
 			OutputTransforms: &OutputTransforms{
-				MaxRows:   10,
-				RowsAdded: 1,
+				HeadRequest: &HeadExpr{
+					MaxRows:   10,
+					RowsAdded: 1,
+				},
 			},
 			Next: &QueryAggregators{},
 		},
@@ -451,4 +442,433 @@ func Test_HasDedupBlockInChain_HasNoDedupBlockAndNilNext(t *testing.T) {
 	}
 
 	assert.False(t, qa.HasDedupBlockInChain())
+}
+
+func Test_HasSortBlockInChain_emptyChain(t *testing.T) {
+	qa := &QueryAggregators{}
+
+	assert.False(t, qa.HasSortBlockInChain(), "Expected false when the chain is empty, got true")
+}
+
+func Test_HasSortBlockInChain_OnlyOneQA(t *testing.T) {
+	ot := &OutputTransforms{
+		LetColumns: &LetColumnsRequest{
+			SortColRequest: &SortExpr{},
+		},
+	}
+
+	qa := &QueryAggregators{
+		OutputTransforms: ot,
+	}
+
+	assert.True(t, qa.HasSortBlockInChain())
+}
+func Test_HasSortBlockInChain_OnlyInLastQA(t *testing.T) {
+	ot_sort := &OutputTransforms{
+		LetColumns: &LetColumnsRequest{
+			SortColRequest: &SortExpr{},
+		},
+	}
+
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: ot_sort},
+	}
+
+	assert.True(t, qa.HasSortBlockInChain())
+}
+
+func Test_HasTail_OnlyInLastQA(t *testing.T) {
+	ot := &OutputTransforms{
+		TailRequest: &TailExpr{},
+	}
+
+	qa := &QueryAggregators{
+		Next: &QueryAggregators{
+			OutputTransforms: ot},
+	}
+
+	assert.True(t, qa.HasTailInChain())
+}
+
+func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("field1")
+	assert.True(t, foundInStat)
+	assert.Equal(t, "value1", value)
+	assert.Equal(t, -1, index)
+}
+
+func Test_GetBucketValueForGivenField_GroupByKey(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey2")
+	assert.Equal(t, "key2", value)
+	assert.Equal(t, 1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_GroupByKey_Int(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []int{1, 2},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey2")
+	assert.Equal(t, 2, value)
+	assert.Equal(t, 1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_NotFound(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("nonExistentField")
+	assert.Nil(t, value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_SingleBucketKey(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   "singleKey",
+		GroupByKeys: []string{"groupKey1"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey1")
+	assert.Equal(t, "singleKey", value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey2")
+	assert.Nil(t, value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_GetBucketValueForGivenField_GroupByKeyNotList(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   "notAList",
+		GroupByKeys: []string{"groupKey1"},
+	}
+
+	value, index, foundInStat := br.GetBucketValueForGivenField("groupKey1")
+	assert.Equal(t, "notAList", value)
+	assert.Equal(t, -1, index)
+	assert.False(t, foundInStat)
+}
+
+func Test_SetBucketValueForGivenField_ValidString(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, []interface{}{"key1", "newKey2"}, br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_ValidStringList(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", []string{"newKey2", "anotherKey2"}, 1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, []interface{}{"key1", []string{"newKey2", "anotherKey2"}}, br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_InvalidIndex(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 2, false)
+	assert.NotNil(t, err)
+}
+
+func Test_SetBucketValueForGivenField_FieldNotFound(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("nonExistentField", "value", 1, false)
+	assert.NotNil(t, err)
+}
+
+func Test_SetBucketValueForGivenField_NotListType(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   "notAList",
+		GroupByKeys: []string{"groupKey1"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey1", "newValue", -1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, "newValue", br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_StatisticResult(t *testing.T) {
+	br := &BucketResult{
+		StatRes: map[string]utils.CValueEnclosure{
+			"field1": {Dtype: utils.SS_DT_STRING, CVal: "value1"},
+		},
+		BucketKey:   []string{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("field1", "value", 1, true)
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"key1", "key2"}, br.BucketKey)
+	assert.Equal(t, "value", br.StatRes["field1"].CVal)
+}
+
+func Test_SetBucketValueForGivenField_ConvertToSlice(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []interface{}{"key1", "key2"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
+	assert.Nil(t, err)
+	assert.Equal(t, []interface{}{"key1", "newKey2"}, br.BucketKey)
+}
+
+func Test_SetBucketValueForGivenField_IndexOutOfRange(t *testing.T) {
+	br := &BucketResult{
+		BucketKey:   []string{"key1"},
+		GroupByKeys: []string{"groupKey1", "groupKey2"},
+	}
+
+	err := br.SetBucketValueForGivenField("groupKey2", "newKey2", 1, false)
+	assert.NotNil(t, err)
+}
+
+func Test_IsStatsAggPresentInChain(t *testing.T) {
+	tests := []struct {
+		name     string
+		qa       *QueryAggregators
+		expected bool
+	}{
+		{
+			name:     "Nil QueryAggregators",
+			qa:       nil,
+			expected: false,
+		},
+		{
+			name:     "None of GroupByRequest and MeasureOperations are presented",
+			qa:       &QueryAggregators{Sort: &SortRequest{}},
+			expected: false,
+		},
+		{
+			name: "Only GroupByRequest Present",
+			qa: &QueryAggregators{
+				GroupByRequest: &GroupByRequest{},
+			},
+			expected: true,
+		},
+		{
+			name: "Only MeasureOperations Present",
+			qa: &QueryAggregators{
+				MeasureOperations: []*MeasureAggregator{
+					{MeasureCol: "col1"},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:     "Both GroupByRequest and MeasureOperations Absent",
+			qa:       &QueryAggregators{},
+			expected: false,
+		},
+		{
+			name: "Next Aggregator in the Chain",
+			qa: &QueryAggregators{
+				Next: &QueryAggregators{
+					GroupByRequest: &GroupByRequest{},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Nested Next Aggregator Chain",
+			qa: &QueryAggregators{
+				Next: &QueryAggregators{
+					Next: &QueryAggregators{
+						MeasureOperations: []*MeasureAggregator{
+							{MeasureCol: "col1"},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		actual := tt.qa.IsStatsAggPresentInChain()
+		assert.Equal(t, tt.expected, actual, tt.name)
+	}
+}
+
+func Test_EncodeDecodeSegStats(t *testing.T) {
+	segStatsList := []*SegStats{
+		{
+			IsNumeric: true,
+			Count:     123,
+			Min: utils.CValueEnclosure{
+				Dtype: utils.SS_DT_SIGNED_NUM,
+				CVal:  int64(1),
+			},
+			Max: utils.CValueEnclosure{
+				Dtype: utils.SS_DT_SIGNED_NUM,
+				CVal:  int64(42),
+			},
+			NumStats: &NumericStats{
+				NumericCount: 10,
+				Sum: utils.NumTypeEnclosure{
+					Ntype:    utils.SS_DT_SIGNED_NUM,
+					IntgrVal: 200,
+				},
+			},
+			StringStats: nil,
+			Records:     nil,
+		},
+		{
+			IsNumeric: false,
+			Count:     42,
+			Min:       utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "str1"},
+			Max:       utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "str2"},
+			NumStats:  nil,
+			StringStats: &StringStats{
+				StrSet: map[string]struct{}{
+					"str1": {},
+					"str2": {},
+				},
+				StrList: []string{
+					"str1",
+					"str2",
+				},
+			},
+			Records: nil,
+		},
+	}
+
+	for _, originalSegStats := range segStatsList {
+		originalSegStats.CreateNewHll()
+
+		segStatsJson, err := originalSegStats.ToJSON()
+		assert.NoError(t, err)
+		assert.NotNil(t, segStatsJson)
+
+		recoveredSegStats, err := segStatsJson.ToStats()
+		assert.NoError(t, err)
+		assert.NotNil(t, recoveredSegStats)
+
+		assert.Equal(t, originalSegStats, recoveredSegStats)
+	}
+}
+
+func Test_EqualsIsDeepEquals(t *testing.T) {
+	segStat1 := &SegStats{
+		IsNumeric: false,
+		Count:     42,
+		NumStats:  nil,
+		StringStats: &StringStats{
+			StrSet: map[string]struct{}{
+				"str1": {},
+				"str2": {},
+			},
+			StrList: []string{
+				"str1",
+				"str2",
+			},
+		},
+		Records: nil,
+	}
+
+	segStat2 := &SegStats{
+		IsNumeric: false,
+		Count:     42,
+		NumStats:  nil,
+		StringStats: &StringStats{
+			StrSet: map[string]struct{}{
+				"str1": {},
+				"str2": {},
+			},
+			StrList: []string{
+				"str1",
+				"str2",
+			},
+		},
+		Records: nil,
+	}
+
+	segStat1.CreateNewHll()
+
+	segStat2.CreateNewHll()
+
+	assert.Equal(t, segStat1, segStat2)
+
+	segStat2.StringStats.StrSet = map[string]struct{}{
+		"str1": {},
+		"str2": {},
+		"str3": {},
+	}
+
+	assert.NotEqual(t, segStat1, segStat2)
+
+	segStat2.StringStats.StrSet = map[string]struct{}{
+		"str1": {},
+		"str2": {},
+	}
+
+	segStat2.StringStats.StrList = []string{
+		"str1",
+		"str2",
+		"str3",
+	}
+
+	assert.NotEqual(t, segStat1, segStat2)
 }

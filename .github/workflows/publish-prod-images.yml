@@ -4,12 +4,36 @@ on:
     branches:
       - 'main'
 jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/const SigLensVersion = "\(.*\)"/\1/p' pkg/config/version.go)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      - name: Create and push tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          # Check if tag already exists
+          if ! git rev-parse "${{ steps.version.outputs.VERSION }}" >/dev/null 2>&1; then
+            git tag "${{ steps.version.outputs.VERSION }}"
+            git push origin "${{ steps.version.outputs.VERSION }}"
+            echo "Created and pushed tag ${{ steps.version.outputs.VERSION }}"
+          else
+            echo "Tag ${{ steps.version.outputs.VERSION }} already exists"
+          fi
   siglens-docker:
     runs-on: ubuntu-latest
     environment: build-environment
     permissions:
         id-token: write
-        contents: read
+        contents: write
     steps:
       -
         name: Checkout
@@ -51,15 +75,38 @@ jobs:
             context: .
             file: Dockerfile
             push: true
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
             tags: ${{ steps.meta.outputs.tags }}
-
+  sigclient-docker:
+      runs-on: ubuntu-latest
+      steps:
+        -
+          name: Checkout
+          uses: actions/checkout@v3
+          continue-on-error: true
+        - 
+          name: Login to Docker Hub
+          uses: docker/login-action@v1
+          continue-on-error: true
+          with:
+              username: ${{ secrets.DOCKERHUB_USERNAME }}
+              password: ${{ secrets.DOCKERHUB_TOKEN }}
+        -
+          name: Build and push
+          uses: docker/build-push-action@v3
+          continue-on-error: true
+          with:
+              context: tools/sigclient
+              file: tool/sigclient/Dockerfile
+              push: true
+              tags: siglens/sigclient:latest
   sigscalr-release-assets:
       runs-on: ubuntu-latest
       environment: build-environment
+      needs: create-tag
       permissions:
         id-token: write
-        contents: read
+        contents: write
       steps:
         -
           name: Checkout
@@ -84,13 +131,13 @@ jobs:
               release_name: ${{ env.RELEASE_TAG }}
               tag_name: ${{ env.RELEASE_TAG }}
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
         - name: Upload Release Asset - server.yaml
           id: upload-release-asset-serverConfig
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: server.yaml
@@ -100,7 +147,7 @@ jobs:
           id: upload-release-asset-playgroundConfig
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: playground.yaml
@@ -110,7 +157,7 @@ jobs:
           id: upload-release-asset-InstallDockerScripts
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: install_with_docker.sh
@@ -120,7 +167,7 @@ jobs:
           id: upload-release-asset-InstallDockerPodmanScripts
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: install.sh
@@ -130,7 +177,7 @@ jobs:
           id: upload-release-asset-DockerCompose
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: docker-compose.yml
@@ -140,7 +187,7 @@ jobs:
           id: upload-release-asset-SigLensMetricsOtelCollector
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: ssmetrics-otel-collector-config.yaml
@@ -150,7 +197,7 @@ jobs:
           id: upload-release-asset-PodmanCompose
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: podman-compose.yml
@@ -160,10 +207,19 @@ jobs:
           id: upload-release-asset-Podman-Network_SigLens
           uses: actions/upload-release-asset@v1
           env:
-            GITHUB_TOKEN: ${{ secrets.SL_GITHUB_TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           with:
             upload_url: ${{ steps.create_release.outputs.upload_url }} 
             asset_path: podman-network_siglens.conflist
             asset_name: podman-network_siglens.conflist
             asset_content_type: application/octet-stream
-    
+
+  check-status:
+    runs-on: ubuntu-latest
+    needs: [create-tag, siglens-docker, sigclient-docker, sigscalr-release-assets]
+    steps:
+      - name: Check previous jobs' results
+        if: ${{ failure() }}
+        run: |
+          echo "One or more jobs failed. Marking workflow as failed."
+          exit 1 

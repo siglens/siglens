@@ -18,30 +18,49 @@
 package alertutils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
+type AlertType uint8
+
+const (
+	AlertTypeLogs AlertType = iota + 1
+	AlertTypeMetrics
+	AlertTypeMinion
+)
+
+type AlertConfig struct {
+	AlertName    string              `json:"alert_name" gorm:"not null;unique"`
+	AlertType    AlertType           `json:"alert_type"`
+	ContactID    string              `json:"contact_id" gorm:"foreignKey:ContactId;"`
+	ContactName  string              `json:"contact_name"`
+	Labels       []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
+	QueryParams  QueryParams         `json:"queryParams" gorm:"embedded"`
+	Condition    AlertQueryCondition `json:"condition"`
+	Value        float64             `json:"value"`
+	EvalWindow   uint64              `json:"eval_for"`      // in minutes; TODO: Rename json field to eval_window
+	EvalInterval uint64              `json:"eval_interval"` // in minutes
+	Message      string              `json:"message"`
+}
+
 type AlertDetails struct {
-	AlertId         string              `json:"alert_id" gorm:"primaryKey"`
-	AlertName       string              `json:"alert_name" gorm:"not null;unique"`
-	State           AlertState          `json:"state"`
-	CreateTimestamp time.Time           `json:"create_timestamp" gorm:"autoCreateTime:milli" `
-	ContactID       string              `json:"contact_id" gorm:"foreignKey:ContactId;"`
-	ContactName     string              `json:"contact_name"`
-	Labels          []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
-	SilenceMinutes  uint64              `json:"silence_minutes"`
-	QueryParams     QueryParams         `json:"queryParams" gorm:"embedded"`
-	Condition       AlertQueryCondition `json:"condition"`
-	Value           float32             `json:"value"`
-	EvalFor         uint64              `json:"eval_for"`
-	EvalInterval    uint64              `json:"eval_interval"`
-	Message         string              `json:"message"`
-	CronJob         gocron.Job          `json:"cron_job" gorm:"embedded"`
-	NodeId          uint64              `json:"node_id"`
-	NotificationID  string              `json:"notification_id" gorm:"foreignKey:NotificationId;"`
-	OrgId           uint64              `json:"org_id"`
+	AlertConfig
+	AlertId                  string     `json:"alert_id" gorm:"primaryKey"`
+	State                    AlertState `json:"state"`
+	CreateTimestamp          time.Time  `json:"create_timestamp" gorm:"autoCreateTime:milli" `
+	SilenceMinutes           uint64     `json:"silence_minutes"`
+	SilenceEndTime           uint64     `json:"silence_end_time"`
+	MetricsQueryParamsString string     `json:"metricsQueryParams"`
+	CronJob                  gocron.Job `json:"cron_job" gorm:"embedded"`
+	NodeId                   uint64     `json:"node_id"`
+	NotificationID           string     `json:"notification_id" gorm:"foreignKey:NotificationId;"`
+	OrgId                    int64      `json:"org_id"`
+	NumEvaluationsCount      uint64     `json:"num_evaluations_count"`
 }
 
 func (AlertDetails) TableName() string {
@@ -59,15 +78,31 @@ func (AlertLabel) TableName() string {
 }
 
 type AlertHistoryDetails struct {
-	ID               uint      `gorm:"primaryKey;autoIncrement:true"`
-	AlertId          string    `json:"alert_id"`
-	EventDescription string    `json:"event_description"`
-	UserName         string    `json:"user_name"`
-	EventTriggeredAt time.Time `json:"event_triggered_at"`
+	ID               uint       `gorm:"primaryKey;autoIncrement:true"`
+	AlertId          string     `json:"alert_id"`
+	AlertType        AlertType  `json:"alert_type"`
+	AlertState       AlertState `json:"alert_state"`
+	EventDescription string     `json:"event_description"`
+	UserName         string     `json:"user_name"`
+	EventTriggeredAt time.Time  `json:"event_triggered_at"`
 }
 
 func (AlertHistoryDetails) TableName() string {
 	return "alert_history_details"
+}
+
+type DB_SORT_ORDER string
+
+const (
+	ASC  DB_SORT_ORDER = "ASC"
+	DESC DB_SORT_ORDER = "DESC"
+)
+
+type AlertHistoryQueryParams struct {
+	AlertId   string        `json:"alert_id"` // mandatory
+	SortOrder DB_SORT_ORDER `json:"sort_order"`
+	Limit     uint64        `json:"limit"`
+	Offset    uint64        `json:"offset"`
 }
 
 type QueryParams struct {
@@ -76,17 +111,20 @@ type QueryParams struct {
 	QueryText     string `json:"queryText"`
 	StartTime     string `json:"startTime"`
 	EndTime       string `json:"endTime"`
+	Index         string `json:"index"`
+	QueryMode     string `json:"queryMode"`
 }
 type Alert struct {
 	Status string
 }
 
 type WebhookBody struct {
-	Receiver string
-	Status   string
-	Title    string
-	Body     string
-	Alerts   []Alert
+	Receiver            string
+	Status              string
+	Title               string
+	Body                string
+	NumEvaluationsCount uint64
+	Alerts              []Alert
 }
 
 type Contact struct {
@@ -96,7 +134,7 @@ type Contact struct {
 	Slack       []SlackTokenConfig `json:"slack" gorm:"many2many:slack_contact;auto_preload"`
 	PagerDuty   string             `json:"pager_duty"`
 	Webhook     []WebHookConfig    `json:"webhook" gorm:"many2many:webhook_contact;auto_preload"`
-	OrgId       uint64             `json:"org_id"`
+	OrgId       int64              `json:"org_id"`
 }
 
 type SlackTokenConfig struct {
@@ -119,10 +157,11 @@ func (WebHookConfig) TableName() string {
 }
 
 type Notification struct {
-	NotificationId string    `json:"notification_id" gorm:"primaryKey"`
-	CooldownPeriod uint64    `json:"cooldown_period"`
-	LastSentTime   time.Time `json:"last_sent_time"`
-	AlertId        string    `json:"-"`
+	NotificationId string     `json:"notification_id" gorm:"primaryKey"`
+	CooldownPeriod uint64     `json:"cooldown_period"`
+	LastSentTime   time.Time  `json:"last_sent_time"`
+	AlertId        string     `json:"-"`
+	LastAlertState AlertState `json:"last_alert_state"`
 }
 
 func (Notification) TableName() string {
@@ -141,14 +180,21 @@ const (
 type AlertState uint8 // state of the alerts
 const (
 	Inactive AlertState = iota
+	Normal
 	Pending
 	Firing
 	SystemGeneratedAlert = "System Generated"
 	UserModified         = "User Modified"
 	AlertFiring          = "Alert Firing"
 	AlertNormal          = "Alert Normal"
+	AlertPending         = "Alert Pending"
 	ConfigChange         = "Config Modified"
 )
+
+type AlertSilenceRequest struct {
+	AlertID        string `json:"alert_id"`
+	SilenceMinutes uint64 `json:"silence_minutes"`
+}
 
 // This MUST be synced with how https://github.com/sigscalr/logminion structures
 // its output JSON.
@@ -181,9 +227,10 @@ type MinionSearch struct {
 	ContactName     string              `json:"contact_name"`
 	Labels          []AlertLabel        `json:"labels" gorm:"many2many:label_alerts"`
 	SilenceMinutes  uint64              `json:"silence_minutes"`
+	SilenceEndTime  uint64              `json:"silence_end_time"`
 	QueryParams     QueryParams         `json:"queryParams" gorm:"embedded"`
 	Condition       AlertQueryCondition `json:"condition"`
-	Value           float32             `json:"value"`
+	Value           float64             `json:"value"`
 	EvalFor         uint64              `json:"eval_for"`
 	EvalInterval    uint64              `json:"eval_interval"`
 	Message         string              `json:"message"`
@@ -195,9 +242,49 @@ type MinionSearch struct {
 	LogText         string              `json:"log_text,omitempty"`
 	LogTextHash     string              `json:"log_text_hash,omitempty"`
 	LogLevel        string              `json:"log_level,omitempty"`
-	OrgId           uint64              `json:"org_id"`
+	OrgId           int64               `json:"org_id"`
+}
+
+type MetricAlertData struct {
+	SeriesId  string  `json:"series_id"`
+	Timestamp uint32  `json:"timestamp"`
+	Value     float64 `json:"value"`
 }
 
 func (MinionSearch) TableName() string {
 	return "minion_searches"
+}
+
+func IsAlertStatePendingOrFiring(alertState AlertState) bool {
+	return alertState == Pending || alertState == Firing
+}
+
+func (alert *AlertDetails) EncodeQueryParamToBase64() {
+	if alert.AlertType == AlertTypeLogs {
+		alert.QueryParams.QueryText = utils.EncodeToBase64(alert.QueryParams.QueryText)
+	} else if alert.AlertType == AlertTypeMetrics {
+		alert.MetricsQueryParamsString = utils.EncodeToBase64(alert.MetricsQueryParamsString)
+	}
+}
+
+func (alert *AlertDetails) DecodeQueryParamFromBase64() error {
+	if alert.AlertType == AlertTypeLogs {
+		decoded, err := utils.DecodeFromBase64(alert.QueryParams.QueryText)
+		if err != nil {
+			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding query text:%v from base64, alert_id: %s, err: %v", alert.QueryParams.QueryText, alert.AlertId, err)
+			log.Errorf(err.Error())
+			return err
+		}
+		alert.QueryParams.QueryText = decoded
+	} else if alert.AlertType == AlertTypeMetrics {
+		decoded, err := utils.DecodeFromBase64(alert.MetricsQueryParamsString)
+		if err != nil {
+			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding metrics query params:%v from base64, alert_id: %s, err: %v", alert.MetricsQueryParamsString, alert.AlertId, err)
+			log.Errorf(err.Error())
+			return err
+		}
+		alert.MetricsQueryParamsString = decoded
+	}
+
+	return nil
 }

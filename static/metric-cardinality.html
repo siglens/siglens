@@ -1,0 +1,160 @@
+<!-- 
+Copyright (c) 2021-2024 SigScalr, Inc.
+
+This file is part of SigLens Observability Solution
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/all.min.css" />
+    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/tracing.css">
+    <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
+    <style>
+        #tagKeysGrid,
+        #tagPairsGrid,
+        #tagKeysValuesGrid
+        {
+            height: 300px;
+            width: 100%;
+        }
+    </style>
+
+    <script src="./js/lib/lodash.min.js"></script>
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script>
+        var defaultTheme = Cookies.get('theme') || 'light';
+        $('html').attr('data-theme', defaultTheme);
+    </script>
+    {{ .RunCheck1 | safeHTML }}
+</head>
+
+<body>
+    <div id="app-container">
+        <div id="app-side-nav"></div>
+
+        <div id="dashboard">
+            <div id="metrics-container" style="margin-bottom: 20px;">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h1 class="myOrg-heading">Metrics Cardinality</h1>
+                    </div>
+                    <div class="d-flex">
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown" title="Pick the time window">
+                                <span id="selected-time-range">Last 30 Days</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker">
+                                <p class="dt-header">Search the last</p>
+                                <div class="ranges">
+                                    <div class="inner-range">
+                                        <div id="now-5m" class="range-item">5 Mins</div>
+                                        <div id="now-3h" class="range-item">3 Hrs</div>
+                                        <div id="now-2d" class="range-item">2 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-15m" class="range-item">15 Mins</div>
+                                        <div id="now-6h" class="range-item">6 Hrs</div>
+                                        <div id="now-7d" class="range-item">7 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-30m" class="range-item">30 Mins</div>
+                                        <div id="now-12h" class="range-item">12 Hrs</div>
+                                        <div id="now-30d" class="range-item active">30 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="range-item">1 Hr</div>
+                                        <div id="now-24h" class="range-item">24 Hrs</div>
+                                        <div id="now-90d" class="range-item">90 Days</div>
+                                    </div>
+                                    <hr>
+                                    <div class="dt-header">Custom Search <span id="reset-timepicker"
+                                            type="reset">Reset</span></div>
+                                    <div id="daterange-from">
+                                        <span id="dt-from-text">From</span> <br />
+                                        <input type="date" id="date-start" />
+                                        <input type="time" id="time-start" value="00:00" />
+                                    </div>
+                                    <div id="daterange-to">
+                                        <span id="dt-to-text">To</span> <br />
+                                        <input type="date" id="date-end">
+                                        <input type="time" id="time-end" value="00:00">
+                                    </div>
+                                    <div class="drp-buttons">
+                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                                            type="button">Apply</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 h-100 mb-2" id="tracing-container" style="margin-bottom: 50px;">
+                    <div class="total-unique-series">
+                        <p class="caption">Total Unique Series</p>
+                        <div id="totalUniqueSeries">Loading...</div>
+                    </div>
+
+                    <p class="caption mt-4">Tag Keys with Most Series</p>
+                    <div id="tagKeysGrid" class="ag-theme-mycustomtheme"></div>
+                    
+                    <p class="caption mt-4">Tag Pairs with Most Series</p>
+                    <div id="tagPairsGrid" class="ag-theme-mycustomtheme"></div>
+                    
+                    <p class="caption mt-4">Tag Keys with Most Unique Values</p>
+                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>                                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-footer">
+        2024 &copy; SigLens
+    </div>
+
+    <script src="./js/common.js?cb=1_1_10"></script>
+    <script src="./js/event-handlers.js?cb=1_1_10"></script>
+    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/date-picker.js?cb=1_1_10"></script>
+    <script src="./js/metrics-cardinality.js"></script>
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
+</body>
+
+</html>

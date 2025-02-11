@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // A reader reads bits from an io.reader
@@ -41,10 +43,12 @@ func (b *bitReader) readBit() (bit, error) {
 	if b.count == 0 {
 		n, err := b.r.Read(b.buffer[:])
 		if err != nil {
+			log.Errorf("bitReader.readBit: failed to read a byte: %v", err)
 			return zero, fmt.Errorf("failed to read a byte: %w", err)
 		}
 		if n != 1 {
-			return zero, errors.New("read more than a byte")
+			log.Errorf("bitReader.readBit: read more than one byte from buffer=%v, reader=%v", b.buffer, b.r)
+			return zero, errors.New("read more than one byte")
 		}
 		b.count = 8
 	}
@@ -65,10 +69,12 @@ func (b *bitReader) readByte() (byte, error) {
 	if b.count == 0 {
 		n, err := b.r.Read(b.buffer[:])
 		if err != nil {
+			log.Errorf("bitReader.readByte: failed to read a byte from buffer=%v, reader=%v, err=%v", b.buffer, b.r, err)
 			return b.buffer[0], fmt.Errorf("failed to read a byte: %w", err)
 		}
 		if n != 1 {
-			return b.buffer[0], errors.New("read more than a byte")
+			log.Errorf("bitReader.readByte: read more than one byte from buffer=%v, reader=%v", b.buffer, b.r)
+			return b.buffer[0], errors.New("read more than one byte")
 		}
 		return b.buffer[0], nil
 	}
@@ -77,9 +83,11 @@ func (b *bitReader) readByte() (byte, error) {
 
 	n, err := b.r.Read(b.buffer[:])
 	if err != nil {
+		log.Errorf("bitReader.readByte: failed to read a byte from buffer=%v, reader=%v, err=%v", b.buffer, b.r, err)
 		return 0, fmt.Errorf("failed to read a byte: %w", err)
 	}
 	if n != 1 {
+		log.Errorf("bitReader.readByte: read more than one byte from buffer=%v, reader=%v", b.buffer, b.r)
 		return b.buffer[0], errors.New("read more than a byte")
 	}
 
@@ -96,6 +104,7 @@ func (b *bitReader) readBits(nbits int) (uint64, error) {
 	for 8 <= nbits {
 		byt, err := b.readByte()
 		if err != nil {
+			log.Errorf("bitReader.readBits: failed to read a byte. bitReader=%+v, err=%v", b, err)
 			return 0, err
 		}
 
@@ -107,6 +116,7 @@ func (b *bitReader) readBits(nbits int) (uint64, error) {
 	for nbits > 0 && err != io.EOF {
 		byt, err := b.readBit()
 		if err != nil {
+			log.Errorf("bitReader.readBits: failed to read a bit. bitReader=%+v, err=%v", b, err)
 			return 0, err
 		}
 		u <<= 1

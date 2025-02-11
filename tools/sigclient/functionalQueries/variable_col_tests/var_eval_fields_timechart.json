@@ -1,0 +1,24 @@
+{
+    "queryText": "search group=\"group 0\" city=Boston variable_col_9=S* | earliest=-12h@h | eval lat_http = round((latitude*100)/http_status,2) | eval long_http = round((longitude*100)/http_status,2) | eval latency_http = round((latency*100)/http_status,2) | fields group, variable_col_3, lat_http, long_http, latency_http | timechart span=30m avg(lat_http) as avg_lat_http by variable_col_3 limit=100",
+    "expectedResult": {
+        "verifyMinimal": true,
+        "totalMatched": {
+        },
+        "qtype": "logs-query",
+        "records": [
+        ],
+        "allColumns": [
+            "avg_lat_http: &{8 <nil>}",
+            "avg_lat_http: female",
+            "avg_lat_http: male",
+            "timestamp"
+        ],
+        "columnsOrder": [
+            "avg_lat_http: &{8 <nil>}",
+            "avg_lat_http: female",
+            "avg_lat_http: male",
+            "timestamp"
+        ]
+    }
+}
+  

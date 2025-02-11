@@ -22,8 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/siglens/siglens/pkg/blob/local"
-	"github.com/siglens/siglens/pkg/blob/ssutils"
 	"github.com/siglens/siglens/pkg/hooks"
 	log "github.com/sirupsen/logrus"
 )
@@ -37,7 +35,7 @@ func InitBlobStore() error {
 		}
 	}
 
-	return local.InitLocalStorage()
+	return nil
 }
 
 func UploadSegmentFiles(allFiles []string) error {
@@ -49,7 +47,6 @@ func UploadSegmentFiles(allFiles []string) error {
 		}
 	}
 
-	local.BulkAddSegSetFilesToLocal(allFiles)
 	return nil
 }
 
@@ -84,7 +81,7 @@ func DeleteBlob(filepath string) error {
 		}
 	}
 
-	return local.DeleteLocal(filepath)
+	return nil
 }
 
 func DownloadAllIngestNodesDir() error {
@@ -115,10 +112,6 @@ Up to caller to call SetSegSetFilesAsNotInUse with same data after resouces are 
 Returns an error if failed to download segment blob from S3 or mark any segSetFile as in use
 */
 func DownloadSegmentBlob(fName string, inUseFlag bool) error {
-	if local.IsFilePresentOnLocal(fName) {
-		return nil
-	}
-
 	if hook := hooks.GlobalHooks.DownloadSegmentBlobExtrasHook; hook != nil {
 		_, err := hook(fName)
 		if err != nil {
@@ -127,57 +120,39 @@ func DownloadSegmentBlob(fName string, inUseFlag bool) error {
 		}
 	}
 
-	size, _ := ssutils.GetFileSizeFromDisk(fName)
-	ssData := ssutils.NewSegSetData(fName, size)
-	local.AddSegSetFileToLocal(fName, ssData)
-
-	if inUseFlag {
-		err := local.SetBlobAsInUse(fName)
-		if err != nil {
-			log.Errorf("DownloadSegmentBlob: failed to set segSetFile %v as in use: %v", fName, err)
-			return err
-		}
-	}
+	// TODO: mark it as in use when inUseFlag is true
 	return nil
 }
 
 // segFiles is a map with fileName as the key and colName as the corresponding value
 func BulkDownloadSegmentBlob(segFiles map[string]string, inUseFlag bool) error {
 	var bulkDownloadWG sync.WaitGroup
-	var err error
+	var finalErr error
 	sTime := time.Now()
 	for fileName := range segFiles {
 		bulkDownloadWG.Add(1)
 		go func(fName string) {
 			defer bulkDownloadWG.Done()
-			err = DownloadSegmentBlob(fName, inUseFlag)
+			err := DownloadSegmentBlob(fName, inUseFlag)
 			if err != nil {
-				err = fmt.Errorf("BulkDownloadSegmentBlob: failed to download segsetfile %+v", fName)
+				// we will just save the finalErr that comes from any of these goroutines
+				finalErr = fmt.Errorf("BulkDownloadSegmentBlob: failed to download segsetfile: %+v, err: %v",
+					fName, err)
 				return
 			}
 		}(fileName)
 	}
 	bulkDownloadWG.Wait()
 	log.Debugf("BulkDownloadSegmentBlob: downloaded %v segsetfiles in %v", len(segFiles), time.Since(sTime))
-	return err
+	return finalErr
 }
 
 /*
-Sets all passed seg set files as no longer in use so it can be removed by localcleaner
 Returns an error if failed to mark any segSetFile as not in use
 */
 func SetSegSetFilesAsNotInUse(files []string) error {
-	var retErr error
-	retErr = nil
-	for _, segSetFile := range files {
-		err := local.SetBlobAsNotInUse(segSetFile)
-		if err != nil {
-			log.Errorf("SetSegSetFilesAsNotInUse: failed to set segSetFile as not in use: %v", err)
-			retErr = err
-			continue
-		}
-	}
-	return retErr
+	// TODO: mark them as not in use
+	return nil
 }
 
 /*
@@ -185,46 +160,6 @@ Sets all passed seg set files as no longer in use so it can be removed by localc
 Returns an error if failed to mark any segSetFile as not in use
 */
 func SetBlobAsNotInUse(fName string) error {
-	err := local.SetBlobAsNotInUse(fName)
-	if err != nil {
-		log.Errorf("SetBlobAsNotInUse: failed to set segSetFile as not in use: %v", err)
-		return err
-	}
-
+	// TODO: mark it as not in use
 	return nil
-}
-
-// Returns size of file. If file does not exit, returns 0 with no error.
-func GetFileSize(filename string) uint64 {
-	size, exists := local.GetLocalFileSize(filename)
-	if exists {
-		return size
-	}
-
-	size, onLocal := ssutils.GetFileSizeFromDisk(filename)
-	if onLocal {
-		return size
-	}
-
-	if hook := hooks.GlobalHooks.GetFileSizeExtrasHook; hook != nil {
-		alreadyHandled, size := hook(filename)
-		if alreadyHandled {
-			return size
-		}
-	}
-
-	return 0
-}
-
-// For a given meta file, returns if it exists in blob store.
-// The input should always be a file in the ingestnodes directory. Either segmetas or metrics metas
-func DoesMetaFileExistInBlob(fName string) (bool, error) {
-	if hook := hooks.GlobalHooks.DoesMetaFileExistExtrasHook; hook != nil {
-		alreadyHandled, exists, err := hook(fName)
-		if alreadyHandled {
-			return exists, err
-		}
-	}
-
-	return false, nil
 }

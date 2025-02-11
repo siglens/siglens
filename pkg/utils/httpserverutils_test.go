@@ -106,9 +106,9 @@ func Test_GetDecodedBody(t *testing.T) {
 
 func Test_ExtractSeriesOfJsonObjects(t *testing.T) {
 	const body = `{"a": 1}{
-        "b": 2,
-        "c": "crabs"}
-        {"d": 3}`
+		"b": 2,
+		"c": "crabs"}
+		{"d": 3}`
 
 	jsonObjects, err := ExtractSeriesOfJsonObjects([]byte(body))
 	assert.Nil(t, err)
@@ -146,7 +146,7 @@ func Test_sendErrorWithStatus(t *testing.T) {
 
 	// sendErrorWithStatus logs the function two levels up, so wrap it in a closure.
 	func() {
-		sendErrorWithStatus(logger, ctx, "user message", "extra log message", fmt.Errorf("some error"), fasthttp.StatusBadRequest)
+		sendErrorWithStatus(logger, ctx, "user message", "extra log message", fmt.Errorf("some error"), fasthttp.StatusBadRequest, true)
 	}()
 
 	assert.Len(t, loggerHook.Entries, 1)

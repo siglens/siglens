@@ -105,24 +105,6 @@ func isTimeRangeOverlapping(start1, end1, start2, end2 uint64) bool {
 	return utils.Max(start1, start2) <= utils.Min(end1, end2)
 }
 
-func Test_getBaseSegDir(t *testing.T) {
-	config.InitializeDefaultConfig()
-	virtualTableName := "evts"
-	streamid := "10005995996882630313"
-	nextsuff_idx := uint64(1)
-	basedir := getActiveBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, "data/"+config.GetHostID()+"/active/"+virtualTableName+"/"+streamid+"/1/", basedir)
-}
-
-func Test_getFinalBaseSegDir(t *testing.T) {
-	config.InitializeDefaultConfig()
-	virtualTableName := "evts"
-	streamid := "10005995996882630313"
-	nextsuff_idx := uint64(1)
-	basedir := getFinalBaseSegDir(streamid, virtualTableName, nextsuff_idx)
-	assert.EqualValues(t, "data/"+config.GetHostID()+"/final/"+virtualTableName+"/"+streamid+"/1/", basedir)
-}
-
 func Test_getNumberTypeAndVal(t *testing.T) {
 	cases := []struct {
 		input   string
@@ -250,8 +232,7 @@ func Test_addToBlockBloom(t *testing.T) {
 
 	for i, test := range cases {
 		mockBloom := bloom.NewWithEstimates(uint(1000), BLOOM_COLL_PROBABILITY)
-		addedCount := addToBlockBloom(mockBloom, test.fullWord)
-		assert.Equal(t, addedCount, test.expectedAddCount)
+		_ = addToBlockBloomBothCases(mockBloom, test.fullWord)
 
 		for _, word := range test.expectedMatches {
 			assert.True(t, mockBloom.TestString(word), fmt.Sprintf("test=%v failed to find %+v in bloom", i, word))
@@ -260,6 +241,31 @@ func Test_addToBlockBloom(t *testing.T) {
 			assert.False(t, mockBloom.TestString(word), fmt.Sprintf("test=%v found %+v in bloom, when should not happen", i, word))
 		}
 	}
+}
+
+func Test_ParseRawJson(t *testing.T) {
+	tsKey := config.GetTimeStampKey()
+	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
+	rawJson := []byte(`{"field1": "http:\/\/abcdef", "field2": "x\/f"}`)
+	ple := &ParsedLogEvent{}
+	ple.SetRawJson(rawJson)
+	err := ParseRawJsonObject("", rawJson, &tsKey, jsParsingStackbuf[:], ple)
+	assert.Nil(t, err)
+	assert.Len(t, ple.allCnames, 2)
+	assert.Len(t, ple.allCvals, 2)
+	assert.Equal(t, "http://abcdef", string(ple.allCvals[0]))
+	assert.Equal(t, "x/f", string(ple.allCvals[1]))
+
+	var jsParsingStackbuf2 [utils.UnescapeStackBufSize]byte
+	ple2 := &ParsedLogEvent{}
+	rawJson2 := []byte(`{"field1": ["http:\/\/abcdef", "x\/f"]}`)
+	ple2.SetRawJson(rawJson2)
+	err = ParseRawJsonObject("", rawJson2, &tsKey, jsParsingStackbuf2[:], ple2)
+	assert.Nil(t, err)
+	assert.Len(t, ple2.allCnames, 2)
+	assert.Len(t, ple2.allCvals, 2)
+	assert.Equal(t, "http://abcdef", string(ple2.allCvals[0]))
+	assert.Equal(t, "x/f", string(ple2.allCvals[1]))
 }
 
 func Benchmark_wrapperForUpdateRange(b *testing.B) {
@@ -297,7 +303,7 @@ func Benchmark_addToBloom(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		mockBloom.ClearAll()
-		addToBlockBloom(mockBloom, exampleWord)
+		addToBlockBloomBothCases(mockBloom, exampleWord)
 	}
 }
 

@@ -34,64 +34,21 @@ func Test_parseSearchBody(t *testing.T) {
 	jssrc["endEpoch"] = "now"
 	jssrc["scroll"] = 0
 
-	stext, sepoch, eepoch, fsize, idxname, scroll := ParseSearchBody(jssrc, nowTs)
+	stext, sepoch, eepoch, fsize, idxname, scroll, includeNulls := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, "abc def", stext)
 	assert.Equal(t, nowTs-15*60_000, sepoch, "expected=%v, actual=%v", nowTs-15*60_000, sepoch)
 	assert.Equal(t, nowTs, eepoch, "expected=%v, actual=%v", nowTs, eepoch)
 	assert.Equal(t, uint64(200), fsize, "expected=%v, actual=%v", uint64(200), fsize)
 	assert.Equal(t, "svc-2", idxname, "expected=%v, actual=%v", "svc-2", idxname)
 	assert.Equal(t, 0, scroll, "expected=%v, actual=%v", 0, scroll)
+	assert.False(t, includeNulls, "includeNulls should default to false")
 
 	jssrc["from"] = 500
-	_, _, _, finalSize, _, scroll := ParseSearchBody(jssrc, nowTs)
+	_, _, _, finalSize, _, scroll, _ := ParseSearchBody(jssrc, nowTs)
 	assert.Equal(t, uint64(700), finalSize, "expected=%v, actual=%v", 700, scroll)
 	assert.Equal(t, 500, scroll, "expected=%v, actual=%v", 500, scroll)
-}
 
-func Test_parseAlphaNumTime(t *testing.T) {
-
-	nowTs := uint64(1659874108987)
-
-	defValue := uint64(12345)
-
-	inp := "now"
-	expected := nowTs
-	actual := parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "now-1m"
-	expected = nowTs - 1*60_000
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "now-12345m"
-	expected = nowTs - 12345*60_000
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "now-1h"
-	expected = nowTs - 1*3600_000
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "now-365d"
-	expected = nowTs - 365*24*3600*1_000
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "invalidTimeString"
-	expected = 12345
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "now-365x"
-	expected = 12345
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
-	inp = "now-5xm"
-	expected = 12345
-	actual = parseAlphaNumTime(nowTs, inp, defValue)
-	assert.Equal(t, expected, actual, "expected=%v, actual=%v", expected, actual)
-
+	jssrc["includeNulls"] = true
+	_, _, _, _, _, _, includeNulls = ParseSearchBody(jssrc, nowTs)
+	assert.True(t, includeNulls, "includeNulls should be true")
 }

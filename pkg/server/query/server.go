@@ -19,7 +19,6 @@ package queryserver
 
 import (
 	"crypto/tls"
-	"fmt"
 	htmltemplate "html/template"
 	"net"
 	texttemplate "text/template"
@@ -31,6 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/server"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	tracing "github.com/siglens/siglens/pkg/tracing"
 	"github.com/siglens/siglens/pkg/utils"
@@ -43,10 +43,10 @@ type queryserverCfg struct {
 	Config config.WebConfig
 	Addr   string
 	//	Log    *zap.Logger //ToDo implement debug logger
-	ln     net.Listener
-	lnTls  net.Listener
-	Router *router.Router
-	debug  bool
+	ln            net.Listener
+	Router        *router.Router
+	staticHandler fasthttp.RequestHandler
+	debug         bool
 }
 
 var (
@@ -57,12 +57,19 @@ var (
 
 // ConstructHttpServer new fasthttp server
 func ConstructQueryServer(cfg config.WebConfig, ServerAddr string) *queryserverCfg {
+	staticFs := fasthttp.FS{
+		Root:           "./static",
+		IndexNames:     []string{"index.html"},
+		Compress:       config.ShouldCompressStaticFiles(),
+		CompressBrotli: config.ShouldCompressStaticFiles(),
+	}
 
 	s := &queryserverCfg{
-		Config: cfg,
-		Addr:   ServerAddr,
-		Router: router.New(),
-		debug:  true,
+		Config:        cfg,
+		Addr:          ServerAddr,
+		Router:        router.New(),
+		staticHandler: staticFs.NewRequestHandler(),
+		debug:         true,
 	}
 	return s
 }
@@ -79,14 +86,14 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	query.InitQueryMetrics()
 
-	alertsHandler.InitAlertingService(server_utils.GetMyIds)
-	alertsHandler.InitMinionSearchService(server_utils.GetMyIds)
-
 	err := query.InitQueryNode(server_utils.GetMyIds, server_utils.ExtractKibanaRequests)
 	if err != nil {
 		log.Errorf("Failed to initialize query node: %v", err)
 		return err
 	}
+
+	alertsHandler.InitAlertingService(server_utils.GetMyIds)
+	alertsHandler.InitMinionSearchService(server_utils.GetMyIds)
 
 	hs.Router.GET("/{filename}.html", func(ctx *fasthttp.RequestCtx) {
 		renderHtmlTemplate(ctx, htmlTemplate)
@@ -106,8 +113,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	// common routes
 
 	hs.Router.GET(server_utils.API_PREFIX+"/health", tracing.TraceMiddleware(hs.Recovery(getHealthHandler())))
-	hs.Router.POST(server_utils.API_PREFIX+"/setconfig/transient", hs.Recovery(postSetconfigHandler(false)))
-	hs.Router.POST(server_utils.API_PREFIX+"/setconfig/persistent", hs.Recovery(postSetconfigHandler(true)))
 	hs.Router.GET(server_utils.API_PREFIX+"/config", tracing.TraceMiddleware(hs.Recovery(getConfigHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/config/reload", tracing.TraceMiddleware(hs.Recovery(getConfigReloadHandler())))
 
@@ -190,6 +195,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/all_tags", hs.Recovery(getAllMetricTagsHandler()))
 	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/timeseries", hs.Recovery(getMetricTimeSeriesHandler()))
 	hs.Router.GET(server_utils.METRIC_PREFIX+"/api/v1/functions", hs.Recovery(getMetricFunctionsHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/series-cardinality", hs.Recovery(getMetricSeriesCardinalityHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/tag-keys-with-most-series", hs.Recovery(getTagKeysWithMostSeriesHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/tag-pairs-with-most-series", hs.Recovery(getTagPairsWithMostSeriesHandler()))
+	hs.Router.POST(server_utils.METRIC_PREFIX+"/api/v1/tag-keys-with-most-values", hs.Recovery(getTagKeysWithMostValuesHandler()))
 
 	// search api Handlers
 	hs.Router.POST(server_utils.API_PREFIX+"/echo", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
@@ -200,20 +209,25 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/getall", tracing.TraceMiddleware(hs.Recovery(getUserSavedQueriesAllHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", tracing.TraceMiddleware(hs.Recovery(deleteUserSavedQueryHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/{qname}", tracing.TraceMiddleware(hs.Recovery(SearchUserSavedQueryHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/pqs/clear", tracing.TraceMiddleware(hs.Recovery(postPqsClearHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/clear", tracing.TraceMiddleware(hs.Recovery(postPqsClearHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/pqs/delete", tracing.TraceMiddleware(hs.Recovery(postPqsDeleteHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/get", tracing.TraceMiddleware(hs.Recovery(getPqsEnabledHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/aggs", tracing.TraceMiddleware(hs.Recovery(postPqsAggColsHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/pqs/update", tracing.TraceMiddleware(hs.Recovery(postPqsHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs", tracing.TraceMiddleware(hs.Recovery(getPqsHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/pqs/{pqid}", tracing.TraceMiddleware(hs.Recovery(getPqsByIdHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/create", tracing.TraceMiddleware(hs.Recovery(createDashboardHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/defaultlistall", tracing.TraceMiddleware(hs.Recovery(getDefaultDashboardIdsHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listall", tracing.TraceMiddleware(hs.Recovery(getDashboardIdsHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/update", tracing.TraceMiddleware(hs.Recovery(updateDashboardHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(getDashboardIdHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/delete/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(deleteDashboardHandler())))
 	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/favorite/{dashboard-id}", tracing.TraceMiddleware(hs.Recovery(favoriteDashboardHandler())))
-	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/listfavorites", tracing.TraceMiddleware(hs.Recovery(getFavoriteDashboardIdsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/list", tracing.TraceMiddleware(hs.Recovery(listAllDashboardsHandler())))
+	// folders api endpoints
+	hs.Router.POST(server_utils.API_PREFIX+"/dashboards/folders/create", tracing.TraceMiddleware(hs.Recovery(createFolderHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(getFolderContentsHandler())))
+	hs.Router.PUT(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(updateFolderHandler())))
+	hs.Router.DELETE(server_utils.API_PREFIX+"/dashboards/folders/{folder-id}", tracing.TraceMiddleware(hs.Recovery(deleteFolderHandler())))
+
 	hs.Router.GET(server_utils.API_PREFIX+"/version/info", tracing.TraceMiddleware(hs.Recovery(getVersionHandler())))
 
 	// alerting api endpoints
@@ -228,7 +242,9 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/alerts/updateContact", hs.Recovery(updateContactHandler()))
 	hs.Router.DELETE(server_utils.API_PREFIX+"/alerts/deleteContact", hs.Recovery(deleteContactHandler()))
 	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/silenceAlert", hs.Recovery(silenceAlertHandler()))
+	hs.Router.PUT(server_utils.API_PREFIX+"/alerts/unsilenceAlert", hs.Recovery(unsilenceAlertHandler()))
 
+	hs.Router.POST(server_utils.API_PREFIX+"/alerts/testContactPoint", hs.Recovery(testContactPointHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/minionsearch/allMinionSearches", hs.Recovery(getAllMinionSearchesHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/minionsearch/createMinionSearches", hs.Recovery(createMinionSearchHandler()))
 	hs.Router.GET(server_utils.API_PREFIX+"/minionsearch/{alertID}", hs.Recovery(getMinionSearchHandler()))
@@ -243,8 +259,23 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
 	hs.Router.PUT(server_utils.ELASTIC_PREFIX+"/{indexName}", hs.Recovery(esPutIndexHandler()))
 
+	hs.Router.POST(server_utils.API_PREFIX+"/lookup-upload", hs.Recovery(uploadLookupFileHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/lookup-files", hs.Recovery(getAllLookupFilesHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/lookup-files/{lookupFilename}", hs.Recovery(getLookupFileHandler()))
+	hs.Router.DELETE(server_utils.API_PREFIX+"/lookup-files/{lookupFilename}", hs.Recovery(deleteLookupFileHandler()))
+
 	hs.Router.GET(server_utils.API_PREFIX+"/system-info", tracing.TraceMiddleware(hs.Recovery(getSystemInfoHandler())))
-	if config.IsDebugMode() {
+	hs.Router.GET(server_utils.API_PREFIX+"/inode-stats", tracing.TraceMiddleware(hs.Recovery(getInodesStatsHandler())))
+	hs.Router.GET(server_utils.API_PREFIX+"/query-stats", hs.Recovery(getQueryStatsHandler()))
+
+	hs.Router.POST(server_utils.API_PREFIX+"/update-query-timeout", hs.Recovery(UpdateQueryTimeoutHandler()))
+	hs.Router.GET(server_utils.API_PREFIX+"/get-query-timeout", hs.Recovery(GetQueryTimeoutHandler()))
+
+	hs.Router.POST(server_utils.API_PREFIX+"/sort-columns", hs.Recovery(setSortColumnsHandler()))
+
+	hs.Router.GET(server_utils.API_PREFIX+"/collect-diagnostics", hs.Recovery(collectDiagnosticsHandler()))
+
+	if config.IsPProfEnabled() {
 		hs.Router.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
 	}
 
@@ -273,7 +304,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 					return
 				}
 
-				fasthttp.ServeFile(ctx, "static/"+filepath)
+				hs.staticHandler(ctx)
 			})
 		}
 
@@ -294,37 +325,29 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		MaxRequestBodySize: hs.Config.MaxRequestBodySize, //  100 << 20, // 100MB // 1000 * 4, // MaxRequestBodySize:
 		Concurrency:        hs.Config.Concurrency,
 	}
-	var g run.Group
 
 	if config.IsTlsEnabled() {
-		cfg := &tls.Config{
-			Certificates: make([]tls.Certificate, 1),
-		}
-
-		cfg.Certificates[0], err = tls.LoadX509KeyPair(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
-
+		certReloader, err := server.NewCertReloader(config.GetTLSCertificatePath(), config.GetTLSPrivateKeyPath())
 		if err != nil {
-			fmt.Println("Run: error in loading TLS certificate: ", err)
-			log.Fatalf("Run: error in loading TLS certificate: %v", err)
+			log.Fatalf("Run: error loading TLS certificate: %v, err=%v", config.GetTLSCertificatePath(), err)
+			return err
 		}
 
-		hs.lnTls = tls.NewListener(hs.ln, cfg)
+		cfg := &tls.Config{
+			GetCertificate: certReloader.GetCertificate,
+		}
 
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.lnTls)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
-
-	} else {
-		// run fasthttp server
-		g.Add(func() error {
-			return s.Serve(hs.ln)
-		}, func(e error) {
-			_ = hs.ln.Close()
-		})
+		hs.ln = tls.NewListener(hs.ln, cfg)
 	}
+
+	var g run.Group
+	g.Add(func() error {
+		return s.Serve(hs.ln)
+	}, func(e error) {
+		log.Errorf("queryServerCfg.Run: Failed to serve on %s, err=%v", hs.Addr, e)
+		_ = hs.ln.Close()
+	})
+
 	return g.Run()
 }
 

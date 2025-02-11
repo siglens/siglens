@@ -52,14 +52,14 @@ func Test_StartTreeColumnFilter(t *testing.T) {
 		bb:                 bbp.Get(),
 		blockTs:            make([]uint64, 0),
 	}
-	segStore := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+
+	segStore := NewSegStore(0)
+	segStore.wipBlock = wipBlock
+	segStore.SegmentKey = "test-segkey"
+	segStore.AllSeenColumns = allCols
+	segStore.pqTracker = initPQTracker()
+	segStore.AllSst = segstats
+	segStore.numBlocks = 0
 
 	entryCount := uint16(16_000)
 	tsKey := config.GetTimeStampKey()
@@ -148,14 +148,13 @@ func Test_StartTreeGroupBy(t *testing.T) {
 		bb:                 bbp.Get(),
 		blockTs:            make([]uint64, 0),
 	}
-	segStore := &SegStore{
-		wipBlock:       wipBlock,
-		SegmentKey:     "test-segkey",
-		AllSeenColumns: allCols,
-		pqTracker:      initPQTracker(),
-		AllSst:         segstats,
-		numBlocks:      0,
-	}
+	segStore := NewSegStore(0)
+	segStore.wipBlock = wipBlock
+	segStore.SegmentKey = "test-segkey"
+	segStore.AllSeenColumns = allCols
+	segStore.pqTracker = initPQTracker()
+	segStore.AllSst = segstats
+	segStore.numBlocks = 0
 
 	entryCount := 16_000
 	tsKey := config.GetTimeStampKey()

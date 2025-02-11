@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/valyala/fasthttp"
 )
 
 // used only by tests to reset tracked info
@@ -60,7 +61,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 	sNodeHash := GetHashForQuery(sNode)
 	tableName := []string{"ind-tab-v1"}
 	for i := 0; i < 90; i++ {
-		UpdateQTUsage(tableName, sNode, nil)
+		UpdateQTUsage(tableName, sNode, nil, "os=iOS")
 	}
 
 	us, err := GetQTUsageInfo(tableName, sNode)
@@ -101,7 +102,7 @@ func Test_GetQTUsageInfo(t *testing.T) {
 		NodeType: MatchAllQuery,
 	}
 
-	UpdateQTUsage(tableName, matchAllOne, nil)
+	UpdateQTUsage(tableName, matchAllOne, nil, "*")
 
 	_, err = GetQTUsageInfo(tableName, matchAllOne)
 	assert.NotNil(t, err, "match all should not be added to query tracker")
@@ -160,7 +161,7 @@ func Test_ReadWriteQTUsage(t *testing.T) {
 		},
 	}
 	aggsHash := GetHashForAggs(aggs)
-	UpdateQTUsage(tableName, sNode, aggs)
+	UpdateQTUsage(tableName, sNode, aggs, "batch=batch-101")
 
 	flushPQueriesToDisk()
 	resetInternalQTInfo()
@@ -187,7 +188,7 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 		},
 	}
 	tableName := []string{"test-1"}
-	UpdateQTUsage(tableName, nil, aggs)
+	UpdateQTUsage(tableName, nil, aggs, "*")
 	grpCols, measure := GetTopPersistentAggs("test-2")
 	assert.Len(t, grpCols, 0)
 	assert.Len(t, measure, 0)
@@ -218,10 +219,11 @@ func Test_GetTopPersistentAggs(t *testing.T) {
 			GroupByColumns: []string{"col3", "col2"},
 		},
 	}
-	UpdateQTUsage(tableName, nil, aggs2)
+	UpdateQTUsage(tableName, nil, aggs2, "*")
 	grpCols, measure = GetTopPersistentAggs("test-1")
 	assert.Len(t, grpCols, 3)
-	assert.Equal(t, "col2", grpCols[0], "only col2 exists in both usages, so it should be first")
+	_, ok := grpCols["col2"]
+	assert.True(t, ok, "col2 must exist")
 	var mCol3_1 string
 	mCol4 = ""
 	for m := range measure {
@@ -250,7 +252,7 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 		},
 	}
 	tableName := []string{"jaeger-1"}
-	UpdateQTUsage(tableName, nil, aggs)
+	UpdateQTUsage(tableName, nil, aggs, "*")
 
 	grpCols, measure := GetTopPersistentAggs("jaeger-1")
 	assert.Len(t, grpCols, 5)
@@ -281,10 +283,12 @@ func Test_GetTopPersistentAggs_Jaeger(t *testing.T) {
 			GroupByColumns: []string{"col3", "col2"},
 		},
 	}
-	UpdateQTUsage(tableName, nil, aggs2)
+	UpdateQTUsage(tableName, nil, aggs2, "*")
 	grpCols, measure = GetTopPersistentAggs("jaeger-1")
 	assert.Len(t, grpCols, 6)
-	assert.Equal(t, "traceID", grpCols[0], "traceID exists in both usages, so it should be first")
+
+	_, ok := grpCols["traceID"]
+	assert.True(t, ok, "traceID should be present")
 	var mCol3_1 string
 	mCol4 = ""
 	for m := range measure {
@@ -362,11 +366,11 @@ func Test_PostPqsClear(t *testing.T) {
 	pqid := GetHashForQuery(sNode)
 	tableName := []string{"test-1"}
 	assert.NotNil(t, tableName)
-	UpdateQTUsage(tableName, sNode, nil)
+	UpdateQTUsage(tableName, sNode, nil, "os=iOS")
 
 	expected := map[string]interface{}{
-		"promoted_aggregations": make(map[string]int),
-		"promoted_searches":     make(map[string]int),
+		"promoted_aggregations": []map[string]interface{}{},
+		"promoted_searches":     []map[string]interface{}{},
 		"total_tracked_queries": 0,
 	}
 	var pqsSummary, clearPqsSummary map[string]interface{}
@@ -384,4 +388,142 @@ func Test_PostPqsClear(t *testing.T) {
 	clearPqsSummary = getPQSSummary()
 	assert.NotNil(t, clearPqsSummary)
 	assert.Equal(t, expected, clearPqsSummary, "the pqsinfo was supposed to be cleared")
+}
+
+func Test_fillAggPQS_ReturnsErrorWhenAggsAreEmpty(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	err := fillAggPQS(&ctx, "id")
+	assert.EqualError(t, err, "pqid id does not exist in aggs")
+}
+
+func Test_getAggPQSById(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	var st uint64 = 3
+	qa := &QueryAggregators{TimeHistogram: &TimeBucket{StartTime: st}}
+	pqid := GetHashForAggs(qa)
+	tableName := []string{"test-1"}
+	assert.NotNil(t, tableName)
+	UpdateQTUsage(tableName, nil, qa, "TimeHistogramStartTime=3")
+
+	aggPQS, err := getAggPQSById(pqid)
+	assert.Nil(t, err)
+	assert.Equal(t, pqid, aggPQS["pqid"])
+	assert.Equal(t, uint32(1), aggPQS["total_usage"])
+	restored_aggs := aggPQS["search_aggs"].(map[string]interface{})
+	restored_th := restored_aggs["TimeHistogram"].(map[string]interface{})
+	assert.Equal(t, float64(st), restored_th["StartTime"])
+}
+
+func Test_processPostAggs_NoErrorWhenEmptySliceOfStrings(t *testing.T) {
+	inputValueParam := []interface{}{}
+	_, err := processPostAggs(inputValueParam)
+	assert.Nil(t, err)
+}
+
+func Test_processPostAggs_NoErrorWhenSliceOfStrings(t *testing.T) {
+	key := "new_column"
+	inputValueParam := []interface{}{key}
+	got, err := processPostAggs(inputValueParam)
+	assert.Nil(t, err)
+	assert.Len(t, got, 1)
+	assert.True(t, got[key])
+}
+
+func Test_processPostAggs_ErrorWhenSliceOfNotStrings(t *testing.T) {
+	inputValueParam := []interface{}{1, 2, 8}
+	_, err := processPostAggs(inputValueParam)
+	assert.NotNil(t, err)
+}
+
+func Test_processPostAggs_ErrorWhenNotSlice(t *testing.T) {
+	inputValueParam := map[int]string{}
+	_, err := processPostAggs(inputValueParam)
+	assert.NotNil(t, err)
+}
+
+func Test_parsePostPqsAggBody_ErrIfTableNameIsntString(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName": 1,
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: Invalid key=[tableName] with value of type [int]")
+}
+
+func Test_parsePostPqsAggBody_ErrIfTableNameIsWildcard(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName": "*",
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: tableName can not be *")
+}
+
+func Test_parsePostPqsAggBody_ErrIfNoTableNameSpecified(t *testing.T) {
+	json := map[string]interface{}{
+		"groupByColumns": []interface{}{"col1", "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: No tableName specified")
+}
+
+func Test_parsePostPqsAggBody_NoErrIfColsAreSlices(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []interface{}{"col1", "col2"},
+		"measureColumns": []interface{}{"col1", "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.Nil(t, err)
+}
+
+func Test_parsePostPqsAggBody_ErrIfColsAreSlicesOfNotInterfaces(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []string{"col1", "col2"}, // should be []interfaces
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "PostPqsAggCols: Invalid key=[groupByColumns] with value of type [[]string]")
+}
+
+func Test_parsePostPqsAggBody_ErrIfColsAreNotSlicesOfStrings(t *testing.T) {
+	json := map[string]interface{}{
+		"tableName":      "some_table",
+		"groupByColumns": []interface{}{1, "col2"},
+	}
+	err := parsePostPqsAggBody(json)
+	assert.EqualError(t, err, "processPostAggs type = int not accepted")
+}
+
+func Test_GetPQSById_400IfPQDoesNotExist(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	ctx.SetUserValue("pqid", 1)
+	GetPQSById(&ctx)
+	assert.Equal(t, 400, ctx.Response.Header.StatusCode())
+}
+
+func Test_GetPQSById_400IfPQIsNotSpecified(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	ctx := fasthttp.RequestCtx{}
+	GetPQSById(&ctx)
+	assert.Equal(t, 400, ctx.Response.Header.StatusCode())
+}
+
+func Test_GetPQSById_200IfPQIsSpecified(t *testing.T) {
+	resetInternalQTInfo()
+	config.SetPQSEnabled(true)
+	qa := &QueryAggregators{TimeHistogram: &TimeBucket{StartTime: 3}}
+	pqid := GetHashForAggs(qa)
+	tableName := []string{"test-1"}
+	UpdateQTUsage(tableName, nil, qa, "")
+
+	ctx := fasthttp.RequestCtx{}
+	ctx.SetUserValue("pqid", pqid)
+
+	GetPQSById(&ctx)
+	assert.Equal(t, 200, ctx.Response.Header.StatusCode())
 }

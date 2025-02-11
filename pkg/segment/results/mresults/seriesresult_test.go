@@ -808,10 +808,6 @@ func Test_reduceEntries(t *testing.T) {
 	var val float64
 	var err error
 
-	val, err = reduceEntries(entries, segutils.Count, functionConstant)
-	assert.Nil(t, err)
-	assert.True(t, dtypeutils.AlmostEquals(5.0, val))
-
 	val, err = reduceEntries(entries, segutils.Sum, functionConstant)
 	assert.Nil(t, err)
 	assert.True(t, dtypeutils.AlmostEquals(16.0, val))
@@ -880,10 +876,6 @@ func Test_reduceRunningEntries(t *testing.T) {
 	val, err = reduceRunningEntries(entries, segutils.Avg, functionConstant)
 	assert.Nil(t, err)
 	assert.True(t, dtypeutils.AlmostEquals(16.0/5, val))
-
-	val, err = reduceRunningEntries(entries, segutils.Count, functionConstant)
-	assert.Nil(t, err)
-	assert.True(t, dtypeutils.AlmostEquals(5.0, val))
 
 	val, err = reduceRunningEntries(entries, segutils.Sum, functionConstant)
 	assert.Nil(t, err)
@@ -1764,4 +1756,51 @@ func Test_applyTimeFunctionDaysInMonth(t *testing.T) {
 	runTimeFunctionTest(t, segutils.DaysInMonth, func(t time.Time) float64 {
 		return float64(time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day())
 	})
+}
+
+func Test_applyRangeFunctionMADOverTime(t *testing.T) {
+
+	result := make(map[string]map[uint32]float64)
+	ts := map[uint32]float64{
+		1000: 10,
+		1001: 20.5,
+		1002: 30.25,
+		1013: 40,
+		1018: 50.75,
+		1019: 60,
+		1020: 70.5,
+	}
+
+	result["metric"] = ts
+
+	metricsResults := &MetricsResult{
+		Results: result,
+	}
+
+	ans := map[uint32]float64{
+		1000: 0,
+		1001: 5.25,
+		1002: 9.75,
+		1013: 0,
+		1018: 5.375,
+		1019: 9.25,
+		1020: 9.875,
+	}
+
+	function := structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: 10}
+
+	err := metricsResults.ApplyFunctionsToResults(8, function)
+	assert.Nil(t, err)
+	for _, timeSeries := range metricsResults.Results {
+		for key, val := range timeSeries {
+			expectedVal, exists := ans[key]
+			if !exists {
+				t.Errorf("Should not have this key: %v", key)
+			}
+
+			if !dtypeutils.AlmostEquals(expectedVal, val) {
+				t.Errorf("Expected value should be %v, but got %v for timestamp %v", expectedVal, val, key)
+			}
+		}
+	}
 }
