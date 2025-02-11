@@ -51,6 +51,7 @@ python3 fix_hits.py
 ## split into 10 files to increase parallelism, since the client in single threaded
 rm hits.json
 split -l 20000000 sighits.json  splithits_
+rm sighits.json
 
 # command to load data into SigLens - process can take hours
 time for file in splithits_*; do python3 send_data.py ${file}&; done
