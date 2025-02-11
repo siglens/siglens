@@ -38,15 +38,15 @@ class AddNewComponent {
                 </div>
             </div>
             <div id="buttons-popupContent">
-                <button type="button" id="cancel-dbbtn">Cancel</button>
-                <button type="button" id="save-dbbtn">Save</button>
+                <button type="button" id="cancel-dbbtn" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="save-dbbtn" class="btn btn-primary">Save</button>
             </div>
         </div>
     `;
 
         this.container.html(`
             <div class="dropdown">
-                <button class="btn dropdown-toggle primary-btn" data-toggle="dropdown" 
+                <button class="btn dropdown-toggle btn-primary" data-toggle="dropdown" 
                         aria-haspopup="true" aria-expanded="true" data-bs-toggle="dropdown">
                     <span>
                         <img src="./assets/add-icon.svg" class="add-icon">
@@ -68,8 +68,8 @@ class AddNewComponent {
                     <p class="error-tip"></p>
                 </div>
                 <div id="buttons-popupContent">
-                    <button type="button" id="cancel-dbbtn">Cancel</button>
-                    <button type="button" id="save-folder-btn" class="primary-btn">Save</button>
+                    <button type="button" id="cancel-dbbtn" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="save-folder-btn" class="btn btn-primary">Save</button>
                 </div>
             </div>
         `);

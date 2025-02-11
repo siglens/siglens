@@ -24,7 +24,7 @@ class DashboardGrid {
             columnDefs: this.getTreeViewColumnDefs(), // tree view by default
             rowData: [],
             animateRows: true,
-            rowHeight: 54,
+            rowHeight: 44,
             defaultColDef: {
                 icons: {
                     sortAscending: '<i class="fa fa-sort-alpha-desc"/>',

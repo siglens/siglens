@@ -181,8 +181,8 @@ function createTable(data) {
             resizable: true,
             cellClass: 'align-center-grid',
         },
-        headerHeight: 32,
-        rowHeight: 42,
+        headerHeight: 26,
+        rowHeight: 34,
         pinnedBottomRowData: [aggregationTotalRow],
     };
 
@@ -212,8 +212,8 @@ function createTable(data) {
             resizable: true,
             cellClass: 'align-center-grid',
         },
-        headerHeight: 32,
-        rowHeight: 42,
+        headerHeight: 26,
+        rowHeight: 34,
         pinnedBottomRowData: [searchTotalRow],
     };
 
