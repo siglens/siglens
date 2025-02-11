@@ -47,57 +47,9 @@
     display: flex;
 }
 
-.subsection-buttons {
-    margin-top: 10px;
-    display: flex;
-    height: 30px;
-    border-radius: 5px;
-    width: fit-content;
-    align-items: center;
-    background: var(--myOrg-input);
-    padding: 4px;
-}
-
-.section-button {
-    padding: 4px 10px 5px 10px;
-    height: 22px;
-    width: fit-content;
-    border-radius: 5px;
-    background: var(--myOrg-input);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0px;
-    font-size: 14px;
-}
-
-.section-button a{
-    text-decoration: none;
-    color: var(--subsection-border);
-}
-
-.section-button.active a{
-    color:  var(--datatable-header-text-color);
-    font-weight: 400;
-}
-
-.section-button.active {
-    height: 22px;
-    border: 1px solid #6347D9;
-    background: var(--tab-active-background);
-}
-
-.search-input{
-    border-radius: 5px;
-    border: 1px solid var(--search-input-border);
-    background: var(--search-bar-bg);
-    height: 32px;
-    font-size: 14px;
-}
-
 /* Dependency Graph */
 #dependency-graph-container,#error-msg-container,#dependency-graph-canvas {
-    margin-top: 20px;
+    margin-top: 10px;
     height: 100%; 
     width: 100%;
 }
@@ -121,8 +73,6 @@
     margin: auto ;
     margin-top: 50px;
 }
-
-
 
 #tracing-container .ag-header-viewport,
 #tracing-container .ag-header-cell{
@@ -156,13 +106,13 @@
 }
 
 .service-name{
-    font-size: 18px;
+    font-size: 14px;
     cursor: pointer;
     margin-bottom: 0;
 }
 
 .service-health-text{
-    font-size: 18px;
+    font-size: 14px;
     color: #6F6B7B;
     cursor: pointer;
     margin-bottom: 0;
@@ -192,7 +142,7 @@
 }
 
 .page-block {
-    margin-top: 20px;
+    margin-top: 10px;
 }
 
 .dropdown-box,
@@ -209,8 +159,8 @@
     margin-right: 25px;
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    height: 530px;
+    padding: 16px;
+    height: fit-content;
     width: 25%;
     min-width: 270px;
 }
@@ -240,7 +190,7 @@
 .section-center {
     width: 100%;
     margin-top: 12px;
-    min-height: 280px;
+    min-height: 240px;
 }
 
 .warn-bottom {
@@ -252,7 +202,7 @@
     background-color: var(--head-trace);
     height: 30%;
     align-items: center;
-    font-size: 14px;
+    font-size: 11px;
     padding: 0 15px;
     font-weight: 600;
     border-radius: 10px 10px 0 0;
@@ -262,11 +212,6 @@
     min-height: 60px;
     align-items: center;
     padding: 0 20px;
-}
-
-input.form-control {
-    background: var(--search-box-input) !important;
-    border: 1px solid var(--border-btn-color) !important;
 }
 
 .download-trace {
@@ -290,7 +235,7 @@ input.form-control {
 .dropdown-box,
 .input-box,
 .search-trace-btn {
-    margin-top: 14px;
+    margin-top: 12px;
 }
 
 .input-box{
@@ -308,7 +253,7 @@ input.form-control {
 .search-text,
 .traces-number {
     font-weight: 600;
-    font-size: 16px;
+    font-size: 14px;
 }
 
 .sorts-method {
@@ -326,15 +271,6 @@ input.form-control {
     width: 150px;
 }
 
-.form-control {
-    height: 32px;
-}
-
-.lookback {
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-}
 
 .search-trace-btn-box {
     display: flex;
@@ -342,12 +278,6 @@ input.form-control {
     justify-content: right;
 }
 
-.search-trace-btn {
-    background-color: var(--purple-1);
-    border: none;
-    color: var(--white) !important;
-    height: 32px;
-}
 
 .empty-result-show {
     display: flex;
@@ -360,7 +290,7 @@ input.form-control {
 }
 
 .warn-box {
-    height: 124px;
+    height: 94px;
     margin-top: 20px;
     cursor: pointer;
     color: var(--text-color);
@@ -372,7 +302,7 @@ a.warn-box-anchor {
 
 .error-span,
 .total-span {
-    width: 100px;
+    width: 70px;
     border-radius: 5px;
     display: flex;
     flex-direction: row;
@@ -381,8 +311,8 @@ a.warn-box-anchor {
 }
 
 .spans-box {
-    width: 220px;
-    height: 30px;
+    width: 150px;
+    height: 24px;
 }
 
 .error-span {
@@ -406,6 +336,7 @@ a.warn-box-anchor {
     flex-direction: column;
     align-items: end;
     justify-content: flex-start;
+    font-size: 10px;
 }
 
 .how-long-time {
@@ -425,7 +356,6 @@ a.warn-box-anchor {
 .downloadresult-btn,
 .mostrecent-btn {
     background-color: var(--search-box-input-trace);
-    height: 30px;
 }
 
 .span-id-text {
@@ -436,8 +366,8 @@ a.warn-box-anchor {
 #app-container{
     height: 100vh;
 }
-/* Trace Timeline View */
 
+/* Trace Timeline View */
 #timeline-container{
     margin-top: 12px;
     box-shadow: var(--box-shadow);
@@ -554,16 +484,18 @@ a.warn-box-anchor {
     background-color: var(--bg-color) !important;
     padding: 5px !important;
     border-radius: 5px !important;
-    font-size: 13px !important;
+    font-size: 10px !important;
     margin-top: -20px;
 }
 
 circle:hover{
     cursor: pointer;
 }
+
 .dropdown-menu.daterangepicker.dep.show {
-    height: 160px !important;
+    height: 130px !important;
 }
+
 .span-details-container{
     margin-top: 12px;
     box-shadow: var(--box-shadow);

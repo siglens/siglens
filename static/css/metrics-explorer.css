@@ -16,8 +16,8 @@
 .switch {
     position: relative;
     display: inline-block;
-    width: 32px;
-    height: 16px;
+    width: 24px;
+    height: 14px;
 }
 
 .switch input { 
@@ -40,8 +40,8 @@
 .slider:before {
     position: absolute;
     content: "";
-    height: 12px;
-    width: 12px;
+    height: 10px;
+    width: 10px;
     left: 2px;
     bottom: 2px;
     background-color: var(--white-0);
@@ -54,7 +54,7 @@ input:checked + .slider {
 }
 
 input:checked + .slider:before {
-    transform: translateX(15px);
+    transform: translateX(10px);
 }
 
 .slider.round {
@@ -66,7 +66,7 @@ input:checked + .slider:before {
 }
 
 .table-view-toggle-container,.graph-view-container{
-    height: 32px;
+    height: 24px;
     width: fit-content;
     display: flex;
     align-items: center;
@@ -80,14 +80,6 @@ input:checked + .slider:before {
     background-image: var(--dashboard-btn-img);
 }
 
-.below-btn-img {
-    background-size: 50%;
-    background-repeat: no-repeat;
-    background-position: center;
-    height: 30px;
-    width: 30px;
-    border: 1px solid var(--border-btn-color);
-}
 .metrics-query .query-box .options-container , 
 .formula-box .options-container-formula{
     display: none;
@@ -104,13 +96,9 @@ input:checked + .slider:before {
 #metrics-explorer .btn{
     border: 1px solid var(--border-btn-color);
     margin-right: 8px;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    height: 30px;
 }
 #metrics-explorer .btn .plus-icon{
-    font-size: 26px;
+    font-size: 20px;
     margin-bottom: 4px;
     margin-right: 6px;
 }
@@ -118,11 +106,11 @@ input:checked + .slider:before {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 .formula-functions-container div {
     position: relative;
-    height: 32px;
+    height: 26px;
     display: flex;
     align-items: center;
     padding: 0px 12px;
@@ -174,9 +162,9 @@ input:checked + .slider:before {
     color: var(--white);
     border: none !important;
     font-weight: bolder;
-    height: 32px;
-    width: 32px;
-    padding: 8px;
+    height: 26px;
+    width: 26px;
+    padding: 3px 6px;
     transform: rotate(270deg);
 }
 
@@ -193,7 +181,7 @@ input:checked + .slider:before {
 .metrics-query .query-box div{
     border: 1px solid var(--border-btn-color);
     border-right: none;
-    height: 32px;
+    height: 26px;
     display: flex;
     align-items: center;
     padding: 0px 12px;
@@ -205,7 +193,7 @@ input:checked + .slider:before {
 
 .metrics-query div .tag, .metrics-query div .value{
     color: var(--text-color);
-    padding: 4px 28px 4px 7px;
+    padding: 2px 28px 2px 6px;
     margin-right: 8px;
     white-space: nowrap;
     position: relative;
@@ -223,7 +211,7 @@ input:checked + .slider:before {
 
 .everywhere,
 .everything {
-    height: 28px !important;
+    height: 24px !important;
     border: none !important;
     border-radius: 0px;
     flex-grow: 1; 
@@ -271,12 +259,12 @@ input:checked + .slider:before {
 
 .metrics-query .remove-query, .formula-box .remove-query{
     border-radius: 18px;
-    height: 18px;
-    width: 18px;
+    height: 16px;
+    width: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 15px;
     padding-bottom: 2.5px;
     cursor: pointer;
     color: #fff;
@@ -348,30 +336,31 @@ input:checked + .slider:before {
     grid-column: span 2; 
 }
 .metrics-graph div:first-child, .merged-graph-name{
-    padding: 10px;
+    padding: 8px;
     border-bottom: 1px solid var(--border-btn-color);
     font-weight: 600;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px 5px 0 0;
 }
 #visualization-options div{
-    margin-right: 24px;
-    font-size: 12px;
+    margin-right: 14px;
+    font-size: 10px;
     white-space: nowrap;
 }
 #visualization-options input{
-    height: 24px !important;
+    height: 20px !important;
     color: var(--text-color);
     width: 84px;
     padding: 7px;
+    font-size: 10px;
 }
 .alias-box{
     margin-right: 10px;
 }
 .alias-box .as-btn,.metrics-raw-query,
 .raw-query-btn{
-    height: 32px;
-    width: 38px;
+    height: 24px;
+    width: 28px;
     display: flex;
     justify-content: center;
     border-radius: 5px;
@@ -385,8 +374,8 @@ input:checked + .slider:before {
 
 .alias-filling-box div{
     border: 1px solid var(--border-btn-color);
-    height: 30px;
-    width: 46px;
+    height: 26px;
+    width: 34px;
     display: flex;
     justify-content: center;
 }
@@ -397,7 +386,7 @@ input:checked + .slider:before {
 .alias-filling-box div:last-child{
     border-radius: 0 5px 5px 0;
     cursor: pointer;
-    font-size: 26px;
+    font-size: 20px;
     padding-bottom: 2px;
 }
 
@@ -424,10 +413,10 @@ input:checked + .slider:before {
 }
 
 .metrics-query .tag .close, .metrics-query .value .close{
-    font-size: 22px;
+    font-size: 18px;
     font-weight: bold;
     position: absolute;
-    top: -3px;
+    top: -4px;
     right: 8px;
     cursor: pointer;
 }
@@ -507,7 +496,7 @@ input:checked + .slider:before {
     border: 1px solid #fff;
 }
 .show-functions,.show-functions-formula{
-    width: 32px;
+    width: 26px;
     border-right: 1px solid var(--border-btn-color) !important;
     cursor: pointer;
     position: relative;
@@ -522,7 +511,7 @@ input:checked + .slider:before {
 .functions-container,.formula-functions-container{
     border :none !important;
     position: relative;
-    height: 32px;
+    height: 26px;
     display: flex;
     align-items: center;
     padding: 0px 12px;
@@ -564,26 +553,10 @@ input:checked + .slider:before {
 .raw-query{
     width: 90%;
 }
-#metrics-explorer .run-filter-btn {
-    background-image: url("../assets/search-img.svg");
-    height: 32px;
-    width: 32px;
-    background-color: var(--purple-2);
-    background-repeat: no-repeat;
-    background-size: 45%;
-    background-position: center;
-    border-radius: 0 5px 5px 0;
-    border: none;
-}
 
 #metrics-container .refresh-btn{
-    height: 30px !important;
-    width: 30px !important;
+    height: 24px !important;
+    width: 24px !important;
     border: 1px solid var(--border-color-regular);
     margin-right: 10px;
 }
-
-.alias-filling-box input{
-    height: 30px;
-}
-

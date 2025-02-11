@@ -48,14 +48,7 @@
     --qb-box-bg: var(--white-0);
     --cross-button: var(--purple-3);
     }
-#query-language-btn, #query-mode-btn{
-    margin-left: 0px;
-    width: 93px;
-    height: 32px;
-    border-radius: 5px;
-    padding: 7px;
-    margin-right: 6px;
-}
+
 #filter-container {
     margin: 0;
     background-color: var(--top-bar-bg-color-regular);
@@ -65,16 +58,7 @@
     height: auto;
     width: fit-content;
 }
-#add-logs-to-db-btn,
-#alert-from-logs-btn{
-    height: 30px;
-}
-#avail-fields-btn {
-    height: 30px;
-    font-family: "DINpro", Arial, sans-serif;
-    font-size: 14px;
-    padding: 0 20px;
-}
+
 #progress-div{
     margin-top: -3px;
     margin-bottom: 8px;
@@ -84,7 +68,7 @@
 }
 .dashboard-box{
     height: 100vh;
-    padding: 10px 20px;
+    padding: 10px;
 }
 
 input.form-control {
@@ -92,20 +76,6 @@ input.form-control {
 }
 .ui-autocomplete {
     width: 200px;
-}
-
-.group-by-reminder {
-    background-color: var(--border-btn-color);
-    color: var(--text-color);
-    border-radius: 5px;
-    width: 200px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    height: 40px;
-    font-size: 16px;
-    margin: 0 10px 0 50px;
 }
 
 .group-by-box {
@@ -145,10 +115,10 @@ input.form-control {
     color: var(--text-color);
     padding: 0px 5px;
     margin-right: 5px;
-    height: 30px;
+    height: 20px;
     align-items: center;
     white-space: nowrap;
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .tags-input input[type="text"] {
@@ -192,7 +162,7 @@ input.form-control {
 
 .filter-box {
     border: 1px solid var(--border-btn-color);
-    min-height: 32px;
+    min-height: 26px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -203,8 +173,8 @@ input.form-control {
 
 .builder-div{
     background-color: var(--drop-down-btn-bg-regular);
-    padding: 4px 6px;
-    height: 32px;
+    padding: 3px 6px;
+    height: var(--height-md);
     border: solid var(--border-btn-color);
     border-width: 1px 0.5px;
 }
@@ -214,7 +184,8 @@ input.form-control {
     padding: 0px;
     margin: 0 4px 0 0;
     height: 26px;
-    min-width: 26px;
+    min-width: 24px;
+    width: 24px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -227,7 +198,7 @@ input.form-control {
 .value-first,
 .column-first {
     min-width: 120px;
-    height: 30px;
+    height: 26px;
     color: var(--text-color) !important;
     margin-right: 5px;
 }
@@ -263,7 +234,7 @@ input.form-control {
     position: absolute;
     border: 1px solid var(--border-btn-color);
     border-radius: 2px;
-    height: 37px;
+    height: 34px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -271,7 +242,7 @@ input.form-control {
     background: var(--code-input-box-color);
     visibility: hidden;
     z-index: 100;
-    font-size: 16px;
+    font-size: 13px;
 }
 
 .ui-autocomplete {
@@ -279,7 +250,7 @@ input.form-control {
     overflow-y: scroll;
     overflow-x: hidden;
     border-radius: 3px !important;
-    font-size: 14px !important;
+    font-size: 12px !important;
     scrollbar-width: none;
     -ms-overflow-style: none;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
@@ -287,7 +258,7 @@ input.form-control {
 
 .ui-menu {
     width: 120px !important;
-    font-size: 14px !important;
+    font-size: 12px !important;
 }
   
 .ui-state-hover,
@@ -319,7 +290,7 @@ input.form-control {
 }
 .custom-code-tab {
     border: 0 !important;
-    font-size: 14px;
+    font-size: var(--font-size-sm);
     background-color: var(--bg-color);
 }
 
@@ -344,8 +315,8 @@ input.form-control {
 
 .search-img {
     background-image: url("../assets/search-img.svg");
-    height: 32px;
-    width: 32px;
+    height: 26px;
+    width: 26px;
     background-color: var(--purple-2);
     background-repeat: no-repeat;
     background-size: 50%;
@@ -356,8 +327,8 @@ input.form-control {
 }
 .run-filter-btn {
     background-image: url("../assets/search-img.svg");
-    height: 32px;
-    width: 32px;
+    height: 26px;
+    width: 26px;
     background-color: var(--purple-2);
     background-repeat: no-repeat;
     background-size: 50%;
@@ -387,7 +358,7 @@ input.form-control {
     margin-left: auto !important;
     margin-bottom: 6px !important;
     width: 94px;
-    height: 26px;
+    height: 22px;
     border-radius: 5px;
     background: var(--alert-background);
     display: flex;
@@ -460,15 +431,16 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav li {
     margin: 0;
     background: var(--myOrg-input) !important;
-    height: 20px;
-    font-size: 12px;
+    height: 17px;
+    font-size: 10px;
 }
 .tab-chart-list .tab-li{
     margin: 0;
     background: var(--myOrg-input) !important;
-    height: 22px !important;
-    font-size: 14px !important;
+    height: 16px !important;
+    font-size: 12px !important;
     margin-top: 2px !important;
+    border-radius: 3px;
 }
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor{
     padding: 2px 5px;
@@ -481,18 +453,6 @@ a:visited.ui-button,
     opacity: 0.5;
 }
 
-#index-btn,
-#date-picker-btn {
-    padding: 0;
-    font-size: 14px;
-    margin-left: 5px;
-}
-
-#index-btn {
-    width: 119px;
-    padding: 10px;
-    justify-content: space-between;
-}
 
 .completed,
 .cancel-enter {
@@ -500,14 +460,8 @@ a:visited.ui-button,
 }
 
 .cancel-enter{
-    font-size: 20px !important;
+    font-size: 17px !important;
     padding-bottom: 3px;
-}
-
-.form-control,
-.dropdown-toggle {
-    border: 1px solid var(--border-btn-color) !important;
-    font-size: 14px;
 }
 
 .form-control {
@@ -523,13 +477,12 @@ a:visited.ui-button,
 }
 
 .query-text,
-.group-by-reminder,
 .ui-widget,
 #filter-input.form-control{
     font-family: "DINpro", Arial, sans-serif !important;
 }
 textarea.form-control#filter-input{
-    min-height: 32px;
+    min-height: 26px;
     box-sizing: border-box;
     resize: none; 
     overflow: hidden; 
@@ -537,9 +490,10 @@ textarea.form-control#filter-input{
     padding-top: 4px;
     background-color: var(--top-bar-bg-color-regular);
     color: var(--text-color) !important;
-    line-height: 21px;
     position: relative;
     width: 100%;
+    border: 1px solid var(--search-input-border);
+
 }
 textarea.form-control:focus{
     box-shadow: none;
@@ -580,34 +534,25 @@ textarea.form-control:focus{
 .completed{
     background-image: var(--complete-bg-img);
     background-repeat: no-repeat;
-    background-size: 47%;
+    background-size: 40%;
     background-position: center;
 }
 .select-box{
     border-color: var(--purple-1);
 }
-#available-indexes{
-    width: 210px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    transform: translate3d(0px, 42px, 0px);
-    scrollbar-width: none; /* firefox */
-    -ms-overflow-style: none;/* IE 10+ */
-}
-#available-indexes::-webkit-scrollbar {
-    display: none;
-    /* Chrome Safari */
-}
+
 .dropdown-menu{
     min-width: 0;
     padding: 0;
 }
-.index-dropdown-item{
-    width: 182px;
-}
+
+
+
+
 .saveq-btn{
     background-image: var(--save-btn-img);
 }
+
 .add-logs-to-db-btn{
     background-image: var(--dashboard-btn-img);
 }
@@ -616,7 +561,6 @@ textarea.form-control:focus{
 }
 .download-all-logs-btn{
     background-image: var(--download-btn-img);
-    margin-right: 10px;
 }
 .show-record-intro-btn{
     background-image: var(--show-record-btn-img);
@@ -624,23 +568,38 @@ textarea.form-control:focus{
     border-radius: 5px;
     height: 40px;
 }
+#save-query-div {
+    display: flex;
+    justify-content: flex-start;
+    position: relative;
+    gap:8px;
+}
 .below-btn-img{
     background-size: 50%;
     background-repeat: no-repeat;
     background-position: center;
-    height: 30px;
-    width: 30px;
+    height: 24px;
+    width: 24px;
     border: 1px solid var(--border-btn-color);
+    padding: 0px;
 }
 
 .below-btn-img:hover,
 .add-con:hover,
 .cancel-enter:hover,
-.completed:hover{
-    background-color: var(--drop-down-btn-bg-hover);
+.completed:hover, 
+.below-btn-img.show{
+    background-color: var(--drop-down-btn-bg-hover) !important;
+    border: 1px solid var(--border-btn-color) !important;
+}
+.download-all-logs-btn.below-btn-img.show{
+    background-image: var(--download-btn-img) !important;
+    background-size: 50% !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
 }
 .run-filter-btn{
-    height: 32px;
+    height: 26px;
     border-radius: 0 5px 5px 0;
     border: none;
 }
@@ -657,21 +616,21 @@ textarea.form-control:focus{
 div.show-record-popup {
     width: 404px;
     height: auto !important;
-    padding: 0 !important;
-    margin: 0 0 20px 30px !important;
+    padding: 16px;
+}
+
+div.show-record-popup .ui-dialog-buttonpane{
+    height: 45px;
+}
+div.show-record-popup .ui-dialog-buttonpane button{
+    width: auto;
+    margin: 0;
+    margin-top: 8px;
 }
 .ui-dialog-buttonpane{
     position: relative;
-    height: 65px;
 }
-.cancel-record-btn{
-    position: absolute;
-    right: 0;
-    background: var(--component-bg-color) !important;
-}
-.cancel-record-btn:hover{
-    background: var(--component-bg-color-hover) !important;
-}
+
 .ag-theme-mycustomtheme .ag-root-wrapper{
     border: 1px solid var(--border-btn-color);
 }
@@ -713,15 +672,15 @@ div.show-record-popup {
     display: none;
 }
 .tab-chart-list{
-    height: 30px;
+    height: 24px;
     border-radius: 5px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    width: 150px;
-    margin-right: 10px !important;
+    margin-right: 8px !important;
     background-color: var(--myOrg-input);
-    margin-left: -5px !important; 
+    padding: 2px 4px!important;
+    width: fit-content;
 }
 #logs-view-controls {
     left: 155px;
@@ -732,7 +691,8 @@ div.show-record-popup {
 #tabs-chart,
 #showTable{
     display: none;
-    margin: 10px 0 0 0;
+    margin: 6px 0 0 0;
+    height: calc(100% - 34px);
 }
 .tab-content-size{
     height: 100%;
@@ -747,25 +707,21 @@ div.show-record-popup {
     padding: 10px;
     background: var(--black1-to-white0)
 }
-.show-table{
-    height: calc(100% - 58px);
-}
+
 .hide-graph{
     display: none;
-    height: calc(100% - 58px);
+    height: 100%
 }
 .hide-graph-text{
     display: flex;
-    height: calc(100% - 58px);
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    font-size: 24px;
-    font-weight: var(--fw-500);
+    font-size: 22px;
+    font-weight: bold;
     color: var(--empty-response-text-color);
     width: 100%; 
-    height: 90%;
-    margin-bottom: 50px;
+    height: 100%;
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 10px;
@@ -798,13 +754,12 @@ div.show-record-popup {
     margin: 0;
 }
 
-  
 .ui-autocomplete > li > div {
     display: block;
     padding: 3px 20px;
     clear: both;
     font-weight: normal;
-    height: 34px;
+    height: 28px;
     white-space: nowrap;
     display: flex;
     align-items: center;
@@ -817,20 +772,20 @@ div.show-record-popup {
     text-decoration: none;
     background-color: var(--purple-2) !important;
     cursor: pointer;
-    height: 34px;
+    height: 28px;
     border: none !important;
     outline: none;
 }
 .ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button{
     font-family: "DINpro", Arial, sans-serif;    
-    font-size: 14px;
+    font-size: 12px;
 }
 .query-builder-container{
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border-radius: 5px;
     padding: 10px 10px 14px 10px;
     background-color: var(--qb-box-bg);
-    margin: 10px 0px;
+    margin: 6px 0px;
 }
 [data-theme='dark'] .query-builder-container{
     box-shadow: none;
@@ -864,19 +819,4 @@ div.show-record-popup {
 }
 #empty-response{
     display: none;
-}
-#query-language-options, #query-mode-options{
-    width: 93px;
-    padding: 0px;
-    padding-top: 0px;
-    position: relative;
-    font-size: 12px !important;
-    background: var(--index-drop-down-box-bg-color);
-    padding: 0px 5px 5px 5px;
-    border: 1px solid var(--timepicker-border-color);
-}
-
-#query-language-btn span, #query-mode-btn span{    
-    display: block;
-    font-size: 12px !important;
 }
