@@ -339,7 +339,7 @@ function searchTrace(params) {
                     let dataInfo = new Date(milliseconds);
                     let dataStr = dataInfo.toLocaleString().toLowerCase();
                     let duration = Number((json.end_time - json.start_time) / 1000000);
-                    scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id]);
+                    scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id, json.start_time]);
                 }
                 showScatterPlot();
                 reSort();
@@ -438,9 +438,28 @@ function showScatterPlot() {
                 var duration = param.value[1];
                 var spans = param.value[2];
                 var errors = param.value[3];
-                var traceId = param.value[6] ? param.value[6].substring(0, 7) : '';
+                var traceId = param.value[6] ? param.value[6] : '';
+                var traceStartTimeMs = param.value[7];
 
-                return '<div>' + green + ': ' + red + '<br>Trace ID: ' + traceId + '<br>Duration: ' + duration + 'ms' + '<br>No. of Spans: ' + spans + '<br>No. of Error Spans: ' + errors + '</div>';
+                return `<div class="custom-tooltip">
+                    <div class="tooltip-content">
+                        <div class="trace-name">${green}: ${red}</div>
+                        <div class="trace-id">Trace ID: ${traceId.substring(0, 7)}</div>
+                        <hr>
+                        <div>Duration: ${duration}ms</div>
+                        <div>No. of Spans: ${spans}</div>
+                        <div>No. of Error Spans: ${errors}</div>
+                    </div>
+                    <hr>
+                    <div class="tooltip-context">
+                        <div class="context-option" onclick="handleRelatedTraces('${traceId}')">View Traces</div>
+                        <div class="context-option" onclick="handleRelatedLogs('${traceId}', ${traceStartTimeMs}, 'trace')">Related Logs</div>
+                    </div>
+                </div>`;
+            },
+            enterable: true,
+            position: function (point) {
+                return [point[0], point[1]];
             },
         },
         series: [
