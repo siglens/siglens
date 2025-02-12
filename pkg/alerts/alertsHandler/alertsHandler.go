@@ -92,31 +92,38 @@ func Disconnect() {
 	}
 	databaseObj.CloseDb()
 }
+
 func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
-	if alertToBeCreated.AlertType == alertutils.AlertTypeLogs {
+	switch alertToBeCreated.AlertType {
+	case alertutils.AlertTypeLogs:
 		_, queryAggs, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
 		if err != nil {
-			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("error Parsing logs Query. Error=%v", err)
 		}
 
 		if queryAggs == nil {
-			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
 		}
 
 		isStatsQuery := queryAggs.IsStatsAggPresentInChain()
 		if !isStatsQuery {
-			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
 		}
-
-	} else if alertToBeCreated.AlertType == alertutils.AlertTypeMetrics {
+	case alertutils.AlertTypeMetrics:
 		_, _, _, _, errorLog, _, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
 		if err != nil {
 			return errorLog, err
 		}
-	} else {
-		return fmt.Sprintf("Alert Type: %v", alertToBeCreated.AlertType), fmt.Errorf("invalid Alert Type. Alert Type must be logs or Metrics")
+	case alertutils.AlertTypeMinion:
+		return fmt.Sprintf("Alert Type: %v", alertToBeCreated.AlertType), fmt.Errorf("minion alerts are not supported")
 	}
+
 	return "", nil
+}
+
+func queryTextAndLanguage(alert *alertutils.AlertDetails) string {
+	params := alert.QueryParams
+	return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", params.QueryText, params.QueryLanguage)
 }
 
 func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id int64) {
