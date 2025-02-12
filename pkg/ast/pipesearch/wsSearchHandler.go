@@ -37,6 +37,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const KEY_TRACE_RELATED_LOGS_INDEX = "trace-related-logs"
+
 func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp.RequestCtx) {
 
 	qid := rutils.GetNextQid()

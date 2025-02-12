@@ -674,12 +674,6 @@ func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func searchTraceRelatedLogsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSearchTraceRelatedLogsRequest, ctx)
-	}
-}
-
 func totalTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyIdQuery(tracinghandler.ProcessTotalTracesRequest, ctx)
