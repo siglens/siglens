@@ -101,6 +101,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 
 	if indexNameIn == KEY_TRACE_RELATED_LOGS_INDEX {
 		isTraceRelatedLogsIndex = true
+		// TODO: set indexNameIn to otel-collector indexes
 		indexNameIn = "*"
 	}
 
