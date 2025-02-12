@@ -968,3 +968,23 @@ func writeErrMsg(ctx *fasthttp.RequestCtx, functionName string, errorMsg string,
 	}
 	log.Errorf(functionName, ": failed to decode search request body! Err=%v", err)
 }
+
+func ProcessSearchTraceRelatedLogsRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	jsonDataMap, err := putils.DecodeJsonToMap(ctx.PostBody())
+	if err != nil {
+		putils.SendError(ctx, fmt.Sprintf("json decoding error: %v", err), fmt.Sprintf("request body: %v", ctx.PostBody()), err)
+	}
+
+	// TODO: Set the index name based on the otel-collector indexes
+	jsonDataMap[pipesearch.KEY_INDEX_NAME] = "*" // for now, set it to all indexes
+
+	bytes, err := putils.EncodeMapToJson(jsonDataMap)
+	if err != nil {
+		putils.SendError(ctx, "json encoding error", fmt.Sprintf("json data: %v", jsonDataMap), err)
+	}
+
+	ctx.Request.SetBody(bytes)
+	ctx.Request.Header.SetContentLength(len(bytes))
+
+	pipesearch.ProcessPipeSearchRequest(ctx, myid)
+}
