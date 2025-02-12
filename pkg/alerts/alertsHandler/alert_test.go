@@ -15,6 +15,8 @@ func Test_ValidateAlertTypeAndQuery(t *testing.T) {
 	assertIsValidLogAlert(t, true, "foo=bar | stats count by weekday, alpha, beta")
 	assertIsValidLogAlert(t, true, "* | stats count by weekday, alpha, beta")
 	assertIsValidLogAlert(t, true, "foo=bar | stats min(latency)")
+	assertIsValidLogAlert(t, false, "foo=bar | stats min(latency), max(latency)")
+	assertIsValidLogAlert(t, false, "foo=bar | stats min(latency), avg(size)")
 }
 
 func assertIsValidLogAlert(t *testing.T, isValid bool, splunkQuery string) {
