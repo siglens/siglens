@@ -97,10 +97,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 		return
 	}
 
-	isTraceRelatedLogsIndex := false
-
 	if indexNameIn == KEY_TRACE_RELATED_LOGS_INDEX {
-		isTraceRelatedLogsIndex = true
 		// TODO: set indexNameIn to otel-collector indexes
 		indexNameIn = "*"
 	}
@@ -158,7 +155,6 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	qc.RawQuery = searchText
 	qc.IncludeNulls = includeNulls
-	qc.IsTraceRelatedLogsIndex = isTraceRelatedLogsIndex
 
 	if config.IsNewQueryPipelineEnabled() {
 		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, qc, sizeLimit, scrollFrom)
