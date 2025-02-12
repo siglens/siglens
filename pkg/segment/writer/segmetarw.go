@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/blob"
+	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
@@ -370,7 +371,7 @@ func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[stri
 }
 
 func AddOrReplaceRotatedSegmeta(segmeta structs.SegMeta) {
-	removeSegmetas(map[string]struct{}{segmeta.SegmentKey: struct{}{}}, "")
+	removeSegmetas(map[string]struct{}{segmeta.SegmentKey: {}}, "")
 	addSegmeta(segmeta)
 }
 
@@ -397,6 +398,11 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 
 	var allSegmetaJson []byte
 	for _, segmeta := range finalSegmetas {
+		err := uploadFilesToBlob(segmeta.SegbaseDir)
+		if err != nil {
+			log.Errorf("BulkAddRotatedSegmetas: failed to upload files to blob: err=%v", err)
+		}
+
 		segmetaJson, err := json.Marshal(segmeta)
 		if err != nil {
 			log.Errorf("bulkAddSegmetas: failed to Marshal: err=%v", err)
@@ -852,4 +858,20 @@ func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 		}
 	}
 	return stats
+}
+
+func uploadFilesToBlob(segBaseDir string) error {
+	if !config.IsS3Enabled() {
+		return nil
+	}
+
+	// Upload segment files to blob
+	filesToUpload := fileutils.GetAllFilesInDirectory(segBaseDir)
+
+	blobErr := blob.UploadSegmentFiles(filesToUpload)
+	if blobErr != nil {
+		return fmt.Errorf("uploadFilesToBlob: failed to upload segment files , err=%v", blobErr)
+	}
+
+	return nil
 }

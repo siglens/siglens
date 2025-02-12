@@ -38,7 +38,6 @@ $(document).ready(() => {
     renderClusterStatsTables();
     renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
-    $('.toast-close').on('click', removeToast);
     {{ .Button1Function }}
 });
 

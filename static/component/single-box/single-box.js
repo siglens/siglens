@@ -37,7 +37,7 @@
       .append(`<button class="btn dropdown-toggle ${name}-btn" type="button" id="${name}-btn" data-toggle="dropdown" aria-haspopup="true"
                                 aria-expanded="false" data-bs-toggle="dropdown" title="Index Name to search on">
                                 <span class = "span-name-index" id="${name}-span-name"></span>
-                                <div class="dropdown-arrow-show"></div>
+                                <i class="dropdown-arrow"></i>                            
                             </button>
                             <div class="dropdown-menu box-shadow dropdown-plugin" aria-labelledby="index-btn" id="${name}-options">
                                 <div id="${name}-listing"></div>

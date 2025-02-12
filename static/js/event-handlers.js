@@ -38,10 +38,6 @@ function setupEventHandlers() {
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
     $('#query-mode-options .query-mode-option').on('click', setQueryModeHandler);
 
-    $('#index-btn').on('show.bs.dropdown', indexOnShowHandler);
-    $('#index-btn').on('hide.bs.dropdown', indexOnHideHandler);
-    $('#available-indexes').on('click', '.index-dropdown-item', indexOnSelectHandler);
-
     $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
 
     $('#log-opt-single-btn').on('click', function () {
@@ -426,54 +422,6 @@ function qLangOnShowHandler() {
 
 function qLangOnHideHandler() {
     $('#query-language-btn').removeClass('active');
-}
-
-function indexOnShowHandler() {
-    $('#index-btn').addClass('active');
-    if (Cookies.get('IndexList')) {
-        let allAvailableIndices = [];
-        let selectedIndexList = Cookies.get('IndexList').split(',');
-        // Get all available indices
-
-        $.each($('.index-dropdown-item'), function () {
-            allAvailableIndices.push($(this).data('index'));
-        });
-        let allSelectedIndices = _.intersection(selectedIndexList, allAvailableIndices);
-        $.each($('.index-dropdown-item'), function () {
-            let indexName = $(this).data('index');
-            if (allSelectedIndices.includes(indexName)) {
-                $(this).addClass('active');
-            }
-        });
-        selectedSearchIndex = allSelectedIndices.join(',');
-        Cookies.set('IndexList', allSelectedIndices.join(','));
-    }
-}
-
-function indexOnHideHandler() {
-    $('#index-btn').removeClass('active');
-}
-
-function indexOnSelectHandler(evt) {
-    evt.stopPropagation();
-
-    var target = $(evt.currentTarget);
-    var isChecked = target.hasClass('active');
-
-    if ($('.index-dropdown-item.active').length === 1 && isChecked) {
-        // If only one index is selected and it's being clicked again, prevent deselection
-        return;
-    }
-
-    target.toggleClass('active');
-
-    let checkedIndices = [];
-    $('.index-dropdown-item.active').each(function () {
-        checkedIndices.push($(this).data('index'));
-    });
-    selectedSearchIndex = checkedIndices.join(',');
-    setIndexDisplayValue(selectedSearchIndex);
-    Cookies.set('IndexList', selectedSearchIndex);
 }
 
 function runLiveTailBtnHandler(evt) {

@@ -218,7 +218,11 @@ func setNumKeysAndValues() {
 	keys := make(map[string]struct{})
 	values := make(map[string]struct{})
 	for _, segmentTagTreeReader := range tagsTreeReaders {
-		segmentTagPairs := segmentTagTreeReader.GetAllTagPairs()
+		segmentTagPairs, err := segmentTagTreeReader.GetAllTagPairs()
+		if err != nil {
+			log.Errorf("setNumKeysAndValues: failed to get all tag pairs: %v", err)
+			continue
+		}
 
 		for key, valueSet := range segmentTagPairs {
 			keys[key] = struct{}{}

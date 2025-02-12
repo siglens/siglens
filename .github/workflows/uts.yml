@@ -13,14 +13,6 @@ jobs:
     needs: check-changed-files
     if: ${{ !github.event.pull_request.draft && needs.check-changed-files.outputs.skip_tests != 'true' && github.event.pull_request.base.ref != 'main' }}
     steps:
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
       - uses: actions/setup-go@v3
         with:
           go-version: 1.21
@@ -46,9 +38,9 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
+          skip-cache: true
           working-directory: ./
           version: v1.59.1
-          skip-cache: false
   ESLint:
     runs-on: ubuntu-latest
     name: ESLint JS Files

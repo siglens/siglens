@@ -20,7 +20,6 @@
 .folder-select-dropdown {
     position: relative;
     width: 100%;
-    font-size: 14px;
 }
 
 .folder-dropdown-content {
@@ -51,8 +50,8 @@
     margin-top: 8px;
 }
 
-.folder-dropdown-content .folder-name{
-    font-size: 14px !important;
+.folder-dropdown-content .folder-name {
+    font-size: 12px !important;
 }
 
 .folder-item {
@@ -78,10 +77,11 @@
     margin-left: 24px;
 }
 
-.launch-dashboard .popupContent .folder-select-btn{
+.launch-dashboard .popupContent .folder-select-btn {
     background-color: var(--drop-down-btn-bg-regular) !important;
     width: 100% !important;
     border: 1px solid var(--border-btn-color) !important;
     display: flex;
     justify-content: space-between;
+    color: var(--text-color);
 }

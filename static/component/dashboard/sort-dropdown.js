@@ -45,10 +45,10 @@ class SortDropdown {
     render() {
         const template = `
             <div class="dropdown">
-                <button class="btn dropdown-toggle grey-dropdown-btn" data-toggle="dropdown"
-                    aria-haspopup="true" aria-expanded="true" data-bs-toggle="dropdown">
+                <button class="btn dropdown-toggle btn-grey" data-toggle="dropdown"
+                    aria-haspopup="false" aria-expanded="false" data-bs-toggle="dropdown">
                     <span class="sort-text" style="margin-right: 6px;">Sort</span>
-                    <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" alt="expand">
+                    <i class="dropdown-arrow"></i>
                     <span class="clear-sort" style="display: none; margin-left: 8px; cursor: pointer;">✕</span>
                 </button>
                 <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">

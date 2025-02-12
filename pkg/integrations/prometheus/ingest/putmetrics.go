@@ -137,7 +137,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			modifiedData, err := ConvertToOTSDBFormat(data, s.Timestamp, s.Value)
 			if err != nil {
 				failedCount++
-				log.Errorf("HandlePutMetrics: failed to convert data=%+v to OTSDB format, err=%v", data, err)
+				log.Errorf("HandlePutMetrics: failed to convert data=%+v to OTSDB format, err=%v", string(data), err)
 				continue
 			}
 

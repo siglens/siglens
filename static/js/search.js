@@ -884,7 +884,6 @@ function showErrorResponse(errorMsg, res) {
     $('#query-builder-btn').html(' ');
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
-    $('#run-metrics-query-btn').removeClass('active');
 
     wsState = 'query';
 }

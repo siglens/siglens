@@ -66,8 +66,8 @@ const propertiesGridOptions = {
     },
     rowData: [],
     domLayout: 'autoHeight',
-    headerHeight: 32,
-    rowHeight: 42,
+    headerHeight: 26,
+    rowHeight: 34,
 };
 
 const historyGridOptions = {
@@ -83,8 +83,8 @@ const historyGridOptions = {
         minWidth: 150,
     },
     rowData: [],
-    headerHeight: 32,
-    rowHeight: 42,
+    headerHeight: 26,
+    rowHeight: 34,
 };
 
 let originalIndexValues;

@@ -18,7 +18,6 @@
 package pipesearch
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -26,7 +25,6 @@ import (
 	"time"
 
 	"github.com/fasthttp/websocket"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -45,6 +43,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
+
+const KEY_INDEX_NAME string = "indexName"
 
 /*
 Example incomingBody
@@ -72,8 +72,11 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
-	iText, ok := jsonSource["indexName"]
+	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
+		indexName = "*"
+	} else if iText == KEY_TRACE_RELATED_LOGS_INDEX {
+		// TODO: set indexNameIn to otel-collector indexes
 		indexName = "*"
 	} else {
 		switch val := iText.(type) {
@@ -239,7 +242,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON := make(map[string]interface{})
 	var err error
 	readJSON["from"] = "0"
-	readJSON["indexName"] = "*"
+	readJSON[KEY_INDEX_NAME] = "*"
 	readJSON["queryLanguage"] = queryParams.QueryLanguage
 	readJSON["searchText"] = queryParams.QueryText
 	readJSON["startEpoch"] = queryParams.StartTime
@@ -362,11 +365,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	readJSON, err := utils.DecodeJsonToMap(rawJSON)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
