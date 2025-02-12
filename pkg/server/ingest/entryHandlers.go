@@ -54,6 +54,9 @@ func MonitorDiskUsage() {
 		if usage >= config.GetDataDiskThresholdPercent() {
 			log.Errorf("MonitorDiskUsage: Disk usage (%+v%%) exceeded the dataDiskThresholdPercent (%+v%%)", usage, config.GetDataDiskThresholdPercent())
 			diskUsageExceeded.Store(true)
+			if hook := hooks.GlobalHooks.TriggerSegmentEvictionHook; hook != nil {
+				go hook()
+			}
 		} else {
 			diskUsageExceeded.Store(false)
 		}
