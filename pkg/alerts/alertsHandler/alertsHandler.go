@@ -92,21 +92,22 @@ func Disconnect() {
 	}
 	databaseObj.CloseDb()
 }
+
 func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (string, error) {
 	switch alertToBeCreated.AlertType {
 	case alertutils.AlertTypeLogs:
 		_, queryAggs, _, err := pipesearch.ParseQuery(alertToBeCreated.QueryParams.QueryText, 0, alertToBeCreated.QueryParams.QueryLanguage)
 		if err != nil {
-			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("error Parsing logs Query. Error=%v", err)
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("error Parsing logs Query. Error=%v", err)
 		}
 
 		if queryAggs == nil {
-			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
 		}
 
 		isStatsQuery := queryAggs.IsStatsAggPresentInChain()
 		if !isStatsQuery {
-			return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", alertToBeCreated.QueryParams.QueryText, alertToBeCreated.QueryParams.QueryLanguage), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
 		}
 	case alertutils.AlertTypeMetrics:
 		_, _, _, _, errorLog, _, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
@@ -118,6 +119,11 @@ func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (strin
 	}
 
 	return "", nil
+}
+
+func queryTextAndLanguage(alert *alertutils.AlertDetails) string {
+	params := alert.QueryParams
+	return fmt.Sprintf("QuerySearchText: %v, QueryLanguage: %v", params.QueryText, params.QueryLanguage)
 }
 
 func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id int64) {
