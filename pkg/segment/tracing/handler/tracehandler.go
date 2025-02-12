@@ -1041,10 +1041,10 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	// TODO: Set the index name based on the otel-collector indexes
-	searchRequestBody.IndexName = "*" // for now, set it to all indexes
+	searchRequestBody.IndexName = "traces" // for now, set it to all indexes
 
 	// Find all unique Trace IDs for the spanId
-	searchRequestBody.SearchText = "spanId=" + spanId + " | stats count BY traceId"
+	searchRequestBody.SearchText = "span_id=" + spanId + " | stats count BY trace_id"
 	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", err.Error(), nil)
@@ -1070,7 +1070,7 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	requestBody := map[string]interface{}{
-		"indexName":     "*",
+		"indexName":     "traces",
 		"startEpoch":    searchRequestBody.StartEpoch,
 		"endEpoch":      searchRequestBody.EndEpoch,
 		"searchText":    "trace_id=" + traceId,
