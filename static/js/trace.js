@@ -173,7 +173,11 @@ function traceDetails(res) {
     <div class="d-flex trace-details">
         <div>Trace Start: <span>${convertNanosecondsToDateTime(res.actual_start_time)}</span></div>
         <div>Duration:<span>${nsToMs(res.duration)}ms</span></div>
-    </div>`
+    </div>
+    <button onclick="handleRelatedLogs('${traceId}', ${res.actual_start_time}, 'trace')" class="btn-related-logs btn btn-purple">
+        <i class="fa fa-file-text"></i>
+        Logs for this trace
+    </button>`
     );
 }
 
@@ -668,6 +672,12 @@ function showSpanDetails(node) {
         <div class="details-container">
             <div class="details">
                 <div>Service: <strong>${node.service_name}</strong> | Start Time: <strong>${nsToMs(node.start_time)}ms</strong> | Duration: <strong>${nsToMs(node.duration)}ms </strong></div>
+            </div>
+            <div class="my-3">
+                <button onclick="handleRelatedLogs('${node.span_id}', ${node.actual_start_time}, 'span')" class="btn-related-logs btn btn-purple">
+                    <i class="fa fa-file-text"></i>
+                    Logs for this span
+                </button>
             </div>
             <div><strong>Tags</strong>:</div>
             <table style="border-collapse: collapse; width: 100%; margin-top:6px" >

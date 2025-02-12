@@ -1215,3 +1215,32 @@ function createTooltip(selector, content) {
         animation: 'fade',
     });
 }
+
+function handleRelatedTraces(traceId) {
+    window.location.href = `trace.html?trace_id=${traceId}`;
+
+}
+
+function handleRelatedLogs(id, traceStartTime, type = 'trace') {
+    const traceStartEpoch = Math.floor(Number(traceStartTime) / 1000000);
+    
+    const fifteenMinutesMs = 15 * 60 * 1000;
+    
+    const startEpoch = traceStartEpoch - fifteenMinutesMs;
+    const endEpoch = traceStartEpoch + fifteenMinutesMs;
+
+    const searchQuery = type === 'span' 
+        ? `span_id="${id}"` 
+        : `trace_id="${id}"`;
+
+    const searchParams = new URLSearchParams({
+        searchText: searchQuery,
+        startEpoch: startEpoch.toString(),
+        endEpoch: endEpoch.toString(),
+        indexName: 'trace-related-logs',
+        queryLanguage: 'Splunk QL',
+        filterTab: '1',
+    });
+
+    window.open(`index.html?${searchParams.toString()}`, '_blank');
+}
