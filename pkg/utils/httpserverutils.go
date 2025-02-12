@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/cespare/xxhash"
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -987,4 +988,30 @@ func GetContentType(ctx *fasthttp.RequestCtx) string {
 
 func SetContentType(ctx *fasthttp.RequestCtx, contentType string) {
 	ctx.Response.Header.Set(contentTypeHeader, contentType)
+}
+
+func DecodeJsonToMap(jsonData []byte) (map[string]interface{}, error) {
+	var jsonDataMap map[string]interface{}
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(jsonData))
+	decoder.UseNumber()
+	err := decoder.Decode(&jsonDataMap)
+	if err != nil {
+		return nil, err
+	}
+	return jsonDataMap, nil
+}
+
+func EncodeMapToJson(dataMap map[string]interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	encoder := jsonc.NewEncoder(&buf)
+	err := encoder.Encode(dataMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// Encoder adds a newline at the end of the JSON string. Remove it.
+	jsonBytes := bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return jsonBytes, nil
 }
