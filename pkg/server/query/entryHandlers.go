@@ -680,6 +680,12 @@ func searchTraceRelatedLogsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func spanGanttChartHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSpanGanttChartRequest, ctx)
+	}
+}
+
 func totalTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyIdQuery(tracinghandler.ProcessTotalTracesRequest, ctx)
