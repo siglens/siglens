@@ -54,9 +54,7 @@ func MonitorDiskUsage() {
 		if usage >= config.GetDataDiskThresholdPercent() {
 			log.Errorf("MonitorDiskUsage: Disk usage (%+v%%) exceeded the dataDiskThresholdPercent (%+v%%)", usage, config.GetDataDiskThresholdPercent())
 			diskUsageExceeded.Store(true)
-			if hook := hooks.GlobalHooks.TriggerSegmentEvictionHook; hook != nil {
-				go hook()
-			}
+			initiateEvictionTrigger()
 		} else {
 			diskUsageExceeded.Store(false)
 		}
@@ -196,5 +194,22 @@ func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 		serverutils.CallWithMyId(loki.ProcessLokiLogsIngestRequest, ctx)
+	}
+}
+
+func initiateEvictionTrigger() {
+	if hook := hooks.GlobalHooks.TriggerSegmentEvictionHook; hook != nil {
+		hook()
+
+		// check for usage again after eviction
+		usage, err := GetDiskUsagePercent()
+		if err != nil {
+			log.Errorf("initiateEvictionTrigger: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
+			return
+		}
+
+		if usage < config.GetDataDiskThresholdPercent() {
+			diskUsageExceeded.Store(false)
+		}
 	}
 }
