@@ -884,16 +884,61 @@ For Gantt chart data specific to a trace ID, modify the request body accordingly
         }
 
 ## 5. Gantt Chart Data
-    endpoint: api/traces/ganttchart
+    endpoint: api/traces/ganttChart
     method: POST
 
     Example:
-    request: http://localhost:5122/api/traces/ganttchart
+    request: http://localhost:5122/api/traces/ganttChart
     body:
         {
             "startEpoch": "now-1h",
             "endEpoch": "now",
             "searchText": "trace_id=95db2d5796f8986dbeccec3d1582ee85"
+        }
+    response:
+        {
+            "span_id": "a98166653c6f7f44",
+            "actual_start_time": 1702310799070961452,
+            "start_time": 0,
+            "end_time": 2088875,
+            "duration": 2088875,
+            "service_name": "featureflagservice",
+            "operation_name": "/",
+            "is_anomalous": false,
+            "tags": {
+                "http.client_ip": "127.0.0.1",
+                "http.flavor": "1.1",
+                "http.method": "GET",
+                "http.route": "/",
+                "http.scheme": "http",
+                "http.status_code": 200,
+                "http.target": "/",
+                "http.user_agent": "curl/7.64.0",
+                "net.host.name": "localhost",
+                "net.host.port": 8081,
+                "net.peer.port": 60928,
+                "net.sock.host.addr": "127.0.0.1",
+                "net.sock.peer.addr": "127.0.0.1",
+                "net.transport": "IP.TCP",
+                "phoenix.action": "index",
+                "phoenix.plug": "Elixir.FeatureflagserviceWeb.PageController"
+            },
+            "children": [
+                // ... more records ...
+            ]
+        }
+
+## 6. Gantt Chart Data From Span ID
+    endpoint: api/traces/span/ganttChart
+    method: POST
+
+    Example:
+    request: http://localhost:5122/api/traces/span/ganttChart
+    body:
+        {
+            "startEpoch": "now-1h",
+            "endEpoch": "now",
+            "searchText": "span_id=a98166653c6f7f44"
         }
     response:
         {
