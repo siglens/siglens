@@ -42,8 +42,8 @@ const indexNameAttributeKey = "siglensIndexName"
 // Based on https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/logs/v1/logs.proto#L47-L65
 type resourceInfo struct {
 	Attributes             map[string]interface{} `json:"attributes"`
-	DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
-	SchemaUrl              string                 `json:"schemaUrl"`
+	DroppedAttributesCount int64                  `json:"dropped_attributes_count"`
+	SchemaUrl              string                 `json:"schema_url"`
 }
 
 // Based on https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/logs/v1/logs.proto#L67-L83
@@ -51,24 +51,24 @@ type scopeInfo struct {
 	Name                   string                 `json:"name"`
 	Version                string                 `json:"version"`
 	Attributes             map[string]interface{} `json:"attributes"`
-	DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
-	SchemaUrl              string                 `json:"schemaUrl"`
+	DroppedAttributesCount int64                  `json:"dropped_attributes_count"`
+	SchemaUrl              string                 `json:"schema_url"`
 }
 
 // Based on https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/logs/v1/logs.proto#L134-L227
 type recordInfo struct {
 	Resource               *resourceInfo          `json:"resource"`
 	Scope                  *scopeInfo             `json:"scope"`
-	TimeUnixNano           uint64                 `json:"timeUnixNano"`
-	ObservedTimeUnixNano   uint64                 `json:"observedTimeUnixNano"`
-	SeverityNumber         int32                  `json:"severityNumber"`
-	SeverityText           string                 `json:"severityText"`
+	TimeUnixNano           uint64                 `json:"time_unix_nano"`
+	ObservedTimeUnixNano   uint64                 `json:"observed_time_unix_nano"`
+	SeverityNumber         int32                  `json:"severity_number"`
+	SeverityText           string                 `json:"severity_text"`
 	Body                   interface{}            `json:"body"`
 	Attributes             map[string]interface{} `json:"attributes"`
-	DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
+	DroppedAttributesCount int64                  `json:"dropped_attributes_count"`
 	Flags                  uint32                 `json:"flags"`
-	TraceId                string                 `json:"traceId"`
-	SpanId                 string                 `json:"spanId"`
+	TraceId                string                 `json:"trace_id"`
+	SpanId                 string                 `json:"span_id"`
 }
 
 func ProcessLogIngest(ctx *fasthttp.RequestCtx, myid int64) {
