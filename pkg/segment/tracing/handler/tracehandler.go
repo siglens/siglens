@@ -1040,8 +1040,7 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	// TODO: Set the index name based on the otel-collector indexes
-	searchRequestBody.IndexName = "traces" // for now, set it to all indexes
+	searchRequestBody.IndexName = "traces"
 
 	// Find all unique Trace IDs for the spanId
 	searchRequestBody.SearchText = "span_id=" + spanId + " | stats count BY trace_id"
