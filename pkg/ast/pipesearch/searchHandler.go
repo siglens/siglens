@@ -239,7 +239,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON := make(map[string]interface{})
 	var err error
 	readJSON["from"] = "0"
-	readJSON[KEY_INDEX_NAME] = "*"
+	readJSON[KEY_INDEX_NAME] = queryParams.Index
 	readJSON["queryLanguage"] = queryParams.QueryLanguage
 	readJSON["searchText"] = queryParams.QueryText
 	readJSON["startEpoch"] = queryParams.StartTime
