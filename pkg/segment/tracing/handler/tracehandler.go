@@ -976,7 +976,7 @@ func ProcessSearchTraceRelatedLogsRequest(ctx *fasthttp.RequestCtx, myid int64) 
 	}
 
 	// TODO: Set the index name based on the otel-collector indexes
-	jsonDataMap[pipesearch.Key_IndexName] = "*" // for now, set it to all indexes
+	jsonDataMap[pipesearch.KEY_INDEX_Name] = "*" // for now, set it to all indexes
 
 	bytes, err := putils.EncodeMapToJson(jsonDataMap)
 	if err != nil {
