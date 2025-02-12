@@ -1230,8 +1230,8 @@ function handleRelatedLogs(id, traceStartTime, type = 'trace') {
     const endEpoch = traceStartEpoch + fifteenMinutesMs;
 
     const searchQuery = type === 'span' 
-        ? `spanId="${id}"` 
-        : `traceId="${id}"`;
+        ? `span_id="${id}"` 
+        : `trace_id="${id}"`;
 
     const searchParams = new URLSearchParams({
         searchText: searchQuery,
