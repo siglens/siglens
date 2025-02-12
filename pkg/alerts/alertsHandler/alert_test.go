@@ -17,6 +17,10 @@ func Test_ValidateAlertTypeAndQuery(t *testing.T) {
 	assertIsValidLogAlert(t, true, "foo=bar | stats min(latency)")
 	assertIsValidLogAlert(t, false, "foo=bar | stats min(latency), max(latency)")
 	assertIsValidLogAlert(t, false, "foo=bar | stats min(latency), avg(size)")
+	assertIsValidLogAlert(t, false, "foo=bar | stats min(latency), avg(size) by alpha")
+	assertIsValidLogAlert(t, true, "foo=bar | stats min(latency) by alpha")
+	assertIsValidLogAlert(t, true, "foo=bar | stats min(latency) as minLatency by alpha")
+	assertIsValidLogAlert(t, true, "* | eval latencyMs = latency / 1000 | stats avg(latencyMs) as avgLatencyMs by alpha")
 }
 
 func assertIsValidLogAlert(t *testing.T, isValid bool, splunkQuery string) {
