@@ -37,6 +37,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const KEY_TRACE_RELATED_LOGS_INDEX = "trace-related-logs"
+
 func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp.RequestCtx) {
 
 	qid := rutils.GetNextQid()
@@ -95,6 +97,13 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 		return
 	}
 
+	isTraceRelatedLogsIndex := false
+
+	if indexNameIn == KEY_TRACE_RELATED_LOGS_INDEX {
+		isTraceRelatedLogsIndex = true
+		indexNameIn = "*"
+	}
+
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
 	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)
@@ -148,6 +157,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, orgid, false)
 	qc.RawQuery = searchText
 	qc.IncludeNulls = includeNulls
+	qc.IsTraceRelatedLogsIndex = isTraceRelatedLogsIndex
 
 	if config.IsNewQueryPipelineEnabled() {
 		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, qc, sizeLimit, scrollFrom)

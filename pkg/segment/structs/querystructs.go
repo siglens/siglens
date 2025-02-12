@@ -35,12 +35,13 @@ import (
 
 // New struct for passin query params
 type QueryContext struct {
-	TableInfo    *TableInfo
-	SizeLimit    uint64
-	Scroll       int
-	Orgid        int64
-	RawQuery     string
-	IncludeNulls bool
+	TableInfo               *TableInfo
+	SizeLimit               uint64
+	Scroll                  int
+	Orgid                   int64
+	RawQuery                string
+	IncludeNulls            bool
+	IsTraceRelatedLogsIndex bool
 }
 
 // Input for filter operator can either be the result of a ASTNode or an expression
