@@ -35,7 +35,6 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/blob/ssutils"
-	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
@@ -798,14 +797,6 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		allColsSizes := segstore.getAllColsSizes()
 
-		// Upload segment files to s3
-		filesToUpload := fileutils.GetAllFilesInDirectory(segstore.segbaseDir)
-
-		blobErr := blob.UploadSegmentFiles(filesToUpload)
-		if blobErr != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload segment files , err=%v", blobErr)
-		}
-
 		allPqids := make(map[string]bool, len(segstore.pqMatches))
 		for pqid := range segstore.pqMatches {
 			allPqids[pqid] = true
@@ -830,15 +821,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)
 
-		if blobErr == nil {
-			// upload ingest node dir to s3
-			err := blob.UploadIngestNodeDir()
-			if err != nil {
-				log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
-			}
+		// upload ingest node dir to s3
+		err := blob.UploadIngestNodeDir()
+		if err != nil {
+			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
 		}
 
-		err := CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err
