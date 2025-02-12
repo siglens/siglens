@@ -31,12 +31,16 @@ import (
 	"strings"
 
 	"github.com/cespare/xxhash"
+	jsoniter "github.com/json-iterator/go"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
+const contentTypeHeader = "Content-Type"
+
 const (
-	ContentJson = "application/json; charset=utf-8"
+	ContentJson     = "application/json; charset=utf-8"
+	ContentProtobuf = "application/x-protobuf"
 )
 
 type HttpServerResponse struct {
@@ -976,4 +980,38 @@ func EncodeURL(str string) (string, error) {
 	}
 	u.RawQuery = url.QueryEscape(u.RawQuery)
 	return u.String(), nil
+}
+
+func GetContentType(ctx *fasthttp.RequestCtx) string {
+	return string(ctx.Request.Header.Peek(contentTypeHeader))
+}
+
+func SetContentType(ctx *fasthttp.RequestCtx, contentType string) {
+	ctx.Response.Header.Set(contentTypeHeader, contentType)
+}
+
+func DecodeJsonToMap(jsonData []byte) (map[string]interface{}, error) {
+	var jsonDataMap map[string]interface{}
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(jsonData))
+	decoder.UseNumber()
+	err := decoder.Decode(&jsonDataMap)
+	if err != nil {
+		return nil, err
+	}
+	return jsonDataMap, nil
+}
+
+func EncodeMapToJson(dataMap map[string]interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	encoder := jsonc.NewEncoder(&buf)
+	err := encoder.Encode(dataMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// Encoder adds a newline at the end of the JSON string. Remove it.
+	jsonBytes := bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return jsonBytes, nil
 }

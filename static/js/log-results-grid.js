@@ -180,7 +180,7 @@ const gridOptions = {
     rowData: logsRowData,
     readOnlyEdit: true,
     singleClickEdit: true,
-    headerHeight: 32,
+    headerHeight: 26,
     suppressDragLeaveHidesColumns: true,
     maintainRowOrder: true,
     defaultColDef: {

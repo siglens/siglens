@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
@@ -132,7 +133,7 @@ func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid u
 
 // Add tag keys and values to the tree. If inserted into a tree, sets the updated flag.
 func (tth *TagsTreeHolder) addTags(mName []byte, tags *TagsHolder, tsid uint64) error {
-	finaltags := tags.getEntries()
+	finaltags := tags.GetEntries()
 	for _, tag := range finaltags {
 		currKey := tag.tagKey
 		currTree, ok := tth.allTrees[currKey]
@@ -289,13 +290,37 @@ func (tt *TagTree) flushSingleTagsTree(tagKey string, tagsTreeBase string) error
 		log.Errorf("TagTree.flushSingleTagsTree: encode failed fname=%v. Error: %v", fName, err)
 		return err
 	}
-	ttFd, err := os.OpenFile(fName, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0644)
+
+	// We want to write over the whole file. However, we can only lock the file
+	// after opening it. So we must not truncate the file when opening it.
+	// Instead, we open the file without truncating, then take the write lock,
+	// truncate the file, and write the new data.
+	ttFd, err := os.OpenFile(fName, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("TagTree.flushSingleTagsTree: file open failed fname=%v. Error: %v", fName, err)
 		_ = os.Remove(fName)
 		return err
 	}
 	defer ttFd.Close()
+
+	err = syscall.Flock(int(ttFd.Fd()), syscall.LOCK_EX)
+	if err != nil {
+		log.Errorf("TagTree.flushSingleTagsTree: failed to lock file=%v. Error: %v", fName, err)
+		return err
+	}
+	defer func() {
+		err := syscall.Flock(int(ttFd.Fd()), syscall.LOCK_UN)
+		if err != nil {
+			log.Errorf("TagTree.flushSingleTagsTree: failed to unlock file=%v. Error: %v", fName, err)
+		}
+	}()
+
+	err = ttFd.Truncate(0)
+	if err != nil {
+		log.Errorf("TagTree.flushSingleTagsTree: failed to truncate file=%v. Error: %v", fName, err)
+		return err
+	}
+
 	_, err = ttFd.Write(encodedTT)
 	if err != nil {
 		log.Errorf("TagTree.flushSingleTagsTree: failed to write encoded tags tree in file=%v. Error: %v", fName, err)

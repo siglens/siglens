@@ -101,8 +101,8 @@ function displaydata(metrics) {
 
 // AG Grid options with pagination and sorting icons enabled
 var gridOptions = {
-    headerHeight: 32,
-    rowHeight: 42,
+    headerHeight: 26,
+    rowHeight: 34,
     pagination: true,
     paginationAutoPageSize: true,
     defaultColDef: {

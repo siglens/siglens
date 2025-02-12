@@ -64,7 +64,7 @@ function createPanelGridOptions(currentPanel) {
         animateRows: true,
         readOnlyEdit: true,
         singleClickEdit: true,
-        headerHeight: 32,
+        headerHeight: 26,
         defaultColDef: {
             initialWidth: 100,
             sortable: true,

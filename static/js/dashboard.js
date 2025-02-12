@@ -51,8 +51,8 @@ $(document).ready(async function () {
 
     initializeFilterInputEvents();
 
-    $('#new-dashboard').css('transform', 'translate(150px)');
-    $('#new-dashboard').css('width', 'calc(100% - 150px)');
+    $('#new-dashboard').css('transform', 'translate(122px)');
+    $('#new-dashboard').css('width', 'calc(100% - 122px)');
 
     $('#dbSet-edit-json').on('click', enableJsonEditing);
     $('#dbSet-save-json').on('click', saveJsonChanges);

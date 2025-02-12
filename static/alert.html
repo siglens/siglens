@@ -99,8 +99,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="form-container" id="alerting-form-container">
                 <form id="alert-form">
                     <div class="d-flex btn-container">
-                        <button class="btn" id="cancel-alert-btn" type="button" tabindex="9">Cancel</button>
-                        <button class="btn" id="save-alert-btn" type="submit" tabindex="10">Save</button>
+                        <button class="btn btn-secondary mx-3" id="cancel-alert-btn" type="button" tabindex="9">Cancel</button>
+                        <button class="btn btn-primary" id="save-alert-btn" type="submit" tabindex="10">Save</button>
                     </div>
                     <div class="add-alert-form">
                         <div id="metrics-graphs" class="metrics-graph-container">
@@ -120,8 +120,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Select Query Type">
                                         <span>Logs</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu box-shadow" id="data-source-options">
                                         <li id="option-1" class="data-source-option active">Logs</li>
@@ -133,8 +132,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
                                         <span>Splunk QL</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu box-shadow" id="logs-language-options">
                                         <li id="option-1" class="logs-language-option active">Splunk QL</li>
@@ -152,8 +150,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown" title="Pick the time window">
                                         <span>Time Picker</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                                        <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
                                         id="daterangepicker ">
@@ -283,7 +280,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown">
                                         <span>Is above</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <i class="dropdown-arrow"></i>                                    
                                     </button>
                                     <div class="dropdown-menu box-shadow alert-condition-options"
                                         aria-labelledby="index-btn">
@@ -342,7 +339,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown">
                                         <span>Choose</span>
-                                        <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
+                                        <i class="dropdown-arrow"></i>                                    
                                     </button>
                                     <div class="dropdown-menu box-shadow contact-points-options"
                                         aria-labelledby="index-btn">
@@ -369,7 +366,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div class="d-flex align-items-end mb-0">
                                 <div class="label-main-container mb-0">
                                 </div>
-                                <button class="add-label-container btn" type="button"><span class="plus-icon">+</span>Add Label</button>
+                                <button class="add-label-container btn btn-grey" type="button"><span class="plus-icon">+</span>Add Label</button>
                             </div>
                         </div>
                     </div>

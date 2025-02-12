@@ -77,7 +77,7 @@ function stateCellRenderer(params) {
         default:
             color = getCssVariableValue('--color-inactive');
     }
-    return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px; color: white">${state}</div>`;
+    return `<div style="background-color: ${color}; padding: 2px 10px; border-radius: 3px; color: white">${state}</div>`;
 }
 
 class btnRenderer {
@@ -90,7 +90,7 @@ class btnRenderer {
         this.eGui.innerHTML = `
             <div id="alert-grid-btn">
                 <button class='btn' id="editbutton" title="Edit Alert Rule"></button>
-                <button class="btn-simple" id="delbutton" title="Delete Alert Rule"></button>
+                <button class="btn-simple mx-4" id="delbutton" title="Delete Alert Rule"></button>
                 <div class="custom-alert-dropdown">
                     <button class="btn mute-icon" id="mute-icon" title="Mute"></button>
                 </div>
@@ -222,7 +222,7 @@ class btnRenderer {
             const left = buttonRect.right - gridRect.left + gridContainer.scrollLeft;
 
             this.dropdown.style.top = `${top}px`;
-            this.dropdown.style.left = `${left - 330}px`;
+            this.dropdown.style.left = `${left - 300}px`;
             this.dropdown.style.zIndex = '9999';
         }
     }
@@ -493,8 +493,8 @@ const alertGridOptions = {
     columnDefs: alertColumnDefs,
     rowData: alertRowData,
     animateRows: true,
-    rowHeight: 44,
-    headerHeight: 32,
+    rowHeight: 34,
+    headerHeight: 26,
     defaultColDef: {
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
