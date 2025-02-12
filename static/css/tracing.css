@@ -486,12 +486,32 @@ a.warn-box-anchor {
 }
 
 .tooltip-design {
-    color: var(--text-color) !important;
+    color: var(--subsection-border);
     background-color: var(--bg-color) !important;
-    padding: 5px !important;
+    padding: 8px !important;
     border-radius: 5px !important;
     font-size: 10px !important;
-    margin-top: -20px;
+    line-height: 14px !important;
+}
+
+.tooltip-design .trace-name {
+    color: var(--text-color);
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.tooltip-design .context-option {
+    color: var(--text-color);
+    height: 24px;
+    border-radius: 4px;
+    background-color: var(--drop-down-btn-bg-regular);
+    padding: 6px 6px;
+    margin-top: 6px;
+    cursor: pointer;
+}
+
+.tooltip-design .context-option:hover {
+    background: var(--drop-down-btn-bg-hover)
 }
 
 circle:hover {
@@ -615,4 +635,8 @@ body.resizing {
 
 .dropdown-menu.daterangepicker.show {
     top: 44px;
+}
+
+.fa-file-text {
+    margin-right: 6px;
 }
