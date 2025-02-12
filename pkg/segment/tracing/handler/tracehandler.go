@@ -80,7 +80,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	} else {
 		// In order to get unique trace_id,  append group by block to the "searchText" field
 		if len(searchRequestBody.SearchText) > 0 {
-			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
+			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count(*) BY trace_id"
 		} else {
 			writeErrMsg(ctx, "ProcessSearchTracesRequest", "request does not contain required parameter: searchText", nil)
 			return
@@ -1016,6 +1016,13 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	nowTs := putils.GetCurrentTimeInMs()
 	searchText, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
+	// Validate query
+	isOnlySpanID, spanId := ExtractSpanID(searchText)
+	if !isOnlySpanID {
+		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "only provide 1 span ID", nil)
+		return
+	}
+
 	page := 1
 	pageVal, ok := readJSON["page"]
 	if !ok || pageVal == 0 {
@@ -1033,47 +1040,39 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	// Validate query
-	isOnlySpanID, _ := ExtractSpanID(searchText)
-	if !isOnlySpanID {
-		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "only provide 1 span ID", nil)
-		return
-	}
-
 	// TODO: Set the index name based on the otel-collector indexes
 	searchRequestBody.IndexName = "*" // for now, set it to all indexes
 
-	searchRequestBody.SearchText = searchRequestBody.SearchText + " | fields span_id, trace_id"
-	// Get a list of all span and trace Id pairs
+	// Find all unique Trace IDs for the spanId
+	searchRequestBody.SearchText = "spanId=" + spanId + " | stats count BY traceId"
 	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
 		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", err.Error(), nil)
 		return
 	}
 
-	buckets := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
-	// Check if the query returned any results
-	if buckets == 0 {
+	totalTraces := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+
+	if totalTraces == 0 {
 		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "Span ID not found", nil)
 		return
+	} else if totalTraces > 1 {
+		// Log if more than 1 trace id belongs to a span id, should not be the case
+		log.Errorf("Span ID should be unique to Trace ID")
 	}
 
 	traceIds := GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
 
-	if len(traceIds) == 0 {
+	traceId := traceIds[0]
+	if traceId == "" {
 		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "Orphaned Span ID", nil)
 		return
-	} else if len(traceIds) > 1 {
-		// Log if more than 1 trace id belongs to a span id
-		log.Errorf("Span ID should be unique to trace ID")
 	}
-
-	traceId := traceIds[0]
 
 	requestBody := map[string]interface{}{
 		"indexName":     "*",
-		"startEpoch":    startEpoch,
-		"endEpoch":      endEpoch,
+		"startEpoch":    searchRequestBody.StartEpoch,
+		"endEpoch":      searchRequestBody.EndEpoch,
 		"searchText":    "trace_id=" + traceId,
 		"queryLanguage": "Splunk QL",
 	}
@@ -1082,8 +1081,8 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		fmt.Printf("ProcessSpanGanttChartRequest: Error marshaling request body=%v, Error=%v", requestBody, err)
 		return
 	}
-	ganttCtx := &fasthttp.RequestCtx{}
-	ganttCtx.Request.SetBody(requestBodyJSON)
 
-	ProcessGanttChartRequest(ganttCtx, myid)
+	ctx.Request.SetBody(requestBodyJSON)
+
+	ProcessGanttChartRequest(ctx, myid)
 }
