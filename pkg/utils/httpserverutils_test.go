@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -159,4 +160,40 @@ func Test_sendErrorWithStatus(t *testing.T) {
 	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
 	assert.Equal(t, "{\"error\":\"user message\"}", string(ctx.Response.Body()))
 
+}
+
+func Test_DecodeJsonToMap(t *testing.T) {
+	const jsonStr = `{"a": 1, "b": "value", "c": true, "d": [1, 2, 3], "e": {"f": "g"}, "h": null}`
+	expectedMap := map[string]interface{}{
+		"a": json.Number("1"),
+		"b": "value",
+		"c": true,
+		"d": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		"e": map[string]interface{}{"f": "g"},
+		"h": nil,
+	}
+
+	jsonMap, err := DecodeJsonToMap([]byte(jsonStr))
+	assert.Nil(t, err)
+	assert.Equal(t, expectedMap, jsonMap)
+}
+
+func Test_EncodeMapToJson(t *testing.T) {
+	jsonMap := map[string]interface{}{
+		"a": json.Number("1"),
+		"b": "value",
+		"c": true,
+		"d": []interface{}{json.Number("1"), json.Number("2"), json.Number("3")},
+		"e": map[string]interface{}{"f": "g"},
+		"h": nil,
+	}
+	expectedJson := `{"a":1,"b":"value","c":true,"d":[1,2,3],"e":{"f":"g"},"h":null}`
+
+	jsonBytes, err := EncodeMapToJson(jsonMap)
+	assert.Nil(t, err)
+	assert.Equal(t, string(expectedJson), string(jsonBytes))
+
+	expectedMap, err := DecodeJsonToMap(jsonBytes)
+	assert.Nil(t, err)
+	assert.Equal(t, jsonMap, expectedMap)
 }

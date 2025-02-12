@@ -1010,5 +1010,8 @@ func EncodeMapToJson(dataMap map[string]interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+
+	// Encoder adds a newline at the end of the JSON string. Remove it.
+	jsonBytes := bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
+	return jsonBytes, nil
 }
