@@ -97,11 +97,6 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 		return
 	}
 
-	if indexNameIn == KEY_TRACE_RELATED_LOGS_INDEX {
-		// TODO: set indexNameIn to otel-collector indexes
-		indexNameIn = "*"
-	}
-
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
 	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)

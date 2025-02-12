@@ -98,6 +98,11 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
+	if indexName == KEY_TRACE_RELATED_LOGS_INDEX {
+		// TODO: set indexNameIn to otel-collector indexes
+		indexName = "*"
+	}
+
 	startE, ok := jsonSource["startEpoch"]
 	if !ok || startE == nil {
 		startEpoch = nowTs - (15 * 60 * 1000)
