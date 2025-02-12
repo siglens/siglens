@@ -44,7 +44,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const KEY_INDEX_Name string = "indexName"
+const KEY_INDEX_NAME string = "indexName"
 
 /*
 Example incomingBody
@@ -72,7 +72,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
-	iText, ok := jsonSource[KEY_INDEX_Name]
+	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
 		indexName = "*"
 	} else {
@@ -239,7 +239,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON := make(map[string]interface{})
 	var err error
 	readJSON["from"] = "0"
-	readJSON[KEY_INDEX_Name] = "*"
+	readJSON[KEY_INDEX_NAME] = "*"
 	readJSON["queryLanguage"] = queryParams.QueryLanguage
 	readJSON["searchText"] = queryParams.QueryText
 	readJSON["startEpoch"] = queryParams.StartTime
