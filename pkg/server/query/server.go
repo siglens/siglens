@@ -251,7 +251,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 
 	// tracing api endpoints
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/search", tracing.TraceMiddleware(hs.Recovery(searchTracesHandler())))
-	hs.Router.POST(server_utils.API_PREFIX+"/traces/search/relatedlogs", tracing.TraceMiddleware(hs.Recovery(searchTraceRelatedLogsHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/dependencies", tracing.TraceMiddleware(hs.Recovery(getDependencyGraphHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/generate-dep-graph", hs.Recovery(generateDependencyGraphHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", tracing.TraceMiddleware(hs.Recovery(ganttChartHandler())))
