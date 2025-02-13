@@ -20,6 +20,7 @@ package writer
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -119,6 +120,11 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 				Timestamp: model.Time(s.Timestamp),
 			}
 
+			if isBadValue(float64(sample.Value)) {
+				failedCount++
+				continue
+			}
+
 			data, err := sample.MarshalJSON()
 			if err != nil {
 				failedCount++
@@ -153,6 +159,14 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	bytesReceived := uint64(len(compressed))
 	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
+}
+
+func isBadValue(v float64) bool {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return true
+	}
+
+	return false
 }
 
 func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, error) {
