@@ -674,9 +674,9 @@ func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func searchTraceRelatedLogsHandler() func(ctx *fasthttp.RequestCtx) {
+func spanGanttChartHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSearchTraceRelatedLogsRequest, ctx)
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSpanGanttChartRequest, ctx)
 	}
 }
 

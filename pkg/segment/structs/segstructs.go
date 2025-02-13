@@ -1675,6 +1675,34 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 	return qa.HasInChain(statsAggPresentInCur)
 }
 
+func (qa *QueryAggregators) GetAllMeasureAggsInChain() [][]*MeasureAggregator {
+	measureAggGroups := make([][]*MeasureAggregator, 0)
+	getCur := func(obj *QueryAggregators) []*MeasureAggregator {
+		if obj.MeasureOperations != nil {
+			return obj.MeasureOperations
+		} else if obj.GroupByRequest != nil && obj.GroupByRequest.MeasureOperations != nil {
+			return obj.GroupByRequest.MeasureOperations
+		}
+
+		return nil
+	}
+
+	for {
+		measureAggs := getCur(qa)
+		if measureAggs != nil {
+			measureAggGroups = append(measureAggGroups, measureAggs)
+		}
+
+		if qa.Next == nil {
+			break
+		}
+
+		qa = qa.Next
+	}
+
+	return measureAggGroups
+}
+
 // TODO: use toputils.BatchError instead
 func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level, err error) {
 	nodeRes.GlobalSearchErrors = StoreError(nodeRes.GlobalSearchErrors, errMsg, logLevel, err)

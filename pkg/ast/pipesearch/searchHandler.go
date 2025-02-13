@@ -75,6 +75,9 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
 		indexName = "*"
+	} else if iText == KEY_TRACE_RELATED_LOGS_INDEX {
+		// TODO: set indexNameIn to otel-collector indexes
+		indexName = "*"
 	} else {
 		switch val := iText.(type) {
 		case string:
@@ -239,7 +242,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON := make(map[string]interface{})
 	var err error
 	readJSON["from"] = "0"
-	readJSON[KEY_INDEX_NAME] = "*"
+	readJSON[KEY_INDEX_NAME] = queryParams.Index
 	readJSON["queryLanguage"] = queryParams.QueryLanguage
 	readJSON["searchText"] = queryParams.QueryText
 	readJSON["startEpoch"] = queryParams.StartTime

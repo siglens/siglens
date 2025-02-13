@@ -109,6 +109,15 @@ func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (strin
 		if !isStatsQuery {
 			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query does not contain any aggregation. Expected Stats Query")
 		}
+
+		allMeasureAggGroups := queryAggs.GetAllMeasureAggsInChain()
+		if len(allMeasureAggGroups) == 0 || len(allMeasureAggGroups[0]) == 0 {
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query does not contain any measure aggregation")
+		}
+
+		if len(allMeasureAggGroups) > 1 || len(allMeasureAggGroups[0]) > 1 {
+			return queryTextAndLanguage(alertToBeCreated), fmt.Errorf("query contains more than one measure aggregation")
+		}
 	case alertutils.AlertTypeMetrics:
 		_, _, _, _, errorLog, _, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
 		if err != nil {

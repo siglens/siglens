@@ -491,6 +491,50 @@ func Test_HasTail_OnlyInLastQA(t *testing.T) {
 	assert.True(t, qa.HasTailInChain())
 }
 
+func Test_GetAllMeasureAggsInChain(t *testing.T) {
+	qa := &QueryAggregators{
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+		},
+	}
+
+	actual := qa.GetAllMeasureAggsInChain()
+	assert.Equal(t, [][]*MeasureAggregator{{{MeasureCol: "measure1"}}}, actual)
+
+	qa = &QueryAggregators{
+		Next: &QueryAggregators{
+			MeasureOperations: []*MeasureAggregator{
+				{MeasureCol: "measure2"},
+			},
+		},
+	}
+
+	actual = qa.GetAllMeasureAggsInChain()
+	assert.Equal(t, [][]*MeasureAggregator{{{MeasureCol: "measure2"}}}, actual)
+
+	qa = &QueryAggregators{
+		MeasureOperations: []*MeasureAggregator{
+			{MeasureCol: "measure1"},
+			{MeasureCol: "measure2"},
+		},
+		Next: &QueryAggregators{
+			Sort: &SortRequest{},
+			Next: &QueryAggregators{
+				GroupByRequest: &GroupByRequest{
+					GroupByColumns:    []string{"column1"},
+					MeasureOperations: []*MeasureAggregator{{MeasureCol: "measure3"}},
+				},
+			},
+		},
+	}
+
+	actual = qa.GetAllMeasureAggsInChain()
+	assert.Equal(t, [][]*MeasureAggregator{
+		{{MeasureCol: "measure1"}, {MeasureCol: "measure2"}},
+		{{MeasureCol: "measure3"}},
+	}, actual)
+}
+
 func Test_GetBucketValueForGivenField_StatRes(t *testing.T) {
 	br := &BucketResult{
 		StatRes: map[string]utils.CValueEnclosure{
