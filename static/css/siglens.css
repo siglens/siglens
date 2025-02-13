@@ -5862,14 +5862,14 @@ p#versionInfo {
     font-size: 10px !important;
     padding: 2px 5px;
     color: grey;
-    margin-right: 5%;
+    margin-right: -20px;
     border: none;
     border-radius: 5px;
     height: 22px;
 }
 
 .logcontainer {
-    margin-left: auto !important;
+    margin-left: 40px !important;
     margin-bottom: 6px !important;
     width: 94px;
     height: 26px;
