@@ -19,6 +19,7 @@ package alertsqlite
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -32,6 +33,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -567,11 +569,48 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 		// Don't return error; we can still return some useful info.
 	}
 
+	var queryLanguage string
+	var queryText string
+
+	switch alert.AlertType {
+	case alertutils.AlertTypeLogs:
+		queryLanguage = alert.QueryParams.QueryLanguage
+		queryText = alert.QueryParams.QueryText
+	case alertutils.AlertTypeMetrics:
+		_, _, queries, formulas, _, _, err := promql.ParseMetricTimeSeriesRequest([]byte(alert.MetricsQueryParamsString))
+		if err != nil {
+			log.Errorf("GetContactDetails: unable to parse metric query params for Alert: %v, Error=%v", alert.AlertName, err)
+			// Don't return error; we can still return some useful info.
+		}
+
+		if len(queries) > 0 {
+			lang, ok := queries[0]["qlType"].(string)
+			if ok {
+				queryLanguage = lang
+			}
+		}
+
+		type Info struct {
+			Queries  []map[string]interface{} `json:"queries"`
+			Formulas []map[string]interface{} `json:"formulas"`
+		}
+		info := Info{queries, formulas}
+		bytes, err := json.Marshal(info)
+		if err != nil {
+			log.Errorf("GetContactDetails: unable to marshal metric query params for Alert: %v, Error=%v", alert.AlertName, err)
+			// Don't return error.
+		}
+
+		queryText = string(bytes)
+	case alertutils.AlertTypeMinion:
+		return "", "", "", fmt.Errorf("GetContactDetails: Minion alerts are not supported")
+	}
+
 	alert_name := alert.AlertName
 	contact_id := alert.ContactID
 	condition := alert.Condition
 	value := alert.Value
-	message := resolveTemplate(alert.Message, alert_name, condition, value, alert.QueryParams.QueryLanguage, alert.QueryParams.QueryText)
+	message := resolveTemplate(alert.Message, alert_name, condition, value, queryLanguage, queryText)
 
 	return contact_id, message, alert_name, nil
 }
