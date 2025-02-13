@@ -46,7 +46,7 @@ var diskUsageExceeded atomic.Bool
 
 func MonitorDiskUsage() {
 	for {
-		usage, err := getDiskUsagePercent()
+		usage, err := GetDiskUsagePercent()
 		if err != nil {
 			time.Sleep(30 * time.Second)
 			continue
@@ -54,6 +54,7 @@ func MonitorDiskUsage() {
 		if usage >= config.GetDataDiskThresholdPercent() {
 			log.Errorf("MonitorDiskUsage: Disk usage (%+v%%) exceeded the dataDiskThresholdPercent (%+v%%)", usage, config.GetDataDiskThresholdPercent())
 			diskUsageExceeded.Store(true)
+			initiateEvictionTrigger()
 		} else {
 			diskUsageExceeded.Store(false)
 		}
@@ -61,7 +62,7 @@ func MonitorDiskUsage() {
 	}
 }
 
-func getDiskUsagePercent() (uint64, error) {
+func GetDiskUsagePercent() (uint64, error) {
 	s, err := disk.Usage(config.GetDataPath())
 	if err != nil {
 		log.Errorf("getDiskUsagePercent: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
@@ -193,5 +194,22 @@ func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
 		serverutils.CallWithMyId(loki.ProcessLokiLogsIngestRequest, ctx)
+	}
+}
+
+func initiateEvictionTrigger() {
+	if hook := hooks.GlobalHooks.TriggerSegmentEvictionHook; hook != nil {
+		hook()
+
+		// check for usage again after eviction
+		usage, err := GetDiskUsagePercent()
+		if err != nil {
+			log.Errorf("initiateEvictionTrigger: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
+			return
+		}
+
+		if usage < config.GetDataDiskThresholdPercent() {
+			diskUsageExceeded.Store(false)
+		}
 	}
 }

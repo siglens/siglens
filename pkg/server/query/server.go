@@ -106,8 +106,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/search", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", tracing.TraceMiddleware(hs.Recovery(dashboardPipeSearchHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
-
 	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
+
 	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", tracing.TraceMiddleware(hs.Recovery(sampleDatasetBulkHandler())))
 
 	// common routes

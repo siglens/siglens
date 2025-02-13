@@ -437,6 +437,7 @@
     margin: 0;
     text-decoration: none;
     white-space: nowrap;
+    line-height: normal;
 }
 
 .btn:focus {
@@ -446,7 +447,8 @@
 
 /* Save-Button */
 .btn-primary,
-.btn-primary:active {
+.btn-primary:active,
+.btn-primary:focus {
     background-color: var(--btn-regular-bg-color);
     color: var(--white-0);
 }
@@ -490,6 +492,21 @@
 
 .btn-white:hover {
     background: var(--drop-down-btn-bg-hover);
+}
+
+.btn-purple {
+    color: var(--purple-2);
+    padding: 2px 10px;
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--purple-2);
+    font-size: 11px;
+    text-decoration: none !important;
+    font-weight: bold;
+}
+
+.btn-purple:hover {
+    background-color: var(--purple-15p);
+    color: var(--purple-2)
 }
 
 /* Dropdown-Menu */
