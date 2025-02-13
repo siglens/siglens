@@ -561,6 +561,12 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 		return "", "", "", err
 	}
 
+	err := alert.DecodeQueryParamFromBase64()
+	if err != nil {
+		log.Errorf("GetContactDetails: unable to decode query params for Alert: %v, Error=%v", alert.AlertName, err)
+		// Don't return error; we can still return some useful info.
+	}
+
 	alert_name := alert.AlertName
 	contact_id := alert.ContactID
 	condition := alert.Condition
