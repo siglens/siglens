@@ -1203,3 +1203,157 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 		assert.EqualValues(t, expectedResults[mName], seriesDpValues)
 	}
 }
+
+func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t *testing.T) {
+	defer cleanUp(t)
+	go query.PullQueriesToRun()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
+	assert.Nil(t, err)
+	assert.Greater(t, len(mSegs), 0)
+
+	err = initializeMetricsMetaData()
+	assert.Nil(t, err)
+
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(startTimestamp),
+		EndEpochSec:   uint32(startTimestamp + 4600),
+	}
+
+	intervalSeconds, err := mresults.CalculateInterval(timeRange.EndEpochSec - timeRange.StartEpochSec)
+	assert.Nil(t, err)
+	assert.Equal(t, uint32(20), intervalSeconds)
+
+	query1 := `count by (color, shape) (testmetric0{color=~"red", shape=~"circle"})`
+	query2 := `count by (size, shape) ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"})`
+
+	/*
+		Expected Results for query1:
+		At T1: testmetric0: 10
+		At T2: testmetric0: 40
+		At T3: testmetric0: 50
+		At T4: testmetric0: 60
+		At T5: testmetric0: 70
+
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
+
+		This is a count query, so the expected results are:
+		series : testmetric0{color:red,shape:circle
+		Values at T1 bucket = 10 + 40 = 2
+		Values at T2 bucket = 50 = 1
+		Values at T3 bucket = 60 = 1
+		Values at T4 bucket = 70 = 1
+
+		Expected Results for query2:
+		Test data has size values : small, medium, large
+		Test data has shape values : circle, triangle
+		The query filters for size values that have 'a' in them and shape values that end with 'le'
+		So the filtered size values are: small, large
+		And the filtered shape values are: cirlce, triangle
+
+		testmetric0 at T1 has size: small, shape: cirlce. Value: 30
+		testmetric0 at T3 has size: small, shape: cirlce. Value: 50
+		testmetric0 at T4 has size: small, shape: circle. Value: 60
+		testmetric0 at T5 has size: small, shape: circle. Value: 70
+
+		series := testmetric0{size:small,shape:circle
+		Values at T1 bucket = 1
+		Values at T3 bucket = 1
+		Values at T4 bucket = 1
+		Values at T5 bucket = 1
+
+		testmetric2 at T1 has size: large, shape: triangle. Value: 30
+		testmetric2 at T2 has size: large, shape: triangle. Value: 60
+		testmetric2 at T3 has size: large, shape: triangle. Value: 130
+		testmetric2 at T4 has size: large, shape: triangle. Value: 140
+		testmetric2 at T5 has size: large, shape: triangle. Value: 150
+
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
+		And since the series is same, the count will be 1 for the bucket.
+		series := testmetric2{size:large,shape:triangle
+		At T1 bucket = 1
+		At T2 bucket = 1
+		At T3 bucket = 1
+		At T4 bucket = 1
+
+		expectedResults2 = {3, 1, 2, 2}
+	*/
+
+	type seriesDataPoint struct {
+		ts  uint32
+		val float64
+	}
+
+	type expectedQueryResult struct {
+		resultSize      int
+		expectedResults map[string][]float64
+	}
+
+	queries := []string{
+		query1,
+		query2,
+	}
+
+	expectedQueryResult1 := &expectedQueryResult{
+		resultSize: 1,
+		expectedResults: map[string][]float64{
+			"testmetric0{color:red,shape:circle": {2, 1, 1, 1},
+		},
+	}
+
+	expectedQueryResult2 := &expectedQueryResult{
+		resultSize: 2,
+		expectedResults: map[string][]float64{
+			"testmetric0{size:small,shape:circle":   {1, 1, 1, 1},
+			"testmetric2{size:large,shape:triangle": {1, 1, 1, 1},
+		},
+	}
+	expectedResultsSlice := []*expectedQueryResult{
+		expectedQueryResult1,
+		expectedQueryResult2,
+	}
+
+	for ind, query := range queries {
+		metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
+		assert.Nil(t, err)
+
+		expectedResult := expectedResultsSlice[ind]
+
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+		assert.NotNil(t, res)
+		assert.Equal(t, expectedResult.resultSize, len(res.Results))
+
+		for seriesId, seriesDp := range res.Results {
+			assert.NotNil(t, seriesDp)
+			assert.Greater(t, len(seriesDp), 0)
+
+			expectedSeriesDpValues, ok := expectedResult.expectedResults[seriesId]
+			assert.True(t, ok, "Query Index: ", ind, "SeriesId: ", seriesId)
+
+			seriesDpStructSlice := make([]*seriesDataPoint, 0)
+			for ts, dp := range seriesDp {
+				seriesDpStructSlice = append(seriesDpStructSlice, &seriesDataPoint{ts: ts, val: dp})
+			}
+
+			sort.Slice(seriesDpStructSlice, func(i, j int) bool {
+				return seriesDpStructSlice[i].ts < seriesDpStructSlice[j].ts
+			})
+
+			seriesDpValues := make([]float64, 0)
+			for _, dp := range seriesDpStructSlice {
+				seriesDpValues = append(seriesDpValues, dp.val)
+			}
+
+			assert.EqualValues(t, expectedSeriesDpValues, seriesDpValues, "Query Index: ", ind, "SeriesId: ", seriesId)
+		}
+	}
+}
