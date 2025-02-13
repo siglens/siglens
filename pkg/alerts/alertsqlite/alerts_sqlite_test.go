@@ -42,4 +42,8 @@ func Test_resolveTemplate(t *testing.T) {
 	actual = resolveTemplate(template, "alert4", alertutils.IsNotEqualTo, 42, "Splunk QL", "* | stats count")
 	expected = `alert4: "* | stats count" (Splunk QL) is not equal to 42`
 	assert.Equal(t, expected, actual)
+
+	actual = resolveTemplate("static message", "alert5", alertutils.IsAbove, 42, "Splunk QL", "* | stats count")
+	expected = "static message"
+	assert.Equal(t, expected, actual)
 }
