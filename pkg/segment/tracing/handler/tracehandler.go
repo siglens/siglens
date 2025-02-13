@@ -280,10 +280,7 @@ func ExtractTraceID(searchText string) (bool, string) {
 func ExtractSpanID(searchText string) (bool, string) {
 	pattern := `^span_id=([a-zA-Z0-9]+)$`
 
-	regex, err := regexp.Compile(pattern)
-	if err != nil {
-		return false, ""
-	}
+	regex := regexp.MustCompile(pattern)
 
 	matches := regex.FindStringSubmatch(searchText)
 	if len(matches) != 2 {
@@ -1025,9 +1022,7 @@ func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	page := 1
 	pageVal, ok := readJSON["page"]
-	if !ok || pageVal == 0 {
-		page = 1
-	} else {
+	if ok && pageVal != 0 {
 		switch val := pageVal.(type) {
 		case json.Number:
 			pageInt, err := val.Int64()
