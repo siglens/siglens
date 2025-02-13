@@ -263,7 +263,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 						} else {
 							initMetricName = fmt.Sprintf("%v{", metricName)
 							if tf.IsRegex() {
-								err = tracker.BulkAdd(rawTagValueToTSIDs, mQuery.MetricName, tf.TagKey)
+								err = tracker.BulkAdd(rawTagValueToTSIDs, metricName, tf.TagKey)
 							} else {
 								err = tracker.BulkAddStar(rawTagValueToTSIDs, initMetricName, tf.TagKey, numValueFiltersNonZero)
 							}

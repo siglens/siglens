@@ -69,6 +69,11 @@ type timeSeries struct {
 	Value     int               `json:"value"`
 }
 
+type seriesDataPoint struct {
+	ts  uint32
+	val float64
+}
+
 // dataStartTimestamp is the start timestamp for the test data
 // This is used to generate the test data and every query must use this timestamp as the start timestamp
 // You can change this value to some other value or set it dynamically based on the current time. For example: uint32(time.Now().Unix() - 24*3600)
@@ -1120,6 +1125,115 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 	}
 }
 
+func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(t *testing.T) {
+	defer cleanUp(t)
+	go query.PullQueriesToRun()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
+	assert.Nil(t, err)
+	assert.Greater(t, len(mSegs), 0)
+
+	err = initializeMetricsMetaData()
+	assert.Nil(t, err)
+
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(startTimestamp),
+		EndEpochSec:   uint32(startTimestamp + 4600),
+	}
+
+	intervalSeconds, err := mresults.CalculateInterval(timeRange.EndEpochSec - timeRange.StartEpochSec)
+	assert.Nil(t, err)
+	assert.Equal(t, uint32(20), intervalSeconds)
+
+	query := `count ({__name__=~"testmetric.*", color=~".+e.*"}) by (color, shape)`
+	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(metricQueryRequest))
+	assert.False(t, metricQueryRequest[0].MetricsQuery.GroupByMetricName)
+
+	/*
+		Expected Results:
+		This query will return the same results as the simple metric query for each metric name.
+
+		The query has a filter on color tag with regex ".+e.*" which will match all the colors that have an 'e' in them.
+		The color values are red, blue, green.
+		So all the series with these colors will be returned.
+
+		So the expected results are:
+		testmetric1 has color: blue and shape: square and there are 5 data points, but since T1 and T2 will be aggregated into the same bucket, the result will have
+		4 time points. And since there is only one series at all these time points, the result will be 1 at all time points.
+
+		And this is same for all the other series as well.
+		** But for testmetric0, the series at T2 has radius tag instead of size tag, making it a different series.
+		** And since, the The series at T1 and T2 will be aggregated into the same bucket, there will be 2 series at T1 bucket for testmetric0.
+
+		So the results are:
+		color:red,shape:circle: {2, 1, 1, 1}
+		color:blue,shape:square: {1, 1, 1, 1}
+		color:green,shape:triangle: {1, 1, 1, 1}
+	*/
+
+	expectedResults := map[string][]float64{
+		"red":   {2, 1, 1, 1},
+		"blue":  {1, 1, 1, 1},
+		"green": {1, 1, 1, 1},
+	}
+
+	groupByKeys := []string{"color", "shape"}
+
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	assert.NotNil(t, res)
+	assert.Equal(t, 3, len(res.Results))
+
+	for seriesId, seriesDp := range res.Results {
+		assert.NotNil(t, seriesDp)
+		assert.Greater(t, len(seriesDp), 0)
+
+		mName := mresults.ExtractMetricNameFromGroupID(seriesId)
+		assert.NotNil(t, mName)
+		assert.Equal(t, "*", mName)
+
+		for _, key := range groupByKeys {
+			assert.True(t, strings.Contains(seriesId, key))
+		}
+
+		keyValueSet := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		assert.NotNil(t, keyValueSet)
+		assert.Equal(t, 2, len(keyValueSet))
+
+		colorKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		assert.NotNil(t, colorKeyVal)
+		assert.Equal(t, 1, len(colorKeyVal))
+
+		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+
+		seriesDpStructSlice := make([]*seriesDataPoint, 0)
+		for ts, dp := range seriesDp {
+			seriesDpStructSlice = append(seriesDpStructSlice, &seriesDataPoint{ts: ts, val: dp})
+		}
+
+		sort.Slice(seriesDpStructSlice, func(i, j int) bool {
+			return seriesDpStructSlice[i].ts < seriesDpStructSlice[j].ts
+		})
+
+		seriesDpValues := make([]float64, 0)
+		for _, dp := range seriesDpStructSlice {
+			seriesDpValues = append(seriesDpValues, dp.val)
+		}
+
+		assert.EqualValues(t, expectedResults[colorVal], seriesDpValues)
+	}
+}
+
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_GroupByTag_v1(t *testing.T) {
 	defer cleanUp(t)
 	go query.PullQueriesToRun()
@@ -1234,7 +1348,8 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	assert.Equal(t, uint32(20), intervalSeconds)
 
 	query1 := `count by (color, shape) (testmetric0{color=~"red", shape=~"circle"})`
-	query2 := `count by (size, shape) ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"})`
+	query2 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"}) by (size, shape)`
+	query3 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"}) by (size, shape, __name__)`
 
 	/*
 		Expected Results for query1:
@@ -1286,12 +1401,11 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 		At T4 bucket = 1
 
 		expectedResults2 = {3, 1, 2, 2}
-	*/
 
-	type seriesDataPoint struct {
-		ts  uint32
-		val float64
-	}
+		Expected Results for query3:
+		It is same as query2, but with an additional group by on __name__.
+		And Since these series are unique to a metric name, the result would be same as query2, except the series id will have the metric name.
+	*/
 
 	type expectedQueryResult struct {
 		resultSize      int
@@ -1301,6 +1415,7 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	queries := []string{
 		query1,
 		query2,
+		query3,
 	}
 
 	expectedQueryResult1 := &expectedQueryResult{
@@ -1310,16 +1425,29 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 		},
 	}
 
+	// Since, there is a regex filter on the metric name, the metric name will be replaced with *
 	expectedQueryResult2 := &expectedQueryResult{
+		resultSize: 2,
+		expectedResults: map[string][]float64{
+			"*{size:small,shape:circle":   {1, 1, 1, 1},
+			"*{size:large,shape:triangle": {1, 1, 1, 1},
+		},
+	}
+
+	// Even though there is a regex filter on the metric name, the metric name will be part of the series id,
+	// because of the group by on __name__.
+	expectedQueryResult3 := &expectedQueryResult{
 		resultSize: 2,
 		expectedResults: map[string][]float64{
 			"testmetric0{size:small,shape:circle":   {1, 1, 1, 1},
 			"testmetric2{size:large,shape:triangle": {1, 1, 1, 1},
 		},
 	}
+
 	expectedResultsSlice := []*expectedQueryResult{
 		expectedQueryResult1,
 		expectedQueryResult2,
+		expectedQueryResult3,
 	}
 
 	for ind, query := range queries {
