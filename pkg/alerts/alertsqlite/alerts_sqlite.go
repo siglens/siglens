@@ -575,19 +575,20 @@ func resolveTemplate(template string, alertName string, condition alertutils.Ale
 
 	message := strings.ReplaceAll(template, "{{alert_rule_name}}", alertName)
 	message = strings.ReplaceAll(message, "{{query_string}}", queryText)
-	if condition == 0 {
+	switch condition {
+	case alertutils.IsAbove:
 		val := "is above " + fmt.Sprintf("%1.0f", value)
 		message = strings.ReplaceAll(message, "{{condition}}", val)
-	} else if condition == 1 {
+	case alertutils.IsBelow:
 		val := "is below " + fmt.Sprintf("%1.0f", value)
 		message = strings.ReplaceAll(message, "{{condition}}", val)
-	} else if condition == 2 {
+	case alertutils.IsEqualTo:
 		val := "is equal to " + fmt.Sprintf("%1.0f", value)
 		message = strings.ReplaceAll(message, "{{condition}}", val)
-	} else if condition == 3 {
+	case alertutils.IsNotEqualTo:
 		val := "is not equal to " + fmt.Sprintf("%1.0f", value)
 		message = strings.ReplaceAll(message, "{{condition}}", val)
-	} else if condition == 4 {
+	case alertutils.HasNoValue:
 		message = strings.ReplaceAll(message, "{{condition}}", "has no value")
 	}
 	message = strings.ReplaceAll(message, "{{queryLanguage}}", queryLanguage)
