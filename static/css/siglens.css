@@ -2820,7 +2820,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .ag-cell {
     padding: 3px 15px !important;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .ag-cell:focus-visible {
