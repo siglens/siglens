@@ -1350,6 +1350,7 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	query1 := `count by (color, shape) (testmetric0{color=~"red", shape=~"circle"})`
 	query2 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"}) by (size, shape)`
 	query3 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"}) by (size, shape, __name__)`
+	query4 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape!~".+gle"}) by (size, shape)`
 
 	/*
 		Expected Results for query1:
@@ -1405,6 +1406,14 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 		Expected Results for query3:
 		It is same as query2, but with an additional group by on __name__.
 		And Since these series are unique to a metric name, the result would be same as query2, except the series id will have the metric name.
+
+		Expecte Results for query4:
+		The query filters for size values that have 'a' in them and shape values that do not end with 'gle'
+		So the filtered size values are: small, large
+		And the filtered shape values are: cirlce
+
+		So only testmetric0 will be returned. Since testmetric2 has shape value as triangle, it will not be returned.
+		expectedResults4 = {1, 1, 1, 1}
 	*/
 
 	type expectedQueryResult struct {
@@ -1416,6 +1425,7 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 		query1,
 		query2,
 		query3,
+		query4,
 	}
 
 	expectedQueryResult1 := &expectedQueryResult{
@@ -1444,10 +1454,18 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 		},
 	}
 
+	expectedQueryResult4 := &expectedQueryResult{
+		resultSize: 1,
+		expectedResults: map[string][]float64{
+			"*{size:small,shape:circle": {1, 1, 1, 1},
+		},
+	}
+
 	expectedResultsSlice := []*expectedQueryResult{
 		expectedQueryResult1,
 		expectedQueryResult2,
 		expectedQueryResult3,
+		expectedQueryResult4,
 	}
 
 	for ind, query := range queries {
