@@ -158,6 +158,10 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		return err
 	})
 
+	if err != nil {
+		return []*structs.MetricsQueryRequest{}, "", []*structs.QueryArithmetic{}, err
+	}
+
 	if len(mQueryReqs) == 0 {
 		return mQueryReqs, pqlQuerytype, queryArithmetic, nil
 	}
