@@ -563,29 +563,36 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 
 	alert_name := alert.AlertName
 	contact_id := alert.ContactID
-	message := alert.Message
 	condition := alert.Condition
 	value := alert.Value
+	message := resolveTemplate(alert.Message, alert_name, condition, value, alert.QueryParams.QueryLanguage, alert.QueryParams.QueryText)
 
-	newMessage := strings.ReplaceAll(message, "{{alert_rule_name}}", alert_name)
-	newMessage = strings.ReplaceAll(newMessage, "{{query_string}}", alert.QueryParams.QueryLanguage)
+	return contact_id, message, alert_name, nil
+}
+
+func resolveTemplate(template string, alertName string, condition alertutils.AlertQueryCondition,
+	value float64, queryLanguage string, queryText string) string {
+
+	message := strings.ReplaceAll(template, "{{alert_rule_name}}", alertName)
+	message = strings.ReplaceAll(message, "{{query_string}}", queryText)
 	if condition == 0 {
 		val := "above " + fmt.Sprintf("%1.0f", value)
-		newMessage = strings.ReplaceAll(newMessage, "{{condition}}", val)
+		message = strings.ReplaceAll(message, "{{condition}}", val)
 	} else if condition == 1 {
 		val := "below " + fmt.Sprintf("%1.0f", value)
-		newMessage = strings.ReplaceAll(newMessage, "{{condition}}", val)
+		message = strings.ReplaceAll(message, "{{condition}}", val)
 	} else if condition == 2 {
 		val := "is equal to " + fmt.Sprintf("%1.0f", value)
-		newMessage = strings.ReplaceAll(newMessage, "{{condition}}", val)
+		message = strings.ReplaceAll(message, "{{condition}}", val)
 	} else if condition == 3 {
 		val := "is not equal to " + fmt.Sprintf("%1.0f", value)
-		newMessage = strings.ReplaceAll(newMessage, "{{condition}}", val)
+		message = strings.ReplaceAll(message, "{{condition}}", val)
 	} else if condition == 4 {
-		newMessage = strings.ReplaceAll(newMessage, "{{condition}}", "has no value")
+		message = strings.ReplaceAll(message, "{{condition}}", "has no value")
 	}
-	newMessage = strings.ReplaceAll(newMessage, "{{queryLanguage}}", alert.QueryParams.QueryLanguage)
-	return contact_id, newMessage, alert_name, nil
+	message = strings.ReplaceAll(message, "{{queryLanguage}}", queryLanguage)
+
+	return message
 }
 
 func (p Sqlite) GetCoolDownDetails(alert_id string) (uint64, time.Time, error) {
