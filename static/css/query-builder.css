@@ -70,7 +70,7 @@
 
 .dashboard-box {
     height: 100vh;
-    padding: 10px;
+    padding: 4px;
 }
 
 input.form-control {
@@ -385,6 +385,11 @@ input.form-control {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    /* margin-left: 1033px; */
+}
+
+.dropdown-container{
+    display:flex;
 }
 
 .tab-li {
@@ -626,7 +631,7 @@ textarea.form-control.expanded {
 
 .run-filter-btn {
     height: 26px;
-    border-radius: 0 5px 5px 0;
+    border-radius: 5px 5px 5px 5px;
     border: none;
 }
 
@@ -637,6 +642,7 @@ textarea.form-control.expanded {
 
 .search-bar-container {
     width: 100%;
+    margin-right: 18px;
 }
 
 .show-record-popup {
@@ -846,6 +852,15 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 #filter-box-1 {
     border-radius: 5px 0 0 5px;
+    width: 500px;
+}
+
+#filter-box-2 {
+    width: 400px;
+}
+
+#filter-box-3 {
+    width: 322px;
 }
 
 #filter-box-1 li {
