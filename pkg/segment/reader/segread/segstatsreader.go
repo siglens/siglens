@@ -563,3 +563,61 @@ func GetSegValue(runningSegStat *structs.SegStats, currSegStat *structs.SegStats
 	res.CVal = toputils.GetSortedStringKeys(strSet)
 	return &res, nil
 }
+
+func GetSegSumOfSquares(runningSegStat *structs.SegStats, currSegStat *structs.SegStats) (*utils.NumTypeEnclosure, error) {
+	// Initialize result with default values
+	rSst := utils.NumTypeEnclosure{
+		Ntype:    utils.SS_DT_FLOAT,
+		IntgrVal: 0,
+		FloatVal: 0.0,
+	}
+
+	if currSegStat == nil {
+		return &rSst, fmt.Errorf("GetSegSumOfSquares: currSegStat is nil")
+	}
+
+	if !currSegStat.IsNumeric {
+		return &rSst, fmt.Errorf("GetSegSumOfSquares: current segStats is non-numeric")
+	}
+
+	// If running segment statistics are nil, return the current segment's sum of squares
+	if runningSegStat == nil {
+		sumOfSquares, err := getSumOfSquares(currSegStat.NumStats.Sum, currSegStat.NumStats.NumericCount)
+		rSst.FloatVal = sumOfSquares
+		return &rSst, err
+	}
+
+	// Update running segment statistics
+	runningSegStat.NumStats.NumericCount += currSegStat.NumStats.NumericCount
+	err := runningSegStat.NumStats.Sum.ReduceFast(currSegStat.NumStats.Sum.Ntype, currSegStat.NumStats.Sum.IntgrVal, currSegStat.NumStats.Sum.FloatVal, utils.Sum)
+	if err != nil {
+		return &rSst, fmt.Errorf("GetSegSumOfSquares: error in reducing sum, err: %+v", err)
+	}
+
+	// Calculate and return the sum of squares
+	sumOfSquares, err := getSumOfSquares(runningSegStat.NumStats.Sum, runningSegStat.NumStats.NumericCount)
+	rSst.FloatVal = sumOfSquares
+	return &rSst, err
+}
+
+//helper function for sumofSquares
+
+func getSumOfSquares(sum utils.NumTypeEnclosure, count uint64) (float64, error) {
+	sumOfSquares := 0.0
+	if count == 0 {
+		return sumOfSquares, fmt.Errorf("getSumOfSquares: count is 0, cannot calculate sum of squares")
+	}
+
+	switch sum.Ntype {
+	case utils.SS_DT_FLOAT:
+		// For floats, sum of squares is sum.FloatVal squared
+		sumOfSquares = sum.FloatVal * sum.FloatVal
+	case utils.SS_DT_SIGNED_NUM:
+		// For integers, sum of squares is sum.IntgrVal squared
+		sumOfSquares = float64(sum.IntgrVal * sum.IntgrVal)
+	default:
+		return sumOfSquares, fmt.Errorf("getSumOfSquares: invalid data type: %v", sum.Ntype)
+	}
+
+	return sumOfSquares, nil
+}
