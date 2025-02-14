@@ -468,13 +468,11 @@ func IsTlsEnabled() bool {
 }
 
 func IsMtlsEnabled() bool {
-	return true // TODO: andrew
+	return runningConfig.TLS.MtlsEnabled.Value()
 }
 
 func GetMtlsClientCaPath() string {
-	// TODO: andrew
-	return "/Users/andrewhess/Library/Application Support/mkcert/rootCA.pem"
-	// return runningConfig.TLS.ClientCAPath
+	return runningConfig.TLS.ClientCaPath
 }
 
 // returns the configured certificate path
@@ -956,6 +954,9 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	config := common.Configuration{
 		MemoryConfig: common.MemoryConfig{
 			LowMemoryMode: utils.DefaultValue(false),
+		},
+		TLS: common.TLSConfig{
+			MtlsEnabled: utils.DefaultValue(false),
 		},
 	}
 	err := yaml.Unmarshal(yamlData, &config)
