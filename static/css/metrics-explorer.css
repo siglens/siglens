@@ -116,13 +116,6 @@ input:checked+.slider:before {
 }
 
 textarea.form-control#MetricQueryInput {
-    /* width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-    resize: none;
-    padding: 5px;
-    font-size: 12px;
-    height: 26px; */
     min-height: 26px;
     box-sizing: border-box;
     resize: none;
@@ -135,6 +128,7 @@ textarea.form-control#MetricQueryInput {
     width: 100%;
     border: 1px solid var(--search-input-border);
 }
+
 textarea.form-control:focus {
     box-shadow: none;
     box-shadow: var(--box-shadow);
@@ -183,7 +177,6 @@ textarea.form-control.expanded {
 }
 
 .metrics-query .query-box {
-    /* align-items: flex-start; */
     width: calc(100% - 195px);
     padding: 0px;
 }

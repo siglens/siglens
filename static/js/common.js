@@ -1014,6 +1014,7 @@ function initializeFilterInputEvents() {
         return $clone;
     }
 
+    // Update the textarea height and ellipsis
     function updateDynamicTextarea(textareaId) {
         const $textarea = $(textareaId);
         const $clone = $('#textarea-clone');
