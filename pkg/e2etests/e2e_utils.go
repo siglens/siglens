@@ -18,6 +18,9 @@
 package e2etests
 
 import (
+	"bufio"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,6 +32,68 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
+
+type siglensServer struct {
+	dir       string // Run siglens from this directory
+	config    *common.Configuration
+	pid       int // Process ID
+	isRunning bool
+}
+
+func newSiglensServer(dir string, config *common.Configuration) *siglensServer {
+	return &siglensServer{
+		dir:    dir,
+		config: config,
+	}
+}
+
+func (s *siglensServer) Start(t *testing.T) {
+	t.Helper()
+
+	yamlBytes, err := yaml.Marshal(s.config)
+	require.NoError(t, err)
+
+	configPath := filepath.Join(s.dir, "config.yaml")
+	err = os.WriteFile(configPath, yamlBytes, 0644)
+	require.NoError(t, err)
+
+	// Start the server.
+	cmd := exec.Command("siglens", "--config", configPath)
+	cmd.Dir = s.dir
+	err = cmd.Start()
+	require.NoError(t, err)
+
+	s.pid = cmd.Process.Pid
+	s.isRunning = true
+}
+
+func (s *siglensServer) StopGracefully(t *testing.T) {
+	t.Helper()
+
+	s.verifyCanBeStopped(t)
+	terminal(t, fmt.Sprintf("kill -s SIGTERM %d", s.pid))
+}
+
+func (s *siglensServer) ForceStop(t *testing.T) {
+	t.Helper()
+
+	s.verifyCanBeStopped(t)
+	terminal(t, fmt.Sprintf("kill -s SIGKILL %d", s.pid))
+}
+
+func (s *siglensServer) verifyCanBeStopped(t *testing.T) {
+	t.Helper()
+
+	if !s.isRunning {
+		t.Logf("Server is not running")
+		t.FailNow()
+	}
+
+	if s.pid == 0 {
+		t.Logf("Server PID is 0")
+		t.FailNow()
+	}
+}
 
 func terminal(t *testing.T, command string) {
 	t.Helper()
@@ -42,6 +107,58 @@ func terminal(t *testing.T, command string) {
 		t.Log(string(output))
 	}
 	require.NoError(t, err)
+}
+
+func sigclient(t *testing.T, command string) {
+	t.Helper()
+	t.Logf("sigclient $ %s\n", command)
+
+	parts := strings.Split(command, " ")
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.Dir = "siglens/tools/sigclient"
+
+	// Obtain pipes for the command's stdout and stderr
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("Failed to get stdout pipe: %v", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		t.Fatalf("Failed to get stderr pipe: %v", err)
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("Failed to start command: %v", err)
+	}
+
+	// Channel to signal completion
+	done := make(chan struct{})
+
+	// Function to read and log output
+	readAndLog := func(pipe io.ReadCloser, prefix string) {
+		scanner := bufio.NewScanner(pipe)
+		for scanner.Scan() {
+			t.Logf("%s: %s", prefix, scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			t.Errorf("Error reading %s: %v", prefix, err)
+		}
+		done <- struct{}{}
+	}
+
+	// Read stdout and stderr concurrently
+	go readAndLog(stdoutPipe, "stdout")
+	go readAndLog(stderrPipe, "stderr")
+
+	// Wait for both goroutines to finish
+	<-done
+	<-done
+
+	// Wait for the command to complete
+	if err := cmd.Wait(); err != nil {
+		t.Fatalf("Command execution failed: %v", err)
+	}
 }
 
 func withSiglens(t *testing.T, config *common.Configuration, fn func()) {

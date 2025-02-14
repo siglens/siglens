@@ -1503,3 +1503,17 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 		}
 	}
 }
+
+func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
+	testDir := t.TempDir()
+	relativeDataDir := "data"
+	config := config.GetTestConfig(relativeDataDir)
+	siglens := newSiglensServer(testDir, &config)
+
+	siglens.Start(t)
+	terminal(t, "go run main.go query pull -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
+	siglens.StopGracefully(t)
+
+	siglens.Start(t)
+	terminal(t, "go run main.go query pull -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
+}
