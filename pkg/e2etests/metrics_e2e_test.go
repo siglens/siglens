@@ -1103,15 +1103,17 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		assert.True(t, strings.Contains(seriesId, "color:"))
 		assert.True(t, strings.Contains(seriesId, "shape:"))
 
-		keyValueSet, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
+		assert.Equal(t, 2, len(values))
 
-		colorKeyVal, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, colorValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
 		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1206,15 +1208,17 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(
 			assert.True(t, strings.Contains(seriesId, key))
 		}
 
-		keyValueSet, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, keyValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
+		assert.Equal(t, 2, len(keyValues))
 
-		colorKeyVal, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, colorValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
 		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpStructSlice := make([]*seriesDataPoint, 0)
 		for ts, dp := range seriesDp {
@@ -1299,12 +1303,14 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 		mName := mresults.ExtractMetricNameFromGroupID(seriesId)
 		assert.NotNil(t, mName)
 
-		shapeKeyVal, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		shapeKeyVal, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, shapeKeyVal)
 		assert.Equal(t, 1, len(shapeKeyVal))
 
 		shapeVal := strings.Split(shapeKeyVal[0], ":")[1]
 		assert.Equal(t, "solid", shapeVal)
+		assert.Equal(t, 1, len(values))
+		assert.Equal(t, "solid", values[0])
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
