@@ -20,6 +20,7 @@ package server_utils
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"os"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -105,6 +106,10 @@ func GetTlsConfig(getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, e
 		}
 
 		clientCaPath := config.GetMtlsClientCaPath()
+		if clientCaPath == "" {
+			return nil, fmt.Errorf("mTLS is enabled but the client CA path is not set")
+		}
+
 		customCa, err := os.ReadFile(clientCaPath)
 		if err != nil {
 			return nil, err
