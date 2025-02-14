@@ -630,7 +630,7 @@ textarea.form-control.expanded {
 
 .run-filter-btn {
     height: 26px;
-    border-radius: 5px 5px 5px 5px;
+    border-radius: 0 5px 5px 0;
     border: none;
 }
 
@@ -641,7 +641,6 @@ textarea.form-control.expanded {
 
 .search-bar-container {
     width: 100%;
-    margin-right: 18px;
 }
 
 .show-record-popup {
