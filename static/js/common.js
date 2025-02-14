@@ -1014,38 +1014,37 @@ function initializeFilterInputEvents() {
         return $clone;
     }
 
-    // Update the textarea height and ellipsis
-    function updateTextarea() {
-        const $textarea = $('#filter-input');
+    function updateDynamicTextarea(textareaId) {
+        const $textarea = $(textareaId);
         const $clone = $('#textarea-clone');
         let $ellipsis = $('#textarea-ellipsis');
-
+    
         if (!$clone.length) {
             createTextAreaClone($textarea);
         }
-
+    
         if (!$ellipsis.length) {
             $ellipsis = $('<div id="textarea-ellipsis">...</div>');
             $textarea.parent().append($ellipsis);
         }
-
+    
         $('#textarea-clone')
             .width($textarea.width())
             .text($textarea.val() + ' ');
-
+    
         const contentHeight = $('#textarea-clone').height();
         const lines = Math.ceil((contentHeight - PADDING) / LINE_HEIGHT);
         const isFocused = $textarea.is(':focus');
-
+    
         let newHeight;
         if (isFocused || lines <= MAX_VISIBLE_LINES) {
             newHeight = contentHeight + PADDING;
         } else {
             newHeight = MAX_VISIBLE_LINES * LINE_HEIGHT + PADDING;
         }
-
+    
         $textarea.css('height', newHeight + 'px');
-
+    
         // Show/hide ellipsis (...)
         if (lines > MAX_VISIBLE_LINES && !isFocused) {
             $ellipsis.show();
@@ -1053,13 +1052,23 @@ function initializeFilterInputEvents() {
             $ellipsis.hide();
         }
     }
-
+   
     // Event listeners for input and window resize
-    $('#filter-input').on('focus blur input', updateTextarea);
-    $(window).on('resize', updateTextarea);
+    $('#filter-input').on('focus blur input', function() {
+        updateDynamicTextarea('#filter-input');
+    });
+
+    $('#MetricQueryInput').on('focus blur input', function() {
+        updateDynamicTextarea('#MetricQueryInput');
+    });
+
+    // $(window).on('resize', updateTextarea);
+    $(window).on('resize', function() {
+        updateDynamicTextarea('#filter-input');
+    });
 
     // Initial setup for textarea
-    updateTextarea();
+    updateDynamicTextarea('#filter-input');
 
     // Toggle visibility of the clear button
     $('#filter-input').on('input', function () {

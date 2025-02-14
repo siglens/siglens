@@ -478,7 +478,7 @@ a:visited.ui-button,
 .form-control {
     border-radius: 5px 0 0 5px !important;
     border-right: 0;
-    height: 32px;
+    height: 24px;
 }
 
 .filter-info {
@@ -499,7 +499,7 @@ textarea.form-control#filter-input {
     resize: none;
     overflow: hidden;
     transition: height 0.3s ease;
-    padding-top: 4px;
+    padding-top: 3px;
     background-color: var(--top-bar-bg-color-regular);
     color: var(--text-color) !important;
     position: relative;
