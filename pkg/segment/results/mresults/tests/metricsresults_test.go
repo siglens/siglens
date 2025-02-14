@@ -175,36 +175,73 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 
 func Test_GetResults_AggFn_Count(t *testing.T) {
 	aggregator := structs.Aggregation{AggregatorFunction: utils.Count}
-	metricName := "test.metric.1"
-	downsampler := structs.Downsampler{
-		Interval:   1,
-		Unit:       "h",
-		CFlag:      false,
+	mQuery := &structs.MetricsQuery{
+		MetricName: "test.metric.0",
 		Aggregator: aggregator,
+		Downsampler: structs.Downsampler{
+			Interval:   3,
+			Unit:       "h",
+			CFlag:      false,
+			Aggregator: aggregator,
+		},
+		TagsFilters: []*structs.TagsFilter{
+			{
+				TagKey:      "color",
+				RawTagValue: "yellow`",
+			},
+		},
+	}
+	qid := uint64(0)
+	metricsResults := mresults.InitMetricResults(mQuery, qid)
+	assert.NotNil(t, metricsResults)
+
+	var tsGroupId *bytebufferpool.ByteBuffer = bytebufferpool.Get()
+	defer bytebufferpool.Put(tsGroupId)
+	_, err := tsGroupId.Write([]byte("color:yellow"))
+	assert.NoError(t, err)
+	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
+
+	// they should all downsample to i
+	count := float64(0)
+	for i := 0; i < 10; i++ {
+		count += 1
+		series.AddEntry(uint32(i), float64(i))
 	}
 
-	timeSeriesMap := make(map[string]map[uint32]float64)
-	timeSeriesMap["{color:yellow"] = map[uint32]float64{
-		0:    1,
-		3600: 100,
-	}
-	timeSeriesMap["{color:red"] = map[uint32]float64{
-		0:    3,
-		7200: 66,
-	}
-	timeSeriesMap["{color:blue"] = map[uint32]float64{
-		0:    -1,
-		3600: 120,
-	}
+	assert.Equal(t, series.GetIdx(), 10)
+	tsid := uint64(100)
+	metricsResults.AddSeries(series, tsid, tsGroupId)
+	assert.Len(t, metricsResults.AllSeries, 1)
+	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.Results, 0)
+	assert.Equal(t, metricsResults.State, mresults.SERIES_READING)
 
-	expectedResults := make(map[string]map[uint32]float64)
-	expectedResults[metricName+"{"] = map[uint32]float64{
-		0:    3,
-		3600: 2,
-		7200: 1,
+	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
+	assert.Equal(t, metricsResults.State, mresults.DOWNSAMPLING)
+	assert.Len(t, metricsResults.AllSeries, 0)
+	assert.Len(t, metricsResults.DsResults, 1)
+	assert.Len(t, metricsResults.Results, 0)
+	assert.Contains(t, metricsResults.DsResults, tsGroupId.String())
+
+	errors := metricsResults.AggregateResults(1, aggregator)
+	assert.Nil(t, errors)
+
+	assert.Len(t, metricsResults.AllSeries, 0)
+	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.Results, 1)
+	assert.Contains(t, metricsResults.Results, tsGroupId.String())
+	retVal := metricsResults.Results[tsGroupId.String()]
+	assert.Len(t, retVal, 1)
+	assert.Contains(t, retVal, uint32(0))
+	assert.Equal(t, retVal[0], count)
+
+	mQResponse, err := metricsResults.GetOTSDBResults(mQuery)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(mQResponse))
+	assert.Equal(t, 1, len(mQResponse[0].Dps))
+	for _, val := range mQResponse[0].Dps {
+		assert.Equal(t, count, val)
 	}
-	res := initialize_Single_Metric_Results(t, timeSeriesMap, downsampler, aggregator, metricName)
-	validateResults(t, res.Results, expectedResults)
 }
 
 func Test_GetResults_AggFn_Group(t *testing.T) {
