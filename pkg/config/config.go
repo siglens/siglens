@@ -467,6 +467,16 @@ func IsTlsEnabled() bool {
 	return runningConfig.TLS.Enabled
 }
 
+func IsMtlsEnabled() bool {
+	return true // TODO: andrew
+}
+
+func GetMtlsClientCaPath() string {
+	// TODO: andrew
+	return "/Users/andrewhess/Library/Application Support/mkcert/rootCA.pem"
+	// return runningConfig.TLS.ClientCAPath
+}
+
 // returns the configured certificate path
 func GetTLSCertificatePath() string {
 	return runningConfig.TLS.CertificatePath
