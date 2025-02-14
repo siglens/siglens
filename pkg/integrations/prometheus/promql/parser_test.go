@@ -1197,7 +1197,8 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	assert.Equal(t, structs.LabelFunction, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.FunctionType)
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction)
 	assert.Equal(t, "new_label", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.DestinationLabel)
-	assert.Equal(t, "$1", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement)
+	assert.Equal(t, structs.IndexBased, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.KeyType)
+	assert.Equal(t, 1, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.IndexBasedVal)
 	assert.Equal(t, "label", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.SourceLabel)
 	assert.Equal(t, "(.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.RawRegex)
 
@@ -1221,7 +1222,8 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	assert.Equal(t, structs.LabelFunction, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.FunctionType)
 	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction)
 	assert.Equal(t, "foo", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.DestinationLabel)
-	assert.Equal(t, "$version", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement)
+	assert.Equal(t, structs.NameBased, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.KeyType)
+	assert.Equal(t, "version", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.NameBasedVal)
 	assert.Equal(t, "slice", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.SourceLabel)
 	assert.Equal(t, "(?P<name>.*)_(?P<version>.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.RawRegex)
 

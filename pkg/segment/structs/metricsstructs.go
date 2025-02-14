@@ -78,10 +78,23 @@ const (
 	LabelFunction
 )
 
-type LabelFunctionData struct {
+type LabelReplacementKeyType uint8
+
+const (
+	NameBased LabelReplacementKeyType = iota + 1
+	IndexBased
+)
+
+type LabelReplacementKey struct {
+	KeyType       LabelReplacementKeyType
+	NameBasedVal  string
+	IndexBasedVal int
+}
+
+type LabelFunctionExpr struct {
 	FunctionType     utils.LabelFunctions
 	DestinationLabel string
-	Replacement      string
+	Replacement      *LabelReplacementKey
 	SourceLabel      string
 	RawRegex         string
 	GobRegexp        *toputils.GobbableRegex
@@ -96,7 +109,7 @@ type Function struct {
 	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
 	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
 	TimeFunction  utils.TimeFunctions
-	LabelFunction *LabelFunctionData
+	LabelFunction *LabelFunctionExpr
 }
 
 type Downsampler struct {

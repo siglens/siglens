@@ -245,20 +245,91 @@ func ApplyAggregationFromSingleTimeseries(entries []RunningEntry, aggregation st
 	return reduceRunningEntries(entries, aggregation.AggregatorFunction, aggregation.FuncConstant)
 }
 
-func ApplyFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+func ApplyFunction(seriesId string, ts map[uint32]float64, function structs.Function) (string, map[uint32]float64, error) {
 	if function.RangeFunction > 0 {
-		return ApplyRangeFunction(ts, function)
+		ts, err := ApplyRangeFunction(ts, function)
+		return seriesId, ts, err
 	}
 
 	if function.MathFunction > 0 {
-		return ApplyMathFunction(ts, function)
+		ts, err := ApplyMathFunction(ts, function)
+		return seriesId, ts, err
 	}
 
 	if function.TimeFunction > 0 {
-		return ApplyTimeFunction(ts, function)
+		ts, err := ApplyTimeFunction(ts, function)
+		return seriesId, ts, err
 	}
 
-	return ts, nil
+	switch function.FunctionType {
+	case structs.LabelFunction:
+		seriesId, err := ApplyLabelFunction(seriesId, function.LabelFunction)
+		return seriesId, ts, err
+	// TODO: Implement other function types and remove the above if blocks
+	default:
+		return seriesId, ts, nil
+	}
+}
+
+func ApplyLabelFunction(seriesId string, labelFunction *structs.LabelFunctionExpr) (string, error) {
+	switch labelFunction.FunctionType {
+	case segutils.Label_Join:
+		return seriesId, fmt.Errorf("ApplyLabelFunction: label_join is not supported")
+	case segutils.Label_Replace:
+		return applyLabelReplace(seriesId, labelFunction)
+	default:
+		return "", fmt.Errorf("ApplyLabelFunction: unsupported function type %v", labelFunction)
+	}
+}
+
+func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr) (string, error) {
+	if labelFunction == nil {
+		return seriesId, fmt.Errorf("applyLabelReplace: labelFunction is nil")
+	}
+
+	_, values := ExtractGroupByFieldsFromSeriesId(seriesId, []string{labelFunction.SourceLabel})
+	if len(values) == 0 {
+		return seriesId, nil
+	}
+
+	keyToValuesMap, extractedValuesSlice, err := structs.MatchAndExtractGroups(values[0], labelFunction.GobRegexp.GetCompiledRegex())
+	if err != nil {
+		// If there are no matches, return the original seriesId
+		return seriesId, nil
+	}
+
+	var replacementValue string
+
+	switch labelFunction.Replacement.KeyType {
+	case structs.IndexBased:
+		if len(extractedValuesSlice) <= labelFunction.Replacement.IndexBasedVal {
+			return seriesId, nil
+		}
+
+		replacementValue = extractedValuesSlice[labelFunction.Replacement.IndexBasedVal]
+	case structs.NameBased:
+		if _, ok := keyToValuesMap[labelFunction.Replacement.NameBasedVal]; !ok {
+			return seriesId, nil
+		}
+
+		replacementValue = keyToValuesMap[labelFunction.Replacement.NameBasedVal]
+	default:
+		return seriesId, fmt.Errorf("applyLabelReplace: unsupported key type %v", labelFunction.Replacement.KeyType)
+	}
+
+	pattern := fmt.Sprintf(`\b%s:[^,]*`, labelFunction.DestinationLabel)
+	replacement := fmt.Sprintf("%s:%s", labelFunction.DestinationLabel, replacementValue)
+
+	// Use regex to replace the entire "key:value" pair
+	re := regexp.MustCompile(pattern)
+	if re.MatchString(seriesId) {
+		seriesId = re.ReplaceAllString(seriesId, replacement)
+	} else {
+		// If the key is not found, append it
+		seriesId = fmt.Sprintf("%s%s,", seriesId, replacement)
+	}
+
+	return seriesId, nil
 }
 
 func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {

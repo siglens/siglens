@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1803,4 +1804,42 @@ func Test_applyRangeFunctionMADOverTime(t *testing.T) {
 			}
 		}
 	}
+}
+
+func Test_applyLabelReplace(t *testing.T) {
+	initSeriesId := `process_runtime_go_goroutines{job:product-catalog,`
+
+	labelFunctionExpr := &structs.LabelFunctionExpr{
+		FunctionType:     utils.Label_Replace,
+		DestinationLabel: "newLabel",
+		SourceLabel:      "job",
+		Replacement: &structs.LabelReplacementKey{
+			KeyType:      structs.NameBased,
+			NameBasedVal: "name",
+		},
+		RawRegex: "(?P<name>.*)-(?P<version>.*)",
+	}
+
+	labelFunctionExpr.GobRegexp = &toputils.GobbableRegex{}
+	err := labelFunctionExpr.GobRegexp.SetRegex(labelFunctionExpr.RawRegex)
+	assert.Nil(t, err)
+
+	expectedSeriesId := `process_runtime_go_goroutines{job:product-catalog,newLabel:product,`
+
+	seriesId, err := applyLabelReplace(initSeriesId, labelFunctionExpr)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedSeriesId, seriesId)
+
+	labelFunctionExpr.RawRegex = "(.*)-.*"
+	err = labelFunctionExpr.GobRegexp.SetRegex(labelFunctionExpr.RawRegex)
+	assert.Nil(t, err)
+	labelFunctionExpr.DestinationLabel = "job"
+	labelFunctionExpr.Replacement.KeyType = structs.IndexBased
+	labelFunctionExpr.Replacement.IndexBasedVal = 1
+
+	expectedSeriesId = `process_runtime_go_goroutines{job:product,`
+
+	seriesId, err = applyLabelReplace(initSeriesId, labelFunctionExpr)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedSeriesId, seriesId)
 }

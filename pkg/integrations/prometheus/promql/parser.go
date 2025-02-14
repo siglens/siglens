@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
@@ -14,6 +16,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -249,6 +252,8 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 		// Ignore the ParenExpr, As the Expr inside the ParenExpr will be handled in the next iteration
 	case *parser.NumberLiteral:
 		// Ignore the number literals, As they are handled in the handleCallExpr and BinaryExpr
+	case *parser.StringLiteral:
+		// Ignore the string literals, As they are handled in the handleCallExpr and other functions
 	default:
 		log.Errorf("parsePromQLExprNode: Unsupported node type: %T\n", node)
 	}
@@ -593,19 +598,43 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		}
 
 		rawRegex := expr.Args[4].(*parser.StringLiteral).Val
-		_, err := regexp.Compile(rawRegex)
+
+		gobRegexp := &toputils.GobbableRegex{}
+		err := gobRegexp.SetRegex(rawRegex)
 		if err != nil {
-			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the RawRegex Pattern: %v. Error=%v", rawRegex, err)
+			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the GobRegex Pattern: %v. Error=%v", rawRegex, err)
+		}
+
+		replacementKey := expr.Args[2].(*parser.StringLiteral).Val
+		if replacementKey == "" {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: replacement key cannot be empty")
+		}
+
+		key := strings.TrimPrefix(replacementKey, "$")
+		if key == "" {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: replacement key cannot be empty")
+		}
+
+		labelReplacementKey := &structs.LabelReplacementKey{}
+
+		intVal, err := strconv.Atoi(key)
+		if err == nil {
+			labelReplacementKey.KeyType = structs.IndexBased
+			labelReplacementKey.IndexBasedVal = intVal
+		} else {
+			labelReplacementKey.KeyType = structs.NameBased
+			labelReplacementKey.NameBasedVal = key
 		}
 
 		mQuery.Function = structs.Function{
 			FunctionType: structs.LabelFunction,
-			LabelFunction: &structs.LabelFunctionData{
+			LabelFunction: &structs.LabelFunctionExpr{
 				FunctionType:     segutils.Label_Replace,
 				DestinationLabel: expr.Args[1].(*parser.StringLiteral).Val,
-				Replacement:      expr.Args[2].(*parser.StringLiteral).Val,
+				Replacement:      labelReplacementKey,
 				SourceLabel:      expr.Args[3].(*parser.StringLiteral).Val,
 				RawRegex:         rawRegex,
+				GobRegexp:        gobRegexp,
 			},
 		}
 	case "label_join":

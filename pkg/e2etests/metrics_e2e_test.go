@@ -1103,11 +1103,11 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		assert.True(t, strings.Contains(seriesId, "color:"))
 		assert.True(t, strings.Contains(seriesId, "shape:"))
 
-		keyValueSet := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
 
-		colorKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
@@ -1206,11 +1206,11 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(
 			assert.True(t, strings.Contains(seriesId, key))
 		}
 
-		keyValueSet := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
 
-		colorKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
@@ -1299,7 +1299,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 		mName := mresults.ExtractMetricNameFromGroupID(seriesId)
 		assert.NotNil(t, mName)
 
-		shapeKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		shapeKeyVal, _ := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, shapeKeyVal)
 		assert.Equal(t, 1, len(shapeKeyVal))
 
