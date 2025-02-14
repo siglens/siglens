@@ -490,7 +490,7 @@ a:visited.ui-button,
 .query-text,
 .ui-widget,
 #filter-input.form-control {
-    font-family: "DINpro", Arial, sans-serif !important;
+    font-family: Roboto Mono, Menlo, Courier, monospace !important;
 }
 
 textarea.form-control#filter-input {
