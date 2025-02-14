@@ -72,6 +72,23 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
+	iName, ok := jsonSource["indexName"]
+	if !ok || iName == "" {
+		// how do i handel if the indexName is empty??
+	} else {
+		switch val := iName.(type) {
+		case string:
+			if val == "otel-index-logs" {
+				indexName = "*"
+				searchText += " | SeverityNumber > 17 OR SeverityText=ERROR "
+			} else {
+				indexName = val
+			}
+		default:
+			log.Errorf("ParseSearchBody: indexName is not a string! val: %+v", val)
+		}
+	}
+
 	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
 		indexName = "*"
