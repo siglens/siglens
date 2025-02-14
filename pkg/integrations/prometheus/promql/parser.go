@@ -587,6 +587,30 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
 	case "days_in_month":
 		mQuery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
+	case "label_replace":
+		if len(expr.Args) != 5 {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the label_replace function", expr.Args.String())
+		}
+
+		rawRegex := expr.Args[4].(*parser.StringLiteral).Val
+		_, err := regexp.Compile(rawRegex)
+		if err != nil {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the RawRegex Pattern: %v. Error=%v", rawRegex, err)
+		}
+
+		mQuery.Function = structs.Function{
+			FunctionType: structs.LabelFunction,
+			LabelFunction: &structs.LabelFunctionData{
+				FunctionType:     segutils.Label_Replace,
+				DestinationLabel: expr.Args[1].(*parser.StringLiteral).Val,
+				Replacement:      expr.Args[2].(*parser.StringLiteral).Val,
+				SourceLabel:      expr.Args[3].(*parser.StringLiteral).Val,
+				RawRegex:         rawRegex,
+			},
+		}
+	case "label_join":
+		// TODO: Implement label_join function
+		return fmt.Errorf("handleCallExprVectorSelectorNode: label_join function is not supported")
 	default:
 		return fmt.Errorf("handleCallExprVectorSelectorNode: unsupported function type %v", function)
 	}
