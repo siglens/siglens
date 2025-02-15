@@ -939,7 +939,7 @@ function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
                         const visibilityClass = isVisible ? '' : 'style="display:none;"';
 
                         logString += `<span class="test-hide-${string2Hex(key)}"${visibilityClass}>${colSep}<b>${key}</b></span>`;
-                        logString +=  `<span class="cname-hide-${string2Hex(key)}"${visibilityClass}> ${JSON.stringify(JSON.unflatten(value), null, 2)}</span>`;
+                        logString +=  `<span class="cname-hide-${string2Hex(key)}"${visibilityClass}> ${formattedValue}</span>`;
                         addSeparator = true;
                     });
 
