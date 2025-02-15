@@ -2766,6 +2766,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .panelLogResultsGrid {
     height: 100%;
     width: 100%;
+    font-family: Roboto Mono, Menlo, Courier, monospace !important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
