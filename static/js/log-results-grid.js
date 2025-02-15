@@ -128,11 +128,17 @@ let logsColumnDefs = [
         cellEditorPopup: true,
         cellEditorPopupPosition: 'under',
         cellRenderer: (params) => {
-            return moment(params.value).format(timestampDateFmt);
+            let timeString = '';
+            let icon = moment(params.value).format(timestampDateFmt);
+            // timeString = `<i class="fa-solid fa-up-right-and-down-left-from-center"></i> <span>${icon}</span>`;
+            timeString = `<span style="display: inline-block; background: #e0e0e0; padding: 4px 6px; border-radius: 4px;">
+                 <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+              </span> <span>${icon}</span>`;
+            return timeString;
         },
         cellEditorParams: cellEditorParams,
-        maxWidth: 216,
-        minWidth: 216,
+        maxWidth: 250,
+        minWidth: 250,
     },
     {
         field: 'logs',

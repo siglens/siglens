@@ -2869,6 +2869,19 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     padding: 0;
 }
 
+.expand-icon-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e0e0e0;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.ag-cell-wrapper {
+    margin-left: -10px !important;
+}
+
 .odd-popup-textarea {
     background: var(--datatable-odd-row-bg-color) !important;
     color: var(--text-color) !important;
