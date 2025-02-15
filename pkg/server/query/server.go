@@ -334,8 +334,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			return err
 		}
 
-		cfg := &tls.Config{
-			GetCertificate: certReloader.GetCertificate,
+		cfg, err := server_utils.GetTlsConfig(certReloader.GetCertificate)
+		if err != nil {
+			log.Fatalf("Run: error getting TLS config; err=%v", err)
+			return err
 		}
 
 		hs.ln = tls.NewListener(hs.ln, cfg)
