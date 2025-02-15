@@ -130,10 +130,11 @@ let logsColumnDefs = [
         cellRenderer: (params) => {
             let timeString = '';
             let icon = moment(params.value).format(timestampDateFmt);
-            // timeString = `<i class="fa-solid fa-up-right-and-down-left-from-center"></i> <span>${icon}</span>`;
-            timeString = `<span style="display: inline-block; background: #e0e0e0; padding: 4px 6px; border-radius: 4px;">
-                 <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
-              </span> <span>${icon}</span>`;
+
+            timeString = `<span class="expand-icon-box">
+                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                </span> <span>${icon}</span>`;
+
             return timeString;
         },
         cellEditorParams: cellEditorParams,

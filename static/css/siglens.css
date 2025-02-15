@@ -2870,12 +2870,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .expand-icon-box {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #e0e0e0;
-    padding: 2px 4px;
-    border-radius: 3px;
+    display: inline-block;
+    background: var(--white-2);
+    padding: 1px 6px;
+    border-radius: 4px;
 }
 
 .ag-cell-wrapper {
