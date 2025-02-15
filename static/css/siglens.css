@@ -84,6 +84,7 @@
     --hits-summary-text-color: var(--black-6);
     --table-or-regular-text-color: var(--black-6);
     --table-or-regular-text-logs-color: var(--black-8);
+    --logs-expand-icon-box-color: var(--black-5);
 
     --border-switch: var(--white-3);
     --border-btn-color: var(--black-5);
@@ -271,6 +272,7 @@
     --table-or-regular-text-color: var(--white-4);
     --table-or-regular-text-logs-color: var(--white-10);
 
+    --logs-expand-icon-box-color: var(--white-2);
     --border-switch: var(--black-5);
     --border-btn-color: var(--white-3);
     --default-tab: var(--white-0);
@@ -2870,10 +2872,25 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .expand-icon-box {
-    display: inline-block;
-    background: var(--white-2);
+    display: inline-flex;
+    background: var(--logs-expand-icon-box-color);
     padding: 1px 6px;
     border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+}
+
+.expand-icon-button {
+    background: none;
+    border: none;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 .ag-cell-wrapper {
