@@ -55,6 +55,7 @@ Example incomingBody
 
 finalSize = size + from
 */
+
 func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
@@ -63,7 +64,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
-	} else {
+		} else {
 		switch val := sText.(type) {
 		case string:
 			searchText = val

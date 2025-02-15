@@ -22,6 +22,7 @@ function wsURL(path) {
     var url = protocol + location.host;
     return url + path;
 }
+
 //eslint-disable-next-line no-unused-vars
 function doCancel(data) {
     socket.send(JSON.stringify(data));
@@ -341,7 +342,8 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryParams = new URLSearchParams(window.location.search);
     let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-15m';
     let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
-    let selIndexName = queryParams.get('indexName');
+    // let selIndexName = queryParams.get('indexName');
+    let selIndexName = "otel-index-logs";
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
     queryLanguage = queryLanguage.replace('"', '');
