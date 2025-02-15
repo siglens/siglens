@@ -5305,6 +5305,7 @@ p#versionInfo {
     align-items: center;
     padding: 0px 2px;
     flex-grow: 1;
+    margin-right: 10px;
 }
 
 .index-container .selected-index {
@@ -5886,14 +5887,15 @@ p#versionInfo {
     font-size: 10px !important;
     padding: 2px 5px;
     color: grey;
-    margin-right: 5%;
+    margin-right: -43px;
+    margin-left: 10px;
     border: none;
     border-radius: 5px;
     height: 22px;
 }
 
 .logcontainer {
-    margin-left: auto !important;
+    margin-left: 10px !important;
     margin-bottom: 6px !important;
     width: 94px;
     height: 26px;

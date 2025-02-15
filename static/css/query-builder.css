@@ -70,7 +70,7 @@
 
 .dashboard-box {
     height: 100vh;
-    padding: 10px;
+    padding: 4px;
 }
 
 input.form-control {
@@ -385,6 +385,10 @@ input.form-control {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+}
+
+.dropdown-container{
+    display:flex;
 }
 
 .tab-li {
