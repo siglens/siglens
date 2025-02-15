@@ -315,7 +315,7 @@ func verifyAlertLogsQuery(alert *alertutils.AlertDetails) error {
 	return nil
 }
 
-func verifyAlertsData(alerts []*alertutils.AlertDetails, contact *alertutils.Contact) (bool, bool) {
+func verifyAlertsData(alerts []*alertutils.AlertDetails, contact *alertutils.Contact) (bool, bool, bool) {
 	alertLogsFound := false
 	alertMetricsFound := false
 	alertAPMFound := false
@@ -345,7 +345,7 @@ func verifyAlertsData(alerts []*alertutils.AlertDetails, contact *alertutils.Con
 			alertTypeString = "APM"
 
 			if alert.APMQueryParamsString != APMQueryParamsString {
-				log.Fatalf("Expected metrics query params to be %s, got %s", MetricsQueryParamsString, alert.MetricsQueryParamsString)
+				log.Fatalf("Expected APM query params to be %s, got %s", APMQueryParamsString, alert.APMQueryParamsString)
 			}
 
 		} else {
@@ -387,12 +387,13 @@ func verifyAlertsData(alerts []*alertutils.AlertDetails, contact *alertutils.Con
 		}
 	}
 
-	return alertLogsFound, alertMetricsFound
+	return alertLogsFound, alertMetricsFound, alertAPMFound
 }
 
 func verifyAlertHistory(host string, alerts []*alertutils.AlertDetails) error {
 	receivedAlertForLogs := false
 	receivedAlertForMetrics := false
+	receivedAlertForAPM := false
 
 	for _, alert := range alerts {
 		alertHistory, err := getAlertHistoryById(host, alert.AlertId)
@@ -422,15 +423,19 @@ func verifyAlertHistory(host string, alerts []*alertutils.AlertDetails) error {
 			receivedAlertForLogs = true
 		} else if alert.AlertType == alertutils.AlertTypeMetrics {
 			receivedAlertForMetrics = true
+		} else {
+			receivedAlertForAPM = true
 		}
 	}
 
-	if !receivedAlertForLogs && !receivedAlertForMetrics {
+	if !receivedAlertForLogs && !receivedAlertForMetrics && !receivedAlertForAPM {
 		return fmt.Errorf("expected alert history for logs and metrics")
 	} else if !receivedAlertForLogs {
 		return fmt.Errorf("expected alert history for logs")
 	} else if !receivedAlertForMetrics {
 		return fmt.Errorf("expected alert history for metrics")
+	} else if !receivedAlertForAPM {
+		return fmt.Errorf("expected alert history for APM")
 	}
 
 	return nil
@@ -543,6 +548,14 @@ func RunAlertsTest(host string) {
 	}
 	log.Infof("Created Alert for Metrics")
 
+	// create an Alert for APM
+	err = createAlert(host, "APM", contact.ContactId, 0)
+	if err != nil {
+		handleError("Error creating alert for APM", err)
+		return
+	}
+	log.Infof("Created Alert for Metrics")
+
 	// Get all Alerts to verify the creation
 	alerts, err = getAllAlerts(host)
 	if err != nil {
@@ -550,12 +563,12 @@ func RunAlertsTest(host string) {
 		return
 	}
 
-	if len(alerts) != 2 {
-		handleError(fmt.Sprintf("Expected 2 alerts, got %d", len(alerts)), nil)
+	if len(alerts) != 3 {
+		handleError(fmt.Sprintf("Expected 3 alerts, got %d", len(alerts)), nil)
 		return
 	}
 
-	alertLogsFound, alertMetricsFound := verifyAlertsData(alerts, contact)
+	alertLogsFound, alertMetricsFound, alertAPMFound := verifyAlertsData(alerts, contact)
 
 	if !alertLogsFound {
 		handleError("Expected alert for logs not found", nil)
@@ -567,11 +580,17 @@ func RunAlertsTest(host string) {
 		return
 	}
 
+	if !alertAPMFound {
+		handleError("Expected alert for APM not found", nil)
+		return
+	}
+
 	log.Infof("Verified Alerts Created for Logs and Metrics")
 
 	// Wait for the Alerts Notifications to be received
 	receivedAlertForLogs := false
 	receivedAlertForMetrics := false
+	receivedAlertForAPM := false
 
 	// Wait for the Webhook to be received
 waitForWebhooks:
@@ -584,9 +603,12 @@ waitForWebhooks:
 			} else if webhookBody.Title == AlertNamePrefix+MetricsString {
 				log.Infof("Received Alert for Metrics: %v", webhookBody.Title)
 				receivedAlertForMetrics = true
+			} else {
+				log.Infof("Received Alert for APM: %v", webhookBody.Title)
+				receivedAlertForAPM = true
 			}
 
-			if receivedAlertForLogs && receivedAlertForMetrics {
+			if receivedAlertForLogs && receivedAlertForMetrics && receivedAlertForAPM {
 				break waitForWebhooks
 			}
 		case <-time.After(30 * time.Second):

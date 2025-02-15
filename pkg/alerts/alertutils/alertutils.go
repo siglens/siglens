@@ -272,6 +272,8 @@ func (alert *AlertDetails) EncodeQueryParamToBase64() {
 		alert.QueryParams.QueryText = utils.EncodeToBase64(alert.QueryParams.QueryText)
 	} else if alert.AlertType == AlertTypeMetrics {
 		alert.MetricsQueryParamsString = utils.EncodeToBase64(alert.MetricsQueryParamsString)
+	} else if alert.AlertType == AlertTypeAPM {
+		alert.APMQueryParamsString = utils.EncodeToBase64(alert.APMQueryParamsString)
 	}
 }
 
@@ -292,6 +294,14 @@ func (alert *AlertDetails) DecodeQueryParamFromBase64() error {
 			return err
 		}
 		alert.MetricsQueryParamsString = decoded
+	} else if alert.AlertType == AlertTypeAPM {
+		decoded, err := utils.DecodeFromBase64(alert.MetricsQueryParamsString)
+		if err != nil {
+			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding APM query params:%v from base64, alert_id: %s, err: %v", alert.MetricsQueryParamsString, alert.AlertId, err)
+			log.Errorf(err.Error())
+			return err
+		}
+		alert.APMQueryParamsString = decoded
 	}
 
 	return nil
