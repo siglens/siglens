@@ -51,15 +51,29 @@ const (
 	AlertMessagePrefix       = "Test Alert - "
 	LogsString               = "Logs"
 	MetricsString            = "Metrics"
+	APMString                = "APM"
 	MetricsQueryParamsString = "{\"start\": \"now-1h\", \"end\": \"now\", \"queries\": [{\"name\": \"a\", \"query\": \"avg by (car_type) (testmetric0{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}, {\"name\": \"b\", \"query\": \"avg by (car_type) (testmetric1{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}], \"formulas\": [{\"formula\": \"a+b\"}]}"
-	LogsQueryText            = `app_name=Wheat* AND gender=male | stats count(app_name) by gender`
-	LogsQueryLanguage        = "Splunk QL"
-	LogsStartTime            = "now-1h"
-	LogsEndTime              = "now"
-	AlertQueryCondition      = alertutils.IsAbove
-	AlertValue               = 1
-	EvalWindow               = 1
-	EvalInterval             = 1
+	APMQueryParamsString     = "{\"start\": \"now-3h\", \"end\": \"now\", \"queries\": [{\"serviceName\": \"user-service\", \"JoinOperator\": \"AND\", \"RatePerSec\": 100, \"ErrorPercentage\": 5, \"DurationP50Ms\": 200, \"DurationP90Ms\": 400, \"DurationP99Ms\": 600}]}"
+
+	LogsQueryText       = `app_name=Wheat* AND gender=male | stats count(app_name) by gender`
+	LogsQueryLanguage   = "Splunk QL"
+	LogsStartTime       = "now-1h"
+	LogsEndTime         = "now"
+	AlertQueryCondition = alertutils.IsAbove
+	AlertValue          = 1
+	EvalWindow          = 1
+	EvalInterval        = 1
+
+	// // APM parameters
+	// apmStartTime       = "now-3h"
+	// apmEndTime         = "now"
+	// apmServiceName     = "some_service"
+	// apmJoinOperator    = "OR"
+	// apmRatePerSec      = 10.5
+	// apmErrorPercentage = 5.0
+	// apmDurationP50Ms   = 200.0
+	// apmDurationP90Ms   = 500.0
+	// apmDurationP99Ms   = 1000.0
 )
 
 func sendHttpRequest(method string, url string, data []byte) (*http.Response, error) {
@@ -129,14 +143,19 @@ func getAllContactPoints(host string) ([]*alertutils.Contact, error) {
 func createAlert(host string, alertTypeString string, contactId string, alertNameSuffix int) error {
 	var alertType alertutils.AlertType
 
-	if alertTypeString == "Logs" {
+	// Determine the alert type
+	switch alertTypeString {
+	case "Logs":
 		alertType = alertutils.AlertTypeLogs
-	} else if alertTypeString == "Metrics" {
+	case "Metrics":
 		alertType = alertutils.AlertTypeMetrics
-	} else {
+	case "APM":
+		alertType = alertutils.AlertTypeAPM
+	default:
 		return fmt.Errorf("invalid alert type: %s", alertTypeString)
 	}
 
+	// Construct alert name with optional suffix
 	alertName := fmt.Sprintf("%s%s", AlertNamePrefix, alertTypeString)
 	if alertNameSuffix > 0 {
 		alertName = fmt.Sprintf("%s_%d", alertName, alertNameSuffix)
@@ -159,9 +178,8 @@ func createAlert(host string, alertTypeString string, contactId string, alertNam
 		ContactID:    contactId,
 	}
 
-	if alertType == alertutils.AlertTypeMetrics {
-		alert.MetricsQueryParamsString = MetricsQueryParamsString
-	} else {
+	// Assign appropriate query parameters based on alert type
+	if alertType == alertutils.AlertTypeLogs {
 		alert.QueryParams = alertutils.QueryParams{
 			DataSource:    LogsString,
 			QueryLanguage: LogsQueryLanguage,
@@ -169,7 +187,22 @@ func createAlert(host string, alertTypeString string, contactId string, alertNam
 			StartTime:     LogsStartTime,
 			EndTime:       LogsEndTime,
 		}
+	} else if alertType == alertutils.AlertTypeMetrics {
+		alert.MetricsQueryParamsString = MetricsQueryParamsString
+	} else {
+		alert.APMQueryParamsString = APMQueryParamsString
 	}
+	// if alertType == alertutils.AlertTypeMetrics {
+	// 	alert.MetricsQueryParamsString = MetricsQueryParamsString
+	// } else {
+	// 	alert.QueryParams = alertutils.QueryParams{
+	// 		DataSource:    LogsString,
+	// 		QueryLanguage: LogsQueryLanguage,
+	// 		QueryText:     LogsQueryText,
+	// 		StartTime:     LogsStartTime,
+	// 		EndTime:       LogsEndTime,
+	// 	}
+	// }
 
 	url := host + "/api/alerts/create"
 
@@ -285,6 +318,7 @@ func verifyAlertLogsQuery(alert *alertutils.AlertDetails) error {
 func verifyAlertsData(alerts []*alertutils.AlertDetails, contact *alertutils.Contact) (bool, bool) {
 	alertLogsFound := false
 	alertMetricsFound := false
+	alertAPMFound := false
 
 	for _, alert := range alerts {
 		alertTypeString := ""
@@ -303,6 +337,14 @@ func verifyAlertsData(alerts []*alertutils.AlertDetails, contact *alertutils.Con
 			alertTypeString = "Metrics"
 
 			if alert.MetricsQueryParamsString != MetricsQueryParamsString {
+				log.Fatalf("Expected metrics query params to be %s, got %s", MetricsQueryParamsString, alert.MetricsQueryParamsString)
+			}
+
+		} else if alert.AlertType == alertutils.AlertTypeAPM {
+			alertAPMFound = true
+			alertTypeString = "APM"
+
+			if alert.APMQueryParamsString != APMQueryParamsString {
 				log.Fatalf("Expected metrics query params to be %s, got %s", MetricsQueryParamsString, alert.MetricsQueryParamsString)
 			}
 
