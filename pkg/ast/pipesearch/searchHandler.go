@@ -55,6 +55,7 @@ Example incomingBody
 
 finalSize = size + from
 */
+
 func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
@@ -63,12 +64,29 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
-	} else {
+		} else {
 		switch val := sText.(type) {
 		case string:
 			searchText = val
 		default:
 			log.Errorf("ParseSearchBody: searchText is not a string! val: %+v", val)
+		}
+	}
+
+	iName, ok := jsonSource["indexName"]
+	if !ok || iName == "" {
+		// how do i handel if the indexName is empty??
+	} else {
+		switch val := iName.(type) {
+		case string:
+			if val == "otel-index-logs" {
+				indexName = "*"
+				searchText += " | SeverityNumber > 17 OR SeverityText=ERROR "
+			} else {
+				indexName = val
+			}
+		default:
+			log.Errorf("ParseSearchBody: indexName is not a string! val: %+v", val)
 		}
 	}
 
