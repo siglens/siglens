@@ -342,7 +342,6 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryParams = new URLSearchParams(window.location.search);
     let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-15m';
     let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
-    // let selIndexName = queryParams.get('indexName');
     let selIndexName = "otel-index-logs";
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
