@@ -18,6 +18,12 @@
 package server_utils
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"os"
+
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -86,4 +92,34 @@ func GetMyIds() []int64 {
 	}
 
 	return []int64{0}
+}
+
+func GetTlsConfig(getCertificate func(*tls.ClientHelloInfo) (*tls.Certificate, error)) (*tls.Config, error) {
+	cfg := &tls.Config{
+		GetCertificate: getCertificate,
+	}
+
+	if config.IsMtlsEnabled() {
+		systemPool, _ := x509.SystemCertPool()
+		if systemPool == nil {
+			systemPool = x509.NewCertPool()
+		}
+
+		clientCaPath := config.GetMtlsClientCaPath()
+		if clientCaPath == "" {
+			return nil, fmt.Errorf("mTLS is enabled but the client CA path is not set")
+		}
+
+		customCa, err := os.ReadFile(clientCaPath)
+		if err != nil {
+			return nil, err
+		}
+
+		systemPool.AppendCertsFromPEM(customCa)
+
+		cfg.ClientAuth = tls.RequireAndVerifyClientCert
+		cfg.ClientCAs = systemPool
+	}
+
+	return cfg, nil
 }

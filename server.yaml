@@ -39,6 +39,8 @@ tls:
   enabled: false   # Set to true to enable TLS
   certificatePath: ""  # Path to the certificate file
   privateKeyPath: ""   # Path to the private key file
+  mtlsEnabled: false
+  clientCaPath: ""  # Path to the client Certificate Authority file. Required for mTLS.
 
 # SigLens server hostname
 queryHostname: ""

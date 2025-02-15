@@ -96,6 +96,9 @@ func Test_ExtractConfigData(t *testing.T) {
    metricsPercent: 10
    bytesPerQuery: 100
  maxAllowedColumns: 42
+ tls:
+   mtlsEnabled: true
+   clientCaPath: "/path/to/ca.pem"
  `),
 			common.Configuration{
 				IngestListenIP:              "0.0.0.0",
@@ -149,6 +152,10 @@ func Test_ExtractConfigData(t *testing.T) {
 					BytesPerQuery:                100,
 				},
 				MaxAllowedColumns: 42,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false).Set(true),
+					ClientCaPath: "/path/to/ca.pem",
+				},
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -195,6 +202,9 @@ func Test_ExtractConfigData(t *testing.T) {
  compressStatic: bad string
  memoryLimits:
    maxMemoryAllowedToUseInBytes: 10000000000
+ tls:
+   mtlsEnabled: bad string
+   clientCaPath: ""
  `),
 
 			common.Configuration{
@@ -249,6 +259,10 @@ func Test_ExtractConfigData(t *testing.T) {
 				},
 				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false),
+					ClientCaPath: "",
+				},
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -303,6 +317,10 @@ invalid input, we should error out
 				},
 				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false),
+					ClientCaPath: "",
+				},
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -360,6 +378,10 @@ a: b
 				},
 				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false),
+					ClientCaPath: "",
+				},
 			},
 		},
 	}
