@@ -61,6 +61,8 @@
     --black-5: #6F6B7B;
     --black-6: #C8C7CC;
     --black-7: #453F54;
+    --black-8: rgb(223, 229, 239);
+
 
     /* Light Theme - default */
     --white-0: #FFFFFF;
@@ -73,12 +75,15 @@
     --white-7: #453F54;
     --white-8: #9C99A3;
     --white-9: #F9FAFB;
+    --white-10: rgb(52, 55, 65);
+
 
     /* aliases - these are the values to optionally override for the light theme */
     --bg-color: var(--black-2);
     --text-color: var(--white-0);
     --hits-summary-text-color: var(--black-6);
     --table-or-regular-text-color: var(--black-6);
+    --table-or-regular-text-logs-color: var(--black-8);
 
     --border-switch: var(--white-3);
     --border-btn-color: var(--black-5);
@@ -264,6 +269,7 @@
     --text-color: var(--white-6);
     --hits-summary-text-color: var(--white-5);
     --table-or-regular-text-color: var(--white-4);
+    --table-or-regular-text-logs-color: var(--white-10);
 
     --border-switch: var(--black-5);
     --border-btn-color: var(--white-3);
@@ -2760,6 +2766,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .panelLogResultsGrid {
     height: 100%;
     width: 100%;
+    font-family: Roboto Mono, Menlo, Courier, monospace !important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
@@ -2771,7 +2778,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     padding-left: 0px !important;
     padding-top: 0 !important;
     border-bottom: none !important;
-    color: var(--table-or-regular-text-color);
+    color: var(--table-or-regular-text-logs-color);
 }
 
 .ag-theme-mycustomtheme .ag-root-wrapper-body {
@@ -2789,7 +2796,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background: var(--datatable-header-bg-color) !important;
     border-bottom: 0 !important;
     font-weight: var(--fw-500);
-    color: var(--text-color) !important;
+    color: var(--table-or-regular-text-logs-color) !important;
 }
 
 .ag-theme-mycustomtheme {
