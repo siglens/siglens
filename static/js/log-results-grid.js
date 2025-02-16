@@ -144,37 +144,102 @@ class JsonOverlayCellEditor {
         return true; // Prevents cell content from affecting layout
     }
 
-    showOverlay() {
-        // Remove any existing overlay before adding a new one
-        const existingOverlay = document.querySelector(".json-overlay");
-        if (existingOverlay) document.body.removeChild(existingOverlay);
+    // showOverlay() {
+    //     // Remove any existing overlay before adding a new one
+    //     const existingOverlay = document.querySelector(".json-overlay");
+    //     if (existingOverlay) document.body.removeChild(existingOverlay);
 
+    //     // Create overlay container
+    //     this.overlay = document.createElement("div");
+    //     this.overlay.classList.add("json-overlay");
+
+    //     // Convert row data to formatted JSON
+    //     const jsonContent = JSON.stringify(this.params.data, null, 2);
+
+    //     // Set inner HTML for overlay
+    //     this.overlay.innerHTML = `
+    //         <div class="json-overlay-content">
+    //             <h3>Row JSON Data</h3>
+    //             <pre>${jsonContent}</pre>
+    //             <button class="close-overlay">Close</button>
+    //         </div>
+    //     `;
+
+    //     // Add close event
+    //     this.overlay.querySelector(".close-overlay").addEventListener("click", () => {
+    //         document.body.removeChild(this.overlay);
+    //         this.params.api.stopEditing(); // Exit edit mode when overlay is closed
+    //     });
+
+    //     // Append overlay to body
+    //     document.body.appendChild(this.overlay);
+    // }
+    
+    
+    showOverlay() {
+        // Remove existing overlay before adding a new one
+        this.destroy();
+    
         // Create overlay container
         this.overlay = document.createElement("div");
         this.overlay.classList.add("json-overlay");
-
-        // Convert row data to formatted JSON
-        const jsonContent = JSON.stringify(this.params.data, null, 2);
-
+    
+        function syntaxHighlight(json) {
+            if (typeof json !== "string") {
+                json = JSON.stringify(json, null, 2);
+            }
+            
+            json = json.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            
+            return json.replace(
+                /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d*)?([eE][+-]?\d+)?)/g,
+                function (match) {
+                    let cls = "json-number"; // Default color for numbers
+                    // if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = "json-key"; // Blue for keys
+                        } else {
+                            cls = "json-value"; // Green for strings
+                        }
+                    // } else if (/true|false/.test(match)) {
+                    //     cls = "json-boolean"; // Purple for booleans
+                    // } else if (/null/.test(match)) {
+                    //     cls = "json-null"; // Red for null
+                    // }
+                    return `<span class="${cls}">${match}</span>`;
+                }
+            );
+        }
+        // Convert row data to formatted and highlighted JSON
+        const jsonContent = syntaxHighlight(this.params.data);
+    
         // Set inner HTML for overlay
         this.overlay.innerHTML = `
             <div class="json-overlay-content">
-                <h3>Row JSON Data</h3>
+                <div class="close-overlay">
+                    <button class="close-overlay-btn">Close</button>
+                </div>
                 <pre>${jsonContent}</pre>
-                <button class="close-overlay">Close</button>
+                
             </div>
         `;
-
-        // Add close event
-        this.overlay.querySelector(".close-overlay").addEventListener("click", () => {
-            document.body.removeChild(this.overlay);
-            this.params.api.stopEditing(); // Exit edit mode when overlay is closed
+    
+        // Close overlay when clicking outside
+        this.overlay.addEventListener("click", (event) => {
+            if (event.target === this.overlay) {
+                this.destroy();
+            }
         });
-
+    
+        // Close overlay when clicking the close button
+        this.overlay.querySelector(".close-overlay").addEventListener("click", () => {
+            this.destroy();
+        });
+    
         // Append overlay to body
         document.body.appendChild(this.overlay);
     }
-
+    
     destroy() {
         if (this.overlay && document.body.contains(this.overlay)) {
             document.body.removeChild(this.overlay);
