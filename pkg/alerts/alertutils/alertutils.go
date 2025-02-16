@@ -67,6 +67,7 @@ type AlertDetails struct {
 
 func (AlertDetails) TableName() string {
 	return "all_alerts"
+
 }
 
 type AlertLabel struct {
