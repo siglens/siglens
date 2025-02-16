@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
@@ -29,20 +30,44 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
 // function to init mock server in memory. Should only be called by tests
-func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, entryCount int) {
+func InitMockColumnarMetadataStore(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
 
 	metadata.ResetGlobalMetadataForTest()
 
 	writer.SetCardinalityLimit(1)
 
+	err := virtualtable.InitVTable(server_utils.GetMyIds)
+	if err != nil {
+		return nil, fmt.Errorf("InitMockColumnarMetadataStore: InitVTable failed err=%v", err)
+	}
+
+	err = virtualtable.AddVirtualTable(&indexName, myid)
+	if err != nil {
+		return nil, fmt.Errorf("InitMockColumnarMetadataStore: AddVirtualTable failed err=%v", err)
+	}
+
+	vTableBaseDir, err := writer.GetMockVTableDirForTest(myid, indexName)
+	if err != nil {
+		return nil, fmt.Errorf("InitMockColumnarMetadataStore: GetMockVTableDirForTest failed err=%v", err)
+	}
+
+	segKeys := make([]string, count)
+
 	for i := 0; i < count; i++ {
-		segkey := segBaseDir + fmt.Sprint(i)
-		bsumFname := segBaseDir + fmt.Sprint(i) + ".bsu"
+		segBaseDir := filepath.Join(vTableBaseDir, fmt.Sprint(i), "/")
+		err := os.MkdirAll(segBaseDir, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("InitMockColumnarMetadataStore: MkdirAll failed err=%v", err)
+		}
+		segkey := filepath.Join(segBaseDir, fmt.Sprint(i))
+		bsumFname := segkey + ".bsu"
 		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
 			numBlocks, entryCount)
 
@@ -84,7 +109,7 @@ func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, 
 
 		sInfo := &structs.SegMeta{
 			SegmentKey:       segkey,
-			VirtualTableName: "evts",
+			VirtualTableName: indexName,
 			SegbaseDir:       segBaseDir,
 			EarliestEpochMS:  0,
 			LatestEpochMS:    uint64(entryCount),
@@ -93,7 +118,13 @@ func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, 
 		}
 		segMetadata := metadata.InitSegmentMicroIndex(sInfo, false)
 		metadata.BulkAddSegmentMicroIndex([]*metadata.SegmentMicroIndex{segMetadata})
+
+		writer.WriteRunningSegMeta(segkey, sInfo)
+
+		segKeys[i] = segkey
 	}
+
+	return segKeys, nil
 }
 
 func writeMockBlockBloom(file string, blockBlooms []*bloom.BloomFilter) {

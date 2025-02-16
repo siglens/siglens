@@ -26,11 +26,11 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/segment/memory/limit"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -89,7 +89,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 		TimeRange:          timeRange,
 	}
 	searchNode := ConvertASTNodeToSearchNode(simpleNode, 0)
-	ti := InitTableInfo("evts", 0, false)
+	ti := InitTableInfo(IndexName, 0, false)
 	queryInfo, err := InitQueryInformation(searchNode, nil, timeRange, ti, uint64(numEntriesForBuffer*numBuffers*fileCount),
 		4, 0, &DistributedQueryService{}, 0, 0, false)
 	assert.NoError(t, err)
@@ -182,7 +182,7 @@ func bloomMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 }
 
 func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := InitTableInfo("evts", 0, false)
+	ti := InitTableInfo(IndexName, 0, false)
 	zeroValue, _ := CreateDtypeEnclosure(0, 0)
 	valueFilter := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
@@ -297,7 +297,7 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 
 // 	// new generate mock rotated with pqs for subset of blocks
 // 	// make sure raw search actually does raw search for the blocks not in sqpmr
-// 	ti := InitTableInfo("evts", 0, false)
+// 	ti := InitTableInfo(IndexName, 0, false)
 // 	fullTimeRange := &dtu.TimeRange{
 // 		StartEpochMs: 0,
 // 		EndEpochMs:   uint64(numEntriesForBuffer),
@@ -318,8 +318,8 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 
 // 	allPossibleKeys, finalCount, totalCount := metadata.FilterSegmentsByTime(fullTimeRange, ti.GetQueryTables(), 0)
 // 	assert.Equal(t, len(allPossibleKeys), 1)
-// 	assert.Contains(t, allPossibleKeys, "evts")
-// 	assert.Len(t, allPossibleKeys["evts"], fileCount)
+// 	assert.Contains(t, allPossibleKeys, IndexName)
+// 	assert.Len(t, allPossibleKeys[IndexName], fileCount)
 // 	assert.Equal(t, finalCount, totalCount)
 // 	assert.Equal(t, finalCount, uint64(fileCount))
 
@@ -366,10 +366,10 @@ func rangeMetadataFilter(t *testing.T, numBuffers int, numEntriesForBuffer int, 
 // 		assert.NotNil(t, qsr.blkTracker, "added blkTacker after pqs filtering")
 // 		fullBlkTracker, err := qsr.GetMicroIndexFilter()
 // 		assert.NoError(t, err)
-// 		assert.Contains(t, fullBlkTracker, "evts", "pqs raw search table")
-// 		assert.Len(t, fullBlkTracker["evts"], 1)
-// 		assert.Contains(t, fullBlkTracker["evts"], qsr.segKey, "resulting map should be map[tableName]->map[segKey]->blkTracker")
-// 		for _, blkTracker := range fullBlkTracker["evts"] {
+// 		assert.Contains(t, fullBlkTracker, IndexName, "pqs raw search table")
+// 		assert.Len(t, fullBlkTracker[IndexName], 1)
+// 		assert.Contains(t, fullBlkTracker[IndexName], qsr.segKey, "resulting map should be map[tableName]->map[segKey]->blkTracker")
+// 		for _, blkTracker := range fullBlkTracker[IndexName] {
 // 			for i := uint16(0); i < uint16(numBuffers); i++ {
 // 				if i%2 == 0 {
 // 					assert.True(t, blkTracker.ShouldProcessBlock(i), "Block %+v should be raw searched", i)
@@ -411,20 +411,71 @@ func Test_segQueryFilter(t *testing.T) {
 	instrumentation.InitMetrics()
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
-	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "metadatafilter")
-	assert.NoError(t, err)
 	limit.InitMemoryLimiter()
-	err = InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
-	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
+	_, err = metadata.InitMockColumnarMetadataStore(0, IndexName, fileCount, numBuffers, numEntriesForBuffer)
+	assert.NoError(t, err)
 
 	bloomMetadataFilter(t, numBuffers, numEntriesForBuffer, fileCount)
 	rangeMetadataFilter(t, numBuffers, numEntriesForBuffer, fileCount)
 	// pqsSegQuery(t, numBuffers, numEntriesForBuffer, fileCount)
 	// add more simple, complex, and nested metadata checking
 	time.Sleep(1 * time.Second) // sleep to give some time for background pqs threads to write out dirs
+	err = os.RemoveAll(dir)
+	assert.Nil(t, err)
+}
+
+func Test_initSyncSegMetaForAllIds(t *testing.T) {
+	dir := t.TempDir()
+	// dir := "/tmp/siglens/mocktest/"
+	config.InitializeTestingConfig(dir)
+	// host_id := "sync-segmeta-mock-id"
+	// config.SetHostIDForTestOnly(host_id)
+
+	limit.InitMemoryLimiter()
+
+	numSegKeys := 5
+	numBlocks := 1
+	entryCount := 10
+
+	myid := int64(0)
+	indexName := "mocksyncsegmeta"
+
+	segKeysSlice, err := metadata.InitMockColumnarMetadataStore(myid, indexName, numSegKeys, numBlocks, entryCount)
+	assert.NoError(t, err)
+
+	segKeysToDelete := make(map[string]struct{})
+	count := 0
+
+	for _, segKey := range segKeysSlice {
+		if count == 3 {
+			break
+		}
+
+		segKeysToDelete[segKey] = struct{}{}
+		count++
+	}
+
+	segmetadata.DeleteSegmentKeys(segKeysToDelete)
+
+	allSegKeys := segmetadata.GetAllSegKeys()
+	assert.Len(t, allSegKeys, numSegKeys-count)
+
+	initSyncSegMetaForAllIds(serverutils.GetMyIds)
+
+	allSegKeys = segmetadata.GetAllSegKeys()
+
+	assert.Len(t, allSegKeys, numSegKeys)
+
+	for segKey := range segKeysToDelete {
+		_, ok := allSegKeys[segKey]
+		assert.True(t, ok)
+	}
+
+	assert.NoError(t, err)
 	err = os.RemoveAll(dir)
 	assert.Nil(t, err)
 }

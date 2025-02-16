@@ -946,6 +946,29 @@ func GetMockSegBaseDirAndKeyForTest(dataDir string, indexName string) (string, s
 	return segBaseDir, segKey, nil
 }
 
+func GetMockSegmentPathsForTest(myId int64, vTableName string) (string, string, error) {
+	streamid := utils.CreateStreamId(vTableName, myId)
+	segBaseDir := config.GetBaseSegDir(streamid, vTableName, 0)
+	err := os.MkdirAll(segBaseDir, 0755)
+	if err != nil {
+		return "", "", err
+	}
+
+	segKey := segBaseDir + "0"
+	return segBaseDir, segKey, nil
+}
+
+func GetMockVTableDirForTest(myid int64, vTableName string) (string, error) {
+	streamid := utils.CreateStreamId(vTableName, myid)
+	vTableDir := config.GetBaseVTableDir(streamid, vTableName)
+	err := os.MkdirAll(vTableDir, 0755)
+	if err != nil {
+		return "", err
+	}
+
+	return vTableDir, nil
+}
+
 func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
 	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder,
 	map[string]*ColSizeInfo) {
