@@ -5948,7 +5948,6 @@ p#versionInfo {
     left: 170px;
     width: 100%;
     height: 100%;
-    /* background: rgba(0, 0, 0, 0.5); */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5970,7 +5969,6 @@ p#versionInfo {
 .json-overlay pre {
     white-space: pre-wrap;
     word-wrap: break-word;
-    /* background: #f4f4f4; */
     padding: 10px;
     border-radius: 4px;
     color: black; /* Ensure text is visible */
@@ -5992,12 +5990,6 @@ p#versionInfo {
     border-radius: 4px;
     position: static;
 }
-.close-overlay {
-    /* padding: 2rem;  */
-    /* background: gray;  */
-    position: sticky;
-    /* bottom: 0; */
-    }
 
 /* JSON Formatting */
 .json-key {
