@@ -20,94 +20,168 @@
 let cellEditingClass = '';
 let isFetching = false;
 
-class ReadOnlyCellEditor {
-    // gets called once before the renderer is used
+// class ReadOnlyCellEditor {
+//     // gets called once before the renderer is used
+//     init(params) {
+//         // create the cell
+//         this.eInput = document.createElement('textarea');
+//         cellEditingClass = params.rowIndex % 2 === 0 ? 'even-popup-textarea' : 'odd-popup-textarea';
+//         this.eInput.classList.add(cellEditingClass);
+//         this.eInput.classList.add('copyable');
+//         this.eInput.readOnly = true;
+
+//         // Set styles to ensure the textarea fits within its container
+//         this.eInput.style.width = '100%';
+//         this.eInput.style.height = '100%';
+//         this.eInput.style.maxWidth = '100%';
+//         this.eInput.style.maxHeight = '100%';
+//         this.eInput.style.boxSizing = 'border-box';
+//         this.eInput.style.overflow = 'auto';
+
+//         this.eInput.cols = params.cols;
+//         this.eInput.rows = params.rows;
+//         this.eInput.maxLength = params.maxLength;
+//         this.eInput.value = params.value;
+
+//         this.gridApi = params.api;
+
+//         // event listener for clicks outside the popup
+//         this.onClickOutside = this.onClickOutside.bind(this);
+//         document.addEventListener('mousedown', this.onClickOutside);
+//     }
+//     // gets called once when grid ready to insert the element
+//     getGui() {
+//         this.gridApi.addEventListener('cellEditingStarted', (event) => {
+//             if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
+//                 this.addCopyIcon();
+//             }
+//         });
+
+//         return this.eInput;
+//     }
+//     // returns the new value after editing
+//     getValue() {
+//         return this.eInput.value;
+//     }
+//     isPopup() {
+//         return true;
+//     }
+//     refresh() {
+//         return true;
+//     }
+//     destroy() {
+//         this.eInput.classList.remove(cellEditingClass);
+//         document.removeEventListener('mousedown', this.onClickOutside);
+//     }
+//     addCopyIcon() {
+//         // Remove any existing copy icons
+//         $('.copy-icon').remove();
+
+//         // Add copy icon to the textarea
+//         $('.copyable').each(function () {
+//             var copyIcon = $('<span class="copy-icon"></span>');
+//             $(this).after(copyIcon);
+//         });
+
+//         // Attach click event handler to the copy icon
+//         $('.copy-icon').on('click', function (_event) {
+//             var copyIcon = $(this);
+//             var inputOrTextarea = copyIcon.prev('.copyable');
+//             var inputValue = inputOrTextarea.val();
+
+//             var tempInput = document.createElement('textarea');
+//             tempInput.value = inputValue;
+//             document.body.appendChild(tempInput);
+//             tempInput.select();
+//             document.execCommand('copy');
+//             document.body.removeChild(tempInput);
+
+//             copyIcon.addClass('success');
+//             setTimeout(function () {
+//                 copyIcon.removeClass('success');
+//             }, 1000);
+//         });
+//     }
+
+//     onClickOutside(event) {
+//         if (this.eInput && !this.eInput.contains(event.target) && !document.querySelector('.ag-popup-editor').contains(event.target)) {
+//             this.gridApi.stopEditing();
+//         }
+//     }
+// }
+
+class JsonOverlayCellEditor {
+    constructor() {
+        this.eGui = document.createElement("div");
+    }
+
     init(params) {
-        // create the cell
-        this.eInput = document.createElement('textarea');
-        cellEditingClass = params.rowIndex % 2 === 0 ? 'even-popup-textarea' : 'odd-popup-textarea';
-        this.eInput.classList.add(cellEditingClass);
-        this.eInput.classList.add('copyable');
-        this.eInput.readOnly = true;
+        this.params = params;
 
-        // Set styles to ensure the textarea fits within its container
-        this.eInput.style.width = '100%';
-        this.eInput.style.height = '100%';
-        this.eInput.style.maxWidth = '100%';
-        this.eInput.style.maxHeight = '100%';
-        this.eInput.style.boxSizing = 'border-box';
-        this.eInput.style.overflow = 'auto';
+        // Ensure the cell remains visually empty
+        this.eGui.style.width = "100%";
+        this.eGui.style.height = "100%";
 
-        this.eInput.cols = params.cols;
-        this.eInput.rows = params.rows;
-        this.eInput.maxLength = params.maxLength;
-        this.eInput.value = params.value;
+        // Attach click event listener to show the overlay
+        this.eGui.addEventListener("click", (event) => {
+            event.stopPropagation(); // Prevents row selection
+            this.showOverlay();
+        });
 
-        this.gridApi = params.api;
-
-        // event listener for clicks outside the popup
-        this.onClickOutside = this.onClickOutside.bind(this);
-        document.addEventListener('mousedown', this.onClickOutside);
+        // Automatically show the overlay when editing starts
+        this.showOverlay();
     }
-    // gets called once when grid ready to insert the element
+
     getGui() {
-        this.gridApi.addEventListener('cellEditingStarted', (event) => {
-            if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
-                this.addCopyIcon();
-            }
-        });
-
-        return this.eInput;
+        return this.eGui;
     }
-    // returns the new value after editing
+
     getValue() {
-        return this.eInput.value;
+        return this.params.value; // Preserve the original value
     }
+
     isPopup() {
-        return true;
+        return true; // Prevents cell content from affecting layout
     }
-    refresh() {
-        return true;
+
+    showOverlay() {
+        // Remove any existing overlay before adding a new one
+        const existingOverlay = document.querySelector(".json-overlay");
+        if (existingOverlay) document.body.removeChild(existingOverlay);
+
+        // Create overlay container
+        this.overlay = document.createElement("div");
+        this.overlay.classList.add("json-overlay");
+
+        // Convert row data to formatted JSON
+        const jsonContent = JSON.stringify(this.params.data, null, 2);
+
+        // Set inner HTML for overlay
+        this.overlay.innerHTML = `
+            <div class="json-overlay-content">
+                <h3>Row JSON Data</h3>
+                <pre>${jsonContent}</pre>
+                <button class="close-overlay">Close</button>
+            </div>
+        `;
+
+        // Add close event
+        this.overlay.querySelector(".close-overlay").addEventListener("click", () => {
+            document.body.removeChild(this.overlay);
+            this.params.api.stopEditing(); // Exit edit mode when overlay is closed
+        });
+
+        // Append overlay to body
+        document.body.appendChild(this.overlay);
     }
+
     destroy() {
-        this.eInput.classList.remove(cellEditingClass);
-        document.removeEventListener('mousedown', this.onClickOutside);
-    }
-    addCopyIcon() {
-        // Remove any existing copy icons
-        $('.copy-icon').remove();
-
-        // Add copy icon to the textarea
-        $('.copyable').each(function () {
-            var copyIcon = $('<span class="copy-icon"></span>');
-            $(this).after(copyIcon);
-        });
-
-        // Attach click event handler to the copy icon
-        $('.copy-icon').on('click', function (_event) {
-            var copyIcon = $(this);
-            var inputOrTextarea = copyIcon.prev('.copyable');
-            var inputValue = inputOrTextarea.val();
-
-            var tempInput = document.createElement('textarea');
-            tempInput.value = inputValue;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-
-            copyIcon.addClass('success');
-            setTimeout(function () {
-                copyIcon.removeClass('success');
-            }, 1000);
-        });
-    }
-
-    onClickOutside(event) {
-        if (this.eInput && !this.eInput.contains(event.target) && !document.querySelector('.ag-popup-editor').contains(event.target)) {
-            this.gridApi.stopEditing();
+        if (this.overlay && document.body.contains(this.overlay)) {
+            document.body.removeChild(this.overlay);
+            this.params.api.stopEditing(); // Exit edit mode
         }
     }
+    
 }
 
 const cellEditorParams = (params) => {
@@ -124,7 +198,7 @@ let logsColumnDefs = [
         field: 'timestamp',
         headerName: 'timestamp',
         editable: true,
-        cellEditor: ReadOnlyCellEditor,
+        cellEditor: JsonOverlayCellEditor,
         cellEditorPopup: true,
         cellEditorPopupPosition: 'under',
         cellRenderer: (params) => {
