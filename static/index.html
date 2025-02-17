@@ -77,98 +77,100 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="dashboard" class="dashboard-box">
-            <div class="dropdown-box">
-                <div class="d-flex align-items-center">
-                    <div style="margin-right: 5px;">Indexes:</div>
-                    <div class="index-container">
-                        <input type="text" name="" id="index-listing">
-                        <button id="add-index" class="add-con btn">+</button>
-                    </div>
-                </div>
-                <div class="dropdown">
-                    <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
-                        aria-expanded="false" data-bs-toggle="dropdown">
-                        <span>Time Picker</span>
-                        <i class="dropdown-arrow"></i>
-                    </button>
-                    <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
-                        <p class="dt-header">Search the last</p>
-                        <div class="ranges">
-                            <div class="inner-range">
-                                <div id="now-5m" class="range-item ">5 Mins</div>
-                                <div id="now-3h" class="range-item">3 Hrs</div>
-                                <div id="now-2d" class="range-item">2 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-15m" class="range-item">15 Mins</div>
-                                <div id="now-6h" class="range-item">6 Hrs</div>
-                                <div id="now-7d" class="range-item">7 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-30m" class="range-item">30 Mins</div>
-                                <div id="now-12h" class="range-item">12 Hrs</div>
-                                <div id="now-30d" class="range-item">30 Days</div>
-                            </div>
-                            <div class="inner-range">
-                                <div id="now-1h" class="range-item">1 Hr</div>
-                                <div id="now-24h" class="range-item">24 Hrs</div>
-                                <div id="now-90d" class="range-item">90 Days</div>
-                            </div>
-                            <hr>
-                            </hr>
-                            <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
-                            </div>
-                            <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
-                                <input type="date" id="date-start" />
-                                <input type="time" id="time-start" value="00:00" />
-                            </div>
-                            <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
-                                <input type="date" id="date-end">
-                                <input type="time" id="time-end" value="00:00">
-                            </div>
-                            <div class="drp-buttons">
-                                <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
             <div id = "custom-code-tab" class="custom-code-tab">
                 <div class="query-builder-container">
-                    <div class="d-flex justify-content-end logcontainer">
-                        <button class="format-icon" id="formatInput">Format</button>
-                        <ul class="tab-list">
-                            <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
-                            <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
-                        </ul>
-                        <button class="btn settings-btn" id="logs-settings">
-                        </button>
-                        <div class="" id="setting-container">
-                            <div class="mb-1">Query Language:</div>
-                            <div class="dropdown">
-                                <button class="btn btn-grey dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
-                                    <span>Splunk QL</span>
-                                    <i class="dropdown-arrow"></i>
-                                </button>
-                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
-                                    {{ .Dropdown2 | safeHTML }}
-                                    <li id="option-3" class="query-language-option active">Splunk QL</li>
+                    <div class="dropdown-box">
+                        <div class="d-flex justify-content-end logcontainer">
+                            <ul class="tab-list">
+                                <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
+                                <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
+                            </ul>
+                            <button class="format-icon" id="formatInput">Format</button>
+                        </div>
+                        <div class="dropdown-container">
+                            <div class="d-flex">
+                                <div style="margin-right: 5px;margin-top: 3px;">Indexes:</div>
+                                <div class="index-container">
+                                    <input type="text" name="" id="index-listing">
+                                    <button id="add-index" class="add-con btn">+</button>
                                 </div>
                             </div>
-                            <div class="mt-2 mb-1">Query Mode:</div>
                             <div class="dropdown">
-                                <button class="btn btn-grey dropdown-toggle w-100" type="button" id="query-mode-btn" data-toggle="dropdown"
-                                    aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
-                                    <span>Builder</span>
+                                <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
+                                    aria-expanded="false" data-bs-toggle="dropdown">
+                                    <span>Time Picker</span>
                                     <i class="dropdown-arrow"></i>
                                 </button>
-                                <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
-                                    <li id="mode-option-1" class="query-mode-option">Builder</li>
-                                    <li id="mode-option-2" class="query-mode-option">Code</li>
+                                <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                                    <p class="dt-header">Search the last</p>
+                                    <div class="ranges">
+                                        <div class="inner-range">
+                                            <div id="now-5m" class="range-item ">5 Mins</div>
+                                            <div id="now-3h" class="range-item">3 Hrs</div>
+                                            <div id="now-2d" class="range-item">2 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-15m" class="range-item">15 Mins</div>
+                                            <div id="now-6h" class="range-item">6 Hrs</div>
+                                            <div id="now-7d" class="range-item">7 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-30m" class="range-item">30 Mins</div>
+                                            <div id="now-12h" class="range-item">12 Hrs</div>
+                                            <div id="now-30d" class="range-item">30 Days</div>
+                                        </div>
+                                        <div class="inner-range">
+                                            <div id="now-1h" class="range-item">1 Hr</div>
+                                            <div id="now-24h" class="range-item">24 Hrs</div>
+                                            <div id="now-90d" class="range-item">90 Days</div>
+                                        </div>
+                                        <hr>
+                                        </hr>
+                                        <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
+                                        </div>
+                                        <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                            <input type="date" id="date-start" />
+                                            <input type="time" id="time-start" value="00:00" />
+                                        </div>
+                                        <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                            <input type="date" id="date-end">
+                                            <input type="time" id="time-end" value="00:00">
+                                        </div>
+                                        <div class="drp-buttons">
+                                            <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        
+                            <button class="btn settings-btn" id="logs-settings">
+                            </button>
+                            <div class="" id="setting-container">
+                                <div class="mb-1">Query Language:</div>
+                                <div class="dropdown">
+                                    <button class="btn btn-grey dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
+                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
+                                        <span>Splunk QL</span>
+                                        <i class="dropdown-arrow"></i>
+                                    </button>
+                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                                        {{ .Dropdown2 | safeHTML }}
+                                        <li id="option-3" class="query-language-option active">Splunk QL</li>
+                                    </div>
+                                </div>
+                                <div class="mt-2 mb-1">Query Mode:</div>
+                                <div class="dropdown">
+                                    <button class="btn btn-grey dropdown-toggle w-100" type="button" id="query-mode-btn" data-toggle="dropdown"
+                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                        <span>Builder</span>
+                                        <i class="dropdown-arrow"></i>
+                                    </button>
+                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
+                                        <li id="mode-option-1" class="query-mode-option">Builder</li>
+                                        <li id="mode-option-2" class="query-mode-option">Code</li>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="d-flex">
@@ -263,7 +265,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="record-searched"></div>
             <div id="progress-div"></div>
 
-            
+
             <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                 <div class="d-flex align-items-center">
                     <ul class="tab-chart-list">

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/cespare/xxhash"
 	"github.com/prometheus/prometheus/model/labels"
@@ -14,6 +16,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -158,6 +161,10 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		return err
 	})
 
+	if err != nil {
+		return []*structs.MetricsQueryRequest{}, "", []*structs.QueryArithmetic{}, err
+	}
+
 	if len(mQueryReqs) == 0 {
 		return mQueryReqs, pqlQuerytype, queryArithmetic, nil
 	}
@@ -245,6 +252,8 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 		// Ignore the ParenExpr, As the Expr inside the ParenExpr will be handled in the next iteration
 	case *parser.NumberLiteral:
 		// Ignore the number literals, As they are handled in the handleCallExpr and BinaryExpr
+	case *parser.StringLiteral:
+		// Ignore the string literals, As they are handled in the handleCallExpr and other functions
 	default:
 		log.Errorf("parsePromQLExprNode: Unsupported node type: %T\n", node)
 	}
@@ -583,6 +592,74 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		mQuery.Function = structs.Function{TimeFunction: segutils.DayOfYear}
 	case "days_in_month":
 		mQuery.Function = structs.Function{TimeFunction: segutils.DaysInMonth}
+	case "label_replace":
+		if len(expr.Args) != 5 {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the label_replace function", expr.Args.String())
+		}
+
+		rawRegexStrLiteral, ok := expr.Args[4].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the regex to be a string", expr.Args.String())
+		}
+
+		rawRegex := rawRegexStrLiteral.Val
+
+		gobRegexp := &toputils.GobbableRegex{}
+		err := gobRegexp.SetRegex(rawRegex)
+		if err != nil {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the GobRegex Pattern: %v. Error=%v", rawRegex, err)
+		}
+
+		replacementKeyLietral, ok := expr.Args[2].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the replacement key to be a string", expr.Args.String())
+		}
+
+		replacementKey := replacementKeyLietral.Val
+
+		if replacementKey == "" {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: replacement key cannot be empty")
+		}
+
+		key := strings.TrimPrefix(replacementKey, "$")
+		if key == "" {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: replacement key cannot be empty")
+		}
+
+		labelReplacementKey := &structs.LabelReplacementKey{}
+
+		intVal, err := strconv.Atoi(key)
+		if err == nil {
+			labelReplacementKey.KeyType = structs.IndexBased
+			labelReplacementKey.IndexBasedVal = intVal
+		} else {
+			labelReplacementKey.KeyType = structs.NameBased
+			labelReplacementKey.NameBasedVal = key
+		}
+
+		destinationLabelLiteral, ok := expr.Args[1].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the destination label to be a string", expr.Args.String())
+		}
+
+		sourceLabelLiteral, ok := expr.Args[3].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the source label to be a string", expr.Args.String())
+		}
+
+		mQuery.Function = structs.Function{
+			FunctionType: structs.LabelFunction,
+			LabelFunction: &structs.LabelFunctionExpr{
+				FunctionType:     segutils.LabelReplace,
+				DestinationLabel: destinationLabelLiteral.Val,
+				Replacement:      labelReplacementKey,
+				SourceLabel:      sourceLabelLiteral.Val,
+				GobRegexp:        gobRegexp,
+			},
+		}
+	case "label_join":
+		// TODO: Implement label_join function
+		return fmt.Errorf("handleCallExprVectorSelectorNode: label_join function is not supported")
 	default:
 		return fmt.Errorf("handleCallExprVectorSelectorNode: unsupported function type %v", function)
 	}

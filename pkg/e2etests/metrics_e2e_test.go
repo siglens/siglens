@@ -1,3 +1,5 @@
+//go:build e2e_all
+
 // Copyright (c) 2021-2024 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
@@ -21,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -39,6 +42,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -67,6 +71,11 @@ type timeSeries struct {
 	Tags      map[string]string `json:"tags"`
 	Timestamp uint32            `json:"timestamp"`
 	Value     int               `json:"value"`
+}
+
+type seriesDataPoint struct {
+	ts  uint32
+	val float64
 }
 
 // dataStartTimestamp is the start timestamp for the test data
@@ -1098,15 +1107,17 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		assert.True(t, strings.Contains(seriesId, "color:"))
 		assert.True(t, strings.Contains(seriesId, "shape:"))
 
-		keyValueSet := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
+		assert.Equal(t, 2, len(values))
 
-		colorKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, colorValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
 		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1115,6 +1126,117 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		sort.Slice(seriesDpValues, func(i, j int) bool {
 			return seriesDpValues[i] < seriesDpValues[j]
 		})
+
+		assert.EqualValues(t, expectedResults[colorVal], seriesDpValues)
+	}
+}
+
+func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(t *testing.T) {
+	defer cleanUp(t)
+	go query.PullQueriesToRun()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
+	assert.Nil(t, err)
+	assert.Greater(t, len(mSegs), 0)
+
+	err = initializeMetricsMetaData()
+	assert.Nil(t, err)
+
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(startTimestamp),
+		EndEpochSec:   uint32(startTimestamp + 4600),
+	}
+
+	intervalSeconds, err := mresults.CalculateInterval(timeRange.EndEpochSec - timeRange.StartEpochSec)
+	assert.Nil(t, err)
+	assert.Equal(t, uint32(20), intervalSeconds)
+
+	query := `count ({__name__=~"testmetric.*", color=~".+e.*"}) by (color, shape)`
+	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(metricQueryRequest))
+	assert.False(t, metricQueryRequest[0].MetricsQuery.GroupByMetricName)
+
+	/*
+		Expected Results:
+		This query will return the same results as the simple metric query for each metric name.
+
+		The query has a filter on color tag with regex ".+e.*" which will match all the colors that have an 'e' in them.
+		The color values are red, blue, green.
+		So all the series with these colors will be returned.
+
+		So the expected results are:
+		testmetric1 has color: blue and shape: square and there are 5 data points, but since T1 and T2 will be aggregated into the same bucket, the result will have
+		4 time points. And since there is only one series at all these time points, the result will be 1 at all time points.
+
+		And this is same for all the other series as well.
+		** But for testmetric0, the series at T2 has radius tag instead of size tag, making it a different series.
+		** And since, the The series at T1 and T2 will be aggregated into the same bucket, there will be 2 series at T1 bucket for testmetric0.
+
+		So the results are:
+		color:red,shape:circle: {2, 1, 1, 1}
+		color:blue,shape:square: {1, 1, 1, 1}
+		color:green,shape:triangle: {1, 1, 1, 1}
+	*/
+
+	expectedResults := map[string][]float64{
+		"red":   {2, 1, 1, 1},
+		"blue":  {1, 1, 1, 1},
+		"green": {1, 1, 1, 1},
+	}
+
+	groupByKeys := []string{"color", "shape"}
+
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	assert.NotNil(t, res)
+	assert.Equal(t, 3, len(res.Results))
+
+	for seriesId, seriesDp := range res.Results {
+		assert.NotNil(t, seriesDp)
+		assert.Greater(t, len(seriesDp), 0)
+
+		mName := mresults.ExtractMetricNameFromGroupID(seriesId)
+		assert.NotNil(t, mName)
+		assert.Equal(t, "*", mName)
+
+		for _, key := range groupByKeys {
+			assert.True(t, strings.Contains(seriesId, key))
+		}
+
+		keyValueSet, keyValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		assert.NotNil(t, keyValueSet)
+		assert.Equal(t, 2, len(keyValueSet))
+		assert.Equal(t, 2, len(keyValues))
+
+		colorKeyVal, colorValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		assert.NotNil(t, colorKeyVal)
+		assert.Equal(t, 1, len(colorKeyVal))
+
+		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		assert.Equal(t, colorValues[0], colorVal)
+
+		seriesDpStructSlice := make([]*seriesDataPoint, 0)
+		for ts, dp := range seriesDp {
+			seriesDpStructSlice = append(seriesDpStructSlice, &seriesDataPoint{ts: ts, val: dp})
+		}
+
+		sort.Slice(seriesDpStructSlice, func(i, j int) bool {
+			return seriesDpStructSlice[i].ts < seriesDpStructSlice[j].ts
+		})
+
+		seriesDpValues := make([]float64, 0)
+		for _, dp := range seriesDpStructSlice {
+			seriesDpValues = append(seriesDpValues, dp.val)
+		}
 
 		assert.EqualValues(t, expectedResults[colorVal], seriesDpValues)
 	}
@@ -1185,12 +1307,14 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 		mName := mresults.ExtractMetricNameFromGroupID(seriesId)
 		assert.NotNil(t, mName)
 
-		shapeKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		shapeKeyVal, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, shapeKeyVal)
 		assert.Equal(t, 1, len(shapeKeyVal))
 
 		shapeVal := strings.Split(shapeKeyVal[0], ":")[1]
 		assert.Equal(t, "solid", shapeVal)
+		assert.Equal(t, 1, len(values))
+		assert.Equal(t, "solid", values[0])
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1202,4 +1326,217 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 
 		assert.EqualValues(t, expectedResults[mName], seriesDpValues)
 	}
+}
+
+func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t *testing.T) {
+	defer cleanUp(t)
+	go query.PullQueriesToRun()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
+	assert.Nil(t, err)
+	assert.Greater(t, len(mSegs), 0)
+
+	err = initializeMetricsMetaData()
+	assert.Nil(t, err)
+
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(startTimestamp),
+		EndEpochSec:   uint32(startTimestamp + 4600),
+	}
+
+	intervalSeconds, err := mresults.CalculateInterval(timeRange.EndEpochSec - timeRange.StartEpochSec)
+	assert.Nil(t, err)
+	assert.Equal(t, uint32(20), intervalSeconds)
+
+	query1 := `count by (color, shape) (testmetric0{color=~"red", shape=~"circle"})`
+	query2 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"}) by (size, shape)`
+	query3 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape=~".+le"}) by (size, shape, __name__)`
+	query4 := `count ({__name__=~"testmetric.*", size=~".+a.*", shape!~".+gle"}) by (size, shape)`
+
+	/*
+		Expected Results for query1:
+		At T1: testmetric0: 10
+		At T2: testmetric0: 40
+		At T3: testmetric0: 50
+		At T4: testmetric0: 60
+		At T5: testmetric0: 70
+
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
+
+		This is a count query, so the expected results are:
+		series : testmetric0{color:red,shape:circle
+		Values at T1 bucket = 10 + 40 = 2
+		Values at T2 bucket = 50 = 1
+		Values at T3 bucket = 60 = 1
+		Values at T4 bucket = 70 = 1
+
+		Expected Results for query2:
+		Test data has size values : small, medium, large
+		Test data has shape values : circle, triangle
+		The query filters for size values that have 'a' in them and shape values that end with 'le'
+		So the filtered size values are: small, large
+		And the filtered shape values are: cirlce, triangle
+
+		testmetric0 at T1 has size: small, shape: cirlce. Value: 30
+		testmetric0 at T3 has size: small, shape: cirlce. Value: 50
+		testmetric0 at T4 has size: small, shape: circle. Value: 60
+		testmetric0 at T5 has size: small, shape: circle. Value: 70
+
+		series := testmetric0{size:small,shape:circle
+		Values at T1 bucket = 1
+		Values at T3 bucket = 1
+		Values at T4 bucket = 1
+		Values at T5 bucket = 1
+
+		testmetric2 at T1 has size: large, shape: triangle. Value: 30
+		testmetric2 at T2 has size: large, shape: triangle. Value: 60
+		testmetric2 at T3 has size: large, shape: triangle. Value: 130
+		testmetric2 at T4 has size: large, shape: triangle. Value: 140
+		testmetric2 at T5 has size: large, shape: triangle. Value: 150
+
+		The time diff between T1 and T2 is 1 second, so the values at T1 and T2 will be aggregated to the same bucket.
+		And since the series is same, the count will be 1 for the bucket.
+		series := testmetric2{size:large,shape:triangle
+		At T1 bucket = 1
+		At T2 bucket = 1
+		At T3 bucket = 1
+		At T4 bucket = 1
+
+		expectedResults2 = {3, 1, 2, 2}
+
+		Expected Results for query3:
+		It is same as query2, but with an additional group by on __name__.
+		And Since these series are unique to a metric name, the result would be same as query2, except the series id will have the metric name.
+
+		Expecte Results for query4:
+		The query filters for size values that have 'a' in them and shape values that do not end with 'gle'
+		So the filtered size values are: small, large
+		And the filtered shape values are: cirlce
+
+		So only testmetric0 will be returned. Since testmetric2 has shape value as triangle, it will not be returned.
+		expectedResults4 = {1, 1, 1, 1}
+	*/
+
+	type expectedQueryResult struct {
+		resultSize      int
+		expectedResults map[string][]float64
+	}
+
+	queries := []string{
+		query1,
+		query2,
+		query3,
+		query4,
+	}
+
+	expectedQueryResult1 := &expectedQueryResult{
+		resultSize: 1,
+		expectedResults: map[string][]float64{
+			"testmetric0{color:red,shape:circle": {2, 1, 1, 1},
+		},
+	}
+
+	// Since, there is a regex filter on the metric name, the metric name will be replaced with *
+	expectedQueryResult2 := &expectedQueryResult{
+		resultSize: 2,
+		expectedResults: map[string][]float64{
+			"*{size:small,shape:circle":   {1, 1, 1, 1},
+			"*{size:large,shape:triangle": {1, 1, 1, 1},
+		},
+	}
+
+	// Even though there is a regex filter on the metric name, the metric name will be part of the series id,
+	// because of the group by on __name__.
+	expectedQueryResult3 := &expectedQueryResult{
+		resultSize: 2,
+		expectedResults: map[string][]float64{
+			"testmetric0{size:small,shape:circle":   {1, 1, 1, 1},
+			"testmetric2{size:large,shape:triangle": {1, 1, 1, 1},
+		},
+	}
+
+	expectedQueryResult4 := &expectedQueryResult{
+		resultSize: 1,
+		expectedResults: map[string][]float64{
+			"*{size:small,shape:circle": {1, 1, 1, 1},
+		},
+	}
+
+	expectedResultsSlice := []*expectedQueryResult{
+		expectedQueryResult1,
+		expectedQueryResult2,
+		expectedQueryResult3,
+		expectedQueryResult4,
+	}
+
+	for ind, query := range queries {
+		metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
+		assert.Nil(t, err)
+
+		expectedResult := expectedResultsSlice[ind]
+
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+		assert.NotNil(t, res)
+		assert.Equal(t, expectedResult.resultSize, len(res.Results))
+
+		for seriesId, seriesDp := range res.Results {
+			assert.NotNil(t, seriesDp)
+			assert.Greater(t, len(seriesDp), 0)
+
+			expectedSeriesDpValues, ok := expectedResult.expectedResults[seriesId]
+			assert.True(t, ok, "Query Index: ", ind, "SeriesId: ", seriesId)
+
+			seriesDpStructSlice := make([]*seriesDataPoint, 0)
+			for ts, dp := range seriesDp {
+				seriesDpStructSlice = append(seriesDpStructSlice, &seriesDataPoint{ts: ts, val: dp})
+			}
+
+			sort.Slice(seriesDpStructSlice, func(i, j int) bool {
+				return seriesDpStructSlice[i].ts < seriesDpStructSlice[j].ts
+			})
+
+			seriesDpValues := make([]float64, 0)
+			for _, dp := range seriesDpStructSlice {
+				seriesDpValues = append(seriesDpValues, dp.val)
+			}
+
+			assert.EqualValues(t, expectedSeriesDpValues, seriesDpValues, "Query Index: ", ind, "SeriesId: ", seriesId)
+		}
+	}
+}
+
+func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
+	testDir := t.TempDir()
+	dataDir := filepath.Join(testDir, "data")
+	config := config.GetTestConfig(dataDir)
+	siglens := newSiglensServer(testDir, &config)
+
+	siglens.Start(t)
+	defer siglens.StopGracefully(t)
+	sigclient(t, "go run main.go ingest metrics -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
+	siglens.StopGracefully(t)
+
+	siglens.Start(t)
+	result := terminal(t, `curl -s -X POST localhost:5122/metrics-explorer/api/v1/metric_names -d '{"start":"now-1h","end":"now"}'`)
+
+	type AllMetricNames struct {
+		MetricNames []string `json:"metricNames"`
+		Count       int      `json:"metricNamesCount"`
+	}
+
+	allMetricNames := AllMetricNames{}
+	err := json.Unmarshal([]byte(result), &allMetricNames)
+	require.Nil(t, err)
+
+	assert.Equal(t, 10, allMetricNames.Count)
+	assert.Len(t, allMetricNames.MetricNames, 10)
 }

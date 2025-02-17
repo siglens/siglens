@@ -246,9 +246,10 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 }
 
 // ExtractGroupByFieldsFromSeriesId extracts the groupByFields from the seriesId
-// And returns the slice of Group By Fields as key-value pairs.
-func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) []string {
+// And returns the slice of Group By Fields as key-value pairs, and the slice of values of the groupByFields
+func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) ([]string, []string) {
 	var groupKeyValuePairs []string
+	var values []string
 	for _, field := range groupByFields {
 		start := strings.Index(seriesId, field+":")
 		if start == -1 {
@@ -262,21 +263,25 @@ func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) [
 			end += start
 		}
 		keyValuePair := fmt.Sprintf("%s:%s", field, seriesId[start:end])
+		values = append(values, seriesId[start:end])
 		groupKeyValuePairs = append(groupKeyValuePairs, keyValuePair)
 	}
-	return groupKeyValuePairs
+	return groupKeyValuePairs, values
 }
 
 // getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
+// The seriesId is in the format of "metricName{key1:value1,key2:value2,..."
 // If groupByFields is empty, it returns the "metricName{" as the group seriesId
 // If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
 // Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
 // The groupByFields are extracted from the seriesId
-func getAggSeriesId(metricName string, seriesId string, groupByFields []string) string {
+func getAggSeriesId(seriesId string, groupByFields []string) string {
+	metricName := ExtractMetricNameFromGroupID(seriesId)
+
 	if len(groupByFields) == 0 {
 		return metricName + "{"
 	}
-	groupKeyValuePairs := ExtractGroupByFieldsFromSeriesId(seriesId, groupByFields)
+	groupKeyValuePairs, _ := ExtractGroupByFieldsFromSeriesId(seriesId, groupByFields)
 	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
 	return seriesId
 }
@@ -310,7 +315,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
 	for seriesId, timeSeries := range r.Results {
-		aggSeriesId := getAggSeriesId(r.MetricName, seriesId, aggregation.GroupByFields)
+		aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
 		if _, ok := results[aggSeriesId]; !ok {
 			results[aggSeriesId] = make(map[uint32]float64, 0)
 			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -377,7 +382,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 		wg.Add(1)
 		go func(grp string, ts map[uint32]float64, function structs.Function) {
 			defer wg.Done()
-			grpVal, err := ApplyFunction(ts, function)
+			grpID, grpVal, err := ApplyFunction(grp, ts, function)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -385,7 +390,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 				return
 			}
 			lock.Lock()
-			results[grp] = grpVal
+			results[grpID] = grpVal
 			lock.Unlock()
 		}(grpID, timeSeries, function)
 		idx++
@@ -819,7 +824,7 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 	seriesIdEntriesMap := make(map[string]map[uint32]map[string]struct{})
 
 	for grpID, runningDS := range r.DsResults {
-		seriesId := getAggSeriesId(r.MetricName, grpID, aggregation.GroupByFields)
+		seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
 		_, exists := seriesIdEntriesMap[seriesId]
 		if !exists {
 			seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})

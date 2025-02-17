@@ -254,6 +254,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/dependencies", tracing.TraceMiddleware(hs.Recovery(getDependencyGraphHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/generate-dep-graph", hs.Recovery(generateDependencyGraphHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", tracing.TraceMiddleware(hs.Recovery(ganttChartHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/span/ganttChart", tracing.TraceMiddleware(hs.Recovery(spanGanttChartHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/count", tracing.TraceMiddleware(hs.Recovery((totalTracesHandler()))))
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
@@ -333,8 +334,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			return err
 		}
 
-		cfg := &tls.Config{
-			GetCertificate: certReloader.GetCertificate,
+		cfg, err := server_utils.GetTlsConfig(certReloader.GetCertificate)
+		if err != nil {
+			log.Fatalf("Run: error getting TLS config; err=%v", err)
+			return err
 		}
 
 		hs.ln = tls.NewListener(hs.ln, cfg)

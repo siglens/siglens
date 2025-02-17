@@ -625,4 +625,5 @@ input:checked+.slider:before {
     width: 24px !important;
     border: 1px solid var(--border-color-regular);
     margin-right: 10px;
+    border-radius: 5px !important;
 }
