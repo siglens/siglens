@@ -175,7 +175,7 @@ const accordionStyles = `
 
     .submenu-link {  
         display: block;  
-        padding: 8px 15px 8px 30px; 
+        padding: 8px 15px 8px 30px;  
         text-decoration: none;  
         color: inherit;  
         position: relative;  
@@ -195,26 +195,26 @@ const accordionStyles = `
         height: 100%;  
         background-color: grey; 
         transform: translateY(-50%);  
-        opacity: 0;  
+        opacity: 0; /  
         transition: opacity 0.3s ease;  
     }  
 
-    /* Show line when dropdown is open */  
+
     .accordion-content.active .submenu-link::before {  
-        opacity: 1; 
+        opacity: 1;  
     }  
     
      .submenu-link::before {  
-        opacity: 1;
+        opacity: 1;  
     } 
 
-     /* on hover */
     .submenu-link:hover::before {  
-        opacity: 1;
+        opacity: 1; 
         background-color: orange;  
         width: 2px;
     }  
- 
+
+    /* Arrow styles */  
     .dropdown-arrow {  
         transition: transform 0.3s ease;  
         display: inline-block; 
