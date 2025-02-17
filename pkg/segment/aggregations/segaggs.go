@@ -2572,7 +2572,7 @@ func performRexColRequestWithoutGroupby(nodeResult *structs.NodeResult, letColRe
 			return fmt.Errorf("performRexColRequestWithoutGroupby: Field does not exist: %v", fieldName)
 		}
 
-		rexResultMap, err := structs.MatchAndExtractGroups(fieldValue, rexExp)
+		rexResultMap, err := structs.MatchAndExtractNamedGroups(fieldValue, rexExp)
 		if err != nil {
 			log.Errorf("performRexColRequestWithoutGroupby: %v", err)
 			continue

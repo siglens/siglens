@@ -19,6 +19,7 @@ package microreader
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -163,10 +164,15 @@ func ReadMetricsBlockSummaries(fileName string) ([]*structs.MBlockSummary, error
 	defer fd.Close()
 
 	data := make([]byte, fileSize)
-	_, err = fd.Read(data)
+	n, err := fd.Read(data)
 	if err != nil {
 		log.Errorf("ReadMetricsBlockSummaries: Error reading mbsu file: %v, err: %v", fileName, err)
 		return mBlockSummaries, err
+	}
+
+	if n < 1 {
+		log.Errorf("ReadMetricsBlockSummaries: Insufficient data in mbsu file: %v", fileName)
+		return mBlockSummaries, errors.New("insufficient data in file")
 	}
 
 	versionBlockSummary := make([]byte, 1)
