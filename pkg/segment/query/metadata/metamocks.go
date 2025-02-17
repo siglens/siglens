@@ -36,15 +36,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func InitMockColumnarMetadataStoreInternal(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
+func initMockColumnarMetadataStoreInternal(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
 	err := virtualtable.AddVirtualTable(&indexName, myid)
 	if err != nil {
-		return nil, fmt.Errorf("InitMockColumnarMetadataStore: AddVirtualTable failed err=%v", err)
+		return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: AddVirtualTable failed err=%v", err)
 	}
 
 	vTableBaseDir, err := writer.GetMockVTableDirForTest(myid, indexName)
 	if err != nil {
-		return nil, fmt.Errorf("InitMockColumnarMetadataStore: GetMockVTableDirForTest failed err=%v", err)
+		return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: GetMockVTableDirForTest failed err=%v", err)
 	}
 
 	segKeys := make([]string, count)
@@ -53,7 +53,7 @@ func InitMockColumnarMetadataStoreInternal(myid int64, indexName string, count i
 		segBaseDir := filepath.Join(vTableBaseDir, fmt.Sprint(i), "/")
 		err := os.MkdirAll(segBaseDir, 0755)
 		if err != nil {
-			return nil, fmt.Errorf("InitMockColumnarMetadataStore: MkdirAll failed err=%v", err)
+			return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: MkdirAll failed err=%v", err)
 		}
 		segkey := filepath.Join(segBaseDir, fmt.Sprint(i))
 		bsumFname := segkey + ".bsu"
@@ -116,29 +116,33 @@ func InitMockColumnarMetadataStoreInternal(myid int64, indexName string, count i
 	return segKeys, nil
 }
 
-// function to init mock server in memory. Should only be called by tests
-func InitMockColumnarMetadataStore(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
-
+func initMetdataStore() error {
 	metadata.ResetGlobalMetadataForTest()
 
 	writer.SetCardinalityLimit(1)
 
 	err := virtualtable.InitVTable(server_utils.GetMyIds)
 	if err != nil {
-		return nil, fmt.Errorf("InitMockColumnarMetadataStore: InitVTable failed err=%v", err)
+		return fmt.Errorf("initMetdataStore: InitVTable failed err=%v", err)
 	}
 
-	return InitMockColumnarMetadataStoreInternal(myid, indexName, count, numBlocks, entryCount)
+	return nil
+}
+
+// function to init mock server in memory. Should only be called by tests
+func InitMockColumnarMetadataStore(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
+	err := initMetdataStore()
+	if err != nil {
+		return nil, fmt.Errorf("InitMockColumnarMetadataStore: initMetdataStore failed err=%v", err)
+	}
+
+	return initMockColumnarMetadataStoreInternal(myid, indexName, count, numBlocks, entryCount)
 }
 
 func BulkInitMockColumnarMetadataStore(myids []int64, indexNames []string, count int, numBlocks int, entryCount int) (map[string]struct{}, error) {
-	metadata.ResetGlobalMetadataForTest()
-
-	writer.SetCardinalityLimit(1)
-
-	err := virtualtable.InitVTable(server_utils.GetMyIds)
+	err := initMetdataStore()
 	if err != nil {
-		return nil, fmt.Errorf("InitMockColumnarMetadataStore: InitVTable failed err=%v", err)
+		return nil, fmt.Errorf("BulkInitMockColumnarMetadataStore: initMetdataStore failed err=%v", err)
 	}
 
 	segKeysSet := make(map[string]struct{})
@@ -146,9 +150,9 @@ func BulkInitMockColumnarMetadataStore(myids []int64, indexNames []string, count
 	for i, myid := range myids {
 		indexName := indexNames[i]
 
-		segKeysSlice, err := InitMockColumnarMetadataStoreInternal(myid, indexName, count, numBlocks, entryCount)
+		segKeysSlice, err := initMockColumnarMetadataStoreInternal(myid, indexName, count, numBlocks, entryCount)
 		if err != nil {
-			return nil, fmt.Errorf("BulkInitMockColumnarMetadataStore: InitMockColumnarMetadataStore failed err=%v", err)
+			return nil, fmt.Errorf("BulkInitMockColumnarMetadataStore: initMockColumnarMetadataStoreInternal failed err=%v", err)
 		}
 
 		utils.AddSliceToSet(segKeysSet, segKeysSlice)

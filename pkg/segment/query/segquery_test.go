@@ -434,9 +434,9 @@ func Test_initSyncSegMetaForAllIds(t *testing.T) {
 
 	limit.InitMemoryLimiter()
 
-	numSegKeys := 5
-	numBlocks := 1
-	entryCount := 10
+	numSegKeys := 5  // creates 5 segKeys per index
+	numBlocks := 1   // creates 1 block per segKey
+	entryCount := 10 // creates 10 entries per block
 
 	ids := []int64{0, 1, 2, 3, 4}
 	indexNames := []string{"mocksyncsegmeta", "mocksyncsegmeta1", "mocksyncsegmeta2", "mocksyncsegmeta3", "mocksyncsegmeta"}
@@ -450,11 +450,13 @@ func Test_initSyncSegMetaForAllIds(t *testing.T) {
 	assert.Len(t, allSegKeys, totalSegKeysCount)
 	assert.Equal(t, allSegKeys, segKeysSet)
 
+	// Now delete some of these segKeys, so they can be added again through initSyncSegMetaForAllIds func
+	numSegKeysToDelete := 5 // delete 5 segKeys from a total of `totalSegKeysCount`
 	segKeysToDelete := make(map[string]struct{})
 	count := 0
 
 	for segKey := range segKeysSet {
-		if count == numSegKeys {
+		if count == numSegKeysToDelete {
 			break
 		}
 
@@ -465,12 +467,13 @@ func Test_initSyncSegMetaForAllIds(t *testing.T) {
 	segmetadata.DeleteSegmentKeys(segKeysToDelete)
 
 	allSegKeys = segmetadata.GetAllSegKeys()
-	assert.Len(t, allSegKeys, totalSegKeysCount-numSegKeys)
+	assert.Len(t, allSegKeys, totalSegKeysCount-numSegKeysToDelete)
 
 	mockGetIds := func() []int64 {
 		return ids
 	}
 
+	// The allSegmentsHook func is nil, so it will add all the segKeys back.
 	initSyncSegMetaForAllIds(mockGetIds, nil)
 
 	allSegKeys = segmetadata.GetAllSegKeys()
@@ -481,8 +484,13 @@ func Test_initSyncSegMetaForAllIds(t *testing.T) {
 	segmetadata.DeleteSegmentKeys(segKeysToDelete)
 
 	allSegKeys = segmetadata.GetAllSegKeys()
-	assert.Len(t, allSegKeys, totalSegKeysCount-numSegKeys)
+	assert.Len(t, allSegKeys, totalSegKeysCount-numSegKeysToDelete)
 
+	// Now add only a few of the deleted segKeys back by using allSegKeysHook func
+	// This func will add all the segKeys back except the two segKeys that are in `keysToNotAdd`
+	// This map is returned by the allSegKeysHook func. This represents the global state of segKeys,
+	// and if a segKey is here, it means that the segKey is already present in the global state.
+	// So, the initSyncSegMetaForAllIds func will not add these segKeys back.
 	keysToNotAddCount := 2
 	keysToNotAdd := make(map[string]struct{})
 	KeysToAdd := make(map[string]struct{})
