@@ -217,10 +217,11 @@ class JsonOverlayCellEditor {
         this.overlay.innerHTML = `
             <div class="json-overlay-content">
                 <div class="close-overlay">
-                    <button class="close-overlay-btn">Close</button>
+                    <span class="close-overlay-icon">
+                        <i class="fa-solid fa-xmark"></i> <!-- Close Icon -->
+                    </span>
                 </div>
                 <pre>${jsonContent}</pre>
-                
             </div>
         `;
     
