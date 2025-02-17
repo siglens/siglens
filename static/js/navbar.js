@@ -39,16 +39,25 @@ let navbarComponent = `
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
          </div>
-        <div class="menu nav-metrics metrics-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links" href="./metrics-explorer.html">
-                <span class="icon-metrics"></span>
-                <span class="nav-link-text">Metrics</span>
-            </a>
-            <ul class="metrics-dropdown navbar-submenu">
-                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
-                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
-            </ul>
+        <div class="menu nav-metrics">  
+            <a class="nav-links accordion-toggle" href="./metrics.html" onclick="toggleDropdown(this)">  
+                <div class="nav-link-content">  
+                    <span class="icon-metrics"></span>  
+                    <span class="nav-link-text">Metrics</span>  
+                    <span class="dropdown-arrow"></span>
+                </div>  
+            </a>  
+            <div class="accordion-content" style="display: none;">  
+                <a href="./metrics-explorer.html" class="submenu-link">  
+                    <span class="nav-link-text">Explorer</span>  
+                </a>  
+                <a href="./metric-summary.html" class="submenu-link">  
+                    <span class="nav-link-text">Summary</span>  
+                </a>  
+                <a href="./metric-cardinality.html" class="submenu-link">  
+                    <span class="nav-link-text">Cardinality</span>  
+                </a>  
+            </div>  
         </div>
         {{ if .ShowSLO }}        
         <div class="menu nav-slos">
@@ -137,6 +146,94 @@ let navbarComponent = `
     </div>
 `;
 
+
+const accordionStyles = `
+<style>  
+    .accordion-toggle {  
+        border: none;  
+        background: none;  
+        cursor: pointer;  
+        padding: 0 !important;  
+        display: flex;  
+        justify-content: space-between;  
+        align-items: center;  
+    }  
+
+    .nav-link-content {  
+        display: flex;  
+        align-items: center;  
+    }  
+
+    .accordion-content {  
+        overflow: hidden;  
+        transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;  
+        margin-left: 16px; /* Adjusted margin */  
+        padding: 0; /* Removed extra padding */  
+        gap: 3px;  
+        display: none; /* Initially hidden */  
+    }  
+
+    .submenu-link {  
+        display: block;  
+        padding: 8px 15px 8px 30px; /* Adjusted left padding */  
+        text-decoration: none;  
+        color: inherit;  
+        position: relative;  
+    }  
+
+    .submenu-link:hover {  
+        background-color: rgba(0, 0, 0, 0.05);  
+    }  
+
+    /* Vertical line for submenu links */  
+    .submenu-link::before {  
+        content: '';  
+        position: absolute;  
+        left: 0;  
+        top: 50%;  
+        width: 1px; /* Adjust to your desired width */  
+        height: 100%;  
+        background-color: grey; /* Change this to your desired color */  
+        transform: translateY(-50%);  
+        opacity: 0; /* Initially hidden */  
+        transition: opacity 0.3s ease;  
+    }  
+
+    /* Show line when dropdown is open */  
+    .accordion-content.active .submenu-link::before {  
+        opacity: 1; /* Show the line when parent dropdown is open */  
+    }  
+    
+     .submenu-link::before {  
+        opacity: 1; /* Show on hover */  
+    } 
+
+    .submenu-link:hover::before {  
+        opacity: 1; /* Show on hover */
+        background-color: orange;  
+        width: 2px;
+    }  
+
+    /* Arrow styles */  
+    .dropdown-arrow {  
+        transition: transform 0.3s ease;  
+        display: inline-block; /* Ensure it stays inline */  
+    }  
+
+    .dropdown-arrow.active {  
+        transform: rotate(90deg);   
+    }  
+
+    .accordion-content.active {  
+        display: block;  
+    }  
+</style> 
+`;
+
+// Add the styles to the head
+$('head').append(accordionStyles);
+
+
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
@@ -162,19 +259,50 @@ $(document).ready(function () {
     $('#app-side-nav').prepend(navbarComponent);
     const currentUrl = window.location.href;
 
+    const isNavigatingBack = document.referrer.includes('metrics.html');
+    //Handling Dropdown
+    $('.nav-header').on('click', function(e) {
+        e.preventDefault();
+        const $menu = $(this).closest('.menu');
+        const $submenu = $menu.find('.submenu');
+        const $arrow = $menu.find('.dropdown-arrow');
+        
+        // Close all other submenus
+        $('.submenu').not($submenu).slideUp(300);
+        $('.dropdown-arrow').not($arrow).removeClass('active');
+        
+        // Toggle current submenu
+        $submenu.slideToggle(300);
+        $arrow.toggleClass('active');
+        
+        // Handle active states
+        if ($submenu.is(':visible')) {
+            $menu.addClass('active');
+        } else {
+            $menu.removeClass('active');
+        }
+    });
+
 
     if (currentUrl.includes('index.html')) {
         $('.nav-search').addClass('active');
-    } else if (currentUrl.includes('metrics-explorer.html')) {
+    }
+    if(currentUrl.includes('metrics.html')){
         $('.nav-metrics').addClass('active');
-        $('.nav-metrics').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-metrics').removeClass('disable-hover');
-        }, 500);
-    } else if (currentUrl.includes('metric-summary.html')) {
+        $('.nav-metrics .accordion-content').show();
+        $('.nav-metrics .dropdown-arrow').addClass('active');
+    }
+    if (isNavigatingBack) {
+        $('.nav-metrics .accordion-content').hide();
+        $('.nav-metrics').removeClass('active');
+        $('.nav-metrics .dropdown-arrow').removeClass('active');
+    } 
+    if (currentUrl.includes('metrics-explorer.html') || 
+        currentUrl.includes('metric-summary.html') || 
+        currentUrl.includes('metric-cardinality.html')) {
         $('.nav-metrics').addClass('active');
-    } else if (currentUrl.includes('metric-cardinality.html')) {
-        $('.nav-metrics').addClass('active');
+        $('.nav-metrics .accordion-content').show();
+        $('.nav-metrics .dropdown-arrow').addClass('active');
     } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
         $('.nav-ldb').addClass('active');
     } else if (currentUrl.includes('saved-queries.html')) {
@@ -212,19 +340,57 @@ $(document).ready(function () {
         $('.nav-lookups').addClass('active');
     } 
 
-    // Hover event handlers updated to respect disable-hover class
-    $('.metrics-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideUp(30);
-            }
+    // // Hover event handlers updated to respect disable-hover class
+    // $('.metrics-dropdown-toggle').hover(
+    //     function () {
+    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
+    //             $('.metrics-dropdown').stop(true, true).slideDown(0);
+    //         }
+    //     },
+    //     function () {
+    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
+    //             $('.metrics-dropdown').stop(true, true).slideUp(30);
+    //         }
+    //     }
+    // );
+
+    $('.nav-metrics .accordion-toggle').on('click', function(e) {  
+        e.preventDefault();  
+        const $menu = $(this).closest('.menu');  
+        const $content = $menu.find('.accordion-content');  
+        const $arrow = $menu.find('.dropdown-arrow');  
+    
+        if ($(e.target).closest('.nav-link-content').length) {  
+            if (!currentUrl.includes('metrics.html')) {  
+                window.location.href = './metrics.html';  
+            }  
+            
+            // Toggle dropdown and manage active state  
+            $content.slideToggle(300, function () {  
+                $arrow.toggleClass('active');  
+                if($content.is(':visible')) {  
+                    $menu.addClass('active');  
+                    $content.addClass('active'); // Add active class to accordion content  
+                } else {  
+                    $menu.removeClass('active');  
+                    $content.removeClass('active'); // Remove active class when closed  
+                }  
+            });  
+        } else {  
+            $content.slideToggle(300);  
+            $arrow.toggleClass('active');  
+            $menu.toggleClass('active');  
+        }  
+    });
+
+    // Handle browser back button
+    window.onpopstate = function(event) {
+        if (!window.location.href.includes('metrics.html')) {
+            $('.nav-metrics .accordion-content').slideUp(300);
+            $('.nav-metrics').removeClass('active');
+            $('.nav-metrics .dropdown-arrow').removeClass('active');
         }
-    );
+    };
 
     $('.tracing-dropdown-toggle').hover(
         function () {
