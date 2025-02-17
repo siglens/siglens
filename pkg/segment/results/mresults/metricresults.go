@@ -235,7 +235,7 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	}
 
 	wg.Wait()
-	r.DsResults = nil
+	// r.DsResults = nil
 	r.State = AGGREGATED
 
 	if len(errors) > 0 {
@@ -404,7 +404,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 		return errList
 	}
 
-	r.DsResults = nil
+	// r.DsResults = nil
 
 	return nil
 }
@@ -805,7 +805,7 @@ func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor fl
 		}
 	}
 
-	r.DsResults = nil
+	// r.DsResults = nil
 	r.State = AGGREGATED
 
 	return nil
@@ -820,38 +820,52 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 	// ["color:red,gender:male"] = { 1: {{"color:red,gender:male,age:20"}, {"color:red,gender:male,age:5"}}, 2: ...   }
 	// ["color:yellow,gender:male"] = { 1: {{"color:yellow,gender:male,age:3"}}, 2: ...   }
 	seriesIdEntriesMap := make(map[string]map[uint32]map[string]struct{})
+	r.Results = make(map[string]map[uint32]float64)
 
-	for grpID, runningDS := range r.DsResults {
-		seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
-		_, exists := seriesIdEntriesMap[seriesId]
-		if !exists {
-			seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
-		}
-
-		for i := 0; i < runningDS.idx; i++ {
-			timestamp := runningDS.runningEntries[i].downsampledTime
-
-			// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
-			// even when there is only one tag filter. This prevents all entries from having the same grpID,
-			// which would result in a count of 1 for each timestamp.
-			uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
-			_, exists := seriesIdEntriesMap[seriesId][timestamp]
+	if len(aggregation.GroupByFields) > 0 {
+		for grpID, runningDS := range r.DsResults {
+			seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
+			_, exists := seriesIdEntriesMap[seriesId]
 			if !exists {
-				seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+				seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
 			}
-			seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
-		}
-	}
 
-	for seriesId, entries := range seriesIdEntriesMap {
-		grpVal := make(map[uint32]float64)
-		for timestamp, grpIdSet := range entries {
-			grpVal[timestamp] = float64(len(grpIdSet))
-		}
-		r.Results[seriesId] = grpVal
-	}
+			for i := 0; i < runningDS.idx; i++ {
+				timestamp := runningDS.runningEntries[i].downsampledTime
 
-	r.DsResults = nil
+				// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
+				// even when there is only one tag filter. This prevents all entries from having the same grpID,
+				// which would result in a count of 1 for each timestamp.
+				uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
+				_, exists := seriesIdEntriesMap[seriesId][timestamp]
+				if !exists {
+					seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+				}
+				seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
+			}
+		}
+		for seriesId, entries := range seriesIdEntriesMap {
+			grpVal := make(map[uint32]float64)
+			for timestamp, grpIdSet := range entries {
+				grpVal[timestamp] = float64(len(grpIdSet))
+			}
+			r.Results[seriesId] = grpVal
+		}
+	} else {
+		timestampToCount := make(map[uint32]float64)
+
+		// Iterate through all series and count unique timestamps
+		for _, runningDS := range r.DsResults {
+			for i := 0; i < runningDS.idx; i++ {
+				timestamp := runningDS.runningEntries[i].downsampledTime
+				timestampToCount[timestamp]++
+			}
+		}
+
+		// Store the results with the metric name
+		r.Results[r.MetricName+"{"] = timestampToCount
+	}
+	// r.DsResults = nil
 	r.State = AGGREGATED
 }
 
@@ -921,6 +935,6 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 		r.Results[r.MetricName+"{"] = resultMap
 	}
 
-	r.DsResults = nil
+	// r.DsResults = nil
 	r.State = AGGREGATED
 }

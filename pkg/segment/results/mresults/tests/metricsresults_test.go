@@ -84,7 +84,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
-	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 1)
 	assert.Contains(t, metricsResults.Results, tsGroupId.String())
 	retVal := metricsResults.Results[tsGroupId.String()]
@@ -156,7 +156,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	assert.Nil(t, errors)
 
 	assert.Len(t, metricsResults.AllSeries, 0)
-	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 1)
 	assert.Contains(t, metricsResults.Results, tsGroupId.String())
 	retVal := metricsResults.Results[tsGroupId.String()]
@@ -412,7 +412,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
-	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 1)
 	assert.Contains(t, metricsResults.Results, "yellow`")
 	retVal := metricsResults.Results["yellow`"]
@@ -475,7 +475,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
-	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 1)
 	assert.Contains(t, metricsResults.Results, tsGroupId.String())
 	retVal := metricsResults.Results[tsGroupId.String()]
@@ -545,7 +545,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	errors := metricsResults.AggregateResults(1, aggregator)
 	assert.Nil(t, errors)
 	assert.Len(t, metricsResults.AllSeries, 0)
-	assert.Len(t, metricsResults.DsResults, 0)
+	assert.Len(t, metricsResults.DsResults, 1)
 	assert.Len(t, metricsResults.Results, 1)
 	assert.Contains(t, metricsResults.Results, tsGroupId.String())
 	retVal := metricsResults.Results[tsGroupId.String()]
