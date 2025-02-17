@@ -430,10 +430,7 @@ func Test_segQueryFilter(t *testing.T) {
 
 func Test_initSyncSegMetaForAllIds(t *testing.T) {
 	dir := t.TempDir()
-	// dir := "/tmp/siglens/mocktest/"
 	config.InitializeTestingConfig(dir)
-	// host_id := "sync-segmeta-mock-id"
-	// config.SetHostIDForTestOnly(host_id)
 
 	limit.InitMemoryLimiter()
 
