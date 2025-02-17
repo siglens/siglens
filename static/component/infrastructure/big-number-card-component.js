@@ -36,7 +36,7 @@ class BigNumberCard {
         const namespaceMatch = namespaceFilter === 'all' ? '.+' : namespaceFilter;
 
         const queries = {
-            clusters: `count(group by (cluster) (kube_pod_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"}))`,
+            clusters: `count(count by (cluster) (kube_pod_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"}))`,
             nodes: `count(group by (cluster, node) (kube_pod_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}", node!=""}))`,
             namespaces: `count(group by (cluster, namespace) (kube_namespace_status_phase{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"}))`,
             workloads: `count(group by (cluster, namespace, workload, workload_type) (namespace_workload_pod:kube_pod_owner:relabel{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}", workload!=""}))`,
@@ -102,10 +102,8 @@ class BigNumberCard {
             return;
         }
 
-        // Sum up all values from the first timestamp
-        const total = response.values.reduce((sum, series) => {
-            return sum + (series[0] || 0);
-        }, 0);
+        // Sum up
+        const total = response.series.length;
 
         contentDiv.html(`<div class="big-number">${total}</div>`);
     }
