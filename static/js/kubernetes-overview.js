@@ -17,6 +17,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+const QUERIES = {
+    CPU_USAGE: `sum by (cluster) (
+        max by (cluster, instance, cpu, core) (1 - rate(node_cpu_seconds_total{cluster=~".+", mode="idle"}[5m]))
+    ) 
+    / on (cluster) 
+    sum by (cluster) (
+        max by (cluster, node) (kube_node_status_capacity{cluster=~".+", resource="cpu"})
+    )`,
+
+    MEMORY_USAGE: `1 - (
+        sum by (cluster) (
+            max by (cluster, node) (
+                label_replace(
+                    windows_memory_available_bytes{cluster=~".+"}
+                    OR
+                    node_memory_MemAvailable_bytes{cluster=~".+"},
+                    "node", "$1", "instance", "(.+)"
+                )
+            )
+        ) 
+        / on (cluster) 
+        sum by (cluster) (
+            max by (cluster, node) (
+                kube_node_status_capacity{cluster=~".+", resource="memory"}
+            )
+        )
+    )`,
+};
+
 let dashboardComponents = {
     clusters: null,
     nodes: null,
@@ -25,6 +54,8 @@ let dashboardComponents = {
     pods: null,
     containers: null,
     containerImages: null,
+    cpuUsage: null,
+    memoryUsage: null,
 };
 
 function initializeUrlParameters() {
@@ -238,6 +269,8 @@ $(document).ready(async () => {
         dashboardComponents.pods = new BigNumberCard('pods', 'Pods', 0, false);
         dashboardComponents.containers = new BigNumberCard('containers', 'Containers', 0, false);
         dashboardComponents.containerImages = new ContainerImagesCard('container-images');
+        dashboardComponents.cpuUsage = new ClusterUsageChart('cpu-usage', 'CPU Usage by Cluster', QUERIES.CPU_USAGE, 'cpu');
+        dashboardComponents.memoryUsage = new ClusterUsageChart('memory-usage', 'Memory Usage by Cluster', QUERIES.MEMORY_USAGE, 'memory');
 
         const breadcrumb = new Breadcrumb('breadcrumb-container');
         breadcrumb.render([
