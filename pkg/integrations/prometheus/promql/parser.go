@@ -597,7 +597,12 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the label_replace function", expr.Args.String())
 		}
 
-		rawRegex := expr.Args[4].(*parser.StringLiteral).Val
+		rawRegexStrLiteral, ok := expr.Args[4].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the regex to be a string", expr.Args.String())
+		}
+
+		rawRegex := rawRegexStrLiteral.Val
 
 		gobRegexp := &toputils.GobbableRegex{}
 		err := gobRegexp.SetRegex(rawRegex)
@@ -605,7 +610,13 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the GobRegex Pattern: %v. Error=%v", rawRegex, err)
 		}
 
-		replacementKey := expr.Args[2].(*parser.StringLiteral).Val
+		replacementKeyLietral, ok := expr.Args[2].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the replacement key to be a string", expr.Args.String())
+		}
+
+		replacementKey := replacementKeyLietral.Val
+
 		if replacementKey == "" {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: replacement key cannot be empty")
 		}
@@ -626,13 +637,23 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 			labelReplacementKey.NameBasedVal = key
 		}
 
+		destinationLabelLiteral, ok := expr.Args[1].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the destination label to be a string", expr.Args.String())
+		}
+
+		sourceLabelLiteral, ok := expr.Args[3].(*parser.StringLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the source label to be a string", expr.Args.String())
+		}
+
 		mQuery.Function = structs.Function{
 			FunctionType: structs.LabelFunction,
 			LabelFunction: &structs.LabelFunctionExpr{
-				FunctionType:     segutils.Label_Replace,
-				DestinationLabel: expr.Args[1].(*parser.StringLiteral).Val,
+				FunctionType:     segutils.LabelReplace,
+				DestinationLabel: destinationLabelLiteral.Val,
 				Replacement:      labelReplacementKey,
-				SourceLabel:      expr.Args[3].(*parser.StringLiteral).Val,
+				SourceLabel:      sourceLabelLiteral.Val,
 				RawRegex:         rawRegex,
 				GobRegexp:        gobRegexp,
 			},
