@@ -23,7 +23,7 @@ let navbarComponent = `
             <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
             </a>
         </div>
-     
+
         <div class="menu nav-search">
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
@@ -39,28 +39,28 @@ let navbarComponent = `
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
          </div>
-        <div class="menu nav-metrics">  
-            <a class="nav-links accordion-toggle" href="./metrics.html">  
-                <div class="nav-link-content">  
-                    <span class="icon-metrics"></span>  
-                    <span class="nav-link-text">Metrics</span>  
-                </div> 
-                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">     
-            </a>  
-            
-            <div class="accordion-content" style="display: none;">  
-                <a href="./metrics-explorer.html" class="submenu-link">  
-                    <span class="nav-link-text">Explorer</span>  
-                </a>  
-                <a href="./metric-summary.html" class="submenu-link">  
-                    <span class="nav-link-text">Summary</span>  
-                </a>  
-                <a href="./metric-cardinality.html" class="submenu-link">  
-                    <span class="nav-link-text">Cardinality</span>  
-                </a>  
-            </div>  
+        <div class="menu nav-metrics">
+            <a class="nav-links accordion-toggle" href="./metrics.html">
+                <div class="nav-link-content">
+                    <span class="icon-metrics"></span>
+                    <span class="nav-link-text">Metrics</span>
+                </div>
+                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">
+            </a>
+
+            <div class="accordion-content" style="display: none;">
+                <a href="./metrics-explorer.html" class="submenu-link">
+                    <span class="nav-link-text">Explorer</span>
+                </a>
+                <a href="./metric-summary.html" class="submenu-link">
+                    <span class="nav-link-text">Summary</span>
+                </a>
+                <a href="./metric-cardinality.html" class="submenu-link">
+                    <span class="nav-link-text">Cardinality</span>
+                </a>
+            </div>
         </div>
-        {{ if .ShowSLO }}        
+        {{ if .ShowSLO }}
         <div class="menu nav-slos">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
@@ -99,7 +99,7 @@ let navbarComponent = `
             <ul class="ingestion-dropdown navbar-submenu">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
         </div>
     </div>
@@ -132,7 +132,7 @@ let navbarComponent = `
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
                 <div class="nav-twitter">
-                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
+                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ"
                     target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
@@ -149,87 +149,87 @@ let navbarComponent = `
 
 
 const accordionStyles = `
-<style>  
-    .accordion-toggle {  
-        border: none;  
-        background: none;  
-        cursor: pointer;  
-        padding: 0 !important;  
-        display: flex;  
-        justify-content: space-between;  
-        align-items: center;  
-    }  
+<style>
+    .accordion-toggle {
+        border: none;
+        background: none;
+        cursor: pointer;
+        padding: 0 !important;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
 
-    .nav-link-content {  
-        display: flex;  
-        align-items: center;  
-    }  
+    .nav-link-content {
+        display: flex;
+        align-items: center;
+    }
 
-    .accordion-content {  
-        overflow: hidden;  
-        transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;  
-        margin-left: 16px; 
-        padding: 0;  
-        gap: 3px;  
-        display: none; 
-    }  
+    .accordion-content {
+        overflow: hidden;
+        transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+        margin-left: 16px;
+        padding: 0;
+        gap: 3px;
+        display: none;
+    }
 
-    .submenu-link {  
-        display: block;  
-        padding: 8px 15px 8px 30px;  
-        text-decoration: none;  
-        color: inherit;  
-        position: relative;  
-    }  
+    .submenu-link {
+        display: block;
+        padding: 8px 15px 8px 30px;
+        text-decoration: none;
+        color: inherit;
+        position: relative;
+    }
 
-    .submenu-link:hover {  
-        background-color: rgba(0, 0, 0, 0.05);  
-    }  
+    .submenu-link:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
 
-    /* Vertical line for submenu links */  
-    .submenu-link::before {  
-        content: '';  
-        position: absolute;  
-        left: 0;  
-        top: 50%;  
-        width: 1px; 
-        height: 100%;  
-        background-color: grey; 
-        transform: translateY(-50%);  
-        opacity: 0; 
-        transition: opacity 0.3s ease;  
-    }  
+    /* Vertical line for submenu links */
+    .submenu-link::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 1px;
+        height: 100%;
+        background-color: grey;
+        transform: translateY(-50%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
 
 
-    .accordion-content.active .submenu-link::before {  
-        opacity: 1;  
-    }  
-    
-     .submenu-link::before {  
-        opacity: 1;  
-    } 
+    .accordion-content.active .submenu-link::before {
+        opacity: 1;
+    }
 
-    .submenu-link:hover::before {  
-        opacity: 1; 
-        background-color: orange;  
+     .submenu-link::before {
+        opacity: 1;
+    }
+
+    .submenu-link:hover::before {
+        opacity: 1;
+        background-color: orange;
         width: 2px;
-    }  
+    }
 
-    /* Arrow styles */  
-    .dropdown-arrow {  
-        transition: transform 0.3s ease; 
-        display: inline-block; 
+    /* Arrow styles */
+    .dropdown-arrow {
+        transition: transform 0.3s ease;
+        display: inline-block;
         padding: 15px;
-    }  
+    }
 
-    .dropdown-arrow.active {  
-        transform: rotate(180deg);   
-    }  
+    .dropdown-arrow.active {
+        transform: rotate(180deg);
+    }
 
-    .accordion-content.active {  
-        display: block;  
-    }  
-</style> 
+    .accordion-content.active {
+        display: block;
+    }
+</style>
 `;
 
 // Add the styles to the head
@@ -268,15 +268,15 @@ $(document).ready(function () {
         const $menu = $(this).closest('.menu');
         const $submenu = $menu.find('.submenu');
         const $arrow = $menu.find('.dropdown-arrow');
-        
+
         // Close all other submenus
         $('.submenu').not($submenu).slideUp(300);
         $('.dropdown-arrow').not($arrow).removeClass('active');
-        
+
         // Toggle current submenu
         $submenu.slideToggle(300);
         $arrow.toggleClass('active');
-        
+
         // Handle active states
         if ($submenu.is(':visible')) {
             $menu.addClass('active');
@@ -298,9 +298,9 @@ $(document).ready(function () {
         $('.nav-metrics .accordion-content').hide();
         $('.nav-metrics').removeClass('active');
         $('.nav-metrics .dropdown-arrow').removeClass('active');
-    } 
-    if (currentUrl.includes('metrics-explorer.html') || 
-        currentUrl.includes('metric-summary.html') || 
+    }
+    if (currentUrl.includes('metrics-explorer.html') ||
+        currentUrl.includes('metric-summary.html') ||
         currentUrl.includes('metric-cardinality.html')) {
         $('.nav-metrics').addClass('active');
         $('.nav-metrics .accordion-content').show();
@@ -340,42 +340,42 @@ $(document).ready(function () {
         }, 500);
     } else if (currentUrl.includes('lookups.html')) {
         $('.nav-lookups').addClass('active');
-    } 
+    }
 
 
-    $('.nav-metrics .accordion-toggle').on('click', function(e) {  
-        const $menu = $(this).closest('.menu');  
-        const $content = $menu.find('.accordion-content');  
-        const $arrow = $menu.find('.dropdown-arrow');  
-    
-        if ($(e.target).is('.dropdown-arrow')) {  
-            
-            e.preventDefault();   
-            
-            
-            $content.slideToggle(300, function () {  
-                $arrow.toggleClass('active');  
-                if ($content.is(':visible')) {  
-                    $menu.addClass('active');  
-                    $content.addClass('active');  
-                } else {  
-                    $menu.removeClass('active');  
-                    $content.removeClass('active');   
-                }  
-            });  
-        } else {   
-            if (!currentUrl.includes('metrics.html')) {  
-                window.location.href = './metrics.html';  
-            }  
-        }  
-    });  
-    
-    window.onpopstate = function(event) {  
-        if (!window.location.href.includes('metrics.html')) {  
-            $('.nav-metrics .accordion-content').slideUp(300);  
-            $('.nav-metrics').removeClass('active');  
-            $('.nav-metrics .dropdown-arrow').removeClass('active');  
-        }  
+    $('.nav-metrics .accordion-toggle').on('click', function(e) {
+        const $menu = $(this).closest('.menu');
+        const $content = $menu.find('.accordion-content');
+        const $arrow = $menu.find('.dropdown-arrow');
+
+        if ($(e.target).is('.dropdown-arrow')) {
+
+            e.preventDefault();
+
+
+            $content.slideToggle(300, function () {
+                $arrow.toggleClass('active');
+                if ($content.is(':visible')) {
+                    $menu.addClass('active');
+                    $content.addClass('active');
+                } else {
+                    $menu.removeClass('active');
+                    $content.removeClass('active');
+                }
+            });
+        } else {
+            if (!currentUrl.includes('metrics.html')) {
+                window.location.href = './metrics.html';
+            }
+        }
+    });
+
+    window.onpopstate = function(event) {
+        if (!window.location.href.includes('metrics.html')) {
+            $('.nav-metrics .accordion-content').slideUp(300);
+            $('.nav-metrics').removeClass('active');
+            $('.nav-metrics .dropdown-arrow').removeClass('active');
+        }
     };
 
     $('.tracing-dropdown-toggle').hover(

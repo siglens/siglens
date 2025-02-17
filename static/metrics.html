@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -49,13 +49,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <style>
         .dash {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); 
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
-            max-width: 100vw; 
+            max-width: 100vw;
             height: 100vh;
             padding: 20px;
         }
-        
+
         .card {
             display: flex;
             flex-direction: column;
@@ -68,28 +68,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             text-align: center;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             cursor: pointer;
-            width: 100%; 
-            height: 80%; 
+            width: 100%;
+            height: 80%;
         }
-        
+
         .card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             border: 3px solid var(--purple-3);
         }
-        
+
         .title {
-            font-size: 24px; 
+            font-size: 24px;
             font-weight: bold;
             color: #333;
-            margin-bottom: 15px; 
+            margin-bottom: 15px;
         }
-        
+
         .description {
-            font-size: 18px; 
-            
-        }   
-    </style>    
+            font-size: 18px;
+
+        }
+    </style>
     {{ .SLOCss | safeHTML }}
 
     <script src="./js/lib/lodash.min.js"></script>
@@ -117,17 +117,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="all-slos">
             <h1 class="myOrg-heading">Metrics</h1>
             <div class="dash">
-        
+
                 <div class="card"  onclick="window.location.href='metrics-explorer.html'">
                     <div class="title">Explorer</div>
                     <div class="description">Search, Analyze and Explore Metrics.</div>
                 </div>
-        
+
                 <div class="card" onclick="window.location.href='metric-summary.html'">
                     <div class="title">Metric Summary</div>
                     <div class="description">Explore Metric Names.</div>
                 </div>
-        
+
                 <div class="card" onclick="window.location.href='metric-cardinality.html'">
                     <div class="title">Cardinality</div>
                     <div class="description">View Metric Cardinality.</div>
