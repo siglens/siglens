@@ -72,8 +72,6 @@ class ResourceUsageComponent {
                     placement: 'bottom',
                     arrow: true,
                     theme: 'custom',
-                    animation: 'scale',
-                    delay: [100, 0],
                 });
             }
         });

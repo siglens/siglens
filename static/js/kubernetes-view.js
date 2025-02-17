@@ -145,6 +145,8 @@ class KubernetesView {
                 sortable: true,
                 filter: true,
                 resizable: true,
+                flex: 1,
+                minWidth: 250,
                 cellClass: 'align-center-grid',
                 icons: {
                     sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
