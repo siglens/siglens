@@ -171,6 +171,12 @@ func otlpIngestLogsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func otlpIngestMetricsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyId(otlp.ProcessMetricIngest, ctx)
+	}
+}
+
 func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
