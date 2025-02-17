@@ -74,17 +74,13 @@ class JsonOverlayCellEditor {
                 /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d*)?([eE][+-]?\d+)?)/g,
                 function (match) {
                     let cls = "json-number"; // Default color for numbers
-                    // if (/^"/.test(match)) {
-                        if (/:$/.test(match)) {
-                            cls = "json-key"; // Blue for keys
-                        } else {
-                            cls = "json-value"; // Green for strings
-                        }
-                    // } else if (/true|false/.test(match)) {
-                    //     cls = "json-boolean"; // Purple for booleans
-                    // } else if (/null/.test(match)) {
-                    //     cls = "json-null"; // Red for null
-                    // }
+
+                    if (/:$/.test(match)) {
+                        cls = "json-key"; // Blue for keys
+                    } else {
+                        cls = "json-value"; // Green for strings
+                    }
+
                     return `<span class="${cls}">${match}</span>`;
                 }
             );
