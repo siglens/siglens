@@ -11,3 +11,7 @@ linters:
 linters-settings:
   exhaustive:
     default-signifies-exhaustive: true
+
+run:
+  build-tags:
+    - e2e_all
