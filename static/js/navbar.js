@@ -191,33 +191,33 @@ const accordionStyles = `
         position: absolute;  
         left: 0;  
         top: 50%;  
-        width: 1px; /* Adjust to your desired width */  
+        width: 1px; 
         height: 100%;  
-        background-color: grey; /* Change this to your desired color */  
+        background-color: grey; / 
         transform: translateY(-50%);  
-        opacity: 0; /* Initially hidden */  
+        opacity: 0;  
         transition: opacity 0.3s ease;  
     }  
 
     /* Show line when dropdown is open */  
     .accordion-content.active .submenu-link::before {  
-        opacity: 1; /* Show the line when parent dropdown is open */  
+        opacity: 1; 
     }  
     
      .submenu-link::before {  
-        opacity: 1; /* Show on hover */  
+        opacity: 1;
     } 
 
+     /* on hover */
     .submenu-link:hover::before {  
-        opacity: 1; /* Show on hover */
+        opacity: 1;
         background-color: orange;  
         width: 2px;
     }  
-
-    /* Arrow styles */  
+ 
     .dropdown-arrow {  
         transition: transform 0.3s ease;  
-        display: inline-block; /* Ensure it stays inline */  
+        display: inline-block; 
     }  
 
     .dropdown-arrow.active {  
