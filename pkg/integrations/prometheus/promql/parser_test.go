@@ -1200,7 +1200,7 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	assert.Equal(t, structs.IndexBased, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.KeyType)
 	assert.Equal(t, 1, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.IndexBasedVal)
 	assert.Equal(t, "label", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.SourceLabel)
-	assert.Equal(t, "(.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.RawRegex)
+	assert.Equal(t, "(.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.GobRegexp.GetRawRegex())
 
 	query = `label_replace(prometheus_engine_query_duration_seconds_sum{slice="inner_eval"}, "foo", "$version", "slice", "(?P<name>.*)_(?P<version>.*)")`
 
@@ -1225,7 +1225,7 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	assert.Equal(t, structs.NameBased, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.KeyType)
 	assert.Equal(t, "version", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.NameBasedVal)
 	assert.Equal(t, "slice", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.SourceLabel)
-	assert.Equal(t, "(?P<name>.*)_(?P<version>.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.RawRegex)
+	assert.Equal(t, "(?P<name>.*)_(?P<version>.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.GobRegexp.GetRawRegex())
 
 	actualTagKeys := []string{}
 	for _, tag := range mQueryReqs[0].MetricsQuery.TagsFilters {

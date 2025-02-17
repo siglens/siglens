@@ -654,7 +654,6 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 				DestinationLabel: destinationLabelLiteral.Val,
 				Replacement:      labelReplacementKey,
 				SourceLabel:      sourceLabelLiteral.Val,
-				RawRegex:         rawRegex,
 				GobRegexp:        gobRegexp,
 			},
 		}

@@ -96,7 +96,6 @@ type LabelFunctionExpr struct {
 	DestinationLabel string
 	Replacement      *LabelReplacementKey
 	SourceLabel      string
-	RawRegex         string
 	GobRegexp        *toputils.GobbableRegex
 }
 

@@ -1817,11 +1817,12 @@ func Test_applyLabelReplace(t *testing.T) {
 			KeyType:      structs.NameBased,
 			NameBasedVal: "name",
 		},
-		RawRegex: "(?P<name>.*)-(?P<version>.*)",
 	}
 
+	rawRegex := "(?P<name>.*)-(?P<version>.*)"
+
 	labelFunctionExpr.GobRegexp = &toputils.GobbableRegex{}
-	err := labelFunctionExpr.GobRegexp.SetRegex(labelFunctionExpr.RawRegex)
+	err := labelFunctionExpr.GobRegexp.SetRegex(rawRegex)
 	assert.Nil(t, err)
 
 	expectedSeriesId := `process_runtime_go_goroutines{job:product-catalog,newLabel:product,`
@@ -1830,8 +1831,8 @@ func Test_applyLabelReplace(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expectedSeriesId, seriesId)
 
-	labelFunctionExpr.RawRegex = "(.*)-.*"
-	err = labelFunctionExpr.GobRegexp.SetRegex(labelFunctionExpr.RawRegex)
+	rawRegex = "(.*)-.*"
+	err = labelFunctionExpr.GobRegexp.SetRegex(rawRegex)
 	assert.Nil(t, err)
 	labelFunctionExpr.DestinationLabel = "job"
 	labelFunctionExpr.Replacement.KeyType = structs.IndexBased
