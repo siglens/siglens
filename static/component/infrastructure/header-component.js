@@ -31,7 +31,6 @@ class DashboardHeader {
     }
 
     render() {
-        console.log(this.options.showRefresh);
         const headerHtml = `
             <div class="d-flex align-items-center justify-content-between mb-4">
                 <div class="header-left">
