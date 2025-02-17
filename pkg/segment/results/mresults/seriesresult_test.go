@@ -1810,7 +1810,7 @@ func Test_applyLabelReplace(t *testing.T) {
 	initSeriesId := `process_runtime_go_goroutines{job:product-catalog,`
 
 	labelFunctionExpr := &structs.LabelFunctionExpr{
-		FunctionType:     utils.Label_Replace,
+		FunctionType:     utils.LabelReplace,
 		DestinationLabel: "newLabel",
 		SourceLabel:      "job",
 		Replacement: &structs.LabelReplacementKey{

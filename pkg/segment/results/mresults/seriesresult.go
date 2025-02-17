@@ -273,13 +273,13 @@ func ApplyFunction(seriesId string, ts map[uint32]float64, function structs.Func
 
 func ApplyLabelFunction(seriesId string, labelFunction *structs.LabelFunctionExpr) (string, error) {
 	switch labelFunction.FunctionType {
-	case segutils.Label_Join:
+	case segutils.LabelJoin:
 		return seriesId, fmt.Errorf("ApplyLabelFunction: label_join is not supported")
-	case segutils.Label_Replace:
+	case segutils.LabelReplace:
 		return applyLabelReplace(seriesId, labelFunction)
-	default:
-		return "", fmt.Errorf("ApplyLabelFunction: unsupported function type %v", labelFunction)
 	}
+
+	return seriesId, nil
 }
 
 func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr) (string, error) {
@@ -321,7 +321,10 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 	replacement := fmt.Sprintf("%s:%s", labelFunction.DestinationLabel, replacementValue)
 
 	// Use regex to replace the entire "key:value" pair
-	re := regexp.MustCompile(pattern)
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return seriesId, fmt.Errorf("applyLabelReplace:  Error compiling regex pattern with destination label. Err=%v", err)
+	}
 	if re.MatchString(seriesId) {
 		seriesId = re.ReplaceAllString(seriesId, replacement)
 	} else {

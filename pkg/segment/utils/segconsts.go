@@ -449,8 +449,8 @@ const (
 type LabelFunctions int
 
 const (
-	Label_Join LabelFunctions = iota + 1
-	Label_Replace
+	LabelJoin LabelFunctions = iota + 1
+	LabelReplace
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
