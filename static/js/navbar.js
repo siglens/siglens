@@ -340,19 +340,6 @@ $(document).ready(function () {
         $('.nav-lookups').addClass('active');
     } 
 
-    // // Hover event handlers updated to respect disable-hover class
-    // $('.metrics-dropdown-toggle').hover(
-    //     function () {
-    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
-    //             $('.metrics-dropdown').stop(true, true).slideDown(0);
-    //         }
-    //     },
-    //     function () {
-    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
-    //             $('.metrics-dropdown').stop(true, true).slideUp(30);
-    //         }
-    //     }
-    // );
 
     $('.nav-metrics .accordion-toggle').on('click', function(e) {  
         e.preventDefault();  
