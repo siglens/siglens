@@ -60,6 +60,7 @@ class KubernetesView {
         this.initFilters();
         this.initGrid();
         this.loadData();
+        new ResourceUsageComponent('resource-usage-container');
     }
 
     initHeader() {
