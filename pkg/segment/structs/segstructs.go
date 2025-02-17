@@ -1181,6 +1181,10 @@ func (qa *QueryAggregators) UsedByTimechart() bool {
 	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
 
+func (qa *QueryAggregators) HasTimechartInChain() bool {
+	return qa.HasInChain((*QueryAggregators).UsedByTimechart)
+}
+
 func (qa *QueryAggregators) CanLimitBuckets() bool {
 	// We shouldn't limit the buckets if there's other things to do after the
 	// aggregation, like sorting, filtering, making new columns, etc.
