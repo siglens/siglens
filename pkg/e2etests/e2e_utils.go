@@ -100,18 +100,18 @@ func (s *siglensServer) verifyCanBeStopped(t *testing.T) {
 	}
 }
 
-func terminal(t *testing.T, command string) {
+func terminal(t *testing.T, command string) string {
 	t.Helper()
 	t.Logf("$ %s\n", command)
 
-	parts := strings.Split(command, " ")
-	cmd := exec.Command(parts[0], parts[1:]...)
-
+	cmd := exec.Command("bash", "-c", command)
 	output, err := cmd.CombinedOutput()
 	if len(output) > 0 {
 		t.Log(string(output))
 	}
 	require.NoError(t, err)
+
+	return string(output)
 }
 
 func sigclient(t *testing.T, command string) {
@@ -164,17 +164,6 @@ func sigclient(t *testing.T, command string) {
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
-}
-
-func curl(t *testing.T, command string) string {
-	t.Helper()
-
-	parts := strings.Split(command, " ")
-	cmd := exec.Command(parts[0], parts[1:]...)
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
-
-	return string(output)
 }
 
 func withSiglens(t *testing.T, config *common.Configuration, fn func()) {

@@ -1521,7 +1521,7 @@ func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
 	siglens.StopGracefully(t)
 
 	siglens.Start(t)
-	result := curl(t, `curl -s -X POST localhost:5122/metrics-explorer/api/v1/metric_names -d {"start":"now-1h","end":"now"}`)
+	result := terminal(t, `curl -s -X POST localhost:5122/metrics-explorer/api/v1/metric_names -d '{"start":"now-1h","end":"now"}'`)
 
 	type AllMetricNames struct {
 		MetricNames []string `json:"metricNames"`
