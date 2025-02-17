@@ -58,8 +58,7 @@ func (s *siglensServer) Start(t *testing.T) {
 	require.NoError(t, err)
 
 	// Start the server.
-	cmd := exec.Command("siglens", "--config", configPath)
-	cmd.Dir = s.dir
+	cmd := exec.Command("go", "run", "cmd/siglens/main.go", "--config", configPath)
 	err = cmd.Start()
 	require.NoError(t, err)
 
@@ -72,6 +71,9 @@ func (s *siglensServer) StopGracefully(t *testing.T) {
 
 	s.verifyCanBeStopped(t)
 	terminal(t, fmt.Sprintf("kill -s SIGTERM %d", s.pid))
+
+	s.pid = 0
+	s.isRunning = false
 }
 
 func (s *siglensServer) ForceStop(t *testing.T) {
@@ -79,6 +81,9 @@ func (s *siglensServer) ForceStop(t *testing.T) {
 
 	s.verifyCanBeStopped(t)
 	terminal(t, fmt.Sprintf("kill -s SIGKILL %d", s.pid))
+
+	s.pid = 0
+	s.isRunning = false
 }
 
 func (s *siglensServer) verifyCanBeStopped(t *testing.T) {
@@ -115,7 +120,7 @@ func sigclient(t *testing.T, command string) {
 
 	parts := strings.Split(command, " ")
 	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Dir = "siglens/tools/sigclient"
+	cmd.Dir = "tools/sigclient"
 
 	// Obtain pipes for the command's stdout and stderr
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -159,6 +164,17 @@ func sigclient(t *testing.T, command string) {
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
+}
+
+func curl(t *testing.T, command string) string {
+	t.Helper()
+
+	parts := strings.Split(command, " ")
+	cmd := exec.Command(parts[0], parts[1:]...)
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+
+	return string(output)
 }
 
 func withSiglens(t *testing.T, config *common.Configuration, fn func()) {

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -39,6 +40,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -1505,15 +1507,31 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 }
 
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
+	err := os.Chdir("../..")
+	require.Nil(t, err)
+
 	testDir := t.TempDir()
-	relativeDataDir := "data"
-	config := config.GetTestConfig(relativeDataDir)
+	dataDir := filepath.Join(testDir, "data")
+	config := config.GetTestConfig(dataDir)
 	siglens := newSiglensServer(testDir, &config)
 
 	siglens.Start(t)
-	terminal(t, "go run main.go query pull -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
+	defer siglens.StopGracefully(t)
+	sigclient(t, "go run main.go ingest metrics -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
 	siglens.StopGracefully(t)
 
 	siglens.Start(t)
-	terminal(t, "go run main.go query pull -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
+	result := curl(t, `curl -s -X POST localhost:5122/metrics-explorer/api/v1/metric_names -d {"start":"now-1h","end":"now"}`)
+
+	type AllMetricNames struct {
+		MetricNames []string `json:"metricNames"`
+		Count       int      `json:"metricNamesCount"`
+	}
+
+	allMetricNames := AllMetricNames{}
+	err = json.Unmarshal([]byte(result), &allMetricNames)
+	require.Nil(t, err)
+
+	assert.Equal(t, 10, allMetricNames.Count)
+	assert.Len(t, allMetricNames.MetricNames, 10)
 }
