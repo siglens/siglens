@@ -1,3 +1,5 @@
+//go:build e2e_all
+
 // Copyright (c) 2021-2024 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
