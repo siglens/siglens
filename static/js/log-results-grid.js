@@ -146,8 +146,7 @@ let logsColumnDefs = [
             let timeString = '';
             let timestamp = moment(params.value).format(timestampDateFmt);
 
-            timeString =
-            `<span class="expand-icon-box">
+            timeString = `<span class="expand-icon-box">
                 <button class="expand-icon-button">
                     <i class="fa-solid fa-up-right-and-down-left-from-center">
                 </button></i>
