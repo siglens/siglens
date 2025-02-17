@@ -195,7 +195,7 @@ const accordionStyles = `
         height: 100%;  
         background-color: grey; 
         transform: translateY(-50%);  
-        opacity: 0; /  
+        opacity: 0; 
         transition: opacity 0.3s ease;  
     }  
 
