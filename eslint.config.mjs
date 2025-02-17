@@ -216,6 +216,7 @@ export default [
                 ConfigurationPage: true,
                 ResourceUsageComponent: true,
                 agGrid: true,
+                ClusterUsageChart: true,
             },
         },
         rules: {
