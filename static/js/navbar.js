@@ -167,15 +167,15 @@ const accordionStyles = `
     .accordion-content {  
         overflow: hidden;  
         transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;  
-        margin-left: 16px; /* Adjusted margin */  
-        padding: 0; /* Removed extra padding */  
+        margin-left: 16px; 
+        padding: 0;  
         gap: 3px;  
-        display: none; /* Initially hidden */  
+        display: none; 
     }  
 
     .submenu-link {  
         display: block;  
-        padding: 8px 15px 8px 30px; /* Adjusted left padding */  
+        padding: 8px 15px 8px 30px; 
         text-decoration: none;  
         color: inherit;  
         position: relative;  
@@ -193,7 +193,7 @@ const accordionStyles = `
         top: 50%;  
         width: 1px; 
         height: 100%;  
-        background-color: grey; / 
+        background-color: grey; 
         transform: translateY(-50%);  
         opacity: 0;  
         transition: opacity 0.3s ease;  
