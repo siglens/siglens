@@ -2840,6 +2840,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     min-height: 26px !important;
 }
 
+.LogResultsGrid.ag-theme-mycustomtheme .ag-row:hover {
+    background: var(--alerting-table-hover) !important;
+    border: 1px solid !important;
+    border-color:var(--purple-1) !important;
+}
+
 .ag-theme-mycustomtheme .ag-center-cols-container {
     background: var(--datatable-odd-row-bg-color) !important;
 }
