@@ -52,9 +52,11 @@ type LogConfig struct {
 }
 
 type TLSConfig struct {
-	Enabled         bool   `yaml:"enabled"`         // enable/disable tls
-	CertificatePath string `yaml:"certificatePath"` // path to certificate file
-	PrivateKeyPath  string `yaml:"privateKeyPath"`  // path to private key file
+	Enabled         bool                    `yaml:"enabled"`         // enable/disable tls
+	CertificatePath string                  `yaml:"certificatePath"` // path to certificate file
+	PrivateKeyPath  string                  `yaml:"privateKeyPath"`  // path to private key file
+	MtlsEnabled     utils.WithDefault[bool] `yaml:"mtlsEnabled"`
+	ClientCaPath    string                  `yaml:"clientCaPath"` // path to client CA file
 }
 
 type TracingConfig struct {
