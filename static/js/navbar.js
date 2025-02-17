@@ -40,13 +40,14 @@ let navbarComponent = `
             </ul>
          </div>
         <div class="menu nav-metrics">  
-            <a class="nav-links accordion-toggle" href="./metrics.html" onclick="toggleDropdown(this)">  
+            <a class="nav-links accordion-toggle" href="./metrics.html">  
                 <div class="nav-link-content">  
                     <span class="icon-metrics"></span>  
                     <span class="nav-link-text">Metrics</span>  
-                    <span class="dropdown-arrow"></span>
-                </div>  
+                </div> 
+                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">     
             </a>  
+            
             <div class="accordion-content" style="display: none;">  
                 <a href="./metrics-explorer.html" class="submenu-link">  
                     <span class="nav-link-text">Explorer</span>  
@@ -216,12 +217,13 @@ const accordionStyles = `
 
     /* Arrow styles */  
     .dropdown-arrow {  
-        transition: transform 0.3s ease;  
+        transition: transform 0.3s ease; 
         display: inline-block; 
+        padding: 15px;
     }  
 
     .dropdown-arrow.active {  
-        transform: rotate(90deg);   
+        transform: rotate(180deg);   
     }  
 
     .accordion-content.active {  
@@ -342,41 +344,38 @@ $(document).ready(function () {
 
 
     $('.nav-metrics .accordion-toggle').on('click', function(e) {  
-        e.preventDefault();  
         const $menu = $(this).closest('.menu');  
         const $content = $menu.find('.accordion-content');  
         const $arrow = $menu.find('.dropdown-arrow');  
     
-        if ($(e.target).closest('.nav-link-content').length) {  
+        if ($(e.target).is('.dropdown-arrow')) {  
+            
+            e.preventDefault();   
+            
+            
+            $content.slideToggle(300, function () {  
+                $arrow.toggleClass('active');  
+                if ($content.is(':visible')) {  
+                    $menu.addClass('active');  
+                    $content.addClass('active');  
+                } else {  
+                    $menu.removeClass('active');  
+                    $content.removeClass('active');   
+                }  
+            });  
+        } else {   
             if (!currentUrl.includes('metrics.html')) {  
                 window.location.href = './metrics.html';  
             }  
-            
-            // Toggle dropdown and manage active state  
-            $content.slideToggle(300, function () {  
-                $arrow.toggleClass('active');  
-                if($content.is(':visible')) {  
-                    $menu.addClass('active');  
-                    $content.addClass('active'); // Add active class to accordion content  
-                } else {  
-                    $menu.removeClass('active');  
-                    $content.removeClass('active'); // Remove active class when closed  
-                }  
-            });  
-        } else {  
-            $content.slideToggle(300);  
-            $arrow.toggleClass('active');  
-            $menu.toggleClass('active');  
         }  
-    });
-
-    // Handle browser back button
-    window.onpopstate = function(event) {
-        if (!window.location.href.includes('metrics.html')) {
-            $('.nav-metrics .accordion-content').slideUp(300);
-            $('.nav-metrics').removeClass('active');
-            $('.nav-metrics .dropdown-arrow').removeClass('active');
-        }
+    });  
+    
+    window.onpopstate = function(event) {  
+        if (!window.location.href.includes('metrics.html')) {  
+            $('.nav-metrics .accordion-content').slideUp(300);  
+            $('.nav-metrics').removeClass('active');  
+            $('.nav-metrics .dropdown-arrow').removeClass('active');  
+        }  
     };
 
     $('.tracing-dropdown-toggle').hover(
