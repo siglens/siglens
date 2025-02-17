@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/siglens/siglens/pkg/config/common"
 	"github.com/stretchr/testify/require"
@@ -167,32 +166,4 @@ func sigclient(t *testing.T, command string) {
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Command execution failed: %v", err)
 	}
-}
-
-func withSiglens(t *testing.T, config *common.Configuration, fn func()) {
-	testDir := t.TempDir()
-	dataDir := filepath.Join(testDir, "data")
-	config.DataPath = dataDir
-
-	configBytes, err := yaml.Marshal(config)
-	require.NoError(t, err)
-
-	configFile := filepath.Join(testDir, "server.yaml")
-	err = os.WriteFile(configFile, configBytes, 0644)
-	require.NoError(t, err)
-
-	cmd := exec.Command("siglens", "--config", configFile)
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Failed to start siglens: %v", err)
-	}
-
-	defer func() {
-		err := cmd.Process.Kill()
-		require.NoError(t, err)
-	}()
-
-	// TODO: Find a better way to wait for siglens to be ready.
-	time.Sleep(2 * time.Second)
-
-	fn()
 }
