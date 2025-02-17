@@ -441,17 +441,23 @@ func Test_initSyncSegMetaForAllIds(t *testing.T) {
 	numBlocks := 1
 	entryCount := 10
 
-	myid := int64(0)
-	indexName := "mocksyncsegmeta"
+	ids := []int64{0, 1, 2, 3, 4}
+	indexNames := []string{"mocksyncsegmeta", "mocksyncsegmeta1", "mocksyncsegmeta2", "mocksyncsegmeta3", "mocksyncsegmeta"}
 
-	segKeysSlice, err := metadata.InitMockColumnarMetadataStore(myid, indexName, numSegKeys, numBlocks, entryCount)
-	assert.NoError(t, err)
+	totalSegKeysCount := numSegKeys * len(ids)
+
+	segKeysSet, err := metadata.BulkInitMockColumnarMetadataStore(ids, indexNames, numSegKeys, numBlocks, entryCount)
+	assert.Nil(t, err)
+
+	allSegKeys := segmetadata.GetAllSegKeys()
+	assert.Len(t, allSegKeys, totalSegKeysCount)
+	assert.Equal(t, allSegKeys, segKeysSet)
 
 	segKeysToDelete := make(map[string]struct{})
 	count := 0
 
-	for _, segKey := range segKeysSlice {
-		if count == 3 {
+	for segKey := range segKeysSet {
+		if count == numSegKeys {
 			break
 		}
 
@@ -461,21 +467,59 @@ func Test_initSyncSegMetaForAllIds(t *testing.T) {
 
 	segmetadata.DeleteSegmentKeys(segKeysToDelete)
 
-	allSegKeys := segmetadata.GetAllSegKeys()
-	assert.Len(t, allSegKeys, numSegKeys-count)
+	allSegKeys = segmetadata.GetAllSegKeys()
+	assert.Len(t, allSegKeys, totalSegKeysCount-numSegKeys)
 
-	initSyncSegMetaForAllIds(serverutils.GetMyIds)
+	mockGetIds := func() []int64 {
+		return ids
+	}
+
+	initSyncSegMetaForAllIds(mockGetIds, nil)
 
 	allSegKeys = segmetadata.GetAllSegKeys()
 
-	assert.Len(t, allSegKeys, numSegKeys)
+	assert.Len(t, allSegKeys, totalSegKeysCount)
+	assert.Equal(t, allSegKeys, segKeysSet)
 
-	for segKey := range segKeysToDelete {
+	segmetadata.DeleteSegmentKeys(segKeysToDelete)
+
+	allSegKeys = segmetadata.GetAllSegKeys()
+	assert.Len(t, allSegKeys, totalSegKeysCount-numSegKeys)
+
+	keysToNotAddCount := 2
+	keysToNotAdd := make(map[string]struct{})
+	KeysToAdd := make(map[string]struct{})
+
+	allSegKeysHook := func() (map[string]struct{}, error) {
+		count := 0
+		for segKey := range segKeysToDelete {
+			if count == keysToNotAddCount {
+				KeysToAdd[segKey] = struct{}{}
+				continue
+			}
+
+			keysToNotAdd[segKey] = struct{}{}
+			count++
+		}
+
+		return keysToNotAdd, nil
+	}
+
+	initSyncSegMetaForAllIds(mockGetIds, allSegKeysHook)
+
+	allSegKeys = segmetadata.GetAllSegKeys()
+	assert.Len(t, allSegKeys, totalSegKeysCount-keysToNotAddCount)
+
+	for segKey := range keysToNotAdd {
+		_, ok := allSegKeys[segKey]
+		assert.False(t, ok)
+	}
+
+	for segKey := range KeysToAdd {
 		_, ok := allSegKeys[segKey]
 		assert.True(t, ok)
 	}
 
-	assert.NoError(t, err)
 	err = os.RemoveAll(dir)
 	assert.Nil(t, err)
 }
