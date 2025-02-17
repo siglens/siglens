@@ -161,5 +161,22 @@ class DashboardHeader {
                 window.location.href = `kubernetes-view.html?type=${menuItem.toLowerCase()}&startEpoch=${startTime}&endEpoch=${endTime}`;
             }
         });
+
+        datePickerHandler(this.options.startTime, this.options.endTime, this.options.startTime);
+        setupEventHandlers();
+
+        this.container.find('.range-item').on('click', function () {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('startEpoch', filterStartDate);
+            currentUrl.searchParams.set('endEpoch', filterEndDate);
+            window.history.pushState({}, '', currentUrl);
+        });
+        
+        this.container.find('#customrange-btn').on('click', function () {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('startEpoch', filterStartDate);
+            currentUrl.searchParams.set('endEpoch', filterEndDate);
+            window.history.pushState({}, '', currentUrl);
+        });
     }
 }
