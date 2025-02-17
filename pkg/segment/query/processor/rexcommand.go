@@ -81,7 +81,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 			return nil, err
 		}
 
-		rexResultMap, err := structs.MatchAndExtractGroups(valueStr, p.compiledRegex)
+		rexResultMap, err := structs.MatchAndExtractNamedGroups(valueStr, p.compiledRegex)
 		if err != nil {
 			// If there are no matches we will skip this row
 			continue

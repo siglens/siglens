@@ -1734,16 +1734,16 @@ func (self *RexExpr) Evaluate(fieldToValue map[string]utils.CValueEnclosure, rex
 		return nil, fmt.Errorf("RexExpr.Evaluate: %v", err)
 	}
 
-	return MatchAndExtractGroups(fieldValue, rexExp)
+	return MatchAndExtractNamedGroups(fieldValue, rexExp)
 }
 
-func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string, error) {
+func MatchAndExtractNamedGroups(str string, rexExp *regexp.Regexp) (map[string]string, error) {
 	match := rexExp.FindStringSubmatch(str)
 	if len(match) == 0 {
-		return nil, fmt.Errorf("MatchAndExtractGroups: no str in field match the pattern")
+		return nil, fmt.Errorf("MatchAndExtractNamedGroups: no str in field match the pattern")
 	}
 	if len(rexExp.SubexpNames()) == 0 {
-		return nil, fmt.Errorf("MatchAndExtractGroups: no field create from the pattern")
+		return nil, fmt.Errorf("MatchAndExtractNamedGroups: no field create from the pattern")
 	}
 
 	result := make(map[string]string)
@@ -1754,6 +1754,22 @@ func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string
 	}
 
 	return result, nil
+}
+
+func MatchAndExtractGroups(str string, rexExp *regexp.Regexp) (map[string]string, []string, error) {
+	match := rexExp.FindStringSubmatch(str)
+	if len(match) == 0 {
+		return nil, nil, fmt.Errorf("MatchAndExtractGroups: no str in field match the pattern")
+	}
+
+	keyToValuesMap := make(map[string]string)
+	for i, name := range rexExp.SubexpNames() {
+		if i != 0 && name != "" {
+			keyToValuesMap[name] = match[i]
+		}
+	}
+
+	return keyToValuesMap, match, nil
 }
 
 // Check if colName match the OriginalPattern
