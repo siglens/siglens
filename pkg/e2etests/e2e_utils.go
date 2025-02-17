@@ -33,8 +33,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const pathToSiglens = "../../" // Relative to this package.
+
 type siglensServer struct {
-	dir       string // Run siglens from this directory
+	dir       string // Where to store info for this server (e.g., config file, data dir)
 	config    *common.Configuration
 	pid       int // Process ID
 	isRunning bool
@@ -59,6 +61,7 @@ func (s *siglensServer) Start(t *testing.T) {
 
 	// Start the server.
 	cmd := exec.Command("go", "run", "cmd/siglens/main.go", "--config", configPath)
+	cmd.Dir = pathToSiglens
 	err = cmd.Start()
 	require.NoError(t, err)
 
@@ -120,7 +123,7 @@ func sigclient(t *testing.T, command string) {
 
 	parts := strings.Split(command, " ")
 	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Dir = "tools/sigclient"
+	cmd.Dir = filepath.Join(pathToSiglens, "tools/sigclient")
 
 	// Obtain pipes for the command's stdout and stderr
 	stdoutPipe, err := cmd.StdoutPipe()

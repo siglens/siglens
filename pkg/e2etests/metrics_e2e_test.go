@@ -1507,9 +1507,6 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 }
 
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
-	err := os.Chdir("../..")
-	require.Nil(t, err)
-
 	testDir := t.TempDir()
 	dataDir := filepath.Join(testDir, "data")
 	config := config.GetTestConfig(dataDir)
@@ -1529,7 +1526,7 @@ func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
 	}
 
 	allMetricNames := AllMetricNames{}
-	err = json.Unmarshal([]byte(result), &allMetricNames)
+	err := json.Unmarshal([]byte(result), &allMetricNames)
 	require.Nil(t, err)
 
 	assert.Equal(t, 10, allMetricNames.Count)
