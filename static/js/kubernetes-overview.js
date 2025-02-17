@@ -292,12 +292,14 @@ $(document).ready(async () => {
     } catch (error) {
         console.error('Error initializing dashboard:', error);
 
+         /* eslint-disable no-unused-vars */
         const namespaceFilter = new SearchableDropdown(document.getElementById('filter1-container'), {
             type: 'namespace',
             items: [],
             selectedValues: ['All'],
         });
 
+         /* eslint-disable no-unused-vars */
         const clusterFilter = new SearchableDropdown(document.getElementById('filter2-container'), {
             type: 'cluster',
             items: [],

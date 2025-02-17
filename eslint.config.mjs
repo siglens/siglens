@@ -209,6 +209,13 @@ export default [
                 getFolderContents: true,
                 countFolderContents: true,
                 deleteFolder: true,
+                BigNumberCard: true,
+                ContainerImagesCard: true,
+                DashboardHeader: true,
+                SearchableDropdown: true,
+                ConfigurationPage: true,
+                ResourceUsageComponent: true,
+                agGrid: true,
             },
         },
         rules: {
