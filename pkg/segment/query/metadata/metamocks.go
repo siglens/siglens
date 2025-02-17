@@ -26,6 +26,7 @@ import (
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -55,7 +56,7 @@ func initMockColumnarMetadataStoreInternal(myid int64, indexName string, count i
 		if err != nil {
 			return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: MkdirAll failed err=%v", err)
 		}
-		segkey := filepath.Join(segBaseDir, fmt.Sprint(i))
+		segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fmt.Sprint(i))
 		bsumFname := segkey + ".bsu"
 		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
 			numBlocks, entryCount)
