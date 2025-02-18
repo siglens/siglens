@@ -59,19 +59,29 @@ type PipeSearchWSUpdateResponse struct {
 	BucketCount              int                `json:"bucketCount,omitempty"`
 	SortByTimestampAtDefault bool               `json:"sortByTimestampAtDefault"`
 	ColumnsOrder             []string           `json:"columnsOrder,omitempty"`
+	RelatedUpdate            *relatedUpdate     `json:"relatedUpdate,omitempty"`
 }
 
 type PipeSearchCompleteResponse struct {
-	State               string          `json:"state,omitempty"`
-	TotalMatched        interface{}     `json:"totalMatched,omitempty"`
-	TotalEventsSearched interface{}     `json:"total_events_searched,omitempty"`
-	CanScrollMore       bool            `json:"can_scroll_more"`
-	TotalRRCCount       interface{}     `json:"total_rrc_count,omitempty"`
-	MeasureFunctions    []string        `json:"measureFunctions,omitempty"`
-	MeasureResults      []*BucketHolder `json:"measure,omitempty"`
-	GroupByCols         []string        `json:"groupByCols,omitempty"`
-	Qtype               string          `json:"qtype,omitempty"`
-	BucketCount         int             `json:"bucketCount,omitempty"`
-	IsTimechart         bool            `json:"isTimechart"`
-	ColumnsOrder        []string        `json:"columnsOrder,omitempty"`
+	State               string           `json:"state,omitempty"`
+	TotalMatched        interface{}      `json:"totalMatched,omitempty"`
+	TotalEventsSearched interface{}      `json:"total_events_searched,omitempty"`
+	CanScrollMore       bool             `json:"can_scroll_more"`
+	TotalRRCCount       interface{}      `json:"total_rrc_count,omitempty"`
+	MeasureFunctions    []string         `json:"measureFunctions,omitempty"`
+	MeasureResults      []*BucketHolder  `json:"measure,omitempty"`
+	GroupByCols         []string         `json:"groupByCols,omitempty"`
+	Qtype               string           `json:"qtype,omitempty"`
+	BucketCount         int              `json:"bucketCount,omitempty"`
+	IsTimechart         bool             `json:"isTimechart"`
+	ColumnsOrder        []string         `json:"columnsOrder,omitempty"`
+	RelatedComplete     *relatedComplete `json:"relatedComplete,omitempty"`
+}
+
+type relatedUpdate struct {
+	Timechart *PipeSearchWSUpdateResponse `json:"timechart,omitempty"`
+}
+
+type relatedComplete struct {
+	Timechart *PipeSearchCompleteResponse `json:"timechart,omitempty"`
 }

@@ -21,6 +21,14 @@ import (
 	"fmt"
 
 	"github.com/siglens/siglens/pkg/segment/query"
+	"github.com/siglens/siglens/pkg/segment/structs"
+)
+
+type channelIndex int
+
+const (
+	mainIndex channelIndex = iota
+	timechartIndex
 )
 
 // If any channel gets an error/cancellation/timeout, the multiplexer will send
@@ -28,8 +36,10 @@ import (
 // state, the multiplexer will change that to QUERY_UPDATE, unless all channels
 // are COMPLETE.
 type QueryStateMultiplexer struct {
-	input  [2]*chanState
-	output chan *QueryStateEnvelope
+	input           [2]*chanState
+	output          chan *QueryStateEnvelope
+	closedOutput    bool
+	savedCompletion *structs.PipeSearchCompleteResponse // When 1 but not all channels are complete, info is saved here.
 }
 
 type chanState struct {
@@ -42,12 +52,13 @@ type QueryStateEnvelope struct {
 	channelIndex int
 }
 
-func NewQueryStateMultiplexer(query1Chan, query2Chan chan *query.QueryStateChanData) *QueryStateMultiplexer {
+func NewQueryStateMultiplexer(mainQueryChan, timechartQueryChan chan *query.QueryStateChanData) *QueryStateMultiplexer {
+	input := [2]*chanState{}
+	input[mainIndex] = &chanState{channel: mainQueryChan}
+	input[timechartIndex] = &chanState{channel: timechartQueryChan}
+
 	return &QueryStateMultiplexer{
-		input: [2]*chanState{
-			{channel: query1Chan},
-			{channel: query2Chan},
-		},
+		input:  input,
 		output: make(chan *QueryStateEnvelope),
 	}
 }
@@ -58,15 +69,14 @@ func (q *QueryStateMultiplexer) Multiplex() <-chan *QueryStateEnvelope {
 		defer close(q.output)
 
 		for {
-			outputClosed := false
 			select {
-			case data, ok := <-q.input[0].channel:
-				outputClosed = q.handleMessage(data, ok, 0)
-			case data, ok := <-q.input[1].channel:
-				outputClosed = q.handleMessage(data, ok, 1)
+			case data, ok := <-q.input[mainIndex].channel:
+				q.handleMessage(data, ok, mainIndex)
+			case data, ok := <-q.input[timechartIndex].channel:
+				q.handleMessage(data, ok, timechartIndex)
 			}
 
-			if q.allChannelsAreComplete() || outputClosed {
+			if q.allChannelsAreComplete() || q.closedOutput {
 				return
 			}
 		}
@@ -79,51 +89,74 @@ func (q *QueryStateMultiplexer) allChannelsAreComplete() bool {
 	return q.input[0].isComplete && q.input[1].isComplete
 }
 
-func (q *QueryStateMultiplexer) handleMessage(data *query.QueryStateChanData, ok bool, chanIndex int) bool {
+func (q *QueryStateMultiplexer) handleMessage(data *query.QueryStateChanData, ok bool, chanIndex channelIndex) {
 	state := q.input[chanIndex]
 	if !ok {
 		if state.isComplete {
-			return false
+			return
 		}
 
 		q.errorAndClose(fmt.Errorf("Channel closed unexpectedly"), chanIndex)
-		return true
+		return
 	}
 
-	return q.handleData(data, chanIndex)
+	q.handleData(data, chanIndex)
 }
 
-func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanIndex int) bool {
+func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanIndex channelIndex) {
 	switch data.StateName {
-	case query.READY:
-	case query.RUNNING:
-	case query.QUERY_UPDATE:
+	case query.READY, query.RUNNING, query.QUERY_UPDATE, query.QUERY_RESTART:
+		q.output <- &QueryStateEnvelope{
+			QueryStateChanData: data,
+			channelIndex:       int(chanIndex),
+		}
 	case query.COMPLETE:
-	case query.CANCELLED:
-	case query.TIMEOUT:
-	case query.ERROR:
-	case query.QUERY_RESTART:
+		q.input[chanIndex].isComplete = true
+		switch chanIndex {
+		case mainIndex:
+			savedResponse := data.CompleteWSResp
+			if q.savedCompletion != nil {
+				savedResponse.RelatedComplete = q.savedCompletion.RelatedComplete
+			}
+
+			q.savedCompletion = savedResponse
+		case timechartIndex:
+			savedResponse := q.savedCompletion
+			if savedResponse == nil {
+				savedResponse = &structs.PipeSearchCompleteResponse{}
+			}
+
+			savedResponse.RelatedComplete.Timechart = data.CompleteWSResp
+			q.savedCompletion = savedResponse
+		}
+
+		if q.allChannelsAreComplete() {
+			q.output <- &QueryStateEnvelope{
+				QueryStateChanData: &query.QueryStateChanData{
+					StateName:      query.COMPLETE,
+					CompleteWSResp: q.savedCompletion,
+				},
+				channelIndex: int(mainIndex),
+			}
+		}
+	case query.CANCELLED, query.TIMEOUT, query.ERROR:
+		q.output <- &QueryStateEnvelope{
+			QueryStateChanData: data,
+			channelIndex:       int(mainIndex),
+		}
+		close(q.output)
+		q.closedOutput = true
 	}
 }
 
-func (q *QueryStateMultiplexer) errorAndClose(err error, chanIndex int) {
+func (q *QueryStateMultiplexer) errorAndClose(err error, chanIndex channelIndex) {
 	q.output <- &QueryStateEnvelope{
 		QueryStateChanData: &query.QueryStateChanData{
 			StateName: query.ERROR,
 			Error:     err,
 		},
-		channelIndex: chanIndex,
+		channelIndex: int(chanIndex),
 	}
 	close(q.output)
+	q.closedOutput = true
 }
-
-// const (
-// 	READY QueryState = iota + 1
-// 	RUNNING
-// 	QUERY_UPDATE // flush segment counts & aggs & records (if matched)
-// 	COMPLETE
-// 	CANCELLED
-// 	TIMEOUT
-// 	ERROR
-// 	QUERY_RESTART
-// )
