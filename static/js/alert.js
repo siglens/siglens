@@ -799,86 +799,7 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
     });
 }
 
-function alertChart(res) {
-    const logsExplorer = document.getElementById('logs-explorer');
-    logsExplorer.style.display = 'flex';
-    logsExplorer.innerHTML = '';
 
-    if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
-        $('#logs-explorer').hide();
-        return;
-    }
-
-    if (res.qtype === 'aggs-query') {
-        let columnOrder = [];
-        if (res.columnsOrder && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-            }
-        }
-
-        if (res.errors) {
-            const errorMsg = document.createElement('div');
-            errorMsg.textContent = res.errors[0];
-            logsExplorer.appendChild(errorMsg);
-            return;
-        }
-
-        let hits = res.measure;
-        if (!hits || hits.length === 0) {
-            $('#logs-explorer').hide();
-            return;
-        }
-
-        let xAxisData = [];
-        let multipleGroupBy = hits[0].GroupByValues.length > 1;
-
-        if (columnOrder.length > 1) {
-            let measureFunctions = res.measureFunctions;
-            let seriesData = measureFunctions.map(function (measureFunction) {
-                return {
-                    name: measureFunction,
-                    data: hits.map(function (item) {
-                        return item.MeasureVal[measureFunction] || 0;
-                    }),
-                };
-            });
-
-            xAxisData = hits.map((item) => {
-                //eslint-disable-next-line no-undef
-                let groupByValue = formatGroupByValues(item.GroupByValues, multipleGroupBy);
-                return groupByValue || 'NULL';
-            });
-
-            let barOptions = loadBarOptions(xAxisData, seriesData);
-            let chartDom = document.createElement('div');
-            chartDom.style.width = '100%';
-            chartDom.style.height = '100%';
-            logsExplorer.appendChild(chartDom);
-            let myChart = echarts.init(chartDom);
-            myChart.setOption(barOptions);
-
-            window.addEventListener('resize', () => {
-                myChart.resize();
-            });
-        } else if (columnOrder.length === 1) {
-            // Handle cases with only one column
-            let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
-            if (singleMeasure != null) {
-                displayBigNumber(singleMeasure, -1, 'dataType', 0);
-            } else {
-                $('#logs-explorer').hide();
-            }
-        } else {
-            $('#logs-explorer').hide();
-        }
-    }
-}
 
 function handleFormValidationTooltip() {
     const metricError = $('<div id="metric-error" class="require-field-tooltip">Please select a metric.</div>');
@@ -940,4 +861,137 @@ function handleFormValidationTooltip() {
             $('#contact-point-error').css('display', 'none');
         }
     });
+}
+
+let alertChartInstance = null;
+
+function alertChart(res) {
+    const logsExplorer = document.getElementById('logs-explorer');
+    logsExplorer.style.display = 'flex';
+    logsExplorer.innerHTML = '';
+
+    if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
+        $('#logs-explorer').hide();
+        return;
+    }
+
+    if (res.qtype === 'aggs-query') {
+        let columnOrder = getColumnOrder(res);
+        if (handleErrors(res, logsExplorer) || !hasValidData(res)) return;
+
+        let hits = res.measure;
+        const thresholdValue = parseFloat($('#threshold-value').val()) || 0;
+        const conditionType = $('#alert-condition span').text();
+
+        if (columnOrder.length > 1) {
+            const canvas = document.createElement('canvas');
+            canvas.style.width = '100%';
+            canvas.style.height = '400px';
+            logsExplorer.appendChild(canvas);
+
+            const { labels, datasets } = prepareChartData(res, hits);
+            const ctx = canvas.getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (alertChartInstance) {
+                alertChartInstance.destroy();
+            }
+
+            alertChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#718096'
+                            },
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#718096',
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            handleSingleMeasure(hits, columnOrder);
+        }
+    }
+}
+
+function prepareChartData(res, hits) {
+    const multipleGroupBy = hits[0].GroupByValues.length > 1;
+    const measureFunctions = res.measureFunctions;
+    
+    const labels = hits.map(item => 
+        formatGroupByValues(item.GroupByValues, multipleGroupBy) || 'NULL'
+    );
+
+    const datasets = measureFunctions.map(measureFunction => {
+        const data = hits.map(item => item.MeasureVal[measureFunction] || 0);
+        return {
+            label: measureFunction,
+            data: data,
+        };
+    });
+
+    return { labels, datasets };
+}
+
+// Helper functions
+function getColumnOrder(res) {
+    let columnOrder = [];
+    if (res.columnsOrder?.length > 0) {
+        columnOrder = res.columnsOrder;
+    } else {
+        if (res.groupByCols) {
+            columnOrder = _.uniq(_.concat(res.groupByCols));
+        }
+        if (res.measureFunctions) {
+            columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+        }
+    }
+    return columnOrder;
+}
+
+function handleErrors(res, logsExplorer) {
+    if (res.errors) {
+        const errorMsg = document.createElement('div');
+        errorMsg.textContent = res.errors[0];
+        logsExplorer.appendChild(errorMsg);
+        return true;
+    }
+    return false;
+}
+
+function hasValidData(res) {
+    const hits = res.measure;
+    if (!hits || hits.length === 0) {
+        $('#logs-explorer').hide();
+        return false;
+    }
+    return true;
+}
+
+
+function handleSingleMeasure(hits, columnOrder) {
+    let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
+    if (singleMeasure != null) {
+        displayBigNumber(singleMeasure, -1, 'dataType', 0);
+    } else {
+        $('#logs-explorer').hide();
+    }
 }
