@@ -34,6 +34,7 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
+	//"github.com/siglens/siglens/pkg/segment/tracing/handler"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -602,6 +603,56 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 		}
 
 		queryText = string(bytes)
+
+	case alertutils.AlertTypeAPM:
+		// _, _, _, _, redMetricsMap, err := handler.ParseRedMetricsRequest([]byte(alert.APMQueryParamsString))
+		// if err != nil {
+		// 	log.Errorf("GetContactDetails: unable to parse APM query params for Alert: %v, Error=%v", alert.AlertName, err)
+		// }
+		// Handling for APM alerts
+		var apmQuery struct {
+			JoinOperator string  `json:"JoinOperator"`
+			RatePerSec   float64 `json:"RatePerSec,omitempty"`
+			ErrorRate    float64 `json:"ErrorPercentage,omitempty"`
+			P50          float64 `json:"DurationP50Ms,omitempty"`
+			P90          float64 `json:"DurationP90Ms,omitempty"`
+			P99          float64 `json:"DurationP99Ms,omitempty"`
+		}
+
+		if err := json.Unmarshal([]byte(alert.APMQueryParamsString), &apmQuery); err != nil {
+			log.Errorf("GetContactDetails: unable to parse APM query params for Alert: %v, Error=%v", alert.AlertName, err)
+			// Don't return error; we can still return some useful info.
+		}
+
+		apmInfo := map[string]interface{}{
+			"join_operator": apmQuery.JoinOperator,
+		}
+
+		// Add only present fields to apmInfo
+		if apmQuery.RatePerSec != 0 {
+			apmInfo["RatePerSec"] = apmQuery.RatePerSec
+		}
+		if apmQuery.ErrorRate != 0 {
+			apmInfo["ErrorPercentage"] = apmQuery.ErrorRate
+		}
+		if apmQuery.P50 != 0 {
+			apmInfo["DurationP50Ms"] = apmQuery.P50
+		}
+		if apmQuery.P90 != 0 {
+			apmInfo["DurationP90Ms"] = apmQuery.P90
+		}
+		if apmQuery.P99 != 0 {
+			apmInfo["DurationP99Ms"] = apmQuery.P99
+		}
+
+		bytes, err := json.Marshal(apmInfo)
+		if err != nil {
+			log.Errorf("GetContactDetails: unable to marshal APM query params for Alert: %v, Error=%v", alert.AlertName, err)
+			// Don't return error.
+		}
+
+		queryText = string(bytes)
+
 	case alertutils.AlertTypeMinion:
 		return "", "", "", fmt.Errorf("GetContactDetails: Minion alerts are not supported")
 	}
