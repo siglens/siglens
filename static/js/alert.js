@@ -799,8 +799,6 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
     });
 }
 
-
-
 function handleFormValidationTooltip() {
     const metricError = $('<div id="metric-error" class="require-field-tooltip">Please select a metric.</div>');
     $('.metrics-query .query-box .query-builder').append(metricError);
@@ -897,11 +895,46 @@ function alertChart(res) {
                 alertChartInstance.destroy();
             }
 
+            // Calculate the maximum data value for y-axis scaling
+            const maxDataValue = Math.max(...datasets.map((d) => Math.max(...d.data)));
+            const maxYTick = maxDataValue * 1.2; // Add 20% padding
+
+            let operator = '>';
+            let boxConfig = {};
+            let visibleThreshold = Math.min(thresholdValue, maxYTick);
+            let thresholdLabel = `y ${operator} ${thresholdValue}`;
+
+            if (conditionType === 'Is above') {
+                thresholdLabel = `y > ${thresholdValue}`;
+                boxConfig = {
+                    type: 'box',
+                    yMin: visibleThreshold,
+                    yMax: maxYTick,
+                    backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                    borderWidth: 0,
+                };
+            } else if (conditionType === 'Is below') {
+                thresholdLabel = `y < ${thresholdValue}`;
+                boxConfig = {
+                    type: 'box',
+                    yMin: 0,
+                    yMax: visibleThreshold,
+                    backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                    borderWidth: 0,
+                };
+            } else {
+                operator = conditionType === 'Equal to' ? '=' : '≠';
+                thresholdLabel = `y ${operator} ${thresholdValue}`;
+                boxConfig = {
+                    borderWidth: 0,
+                };
+            }
+
             alertChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
-                    datasets: datasets
+                    datasets: datasets,
                 },
                 options: {
                     responsive: true,
@@ -910,38 +943,133 @@ function alertChart(res) {
                         y: {
                             beginAtZero: true,
                             ticks: {
-                                color: '#718096'
+                                color: '#718096',
+                                callback: function (value, index, values) {
+                                    // Hide label for the maximum tick value
+                                    if (index === values.length - 1) {
+                                        return '';
+                                    }
+                                    return value;
+                                },
                             },
+                            grid: {
+                                drawTicks: true,
+                                color: function (context) {
+                                    const maxValue = Math.max(...context.chart.scales.y.ticks.map((t) => t.value));
+
+                                    // Hide the top grid line
+                                    if (context.tick.value === maxValue) {
+                                        return 'rgba(0, 0, 0, 0)';
+                                    }
+                                    return '#E2E8F0';
+                                },
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: maxYTick,
                         },
                         x: {
                             grid: {
-                                display: false
+                                display: false,
                             },
                             ticks: {
                                 color: '#718096',
                                 maxRotation: 45,
-                                minRotation: 45
-                            }
-                        }
-                    }
-                }
+                                minRotation: 45,
+                            },
+                        },
+                    },
+                    plugins: {
+                        annotation: {
+                            annotations: {
+                                thresholdLine: {
+                                    type: 'line',
+                                    scaleID: 'y',
+                                    value: visibleThreshold,
+                                    borderColor: 'rgb(255, 107, 107)',
+                                    borderWidth: 1.5,
+                                    borderDash: [5, 5],
+                                    label: {
+                                        display: true,
+                                        content: thresholdLabel,
+                                        position: 'start',
+                                        backgroundColor: 'rgb(255, 107, 107)',
+                                        color: '#fff',
+                                        padding: {
+                                            x: 6,
+                                            y: 4,
+                                        },
+                                        font: {
+                                            size: 12,
+                                        },
+                                        z: 100,
+                                    },
+                                },
+                                thresholdBox: boxConfig,
+                            },
+                        },
+                    },
+                },
             });
+
+            $('#threshold-value').on('input', updateThreshold);
+            $('.alert-condition-options li').on('click', updateThreshold);
+
+            function updateThreshold() {
+                const newThresholdValue = parseFloat($('#threshold-value').val()) || 0;
+                const newConditionType = $('#alert-condition span').text();
+                const maxDataValue = Math.max(...datasets.map((d) => Math.max(...d.data)));
+                const maxYTick = maxDataValue * 1.2;
+                const visibleThreshold = Math.min(newThresholdValue, maxYTick);
+
+                let newOperator = '>';
+                let newBoxConfig = {};
+                let thresholdLabel = '';
+
+                if (newConditionType === 'Is above') {
+                    thresholdLabel = `y > ${newThresholdValue}`;
+                    newBoxConfig = {
+                        type: 'box',
+                        yMin: visibleThreshold,
+                        yMax: maxYTick,
+                        backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                        borderWidth: 0,
+                    };
+                } else if (newConditionType === 'Is below') {
+                    thresholdLabel = `y < ${newThresholdValue}`;
+                    newBoxConfig = {
+                        type: 'box',
+                        yMin: 0,
+                        yMax: visibleThreshold,
+                        backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                        borderWidth: 0,
+                    };
+                } else {
+                    newOperator = newConditionType === 'Equal to' ? '=' : '≠';
+                    thresholdLabel = `y ${newOperator} ${newThresholdValue}`;
+                    newBoxConfig = {
+                        borderWidth: 0,
+                    };
+                }
+
+                alertChartInstance.options.plugins.annotation.annotations.thresholdLine.value = visibleThreshold;
+                alertChartInstance.options.plugins.annotation.annotations.thresholdLine.label.content = thresholdLabel;
+                alertChartInstance.options.plugins.annotation.annotations.thresholdBox = newBoxConfig;
+
+                alertChartInstance.update();
+            }
         } else {
             handleSingleMeasure(hits, columnOrder);
         }
     }
 }
-
 function prepareChartData(res, hits) {
     const multipleGroupBy = hits[0].GroupByValues.length > 1;
     const measureFunctions = res.measureFunctions;
-    
-    const labels = hits.map(item => 
-        formatGroupByValues(item.GroupByValues, multipleGroupBy) || 'NULL'
-    );
 
-    const datasets = measureFunctions.map(measureFunction => {
-        const data = hits.map(item => item.MeasureVal[measureFunction] || 0);
+    const labels = hits.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy) || 'NULL');
+
+    const datasets = measureFunctions.map((measureFunction) => {
+        const data = hits.map((item) => item.MeasureVal[measureFunction] || 0);
         return {
             label: measureFunction,
             data: data,
@@ -985,7 +1113,6 @@ function hasValidData(res) {
     }
     return true;
 }
-
 
 function handleSingleMeasure(hits, columnOrder) {
     let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
