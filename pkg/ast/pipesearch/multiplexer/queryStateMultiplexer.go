@@ -33,13 +33,15 @@ const (
 
 // If any channel gets an error/cancellation/timeout, the multiplexer will send
 // that on the output channel and close it. If any channel gets a COMPLETE
-// state, the multiplexer will change that to QUERY_UPDATE, unless all channels
-// are COMPLETE.
+// state, the multiplexer will save that info but not send anything; once all
+// channels are COMPLETE, the multiplexer will send the COMPLETE state on the
+// output channel with all the saved info.
 type QueryStateMultiplexer struct {
 	input           [2]*chanState
 	output          chan *QueryStateEnvelope
 	closedOutput    bool
-	savedCompletion *structs.PipeSearchCompleteResponse // When 1 but not all channels are complete, info is saved here.
+	savedCompletion *structs.PipeSearchCompleteResponse // When channels COMPLETE, info is saved here.
+	mainQid         uint64
 }
 
 type chanState struct {
@@ -128,6 +130,7 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		q.input[chanIndex].isComplete = true
 		switch chanIndex {
 		case mainIndex:
+			q.mainQid = data.Qid
 			savedResponse := data.CompleteWSResp
 			if q.savedCompletion != nil {
 				savedResponse.RelatedComplete = q.savedCompletion.RelatedComplete
@@ -151,8 +154,10 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		if q.allChannelsAreComplete() {
 			q.output <- &QueryStateEnvelope{
 				QueryStateChanData: &query.QueryStateChanData{
-					StateName:      query.COMPLETE,
-					CompleteWSResp: q.savedCompletion,
+					StateName:       query.COMPLETE,
+					Qid:             q.mainQid,
+					PercentComplete: 100,
+					CompleteWSResp:  q.savedCompletion,
 				},
 			}
 		}
