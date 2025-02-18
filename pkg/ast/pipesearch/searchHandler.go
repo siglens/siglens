@@ -26,6 +26,7 @@ import (
 
 	"github.com/fasthttp/websocket"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/ast/pipesearch/multiplexer"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
@@ -324,7 +325,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, qc)
+		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc)
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
@@ -568,8 +569,19 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 }
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
+	timechartSimpleNode *structs.ASTNode, timechartAggs *structs.QueryAggregators,
 	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+
 	isAsync := conn != nil
+
+	runTimechartQuery := (timechartSimpleNode != nil && timechartAggs != nil)
+	var timechartQid uint64
+	var timechartState *query.RunningQueryState
+	var err error
+	if runTimechartQuery {
+		timechartQid = rutils.GetNextQid()
+		timechartState, err = query.StartQueryAsCoordinator(timechartQid, isAsync, nil, timechartSimpleNode, timechartAggs, qc, nil, false)
+	}
 
 	rQuery, err := query.StartQueryAsCoordinator(qid, isAsync, nil, root, aggs, qc, nil, false)
 	if err != nil {
@@ -579,8 +591,10 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 
 	var httpRespOuter *structs.PipeSearchResponseOuter
 
+	stateChan := multiplexer.NewQueryStateMultiplexer(rQuery.StateChan, timechartState.StateChan).Multiplex()
+
 	for {
-		queryStateData, ok := <-rQuery.StateChan
+		queryStateData, ok := <-stateChan
 		if !ok {
 			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
 			query.LogGlobalSearchErrors(qid)

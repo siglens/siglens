@@ -24,14 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func shouldRunTimechartQuery(aggs *structs.QueryAggregators) bool {
-	if aggs.HasTimechartInChain() || aggs.HasStatsBlockInChain() || aggs.HasStreamStatsInChain() {
-		return false
-	}
-
-	return true
-}
-
 func Test_shouldRunTimechartQuery(t *testing.T) {
 	assertShouldRunTimechart(t, true, "*")
 	assertShouldRunTimechart(t, false, "* | stats count")

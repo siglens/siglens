@@ -67,7 +67,12 @@ func NewQueryStateMultiplexer(mainQueryChan, timechartQueryChan chan *query.Quer
 // This should only be called once per instance of QueryStateMultiplexer.
 func (q *QueryStateMultiplexer) Multiplex() <-chan *QueryStateEnvelope {
 	go func() {
-		defer close(q.output)
+		defer func() {
+			if !q.closedOutput {
+				close(q.output)
+				q.closedOutput = true
+			}
+		}()
 
 		for {
 			select {
