@@ -145,6 +145,8 @@ $(document).ready(async function () {
     createTooltip('#run-filter-btn', 'Run query');
     createTooltip('.download-all-logs-btn', 'Download');
     createTooltip('.refresh-btn', 'Refresh');
+
+    initializeFilterInputEvents();
 });
 
 function getUrlParameter(name) {
@@ -670,7 +672,8 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
+                <textarea class="form-control expandable-textarea" id="MetricQueryInput" type="text"></textarea>
+                <button class="run-filter-btn" id="run-filter-btn" title="Run your search" type="button">  </button>
             </div>
         </div>
         <div>
@@ -795,7 +798,8 @@ function setupQueryElementEventListeners(queryElement) {
             const queryString = createQueryString(queryDetails);
             if (!queryDetails.rawQueryExecuted) {
                 queryDetails.rawQueryInput = queryString;
-                queryElement.find('.raw-query-input').val(queryString);
+                queryElement.find('.MetricQueryInput').val(queryString);
+                
             }
         } else {
             // Switch to builder mode
@@ -808,7 +812,7 @@ function setupQueryElementEventListeners(queryElement) {
     queryElement.find('.raw-query').on('click', '#run-filter-btn', async function () {
         var queryName = queryElement.find('.query-name').text();
         var queryDetails = queries[queryName];
-        var rawQuery = queryElement.find('.raw-query-input').val();
+        var rawQuery = queryElement.find('.MetricQueryInput').val();
         queryDetails.rawQueryInput = rawQuery;
         queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
         // Perform the search with the raw query
@@ -2616,7 +2620,7 @@ async function addQueryElementForAlertAndPanel(queryName, queryDetails) {
 
 async function populateQueryElement(queryElement, queryDetails) {
     if (queryDetails.state === 'raw') {
-        queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
+        queryElement.find('.MetricQueryInput').val(queryDetails.rawQueryInput);
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
     } else {
