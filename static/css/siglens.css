@@ -6288,3 +6288,69 @@ p#versionInfo {
 .endpoint .code-block {
     color: #d63384;
 }
+
+.alert-cards-container,
+.alert-type-cards-container {
+    display: flex;          /* Place cards in a row */
+    gap: 16px;              /* Add spacing between cards */
+    margin-top: 20px;       /* Add margin on top */
+}
+
+.alerts-rules-card,
+.contact-points-card,
+.alerts-summary-card
+ {
+    flex: 1;               /* Make cards equal width */
+    min-width: 200px;      /* Prevent cards from shrinking too much */
+    padding: 16px;
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 8px;
+    text-align: center;    /* Center text */
+    box-shadow: var(--box-shadow);
+    cursor: pointer;
+    height: 100px;
+    background: linear-gradient(107.3deg, #a18eec -0.52%, #CCC3EF 100%);
+}
+
+.metrics-alert-card,
+.logs-alert-card,
+.APM-alert-card {
+    flex: 1;
+    min-width: 200px;
+    padding: 16px;
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 8px;
+    text-align: center;    /* Center text */
+    box-shadow: var(--box-shadow);
+    cursor: pointer;
+    height: 100px;
+    background: linear-gradient(107.3deg, #a18eec -0.52%, #CCC3EF 100%);
+}
+
+.alerts-rules-card:hover,
+.contact-points-card:hover,
+.alerts-summary-card:hover,
+.metrics-alert-card:hover,
+.logs-alert-card:hover,
+.APM-alert-card:hover{
+    border: 1px solid var(--purple-3);
+}
+.alerts-heading,
+.metrics-alert-heading,
+.logs-alert-heading,
+.APM-alert-heading {
+    font-size: 20px;
+}
+
+.create-contact-heading {
+    font-size: 12px;
+}
+
+.metrics-alert-heading,
+.logs-alert-heading,
+.APM-alert-heading {
+    margin-top: 14px;
+    font-size: 20px;
+}

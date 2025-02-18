@@ -57,7 +57,7 @@ let navbarComponent = `
         </div>
         {{ end }}
         <div class="menu nav-alerts">
-            <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+            <a href="./alert-landing.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
         </div>
         <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links">
@@ -183,9 +183,8 @@ $(document).ready(function () {
         $('.nav-ldb').addClass('active');
     } else if (currentUrl.includes('saved-queries.html')) {
         $('.nav-usq').addClass('active');
-    } else if (currentUrl.includes('alerts.html') || currentUrl.includes('alert.html') || currentUrl.includes('alert-details.html') || currentUrl.includes('contacts.html')) {
+    } else if (currentUrl.includes('alert.html') || currentUrl.includes('alert-details.html') || currentUrl.includes('contacts.html')) {
         $('.nav-alerts').addClass('active');
-        $('.alerts-nav-tab').appendOrgNavTabs('Alerting', alertsUpperNavTabs);
     } else if (currentUrl.includes('all-slos.html')) {
         $('.nav-slos').addClass('active');
         $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
