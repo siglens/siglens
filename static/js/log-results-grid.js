@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let cellEditingClass = '';
 let isFetching = false;
 
 class TimestampCellRenderer {
@@ -75,7 +74,7 @@ class TimestampCellRenderer {
         return this.eGui;
     }
 
-    refresh(params) {
+    refresh() {
         return false;
     }
 }
