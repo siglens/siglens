@@ -26,19 +26,19 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_GetJsonFromAllRrcOldPipeline(t *testing.T) {
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
-	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
-	assert.Nil(t, err)
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
+	segKeys, err := metadata.InitMockColumnarMetadataStore(0, "query_test", numSegKeys, numBlocks, numRecords)
+	assert.Nil(t, err)
+
+	segkey := segKeys[0]
 
 	segencmap := make(map[uint32]string)
 	segencmap[uint32(0)] = segkey
@@ -106,12 +106,13 @@ func Test_GetJsonFromAllRrcOldPipeline(t *testing.T) {
 func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
-	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
-	assert.Nil(t, err)
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
+	segKeys, err := metadata.InitMockColumnarMetadataStore(0, "query_test", numSegKeys, numBlocks, numRecords)
+	assert.Nil(t, err)
+
+	segkey := segKeys[0]
 
 	segencmap := make(map[uint32]string)
 	segencmap[uint32(0)] = segkey
@@ -169,12 +170,12 @@ func Test_GetJsonFromAllRrc_withAggs_IncludeCols(t *testing.T) {
 func Test_GetJsonFromAllRrc_withAggs_ExcludeCols(t *testing.T) {
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
-	segBaseDir, segkey, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "query_test")
-	assert.Nil(t, err)
 	numSegKeys := 1
 	numBlocks := 1
 	numRecords := 2
-	metadata.InitMockColumnarMetadataStore(segBaseDir, numSegKeys, numBlocks, numRecords)
+	segKeys, err := metadata.InitMockColumnarMetadataStore(0, "query_test", numSegKeys, numBlocks, numRecords)
+	assert.Nil(t, err)
+	segkey := segKeys[0]
 
 	segencmap := make(map[uint32]string)
 	segencmap[uint32(0)] = segkey

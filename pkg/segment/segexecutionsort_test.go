@@ -28,7 +28,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -39,15 +38,15 @@ func Test_SortResultsArossMultipleFiles(t *testing.T) {
 
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
-	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecutionsort")
-	assert.Nil(t, err)
 
 	limit.InitMemoryLimiter()
 	_ = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 10
-	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
+	indexName := "segexecutionsort"
+	_, err := metadata.InitMockColumnarMetadataStore(0, indexName, fileCount, numBuffers, numEntriesForBuffer)
+	assert.Nil(t, err)
 
 	value1, _ := utils.CreateDtypeEnclosure("*", 0)
 	valueFilter := structs.FilterCriteria{
@@ -73,7 +72,7 @@ func Test_SortResultsArossMultipleFiles(t *testing.T) {
 		},
 	}
 	sizeLimit := uint64(100)
-	qc := structs.InitQueryContext("evts", sizeLimit, 0, 0, false)
+	qc := structs.InitQueryContext(indexName, sizeLimit, 0, 0, false)
 	result := ExecuteQuery(simpleNode, descendingSort, 1010, qc)
 	log.Infof("%d result %+v %+v", 1010, result, result.TotalResults)
 	descendingResults := make([]float64, 0)

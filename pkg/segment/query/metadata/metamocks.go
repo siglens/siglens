@@ -22,27 +22,42 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cespare/xxhash"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
 
-// function to init mock server in memory. Should only be called by tests
-func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, entryCount int) {
+func initMockColumnarMetadataStoreInternal(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
+	err := virtualtable.AddVirtualTable(&indexName, myid)
+	if err != nil {
+		return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: AddVirtualTable failed err=%v", err)
+	}
 
-	metadata.ResetGlobalMetadataForTest()
+	vTableBaseDir, err := writer.GetMockVTableDirForTest(myid, indexName)
+	if err != nil {
+		return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: GetMockVTableDirForTest failed err=%v", err)
+	}
 
-	writer.SetCardinalityLimit(1)
+	segKeys := make([]string, count)
 
 	for i := 0; i < count; i++ {
-		segkey := segBaseDir + fmt.Sprint(i)
-		bsumFname := segBaseDir + fmt.Sprint(i) + ".bsu"
+		segBaseDir := filepath.Join(vTableBaseDir, fmt.Sprint(i), "/")
+		err := os.MkdirAll(segBaseDir, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: MkdirAll failed err=%v", err)
+		}
+		segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fmt.Sprint(i))
+		bsumFname := segkey + ".bsu"
 		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
 			numBlocks, entryCount)
 
@@ -84,7 +99,7 @@ func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, 
 
 		sInfo := &structs.SegMeta{
 			SegmentKey:       segkey,
-			VirtualTableName: "evts",
+			VirtualTableName: indexName,
 			SegbaseDir:       segBaseDir,
 			EarliestEpochMS:  0,
 			LatestEpochMS:    uint64(entryCount),
@@ -93,7 +108,58 @@ func InitMockColumnarMetadataStore(segBaseDir string, count int, numBlocks int, 
 		}
 		segMetadata := metadata.InitSegmentMicroIndex(sInfo, false)
 		metadata.BulkAddSegmentMicroIndex([]*metadata.SegmentMicroIndex{segMetadata})
+
+		writer.WriteRunningSegMeta(segkey, sInfo)
+
+		segKeys[i] = segkey
 	}
+
+	return segKeys, nil
+}
+
+func initMetdataStore() error {
+	metadata.ResetGlobalMetadataForTest()
+
+	writer.SetCardinalityLimit(1)
+
+	err := virtualtable.InitVTable(server_utils.GetMyIds)
+	if err != nil {
+		return fmt.Errorf("initMetdataStore: InitVTable failed err=%v", err)
+	}
+
+	return nil
+}
+
+// function to init mock server in memory. Should only be called by tests
+func InitMockColumnarMetadataStore(myid int64, indexName string, count int, numBlocks int, entryCount int) ([]string, error) {
+	err := initMetdataStore()
+	if err != nil {
+		return nil, fmt.Errorf("InitMockColumnarMetadataStore: initMetdataStore failed err=%v", err)
+	}
+
+	return initMockColumnarMetadataStoreInternal(myid, indexName, count, numBlocks, entryCount)
+}
+
+func BulkInitMockColumnarMetadataStore(myids []int64, indexNames []string, count int, numBlocks int, entryCount int) (map[string]struct{}, error) {
+	err := initMetdataStore()
+	if err != nil {
+		return nil, fmt.Errorf("BulkInitMockColumnarMetadataStore: initMetdataStore failed err=%v", err)
+	}
+
+	segKeysSet := make(map[string]struct{})
+
+	for i, myid := range myids {
+		indexName := indexNames[i]
+
+		segKeysSlice, err := initMockColumnarMetadataStoreInternal(myid, indexName, count, numBlocks, entryCount)
+		if err != nil {
+			return nil, fmt.Errorf("BulkInitMockColumnarMetadataStore: initMockColumnarMetadataStoreInternal failed err=%v", err)
+		}
+
+		utils.AddSliceToSet(segKeysSet, segKeysSlice)
+	}
+
+	return segKeysSet, nil
 }
 
 func writeMockBlockBloom(file string, blockBlooms []*bloom.BloomFilter) {

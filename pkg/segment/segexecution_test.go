@@ -53,6 +53,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var IndexName string = "segexecution"
+
 func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 	valueFilter := FilterCriteria{
@@ -69,7 +71,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 			EndEpochMs:   uint64(numEntriesForBuffer) + 1,
 		},
 	}
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	sizeLimit := uint64(10000)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
 	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 35, qc)
@@ -165,7 +167,7 @@ func simpleQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 	// wildcard all columns
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "*"}}},
@@ -222,7 +224,7 @@ func wildcardQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fi
 
 func timeHistogramQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key1"}}},
@@ -268,7 +270,7 @@ func timeHistogramQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer in
 
 func groupByQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key1"}}},
@@ -344,7 +346,7 @@ func groupByQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fil
 
 func timechartGroupByQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key1"}}},
@@ -433,7 +435,7 @@ func timechartGroupByQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer
 }
 
 func nestedQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	// key6==key2 when i == 0
 	one, _ := CreateDtypeEnclosure(1, 0)
 	zero, _ := CreateDtypeEnclosure(0, 0)
@@ -507,7 +509,7 @@ func nestedQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 }
 
 func nestedAggregationQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 
 	filter := FilterCriteria{
@@ -600,7 +602,7 @@ func nestedAggregationQueryTest(t *testing.T, numBuffers int, numEntriesForBuffe
 }
 
 func nestedAggregationQueryWithGroupByTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 
 	filter := FilterCriteria{
@@ -759,7 +761,7 @@ func nestedAggregationQueryWithGroupByTest(t *testing.T, numBuffers int, numEntr
 }
 
 func nestedAggsNumericColRequestTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 
 	filter := FilterCriteria{
@@ -891,7 +893,7 @@ func nestedAggsNumericColRequestTest(t *testing.T, numBuffers int, numEntriesFor
 }
 
 func nestedAggsNumericColRequestWithGroupByTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 
 	filter := FilterCriteria{
@@ -1023,7 +1025,7 @@ func nestedAggsNumericColRequestWithGroupByTest(t *testing.T, numBuffers int, nu
 }
 
 func nestedAggsFilterRowsWithGroupByTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 
 	filter := FilterCriteria{
@@ -1291,7 +1293,7 @@ func asyncQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileC
 			AggName:        "testTime",
 		},
 	}
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	qid := uint64(10101)
 	scroll := 0
 	sizeLimit := uint64(50)
@@ -1370,7 +1372,7 @@ func testESScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCou
 		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&valueFilter}},
 		TimeRange:          queryRange,
 	}
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	sizeLimit := uint64(10000)
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
 	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 58, qc)
@@ -1391,10 +1393,10 @@ func testESScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCou
 		Offset:    0,
 		Valid:     true,
 	}
-	rawResults := esquery.GetQueryResponseJson(result, "evts", time.Now(), sizeLimit, qid, &QueryAggregators{})
+	rawResults := esquery.GetQueryResponseJson(result, IndexName, time.Now(), sizeLimit, qid, &QueryAggregators{})
 	scrollRecord.Results = &rawResults
 	scroll.SetScrollRecord("faba624a-6428-4d78-8c70-571443f0d509", &scrollRecord)
-	httpresponse := esquery.GetQueryResponseJsonScroll("evts", time.Now().UTC(), sizeLimit, &scrollRecord, qid)
+	httpresponse := esquery.GetQueryResponseJsonScroll(IndexName, time.Now().UTC(), sizeLimit, &scrollRecord, qid)
 	t.Logf("Scroll Query results %v", httpresponse)
 	assert.LessOrEqual(t, len(httpresponse.Hits.Hits), int(scrollSize), "scroll returned more records then the scroll size")
 	assert.Equal(t, int(httpresponse.Hits.GetHits()), numBuffers*numEntriesForBuffer*fileCount, "all logs in all files should have matched")
@@ -1404,7 +1406,7 @@ func testESScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCou
 	for i := 1; i < iterations; i++ {
 		t.Logf("Iteration No : %d for scroll", i)
 		offset = offset + scrollSize
-		httpresponse = esquery.GetQueryResponseJsonScroll("evts", time.Now().UTC(), sizeLimit, &scrollRecord, qid)
+		httpresponse = esquery.GetQueryResponseJsonScroll(IndexName, time.Now().UTC(), sizeLimit, &scrollRecord, qid)
 		assert.Equal(t, int(scrollRecord.Offset), int(offset), "offset should have been increased by the scroll size")
 		assert.Equal(t, checkScrollRecords(httpresponse.Hits.Hits, &resulSet), false, "all records in the scroll should be unique")
 	}
@@ -1428,7 +1430,7 @@ func testPipesearchScroll(t *testing.T, numBuffers int, numEntriesForBuffer int,
 		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&valueFilter}},
 		TimeRange:          queryRange,
 	}
-	qc := structs.InitQueryContext("evts", uint64(10), 9, 0, false)
+	qc := structs.InitQueryContext(IndexName, uint64(10), 9, 0, false)
 	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 59, qc)
 	assert.Len(t, result.AllRecords, 1)
 
@@ -1481,20 +1483,20 @@ func Test_Query(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
 	config.InitializeTestingConfig(dir)
-	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
-	assert.Nil(t, err)
 
 	limit.InitMemoryLimiter()
 	instrumentation.InitMetrics()
 
-	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
+
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 2
-	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
+	_, err = metadata.InitMockColumnarMetadataStore(0, IndexName, fileCount, numBuffers, numEntriesForBuffer)
+	assert.Nil(t, err)
 
 	simpleQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 	wildcardQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
@@ -1519,19 +1521,18 @@ func Test_Scroll(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
 	config.InitializeTestingConfig(dir)
-	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "segexecution")
-	assert.Nil(t, err)
 
 	limit.InitMemoryLimiter()
 
-	err = query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err := query.InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		log.Fatalf("Failed to initialize query node: %v", err)
 	}
 	numBuffers := 5
 	numEntriesForBuffer := 10
 	fileCount := 2
-	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBuffers, numEntriesForBuffer)
+	_, err = metadata.InitMockColumnarMetadataStore(0, "segexecution", fileCount, numBuffers, numEntriesForBuffer)
+	assert.Nil(t, err)
 	testESScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 	testPipesearchScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 }
@@ -1780,7 +1781,7 @@ func Benchmark_agileTreeQueryReader(t *testing.B) {
 func measureColsTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int, measureCol string, measureFunc AggregateFunctions) {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
 	// wildcard all columns
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "*"}}},
@@ -1811,7 +1812,7 @@ func measureColsTest(t *testing.T, numBuffers int, numEntriesForBuffer int, file
 
 func groupByAggQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int, measureCol string, measureFunc AggregateFunctions) *NodeResult {
 	value1, _ := CreateDtypeEnclosure("value1", 0)
-	ti := structs.InitTableInfo("evts", 0, false)
+	ti := structs.InitTableInfo(IndexName, 0, false)
 	allColumns := FilterCriteria{
 		ExpressionFilter: &ExpressionFilter{
 			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "key1"}}},
