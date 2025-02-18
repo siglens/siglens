@@ -887,7 +887,7 @@ function alertChart(res) {
             canvas.style.height = '400px';
             logsExplorer.appendChild(canvas);
 
-            const { labels, datasets } = prepareChartData(res, hits);
+            const { labels, datasets } = prepareLogsChartData(res, hits);
             const ctx = canvas.getContext('2d');
 
             // Destroy existing chart if it exists
@@ -1062,7 +1062,7 @@ function alertChart(res) {
         }
     }
 }
-function prepareChartData(res, hits) {
+function prepareLogsChartData(res, hits) {
     const multipleGroupBy = hits[0].GroupByValues.length > 1;
     const measureFunctions = res.measureFunctions;
 
