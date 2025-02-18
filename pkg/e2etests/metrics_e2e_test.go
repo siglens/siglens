@@ -1,3 +1,5 @@
+//go:build e2e_all
+
 // Copyright (c) 2021-2024 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
@@ -21,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -39,6 +42,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -1103,15 +1107,17 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		assert.True(t, strings.Contains(seriesId, "color:"))
 		assert.True(t, strings.Contains(seriesId, "shape:"))
 
-		keyValueSet := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
+		assert.Equal(t, 2, len(values))
 
-		colorKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, colorValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
 		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1206,15 +1212,17 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(
 			assert.True(t, strings.Contains(seriesId, key))
 		}
 
-		keyValueSet := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		keyValueSet, keyValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
 		assert.Equal(t, 2, len(keyValueSet))
+		assert.Equal(t, 2, len(keyValues))
 
-		colorKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
+		colorKeyVal, colorValues := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, []string{"color"})
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
 		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpStructSlice := make([]*seriesDataPoint, 0)
 		for ts, dp := range seriesDp {
@@ -1299,12 +1307,14 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 		mName := mresults.ExtractMetricNameFromGroupID(seriesId)
 		assert.NotNil(t, mName)
 
-		shapeKeyVal := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
+		shapeKeyVal, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, shapeKeyVal)
 		assert.Equal(t, 1, len(shapeKeyVal))
 
 		shapeVal := strings.Split(shapeKeyVal[0], ":")[1]
 		assert.Equal(t, "solid", shapeVal)
+		assert.Equal(t, 1, len(values))
+		assert.Equal(t, "solid", values[0])
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1502,4 +1512,31 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 			assert.EqualValues(t, expectedSeriesDpValues, seriesDpValues, "Query Index: ", ind, "SeriesId: ", seriesId)
 		}
 	}
+}
+
+func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
+	testDir := t.TempDir()
+	dataDir := filepath.Join(testDir, "data")
+	config := config.GetTestConfig(dataDir)
+	siglens := newSiglensServer(testDir, &config)
+
+	siglens.Start(t)
+	defer siglens.StopGracefully(t)
+	sigclient(t, "go run main.go ingest metrics -d http://localhost:8081/otsdb -m 10 -t 100 -g benchmark")
+	siglens.StopGracefully(t)
+
+	siglens.Start(t)
+	result := terminal(t, `curl -s -X POST localhost:5122/metrics-explorer/api/v1/metric_names -d '{"start":"now-1h","end":"now"}'`)
+
+	type AllMetricNames struct {
+		MetricNames []string `json:"metricNames"`
+		Count       int      `json:"metricNamesCount"`
+	}
+
+	allMetricNames := AllMetricNames{}
+	err := json.Unmarshal([]byte(result), &allMetricNames)
+	require.Nil(t, err)
+
+	assert.Equal(t, 10, allMetricNames.Count)
+	assert.Len(t, allMetricNames.MetricNames, 10)
 }
