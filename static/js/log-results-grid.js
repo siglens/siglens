@@ -17,130 +17,88 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let cellEditingClass = '';
 let isFetching = false;
 
-class ReadOnlyCellEditor {
-    // gets called once before the renderer is used
+class TimestampCellRenderer {
     init(params) {
-        // create the cell
-        this.eInput = document.createElement('textarea');
-        cellEditingClass = params.rowIndex % 2 === 0 ? 'even-popup-textarea' : 'odd-popup-textarea';
-        this.eInput.classList.add(cellEditingClass);
-        this.eInput.classList.add('copyable');
-        this.eInput.readOnly = true;
+        this.params = params;
+        this.eGui = document.createElement('div');
+        this.eGui.style.display = 'flex';
 
-        // Set styles to ensure the textarea fits within its container
-        this.eInput.style.width = '100%';
-        this.eInput.style.height = '100%';
-        this.eInput.style.maxWidth = '100%';
-        this.eInput.style.maxHeight = '100%';
-        this.eInput.style.boxSizing = 'border-box';
-        this.eInput.style.overflow = 'auto';
+        const timestamp = typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value;
 
-        this.eInput.cols = params.cols;
-        this.eInput.rows = params.rows;
-        this.eInput.maxLength = params.maxLength;
-        this.eInput.value = params.value;
+        this.eGui.innerHTML = `
+        <span class="expand-icon-box">
+        <button class="expand-icon-button">
+            <i class="fa-solid fa-up-right-and-down-left-from-center">
+        </button></i>
+    </span>
+    <span>${timestamp}</span>
+        `;
 
-        this.gridApi = params.api;
-
-        // event listener for clicks outside the popup
-        this.onClickOutside = this.onClickOutside.bind(this);
-        document.addEventListener('mousedown', this.onClickOutside);
+        const expandBtn = this.eGui.querySelector('.expand-icon-box');
+        expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
     }
-    // gets called once when grid ready to insert the element
+
+    showJsonPanel(event) {
+        event.stopPropagation();
+
+        const jsonPopup = document.querySelector('.json-popup');
+        const rowData = this.params.node.data;
+
+        jsonPopup.innerHTML = `
+        <div class="json-popup-header">
+            <div class="json-popup-title">
+                <h3>JSON</h3>
+            </div>
+            <button class="json-popup-close">×</button>
+        </div>
+        <div class="json-popup-content">
+            <div>${syntaxHighlight(JSON.unflatten(rowData))}</div>
+        </div>
+    `;
+
+        // Show JSON panel
+        jsonPopup.classList.add('active');
+
+        const closeBtn = jsonPopup.querySelector('.json-popup-close');
+        closeBtn.onclick = () => {
+            jsonPopup.classList.remove('active');
+            this.params.api.sizeColumnsToFit();
+        };
+
+        this.params.api.sizeColumnsToFit();
+    }
+
     getGui() {
-        this.gridApi.addEventListener('cellEditingStarted', (event) => {
-            if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
-                this.addCopyIcon();
-            }
-        });
+        return this.eGui;
+    }
 
-        return this.eInput;
-    }
-    // returns the new value after editing
-    getValue() {
-        return this.eInput.value;
-    }
-    isPopup() {
-        return true;
-    }
     refresh() {
-        return true;
-    }
-    destroy() {
-        this.eInput.classList.remove(cellEditingClass);
-        document.removeEventListener('mousedown', this.onClickOutside);
-    }
-    addCopyIcon() {
-        // Remove any existing copy icons
-        $('.copy-icon').remove();
-
-        // Add copy icon to the textarea
-        $('.copyable').each(function () {
-            var copyIcon = $('<span class="copy-icon"></span>');
-            $(this).after(copyIcon);
-        });
-
-        // Attach click event handler to the copy icon
-        $('.copy-icon').on('click', function (_event) {
-            var copyIcon = $(this);
-            var inputOrTextarea = copyIcon.prev('.copyable');
-            var inputValue = inputOrTextarea.val();
-
-            var tempInput = document.createElement('textarea');
-            tempInput.value = inputValue;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-
-            copyIcon.addClass('success');
-            setTimeout(function () {
-                copyIcon.removeClass('success');
-            }, 1000);
-        });
-    }
-
-    onClickOutside(event) {
-        if (this.eInput && !this.eInput.contains(event.target) && !document.querySelector('.ag-popup-editor').contains(event.target)) {
-            this.gridApi.stopEditing();
-        }
+        return false;
     }
 }
 
-const cellEditorParams = (params) => {
-    const jsonLog = JSON.stringify(JSON.unflatten(params.data), null, 2);
-    return {
-        value: jsonLog,
-        cols: 100,
-        rows: 10,
-    };
-};
+function syntaxHighlight(json) {
+    if (typeof json !== 'string') {
+        json = JSON.stringify(json, null, 2);
+    }
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d*)?([eE][+-]?\d+)?)/g, function (match) {
+        let cls = 'json-value';
+        if (/^"/.test(match) && /:$/.test(match)) {
+            cls = 'json-key';
+        }
+        return `<span class="${cls}">${match}</span>`;
+    });
+}
+
 // initial columns
 let logsColumnDefs = [
     {
         field: 'timestamp',
         headerName: 'timestamp',
-        editable: true,
-        cellEditor: ReadOnlyCellEditor,
-        cellEditorPopup: true,
-        cellEditorPopupPosition: 'under',
-        cellRenderer: (params) => {
-            let timeString = '';
-            let timestamp = moment(params.value).format(timestampDateFmt);
-
-            timeString = `<span class="expand-icon-box">
-                <button class="expand-icon-button">
-                    <i class="fa-solid fa-up-right-and-down-left-from-center">
-                </button></i>
-            </span>
-            <span>${timestamp}</span>`;
-
-            return timeString;
-        },
-        cellEditorParams: cellEditorParams,
+        cellRenderer: TimestampCellRenderer,
         maxWidth: 250,
         minWidth: 250,
     },
