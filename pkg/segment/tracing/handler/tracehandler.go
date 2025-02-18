@@ -38,6 +38,7 @@ import (
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/usageStats"
+
 	putils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -567,6 +568,115 @@ func ProcessRedTracesIngest(myid int64) {
 	usageStats.UpdateTracesStats(uint64(numBytes), uint64(len(pleArray)), myid)
 }
 
+func absoluteTimeFormat(timeStr string) string {
+	if strings.Contains(timeStr, "-") && strings.Count(timeStr, "-") == 1 {
+		timeStr = strings.Replace(timeStr, "-", " ", 1)
+	}
+	timeStr = strings.Replace(timeStr, "/", "-", 2)
+	if strings.Contains(timeStr, ":") {
+		if strings.Count(timeStr, ":") < 2 {
+			timeStr += ":00"
+		}
+	}
+	return timeStr
+}
+
+func parseTimeFromString(timeStr string) (uint32, error) {
+	// if it is not a relative time, parse as absolute time
+	var t time.Time
+	var err error
+	// unixtime
+	if unixTime, err := strconv.ParseInt(timeStr, 10, 64); err == nil {
+		if putils.IsTimeInMilli(uint64(unixTime)) {
+			return uint32(unixTime / 1e3), nil
+		}
+		return uint32(unixTime), nil
+	}
+
+	//absolute time formats
+	timeStr = absoluteTimeFormat(timeStr)
+	formats := []string{
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+	for _, format := range formats {
+		t, err = time.Parse(format, timeStr)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		log.Errorf("parseTime: invalid time format: %s. Error: %v", timeStr, err)
+		return 0, err
+	}
+	return uint32(t.Unix()), nil
+}
+
+func parseAlphaNumTime(nowTs uint64, inp string, defValue uint64) (uint64, usageStats.UsageStatsGranularity) {
+	granularity := usageStats.Daily
+	sanTime := strings.ReplaceAll(inp, " ", "")
+
+	if sanTime == "now" {
+		return nowTs, usageStats.Hourly
+	}
+
+	retVal := defValue
+
+	strln := len(sanTime)
+	if strln < 6 {
+		return retVal, usageStats.Daily
+	}
+
+	unit := sanTime[strln-1]
+	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
+	if err != nil {
+		return defValue, usageStats.Daily
+	}
+
+	switch unit {
+	case 'm':
+		retVal = nowTs - putils.MIN_IN_MS*uint64(num)
+		granularity = usageStats.Hourly
+	case 'h':
+		retVal = nowTs - putils.HOUR_IN_MS*uint64(num)
+		granularity = usageStats.Hourly
+	case 'd':
+		retVal = nowTs - putils.DAY_IN_MS*uint64(num)
+		granularity = usageStats.Daily
+	default:
+		log.Errorf("parseAlphaNumTime: Unknown time unit %v", unit)
+	}
+	return retVal, granularity
+}
+
+func parseTimeStringToUint32(s interface{}) (uint32, error) {
+	var startTimeStr string
+	var timeVal uint32
+
+	switch valtype := s.(type) {
+	case int:
+		startTimeStr = fmt.Sprintf("%d", valtype)
+	case float64:
+		startTimeStr = fmt.Sprintf("%d", int64(valtype))
+	case string:
+		if strings.Contains(s.(string), "now") {
+			nowTs := putils.GetCurrentTimeInMs()
+			defValue := nowTs - (1 * 60 * 1000)
+			pastXhours, _ := parseAlphaNumTime(nowTs, s.(string), defValue)
+			startTimeStr = fmt.Sprintf("%d", pastXhours)
+		} else {
+			startTimeStr = valtype
+		}
+	default:
+		return timeVal, errors.New("Failed to parse time from JSON request body.TimeField is not a string!")
+	}
+	timeVal, err := parseTimeFromString(startTimeStr)
+	if err != nil {
+		return timeVal, err
+	}
+	return timeVal, nil
+}
+
 func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, error) {
 	result := make(map[string]interface{})
 	result["service"] = service
@@ -577,6 +687,108 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 	result["p95"] = redMetrics.P95
 	result["p99"] = redMetrics.P99
 	return json.Marshal(result)
+}
+
+func ParseRedMetricsRequest(rawJSON []byte) (uint32, uint32, string, string, map[string]interface{}, error) {
+	var start, end uint32
+	var serviceName, joinOperator string
+	errorLog := " "
+	readJSON := make(map[string]interface{})
+	var err error
+	var respBodyErr error
+
+	// JSON parsing
+
+	jsonc := jsoniter.ConfigCompatibleWithStandardLibrary
+	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
+	err = decoder.Decode(&readJSON)
+	if err != nil {
+		respBodyErr = errors.New("failed to parse request body")
+		errorLog = fmt.Sprintf("Invalid JSON: %v, error: %v", string(rawJSON), err)
+		return start, end, serviceName, errorLog, nil, respBodyErr
+	}
+
+	// Parse startTime and endTime
+	start, err = parseTimeStringToUint32(readJSON["startTime"])
+	if err != nil {
+		respBodyErr = errors.New("failed to parse startTime")
+		errorLog = "failed to parse startTime"
+		return start, end, serviceName, errorLog, readJSON, respBodyErr
+	}
+
+	end, err = parseTimeStringToUint32(readJSON["endTime"])
+	if err != nil {
+		respBodyErr = errors.New("failed to parse endTime")
+		errorLog = "failed to parse endTime"
+		return start, end, serviceName, errorLog, readJSON, respBodyErr
+	}
+	// Parse serviceName
+	serviceName, ok := readJSON["serviceName"].(string)
+	if !ok {
+		respBodyErr = errors.New("failed to parse serviceName")
+		errorLog = "serviceName is missing or not a string"
+		return start, end, serviceName, errorLog, readJSON, respBodyErr
+	}
+
+	// Parse query parameters
+	query, ok := readJSON["query"].(map[string]interface{})
+	if !ok {
+		respBodyErr = errors.New("failed to parse query field")
+		errorLog = "query field is missing or not an object"
+		return start, end, serviceName, errorLog, readJSON, respBodyErr
+	}
+
+	joinOperator = "OR"
+	if v, ok := query["JoinOperator"].(string); ok {
+		if v == "AND" || v == "OR" {
+			joinOperator = v
+		} else {
+			respBodyErr = errors.New("invalid JoinOperator value")
+			errorLog = "JoinOperator must be 'AND' or 'OR'"
+			return start, end, serviceName, errorLog, readJSON, respBodyErr
+		}
+	}
+
+	// Extract RED metrics values
+	var redMetrics structs.RedMetrics
+	if v, ok := query["RatePerSec"].(float64); ok {
+		redMetrics.Rate = v
+	}
+	if v, ok := query["ErrorPercentage"].(float64); ok {
+		redMetrics.ErrorRate = v
+	}
+	if v, ok := query["DurationP50Ms"].(float64); ok {
+		redMetrics.P50 = v
+	}
+	if v, ok := query["DurationP90Ms"].(float64); ok {
+		redMetrics.P90 = v
+	}
+	if v, ok := query["DurationP95Ms"].(float64); ok {
+		redMetrics.P95 = v
+	}
+	if v, ok := query["DurationP99Ms"].(float64); ok {
+		redMetrics.P99 = v
+	}
+
+	// Convert RedMetrics struct to JSON
+	redMetricsJSON, err := redMetricsToJson(redMetrics, serviceName)
+	if err != nil {
+		respBodyErr = errors.New("failed to serialize RedMetrics to JSON")
+		errorLog = fmt.Sprintf("Error serializing RedMetrics: %v", err)
+		return start, end, serviceName, errorLog, readJSON, respBodyErr
+	}
+	redMetricsMap := make(map[string]interface{})
+	err = json.Unmarshal(redMetricsJSON, &redMetricsMap)
+	if err != nil {
+		respBodyErr = errors.New("failed to convert JSON to map")
+		errorLog = fmt.Sprintf("Error converting JSON to map: %v", err)
+		return start, end, serviceName, errorLog, readJSON, respBodyErr
+	}
+
+	// Include JoinOperator in response
+	redMetricsMap["join_operator"] = joinOperator
+
+	return start, end, serviceName, errorLog, redMetricsMap, nil
 }
 
 func DependencyGraphThread() {
