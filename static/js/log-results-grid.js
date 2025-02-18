@@ -99,7 +99,7 @@ let logsColumnDefs = [
     {
         field: 'timestamp',
         headerName: 'timestamp',
-        cellRenderer: TimestampCellRenderer, // Use our custom renderer class
+        cellRenderer: TimestampCellRenderer,
         maxWidth: 250,
         minWidth: 250,
     },
