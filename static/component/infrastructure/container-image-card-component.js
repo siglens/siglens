@@ -107,7 +107,7 @@ class ContainerImagesCard {
         const percentage = (params.value / maxValue) * 100;
         return `
             <div style="position: relative; height: 100%; display: flex; align-items: center;">
-                <div style="height: 8px; background: linear-gradient(90deg, #7B61FF 0%, #AA8EFF 100%); 
+                <div style="height: 16px; background: linear-gradient(90deg, rgb(87, 148, 242) 0%, rgb(184, 119, 217) 90%); border-radius: 3px;
                      width: ${percentage / 2}%; max-width: calc(100% - 40px); position: absolute; left: 0;"></div>
                 <span style="position: absolute; right: 0;">${params.value}</span>
             </div>

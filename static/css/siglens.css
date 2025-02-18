@@ -6027,18 +6027,24 @@ p#versionInfo {
 }
 
 .cluster-content {
-    background: var(--purple-2);
+    background: linear-gradient(90deg, #7B61FF 0%, #AA8EFF 150%);
     padding: 20px;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 90px;
+    opacity: 0.9;
 }
 
 .big-number {
     font-size: 48px;
     font-weight: bold;
     color: white;
+}
+
+.big-number.error {
+    font-size: 40px;
+    white-space: nowrap;
 }
 
 .dropdown {
