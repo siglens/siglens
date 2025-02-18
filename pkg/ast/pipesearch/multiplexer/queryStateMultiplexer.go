@@ -49,7 +49,6 @@ type chanState struct {
 
 type QueryStateEnvelope struct {
 	*query.QueryStateChanData
-	channelIndex int
 }
 
 func NewQueryStateMultiplexer(mainQueryChan, timechartQueryChan chan *query.QueryStateChanData) *QueryStateMultiplexer {
@@ -96,7 +95,7 @@ func (q *QueryStateMultiplexer) handleMessage(data *query.QueryStateChanData, ok
 			return
 		}
 
-		q.errorAndClose(fmt.Errorf("Channel closed unexpectedly"), chanIndex)
+		q.errorAndClose(fmt.Errorf("Channel closed unexpectedly"))
 		return
 	}
 
@@ -105,11 +104,26 @@ func (q *QueryStateMultiplexer) handleMessage(data *query.QueryStateChanData, ok
 
 func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanIndex channelIndex) {
 	switch data.StateName {
-	case query.READY, query.RUNNING, query.QUERY_UPDATE, query.QUERY_RESTART:
+	case query.READY, query.RUNNING, query.QUERY_RESTART:
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,
-			channelIndex:       int(chanIndex),
 		}
+	case query.QUERY_UPDATE:
+		update := &structs.PipeSearchWSUpdateResponse{}
+		switch chanIndex {
+		case mainIndex:
+			update = data.UpdateWSResp
+		case timechartIndex:
+			update.RelatedUpdate = &structs.RelatedUpdate{
+				Timechart: data.UpdateWSResp,
+			}
+		}
+
+		data.UpdateWSResp = update
+		q.output <- &QueryStateEnvelope{
+			QueryStateChanData: data,
+		}
+
 	case query.COMPLETE:
 		q.input[chanIndex].isComplete = true
 		switch chanIndex {
@@ -126,6 +140,10 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 				savedResponse = &structs.PipeSearchCompleteResponse{}
 			}
 
+			if savedResponse.RelatedComplete == nil {
+				savedResponse.RelatedComplete = &structs.RelatedComplete{}
+			}
+
 			savedResponse.RelatedComplete.Timechart = data.CompleteWSResp
 			q.savedCompletion = savedResponse
 		}
@@ -136,26 +154,23 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 					StateName:      query.COMPLETE,
 					CompleteWSResp: q.savedCompletion,
 				},
-				channelIndex: int(mainIndex),
 			}
 		}
 	case query.CANCELLED, query.TIMEOUT, query.ERROR:
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,
-			channelIndex:       int(mainIndex),
 		}
 		close(q.output)
 		q.closedOutput = true
 	}
 }
 
-func (q *QueryStateMultiplexer) errorAndClose(err error, chanIndex channelIndex) {
+func (q *QueryStateMultiplexer) errorAndClose(err error) {
 	q.output <- &QueryStateEnvelope{
 		QueryStateChanData: &query.QueryStateChanData{
 			StateName: query.ERROR,
 			Error:     err,
 		},
-		channelIndex: int(chanIndex),
 	}
 	close(q.output)
 	q.closedOutput = true

@@ -59,7 +59,7 @@ type PipeSearchWSUpdateResponse struct {
 	BucketCount              int                `json:"bucketCount,omitempty"`
 	SortByTimestampAtDefault bool               `json:"sortByTimestampAtDefault"`
 	ColumnsOrder             []string           `json:"columnsOrder,omitempty"`
-	RelatedUpdate            *relatedUpdate     `json:"relatedUpdate,omitempty"`
+	RelatedUpdate            *RelatedUpdate     `json:"relatedUpdate,omitempty"`
 }
 
 type PipeSearchCompleteResponse struct {
@@ -75,13 +75,13 @@ type PipeSearchCompleteResponse struct {
 	BucketCount         int              `json:"bucketCount,omitempty"`
 	IsTimechart         bool             `json:"isTimechart"`
 	ColumnsOrder        []string         `json:"columnsOrder,omitempty"`
-	RelatedComplete     *relatedComplete `json:"relatedComplete,omitempty"`
+	RelatedComplete     *RelatedComplete `json:"relatedComplete,omitempty"`
 }
 
-type relatedUpdate struct {
+type RelatedUpdate struct {
 	Timechart *PipeSearchWSUpdateResponse `json:"timechart,omitempty"`
 }
 
-type relatedComplete struct {
+type RelatedComplete struct {
 	Timechart *PipeSearchCompleteResponse `json:"timechart,omitempty"`
 }
