@@ -98,7 +98,7 @@ class BigNumberCard {
         const contentDiv = this.container.find('.cluster-content');
 
         if (!response || !response.values || response.values.length === 0) {
-            contentDiv.html('<div class="big-number">No data</div>');
+            contentDiv.html('<div class="big-number error">No data</div>');
             return;
         }
 

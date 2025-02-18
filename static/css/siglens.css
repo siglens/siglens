@@ -2901,6 +2901,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     justify-content: center;
     width: 20px;
     height: 20px;
+    margin-right: 6px;
 }
 
 .expand-icon-button {
@@ -6027,18 +6028,24 @@ p#versionInfo {
 }
 
 .cluster-content {
-    background: var(--purple-2);
+    background: linear-gradient(90deg, #7B61FF 0%, #AA8EFF 150%);
     padding: 20px;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 90px;
+    opacity: 0.9;
 }
 
 .big-number {
     font-size: 48px;
     font-weight: bold;
     color: white;
+}
+
+.big-number.error {
+    font-size: 40px;
+    white-space: nowrap;
 }
 
 .dropdown {
@@ -6281,4 +6288,68 @@ p#versionInfo {
 
 .endpoint .code-block {
     color: #d63384;
+}
+
+.json-popup {
+    width: 0;
+    background-color: var(--black1-to-white0) ;
+    transition: width 0.3s ease;
+    overflow: hidden;
+    border-top: 1px solid var(--panel-table-line-color);
+    border-radius: 4px;
+}
+
+.json-popup.active {
+    width: 700px;
+    margin-left: 5px;
+    border-left: 1px solid var(--panel-table-line-color);
+}
+
+.json-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 12px;
+    border-bottom: 1px solid var(--panel-table-line-color);
+    background: var(--alerting-table-hover);
+}
+
+.json-popup-title h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.json-popup-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--black-5);
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+}
+
+.json-popup-content {
+    padding: 16px;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.json-popup-content div {
+    margin: 0;
+    font-family: "Roboto Mono", Menlo, Monaco, "Courier New", monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-color);
+}
+
+.json-key {
+    color: rgb(0, 113, 194);
+}
+
+.json-value {
+    color: rgb(189, 39, 30);
 }
