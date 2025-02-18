@@ -53,40 +53,6 @@ let mapIndexToAlertState = new Map([
 
 const alertForm = $('#alert-form');
 
-const propertiesGridOptions = {
-    columnDefs: [
-        { headerName: 'Config Variable Name', field: 'name', sortable: true, filter: true, cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, width: 200 },
-        { headerName: 'Config Variable Value', field: 'value', sortable: true, filter: true, cellStyle: { 'white-space': 'normal', 'word-wrap': 'break-word' }, autoHeight: true },
-    ],
-    defaultColDef: {
-        cellClass: 'align-center-grid',
-        resizable: true,
-        flex: 1,
-        minWidth: 150,
-    },
-    rowData: [],
-    domLayout: 'autoHeight',
-    headerHeight: 26,
-    rowHeight: 34,
-};
-
-const historyGridOptions = {
-    columnDefs: [
-        { headerName: 'Timestamp', field: 'timestamp', sortable: true, filter: true },
-        { headerName: 'Action', field: 'action', sortable: true, filter: true },
-        { headerName: 'State', field: 'state', sortable: true, filter: true },
-    ],
-    defaultColDef: {
-        cellClass: 'align-center-grid',
-        resizable: true,
-        flex: 1,
-        minWidth: 150,
-    },
-    rowData: [],
-    headerHeight: 26,
-    rowHeight: 34,
-};
-
 let originalIndexValues;
 //eslint-disable-next-line no-unused-vars
 let indexValues;
@@ -142,15 +108,6 @@ $(document).ready(async function () {
                 });
         }
     });
-    // Initialize ag-Grid only if the elements exist
-    if ($('#properties-grid').length) {
-        //eslint-disable-next-line no-undef
-        new agGrid.Grid(document.querySelector('#properties-grid'), propertiesGridOptions);
-    }
-    if ($('#history-grid').length) {
-        //eslint-disable-next-line no-undef
-        new agGrid.Grid(document.querySelector('#history-grid'), historyGridOptions);
-    }
 
     $(document).mouseup(function (e) {
         if ($(e.target).closest('.tooltip-inner').length === 0) {
@@ -159,10 +116,6 @@ $(document).ready(async function () {
     });
 
     await getAlertId();
-
-    if (window.location.href.includes('alert-details.html')) {
-        alertDetailsFunctions();
-    }
 
     // Enable the save button when a contact point is selected
     $('.contact-points-options li').on('click', function () {
@@ -211,6 +164,7 @@ $(document).ready(async function () {
         window.location.href = '../all-alerts.html';
     });
 });
+
 function updateChartColorsBasedOnTheme() {
     //eslint-disable-next-line no-undef
     const { gridLineColor, tickColor } = getGraphGridColors();
@@ -238,18 +192,19 @@ function updateChartColorsBasedOnTheme() {
         }
     }
 }
+
 async function getAlertId() {
     const urlParams = new URLSearchParams(window.location.search);
     // Index
-    if (!window.location.href.includes('alert-details.html')) {
-        let indexes = await getListIndices();
-        if (indexes) {
-            originalIndexValues = indexes.map((item) => item.index);
-            indexValues = [...originalIndexValues];
-        }
-        initializeIndexAutocomplete();
-        setIndexDisplayValue(selectedSearchIndex);
+
+    let indexes = await getListIndices();
+    if (indexes) {
+        originalIndexValues = indexes.map((item) => item.index);
+        indexValues = [...originalIndexValues];
     }
+    initializeIndexAutocomplete();
+    setIndexDisplayValue(selectedSearchIndex);
+
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
         alertID = id;
@@ -272,7 +227,7 @@ async function getAlertId() {
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
     }
 
-    if (!alertEditFlag && !alertFromMetricsExplorerFlag && !window.location.href.includes('alert-details.html')) {
+    if (!alertEditFlag && !alertFromMetricsExplorerFlag) {
         addQueryElement();
     }
 }
@@ -288,17 +243,11 @@ async function editAlert(alertId) {
         dataType: 'json',
         crossDomain: true,
     });
-    if (window.location.href.includes('alert-details.html')) {
-        $('.alert-name').empty().text(res.alert.alert_name);
-        fetchAlertProperties(res);
-        fetchAlertHistory();
-        return false;
-    } else {
-        alertEditFlag = true;
-        alertFromMetricsExplorerFlag = 0;
-        displayAlert(res.alert);
-        return true;
-    }
+
+    alertEditFlag = true;
+    alertFromMetricsExplorerFlag = 0;
+    displayAlert(res.alert);
+    return true;
 }
 
 function setAlertConditionHandler(_e) {
@@ -351,32 +300,6 @@ $(document).keyup(function (e) {
         $('.popupOverlay, .popupContent').removeClass('active');
     }
 });
-
-const propertiesBtn = document.getElementById('properties-btn');
-const historyBtn = document.getElementById('history-btn');
-
-if (propertiesBtn) {
-    propertiesBtn.addEventListener('click', function () {
-        document.getElementById('properties-grid').style.display = 'block';
-        document.getElementById('history-grid').style.display = 'none';
-        document.getElementById('history-search-container').style.display = 'none';
-        propertiesBtn.classList.add('active');
-        historyBtn.classList.remove('active');
-        $('#alert-details .btn-container').show();
-    });
-}
-
-if (historyBtn) {
-    historyBtn.addEventListener('click', function () {
-        document.getElementById('properties-grid').style.display = 'none';
-        document.getElementById('history-grid').style.display = 'block';
-        document.getElementById('history-search-container').style.display = 'block';
-        historyBtn.classList.add('active');
-        propertiesBtn.classList.remove('active');
-        displayHistoryData();
-        $('#alert-details .btn-container').hide();
-    });
-}
 
 function submitAddAlertForm(e) {
     e.preventDefault();
@@ -596,113 +519,6 @@ function setDataSourceHandler(alertType) {
     }
 }
 
-$('#history-filter-input').on('input', performSearch);
-$('#history-filter-input').on('keypress', function (e) {
-    if (e.which === 13) {
-        performSearch();
-    }
-});
-
-$('#history-filter-input').on('input', function () {
-    if ($(this).val().trim() === '') {
-        displayHistoryData();
-    }
-});
-
-function performSearch() {
-    const searchTerm = $('#history-filter-input').val().trim().toLowerCase();
-    if (searchTerm) {
-        filterHistoryData(searchTerm);
-    } else {
-        displayHistoryData();
-    }
-}
-
-function fetchAlertProperties(res) {
-    const alert = res.alert;
-    let propertiesData = [];
-
-    if (alert.alert_type === 1) {
-        propertiesData.push({ name: 'Query', value: alert.queryParams.queryText }, { name: 'Type', value: alert.queryParams.data_source }, { name: 'Query Language', value: alert.queryParams.queryLanguage });
-    } else if (alert.alert_type === 2) {
-        const metricsQueryParams = JSON.parse(alert.metricsQueryParams || '{}');
-        let formulaString = metricsQueryParams.formulas && metricsQueryParams.formulas.length > 0 ? metricsQueryParams.formulas[0].formula : 'No formula';
-
-        // Replace a, b, etc., with actual query values
-        metricsQueryParams.queries.forEach((query) => {
-            const regex = new RegExp(`\\b${query.name}\\b`, 'g');
-            formulaString = formulaString.replace(regex, query.query);
-        });
-
-        propertiesData.push({ name: 'Query', value: formulaString }, { name: 'Type', value: 'Metrics' }, { name: 'Query Language', value: 'PromQL' });
-    }
-
-    propertiesData.push({ name: 'Status', value: mapIndexToAlertState.get(alert.state) }, { name: 'Condition', value: `${mapIndexToConditionType.get(alert.condition)}  ${alert.value}` }, { name: 'Evaluate', value: `every ${alert.eval_interval} minutes for ${alert.eval_for} minutes` }, { name: 'Contact Point', value: alert.contact_name });
-    if (alert.silence_end_time > Math.floor(Date.now() / 1000)) {
-        //eslint-disable-next-line no-undef
-        let mutedFor = calculateMutedFor(alert.silence_end_time);
-        propertiesData.push({ name: 'Silenced For', value: mutedFor });
-    }
-    if (alert.labels && alert.labels.length > 0) {
-        const labelsValue = alert.labels.map((label) => `${label.label_name}:${label.label_value}`).join(', ');
-        propertiesData.push({ name: 'Label', value: labelsValue });
-    }
-
-    if (propertiesGridOptions.api) {
-        propertiesGridOptions.api.setRowData(propertiesData);
-    } else {
-        console.error('propertiesGridOptions.api is not defined');
-    }
-}
-
-function displayHistoryData() {
-    if (historyGridOptions.api) {
-        historyGridOptions.api.setRowData(alertHistoryData);
-    }
-}
-function fetchAlertHistory() {
-    if (alertID) {
-        $.ajax({
-            method: 'get',
-            url: `api/alerts/${alertID}/history`,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            dataType: 'json',
-            crossDomain: true,
-        })
-            .then(function (res) {
-                // Store the data locally
-                alertHistoryData = res.alertHistory.map((item) => ({
-                    timestamp: new Date(item.event_triggered_at).toLocaleString(),
-                    action: item.event_description,
-                    state: mapIndexToAlertState.get(item.alert_state),
-                }));
-
-                // Display the history data initially
-                displayHistoryData();
-            })
-            .catch(function (err) {
-                console.error('Error fetching alert history:', err);
-            });
-    }
-}
-
-function filterHistoryData(searchTerm) {
-    const filteredData = alertHistoryData.filter((item) => {
-        const action = item.action.toLowerCase();
-        const state = item.state.toLowerCase();
-        return action.includes(searchTerm) || state.includes(searchTerm);
-    });
-
-    if (historyGridOptions.api) {
-        historyGridOptions.api.setRowData(filteredData);
-    } else {
-        console.error('historyGridOptions.api is not defined');
-    }
-}
-
 function displayQueryToolTip(selectedQueryLang) {
     $('#info-icon-pipeQL, #info-icon-spl').hide();
     if (selectedQueryLang === 'Pipe QL') {
@@ -728,52 +544,6 @@ $('.add-label-container').on('click', function () {
 $('.label-main-container').on('click', '.delete-icon', function () {
     $(this).closest('.label-container').remove();
 });
-
-function alertDetailsFunctions() {
-    function editAlert(event) {
-        var queryString = '?id=' + alertID;
-        window.location.href = '../alert.html' + queryString;
-        event.stopPropagation();
-    }
-
-    function deleteAlert() {
-        $.ajax({
-            method: 'delete',
-            url: 'api/alerts/delete',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            data: JSON.stringify({
-                alert_id: alertID,
-            }),
-            crossDomain: true,
-        })
-            .then(function (res) {
-                showToast(res.message);
-                window.location.href = '../all-alerts.html';
-            })
-            .catch((err) => {
-                showToast(err.responseJSON.error, 'error');
-            });
-    }
-
-    function showPrompt(event) {
-        event.stopPropagation();
-        $('.popupOverlay, .popupContent').addClass('active');
-
-        $('#cancel-btn, .popupOverlay, #delete-btn').click(function () {
-            $('.popupOverlay, .popupContent').removeClass('active');
-        });
-        $('#delete-btn').click(deleteAlert);
-    }
-
-    $('#edit-alert-btn').on('click', editAlert);
-    $('#delete-alert').on('click', showPrompt);
-    $('#cancel-alert-details').on('click', function () {
-        window.location.href = '../all-alerts.html';
-    });
-}
 
 function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
     const urlParams = new URLSearchParams(window.location.search);
