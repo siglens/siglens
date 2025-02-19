@@ -609,6 +609,25 @@ body {
     cursor: pointer;
 }
 
+/* #app-side-nav .menu:hover{
+    background-color: var(--side-nav-bg-color-selected);
+} */
+
+#app-side-nav .nav-main-menu.logo {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+}
+
+#app-side-nav.active .nav-main-menu.logo {
+    padding: 20px 0 20px 0px;
+}
+
+#app-side-nav .nav-main-menu.logo .sslogo {
+    height: 44px;
+    width: 37px;
+}
+
 #app-side-nav .big-menu {
     min-height: 38px;
     border-left: 5px solid transparent;
@@ -634,26 +653,6 @@ body {
      border-radius: 0 5px 5px 0;
      cursor: pointer;
  }
-
-
-/* #app-side-nav .menu:hover{
-    background-color: var(--side-nav-bg-color-selected);
-} */
-
-#app-side-nav .nav-main-menu.logo {
-    display: flex;
-    justify-content: center;
-    padding: 16px;
-}
-
-#app-side-nav.active .nav-main-menu.logo {
-    padding: 20px 0 20px 0px;
-}
-
-#app-side-nav .nav-main-menu.logo .sslogo {
-    height: 44px;
-    width: 37px;
-}
 
 .icon-search {
     background-image: url("../assets/search-icon-inactive.svg");
