@@ -62,19 +62,20 @@ func Test_Multiplexer_MainCompletesFirst(t *testing.T) {
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
 	outChan := multiplexer.Multiplex()
-	const qid = uint64(42)
+	const mainQid = uint64(42)
+	const timechartQid = uint64(100)
 
 	mainChan <- &query.QueryStateChanData{
 		StateName: query.READY,
-		Qid:       qid,
+		Qid:       mainQid,
 	}
 	timechartChan <- &query.QueryStateChanData{
 		StateName: query.READY,
-		Qid:       qid,
+		Qid:       timechartQid,
 	}
 	mainChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
-		Qid:            qid,
+		Qid:            mainQid,
 		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"m1", "m2"}},
 	}
 
@@ -91,7 +92,7 @@ func Test_Multiplexer_MainCompletesFirst(t *testing.T) {
 	// Now send the other COMPLETE.
 	timechartChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
-		Qid:            qid,
+		Qid:            timechartQid,
 		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1", "t2"}},
 	}
 
@@ -112,19 +113,20 @@ func Test_Multiplexer_MainCompletesLast(t *testing.T) {
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
 	outChan := multiplexer.Multiplex()
-	const qid = uint64(42)
+	const mainQid = uint64(42)
+	const timechartQid = uint64(100)
 
 	mainChan <- &query.QueryStateChanData{
 		StateName: query.READY,
-		Qid:       qid,
+		Qid:       mainQid,
 	}
 	timechartChan <- &query.QueryStateChanData{
 		StateName: query.READY,
-		Qid:       qid,
+		Qid:       timechartQid,
 	}
 	timechartChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
-		Qid:            qid,
+		Qid:            timechartQid,
 		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1", "t2"}},
 	}
 
@@ -141,7 +143,7 @@ func Test_Multiplexer_MainCompletesLast(t *testing.T) {
 	// Now send the other COMPLETE.
 	mainChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
-		Qid:            qid,
+		Qid:            mainQid,
 		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"m1", "m2"}},
 	}
 
@@ -162,16 +164,17 @@ func Test_Multiplexer_QueryUpdate(t *testing.T) {
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
 	outChan := multiplexer.Multiplex()
-	const qid = uint64(42)
+	const mainQid = uint64(42)
+	const timechartQid = uint64(100)
 
 	mainChan <- &query.QueryStateChanData{
 		StateName:    query.QUERY_UPDATE,
-		Qid:          qid,
+		Qid:          mainQid,
 		UpdateWSResp: &structs.PipeSearchWSUpdateResponse{ColumnsOrder: []string{"m1", "m2"}},
 	}
 	timechartChan <- &query.QueryStateChanData{
 		StateName:    query.QUERY_UPDATE,
-		Qid:          qid,
+		Qid:          timechartQid,
 		UpdateWSResp: &structs.PipeSearchWSUpdateResponse{ColumnsOrder: []string{"t1", "t2"}},
 	}
 
@@ -182,12 +185,12 @@ func Test_Multiplexer_QueryUpdate(t *testing.T) {
 		switch msg.ChannelIndex {
 		case MainIndex:
 			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
-			assert.Equal(t, qid, msg.Qid)
+			assert.Equal(t, mainQid, msg.Qid)
 			assert.Equal(t, []string{"m1", "m2"}, msg.UpdateWSResp.ColumnsOrder)
 			assert.Nil(t, msg.UpdateWSResp.RelatedUpdate)
 		case TimechartIndex:
 			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
-			assert.Equal(t, qid, msg.Qid)
+			assert.Equal(t, timechartQid, msg.Qid)
 			assert.Empty(t, msg.UpdateWSResp.ColumnsOrder)
 			assert.NotNil(t, msg.UpdateWSResp.RelatedUpdate)
 			assert.NotNil(t, msg.UpdateWSResp.RelatedUpdate.Timechart)
