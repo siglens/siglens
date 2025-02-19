@@ -235,6 +235,33 @@ func Test_Multiplexer_ErrorClosesOutput(t *testing.T) {
 	assert.False(t, ok, "Expected no additional messages after error")
 }
 
+func Test_Multiplexer_NonWebsocket(t *testing.T) {
+	mainChan := make(chan *query.QueryStateChanData, 4)
+	multiplexer := NewQueryStateMultiplexer(mainChan, nil) // timechart channel is nil.
+	outChan := multiplexer.Multiplex()
+	const qid = uint64(42)
+
+	mainChan <- &query.QueryStateChanData{
+		StateName: query.COMPLETE,
+		Qid:       qid,
+		HttpResponse: &structs.PipeSearchResponseOuter{
+			Hits: structs.PipeSearchResponse{
+				TotalMatched: 1,
+				Hits:         []map[string]interface{}{{"foo": "bar"}},
+			},
+		},
+	}
+
+	msg, ok := <-outChan
+	assert.True(t, ok, "Expected one message")
+	assert.Equal(t, query.COMPLETE, msg.StateName)
+	assert.Equal(t, qid, msg.Qid)
+	assert.NotNil(t, msg.HttpResponse)
+	assert.Equal(t, 1, msg.HttpResponse.Hits.TotalMatched)
+	assert.Len(t, msg.HttpResponse.Hits.Hits, 1)
+	assert.Equal(t, "bar", msg.HttpResponse.Hits.Hits[0]["foo"])
+}
+
 func drainMessages[T any](outChan <-chan T, timeout time.Duration) []T {
 	var messages []T
 	deadline := time.After(timeout)
