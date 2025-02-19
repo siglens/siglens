@@ -101,9 +101,8 @@ func Test_Multiplexer_MainCompletesFirst(t *testing.T) {
 	assert.True(t, ok, "Expected one COMPLETE message")
 	assert.Equal(t, query.COMPLETE, msg.StateName, "Message should be COMPLETE")
 	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
-	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
-	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
-	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
+	assert.NotNil(t, msg.CompleteWSResp.TimechartComplete)
+	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.TimechartComplete.ColumnsOrder)
 
 	_, ok = <-outChan
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
@@ -152,9 +151,8 @@ func Test_Multiplexer_MainCompletesLast(t *testing.T) {
 	assert.True(t, ok, "Expected one COMPLETE message")
 	assert.Equal(t, query.COMPLETE, msg.StateName, "Message should be COMPLETE")
 	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
-	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
-	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
-	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
+	assert.NotNil(t, msg.CompleteWSResp.TimechartComplete)
+	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.TimechartComplete.ColumnsOrder)
 
 	_, ok = <-outChan
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
@@ -188,14 +186,13 @@ func Test_Multiplexer_QueryUpdate(t *testing.T) {
 			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
 			assert.Equal(t, mainQid, msg.Qid)
 			assert.Equal(t, []string{"m1", "m2"}, msg.UpdateWSResp.ColumnsOrder)
-			assert.Nil(t, msg.UpdateWSResp.RelatedUpdate)
+			assert.Nil(t, msg.UpdateWSResp.TimechartUpdate)
 		case TimechartIndex:
 			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
 			assert.Equal(t, timechartQid, msg.Qid)
 			assert.Empty(t, msg.UpdateWSResp.ColumnsOrder)
-			assert.NotNil(t, msg.UpdateWSResp.RelatedUpdate)
-			assert.NotNil(t, msg.UpdateWSResp.RelatedUpdate.Timechart)
-			assert.Equal(t, []string{"t1", "t2"}, msg.UpdateWSResp.RelatedUpdate.Timechart.ColumnsOrder)
+			assert.NotNil(t, msg.UpdateWSResp.TimechartUpdate)
+			assert.Equal(t, []string{"t1", "t2"}, msg.UpdateWSResp.TimechartUpdate.ColumnsOrder)
 		default:
 			t.Fatalf("Unexpected channel index: %d", msg.ChannelIndex)
 			t.FailNow()

@@ -133,9 +133,7 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		case MainIndex:
 			update = data.UpdateWSResp
 		case TimechartIndex:
-			update.RelatedUpdate = &structs.RelatedUpdate{
-				Timechart: data.UpdateWSResp,
-			}
+			update.TimechartUpdate = data.UpdateWSResp
 		}
 
 		data.UpdateWSResp = update
@@ -151,22 +149,16 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 			q.mainQid = data.Qid
 			savedResponse := data.CompleteWSResp
 			if q.savedCompletion != nil {
-				savedResponse.RelatedComplete = q.savedCompletion.RelatedComplete
+				savedResponse.TimechartComplete = q.savedCompletion.TimechartComplete
 			}
 
 			q.savedCompletion = savedResponse
 		case TimechartIndex:
-			savedResponse := q.savedCompletion
-			if savedResponse == nil {
-				savedResponse = &structs.PipeSearchCompleteResponse{}
+			if q.savedCompletion == nil {
+				q.savedCompletion = &structs.PipeSearchCompleteResponse{}
 			}
 
-			if savedResponse.RelatedComplete == nil {
-				savedResponse.RelatedComplete = &structs.RelatedComplete{}
-			}
-
-			savedResponse.RelatedComplete.Timechart = data.CompleteWSResp
-			q.savedCompletion = savedResponse
+			q.savedCompletion.TimechartComplete = data.CompleteWSResp
 		}
 
 		if q.allChannelsAreComplete() {
