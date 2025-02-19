@@ -49,9 +49,9 @@ func Test_getNextSuffix_EmptyFile(t *testing.T) {
 
 	suffix, err := getAndIncrementSuffixFromFile(fileName, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1000), suffix)
+	assert.Equal(t, uint64(0), suffix)
 
 	suffix, err = getAndIncrementSuffixFromFile(fileName, nil)
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(1001), suffix)
+	assert.Equal(t, uint64(1), suffix)
 }

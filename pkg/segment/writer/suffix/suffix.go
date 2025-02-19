@@ -44,7 +44,7 @@ func getSuffix(fileName string) (*entry, error) {
 
 	// Handle an empty file.
 	if len(jsonBytes) == 0 {
-		return &entry{NextSuffix: 1000}, nil // TODO: do atomic file writes, then start at 0.
+		return &entry{NextSuffix: 0}, nil // TODO: do atomic file writes, then start at 0.
 	}
 
 	var entry entry
