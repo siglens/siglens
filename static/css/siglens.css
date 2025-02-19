@@ -6364,6 +6364,8 @@ p#versionInfo {
     background: var(--myOrg-input);
     font-weight: bold;
     transition: 0.3s;
+    color: var(--text-color) !important;
+    border-radius: 5px;
 }
 
 .tab-button.active {
@@ -6419,6 +6421,7 @@ p#versionInfo {
     justify-content: space-between;
     padding: 5px 10px;
     border-bottom: 1px solid #ddd;
+    background-color: var(--bg-color);
 }
 
 .copy-json-button {
@@ -6432,6 +6435,5 @@ p#versionInfo {
 }
 
 .copy-json-button:hover {
-    color: #000; /* Darker on hover */
-
+    color: #000;
 }
