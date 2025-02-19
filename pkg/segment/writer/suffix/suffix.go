@@ -44,7 +44,8 @@ func getSuffix(fileName string) (*entry, error) {
 
 	// Handle an empty file.
 	if len(jsonBytes) == 0 {
-		return &entry{NextSuffix: 1000}, nil // TODO: do atomic file writes, then start at 0.
+		log.Warnf("getSuffix: File %v is empty", fileName)
+		return &entry{NextSuffix: 0}, nil
 	}
 
 	var entry entry
@@ -64,9 +65,16 @@ func writeSuffix(fileName string, entry *entry) error {
 		return err
 	}
 
-	err = os.WriteFile(fileName, jsonBytes, 0644)
+	tempFileName := fileName + ".tmp"
+	err = os.WriteFile(tempFileName, jsonBytes, 0644)
 	if err != nil {
-		log.Errorf("writeSuffix: Cannot write json=%s to file=%v; err=%v", jsonBytes, fileName, err)
+		log.Errorf("writeSuffix: Cannot write json=%s to file=%v; err=%v", jsonBytes, tempFileName, err)
+		return err
+	}
+
+	err = os.Rename(tempFileName, fileName)
+	if err != nil {
+		log.Errorf("writeSuffix: Cannot rename file=%v to file=%v; err=%v", tempFileName, fileName, err)
 		return err
 	}
 
