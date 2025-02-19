@@ -153,6 +153,7 @@ func Test_Multiplexer_MainCompletesLast(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
 	assert.NotNil(t, msg.CompleteWSResp.TimechartComplete)
 	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.TimechartComplete.ColumnsOrder)
+	assert.Equal(t, query.COMPLETE.String(), msg.CompleteWSResp.State)
 
 	_, ok = <-outChan
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
@@ -187,12 +188,14 @@ func Test_Multiplexer_QueryUpdate(t *testing.T) {
 			assert.Equal(t, mainQid, msg.Qid)
 			assert.Equal(t, []string{"m1", "m2"}, msg.UpdateWSResp.ColumnsOrder)
 			assert.Nil(t, msg.UpdateWSResp.TimechartUpdate)
+			assert.Equal(t, query.QUERY_UPDATE.String(), msg.UpdateWSResp.State)
 		case TimechartIndex:
 			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
 			assert.Equal(t, timechartQid, msg.Qid)
 			assert.Empty(t, msg.UpdateWSResp.ColumnsOrder)
 			assert.NotNil(t, msg.UpdateWSResp.TimechartUpdate)
 			assert.Equal(t, []string{"t1", "t2"}, msg.UpdateWSResp.TimechartUpdate.ColumnsOrder)
+			assert.Equal(t, query.QUERY_UPDATE.String(), msg.UpdateWSResp.State)
 		default:
 			t.Fatalf("Unexpected channel index: %d", msg.ChannelIndex)
 			t.FailNow()

@@ -137,6 +137,7 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 			update.TimechartUpdate = data.UpdateWSResp
 		}
 
+		update.State = data.StateName.String()
 		data.UpdateWSResp = update
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,
@@ -163,6 +164,7 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		}
 
 		if q.allChannelsAreComplete() {
+			q.savedCompletion.State = data.StateName.String()
 			q.output <- &QueryStateEnvelope{
 				QueryStateChanData: &query.QueryStateChanData{
 					StateName:       query.COMPLETE,
