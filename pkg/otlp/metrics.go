@@ -19,55 +19,28 @@ package otlp
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/siglens/siglens/pkg/config"
-	"github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
+	. "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/usageStats"
-	segwriter "github.com/siglens/siglens/pkg/segment/writer"
-	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	collmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
-	"google.golang.org/protobuf/proto"
+	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
-
+	"google.golang.org/protobuf/proto"
 )
 
-
-type resourceMetrics struct {
-	Attributes             		map[string]interface{} `json:"attributes"`
-	DroppedAttributesCount 		int64                  `json:"dropped_attributes_count"`
-	SchemaUrl                   string                 `json:"schema_url"`
+type processedMetric struct {
+	Name         string
+	Description  string
+	Unit         string
+	Type         string
+	Attributes   map[string]string
+	TimeUnixNano uint64
+	Value        uint64
 }
-
-
-type scopeMetrics struct {
-	Name                   		string                 `json:"name"`
-	Version                		string                 `json:"version"`
-	Attributes             		map[string]interface{} `json:"attributes"`
-	DroppedAttributesCount 		int64                  `json:"dropped_attributes_count"`
-	SchemaUrl              		string                 `json:"schema_url"`
-}
-
-type metrics struct {
-	ResourceMetrics             *resourceMetrics        `json:"resource"`
-	ScopeMetrics                *scopeMetrics           `json:"scope"`
-	Name        				string 					`json:"name"`
-	Description 				string 					`json:"description"`
-	Unit        				string 					`json:"unit"`
-	Gauge                    	*metricspb.Gauge  	 	`json:"gauge,omitempty"`
-    Sum                      	*metricspb.Sum     		`json:"sum,omitempty"`
-    Histogram                	*metricspb.Histogram 	`json:"histogram,omitempty"`
-    ExponentialHistogram     	*metricspb.ExponentialHistogram `json:"exponential_histogram,omitempty"`
-    Summary                  	*metricspb.Summary 		`json:"summary,omitempty"`
-}
-
-
-
-
-
 
 func ProcessMetricsIngest(ctx *fasthttp.RequestCtx, myid int64) {
 
@@ -98,163 +71,34 @@ func ProcessMetricsIngest(ctx *fasthttp.RequestCtx, myid int64) {
 	setMetricsIngestionResponse(ctx, numTotalRecords, numFailedRecords)
 }
 
-
 func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int64) (int, int) {
-	now := utils.GetCurrentTimeInMs()
-	timestampKey := config.GetTimeStampKey()
-	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
-	localIndexMap := make(map[string]string)
-	idxToStreamIdCache := make(map[string]string)
-	cnameCacheByteHashToStr := make(map[uint64]string)
-	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	numTotalRecords := 0
 	numFailedRecords := 0
-
-
 	for _, resourceMetrics := range request.ResourceMetrics {
-		resource, indexName, err := extractResourceInfoMetrics(resourceMetrics)
-		if err != nil {
-			log.Errorf("ingestMetrics: failed to extract resource info: %v", err)
-			for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
-				numTotalRecords += len(scopeMetrics.Metrics)
-				numFailedRecords += len(scopeMetrics.Metrics)
-			}
-
-			continue
-		}
 
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
-			scope, err := extractScopeMetricsInfo(scopeMetrics)
-			if err != nil {
-				log.Errorf("ingestMetrics: failed to extract scope info: %v", err)
-				numTotalRecords += len(scopeMetrics.Metrics)
-				numFailedRecords += len(scopeMetrics.Metrics)
-
-				continue
-			}
 
 			for _, metrics := range scopeMetrics.Metrics {
 				numTotalRecords++
-				record, err := extractMetricsRecord(metrics, resource, scope)
-				if err != nil {
-					log.Errorf("ingestmetrics: failed to extract log record: %v", err)
-					numFailedRecords++
-					continue
+				metricType, extractedMetrics := processMetric(metrics)
+				for _, pm := range extractedMetrics {
+					pm.Type = metricType
+					data, err := ConvertToOLTPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
+					numTotalRecords++
+					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
+					if err != nil {
+						numFailedRecords++
+						log.Errorf("OLTPMatrics: failed to add time series entry for data=%+v, err=%v", data, err)
+					}
 				}
 
-				jsonBytes, err := json.Marshal(record)
-				if err != nil {
-					log.Errorf("ingestMetrics: failed to marshal log record; err=%v", err)
-					numFailedRecords++
-					continue
-				}
-
-				ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &timestampKey, jsParsingStackbuf[:])
-				if err != nil {
-					log.Errorf("ingestMetrics: failed to get new PLE, jsonBytes: %v, err: %v", jsonBytes, err)
-					numFailedRecords++
-					continue
-				}
-				pleArray = append(pleArray, ple)
 			}
 		}
 
-
-		shouldFlush := false
-		err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
-		if err != nil {
-			log.Errorf("ingestMetrics: Failed to ingest Metrics, err: %v", err)
-			numFailedRecords += len(pleArray)
-		}
-		pleArray = pleArray[:0]
 	}
 
 	return numTotalRecords, numFailedRecords
 }
-
-
-func extractResourceInfoMetrics(resourceMetric *metricspb.ResourceMetrics) (*resourceMetrics, string, error) {
-	resource := resourceMetrics{
-		Attributes: make(map[string]interface{}),
-		SchemaUrl:  resourceMetric.SchemaUrl,
-	}
-	indexName := "otel-metrics"
-
-	if resourceMetric.Resource != nil {
-		resource.DroppedAttributesCount = int64(resourceMetric.Resource.DroppedAttributesCount)
-
-		for _, attribute := range resourceMetric.Resource.Attributes {
-			key, value, err := extractKeyValue(attribute)
-			if err != nil {
-				return nil, "", err
-			}
-
-			resource.Attributes[key] = value
-
-			if key == indexNameAttributeKey {
-				valueStr := fmt.Sprintf("%v", value)
-				if valueStr != "" {
-					indexName = valueStr
-				}
-			}
-		}
-	}
-
-	return &resource, indexName, nil
-}
-
-func extractScopeMetricsInfo(scopeMetric *metricspb.ScopeMetrics) (*scopeMetrics, error) {
-	scope := scopeMetrics{
-		Attributes: make(map[string]interface{}),
-		SchemaUrl:  scopeMetric.SchemaUrl,
-	}
-
-	if scopeMetric.Scope != nil {
-		scope.Name = scopeMetric.Scope.Name
-		scope.Version = scopeMetric.Scope.Version
-		scope.DroppedAttributesCount = int64(scopeMetric.Scope.DroppedAttributesCount)
-
-		for _, attribute := range scopeMetric.Scope.Attributes {
-			key, value, err := extractKeyValue(attribute)
-			if err != nil {
-				return nil, err
-			}
-
-			scope.Attributes[key] = value
-		}
-	}
-
-	return &scope, nil
-}
-
-
-func extractMetricsRecord(metricsRecord *metricspb.Metric, resource *resourceMetrics, scope *scopeMetrics) (*metrics, error) {
-	record := metrics{
-		ResourceMetrics:               resource,
-		ScopeMetrics:                  scope,
-		Name: string(metricsRecord.Name),
-		Description: string(metricsRecord.Description),
-		Unit: string(metricsRecord.Unit),
-	}
-	
-	switch data := metricsRecord.Data.(type) {
-		case *metricspb.Metric_Gauge:
-			record.Gauge = data.Gauge
-		case *metricspb.Metric_Sum:
-			record.Sum = data.Sum
-		case *metricspb.Metric_Histogram:
-			record.Histogram = data.Histogram
-		case *metricspb.Metric_ExponentialHistogram:
-			record.ExponentialHistogram = data.ExponentialHistogram
-		case *metricspb.Metric_Summary:
-			record.Summary = data.Summary
-		default:
-			return nil, fmt.Errorf("unsupported metrics data type")
-	}
-
-	return &record, nil
-}
-
 
 func unmarshalMetricRequest(data []byte) (*collmetricspb.ExportMetricsServiceRequest, error) {
 	var metrics collmetricspb.ExportMetricsServiceRequest
@@ -266,7 +110,6 @@ func unmarshalMetricRequest(data []byte) (*collmetricspb.ExportMetricsServiceReq
 
 	return &metrics, nil
 }
-
 
 func setMetricsIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numFailedRecords int) {
 	if numFailedRecords == 0 {
@@ -302,5 +145,125 @@ func setMetricsIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, 
 	}
 }
 
+func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
+	var extracted []processedMetric
 
+	if gauge := metric.GetGauge(); gauge != nil {
+		for _, dataPoint := range gauge.DataPoints {
+			extracted = append(extracted, processedMetric{
+				Name:         metric.Name,
+				Description:  metric.Description,
+				Unit:         metric.Unit,
+				Attributes:   extractAttributes(dataPoint.Attributes),
+				TimeUnixNano: dataPoint.TimeUnixNano,
+				Value:        uint64(dataPoint.GetAsDouble()),
+			})
+		}
+		return "Gauge", extracted
+	}
 
+	// Process Sum
+	if sum := metric.GetSum(); sum != nil {
+		for _, dataPoint := range sum.DataPoints {
+			extracted = append(extracted, processedMetric{
+				Name:         metric.Name,
+				Description:  metric.Description,
+				Unit:         metric.Unit,
+				Attributes:   extractAttributes(dataPoint.Attributes),
+				TimeUnixNano: dataPoint.TimeUnixNano,
+				Value:        uint64(dataPoint.GetAsInt()), // Use GetAsDouble() if required
+			})
+		}
+		return "Sum", extracted
+	}
+
+	// Process Histogram
+	if histogram := metric.GetHistogram(); histogram != nil {
+		for _, dataPoint := range histogram.DataPoints {
+			extracted = append(extracted, processedMetric{
+				Name:         metric.Name,
+				Description:  metric.Description,
+				Unit:         metric.Unit,
+				Attributes:   extractAttributes(dataPoint.Attributes),
+				TimeUnixNano: dataPoint.TimeUnixNano,
+				Value:        dataPoint.Count,
+			})
+		}
+		return "Histogram", extracted
+	}
+
+	// Process Exponential Histogram
+	if expHistogram := metric.GetExponentialHistogram(); expHistogram != nil {
+		for _, dataPoint := range expHistogram.DataPoints {
+			extracted = append(extracted, processedMetric{
+				Name:         metric.Name,
+				Description:  metric.Description,
+				Unit:         metric.Unit,
+				Attributes:   extractAttributes(dataPoint.Attributes),
+				TimeUnixNano: dataPoint.TimeUnixNano,
+				Value:        uint64(dataPoint.Scale),
+			})
+		}
+		return "ExponentialHistogram", extracted
+	}
+
+	// Process Summary
+	if summary := metric.GetSummary(); summary != nil {
+		for _, dataPoint := range summary.DataPoints {
+			extracted = append(extracted, processedMetric{
+				Name:         metric.Name,
+				Description:  metric.Description,
+				Unit:         metric.Unit,
+				Attributes:   extractAttributes(dataPoint.Attributes),
+				TimeUnixNano: dataPoint.TimeUnixNano,
+				Value:        dataPoint.Count,
+			})
+		}
+		return "Summary", extracted
+	}
+
+	return "Unknown", extracted
+}
+
+func ConvertToOLTPMetricsFormat(data processedMetric, timestamp int64, value float64) ([]byte, error) {
+	type Metric struct {
+		Name      string            `json:"metric"`
+		Tags      map[string]string `json:"tags"`
+		Timestamp int64             `json:"timestamp"`
+		Value     float64           `json:"value"`
+	}
+
+	var metricName string
+	tags := make(map[string]string)
+	metricName = data.Name
+	tags[data.Unit] = data.Unit
+	tags[data.Description] = data.Description
+	tags[data.Type] = data.Type
+
+	for key, val := range data.Attributes {
+		tags[key] = val
+	}
+
+	modifiedMetric := Metric{
+		Name:      metricName,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	}
+
+	modifiedData, err := json.Marshal(modifiedMetric)
+	if err != nil {
+		return nil, err
+	}
+
+	return modifiedData, nil
+}
+
+// Helper function to extract attributes from KeyValue pairs
+func extractAttributes(attributes []*commonpb.KeyValue) map[string]string {
+	attrMap := make(map[string]string)
+	for _, attr := range attributes {
+		attrMap[attr.Key] = attr.Value.GetStringValue()
+	}
+	return attrMap
+}
