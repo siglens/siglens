@@ -62,3 +62,18 @@ func Test_AtomicWriteFile_Append(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("applebanana"), got)
 }
+
+func Test_AtomicWriteFile_InvalidMode(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "testfile.txt")
+
+	err := os.WriteFile(filePath, []byte("previous data"), 0644)
+	assert.NoError(t, err)
+
+	err = AtomicWriteFile(filePath, []byte("apple"), WriteMode(42))
+	assert.Error(t, err)
+
+	got, err := os.ReadFile(filePath)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("previous data"), got)
+}
