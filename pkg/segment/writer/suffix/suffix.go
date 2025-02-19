@@ -64,9 +64,16 @@ func writeSuffix(fileName string, entry *entry) error {
 		return err
 	}
 
-	err = os.WriteFile(fileName, jsonBytes, 0644)
+	tempFileName := fileName + ".tmp"
+	err = os.WriteFile(tempFileName, jsonBytes, 0644)
 	if err != nil {
-		log.Errorf("writeSuffix: Cannot write json=%s to file=%v; err=%v", jsonBytes, fileName, err)
+		log.Errorf("writeSuffix: Cannot write json=%s to file=%v; err=%v", jsonBytes, tempFileName, err)
+		return err
+	}
+
+	err = os.Rename(tempFileName, fileName)
+	if err != nil {
+		log.Errorf("writeSuffix: Cannot rename file=%v to file=%v; err=%v", tempFileName, fileName, err)
 		return err
 	}
 
