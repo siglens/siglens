@@ -34,7 +34,6 @@ import (
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
-	//"github.com/siglens/siglens/pkg/segment/tracing/handler"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -605,10 +604,7 @@ func (p Sqlite) GetContactDetails(alert_id string) (string, string, string, erro
 		queryText = string(bytes)
 
 	case alertutils.AlertTypeAPM:
-		// _, _, _, _, redMetricsMap, err := handler.ParseRedMetricsRequest([]byte(alert.APMQueryParamsString))
-		// if err != nil {
-		// 	log.Errorf("GetContactDetails: unable to parse APM query params for Alert: %v, Error=%v", alert.AlertName, err)
-		// }
+
 		// Handling for APM alerts
 		var apmQuery struct {
 			JoinOperator string  `json:"JoinOperator"`

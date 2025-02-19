@@ -59,10 +59,10 @@ func AddCronJob(alertDataObj *alertutils.AlertDetails) (*gocron.Job, error) {
 	} else if alertDataObj.AlertType == alertutils.AlertTypeMetrics {
 		evaluateFunc = evaluateMetricsAlert
 	} else if alertDataObj.AlertType == alertutils.AlertTypeAPM {
-		evaluateFunc = evaluateAPMAlert
+		evaluateFunc = evaluateMetricsAlert // To Assign evaluteAPMAlert method after implementation
 	} else {
-		log.Errorf("AddCronJob: AlertType=%v is not Logs or Metrics. Alert=%+v", alertDataObj.AlertType, alertDataObj.AlertName)
-		return nil, fmt.Errorf("AlertType is not Logs or Metrics. Alert=%+v", alertDataObj.AlertName)
+		log.Errorf("AddCronJob: AlertType=%v is not Logs or Metrics or APM  . Alert=%+v", alertDataObj.AlertType, alertDataObj.AlertName)
+		return nil, fmt.Errorf("AlertType is not Logs or Metrics or APM. Alert=%+v", alertDataObj.AlertName)
 	}
 
 	cron_job, err := s.Every(evaluationIntervalInSec).Second().Tag(alertDataObj.AlertId).DoWithJobDetails(evaluateFunc, alertDataObj)
@@ -339,7 +339,10 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 	}
 }
 
-func evaluateAPMAlert(x int) {}
+// TO DO  : - This Function is to be Implemented will used inside AddCronJob
+func evaluateAPMAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.Job) {
+
+}
 
 func updateAlertState(alertId string, alertState alertutils.AlertState, alertNotificationSent bool) error {
 	err := databaseObj.UpdateAlertStateAndNotificationDetails(alertId, alertState, alertNotificationSent)

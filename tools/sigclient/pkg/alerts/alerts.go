@@ -64,17 +64,6 @@ const (
 	EvalInterval        = 1
 
 	APMQueryParamsString = "{\"start\":\"now-3h\",\"end\":\"now\",\"serviceName\":\"sanket\",\"query\":{\"JoinOperator\":\"OR\",\"RatePerSec\":10.5,\"ErrorPercentage\":5.0,\"DurationP50Ms\":200,\"DurationP90Ms\":500,\"DurationP99Ms\":1000}}"
-
-	// // APM parameters
-	// apmStartTime       = "now-3h"
-	// apmEndTime         = "now"
-	// apmServiceName     = "some_service"
-	// apmJoinOperator    = "OR"
-	// apmRatePerSec      = 10.5
-	// apmErrorPercentage = 5.0
-	// apmDurationP50Ms   = 200.0
-	// apmDurationP90Ms   = 500.0
-	// apmDurationP99Ms   = 1000.0
 )
 
 func sendHttpRequest(method string, url string, data []byte) (*http.Response, error) {
@@ -193,18 +182,6 @@ func createAlert(host string, alertTypeString string, contactId string, alertNam
 	} else {
 		alert.APMQueryParamsString = APMQueryParamsString
 	}
-	// if alertType == alertutils.AlertTypeMetrics {
-	// 	alert.MetricsQueryParamsString = MetricsQueryParamsString
-	// } else {
-	// 	alert.QueryParams = alertutils.QueryParams{
-	// 		DataSource:    LogsString,
-	// 		QueryLanguage: LogsQueryLanguage,
-	// 		QueryText:     LogsQueryText,
-	// 		StartTime:     LogsStartTime,
-	// 		EndTime:       LogsEndTime,
-	// 	}
-	// }
-
 	url := host + "/api/alerts/create"
 
 	data, err := json.Marshal(alert)

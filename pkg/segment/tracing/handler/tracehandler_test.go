@@ -138,115 +138,115 @@ func TestGetUniqueTraceIds(t *testing.T) {
 	assert.Equal(t, []string{}, traceIds)
 }
 
-// func Test_parseRequest(t *testing.T) {
-// 	// Case 1: Valid JSON input
-// 	validJSON := `{
-// 		"startTime": "now-3h",
-// 		"endTime": "now",
-// 		"serviceName": "some_service",
-// 		"query": {
-// 			"JoinOperator": "AND",
-// 			"RatePerSec": 100,
-// 			"ErrorPercentage": 5,
-// 			"DurationP50Ms": 200,
-// 			"DurationP90Ms": 500,
-// 			"DurationP99Ms": 1000
-// 		}
-// 	}`
+func Test_parseRequest(t *testing.T) {
+	// Case 1: Valid JSON input
+	validJSON := `{
+		"start": 1625248200,
+		"end": 1625248300,
+		"serviceName": "some_service",
+		"query": {
+			"JoinOperator": "AND",
+			"RatePerSec": 100.0,
+			"ErrorPercentage": 5.0,
+			"DurationP50Ms": 200.0,
+			"DurationP90Ms": 500.0,
+			"DurationP99Ms": 1000.0
+		}
+	}`
 
-// 	start, end, serviceName, _, _, err := ParseRedMetricsRequest([]byte(validJSON))
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, "now-3h", start)
-// 	assert.Equal(t, "now", end)
-// 	assert.Equal(t, "some_service", serviceName)
-// 	assert.Equal(t, "AND", query.JoinOperator)
-// 	assert.Equal(t, 100, query.RatePerSec)
-// 	assert.Equal(t, 5, query.ErrorPercentage)
-// 	assert.Equal(t, 200, query.DurationP50Ms)
-// 	assert.Equal(t, 500, query.DurationP90Ms)
-// 	assert.Equal(t, 1000, query.DurationP99Ms)
+	start, end, serviceName, _, redMetricsMap, err := ParseRedMetricsRequest([]byte(validJSON))
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(1625248200), start)
+	assert.Equal(t, uint32(1625248300), end)
+	assert.Equal(t, "some_service", serviceName)
+	assert.Equal(t, "AND", redMetricsMap["join_operator"])
+	assert.Equal(t, 100.0, redMetricsMap["RatePerSec"])
+	assert.Equal(t, 5.0, redMetricsMap["ErrorPercentage"])
+	assert.Equal(t, 200.0, redMetricsMap["DurationP50Ms"])
+	assert.Equal(t, 500.0, redMetricsMap["DurationP90Ms"])
+	assert.Equal(t, 1000.0, redMetricsMap["DurationP99Ms"])
 
-// 	// Case 2: Valid JSON input with default JoinOperator (OR)
-// 	validJSONDefaultJoinOperator := `{
-// 		"startTime": "now-3h",
-// 		"endTime": "now",
-// 		"serviceName": "some_service",
-// 		"query": {
-// 			"RatePerSec": 100
-// 		}
-// 	}`
+	// Case 2: Valid JSON input with default JoinOperator (OR)
+	validJSONDefaultJoinOperator := `{
+		"start": 1625248200,
+		"end": 1625248300,
+		"serviceName": "some_service",
+		"query": {
+			"RatePerSec": 100.0	}
+	}`
 
-// 	startTime, endTime, serviceName, query, err = ParseRequest([]byte(validJSONDefaultJoinOperator))
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, "now-3h", startTime)
-// 	assert.Equal(t, "now", endTime)
-// 	assert.Equal(t, "some_service", serviceName)
-// 	assert.Equal(t, "OR", query.JoinOperator) // Default should be OR
-// 	assert.Equal(t, 100, query.RatePerSec)
+	start, end, serviceName, _, redMetricsMap, err = ParseRedMetricsRequest([]byte(validJSONDefaultJoinOperator))
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(1625248200), start)
+	assert.Equal(t, uint32(1625248300), end)
+	assert.Equal(t, "some_service", serviceName)
+	assert.Equal(t, "OR", redMetricsMap["join_operator"]) // Default should be OR
+	assert.Equal(t, 100.0, redMetricsMap["RatePerSec"])
 
-// 	// Case 3: Invalid JSON input (missing 'startTime')
-// 	invalidJSONMissingStartTime := `{
-// 		"endTime": "now",
-// 		"serviceName": "some_service",
-// 		"query": {
-// 			"RatePerSec": 100
-// 		}
-// 	}`
+	// Case 3: Invalid JSON input (missing 'startTime')
+	invalidJSONMissingStartTime := `{
+		"end": 1625248300,
+		"serviceName": "some_service",
+		"query": {
+			"RatePerSec": 100.0
+		}
+	}`
 
-// 	startTime, endTime, serviceName, query, err = ParseRequest([]byte(invalidJSONMissingStartTime))
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "startTime is required")
+	start, end, serviceName, _, redMetricsMap, err = ParseRedMetricsRequest([]byte(invalidJSONMissingStartTime))
+	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, serviceName)
+	assert.NotNil(t, redMetricsMap)
 
-// 	// Case 4: Invalid JSON input (missing 'endTime')
-// 	invalidJSONMissingEndTime := `{
-// 		"startTime": "now-3h",
-// 		"serviceName": "some_service",
-// 		"query": {
-// 			"RatePerSec": 100
-// 		}
-// 	}`
+	// Case 4: Invalid JSON input (missing 'endTime')
+	invalidJSONMissingEndTime := `{
+		"start":1625248200,
+		"serviceName": "some_service",
+		"query": {
+			"RatePerSec": 100.0
+		}
+	}`
 
-// 	startTime, endTime, serviceName, query, err = ParseRequest([]byte(invalidJSONMissingEndTime))
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "endTime is required")
+	start, end, serviceName, _, redMetricsMap, err = ParseRedMetricsRequest([]byte(invalidJSONMissingEndTime))
+	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, serviceName)
+	assert.NotNil(t, redMetricsMap)
 
-// 	// Case 5: Invalid JSON input (missing 'serviceName')
-// 	invalidJSONMissingServiceName := `{
-// 		"startTime": "now-3h",
-// 		"endTime": "now",
-// 		"query": {
-// 			"RatePerSec": 100
-// 		}
-// 	}`
+	// Case 5: Invalid JSON input (missing 'serviceName')
+	invalidJSONMissingServiceName := `{
+		"start": 1625248200,
+		"end":1625248300 ,
+		"query": {
+			"RatePerSec": 100.0
+		}
+	}`
 
-// 	startTime, endTime, serviceName, query, err = ParseRequest([]byte(invalidJSONMissingServiceName))
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "serviceName is required")
+	start, end, serviceName, _, redMetricsMap, err = ParseRedMetricsRequest([]byte(invalidJSONMissingServiceName))
+	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, serviceName)
+	assert.NotNil(t, redMetricsMap)
 
-// 	// Case 6: Invalid JSON input (missing query parameters)
-// 	invalidJSONMissingQueryParams := `{
-// 		"startTime": "now-3h",
-// 		"endTime": "now",
-// 		"serviceName": "some_service",
-// 		"query": {}
-// 	}`
+	// Case 7: Invalid JSON input (malformed query parameters)
+	invalidJSONMalformedQueryParams := `{
+		"startTime": 1625248200,
+		"endTime": 1625248300,
+		"serviceName": "some_service",
+		"query": {
+			"JoinOperator": "INVALID_OPERATOR",
+			"RatePerSec": "not_a_number"
+		}
+	}`
 
-// 	startTime, endTime, serviceName, query, err = ParseRequest([]byte(invalidJSONMissingQueryParams))
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "at least one query parameter is required")
+	start, end, serviceName, _, redMetricsMap, err = ParseRedMetricsRequest([]byte(invalidJSONMalformedQueryParams))
+	assert.Error(t, err)
+	assert.NotNil(t, start)
+	assert.NotNil(t, end)
+	assert.NotNil(t, serviceName)
+	assert.NotNil(t, redMetricsMap)
 
-// 	// Case 7: Invalid JSON input (malformed query parameters)
-// 	invalidJSONMalformedQueryParams := `{
-// 		"startTime": "now-3h",
-// 		"endTime": "now",
-// 		"serviceName": "some_service",
-// 		"query": {
-// 			"JoinOperator": "INVALID_OPERATOR",
-// 			"RatePerSec": "not_a_number"
-// 		}
-// 	}`
-
-// 	startTime, endTime, serviceName, query, err = ParseRequest([]byte(invalidJSONMalformedQueryParams))
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "invalid query parameters")
-// }
+}

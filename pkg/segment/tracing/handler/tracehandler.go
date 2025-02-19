@@ -788,6 +788,12 @@ func ParseRedMetricsRequest(rawJSON []byte) (uint32, uint32, string, string, map
 
 	// Include JoinOperator in response
 	redMetricsMap["join_operator"] = joinOperator
+	redMetricsMap["RatePerSec"] = redMetrics.Rate
+	redMetricsMap["ErrorPercentage"] = redMetrics.ErrorRate
+	redMetricsMap["DurationP50Ms"] = redMetrics.P50
+	redMetricsMap["DurationP90Ms"] = redMetrics.P90
+	redMetricsMap["DurationP95Ms"] = redMetrics.P95
+	redMetricsMap["DurationP99Ms"] = redMetrics.P99
 
 	return start, end, serviceName, errorLog, redMetricsMap, nil
 }
