@@ -42,6 +42,11 @@ func getSuffix(fileName string) (*entry, error) {
 		return nil, err
 	}
 
+	// Handle an empty file.
+	if len(jsonBytes) == 0 {
+		return &entry{NextSuffix: 0}, nil
+	}
+
 	var entry entry
 	err = json.Unmarshal(jsonBytes, &entry)
 	if err != nil {
