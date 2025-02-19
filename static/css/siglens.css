@@ -6334,7 +6334,7 @@ p#versionInfo {
 .json-popup-content {
     padding: 16px;
     overflow-y: auto;
-    height: calc(100% - 40px);
+    height: calc(100% - 90px);
 }
 
 .json-popup-content div {
