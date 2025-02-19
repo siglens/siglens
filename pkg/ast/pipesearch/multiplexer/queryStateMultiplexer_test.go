@@ -18,6 +18,7 @@
 package multiplexer
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -200,6 +201,38 @@ func Test_Multiplexer_QueryUpdate(t *testing.T) {
 			t.FailNow()
 		}
 	}
+}
+
+func Test_Multiplexer_ErrorClosesOutput(t *testing.T) {
+	mainChan := make(chan *query.QueryStateChanData, 4)
+	timechartChan := make(chan *query.QueryStateChanData, 4)
+	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
+	outChan := multiplexer.Multiplex()
+	const mainQid = uint64(42)
+	const timechartQid = uint64(100)
+	testErr := fmt.Errorf("test error")
+
+	// Send an error from the main channel.
+	mainChan <- &query.QueryStateChanData{
+		StateName: query.ERROR,
+		Qid:       mainQid,
+		Error:     testErr,
+	}
+
+	// The multiplexer should output the error and close the channel.
+	msg, ok := <-outChan
+	assert.True(t, ok, "Expected an error message to be output")
+	assert.Equal(t, query.ERROR, msg.StateName, "Expected state to be ERROR")
+	assert.Contains(t, msg.Error.Error(), testErr.Error())
+
+	// Even if the timechart channel sends a message, the multiplexer should not output it.
+	timechartChan <- &query.QueryStateChanData{
+		StateName: query.READY,
+		Qid:       timechartQid,
+	}
+
+	_, ok = <-outChan
+	assert.False(t, ok, "Expected no additional messages after error")
 }
 
 func drainMessages[T any](outChan <-chan T, timeout time.Duration) []T {
