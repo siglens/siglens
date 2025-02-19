@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMultiplexer_TimechartNil(t *testing.T) {
+func Test_Multiplexer_TimechartNil(t *testing.T) {
 	mainChan := make(chan *query.QueryStateChanData, 2)
 	multiplexer := NewQueryStateMultiplexer(mainChan, nil) // timechart channel is nil.
 	outChan := multiplexer.Multiplex()
@@ -47,11 +47,7 @@ func TestMultiplexer_TimechartNil(t *testing.T) {
 	}
 	mainChan <- completeData
 
-	// Collect all output messages.
-	var messages []*QueryStateEnvelope
-	for msg := range outChan {
-		messages = append(messages, msg)
-	}
+	messages := drainMessages(outChan, 1*time.Second)
 
 	// Expect two messages: one for READY and one for COMPLETE.
 	assert.Len(t, messages, 2)
@@ -61,7 +57,7 @@ func TestMultiplexer_TimechartNil(t *testing.T) {
 	assert.Equal(t, qid, messages[1].Qid)
 }
 
-func TestMultiplexer_MainCompletesFirst(t *testing.T) {
+func Test_Multiplexer_MainCompletesFirst(t *testing.T) {
 	mainChan := make(chan *query.QueryStateChanData, 4)
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
@@ -111,7 +107,7 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
 }
 
-func TestMultiplexer_MainCompletesLast(t *testing.T) {
+func Test_Multiplexer_MainCompletesLast(t *testing.T) {
 	mainChan := make(chan *query.QueryStateChanData, 4)
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
@@ -161,7 +157,7 @@ func TestMultiplexer_MainCompletesLast(t *testing.T) {
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
 }
 
-func TestMultiplexer_QueryUpdate(t *testing.T) {
+func Test_Multiplexer_QueryUpdate(t *testing.T) {
 	mainChan := make(chan *query.QueryStateChanData, 4)
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
@@ -179,9 +175,34 @@ func TestMultiplexer_QueryUpdate(t *testing.T) {
 		UpdateWSResp: &structs.PipeSearchWSUpdateResponse{ColumnsOrder: []string{"t1", "t2"}},
 	}
 
-	// Collect all output messages.
-	var messages []*QueryStateEnvelope
-	timeout := time.After(1 * time.Second)
+	messages := drainMessages(outChan, 1*time.Second)
+	assert.Len(t, messages, 2)
+
+	for _, msg := range messages {
+		switch msg.ChannelIndex {
+		case MainIndex:
+			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
+			assert.Equal(t, qid, msg.Qid)
+			assert.Equal(t, []string{"m1", "m2"}, msg.UpdateWSResp.ColumnsOrder)
+			assert.Nil(t, msg.UpdateWSResp.RelatedUpdate)
+		case TimechartIndex:
+			assert.Equal(t, query.QUERY_UPDATE, msg.StateName)
+			assert.Equal(t, qid, msg.Qid)
+			assert.Empty(t, msg.UpdateWSResp.ColumnsOrder)
+			assert.NotNil(t, msg.UpdateWSResp.RelatedUpdate)
+			assert.NotNil(t, msg.UpdateWSResp.RelatedUpdate.Timechart)
+			assert.Equal(t, []string{"t1", "t2"}, msg.UpdateWSResp.RelatedUpdate.Timechart.ColumnsOrder)
+		default:
+			t.Fatalf("Unexpected channel index: %d", msg.ChannelIndex)
+			t.FailNow()
+		}
+	}
+}
+
+func drainMessages[T any](outChan <-chan T, timeout time.Duration) []T {
+	var messages []T
+	deadline := time.After(timeout)
+
 loop:
 	for {
 		select {
@@ -190,23 +211,10 @@ loop:
 				break loop
 			}
 			messages = append(messages, msg)
-		case <-timeout:
+		case <-deadline:
 			break loop
 		}
 	}
 
-	assert.Len(t, messages, 2)
-	assert.Equal(t, query.QUERY_UPDATE, messages[0].StateName)
-	assert.Equal(t, qid, messages[0].Qid)
-	assert.Equal(t, MainIndex, messages[0].ChannelIndex)
-	assert.Equal(t, []string{"m1", "m2"}, messages[0].UpdateWSResp.ColumnsOrder)
-	assert.Nil(t, messages[0].UpdateWSResp.RelatedUpdate)
-
-	assert.Equal(t, query.QUERY_UPDATE, messages[1].StateName)
-	assert.Equal(t, qid, messages[1].Qid)
-	assert.Equal(t, TimechartIndex, messages[1].ChannelIndex)
-	assert.Empty(t, messages[1].UpdateWSResp.ColumnsOrder)
-	assert.NotNil(t, messages[1].UpdateWSResp.RelatedUpdate)
-	assert.NotNil(t, messages[1].UpdateWSResp.RelatedUpdate.Timechart)
-	assert.Equal(t, []string{"t1", "t2"}, messages[1].UpdateWSResp.RelatedUpdate.Timechart.ColumnsOrder)
+	return messages
 }
