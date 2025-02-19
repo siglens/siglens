@@ -27,14 +27,12 @@ import (
 )
 
 func TestMultiplexer_TimechartNil(t *testing.T) {
-	// Create a buffered main query channel.
 	mainChan := make(chan *query.QueryStateChanData, 2)
-	// timechart channel is nil.
-	multiplexer := NewQueryStateMultiplexer(mainChan, nil)
+	multiplexer := NewQueryStateMultiplexer(mainChan, nil) // timechart channel is nil.
 	outChan := multiplexer.Multiplex()
+	const qid = uint64(42)
 
 	// Send a READY message.
-	const qid = uint64(42)
 	readyData := &query.QueryStateChanData{
 		StateName: query.READY,
 		Qid:       qid,
@@ -68,7 +66,6 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
 	outChan := multiplexer.Multiplex()
-
 	const qid = uint64(42)
 
 	mainChan <- &query.QueryStateChanData{
@@ -99,7 +96,7 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 	timechartChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		Qid:            qid,
-		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1"}},
+		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1", "t2"}},
 	}
 
 	msg, ok := <-outChan
@@ -108,7 +105,7 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
 	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
 	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
-	assert.Equal(t, []string{"t1"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
+	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
 
 	_, ok = <-outChan
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
@@ -119,7 +116,6 @@ func TestMultiplexer_MainCompletesLast(t *testing.T) {
 	timechartChan := make(chan *query.QueryStateChanData, 4)
 	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
 	outChan := multiplexer.Multiplex()
-
 	const qid = uint64(42)
 
 	mainChan <- &query.QueryStateChanData{
@@ -133,7 +129,7 @@ func TestMultiplexer_MainCompletesLast(t *testing.T) {
 	timechartChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		Qid:            qid,
-		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1"}},
+		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1", "t2"}},
 	}
 
 	// Verify the COMPLETE message is not sent, since the main query hasn't completed.
@@ -159,8 +155,58 @@ func TestMultiplexer_MainCompletesLast(t *testing.T) {
 	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
 	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
 	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
-	assert.Equal(t, []string{"t1"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
+	assert.Equal(t, []string{"t1", "t2"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
 
 	_, ok = <-outChan
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
+}
+
+func TestMultiplexer_QueryUpdate(t *testing.T) {
+	mainChan := make(chan *query.QueryStateChanData, 4)
+	timechartChan := make(chan *query.QueryStateChanData, 4)
+	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
+	outChan := multiplexer.Multiplex()
+	const qid = uint64(42)
+
+	mainChan <- &query.QueryStateChanData{
+		StateName:    query.QUERY_UPDATE,
+		Qid:          qid,
+		UpdateWSResp: &structs.PipeSearchWSUpdateResponse{ColumnsOrder: []string{"m1", "m2"}},
+	}
+	timechartChan <- &query.QueryStateChanData{
+		StateName:    query.QUERY_UPDATE,
+		Qid:          qid,
+		UpdateWSResp: &structs.PipeSearchWSUpdateResponse{ColumnsOrder: []string{"t1", "t2"}},
+	}
+
+	// Collect all output messages.
+	var messages []*QueryStateEnvelope
+	timeout := time.After(1 * time.Second)
+loop:
+	for {
+		select {
+		case msg, ok := <-outChan:
+			if !ok {
+				break loop
+			}
+			messages = append(messages, msg)
+		case <-timeout:
+			break loop
+		}
+	}
+
+	assert.Len(t, messages, 2)
+	assert.Equal(t, query.QUERY_UPDATE, messages[0].StateName)
+	assert.Equal(t, qid, messages[0].Qid)
+	assert.Equal(t, MainIndex, messages[0].ChannelIndex)
+	assert.Equal(t, []string{"m1", "m2"}, messages[0].UpdateWSResp.ColumnsOrder)
+	assert.Nil(t, messages[0].UpdateWSResp.RelatedUpdate)
+
+	assert.Equal(t, query.QUERY_UPDATE, messages[1].StateName)
+	assert.Equal(t, qid, messages[1].Qid)
+	assert.Equal(t, TimechartIndex, messages[1].ChannelIndex)
+	assert.Empty(t, messages[1].UpdateWSResp.ColumnsOrder)
+	assert.NotNil(t, messages[1].UpdateWSResp.RelatedUpdate)
+	assert.NotNil(t, messages[1].UpdateWSResp.RelatedUpdate.Timechart)
+	assert.Equal(t, []string{"t1", "t2"}, messages[1].UpdateWSResp.RelatedUpdate.Timechart.ColumnsOrder)
 }
