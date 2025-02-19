@@ -986,68 +986,6 @@
   font-weight: 600;
 }
 
-.refresh-container{
-  display: flex;
-}
-
-#refresh-picker-btn{
-  margin: 0;
-  text-decoration: none;
-  border: none;
-  height: 24px;
-  line-height: 14px;
-  cursor: pointer;
-  border-radius: 0 5px 5px 0 !important;
-  width: auto;
-  padding: 0 5px;
-}
-
-#refresh-picker-btn:hover {
-  background: var(--drop-down-btn-bg-hover);
-}
-
-#refresh-picker-btn.active {
-  background: var(--drop-down-btn-bg-active) !important;
-  outline: 1px solid var(--drop-down-btn-border-active);
-  outline-offset: -1pt;
-}
-
-.refresh-btn{
-  border-radius: 5px 0 0 5px !important;
-  height: 24px;
-  width: 24px;
-  background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 46% !important;
-}
-
-.refresh-picker.show{
-  min-width: 53px !important;
-  height: auto !important;
-  background: var(--timepicker-bg-color);
-  border: 1px solid var(--timepicker-border-color);
-  color: var(--table-or-regular-text-color);
-  border-radius: 5px;
-  left:3px !important;
-  padding: 0.5rem;
-}
-
-.refresh-range-item.active {
-  background-color: var(--index-drop-down-item-active-bg-color);
-  color: var(--index-drop-down-item-active-text-color);
-}
-.refresh-range-item {
-  padding:1px 7px !important;
-  display: flex;
-  align-items: center;
-  border-radius: 5px;
-  line-height: 23px;
-  cursor: pointer;
-}
-
-.refresh-range-item:hover {
-  color: var(--timepicker-text-color-hover);
-}
-
 .panEdit-navBtns .refresh-btn{
   border-radius: 5px !important;
 }
@@ -1098,12 +1036,7 @@
 .panel-header:hover{
   background: var(--datatable-bg-color)  !important;
 }
-.panelDisplay,
-.refresh-btn,
-.dropdown-dash,
-.dropdown-toggle{
-  border: 1px solid var(--border-color-regular) !important;
-}
+
 .dropdown-dash{
   width: 32px;
 }

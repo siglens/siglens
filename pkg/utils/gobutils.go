@@ -36,6 +36,10 @@ func (self *GobbableRegex) GetCompiledRegex() *regexp.Regexp {
 	return self.compiledRegex
 }
 
+func (self *GobbableRegex) GetRawRegex() string {
+	return self.rawRegex
+}
+
 func (self *GobbableRegex) SetRegex(raw string) error {
 	compiled, err := regexp.Compile(raw)
 	if err != nil {
