@@ -48,47 +48,63 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     <style>
         .dash {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
             max-width: 100vw;
             height: 100vh;
-            padding: 20px;
+            padding: 10px;
         }
 
-        .card {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: white;
+        .header {
+            margin-bottom: 20px;
+        }
+
+        .boxes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px 10px;
+        }
+
+        .box {
+            background-color: var(--purple-3);
+            color: white;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             padding: 40px;
+            margin: 10px;
+            flex: 1 1 45%;
             text-align: center;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             cursor: pointer;
-            width: 100%;
-            height: 80%;
         }
 
-        .card:hover {
+        .box:hover {
+            background-color: white;
             transform: translateY(-5px);
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             border: 3px solid var(--purple-3);
         }
 
-        .title {
+        .box .title {
+            margin-top: 0;
             font-size: 24px;
             font-weight: bold;
-            color: #333;
-            margin-bottom: 15px;
         }
 
-        .description {
-            font-size: 18px;
-
+        .box:hover .title {
+            margin-top: 0;
+            font-size: 24px;
+            color: var(--purple-3);
         }
+
+        .box .description {
+            margin: 10px 0 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .box:hover .description {
+            color: #FF8700;
+        }
+
     </style>
     {{ .SLOCss | safeHTML }}
 
@@ -116,19 +132,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div id="all-slos">
             <h1 class="myOrg-heading">Metrics</h1>
-            <div class="dash">
 
-                <div class="card"  onclick="window.location.href='metrics-explorer.html'">
+        <div class=".dash">
+            <div class="boxes">
+                <div class="box" onclick="window.location.href='metrics-explorer.html'">
                     <div class="title">Explorer</div>
                     <div class="description">Search, Analyze and Explore Metrics.</div>
                 </div>
-
-                <div class="card" onclick="window.location.href='metric-summary.html'">
+                <div class="box" onclick="window.location.href='metric-summary.html'">
                     <div class="title">Metric Summary</div>
                     <div class="description">Explore Metric Names.</div>
                 </div>
-
-                <div class="card" onclick="window.location.href='metric-cardinality.html'">
+                <div class="box" onclick="window.location.href='metric-cardinality.html'">
                     <div class="title">Cardinality</div>
                     <div class="description">View Metric Cardinality.</div>
                 </div>

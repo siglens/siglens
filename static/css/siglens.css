@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -101,7 +101,7 @@
     --filter-color: var(--black-2);
     --table-head-bg-color: var(--black-2);
     --panel-table-line-color: var(--white-4);
-    
+
     --default-tab: var(--black-1);
 
     --input-color: var(--white-0);
@@ -609,9 +609,37 @@ body {
     cursor: pointer;
 }
 
+#app-side-nav .big-menu {
+    min-height: 38px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+    margin-bottom: 2px;
+    padding-right: 8px;
+}
+
+#app-side-nav .big-menu:hover{
+    /*border-left: 5px solid var(--side-nav-selected-border-color);*/
+    border-right: 5px solid var(--side-nav-bg-color-selected);
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+
+.big-menu-header:hover{
+     border-left: 5px solid var(--side-nav-selected-border-color);
+     border-right: 5px solid var(--side-nav-bg-color-selected);
+     background-color: var(--side-nav-bg-color-selected);
+     border-radius: 0 5px 5px 0;
+     cursor: pointer;
+ }
+
+
 /* #app-side-nav .menu:hover{
     background-color: var(--side-nav-bg-color-selected);
 } */
+
 #app-side-nav .nav-main-menu.logo {
     display: flex;
     justify-content: center;
@@ -738,8 +766,8 @@ body {
 }
 
 .icon-metrics:hover,
-.menu.nav-metrics.active .icon-metrics,
-.menu.nav-metrics:hover .icon-metrics {
+.big-menu.nav-metrics.active .icon-metrics,
+.big-menu.nav-metrics:hover .icon-metrics {
     background-image: url("../assets/metrics-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -898,8 +926,8 @@ body {
     border: none;
 }
 
-#query-language-btn.active .dropdown-arrow.orange, 
-#query-mode-btn.active .dropdown-arrow.orange, 
+#query-language-btn.active .dropdown-arrow.orange,
+#query-mode-btn.active .dropdown-arrow.orange,
 #alert-btn.active .dropdown-arrow.orange,
 #index-btn.active .dropdown-arrow.orange,
 #date-picker-btn.active .dropdown-arrow.orange,
@@ -1237,15 +1265,15 @@ progress.hidden {
     line-height: 31px;
     font-weight: var(--fw-500);
     color: var(--empty-response-text-color);
-    left: 0; 
-    right: 0; 
+    left: 0;
+    right: 0;
     /* margin: auto; */
     margin-left: auto;
     margin-right: auto;
     margin-top: 15%;
 }
 
-/* Save Query Dialog box 
+/* Save Query Dialog box
 ----------------------------------*/
 .ui-helper-clearfix:before,
 .ui-helper-clearfix:after {
@@ -1319,7 +1347,7 @@ progress.hidden {
 /* Component containers
 ----------------------------------*/
 .ui-widget input {
-    font-family: "DINpro", Arial, sans-serif;    
+    font-family: "DINpro", Arial, sans-serif;
 }
 
 .ui-widget-content {
@@ -1400,7 +1428,7 @@ progress.hidden {
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-} 
+}
 
 #cluster-stats-theme {
     display: grid;
@@ -1422,7 +1450,7 @@ progress.hidden {
 }
 
 #app-content-area .graph-container {
-    
+
     display: flex;
     width: 97%;
     align-items: center;
@@ -1435,7 +1463,7 @@ progress.hidden {
     font-size: 16px;
     color: var(--cstats-header-text-color);
     font-weight: 200 !important;
-    font-family: "DINpro", Arial, sans-serif;    
+    font-family: "DINpro", Arial, sans-serif;
     font-style: normal;
     text-align: center;
 }
@@ -1527,7 +1555,7 @@ progress.hidden {
     color: var(--health-stats-value-text-color);
 }
 
-#system-info-table th, 
+#system-info-table th,
 #org-settings-table th,
 #raft-system-info-table th,
 #dist-nodes-data-table tr td:first-child,
@@ -1690,7 +1718,7 @@ div.dts div.dataTables_scrollBody table {
 }
 
 .query-index-container{
-    
+
     justify-content: center;
     flex-direction: column;
     align-items: center;
@@ -2215,7 +2243,7 @@ div.dts div.dataTables_scrollBody table {
 }
 .available-fields-dropdown-item {
     height: 32px;
-    display: flex; 
+    display: flex;
     align-items: center;
     background: var(--index-drop-down-item-inactive-bg-color);
     color: var(--index-drop-down-item-inactive-text-color);
@@ -2246,14 +2274,14 @@ div.dts div.dataTables_scrollBody table {
     display: none;
     float: right;
     position: relative;
-    top: 15%; 
-    transform: translateY(-50%); 
+    top: 15%;
+    transform: translateY(-50%);
     right: 5px;
     vertical-align: middle;
     margin-left: 10px;
 }
 .fieldname-text {
-    flex-grow: 1; 
+    flex-grow: 1;
     white-space: nowrap;
     overflow: visible;
 }
@@ -2301,26 +2329,26 @@ div.dts div.dataTables_scrollBody table {
 }
 
 .select-unselect-checkbox {
-    margin-left: 10px; 
+    margin-left: 10px;
     height: 20px;
     width: 20px;
-    border: 1px solid transparent; 
+    border: 1px solid transparent;
     border-radius: 4px;
     cursor: pointer;
     position: relative;
-    z-index: 1; 
+    z-index: 1;
 }
-.select-unselect-checkbox:hover {   
-    border: 1px solid var(--select-unselect-box-border-color-hover); 
+.select-unselect-checkbox:hover {
+    border: 1px solid var(--select-unselect-box-border-color-hover);
 }
 
-.select-unselect-checkbox.active {  
+.select-unselect-checkbox.active {
     border: 0px solid var(--select-unselect-box-border-color-clicked);
 }
 
 .select-unselect-checkmark {
     position: relative;
-    z-index: 2; 
+    z-index: 2;
     float: right;
     right: 16px;
     top: 0px;
@@ -2541,7 +2569,7 @@ input[type="submit" i] {
     width: 16px;
     height: 16px;
     accent-color: var(--purple-1);
-} 
+}
 
 .checkbox[type="checkbox"] {
     appearance: none;
@@ -2553,7 +2581,7 @@ input[type="submit" i] {
     background-color: var(--hits-summary-bg-regular);
     border: 1.5px solid var(--purple-1);
     border-radius: 2px;
-} 
+}
 
 .checkbox[type="checkbox"]:not(:checked)::before {
     content: '';
@@ -2576,7 +2604,7 @@ input[type="submit" i] {
 .checkbox[type="checkbox"]:hover {
     cursor: pointer;
 }
-      
+
 /* datepicker */
 
 #date-picker-btn {
@@ -2589,7 +2617,7 @@ input[type="submit" i] {
 .dropdown-menu{
     font-size: 14px !important;
 }
- 
+
 .dropdown-menu.daterangepicker.show{
     background: var(--side-nav-bg-color-regular);
     color: var(--text-color);
@@ -2606,12 +2634,12 @@ input[type="submit" i] {
     margin-right: 25px;
     left:3px !important;
 
-    top: 60px; 
-    right: 0px; 
+    top: 60px;
+    right: 0px;
     display: block;
 
     line-height: 1em;
-    
+
 }
 #cstats-app-container .dropdown-menu.daterangepicker.show{
     height: auto !important;
@@ -2685,10 +2713,10 @@ input[type="time"]::-moz-calendar-picker-indicator {
 }
 
 #cstats-app-container hr{
-    border: 1px solid; 
-    height: 3px; 
-    background: var(--alerting-table-line-color); 
-    margin: 30px 0; 
+    border: 1px solid;
+    height: 3px;
+    background: var(--alerting-table-line-color);
+    margin: 30px 0;
 }
 
 
@@ -2862,7 +2890,7 @@ input[type="date"]::-webkit-calendar-picker-indicator , input[type="time"]::-web
     opacity: 100 !important;
     color: var(--button-text-color) !important;
     border: none;
-} 
+}
 .daterangepicker .drp-buttons .btn:hover {
     background: var(--timepicker-btn-hover) !important;
 }
@@ -3200,7 +3228,7 @@ float: right;
 
 .dashboard-grid .db-button{
    display: flex;
-   flex-direction: row; 
+   flex-direction: row;
    align-items: center;
 }
 
@@ -3352,7 +3380,7 @@ float: right;
 }
 
 .panel-body{
-    flex-grow: 1; 
+    flex-grow: 1;
     overflow: hidden;
     display: flex;
     justify-content: center;
@@ -3545,7 +3573,7 @@ float: right;
 #dashboard-grid-btn,#alert-grid-btn{
     display: flex;
     align-items: center;
-    
+
 }
 
 .folder-arrow {
@@ -3555,7 +3583,7 @@ float: right;
     transition: transform 0.2s;
     color: var(--table-or-regular-text-color);
  }
- 
+
  .folder-arrow:hover {
     background-color: var(--index-drop-down-item-hover-bg-color);
  }
@@ -3578,7 +3606,7 @@ float: right;
 .sidebar-icon.active{
     background-image: url("../assets/expand-sidebar-icon.svg");
     left: 73px;
-    top: 28px; 
+    top: 28px;
     z-index: 1;
 }
 
@@ -3600,8 +3628,16 @@ float: right;
       font-size: 14px;
       font-weight: 600;
       color: var(--navbar-link-text);
-      white-space: nowrap;    
+      white-space: nowrap;
 }
+
+.nav-link-text-sub{
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navbar-link-text);
+    white-space: nowrap;
+}
+
 .nav-links.disable-hover:hover {
     pointer-events: none;
     cursor: default;
@@ -3622,6 +3658,25 @@ float: right;
 
 
 #app-side-nav .menu.logo .sslogo-text{
+    padding-left: 8px;
+    width: 82px;
+    height: 20px;
+}
+
+#app-side-nav .big-menu.active .nav-link-text,
+#app-side-nav .big-menu:hover .nav-link-text,
+.nav-link-text:hover,
+.help-links:hover .nav-link-text{
+    color: var(--navbar-link-text-active);
+}
+
+#app-side-nav .nav-link-text-sub.active,
+.nav-link-text-sub:hover{
+    color: var(--navbar-link-text-active);
+
+}
+
+#app-side-nav .big-menu.logo .sslogo-text{
     padding-left: 8px;
     width: 82px;
     height: 20px;
@@ -4021,7 +4076,7 @@ float: right;
     color: var(--index-drop-down-item-hover-text-color);
 }
 
-.invite-role-options li.active, .roles.selected{  
+.invite-role-options li.active, .roles.selected{
     background: var(--index-drop-down-item-active-bg-color) !important;
     color: var(--index-drop-down-item-active-text-color) !important;
 }
@@ -4089,7 +4144,7 @@ float: right;
 .org-signup-form .header {
     font-weight: 700;
     font-size: 32px;
-    text-align: center; 
+    text-align: center;
     margin-bottom: 40px;
 }
 
@@ -4434,7 +4489,7 @@ color: #C8C7CC;
 
 .tag-line-toggle .signin-tag{
     display: none;
-} 
+}
 
 .tag-line-toggle .signup-tag{
     display: block;
@@ -4480,7 +4535,7 @@ color: #C8C7CC;
     z-index: 10;
     top: -11px
 }
-  
+
 .toast-close {
     cursor: pointer;
     border: none;
@@ -4497,13 +4552,13 @@ color: #C8C7CC;
 }
 
 .usage-stats-header{
-    display: flex;  
+    display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 #app-content-area .usage-stats-header{
-    display: flex;  
+    display: flex;
     justify-content: space-between;
     align-items: center;
 }
@@ -4606,8 +4661,8 @@ color: #C8C7CC;
 }
 
 #history-filter-input {
-    margin: 5px 0 0 5px; 
-    padding: 10px 8px; 
+    margin: 5px 0 0 5px;
+    padding: 10px 8px;
     text-decoration: none;
     height: 20px;
     line-height: 14px;
@@ -4661,7 +4716,7 @@ color: #C8C7CC;
 
 #new-contact-point,#new-alert-rule{
     white-space: nowrap;
-    width: fit-content; 
+    width: fit-content;
 }
 
 .add-new-contact-type{
@@ -5205,7 +5260,7 @@ color: #C8C7CC;
 }
 #history-grid{
     height: 100%;
-    display: none; 
+    display: none;
     padding-top: 20px;
 }
 #edit-alert-btn ,#delete-alert, #cancel-alert-details{
@@ -5255,7 +5310,7 @@ color: #C8C7CC;
     margin-top: -70px;
     position: absolute;
     right: 20px;
-} 
+}
 
 #alert-form .btn-container{
     margin-top: -60px;
@@ -5389,7 +5444,7 @@ color: #C8C7CC;
 }
 .avail-fields-btn,
 .query-mode-btn,
-.query-language-btn, 
+.query-language-btn,
 .index-btn,
 .filter-input,
 .metrics-graph-container,
@@ -5435,17 +5490,17 @@ input.form-control {
     padding: 0 5px;
     border: 1px solid var(--border-color-regular) !important
 }
-  
+
 #refresh-picker-btn:hover {
     background: var(--drop-down-btn-bg-hover);
 }
-  
+
 #refresh-picker-btn.active {
     background: var(--drop-down-btn-bg-active) !important;
     outline: 1px solid var(--drop-down-btn-border-active);
     outline-offset: -1pt;
 }
-  
+
 #logs-view-controls .refresh-btn{
     border-radius: 5px 0 0 5px !important;
     background-color: var(--drop-down-btn-bg-regular) !important;
@@ -5453,7 +5508,7 @@ input.form-control {
     height: 30px !important;
     border: 1px solid var(--border-color-regular) !important
 }
-  
+
 .refresh-picker.show{
     min-width: 53px !important;
     height: auto !important;
@@ -5464,7 +5519,7 @@ input.form-control {
     left:3px !important;
     padding: 0.5rem;
 }
-  
+
 .refresh-range-item.active {
     background-color: var(--index-drop-down-item-active-bg-color);
     color: var(--index-drop-down-item-active-text-color);
@@ -5478,7 +5533,7 @@ input.form-control {
     line-height: 23px;
     cursor: pointer;
 }
-  
+
 .refresh-range-item:hover {
     color: var(--timepicker-text-color-hover);
 }
@@ -5651,7 +5706,7 @@ input.form-control {
     z-index: 99;
 }
 .mt-4 {
-    margin-top: 1.5rem; 
+    margin-top: 1.5rem;
 }
 
 @keyframes spin {
@@ -5806,7 +5861,7 @@ input.form-control {
     color: var(--text-color);
     margin-top: 1%;
   }
-  .addrulepopupContent .popupcont{    
+  .addrulepopupContent .popupcont{
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -5824,9 +5879,9 @@ input.form-control {
 #addrule-save-btn {
     display: inline-flex;
     align-items: center;
-    background:var(--btn-regular-bg-color) ; 
+    background:var(--btn-regular-bg-color) ;
     justify-content: center;
-    color: #ffffff; 
+    color: #ffffff;
     border: none;
     padding: 8px 16px;
     cursor: pointer;
@@ -5848,11 +5903,11 @@ input.form-control {
     justify-content: center;
     align-items: center;
     height: 100%;
-    width: 100%; 
-    position: absolute; 
+    width: 100%;
+    position: absolute;
     top: 0;
     left: 0;
-} 
+}
 .evaluation-error-message{
     display: none;
     background-color: #EB364B;
@@ -5868,12 +5923,12 @@ input.form-control {
     border: 1px solid #fff;
 }
 #addrule-save-btn:hover {
-    background-color: #4F38CC; 
+    background-color: #4F38CC;
 }
 
 #addrule-save-btn img {
     width: 13px;
-    margin-right: 8px; 
+    margin-right: 8px;
 }
 
 .btncontainer{
@@ -5915,7 +5970,7 @@ input.form-control {
 .navbar-submenu a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
-} 
+}
 .metrics-dropdown-toggle,.ingestion-dropdown-toggle,.traces-dropdown-toggle{
     cursor:pointer;
 }
@@ -5942,8 +5997,8 @@ input.form-control {
   flex-direction: column;
   justify-content: left;
   overflow: hidden;
-  scrollbar-width: none; 
-  -ms-overflow-style: none; 
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .icon {
@@ -5992,7 +6047,7 @@ input.form-control {
 .require-field-tooltip::after{
     content: '';
     position: absolute;
-    left: 15px; 
+    left: 15px;
     top: -9px;
     width: 16px;
     height: 16px;

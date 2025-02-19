@@ -39,8 +39,9 @@ let navbarComponent = `
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
          </div>
-        <div class="menu nav-metrics">
-            <a class="nav-links accordion-toggle" href="./metrics.html">
+
+        <div class="big-menu nav-metrics">
+            <a class="nav-links accordion-toggle big-menu-header" id="metrics" href="./metrics.html">
                 <div class="nav-link-content">
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text">Metrics</span>
@@ -49,17 +50,18 @@ let navbarComponent = `
             </a>
 
             <div class="accordion-content" style="display: none;">
-                <a href="./metrics-explorer.html" class="submenu-link">
-                    <span class="nav-link-text">Explorer</span>
+                <a href="./metrics-explorer.html" class="submenu-link ">
+                    <span class="nav-link-text-sub">Explorer</span>
                 </a>
                 <a href="./metric-summary.html" class="submenu-link">
-                    <span class="nav-link-text">Summary</span>
+                    <span class="nav-link-text-sub">Summary</span>
                 </a>
                 <a href="./metric-cardinality.html" class="submenu-link">
-                    <span class="nav-link-text">Cardinality</span>
+                    <span class="nav-link-text-sub">Cardinality</span>
                 </a>
             </div>
         </div>
+
         {{ if .ShowSLO }}
         <div class="menu nav-slos">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
@@ -186,6 +188,13 @@ const accordionStyles = `
         background-color: rgba(0, 0, 0, 0.05);
     }
 
+    .submenu-link.active::before {
+        opacity: 1;
+        background-color: orange;
+        width: 2px;
+        color: white;
+    }
+
     /* Vertical line for submenu links */
     .submenu-link::before {
         content: '';
@@ -197,13 +206,15 @@ const accordionStyles = `
         background-color: grey;
         transform: translateY(-50%);
         opacity: 0;
-        transition: opacity 0.3s ease;
     }
 
 
-    .accordion-content.active .submenu-link::before {
+    /* Show the vertical line when submenu is active
+    .submenu-link.nav-link-text-sub.active::before {
         opacity: 1;
-    }
+        background-color: orange;
+        width: 2px;
+    }*/
 
      .submenu-link::before {
         opacity: 1;
@@ -229,6 +240,7 @@ const accordionStyles = `
     .accordion-content.active {
         display: block;
     }
+
 </style>
 `;
 
@@ -257,11 +269,15 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
+
+
+
 $(document).ready(function () {
     $('#app-side-nav').prepend(navbarComponent);
     const currentUrl = window.location.href;
 
     const isNavigatingBack = document.referrer.includes('metrics.html');
+
     //Handling Dropdown
     $('.nav-header').on('click', function(e) {
         e.preventDefault();
@@ -285,21 +301,44 @@ $(document).ready(function () {
         }
     });
 
+    //Handling Dropdown
+    $('.nav-header').on('click', function(e) {
+        e.preventDefault();
+        const $menu = $(this).closest('.big-menu');
+        const $submenu = $menu.find('.submenu');
+        const $arrow = $menu.find('.dropdown-arrow');
+
+        // Close all other submenus
+        $('.submenu').not($submenu).slideUp(300);
+        $('.dropdown-arrow').not($arrow).removeClass('active');
+
+        // Toggle current submenu
+        $submenu.slideToggle(300);
+        $arrow.toggleClass('active');
+
+        // Handle active states
+        if ($submenu.is(':visible')) {
+            $menu.addClass('active');
+        } else {
+            $menu.removeClass('active');
+        }
+    });
+
 
     if (currentUrl.includes('index.html')) {
         $('.nav-search').addClass('active');
     }
-    if(currentUrl.includes('metrics.html')){
+    else if(currentUrl.includes('metrics.html')){
         $('.nav-metrics').addClass('active');
         $('.nav-metrics .accordion-content').show();
         $('.nav-metrics .dropdown-arrow').addClass('active');
     }
-    if (isNavigatingBack) {
+    else if (isNavigatingBack) {
         $('.nav-metrics .accordion-content').hide();
         $('.nav-metrics').removeClass('active');
         $('.nav-metrics .dropdown-arrow').removeClass('active');
     }
-    if (currentUrl.includes('metrics-explorer.html') ||
+    else if (currentUrl.includes('metrics-explorer.html') ||
         currentUrl.includes('metric-summary.html') ||
         currentUrl.includes('metric-cardinality.html')) {
         $('.nav-metrics').addClass('active');
@@ -370,6 +409,91 @@ $(document).ready(function () {
         }
     });
 
+    $('.nav-metrics .accordion-toggle').on('click', function (e) {
+        const $menu = $(this).closest('.big-menu');
+        const $content = $menu.find('.accordion-content');
+        const $arrow = $menu.find('.dropdown-arrow');
+        const menuName = $(this).find('.nav-link-text').text().trim(); // Get the menu text
+
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+
+        if ($(e.target).is('.dropdown-arrow')) {
+            e.preventDefault();
+
+            $content.slideToggle(300, function () {
+                $arrow.toggleClass('active');
+
+                if ($content.is(':visible')) {
+                    $menu.addClass('active');
+                    $content.addClass('active');
+
+                    if (!activeMenus.some(item => item.activeBigItems === menuName)) {
+                        activeMenus.push({ activeBigItems: menuName, activeSubItem: "" });
+                    }
+                } else {
+                    $menu.removeClass('active');
+                    $content.removeClass('active');
+
+                    activeMenus = activeMenus.filter(item => item.activeBigItems !== menuName);
+                }
+
+                localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+            });
+        } else {
+            if (!window.location.href.includes('metrics.html')) {
+                window.location.href = './metrics.html';
+            }
+        }
+    });
+
+    // Handle submenu clicks and store active state
+    $('.submenu-link').on('click', function (e) {
+        e.preventDefault();
+
+        const subMenuName = $(this).text().trim();
+        const parentMenu = $(this).closest('.big-menu').find('.nav-link-text').text().trim();
+
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+
+        activeMenus = activeMenus.map(item =>
+            item.activeBigItems === parentMenu ? { activeBigItems: parentMenu, activeSubItem: subMenuName } : item
+        );
+
+        localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+
+
+        $('.submenu-link').removeClass('active');
+        $(this).addClass('active');
+
+        
+        window.location.href = $(this).attr('href');
+    });
+
+
+
+    let activeMenus_get = JSON.parse(localStorage.getItem('activeMenus')) || [];
+
+    activeMenus_get.forEach(item => {
+        let $menu = $('.nav-metrics .accordion-toggle').filter(function () {
+            return $(this).find('.nav-link-text').text().trim() === item.activeBigItems;
+        }).closest('.big-menu');
+
+        let $content = $menu.find('.accordion-content');
+        let $arrow = $menu.find('.dropdown-arrow');
+
+        $menu.addClass('active');
+        $content.addClass('active').show();
+        $arrow.addClass('active');
+
+        if (item.activeSubItem) {
+            let $subItem = $content.find('.submenu-link').filter(function () {
+                return $(this).text().trim() === item.activeSubItem;
+            });
+            $subItem.addClass('active');
+        }
+    });
+
+
     window.onpopstate = function(event) {
         if (!window.location.href.includes('metrics.html')) {
             $('.nav-metrics .accordion-content').slideUp(300);
@@ -377,6 +501,7 @@ $(document).ready(function () {
             $('.nav-metrics .dropdown-arrow').removeClass('active');
         }
     };
+
 
     $('.tracing-dropdown-toggle').hover(
         function () {
