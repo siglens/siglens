@@ -85,7 +85,7 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 					pm.Type = metricType
 					data, err := ConvertToOLTPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
 					numTotalRecords++
-					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
+					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OLTP, myid)
 					if err != nil {
 						numFailedRecords++
 						log.Errorf("OLTPMatrics: failed to add time series entry for data=%+v, err=%v", data, err)
