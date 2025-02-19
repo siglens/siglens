@@ -627,7 +627,7 @@ body {
 }
 
 
-.big-menu-header:hover{
+#app-side-nav .big-menu-header:hover{
      border-left: 5px solid var(--side-nav-selected-border-color);
      border-right: 5px solid var(--side-nav-bg-color-selected);
      background-color: var(--side-nav-bg-color-selected);
