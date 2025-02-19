@@ -27,8 +27,8 @@ import (
 type channelIndex int
 
 const (
-	mainIndex channelIndex = iota
-	timechartIndex
+	MainIndex channelIndex = iota
+	TimechartIndex
 )
 
 // If any channel gets an error/cancellation/timeout, the multiplexer will send
@@ -51,12 +51,19 @@ type chanState struct {
 
 type QueryStateEnvelope struct {
 	*query.QueryStateChanData
+	ChannelIndex channelIndex
 }
 
 func NewQueryStateMultiplexer(mainQueryChan, timechartQueryChan chan *query.QueryStateChanData) *QueryStateMultiplexer {
 	input := [2]*chanState{}
-	input[mainIndex] = &chanState{channel: mainQueryChan}
-	input[timechartIndex] = &chanState{channel: timechartQueryChan}
+	input[MainIndex] = &chanState{
+		channel:    mainQueryChan,
+		isComplete: mainQueryChan == nil,
+	}
+	input[TimechartIndex] = &chanState{
+		channel:    timechartQueryChan,
+		isComplete: timechartQueryChan == nil,
+	}
 
 	return &QueryStateMultiplexer{
 		input:  input,
@@ -76,13 +83,17 @@ func (q *QueryStateMultiplexer) Multiplex() <-chan *QueryStateEnvelope {
 
 		for {
 			select {
-			case data, ok := <-q.input[mainIndex].channel:
-				q.handleMessage(data, ok, mainIndex)
-			case data, ok := <-q.input[timechartIndex].channel:
-				q.handleMessage(data, ok, timechartIndex)
+			case data, ok := <-q.input[MainIndex].channel:
+				q.handleMessage(data, ok, MainIndex)
+			case data, ok := <-q.input[TimechartIndex].channel:
+				q.handleMessage(data, ok, TimechartIndex)
 			}
 
-			if q.allChannelsAreComplete() || q.closedOutput {
+			if q.allChannelsAreComplete() {
+				return
+			}
+
+			if q.closedOutput {
 				return
 			}
 		}
@@ -114,13 +125,14 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 	case query.READY, query.RUNNING, query.QUERY_RESTART:
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,
+			ChannelIndex:       chanIndex,
 		}
 	case query.QUERY_UPDATE:
 		update := &structs.PipeSearchWSUpdateResponse{}
 		switch chanIndex {
-		case mainIndex:
+		case MainIndex:
 			update = data.UpdateWSResp
-		case timechartIndex:
+		case TimechartIndex:
 			update.RelatedUpdate = &structs.RelatedUpdate{
 				Timechart: data.UpdateWSResp,
 			}
@@ -129,12 +141,13 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		data.UpdateWSResp = update
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,
+			ChannelIndex:       chanIndex,
 		}
 
 	case query.COMPLETE:
 		q.input[chanIndex].isComplete = true
 		switch chanIndex {
-		case mainIndex:
+		case MainIndex:
 			q.mainQid = data.Qid
 			savedResponse := data.CompleteWSResp
 			if q.savedCompletion != nil {
@@ -142,7 +155,7 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 			}
 
 			q.savedCompletion = savedResponse
-		case timechartIndex:
+		case TimechartIndex:
 			savedResponse := q.savedCompletion
 			if savedResponse == nil {
 				savedResponse = &structs.PipeSearchCompleteResponse{}
@@ -164,11 +177,13 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 					PercentComplete: 100,
 					CompleteWSResp:  q.savedCompletion,
 				},
+				ChannelIndex: MainIndex,
 			}
 		}
 	case query.CANCELLED, query.TIMEOUT, query.ERROR:
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,
+			ChannelIndex:       chanIndex,
 		}
 		close(q.output)
 		q.closedOutput = true
@@ -181,6 +196,7 @@ func (q *QueryStateMultiplexer) errorAndClose(err error) {
 			StateName: query.ERROR,
 			Error:     err,
 		},
+		ChannelIndex: MainIndex,
 	}
 	close(q.output)
 	q.closedOutput = true

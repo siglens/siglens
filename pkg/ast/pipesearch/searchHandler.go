@@ -569,18 +569,25 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 }
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
-	timechartSimpleNode *structs.ASTNode, timechartAggs *structs.QueryAggregators,
+	timechartRoot *structs.ASTNode, timechartAggs *structs.QueryAggregators,
 	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
 
 	isAsync := conn != nil
 
-	runTimechartQuery := (timechartSimpleNode != nil && timechartAggs != nil)
+	runTimechartQuery := (timechartRoot != nil && timechartAggs != nil)
 	var timechartQid uint64
-	var timechartState *query.RunningQueryState
+	var timechartQuery *query.RunningQueryState
+	var timechartStateChan chan *query.QueryStateChanData
 	var err error
 	if runTimechartQuery {
 		timechartQid = rutils.GetNextQid()
-		timechartState, err = query.StartQueryAsCoordinator(timechartQid, isAsync, nil, timechartSimpleNode, timechartAggs, qc, nil, false)
+		timechartQuery, err = query.StartQueryAsCoordinator(timechartQid, isAsync, nil, timechartRoot, timechartAggs, qc, nil, false)
+		if err != nil {
+			log.Errorf("qid=%v, RunQueryForNewPipeline: failed to start timechart query, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+
+		timechartStateChan = timechartQuery.StateChan
 	}
 
 	rQuery, err := query.StartQueryAsCoordinator(qid, isAsync, nil, root, aggs, qc, nil, false)
@@ -591,27 +598,39 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 
 	var httpRespOuter *structs.PipeSearchResponseOuter
 
-	stateChan := multiplexer.NewQueryStateMultiplexer(rQuery.StateChan, timechartState.StateChan).Multiplex()
+	stateChan := multiplexer.NewQueryStateMultiplexer(rQuery.StateChan, timechartStateChan).Multiplex()
 
 	for {
 		queryStateData, ok := <-stateChan
 		if !ok {
-			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
 			query.LogGlobalSearchErrors(qid)
 			query.DeleteQuery(qid)
-			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
 		}
 
-		if queryStateData.Qid != qid {
+		if queryStateData.Qid != qid && queryStateData.Qid != timechartQid {
+			log.Errorf("RunQueryForNewPipeline: qid mismatch, expected %v or %v, got: %v",
+				qid, timechartQid, queryStateData.Qid)
 			continue
 		}
 
 		switch queryStateData.StateName {
 		case query.READY:
-			go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+			switch queryStateData.ChannelIndex {
+			case multiplexer.MainIndex:
+				go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+			case multiplexer.TimechartIndex:
+				go segment.ExecuteQueryInternalNewPipeline(timechartQid, isAsync, timechartRoot, timechartAggs, qc, timechartQuery)
+			}
 		case query.RUNNING:
 			if isAsync {
-				processQueryStateUpdate(conn, qid, queryStateData.StateName)
+				switch queryStateData.ChannelIndex {
+				case multiplexer.MainIndex:
+					processQueryStateUpdate(conn, qid, queryStateData.StateName)
+				case multiplexer.TimechartIndex:
+					processQueryStateUpdate(conn, timechartQid, queryStateData.StateName)
+				}
 			}
 		case query.QUERY_UPDATE:
 			if isAsync {
@@ -657,15 +676,26 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 				return nil, false, root.TimeRange, queryStateData.Error
 			}
 		case query.QUERY_RESTART:
-			newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
-			if err != nil {
-				log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
-				continue
+			switch queryStateData.ChannelIndex {
+			case multiplexer.MainIndex:
+				newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
+					continue
+				}
+
+				rQuery = newRQuery
+				qid = newQid
+			case multiplexer.TimechartIndex:
+				newRQuery, newQid, err := handleRestartQuery(timechartQid, timechartQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart timechart query, err: %v", qid, err)
+					continue
+				}
+
+				timechartQuery = newRQuery
+				timechartQid = newQid
 			}
-
-			rQuery = newRQuery
-			qid = newQid
-
 		case query.TIMEOUT:
 			defer query.DeleteQuery(qid)
 			if isAsync {
