@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
-    
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -49,6 +49,106 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/tippy.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+
+    <style>
+        .histo-container {
+            margin-top: 50px;
+            background: white;
+            width: 100%;
+            margin: auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #toggle-btn {
+            background-color: #580AFF;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #toggle-btn:hover {
+            background-color: #780790;
+        }
+
+        #histogram-container {
+            display: none;
+            width: 98%;
+            margin: auto;
+            text-align: center;
+        }
+
+        #histogram-wrapper {
+            display: flex;
+            align-items: flex-end;
+            position: relative;
+        }
+
+        #y-axis {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 300px;
+            margin-right: 10px;
+            position: absolute;
+            left: -30px;
+        }
+
+        #y-axis span {
+            display: block;
+            height: 50px;
+            line-height: 50px;
+            text-align: right;
+            font-size: 14px;
+        }
+
+        #histogram {
+            display: flex;
+            align-items: flex-end;
+            height: 300px;
+            width: 100%;
+            border-left: 2px solid black;
+            border-bottom: 2px solid black;
+            padding: 10px;
+            justify-content: space-between;
+        }
+
+        .bar {
+            width: 40px;
+            background-color: #40C463;
+            transition: background 0.3s;
+            position: relative;
+        }
+
+        .bar:hover {
+            background-color: orange;
+        }
+
+        .x-axis {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-weight: bold;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .x-axis span {
+            display: block;
+            text-align: center;
+            width: 40px;
+            transform: rotate(-90deg);
+            white-space: nowrap;
+            margin-top: 40px;
+        }
+    </style>
+
+
 
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -77,7 +177,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="dashboard" class="dashboard-box">
-            
+
             <div id="custom-code-tab" class="custom-code-tab w-100">
                 <div class="query-builder-container">
                     <div class="dropdown-box">
@@ -231,7 +331,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
                                                                             SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
                                                                             SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-                    
+
                                     </i>
                                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
                                         title=' {app="mysql",name="mysql-backup"}
@@ -265,6 +365,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="record-searched"></div>
             <div id="progress-div"></div>
 
+            <div class="histo-container">
+                <button id="toggle-btn">
+                    <span>📊</span>
+                </button>
+                <div id="histogram-container">
+                    <div id="histogram-wrapper">
+                        <div class="y-axis" id="y-axis"></div>
+                        <div class="histogram" id="histogram"></div> <!-- Bars -->
+                    </div>
+                    <div class="x-axis" id="x-axis"></div>
+                </div>
+            </div>
 
             <div class="custom-chart-container">
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
@@ -348,8 +460,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
             <div id="empty-response"></div>
             <div id="initial-response">Create a query using the builder to access and view the logs.</div>
-            
-           
+
+
 
             <div id="corner-popup">
                 <div class="corner-container">
@@ -445,7 +557,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </button>
                 </div>
             </div>
-        
+
         <div class="popupContent" id="error-popup">
             <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
             <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
@@ -483,6 +595,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/dashboard-from-logs-metrics.js?cb=1_1_10"></script>
     <script src="./js/query-builder.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/histo.js?cb=1_1_10"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
