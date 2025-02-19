@@ -6314,11 +6314,6 @@ p#versionInfo {
     background: var(--alerting-table-hover);
 }
 
-.json-popup-title h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: bold;
-}
 
 .json-popup-close {
     background: none;
@@ -6334,6 +6329,7 @@ p#versionInfo {
     padding: 16px;
     overflow-y: auto;
     height: 100%;
+    max-height: 600px;
 }
 
 .json-popup-content div {
@@ -6352,4 +6348,76 @@ p#versionInfo {
 
 .json-value {
     color: rgb(189, 39, 30);
+}
+
+.tab-button {
+    padding: 8px 16px;
+    cursor: pointer;
+    border: none;
+    background: var(--myOrg-input);
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.tab-button.active {
+    background: var(--tab-active-background);
+    border: 1px solid var(--purple-1);
+    border-radius: 4px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.json-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.json-table th,
+.json-table td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.json-table th {
+    /* background-color: #f4f4f4; */
+    background-color: var(--datatable-header-bg-color);
+}
+
+/* Increase width of the key column */
+.json-table th:first-child,
+.json-table td:first-child {
+    width: 40%; /* Adjust this percentage as needed */
+    max-width: 250px; /* Optional: limit max width */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Truncate long text with '...' */
+}
+
+.json-content-type-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Pushes copy button to the right */
+    padding: 5px 10px;
+    border-bottom: 1px solid #ddd; /* Optional: Separator */
+}
+
+.copy-json-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666; /* Adjust color */
+    margin-left: auto; /* Pushes to the right */
+    padding: 5px;
+}
+
+.copy-json-button:hover {
+    color: #000; /* Darker on hover */
 }
