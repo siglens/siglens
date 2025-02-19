@@ -164,7 +164,7 @@ function getTraceInformation(traceId, timestampNano) {
             searchText: `trace_id=${traceId}`,
             // startEpoch: windowStart.toString(),
             // endEpoch: windowEnd.toString(),
-            startEpoch: 'now-1h',
+            startEpoch: 'now-365d',
             endEpoch: 'now',
         }),
         dataType: 'json',
