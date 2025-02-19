@@ -32,6 +32,7 @@ const (
 	AlertTypeLogs AlertType = iota + 1
 	AlertTypeMetrics
 	AlertTypeMinion
+	AlertTypeAPM
 )
 
 type AlertConfig struct {
@@ -61,10 +62,12 @@ type AlertDetails struct {
 	NotificationID           string     `json:"notification_id" gorm:"foreignKey:NotificationId;"`
 	OrgId                    int64      `json:"org_id"`
 	NumEvaluationsCount      uint64     `json:"num_evaluations_count"`
+	APMQueryParamsString     string     `json:"apmQueryParams"` // APM
 }
 
 func (AlertDetails) TableName() string {
 	return "all_alerts"
+
 }
 
 type AlertLabel struct {
@@ -250,6 +253,11 @@ type MetricAlertData struct {
 	Timestamp uint32  `json:"timestamp"`
 	Value     float64 `json:"value"`
 }
+type APMAlertData struct {
+	Start   string `json:"start"`   // Start time for the query (e.g., "now-3h")
+	End     string `json:"end"`     // End time for the query (e.g., "now")
+	Queries string `json:"queries"` // JSON string containing APM query parameters
+}
 
 func (MinionSearch) TableName() string {
 	return "minion_searches"
@@ -264,7 +272,10 @@ func (alert *AlertDetails) EncodeQueryParamToBase64() {
 		alert.QueryParams.QueryText = utils.EncodeToBase64(alert.QueryParams.QueryText)
 	} else if alert.AlertType == AlertTypeMetrics {
 		alert.MetricsQueryParamsString = utils.EncodeToBase64(alert.MetricsQueryParamsString)
+	} else if alert.AlertType == AlertTypeAPM {
+		alert.APMQueryParamsString = utils.EncodeToBase64(alert.APMQueryParamsString)
 	}
+
 }
 
 func (alert *AlertDetails) DecodeQueryParamFromBase64() error {
@@ -272,18 +283,28 @@ func (alert *AlertDetails) DecodeQueryParamFromBase64() error {
 		decoded, err := utils.DecodeFromBase64(alert.QueryParams.QueryText)
 		if err != nil {
 			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding query text:%v from base64, alert_id: %s, err: %v", alert.QueryParams.QueryText, alert.AlertId, err)
-			log.Errorf(err.Error())
+			log.Errorf("%s", err.Error())
 			return err
 		}
 		alert.QueryParams.QueryText = decoded
+
 	} else if alert.AlertType == AlertTypeMetrics {
 		decoded, err := utils.DecodeFromBase64(alert.MetricsQueryParamsString)
 		if err != nil {
 			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding metrics query params:%v from base64, alert_id: %s, err: %v", alert.MetricsQueryParamsString, alert.AlertId, err)
-			log.Errorf(err.Error())
+			log.Errorf("%s", err.Error())
 			return err
 		}
 		alert.MetricsQueryParamsString = decoded
+
+	} else if alert.AlertType == AlertTypeAPM {
+		decoded, err := utils.DecodeFromBase64(alert.APMQueryParamsString)
+		if err != nil {
+			err = fmt.Errorf("DecodeQueryParamFromBase64: Error decoding APM query params:%v from base64, alert_id: %s, err: %v", alert.APMQueryParamsString, alert.AlertId, err)
+			log.Errorf("%s", err.Error())
+			return err
+		}
+		alert.APMQueryParamsString = decoded
 	}
 
 	return nil
