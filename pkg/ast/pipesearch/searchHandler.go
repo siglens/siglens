@@ -47,6 +47,10 @@ import (
 
 const KEY_INDEX_NAME string = "indexName"
 
+// When this flag is set, run a timechart query as well; only applicable when
+// the query returns logs.
+const runTimechartFlag = "runTimechart"
+
 /*
 Example incomingBody
 
@@ -56,11 +60,12 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool, bool) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
 	var includeNulls bool
+	var runTimechart bool
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
@@ -227,9 +232,24 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
+	timechartFlagVal, ok := jsonSource[runTimechartFlag]
+	if !ok {
+		runTimechart = false
+	} else {
+		switch val := timechartFlagVal.(type) {
+		case bool:
+			runTimechart = val
+		case string:
+			runTimechart = val == "true"
+		default:
+			log.Infof("ParseSearchBody: unexpected type for runTimechartQuery: %T, value: %+v. Defaulting to false", val, val)
+			runTimechart = false
+		}
+	}
+
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls, runTimechart
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
@@ -266,7 +286,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _ := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil

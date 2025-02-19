@@ -90,7 +90,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(event, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, runTimechart := ParseSearchBody(event, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
@@ -123,7 +123,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 			}
 		}
 
-		if shouldRunTimechartQuery(aggs) {
+		if runTimechart && shouldRunTimechartQuery(aggs) {
 			searchText += " | timechart count"
 			timechartSimpleNode, timechartAggs, _, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
 			if err != nil {
