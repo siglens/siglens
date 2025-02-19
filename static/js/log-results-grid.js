@@ -46,6 +46,15 @@ class TimestampCellRenderer {
         const jsonPopup = document.querySelector('.json-popup');
         const rowData = this.params.node.data;
 
+        window.copyJsonToClipboard = function copyJsonToClipboard() {
+            const jsonContent = document.querySelector("#json-tab div").innerText; // Get JSON text
+            navigator.clipboard.writeText(jsonContent).then(() => {
+                alert("Copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy: ", err);
+            });
+        }
+
         window.switchTab = function (tab) {  // Attach to global scope
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
@@ -79,7 +88,6 @@ class TimestampCellRenderer {
             const jsonData = JSON.unflatten(rowData);
             const flattenedData = flattenJson(jsonData); // Flatten JSON structure
 
-            console.log("Flattened JSON Data:", flattenedData); // Debugging step
 
             if (!flattenedData || Object.keys(flattenedData).length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No data available</td></tr>`;
@@ -164,14 +172,6 @@ class TimestampCellRenderer {
     }
 }
 
-function copyJsonToClipboard() {
-    const jsonContent = document.querySelector("#json-tab div").innerText; // Get JSON text
-    navigator.clipboard.writeText(jsonContent).then(() => {
-        alert("Copied to clipboard!");
-    }).catch(err => {
-        console.error("Failed to copy: ", err);
-    });
-}
 
 function syntaxHighlight(json) {
     if (typeof json !== 'string') {
@@ -408,7 +408,3 @@ function scrollingErrorPopup() {
         $('#error-popup.popupContent').removeClass('active');
     });
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    switchTab('json');
-});
