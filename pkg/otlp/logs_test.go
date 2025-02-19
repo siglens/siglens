@@ -135,3 +135,190 @@ func initTestConfig(t *testing.T) {
 	err := config.InitDerivedConfig("test")
 	assert.NoError(t, err)
 }
+
+func Test_extractLogRecord_KvlistValue(t *testing.T) {
+	protobuf := &collogpb.ExportLogsServiceRequest{
+		ResourceLogs: []*logpb.ResourceLogs{{
+			ScopeLogs: []*logpb.ScopeLogs{{
+				LogRecords: []*logpb.LogRecord{{
+					TimeUnixNano: 1234567890,
+					SeverityText: "INFO",
+					Body: &commonpb.AnyValue{
+						Value: &commonpb.AnyValue_KvlistValue{
+							KvlistValue: &commonpb.KeyValueList{
+								Values: []*commonpb.KeyValue{
+									{
+										Key: "key1",
+										Value: &commonpb.AnyValue{
+											Value: &commonpb.AnyValue_StringValue{
+												StringValue: "value1",
+											},
+										},
+									},
+									{
+										Key: "key2",
+										Value: &commonpb.AnyValue{
+											Value: &commonpb.AnyValue_IntValue{
+												IntValue: 2,
+											},
+										},
+									},
+									{
+										Key: "key3",
+										Value: &commonpb.AnyValue{
+											Value: &commonpb.AnyValue_DoubleValue{
+												DoubleValue: 3.0,
+											},
+										},
+									},
+									{
+										Key: "key4",
+										Value: &commonpb.AnyValue{
+											Value: &commonpb.AnyValue_BoolValue{
+												BoolValue: true,
+											},
+										},
+									},
+									{
+										Key: "key5",
+										Value: &commonpb.AnyValue{
+											Value: &commonpb.AnyValue_ArrayValue{
+												ArrayValue: &commonpb.ArrayValue{
+													Values: []*commonpb.AnyValue{
+														{
+															Value: &commonpb.AnyValue_StringValue{
+																StringValue: "value1",
+															},
+														},
+														{
+															Value: &commonpb.AnyValue_IntValue{
+																IntValue: 5,
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+									{
+										Key: "key6",
+										Value: &commonpb.AnyValue{
+											Value: &commonpb.AnyValue_KvlistValue{
+												KvlistValue: &commonpb.KeyValueList{
+													Values: []*commonpb.KeyValue{
+														{
+															Key: "nest1Key1",
+															Value: &commonpb.AnyValue{
+																Value: &commonpb.AnyValue_StringValue{
+																	StringValue: "nest1Value1",
+																},
+															},
+														},
+														{
+															Key: "nest1Key2",
+															Value: &commonpb.AnyValue{
+																Value: &commonpb.AnyValue_IntValue{
+																	IntValue: 6,
+																},
+															},
+														},
+														{
+															Key: "nest1Key3",
+															Value: &commonpb.AnyValue{
+																Value: &commonpb.AnyValue_KvlistValue{
+																	KvlistValue: &commonpb.KeyValueList{
+																		Values: []*commonpb.KeyValue{
+																			{
+																				Key: "nest2Key1",
+																				Value: &commonpb.AnyValue{
+																					Value: &commonpb.AnyValue_StringValue{
+																						StringValue: "nest2Value1",
+																					},
+																				},
+																			},
+																			{
+																				Key: "nest2Key2",
+																				Value: &commonpb.AnyValue{
+																					Value: &commonpb.AnyValue_IntValue{
+																						IntValue: 7,
+																					},
+																				},
+																			},
+																			{
+																				Key: "nest2Key3",
+																				Value: &commonpb.AnyValue{
+																					Value: &commonpb.AnyValue_KvlistValue{
+																						KvlistValue: &commonpb.KeyValueList{
+																							Values: []*commonpb.KeyValue{
+																								{
+																									Key: "nest3Key1",
+																									Value: &commonpb.AnyValue{
+																										Value: &commonpb.AnyValue_ArrayValue{
+																											ArrayValue: &commonpb.ArrayValue{
+																												Values: []*commonpb.AnyValue{
+																													{
+																														Value: &commonpb.AnyValue_StringValue{
+																															StringValue: "nest3Value1",
+																														},
+																													},
+																													{
+																														Value: &commonpb.AnyValue_IntValue{
+																															IntValue: 8,
+																														},
+																													},
+																												},
+																											},
+																										},
+																									},
+																								},
+																							},
+																						},
+																					},
+																				},
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}},
+			}},
+		}},
+	}
+
+	recordInfo, err := extractLogRecord(protobuf.ResourceLogs[0].ScopeLogs[0].LogRecords[0], nil, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, uint64(1234567890), recordInfo.TimeUnixNano)
+	assert.Equal(t, "INFO", recordInfo.SeverityText)
+
+	expectedBody := map[string]interface{}{
+		"key1": "value1",
+		"key2": int64(2),
+		"key3": 3.0,
+		"key4": true,
+		"key5": []interface{}{"value1", int64(5)},
+		"key6": map[string]interface{}{
+			"nest1Key1": "nest1Value1",
+			"nest1Key2": int64(6),
+			"nest1Key3": map[string]interface{}{
+				"nest2Key1": "nest2Value1",
+				"nest2Key2": int64(7),
+				"nest2Key3": map[string]interface{}{
+					"nest3Key1": []interface{}{"nest3Value1", int64(8)},
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, expectedBody, recordInfo.Body)
+}

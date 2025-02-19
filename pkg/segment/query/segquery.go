@@ -73,7 +73,7 @@ func InitQueryNode(getMyIds func() []int64, extractKibanaRequestsFn func([]strin
 	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
-	go initSyncSegMetaForAllIds(getMyIds)
+	go initSyncSegMetaForAllIds(getMyIds, hooks.GlobalHooks.GetAllSegmentsHook)
 	go runQueryInfoRefreshLoop(getMyIds)
 
 	// Init specific writer components for kibana requests
@@ -105,12 +105,12 @@ func queryMetricsLooper() {
 	}
 }
 
-func initSyncSegMetaForAllIds(getMyIds func() []int64) {
+func initSyncSegMetaForAllIds(getMyIds func() []int64, allSegmentsHook func() (map[string]struct{}, error)) {
 	var allSegKeys map[string]struct{}
 	var err error
 
-	if hook := hooks.GlobalHooks.GetAllSegmentsHook; hook != nil {
-		allSegKeys, err = hook()
+	if allSegmentsHook != nil {
+		allSegKeys, err = allSegmentsHook()
 		if err != nil {
 			log.Errorf("initSyncSegMetaForAllIds: Error in getting all SegKeys, err:%v", err)
 			return

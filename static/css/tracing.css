@@ -606,15 +606,15 @@ body.resizing {
     position: absolute;
     top: 0;
     bottom: 0;
-    width: 5px;
+    width: 4px;
     cursor: col-resize;
     z-index: 99;
     transition: background-color 0.2s;
+    background: var(--time-tick);
 }
 
 .gantt-chart-resizer:hover {
-    width: 5px;
-    background: var(--time-tick);
+    width: 6px;
 }
 
 .hover-highlight {

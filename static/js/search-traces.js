@@ -439,7 +439,7 @@ function showScatterPlot() {
                 var spans = param.value[2];
                 var errors = param.value[3];
                 var traceId = param.value[6] ? param.value[6] : '';
-                var traceStartTimeMs = param.value[7];
+                var traceTimestamp = param.value[7];
 
                 return `<div class="custom-tooltip">
                     <div class="tooltip-content">
@@ -452,8 +452,8 @@ function showScatterPlot() {
                     </div>
                     <hr>
                     <div class="tooltip-context">
-                        <div class="context-option" onclick="handleRelatedTraces('${traceId}')">View Traces</div>
-                        <div class="context-option" onclick="handleRelatedLogs('${traceId}', ${traceStartTimeMs}, 'trace')">Related Logs</div>
+                        <div class="context-option" onclick="handleRelatedTraces('${traceId}', ${traceTimestamp})">View Traces</div>
+                        <div class="context-option" onclick="handleRelatedLogs('${traceId}', ${traceTimestamp}, 'trace')">Related Logs</div>
                     </div>
                 </div>`;
             },
@@ -495,14 +495,16 @@ function showScatterPlot() {
     });
     // Open Gantt Chart when click on Scatter Chart
     chart.on('click', function (params) {
-        window.location.href = 'trace.html?trace_id=' + params.data[6];
+        const traceId = params.data[6];
+        const traceTimestamp = params.data[7]; // nanoseconds
+        window.location.href = `trace.html?trace_id=${traceId}&timestamp=${traceTimestamp}`;
     });
 }
 function reSort() {
     $('.warn-box').remove();
     for (let i = 0; i < returnResTotal.length; i++) {
         let json = returnResTotal[i];
-        $('#warn-bottom').append(`<a href="../trace.html?trace_id=${json.trace_id}" class="warn-box-anchor">
+        $('#warn-bottom').append(`<a href="../trace.html?trace_id=${json.trace_id}&timestamp=${json.start_time}" class="warn-box-anchor">
       <div class="warn-box warn-box-${i}"><div class="warn-head">
                               <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
                               <span class = "duration-time" id  = "duration-time-${i}"></span>
