@@ -110,9 +110,6 @@ class TimestampCellRenderer {
 
         jsonPopup.innerHTML = `
         <div class="json-popup-header">
-            <button onclick="handleRelatedTrace()" class="btn-related-trace btn btn-purple">
-                <i class="fa fa-file-text"></i>&nbsp; Related Trace
-            </button>
             <button class="json-popup-close">×</button>
             </div>
 

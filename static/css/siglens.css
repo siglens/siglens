@@ -6323,6 +6323,7 @@ p#versionInfo {
     cursor: pointer;
     padding: 4px;
     line-height: 1;
+    margin-left: 418px;
 }
 
 .json-popup-content {
@@ -6362,7 +6363,8 @@ p#versionInfo {
 .tab-button.active {
     background: var(--tab-active-background);
     border: 1px solid var(--purple-1);
-    border-radius: 4px;
+    border-radius: 5px;
+    color: var(--text-color) !important;
 }
 
 .tab-content {
