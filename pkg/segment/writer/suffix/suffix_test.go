@@ -18,6 +18,7 @@
 package suffix
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -37,4 +38,20 @@ func Test_getNextSuffix(t *testing.T) {
 	suffix, err = getAndIncrementSuffixFromFile(fileName, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), suffix)
+}
+
+func Test_getNextSuffix_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	fileName := filepath.Join(dir, "suffix.json")
+	fd, err := os.Create(fileName)
+	assert.NoError(t, err)
+	fd.Close()
+
+	suffix, err := getAndIncrementSuffixFromFile(fileName, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1000), suffix)
+
+	suffix, err = getAndIncrementSuffixFromFile(fileName, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(1001), suffix)
 }
