@@ -619,7 +619,6 @@ body {
 }
 
 #app-side-nav .big-menu:hover{
-    /*border-left: 5px solid var(--side-nav-selected-border-color);*/
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
