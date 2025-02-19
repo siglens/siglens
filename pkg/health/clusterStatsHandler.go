@@ -54,7 +54,6 @@ func GetTraceStatsForAllSegments(myid int64) (utils.AllIndexesStats, int64, floa
 }
 
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid int64) {
-
 	var httpResp utils.ClusterStatsResponseInfo
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
@@ -145,7 +144,6 @@ func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid int64) {
 	httpResp.IndexStats = convertIndexDataToSlice(indexData)
 	httpResp.TraceIndexStats = convertTraceIndexDataToSlice(traceIndexData)
 	utils.WriteJsonResponse(ctx, httpResp)
-
 }
 
 func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64 {
@@ -161,8 +159,8 @@ func calculateStorageSavedPercentage(incomingBytes, onDiskBytes float64) float64
 
 func convertDataToSlice(allIndexStats utils.AllIndexesStats, volumeField, countField,
 	segmentCountField, columnCountField, earliestEpochField, latestEpochField,
-	onDiskBytesField, cmiSizeField, csgSizeField, numIndexFilesField, numBlocksField string) []map[string]map[string]interface{} {
-
+	onDiskBytesField, cmiSizeField, csgSizeField, numIndexFilesField, numBlocksField string,
+) []map[string]map[string]interface{} {
 	indices := make([]string, 0)
 	for index := range allIndexStats.IndexToStats {
 		indices = append(indices, index)
@@ -226,7 +224,7 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	}
 
 	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
+	jsonc := jsoniter.ConfigCompatibleWithStandardLibrary
 	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
 	decoder.UseNumber()
 	err = decoder.Decode(&readJSON)
@@ -286,7 +284,7 @@ func parseAlphaNumTime(inp string, defValue uint64) (uint64, usageStats.UsageSta
 		retVal = 24 * uint64(num)
 		granularity = usageStats.Daily
 	}
-	//for past 2 days , set granularity to Hourly
+	// for past 2 days , set granularity to Hourly
 	if num <= 2 {
 		granularity = usageStats.Hourly
 	}
@@ -325,6 +323,7 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 
 	return pastXhours, granularity
 }
+
 func isTraceRelatedIndex(indexName string) bool {
 	for _, value := range excludedInternalIndices {
 		if indexName == value {
@@ -387,6 +386,9 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 			continue
 		}
 		indexName := segMeta.VirtualTableName
+		if !filterFunc(indexName) {
+			continue
+		}
 		segmentCounts[indexName]++
 
 		updateTimestamps(indexName, segMeta.EarliestEpochMS, segMeta.LatestEpochMS)
@@ -395,14 +397,12 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 		if !exist {
 			allIndexCols[indexName] = make(map[string]struct{})
 			allIndexCols[indexName][tsKey] = struct{}{}
+			totalCols[tsKey+"-"+indexName] = struct{}{}
 		}
 		for col := range segMeta.ColumnNames {
 			allIndexCols[indexName][col] = struct{}{}
-			totalCols[col] = struct{}{}
+			totalCols[col+"-"+indexName] = struct{}{}
 		}
-	}
-	if len(allIndexCols) > 0 {
-		totalCols[tsKey] = struct{}{}
 	}
 
 	// Get unrotated timestamps for all indexes
