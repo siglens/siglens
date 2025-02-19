@@ -43,3 +43,22 @@ func Test_AtomicWriteFile_Truncate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("banana"), got)
 }
+
+func Test_AtomicWriteFile_Append(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "testfile.txt")
+
+	err := AtomicWriteFile(filePath, []byte("apple"), Append)
+	assert.NoError(t, err)
+
+	got, err := os.ReadFile(filePath)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("apple"), got)
+
+	err = AtomicWriteFile(filePath, []byte("banana"), Append)
+	assert.NoError(t, err)
+
+	got, err = os.ReadFile(filePath)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("applebanana"), got)
+}
