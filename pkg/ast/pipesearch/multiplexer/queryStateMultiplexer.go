@@ -149,6 +149,25 @@ func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanI
 		switch chanIndex {
 		case MainIndex:
 			q.mainQid = data.Qid
+
+			if data.CompleteWSResp == nil {
+				if data.HttpResponse == nil {
+					q.errorAndClose(fmt.Errorf("No response data found"))
+					return
+				}
+
+				if q.input[TimechartIndex].channel != nil {
+					q.errorAndClose(fmt.Errorf("Non-websocket query with timechart is not yet supported"))
+					return
+				}
+
+				q.output <- &QueryStateEnvelope{
+					QueryStateChanData: data,
+					ChannelIndex:       MainIndex,
+				}
+				return
+			}
+
 			savedResponse := data.CompleteWSResp
 			if q.savedCompletion != nil {
 				savedResponse.TimechartComplete = q.savedCompletion.TimechartComplete
