@@ -88,21 +88,15 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"a", "b"}},
 	}
 
-	// Drain available output for a short period to verify no COMPLETE message is sent yet.
-	completeFound := false
-	timeout := time.After(50 * time.Millisecond)
-DrainLoop:
-	for {
+	// Verify the COMPLETE message is not sent, since timechart hasn't completed.
+	assert.Never(t, func() bool {
 		select {
 		case msg := <-outChan:
-			if msg.StateName == query.COMPLETE {
-				completeFound = true
-			}
-		case <-timeout:
-			break DrainLoop
+			return msg.StateName == query.COMPLETE
+		default:
+			return false
 		}
-	}
-	assert.False(t, completeFound, "COMPLETE message should not be sent before timechart channel completes")
+	}, 50*time.Millisecond, 10*time.Millisecond, "COMPLETE message should not be sent before timechart channel completes")
 
 	// Now send COMPLETE from the timechart channel.
 	timechartChan <- &query.QueryStateChanData{
@@ -115,21 +109,14 @@ DrainLoop:
 	close(mainChan)
 	close(timechartChan)
 
-	// Collect all remaining messages.
-	var messages []*QueryStateEnvelope
-	for msg := range outChan {
-		messages = append(messages, msg)
-	}
+	msg, ok := <-outChan
+	assert.True(t, ok, "Expected one COMPLETE message")
+	assert.Equal(t, query.COMPLETE, msg.StateName, "Message should be COMPLETE")
+	assert.ElementsMatch(t, []string{"a", "b"}, msg.CompleteWSResp.ColumnsOrder)
+	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
+	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
+	assert.ElementsMatch(t, []string{"y", "z"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
 
-	// Verify that exactly one COMPLETE message is emitted, and it is the final message.
-	var completeCount int
-	for i, msg := range messages {
-		if msg.StateName == query.COMPLETE {
-			completeCount++
-			if i != len(messages)-1 {
-				t.Errorf("COMPLETE message should be the last message, got index %d", i)
-			}
-		}
-	}
-	assert.Equal(t, 1, completeCount, "Expected exactly one COMPLETE message")
+	_, ok = <-outChan
+	assert.False(t, ok, "Expected no additional messages after COMPLETE")
 }
