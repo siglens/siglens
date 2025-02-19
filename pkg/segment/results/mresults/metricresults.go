@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -197,7 +198,24 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		err := r.aggregateFromAllTimeseries(aggregation)
+		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+		for grpID, ds := range r.DsResults {
+			if ds == nil {
+				continue
+			}
+
+			if _, exists := seriesEntriesMap[grpID]; !exists {
+				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
+			}
+
+			for i := 0; i < ds.idx; i++ {
+				entry := ds.runningEntries[i]
+				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
+			}
+		}
+
+		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
 			errors = append(errors, err)
 			return errors
@@ -235,6 +253,7 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	}
 
 	wg.Wait()
+	r.DsResults = nil
 	r.State = AGGREGATED
 
 	if len(errors) > 0 {
@@ -296,7 +315,23 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		err := r.aggregateFromAllTimeseries(aggregation)
+		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+		for seriesId, timeSeries := range r.Results {
+			aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
+			if _, ok := results[aggSeriesId]; !ok {
+				results[aggSeriesId] = make(map[uint32]float64, 0)
+				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
+			}
+			for ts, val := range timeSeries {
+				if _, ok := seriesEntriesMap[aggSeriesId][ts]; !ok {
+					seriesEntriesMap[aggSeriesId][ts] = make([]RunningEntry, 0)
+				}
+				seriesEntriesMap[aggSeriesId][ts] = append(seriesEntriesMap[aggSeriesId][ts], RunningEntry{runningCount: 1, runningVal: val})
+			}
+		}
+
+		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
 			errors = append(errors, err)
 			return errors
@@ -404,7 +439,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	if len(errList) > 0 {
 		return errList
 	}
-
+	r.DsResults = nil
 	return nil
 }
 
@@ -728,12 +763,12 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 	return 0, errors.New("no suitable step found")
 }
 
-func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation) error {
+func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation, seriesEntriesMap map[string]map[uint32][]RunningEntry) error {
 
 	var err error
 	switch aggregation.AggregatorFunction {
 	case segutils.Count:
-		r.computeAggCount(aggregation)
+		r.computeAggCount(aggregation, seriesEntriesMap)
 	case segutils.TopK:
 		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0)
 	case segutils.BottomK:
@@ -804,14 +839,14 @@ func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor fl
 		}
 	}
 
+	r.DsResults = nil
 	r.State = AGGREGATED
 
 	return nil
 }
 
 // Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
-func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
-
+func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesEntriesMap map[string]map[uint32][]RunningEntry) {
 	// groupByCols seriesId mapping to map[uint32]map[string]struct{}
 	// We can determine the number of full unique grpIDs for each timestamp.
 	// For example, count by (color,gender) (metric0)
@@ -821,27 +856,24 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 	r.Results = make(map[string]map[uint32]float64)
 
 	if len(aggregation.GroupByFields) > 0 {
-		for grpID, runningDS := range r.DsResults {
+		for grpID, timeSeries := range seriesEntriesMap {
 			seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
-			_, exists := seriesIdEntriesMap[seriesId]
-			if !exists {
+			if _, exists := seriesIdEntriesMap[seriesId]; !exists {
 				seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
 			}
 
-			for i := 0; i < runningDS.idx; i++ {
-				timestamp := runningDS.runningEntries[i].downsampledTime
-
-				// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
-				// even when there is only one tag filter. This prevents all entries from having the same grpID,
-				// which would result in a count of 1 for each timestamp.
-				uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
-				_, exists := seriesIdEntriesMap[seriesId][timestamp]
-				if !exists {
-					seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+			for timestamp, entries := range timeSeries {
+				for i := range entries {
+					// Modify grpID to ensure uniqueness
+					uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
+					if _, exists := seriesIdEntriesMap[seriesId][timestamp]; !exists {
+						seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+					}
+					seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
 				}
-				seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
 			}
 		}
+
 		for seriesId, entries := range seriesIdEntriesMap {
 			grpVal := make(map[uint32]float64)
 			for timestamp, grpIdSet := range entries {
@@ -853,14 +885,15 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 		timestampToCount := make(map[uint32]float64)
 
 		// Iterate through all series and count unique timestamps
-		for _, runningDS := range r.DsResults {
-			for i := 0; i < runningDS.idx; i++ {
-				timestamp := runningDS.runningEntries[i].downsampledTime
-				timestampToCount[timestamp]++
+		for _, timeSeries := range seriesEntriesMap {
+			for timestamp, entries := range timeSeries {
+				for _, entry := range entries {
+					if entry.runningCount > 0 {
+						timestampToCount[timestamp] += float64(entry.runningCount)
+					}
+				}
 			}
 		}
-
-		// Store the results with the metric name
 		r.Results[r.MetricName+"{"] = timestampToCount
 	}
 
@@ -872,6 +905,7 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 	timestampToVals := make(map[uint32][]float64)
 	r.Results = make(map[string]map[uint32]float64)
 
+	log.Errorf("\n\nr.DsResults: %v\n\n", r.DsResults)
 	// If we use group by for this vector, We need to obtain all the timeseries within a group, and then calculate the variance or standard deviation separately for each group
 	if len(aggregation.GroupByFields) > 0 {
 		// All the time series values under one group
@@ -933,5 +967,6 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 		r.Results[r.MetricName+"{"] = resultMap
 	}
 
+	r.DsResults = nil
 	r.State = AGGREGATED
 }
