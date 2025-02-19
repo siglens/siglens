@@ -44,6 +44,7 @@ func getSuffix(fileName string) (*entry, error) {
 
 	// Handle an empty file.
 	if len(jsonBytes) == 0 {
+		log.Warnf("getSuffix: File %v is empty", fileName)
 		return &entry{NextSuffix: 0}, nil // TODO: do atomic file writes, then start at 0.
 	}
 
