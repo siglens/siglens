@@ -495,7 +495,9 @@ function showScatterPlot() {
     });
     // Open Gantt Chart when click on Scatter Chart
     chart.on('click', function (params) {
-        window.location.href = 'trace.html?trace_id=' + params.data[6];
+        const traceId = params.data[6];
+        const startTime = params.data[7];
+        window.location.href = `trace.html?trace_id=${traceId}&start_time=${startTime}`;
     });
 }
 function reSort() {

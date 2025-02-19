@@ -124,13 +124,18 @@ let svgWidth;
 let traceId;
 let spanDetailsClosed = false;
 
+const SEARCH_WINDOW_MINUTES = 15;
+const MS_PER_MINUTE = 60 * 1000;
+const NANO_TO_MS = 1000000;
+
 $(document).ready(() => {
     $('.theme-btn').on('click', themePickerHandler);
 
     svgWidth = $('#timeline-container').width();
 
     traceId = getParameterFromUrl('trace_id');
-    getTraceInformation(traceId);
+    const startTimeNano = getParameterFromUrl('start_time');
+    getTraceInformation(traceId, startTimeNano);
 });
 
 function getParameterFromUrl(param) {
@@ -138,7 +143,14 @@ function getParameterFromUrl(param) {
     return urlParams.get(param);
 }
 
-function getTraceInformation(traceId) {
+function getTraceInformation(traceId, startTimeNano) {
+    const startTimeMS = Math.floor(Number(startTimeNano) / NANO_TO_MS);
+    const windowMs = SEARCH_WINDOW_MINUTES * MS_PER_MINUTE;
+
+    // Calculate search start and end time (ms)
+    const windowStart = startTimeMS - windowMs;
+    const windowEnd = startTimeMS + windowMs;
+
     $.ajax({
         method: 'POST',
         url: 'api/traces/ganttchart',
@@ -148,8 +160,8 @@ function getTraceInformation(traceId) {
         },
         data: JSON.stringify({
             searchText: `trace_id=${traceId}`,
-            startEpoch: 'now-365d',
-            endEpoch: 'now',
+            startEpoch: windowStart.toString(),
+            endEpoch: windowEnd.toString(),
         }),
         dataType: 'json',
         crossDomain: true,
