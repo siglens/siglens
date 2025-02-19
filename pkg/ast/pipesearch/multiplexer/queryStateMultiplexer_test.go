@@ -49,9 +49,6 @@ func TestMultiplexer_TimechartNil(t *testing.T) {
 	}
 	mainChan <- completeData
 
-	// Close the main channel.
-	close(mainChan)
-
 	// Collect all output messages.
 	var messages []*QueryStateEnvelope
 	for msg := range outChan {
@@ -85,7 +82,7 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 	mainChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		Qid:            qid,
-		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"a", "b"}},
+		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"m1", "m2"}},
 	}
 
 	// Verify the COMPLETE message is not sent, since timechart hasn't completed.
@@ -98,24 +95,71 @@ func TestMultiplexer_MainCompletesFirst(t *testing.T) {
 		}
 	}, 50*time.Millisecond, 10*time.Millisecond, "COMPLETE message should not be sent before timechart channel completes")
 
-	// Now send COMPLETE from the timechart channel.
+	// Now send the other COMPLETE.
 	timechartChan <- &query.QueryStateChanData{
 		StateName:      query.COMPLETE,
 		Qid:            qid,
-		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"y", "z"}},
+		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1"}},
 	}
-
-	// Close both channels.
-	close(mainChan)
-	close(timechartChan)
 
 	msg, ok := <-outChan
 	assert.True(t, ok, "Expected one COMPLETE message")
 	assert.Equal(t, query.COMPLETE, msg.StateName, "Message should be COMPLETE")
-	assert.ElementsMatch(t, []string{"a", "b"}, msg.CompleteWSResp.ColumnsOrder)
+	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
 	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
 	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
-	assert.ElementsMatch(t, []string{"y", "z"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
+	assert.Equal(t, []string{"t1"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
+
+	_, ok = <-outChan
+	assert.False(t, ok, "Expected no additional messages after COMPLETE")
+}
+
+func TestMultiplexer_MainCompletesLast(t *testing.T) {
+	mainChan := make(chan *query.QueryStateChanData, 4)
+	timechartChan := make(chan *query.QueryStateChanData, 4)
+	multiplexer := NewQueryStateMultiplexer(mainChan, timechartChan)
+	outChan := multiplexer.Multiplex()
+
+	const qid = uint64(42)
+
+	mainChan <- &query.QueryStateChanData{
+		StateName: query.READY,
+		Qid:       qid,
+	}
+	timechartChan <- &query.QueryStateChanData{
+		StateName: query.READY,
+		Qid:       qid,
+	}
+	timechartChan <- &query.QueryStateChanData{
+		StateName:      query.COMPLETE,
+		Qid:            qid,
+		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"t1"}},
+	}
+
+	// Verify the COMPLETE message is not sent, since the main query hasn't completed.
+	assert.Never(t, func() bool {
+		select {
+		case msg := <-outChan:
+			return msg.StateName == query.COMPLETE
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, 10*time.Millisecond, "COMPLETE message should not be sent before main channel completes")
+
+	// Now send the other COMPLETE.
+	mainChan <- &query.QueryStateChanData{
+		StateName:      query.COMPLETE,
+		Qid:            qid,
+		CompleteWSResp: &structs.PipeSearchCompleteResponse{ColumnsOrder: []string{"m1", "m2"}},
+	}
+
+	msg, ok := <-outChan
+	assert.True(t, ok, "Expected one COMPLETE message")
+	assert.Equal(t, query.COMPLETE, msg.StateName, "Message should be COMPLETE")
+	assert.Equal(t, []string{"m1", "m2"}, msg.CompleteWSResp.ColumnsOrder)
+	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete)
+	assert.NotNil(t, msg.CompleteWSResp.RelatedComplete.Timechart)
+	assert.Equal(t, []string{"t1"}, msg.CompleteWSResp.RelatedComplete.Timechart.ColumnsOrder)
 
 	_, ok = <-outChan
 	assert.False(t, ok, "Expected no additional messages after COMPLETE")
