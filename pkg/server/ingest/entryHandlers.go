@@ -171,7 +171,7 @@ func otlpIngestLogsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func otlpIngestMetricsHandler() func(ctx *fasthttp.RequestCtx) {
+func oltpIngestMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyId(otlp.ProcessMetricsIngest, ctx)
 	}
