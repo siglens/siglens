@@ -6340,7 +6340,6 @@ p#versionInfo {
 .json-popup-content div {
     margin: 0;
     font-family: "Roboto Mono", Menlo, Monaco, "Courier New", monospace;
-    white-space: pre-wrap;
     word-break: break-all;
     font-size: 12px;
     line-height: 1.5;
@@ -6351,6 +6350,9 @@ p#versionInfo {
     color: #0d6efd;
 }
 
+.json-key-values {
+    white-space: pre-wrap !important;
+}
 .json-value {
   color: #dc3545;
 }
@@ -6392,26 +6394,31 @@ p#versionInfo {
     white-space: nowrap;
 }
 
+.json-table td {
+    font-family: Inter, "system-ui", Helvetica, Arial, sans-serif;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
 .json-table th {
-    /* background-color: #f4f4f4; */
     background-color: var(--datatable-header-bg-color);
 }
 
-/* Increase width of the key column */
 .json-table th:first-child,
 .json-table td:first-child {
-    width: 40%; /* Adjust this percentage as needed */
-    max-width: 250px; /* Optional: limit max width */
+    width: 40%;
+    max-width: 250px;
     overflow: hidden;
-    text-overflow: ellipsis; /* Truncate long text with '...' */
+    text-overflow: ellipsis;
 }
 
 .json-content-type-box {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Pushes copy button to the right */
+    justify-content: space-between;
     padding: 5px 10px;
-    border-bottom: 1px solid #ddd; /* Optional: Separator */
+    border-bottom: 1px solid #ddd;
 }
 
 .copy-json-button {
@@ -6419,8 +6426,8 @@ p#versionInfo {
     border: none;
     cursor: pointer;
     font-size: 16px;
-    color: #666; /* Adjust color */
-    margin-left: auto; /* Pushes to the right */
+    color: #666;
+    margin-left: auto;
     padding: 5px;
 }
 
