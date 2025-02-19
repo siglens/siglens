@@ -641,6 +641,7 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 		case query.COMPLETE:
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 
 			if isAsync {
 				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
@@ -658,14 +659,24 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 				if err != nil {
 					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query for rpc failure, err: %v", qid, err)
 				} else {
-					rQuery = newRQuery
-					qid = newQid
+					newTimechartQuery, newTimechartQid, err := listenToRestartQuery(timechartQid, timechartQuery, isAsync, conn)
+					if err != nil {
+						log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart timechart query for rpc failure, err: %v", qid, err)
+						defer query.DeleteQuery(newQid)
+					} else {
+						rQuery = newRQuery
+						qid = newQid
 
-					continue
+						timechartQuery = newTimechartQuery
+						timechartQid = newTimechartQid
+
+						continue
+					}
 				}
 			}
 
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 			if isAsync {
 				wErr := conn.WriteJSON(createErrorResponse(queryStateData.Error.Error()))
 				if wErr != nil {
@@ -698,17 +709,21 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 		case query.TIMEOUT:
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 			if isAsync {
 				processTimeoutUpdate(conn, qid)
+				processTimeoutUpdate(conn, timechartQid)
 			} else {
 				return nil, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: query timed out", qid)
 			}
 		case query.CANCELLED:
 			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 
 			if isAsync {
 				processCancelQuery(conn, qid)
+				processCancelQuery(conn, timechartQid)
 			}
 			return nil, false, root.TimeRange, nil
 		}
