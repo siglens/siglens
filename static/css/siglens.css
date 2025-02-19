@@ -2858,7 +2858,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .LogResultsGrid.ag-theme-mycustomtheme .ag-row:hover {
     background: var(--alerting-table-hover) !important;
     border: 1px solid !important;
-    border-color:var(--purple-1) !important;
+    border-color: var(--purple-1) !important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
@@ -5957,7 +5957,6 @@ p#versionInfo {
 }
 
 .logcontainer {
-    margin-left: 10px !important;
     margin-bottom: 6px !important;
     width: 94px;
     height: 26px;
@@ -6226,9 +6225,10 @@ p#versionInfo {
     font-weight: bold;
 }
 
-[data-theme='dark'] .tab.active{
+[data-theme='dark'] .tab.active {
     color: var(--white);
 }
+
 .section {
     background-color: var(--black1-to-white0);
     padding: 16px;
@@ -6290,9 +6290,14 @@ p#versionInfo {
     color: #d63384;
 }
 
+.custom-chart-container {
+    display: flex;
+    height: calc(100% - 120px);
+}
+
 .json-popup {
     width: 0;
-    background-color: var(--black1-to-white0) ;
+    background-color: var(--black1-to-white0);
     transition: width 0.3s ease;
     overflow: hidden;
     border-top: 1px solid var(--panel-table-line-color);
@@ -6329,8 +6334,7 @@ p#versionInfo {
 .json-popup-content {
     padding: 16px;
     overflow-y: auto;
-    height: 100%;
-    max-height: 600px;
+    height: calc(100% - 40px);
 }
 
 .json-popup-content div {
@@ -6344,11 +6348,11 @@ p#versionInfo {
 }
 
 .json-key {
-    color: rgb(0, 113, 194);
+    color: #0d6efd;
 }
 
 .json-value {
-    color: rgb(189, 39, 30);
+  color: #dc3545;
 }
 
 .tab-button {
@@ -6422,4 +6426,5 @@ p#versionInfo {
 
 .copy-json-button:hover {
     color: #000; /* Darker on hover */
+
 }

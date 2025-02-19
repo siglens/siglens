@@ -1216,8 +1216,8 @@ function createTooltip(selector, content) {
     });
 }
 
-function handleRelatedTraces(traceId) {
-    window.location.href = `trace.html?trace_id=${traceId}`;
+function handleRelatedTraces(traceId, timestamp) {
+    window.location.href = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
 
 }
 
