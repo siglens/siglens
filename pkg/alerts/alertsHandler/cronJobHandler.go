@@ -58,6 +58,8 @@ func AddCronJob(alertDataObj *alertutils.AlertDetails) (*gocron.Job, error) {
 		evaluateFunc = evaluateLogAlert
 	} else if alertDataObj.AlertType == alertutils.AlertTypeMetrics {
 		evaluateFunc = evaluateMetricsAlert
+	} else if alertDataObj.AlertType == alertutils.AlertTypeAPM {
+		evaluateFunc = evaluateAPMAlert
 	} else {
 		log.Errorf("AddCronJob: AlertType=%v is not Logs or Metrics. Alert=%+v", alertDataObj.AlertType, alertDataObj.AlertName)
 		return nil, fmt.Errorf("AlertType is not Logs or Metrics. Alert=%+v", alertDataObj.AlertName)
@@ -336,6 +338,8 @@ func evaluateMetricsAlert(alertToEvaluate *alertutils.AlertDetails, job gocron.J
 		log.Errorf("ALERTSERVICE: evaluateMetricsAlert: Error in handleAlertCondition. Alert=%+v & err=%+v.", alertToEvaluate.AlertName, err)
 	}
 }
+
+func evaluateAPMAlert(x int) {}
 
 func updateAlertState(alertId string, alertState alertutils.AlertState, alertNotificationSent bool) error {
 	err := databaseObj.UpdateAlertStateAndNotificationDetails(alertId, alertState, alertNotificationSent)

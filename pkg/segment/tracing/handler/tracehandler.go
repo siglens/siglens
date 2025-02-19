@@ -690,7 +690,8 @@ func redMetricsToJson(redMetrics structs.RedMetrics, service string) ([]byte, er
 }
 
 func ParseRedMetricsRequest(rawJSON []byte) (uint32, uint32, string, string, map[string]interface{}, error) {
-	var start, end uint32
+	var start = uint32(0)
+	var end = uint32(0)
 	var serviceName, joinOperator string
 	errorLog := " "
 	readJSON := make(map[string]interface{})
@@ -709,14 +710,14 @@ func ParseRedMetricsRequest(rawJSON []byte) (uint32, uint32, string, string, map
 	}
 
 	// Parse startTime and endTime
-	start, err = parseTimeStringToUint32(readJSON["startTime"])
+	start, err = parseTimeStringToUint32(readJSON["start"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse startTime")
 		errorLog = "failed to parse startTime"
 		return start, end, serviceName, errorLog, readJSON, respBodyErr
 	}
 
-	end, err = parseTimeStringToUint32(readJSON["endTime"])
+	end, err = parseTimeStringToUint32(readJSON["end"])
 	if err != nil {
 		respBodyErr = errors.New("failed to parse endTime")
 		errorLog = "failed to parse endTime"

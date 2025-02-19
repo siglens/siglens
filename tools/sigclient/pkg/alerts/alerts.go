@@ -53,7 +53,6 @@ const (
 	MetricsString            = "Metrics"
 	APMString                = "APM"
 	MetricsQueryParamsString = "{\"start\": \"now-1h\", \"end\": \"now\", \"queries\": [{\"name\": \"a\", \"query\": \"avg by (car_type) (testmetric0{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}, {\"name\": \"b\", \"query\": \"avg by (car_type) (testmetric1{car_type=\\\"Passenger car heavy\\\"})\", \"qlType\": \"promql\"}], \"formulas\": [{\"formula\": \"a+b\"}]}"
-	APMQueryParamsString     = "{\"start\": \"now-3h\", \"end\": \"now\", \"queries\": [{\"serviceName\": \"user-service\", \"JoinOperator\": \"AND\", \"RatePerSec\": 100, \"ErrorPercentage\": 5, \"DurationP50Ms\": 200, \"DurationP90Ms\": 400, \"DurationP99Ms\": 600}]}"
 
 	LogsQueryText       = `app_name=Wheat* AND gender=male | stats count(app_name) by gender`
 	LogsQueryLanguage   = "Splunk QL"
@@ -63,6 +62,8 @@ const (
 	AlertValue          = 1
 	EvalWindow          = 1
 	EvalInterval        = 1
+
+	APMQueryParamsString = "{\"start\":\"now-3h\",\"end\":\"now\",\"serviceName\":\"sanket\",\"query\":{\"JoinOperator\":\"OR\",\"RatePerSec\":10.5,\"ErrorPercentage\":5.0,\"DurationP50Ms\":200,\"DurationP90Ms\":500,\"DurationP99Ms\":1000}}"
 
 	// // APM parameters
 	// apmStartTime       = "now-3h"
