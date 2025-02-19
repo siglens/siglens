@@ -134,8 +134,8 @@ $(document).ready(() => {
     svgWidth = $('#timeline-container').width();
 
     traceId = getParameterFromUrl('trace_id');
-    const startTimeNano = getParameterFromUrl('start_time');
-    getTraceInformation(traceId, startTimeNano);
+    const timestampNano = getParameterFromUrl('timestamp');
+    getTraceInformation(traceId, timestampNano);
 });
 
 function getParameterFromUrl(param) {
@@ -143,13 +143,15 @@ function getParameterFromUrl(param) {
     return urlParams.get(param);
 }
 
-function getTraceInformation(traceId, startTimeNano) {
-    const startTimeMS = Math.floor(Number(startTimeNano) / NANO_TO_MS);
+function getTraceInformation(traceId, timestampNano) {
+    const timestampMS = Math.floor(Number(timestampNano) / NANO_TO_MS);
     const windowMs = SEARCH_WINDOW_MINUTES * MS_PER_MINUTE;
 
     // Calculate search start and end time (ms)
-    const windowStart = startTimeMS - windowMs;
-    const windowEnd = startTimeMS + windowMs;
+    //eslint-disable-next-line no-unused-vars
+    const windowStart = timestampMS - windowMs;
+    //eslint-disable-next-line no-unused-vars
+    const windowEnd = timestampMS + windowMs;
 
     $.ajax({
         method: 'POST',
@@ -160,8 +162,10 @@ function getTraceInformation(traceId, startTimeNano) {
         },
         data: JSON.stringify({
             searchText: `trace_id=${traceId}`,
-            startEpoch: windowStart.toString(),
-            endEpoch: windowEnd.toString(),
+            // startEpoch: windowStart.toString(),
+            // endEpoch: windowEnd.toString(),
+            startEpoch: 'now-1h',
+            endEpoch: 'now',
         }),
         dataType: 'json',
         crossDomain: true,
