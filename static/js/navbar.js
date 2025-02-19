@@ -251,11 +251,11 @@ $('head').append(accordionStyles);
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
-{ name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
-{ name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
-{ name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
-{ name: 'Version', url: './application-version.html', class: 'application-version' },
-{ name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
+    { name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
+    { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
+    { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
+    { name: 'Version', url: './application-version.html', class: 'application-version' },
+    { name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
 ];
 
 let tracingUpperNavTabs = [
@@ -279,7 +279,7 @@ $(document).ready(function () {
     const isNavigatingBack = document.referrer.includes('metrics.html');
 
     //Handling Dropdown
-    $('.nav-header').on('click', function (e) {
+    $('.nav-header').on('click', function(e) {
         e.preventDefault();
         const $menu = $(this).closest('.menu');
         const $submenu = $menu.find('.submenu');
@@ -302,7 +302,7 @@ $(document).ready(function () {
     });
 
     //Handling Dropdown
-    $('.nav-header').on('click', function (e) {
+    $('.nav-header').on('click', function(e) {
         e.preventDefault();
         const $menu = $(this).closest('.big-menu');
         const $submenu = $menu.find('.submenu');
@@ -328,7 +328,7 @@ $(document).ready(function () {
     if (currentUrl.includes('index.html')) {
         $('.nav-search').addClass('active');
     }
-    else if (currentUrl.includes('metrics.html')) {
+    else if(currentUrl.includes('metrics.html')){
         $('.nav-metrics').addClass('active');
         $('.nav-metrics .accordion-content').show();
         $('.nav-metrics .dropdown-arrow').addClass('active');
@@ -354,237 +354,237 @@ $(document).ready(function () {
     } else if (currentUrl.includes('all-slos.html')) {
         $('.nav-slos').addClass('active');
         $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
-    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html') || currentUrl.includes('query-stats.html') || currentUrl.includes('pqs-settings.html') { { .OrgUpperNavUrls } }
-    || currentUrl.includes('diagnostics.html')) {
-    $('.nav-myorg').addClass('active');
-    $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
-} else if (currentUrl.includes('minion-searches.html')) {
-    $('.nav-minion').addClass('active');
-} else if (currentUrl.includes('live-tail.html')) {
-    $('.nav-live').addClass('active');
-} else if (currentUrl.includes('service-health.html') || currentUrl.includes('service-health-overview.html') || currentUrl.includes('dependency-graph.html') || currentUrl.includes('search-traces.html')) {
-    $('.nav-traces').addClass('active');
-    $('.nav-traces').addClass('disable-hover');
-    setTimeout(function () {
-        $('.nav-traces').removeClass('disable-hover');
-    }, 500);
-    if ($('.subsection-navbar').length) {
-        $('.subsection-navbar').appendOrgNavTabs('Tracing', tracingUpperNavTabs);
-    }
-} else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
-    $('.nav-ingest').addClass('active');
-    $('.nav-ingest').addClass('disable-hover');
-    setTimeout(function () {
-        $('.nav-ingest').removeClass('disable-hover');
-    }, 500);
-} else if (currentUrl.includes('lookups.html')) {
-    $('.nav-lookups').addClass('active');
-}
-
-
-$('.nav-metrics .accordion-toggle').on('click', function (e) {
-    const $menu = $(this).closest('.menu');
-    const $content = $menu.find('.accordion-content');
-    const $arrow = $menu.find('.dropdown-arrow');
-
-    if ($(e.target).is('.dropdown-arrow')) {
-
-        e.preventDefault();
-
-
-        $content.slideToggle(300, function () {
-            $arrow.toggleClass('active');
-            if ($content.is(':visible')) {
-                $menu.addClass('active');
-                $content.addClass('active');
-            } else {
-                $menu.removeClass('active');
-                $content.removeClass('active');
-            }
-        });
-    } else {
-        if (!currentUrl.includes('metrics.html')) {
-            window.location.href = './metrics.html';
+    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html')|| currentUrl.includes('query-stats.html')  || currentUrl.includes('pqs-settings.html') {{ .OrgUpperNavUrls }}
+    ||  currentUrl.includes('diagnostics.html')) {
+        $('.nav-myorg').addClass('active');
+        $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
+    } else if (currentUrl.includes('minion-searches.html')) {
+        $('.nav-minion').addClass('active');
+    } else if (currentUrl.includes('live-tail.html')) {
+        $('.nav-live').addClass('active');
+    } else if (currentUrl.includes('service-health.html') || currentUrl.includes('service-health-overview.html') || currentUrl.includes('dependency-graph.html') || currentUrl.includes('search-traces.html')) {
+        $('.nav-traces').addClass('active');
+        $('.nav-traces').addClass('disable-hover');
+        setTimeout(function () {
+            $('.nav-traces').removeClass('disable-hover');
+        }, 500);
+        if ($('.subsection-navbar').length) {
+            $('.subsection-navbar').appendOrgNavTabs('Tracing', tracingUpperNavTabs);
         }
+    } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
+        $('.nav-ingest').addClass('active');
+        $('.nav-ingest').addClass('disable-hover');
+        setTimeout(function () {
+            $('.nav-ingest').removeClass('disable-hover');
+        }, 500);
+    } else if (currentUrl.includes('lookups.html')) {
+        $('.nav-lookups').addClass('active');
     }
-});
 
-$('.nav-metrics .accordion-toggle').on('click', function (e) {
-    const $menu = $(this).closest('.big-menu');
-    const $content = $menu.find('.accordion-content');
-    const $arrow = $menu.find('.dropdown-arrow');
-    const menuName = $(this).find('.nav-link-text').text().trim(); // Get the menu text
 
-    let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+    $('.nav-metrics .accordion-toggle').on('click', function(e) {
+        const $menu = $(this).closest('.menu');
+        const $content = $menu.find('.accordion-content');
+        const $arrow = $menu.find('.dropdown-arrow');
 
-    if ($(e.target).is('.dropdown-arrow')) {
-        e.preventDefault();
+        if ($(e.target).is('.dropdown-arrow')) {
 
-        $content.slideToggle(300, function () {
-            $arrow.toggleClass('active');
+            e.preventDefault();
 
-            if ($content.is(':visible')) {
-                $menu.addClass('active');
-                $content.addClass('active');
 
-                if (!activeMenus.some(item => item.activeBigItems === menuName)) {
-                    activeMenus.push({ activeBigItems: menuName, activeSubItem: "" });
+            $content.slideToggle(300, function () {
+                $arrow.toggleClass('active');
+                if ($content.is(':visible')) {
+                    $menu.addClass('active');
+                    $content.addClass('active');
+                } else {
+                    $menu.removeClass('active');
+                    $content.removeClass('active');
                 }
-            } else {
-                $menu.removeClass('active');
-                $content.removeClass('active');
-
-                activeMenus = activeMenus.filter(item => item.activeBigItems !== menuName);
+            });
+        } else {
+            if (!currentUrl.includes('metrics.html')) {
+                window.location.href = './metrics.html';
             }
-
-            localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
-        });
-    } else {
-        if (!window.location.href.includes('metrics.html')) {
-            window.location.href = './metrics.html';
         }
-    }
-});
+    });
 
-// Handle submenu clicks and store active state
-$('.submenu-link').on('click', function (e) {
-    e.preventDefault();
+    $('.nav-metrics .accordion-toggle').on('click', function (e) {
+        const $menu = $(this).closest('.big-menu');
+        const $content = $menu.find('.accordion-content');
+        const $arrow = $menu.find('.dropdown-arrow');
+        const menuName = $(this).find('.nav-link-text').text().trim(); // Get the menu text
 
-    const subMenuName = $(this).text().trim();
-    const parentMenu = $(this).closest('.big-menu').find('.nav-link-text').text().trim();
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
 
-    let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+        if ($(e.target).is('.dropdown-arrow')) {
+            e.preventDefault();
 
-    activeMenus = activeMenus.map(item =>
-        item.activeBigItems === parentMenu ? { activeBigItems: parentMenu, activeSubItem: subMenuName } : item
+            $content.slideToggle(300, function () {
+                $arrow.toggleClass('active');
+
+                if ($content.is(':visible')) {
+                    $menu.addClass('active');
+                    $content.addClass('active');
+
+                    if (!activeMenus.some(item => item.activeBigItems === menuName)) {
+                        activeMenus.push({ activeBigItems: menuName, activeSubItem: "" });
+                    }
+                } else {
+                    $menu.removeClass('active');
+                    $content.removeClass('active');
+
+                    activeMenus = activeMenus.filter(item => item.activeBigItems !== menuName);
+                }
+
+                localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+            });
+        } else {
+            if (!window.location.href.includes('metrics.html')) {
+                window.location.href = './metrics.html';
+            }
+        }
+    });
+
+    // Handle submenu clicks and store active state
+    $('.submenu-link').on('click', function (e) {
+        e.preventDefault();
+
+        const subMenuName = $(this).text().trim();
+        const parentMenu = $(this).closest('.big-menu').find('.nav-link-text').text().trim();
+
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+
+        activeMenus = activeMenus.map(item =>
+            item.activeBigItems === parentMenu ? { activeBigItems: parentMenu, activeSubItem: subMenuName } : item
+        );
+
+        localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+
+
+        $('.submenu-link').removeClass('active');
+        $(this).addClass('active');
+
+
+        window.location.href = $(this).attr('href');
+    });
+
+
+
+    let activeMenus_get = JSON.parse(localStorage.getItem('activeMenus')) || [];
+
+    activeMenus_get.forEach(item => {
+        let $menu = $('.nav-metrics .accordion-toggle').filter(function () {
+            return $(this).find('.nav-link-text').text().trim() === item.activeBigItems;
+        }).closest('.big-menu');
+
+        let $content = $menu.find('.accordion-content');
+        let $arrow = $menu.find('.dropdown-arrow');
+
+        $menu.addClass('active');
+        $content.addClass('active').show();
+        $arrow.addClass('active');
+
+        if (item.activeSubItem) {
+            let $subItem = $content.find('.submenu-link').filter(function () {
+                return $(this).text().trim() === item.activeSubItem;
+            });
+            $subItem.addClass('active');
+        }
+    });
+
+
+    window.onpopstate = function(event) {
+        if (!window.location.href.includes('metrics.html')) {
+            $('.nav-metrics .accordion-content').slideUp(300);
+            $('.nav-metrics').removeClass('active');
+            $('.nav-metrics .dropdown-arrow').removeClass('active');
+        }
+    };
+
+
+    $('.tracing-dropdown-toggle').hover(
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.traces-dropdown').stop(true, true).slideDown(0);
+            }
+        },
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.traces-dropdown').stop(true, true).slideUp(30);
+            }
+        }
     );
 
-    localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
-
-
-    $('.submenu-link').removeClass('active');
-    $(this).addClass('active');
-
-
-    window.location.href = $(this).attr('href');
-});
-
-
-
-let activeMenus_get = JSON.parse(localStorage.getItem('activeMenus')) || [];
-
-activeMenus_get.forEach(item => {
-    let $menu = $('.nav-metrics .accordion-toggle').filter(function () {
-        return $(this).find('.nav-link-text').text().trim() === item.activeBigItems;
-    }).closest('.big-menu');
-
-    let $content = $menu.find('.accordion-content');
-    let $arrow = $menu.find('.dropdown-arrow');
-
-    $menu.addClass('active');
-    $content.addClass('active').show();
-    $arrow.addClass('active');
-
-    if (item.activeSubItem) {
-        let $subItem = $content.find('.submenu-link').filter(function () {
-            return $(this).text().trim() === item.activeSubItem;
-        });
-        $subItem.addClass('active');
-    }
-});
-
-
-window.onpopstate = function (event) {
-    if (!window.location.href.includes('metrics.html')) {
-        $('.nav-metrics .accordion-content').slideUp(300);
-        $('.nav-metrics').removeClass('active');
-        $('.nav-metrics .dropdown-arrow').removeClass('active');
-    }
-};
-
-
-$('.tracing-dropdown-toggle').hover(
-    function () {
-        if (!$(this).closest('.menu').hasClass('disable-hover')) {
-            $('.traces-dropdown').stop(true, true).slideDown(0);
+    $('.ingestion-dropdown-toggle').hover(
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.ingestion-dropdown').stop(true, true).slideDown(0);
+            }
+        },
+        function () {
+            if (!$(this).closest('.menu').hasClass('disable-hover')) {
+                $('.ingestion-dropdown').stop(true, true).slideUp(30);
+            }
         }
-    },
-    function () {
-        if (!$(this).closest('.menu').hasClass('disable-hover')) {
-            $('.traces-dropdown').stop(true, true).slideUp(30);
+    );
+
+    $('.nav-help').hover(
+        function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $('.help-options').stop(true, true).slideDown(0);
+        },
+        function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $('.help-options').stop(true, true).slideUp(30);
         }
-    }
-);
+    );
 
-$('.ingestion-dropdown-toggle').hover(
-    function () {
-        if (!$(this).closest('.menu').hasClass('disable-hover')) {
-            $('.ingestion-dropdown').stop(true, true).slideDown(0);
+    // Prevent the default click action for Help & Support
+    $('.nav-help').on('click', function (event) {
+        event.preventDefault();
+    });
+
+    // Handle the hover event for the help-options to keep it visible
+    $('.help-options').hover(
+        function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $('.help-options').stop(true, true).slideDown(0);
+        },
+        function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+            $('.help-options').stop(true, true).slideUp(30);
         }
-    },
-    function () {
-        if (!$(this).closest('.menu').hasClass('disable-hover')) {
-            $('.ingestion-dropdown').stop(true, true).slideUp(30);
+    );
+
+    $(document).on('click', function (event) {
+        var helpOptions = $('.help-options');
+        var metricsDropdown = $('.metrics-dropdown');
+        var tracesDropdown = $('.traces-dropdown');
+        var ingestionDropdown = $('.ingestion-dropdown');
+
+        if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
+            metricsDropdown.hide();
         }
-    }
-);
+        if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
+            tracesDropdown.hide();
+        }
+        if (!ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
+            ingestionDropdown.hide();
+        }
+        if (!helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
+            helpOptions.slideUp(0);
+        }
+    });
 
-$('.nav-help').hover(
-    function (event) {
-        event.stopPropagation();
-        event.preventDefault();
-        $('.help-options').stop(true, true).slideDown(0);
-    },
-    function (event) {
-        event.stopPropagation();
-        event.preventDefault();
-        $('.help-options').stop(true, true).slideUp(30);
-    }
-);
-
-// Prevent the default click action for Help & Support
-$('.nav-help').on('click', function (event) {
-    event.preventDefault();
-});
-
-// Handle the hover event for the help-options to keep it visible
-$('.help-options').hover(
-    function (event) {
-        event.stopPropagation();
-        event.preventDefault();
-        $('.help-options').stop(true, true).slideDown(0);
-    },
-    function (event) {
-        event.stopPropagation();
-        event.preventDefault();
-        $('.help-options').stop(true, true).slideUp(30);
-    }
-);
-
-$(document).on('click', function (event) {
-    var helpOptions = $('.help-options');
-    var metricsDropdown = $('.metrics-dropdown');
-    var tracesDropdown = $('.traces-dropdown');
-    var ingestionDropdown = $('.ingestion-dropdown');
-
-    if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
-        metricsDropdown.hide();
-    }
-    if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
-        tracesDropdown.hide();
-    }
-    if (!ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
-        ingestionDropdown.hide();
-    }
-    if (!helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
-        helpOptions.slideUp(0);
-    }
-});
-
-const menuItem = document.querySelectorAll('.metrics-dropdown a');
-menuItem.forEach((item) => {
-    if (item.href === currentUrl) {
-        item.classList.add('active');
-    }
-});
+    const menuItem = document.querySelectorAll('.metrics-dropdown a');
+    menuItem.forEach((item) => {
+        if (item.href === currentUrl) {
+            item.classList.add('active');
+        }
+    });
 });
