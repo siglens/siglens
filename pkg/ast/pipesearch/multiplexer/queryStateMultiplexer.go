@@ -31,11 +31,12 @@ const (
 	TimechartIndex
 )
 
+// This reads from two channels and multiplexes the data into a single channel.
 // If any channel gets an error/cancellation/timeout, the multiplexer will send
 // that on the output channel and close it. If any channel gets a COMPLETE
 // state, the multiplexer will save that info but not send anything; once all
 // channels are COMPLETE, the multiplexer will send the COMPLETE state on the
-// output channel with all the saved info.
+// output channel with all the saved info. Other messages simply propagate.
 type QueryStateMultiplexer struct {
 	input           [2]*chanState
 	output          chan *QueryStateEnvelope
