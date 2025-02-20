@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package loki;
+
+import "pkg/loki/foreign/gogo.proto";
+import "pkg/loki/foreign/timestamp.proto";
+
+option go_package = "/log";
+
+service Pusher {
+  rpc Push(PushRequest) returns (PushResponse) {}
+}
+
+message PushRequest {
+  repeated StreamAdapter streams = 1 [
+    (jsontag) = "streams",
+    (customtype) = "Stream"
+  ];
+}
+
+message PushResponse {}
+
+message StreamAdapter {
+  string labels = 1 [(jsontag) = "labels"];
+  repeated EntryAdapter entries = 2 [
+    (nullable) = false,
+    (jsontag) = "entries"
+  ];
+  // hash contains the original hash of the stream.
+  uint64 hash = 3 [(jsontag) = "-"];
+}
+
+message EntryAdapter {
+  Timestamp timestamp = 1 [
+    (stdtime) = true,
+    (nullable) = false,
+    (jsontag) = "ts"
+  ];
+  string line = 2 [(jsontag) = "line"];
+}
