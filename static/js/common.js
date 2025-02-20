@@ -1216,10 +1216,13 @@ function createTooltip(selector, content) {
     });
 }
 
-function handleRelatedTraces(traceId, timestamp) {
+function handleRelatedTraces(traceId, timestamp, new_tab) {
     const url = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
-    window.open(url, '_blank'); // Opens in a new tab
-
+    if (new_tab){
+        window.open(url, '_blank'); // Opens in a new tab
+    }else{
+        window.open(url);
+    }
 }
 
 function handleRelatedLogs(id, traceStartTime, type = 'trace') {

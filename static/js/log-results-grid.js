@@ -135,7 +135,7 @@ class TimestampCellRenderer {
             <div class="json-popup-header">
                 <div class="json-popup-header-buttons">
                     ${showRelatedTraceButton ? `
-                        <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, 'trace')">
+                        <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, 'trace', ${false})">
                             <i class="fa fa-file-text"></i>&nbsp; Related Trace
                         </button>
                     ` : ""}

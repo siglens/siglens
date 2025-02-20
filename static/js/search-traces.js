@@ -452,7 +452,7 @@ function showScatterPlot() {
                     </div>
                     <hr>
                     <div class="tooltip-context">
-                        <div class="context-option" onclick="handleRelatedTraces('${traceId}', ${traceTimestamp})">View Traces</div>
+                        <div class="context-option" onclick="handleRelatedTraces('${traceId}', ${traceTimestamp}, ${false})">View Traces</div>
                         <div class="context-option" onclick="handleRelatedLogs('${traceId}', ${traceTimestamp}, 'trace')">Related Logs</div>
                     </div>
                 </div>`;
