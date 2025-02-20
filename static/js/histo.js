@@ -105,18 +105,10 @@ $(document).ready(function () {
         const dates = data.map(log => new Date(log.timestamp));
         const range = Math.max(...dates) - Math.min(...dates);
 
-        if (range <= 1000 * 60 * 60) {
-            return new Date(currentDate.setSeconds(0, 0)).getTime();
-        } else if (range <= 1000 * 60 * 60 * 24) {
-            return new Date(currentDate.setMinutes(0, 0, 0)).getTime();
-        } else if (range <= 1000 * 60 * 60 * 24 * 7) {
-            return new Date(currentDate.setHours(0, 0, 0, 0)).getTime();
-        } else {
-            const dayOfWeek = currentDate.getDay();
-            const diff = currentDate.getDate() - dayOfWeek;
-            return new Date(currentDate.setDate(diff)).setHours(0, 0, 0, 0);
-        }
+        // Default auto to 'day'
+        return new Date(currentDate.setHours(0, 0, 0, 0)).getTime();
     }
+
 
     function updateTimeRange(interval) {
         if (logsData.length > 0) {
