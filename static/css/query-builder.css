@@ -102,7 +102,6 @@ input.form-control {
     flex: 1;
     flex-wrap: wrap;
     height: auto;
-    overflow-x: auto;
     padding-left: 5px;
     scrollbar-width: none;
     -ms-overflow-style: none;
