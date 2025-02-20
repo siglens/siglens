@@ -639,11 +639,23 @@ function alertChart(res) {
             type: 'bar',
             data: {
                 labels: chartData.labels,
-                datasets: chartData.datasets,
+                datasets: chartData.datasets.map((dataset) => ({
+                    ...dataset,
+                    backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    borderWidth: 1,
+                    barPercentage: 0.3,
+                    categoryPercentage: 0.8,
+                })),
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 0,
+                    },
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -675,13 +687,26 @@ function alertChart(res) {
                             color: '#718096',
                             maxRotation: 45,
                             minRotation: 45,
+                            font: {
+                                size: 10,
+                            },
+                            padding: 2,
                         },
                     },
                 },
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top',
+                        position: 'bottom',
+                        padding: 0,
+                        labels: {
+                            boxWidth: 10, 
+                            boxHeight: 8,
+                            padding: 4,
+                            font: {
+                                size: 10
+                            }
+                        },
                     },
                     annotation: {
                         annotations: {
