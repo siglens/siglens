@@ -90,7 +90,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	}
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(event, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, runTimechart := ParseSearchBody(event, nowTs)
 
 	if scrollFrom > 10_000 {
 		processMaxScrollComplete(conn, qid)
@@ -100,6 +100,9 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	ti := structs.InitTableInfo(indexNameIn, orgid, false)
 	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)
+
+	var timechartSimpleNode *structs.ASTNode
+	var timechartAggs *structs.QueryAggregators
 
 	queryLanguageType := event["queryLanguage"]
 	var simpleNode *structs.ASTNode
@@ -118,8 +121,24 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 			if wErr != nil {
 				log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
 			}
-		} else {
+		}
+
+		if runTimechart && shouldRunTimechartQuery(aggs) {
+			searchText += " | timechart count"
+			timechartSimpleNode, timechartAggs, _, err = ParseRequest(searchText, startEpoch, endEpoch, qid, "Splunk QL", indexNameIn)
+			if err != nil {
+				wErr := conn.WriteJSON(createErrorResponse(err.Error()))
+				if wErr != nil {
+					log.Errorf("qid=%d, ProcessPipeSearchWebsocket: failed to write error response to websocket! err: %+v", qid, wErr)
+				}
+			}
+		}
+
+		if err == nil {
 			err = structs.CheckUnsupportedFunctions(aggs)
+		}
+		if err == nil {
+			err = structs.CheckUnsupportedFunctions(timechartAggs)
 		}
 	} else {
 		log.Infof("ProcessPipeSearchWebsocket: unknown queryLanguageType: %v; using Splunk QL instead", queryLanguageType)
@@ -152,7 +171,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 	qc.IncludeNulls = includeNulls
 
 	if config.IsNewQueryPipelineEnabled() {
-		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, qc, sizeLimit, scrollFrom)
+		RunAsyncQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc, sizeLimit, scrollFrom)
 		return
 	}
 
@@ -204,6 +223,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 }
 
 func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
+	timechartSimpleNode *structs.ASTNode, timechartAggs *structs.QueryAggregators,
 	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
 	websocketR := make(chan map[string]interface{})
 
@@ -226,7 +246,7 @@ func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *s
 		websocketR <- map[string]interface{}{"state": "exit"}
 	}()
 
-	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, qc)
+	_, _, _, err := RunQueryForNewPipeline(conn, qid, simpleNode, aggs, timechartSimpleNode, timechartAggs, qc)
 	if err != nil {
 		log.Errorf("qid=%d, RunAsyncQueryForNewPipeline: failed to execute query, err: %v", qid, err)
 		wErr := conn.WriteJSON(createErrorResponse(err.Error()))
@@ -563,4 +583,12 @@ func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint32
 		return nil, nil, err
 	}
 	return allJson, allCols, nil
+}
+
+func shouldRunTimechartQuery(aggs *structs.QueryAggregators) bool {
+	if aggs.HasTimechartInChain() || aggs.HasStatsBlockInChain() || aggs.HasStreamStatsInChain() {
+		return false
+	}
+
+	return true
 }
