@@ -1523,11 +1523,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 }
 
 function updateChartThresholds() {
-    const newThreshold = parseFloat($('#threshold-value').val()) || 0;
-    const conditionType = $('#alert-condition span').text();
-
     for (let queryName in lineCharts) {
-        if (lineCharts.hasOwnProperty(queryName)) {
+        if (Object.prototype.hasOwnProperty.call(lineCharts, queryName)) {
             const chart = lineCharts[queryName];
             const maxDataValue = Math.max(...chart.data.datasets.flatMap((d) => Object.values(d.data).filter((v) => v !== null)));
             const maxYTick = maxDataValue * 1.2;
@@ -1564,7 +1561,7 @@ function updateChartThresholds() {
 
             if (chart.options.plugins.annotation?.annotations) {
                 chart.options.plugins.annotation.annotations.thresholdLine.value = visibleThreshold;
-                chart.options.plugins.annotation.annotations.thresholdLine.label.content = `y ${operator} ${newThreshold}`;
+                chart.options.plugins.annotation.annotations.thresholdLine.label.content = `y ${operator} ${thresholdValue}`;
 
                 if (Object.keys(boxConfig).length > 0) {
                     chart.options.plugins.annotation.annotations.thresholdBox = boxConfig;
