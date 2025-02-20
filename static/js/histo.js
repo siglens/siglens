@@ -17,84 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*$(document).ready(function () {
-    $('#toggle-btn').click(function (event) {
-        event.stopPropagation();
-        $('#histogram-container').slideToggle(function () {
-            if ($('#histogram-container').is(':visible')) {
-                $('#initial-response').hide(); // Hide initial response when histogram opens
-            } else {
-                $('#initial-response').show();
-            }
-        });
-        renderHistogram();
-    });
-
-    $('#histogram-container').click(function (event) {
-        event.stopPropagation();
-    });
-
-    // Optional: Close when clicking outside the histogram
-    $(document).click(function () {
-        $('#histogram-container').slideUp();
-    });
-
-    function renderHistogram() {
-        const logs = [
-            { timestamp: '2025-02-10', count: 1200, error: 'Server Error' },
-            { timestamp: '2025-02-11', count: 1800, error: 'Database Error' },
-            { timestamp: '2025-02-12', count: 500, error: 'Memory Leak' },
-            { timestamp: '2025-02-13', count: 900, error: 'Network Timeout' },
-            { timestamp: '2025-02-14', count: 600, error: 'File Not Found' },
-            { timestamp: '2025-02-15', count: 1500, error: 'Unauthorized Access' },
-            { timestamp: '2025-02-16', count: 1700, error: 'High CPU Usage' },
-            { timestamp: '2025-02-17', count: 2000, error: 'System Crash' },
-            { timestamp: '2024-02-10', count: 1200, error: 'Server Error' },
-            { timestamp: '2024-02-11', count: 1800, error: 'Database Error' },
-            { timestamp: '2024-02-12', count: 500, error: 'Memory Leak' },
-            { timestamp: '2024-02-13', count: 900, error: 'Network Timeout' },
-            { timestamp: '2024-02-14', count: 600, error: 'File Not Found' },
-            { timestamp: '2024-02-15', count: 1500, error: 'Unauthorized Access' },
-            { timestamp: '2024-02-16', count: 1700, error: 'High CPU Usage' },
-            { timestamp: '2024-02-17', count: 2000, error: 'System Crash' },
-        ];
-
-        $('#histogram').empty();
-        $('#x-axis').empty();
-        $('#y-axis').empty();
-
-        let yValues = [2000, 1500, 1000, 500, 0];
-        yValues.forEach((value) => {
-            $('#y-axis').append(`<span>${value}</span>`);
-        });
-
-        let maxCount = 2000;
-
-        logs.forEach((log) => {
-            let count = log.count;
-            let barHeight = (count / maxCount) * 100;
-
-            let bar = `
-                <div class="bar" style="height: ${barHeight}%;"
-                    data-timestamp="${log.timestamp}"
-                    data-count="${count}"
-                    data-error="${log.error}">
-                </div>`;
-            $('#histogram').append(bar);
-            $('#x-axis').append(`<span>${log.timestamp}</span>`);
-        });
-
-        // Tooltip handling
-        $('.bar').hover(function () {
-            let timestamp = $(this).data('timestamp');
-            let count = $(this).data('count');
-            let error = $(this).data('error');
-
-            $(this).attr('title', `Date: ${timestamp}\nCount: ${count}\nError: ${error}`);
-        });
-    }
-});*/
-
 $(document).ready(function () {
     let logsData = [];
 
@@ -274,18 +196,7 @@ $(document).ready(function () {
             $('#histogram').append(bar);
 
             let xAxisLabel = moment(log.timestamp).format('YYYY-MM-DD');
-            /*switch(interval.toLowerCase()) {
-                case 'millisecond':
-                case 'second':
-                    xAxisLabel = moment(log.timestamp).format('HH:mm:ss');
-                    break;
-                case 'minute':
-                    xAxisLabel = moment(log.timestamp).format('HH:mm');
-                    break;
-                case 'hour':
-                    xAxisLabel = moment(log.timestamp).format('HH:00');
-                    break;
-            }*/
+
             $('#x-axis').append(`<span>${xAxisLabel}</span>`);
         });
 
@@ -312,9 +223,9 @@ $(document).ready(function () {
         }
     });
 
-    // Fetch and render initial data
+
     function fetchLogs() {
-        // Simulated data - replace with actual API call
+        // Simulated data - have to replace with actual API call
         logsData = [
             { timestamp: '2025-02-10T05:30:00.000Z', count: 1200, error: 'Server Error' },
             { timestamp: '2025-02-10T05:30:01.000Z', count: 1800, error: 'Database Error' },
@@ -346,7 +257,6 @@ $(document).ready(function () {
             { timestamp: '2025-02-18T05:44:03.000Z', count: 1500, error: 'Unauthorized Access' },
             { timestamp: '2025-02-18T05:03:03.000Z', count: 1700, error: 'High CPU Usage' },
             { timestamp: '2025-02-19T05:19:03.000Z', count: 2000, error: 'System Crash' },
-            // ... your existing log data ...
         ];
     }
 
