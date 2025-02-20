@@ -79,16 +79,15 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
 
 			for _, metrics := range scopeMetrics.Metrics {
-				numTotalRecords++
 				metricType, extractedMetrics := processMetric(metrics)
 				for _, pm := range extractedMetrics {
 					pm.Type = metricType
-					data, err := ConvertToOLTPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
+					data, err := ConvertToOTLPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
 					numTotalRecords++
-					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OLTP, myid)
+					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
 					if err != nil {
 						numFailedRecords++
-						log.Errorf("OLTPMatrics: failed to add time series entry for data=%+v, err=%v", data, err)
+						log.Errorf("OLTPMetrics: failed to add time series entry for data=%+v, err=%v", data, err)
 					}
 				}
 
@@ -225,7 +224,7 @@ func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
 	return "Unknown", extracted
 }
 
-func ConvertToOLTPMetricsFormat(data processedMetric, timestamp int64, value float64) ([]byte, error) {
+func ConvertToOTLPMetricsFormat(data processedMetric, timestamp int64, value float64) ([]byte, error) {
 	type Metric struct {
 		Name      string            `json:"metric"`
 		Tags      map[string]string `json:"tags"`

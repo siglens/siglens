@@ -687,14 +687,14 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	}
 }
 
-func ExtractOLTPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {
+func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {
 	var mName []byte
 	var dpVal float64
 	var ts uint32
 	var err error
 
 	if tags == nil {
-		log.Errorf("ExtractOLTPPayload: tags holder is nil")
+		log.Errorf("ExtractOTLPPayload: tags holder is nil")
 		return nil, 0, 0, fmt.Errorf("tags holder is nil")
 	}
 
@@ -705,21 +705,21 @@ func ExtractOLTPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 			case jp.String:
 				_, err := jp.ParseString(value)
 				if err != nil {
-					log.Errorf("ExtractOLTPPayload: failed to parse %v as string, err=%v", value, err)
+					log.Errorf("ExtractOTLPPayload: failed to parse %v as string, err=%v", value, err)
 					return err
 				}
 				mName = value
 			default:
-				return toputils.TeeErrorf("ExtractOLTPPayload: invalid type %v for metric name %v", valueType, value)
+				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for metric name %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
-				log.Errorf("ExtractOLTPPayload: tags key %s has value %s of type %v, which is not an object", key, value, valueType)
+				log.Errorf("ExtractOTLPPayload: tags key %s has value %s of type %v, which is not an object", key, value, valueType)
 				return fmt.Errorf("value type %v is not an object", valueType)
 			}
 			err = extractTagsFromJson(value, tags)
 			if err != nil {
-				log.Errorf("ExtractOLTPPayload: failed to extract tags. value=%s, tags=%+v, err=%v", value, tags, err)
+				log.Errorf("ExtractOTLPPayload: failed to extract tags. value=%s, tags=%+v, err=%v", value, tags, err)
 				return err
 			}
 		case bytes.Equal(key, otsdb_timestamp):
@@ -729,8 +729,8 @@ func ExtractOLTPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 				if err != nil {
 					fltVal, err := jp.ParseFloat(value)
 					if err != nil {
-						log.Errorf("ExtractOLTPPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
-						return fmt.Errorf("ExtractOLTPPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
+						log.Errorf("ExtractOTLPPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
+						return fmt.Errorf("ExtractOTLPPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
 					} else {
 						if toputils.IsTimeInMilli(uint64(fltVal)) {
 							ts = uint32(fltVal / 1000)
@@ -769,20 +769,20 @@ func ExtractOLTPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 					}
 				}
 				if !found {
-					log.Errorf("ExtractOLTPPayload: unknown timestamp format %s", value)
+					log.Errorf("ExtractOTLPPayload: unknown timestamp format %s", value)
 					return fmt.Errorf("unknown timestamp format %s", value)
 				}
 			default:
-				return toputils.TeeErrorf("ExtractOLTPPayload: invalid type %v for timestamp %v", valueType, value)
+				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for timestamp %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {
-				log.Errorf("ExtractOLTPPayload: value %s of type %v is not a number", value, valueType)
+				log.Errorf("ExtractOTLPPayload: value %s of type %v is not a number", value, valueType)
 				return fmt.Errorf("value is not a number")
 			}
 			fltVal, err := jp.ParseFloat(value)
 			if err != nil {
-				log.Errorf("ExtractOLTPPayload: failed to parse value %v as float, err=%v", value, err)
+				log.Errorf("ExtractOTLPPayload: failed to parse value %v as float, err=%v", value, err)
 				return fmt.Errorf("failed to convert value to float! %+v", err)
 			}
 			dpVal = fltVal
@@ -794,7 +794,7 @@ func ExtractOLTPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 	err = jp.ObjectEach(rawJson, handler)
 
 	if err != nil {
-		log.Errorf("ExtractOLTPPayload: failed to parse json %s, err=%v", rawJson, err)
+		log.Errorf("ExtractOTLPPayload: failed to parse json %s, err=%v", rawJson, err)
 		return mName, dpVal, ts, err
 	}
 	if len(mName) > 0 && ts > 0 {
@@ -802,7 +802,7 @@ func ExtractOLTPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 	} else if len(mName) == 0 && err == nil {
 		return nil, dpVal, 0, nil
 	} else {
-		err = fmt.Errorf("ExtractOLTPPayload: failed to find all expected keys. mName=%s, ts=%d, dpVal=%f", mName, ts, dpVal)
+		err = fmt.Errorf("ExtractOTLPPayload: failed to find all expected keys. mName=%s, ts=%d, dpVal=%f", mName, ts, dpVal)
 		log.Errorf(err.Error())
 		return nil, dpVal, 0, err
 	}

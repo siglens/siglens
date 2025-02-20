@@ -545,9 +545,9 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 			return fmt.Errorf("influx entry rejected because of errors: %v", errors)
 		}
 
-	case SIGNAL_METRICS_OLTP:
+	case SIGNAL_METRICS_OTLP:
 		tagsHolder := metrics.GetTagsHolder()
-		mName, dp, ts, err := metrics.ExtractOLTPPayload(rawJson, tagsHolder)
+		mName, dp, ts, err := metrics.ExtractOTLPPayload(rawJson, tagsHolder)
 		if err != nil {
 			return err
 		}
