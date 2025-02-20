@@ -18,7 +18,7 @@ type CertReloader struct {
 	cert     *tls.Certificate
 }
 
-const refreshIntervalSeconds = 3
+const refreshIntervalSeconds = 60
 
 func NewCertReloader(certPath string, privateKeyPath string) (*CertReloader, error) {
 	reloader := &CertReloader{

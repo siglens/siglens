@@ -37,6 +37,7 @@ func WatchFileChanges(files []string, refreshIntervalSeconds int, callback func(
 	ticker := time.NewTicker(time.Duration(refreshIntervalSeconds) * time.Second)
 
 	go func() {
+		defer ticker.Stop()
 		for {
 			<-ticker.C
 			for _, file := range files {
@@ -52,8 +53,6 @@ func WatchFileChanges(files []string, refreshIntervalSeconds int, callback func(
 					log.Infof("OnFileChange: File %v has changed", file)
 					callback()
 					lastHashes[file] = currentHash
-				} else {
-					log.Infof("File hasnt changed")
 				}
 			}
 		}
