@@ -572,14 +572,14 @@ function alertChart(res) {
     logsExplorer.style.display = 'flex';
     logsExplorer.innerHTML = '';
 
-    if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
+    if (res.qtype === 'logs-query') {
         showEmptyChart(logsExplorer);
         return;
     }
 
-    if (res.qtype === 'aggs-query') {
-        let columnOrder = getColumnOrder(res);
-        if (handleErrors(res, logsExplorer) || !hasValidData(res)) {
+    // Handle both aggs-query and segstats-query
+    if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
+        if (handleErrors(res, logsExplorer) || !res.measure || res.measure.length === 0) {
             showEmptyChart(logsExplorer);
             return;
         }
@@ -587,41 +587,160 @@ function alertChart(res) {
         const thresholdValue = parseFloat($('#threshold-value').val()) || 0;
         const conditionType = $('#alert-condition span').text();
 
-        if (columnOrder.length > 1) {
-            const canvas = document.createElement('canvas');
-            canvas.style.width = '100%';
-            canvas.style.height = '400px';
-            logsExplorer.appendChild(canvas);
+        const canvas = document.createElement('canvas');
+        canvas.style.width = '100%';
+        canvas.style.height = '400px';
+        logsExplorer.appendChild(canvas);
 
-            const { labels, datasets } = prepareLogsChartData(res, hits);
-            const ctx = canvas.getContext('2d');
+        const chartData = prepareLogsChartData(res, hits);
+        const ctx = canvas.getContext('2d');
 
-            // Destroy existing chart if it exists
-            if (alertChartInstance) {
-                alertChartInstance.destroy();
-            }
+        // Destroy existing chart if it exists
+        if (alertChartInstance) {
+            alertChartInstance.destroy();
+        }
 
-            // Calculate the maximum data value for y-axis scaling
-            const maxDataValue = Math.max(...datasets.map((d) => Math.max(...d.data)));
-            const maxYTick = maxDataValue * 1.2; // Add 20% padding
+        // Calculate the maximum data value for y-axis scaling
+        const maxDataValue = Math.max(...chartData.datasets.map((d) => Math.max(...d.data)));
+        const maxYTick = maxDataValue * 1.2; // Add 20% padding
 
-            let operator = '>';
-            let boxConfig = {};
-            let visibleThreshold = Math.min(thresholdValue, maxYTick);
-            let thresholdLabel = `y ${operator} ${thresholdValue}`;
+        let operator = '>';
+        let boxConfig = {};
+        let visibleThreshold = Math.min(thresholdValue, maxYTick);
+        let thresholdLabel = `y ${operator} ${thresholdValue}`;
 
-            if (conditionType === 'Is above') {
-                thresholdLabel = `y > ${thresholdValue}`;
-                boxConfig = {
+        if (conditionType === 'Is above') {
+            thresholdLabel = `y > ${thresholdValue}`;
+            boxConfig = {
+                type: 'box',
+                yMin: visibleThreshold,
+                yMax: maxYTick,
+                backgroundColor: 'rgb(255, 218, 224, 0.8)',
+                borderWidth: 0,
+            };
+        } else if (conditionType === 'Is below') {
+            thresholdLabel = `y < ${thresholdValue}`;
+            boxConfig = {
+                type: 'box',
+                yMin: 0,
+                yMax: visibleThreshold,
+                backgroundColor: 'rgb(255, 218, 224, 0.8)',
+                borderWidth: 0,
+            };
+        } else {
+            operator = conditionType === 'Equal to' ? '=' : '≠';
+            thresholdLabel = `y ${operator} ${thresholdValue}`;
+            boxConfig = {
+                borderWidth: 0,
+            };
+        }
+
+        alertChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels,
+                datasets: chartData.datasets,
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#718096',
+                            callback: function (value, index, values) {
+                                // Hide label for the maximum tick value
+                                if (index === values.length - 1) return '';
+                                return value;
+                            },
+                        },
+                        grid: {
+                            drawTicks: true,
+                            color: function (context) {
+                                const maxValue = Math.max(...context.chart.scales.y.ticks.map((t) => t.value));
+                                // Hide the top grid line
+                                if (context.tick.value === maxValue) return 'rgba(0, 0, 0, 0)';
+                                return '#E2E8F0';
+                            },
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: maxYTick,
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                        },
+                        ticks: {
+                            color: '#718096',
+                            maxRotation: 45,
+                            minRotation: 45,
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    annotation: {
+                        annotations: {
+                            thresholdLine: {
+                                type: 'line',
+                                scaleID: 'y',
+                                value: visibleThreshold,
+                                borderColor: 'rgb(255, 107, 107)',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    display: true,
+                                    content: thresholdLabel,
+                                    position: 'start',
+                                    backgroundColor: 'rgb(255, 107, 107)',
+                                    color: '#fff',
+                                    padding: {
+                                        x: 6,
+                                        y: 4,
+                                    },
+                                    font: {
+                                        size: 12,
+                                    },
+                                    z: 100,
+                                },
+                            },
+                            thresholdBox: boxConfig,
+                        },
+                    },
+                },
+            },
+        });
+
+        $('#threshold-value').on('input', updateThreshold);
+        $('.alert-condition-options li').on('click', updateThreshold);
+
+        function updateThreshold() {
+            const newThresholdValue = parseFloat($('#threshold-value').val()) || 0;
+            const newConditionType = $('#alert-condition span').text();
+            const maxDataValue = Math.max(...chartData.datasets.map((d) => Math.max(...d.data)));
+            const maxYTick = maxDataValue * 1.2;
+            const visibleThreshold = Math.min(newThresholdValue, maxYTick);
+
+            let newOperator = '>';
+            let newBoxConfig = {};
+            let thresholdLabel = '';
+
+            if (newConditionType === 'Is above') {
+                thresholdLabel = `y > ${newThresholdValue}`;
+                newBoxConfig = {
                     type: 'box',
                     yMin: visibleThreshold,
                     yMax: maxYTick,
                     backgroundColor: 'rgb(255, 218, 224, 0.8)',
                     borderWidth: 0,
                 };
-            } else if (conditionType === 'Is below') {
-                thresholdLabel = `y < ${thresholdValue}`;
-                boxConfig = {
+            } else if (newConditionType === 'Is below') {
+                thresholdLabel = `y < ${newThresholdValue}`;
+                newBoxConfig = {
                     type: 'box',
                     yMin: 0,
                     yMax: visibleThreshold,
@@ -629,174 +748,55 @@ function alertChart(res) {
                     borderWidth: 0,
                 };
             } else {
-                operator = conditionType === 'Equal to' ? '=' : '≠';
-                thresholdLabel = `y ${operator} ${thresholdValue}`;
-                boxConfig = {
+                newOperator = newConditionType === 'Equal to' ? '=' : '≠';
+                thresholdLabel = `y ${newOperator} ${newThresholdValue}`;
+                newBoxConfig = {
                     borderWidth: 0,
                 };
             }
 
-            alertChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets,
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: '#718096',
-                                callback: function (value, index, values) {
-                                    // Hide label for the maximum tick value
-                                    if (index === values.length - 1) {
-                                        return '';
-                                    }
-                                    return value;
-                                },
-                            },
-                            grid: {
-                                drawTicks: true,
-                                color: function (context) {
-                                    const maxValue = Math.max(...context.chart.scales.y.ticks.map((t) => t.value));
+            alertChartInstance.options.plugins.annotation.annotations.thresholdLine.value = visibleThreshold;
+            alertChartInstance.options.plugins.annotation.annotations.thresholdLine.label.content = thresholdLabel;
+            alertChartInstance.options.plugins.annotation.annotations.thresholdBox = newBoxConfig;
 
-                                    // Hide the top grid line
-                                    if (context.tick.value === maxValue) {
-                                        return 'rgba(0, 0, 0, 0)';
-                                    }
-                                    return '#E2E8F0';
-                                },
-                            },
-                            suggestedMin: 0,
-                            suggestedMax: maxYTick,
-                        },
-                        x: {
-                            grid: {
-                                display: false,
-                            },
-                            ticks: {
-                                color: '#718096',
-                                maxRotation: 45,
-                                minRotation: 45,
-                            },
-                        },
-                    },
-                    plugins: {
-                        annotation: {
-                            annotations: {
-                                thresholdLine: {
-                                    type: 'line',
-                                    scaleID: 'y',
-                                    value: visibleThreshold,
-                                    borderColor: 'rgb(255, 107, 107)',
-                                    borderWidth: 2,
-                                    borderDash: [5, 5],
-                                    label: {
-                                        display: true,
-                                        content: thresholdLabel,
-                                        position: 'start',
-                                        backgroundColor: 'rgb(255, 107, 107)',
-                                        color: '#fff',
-                                        padding: {
-                                            x: 6,
-                                            y: 4,
-                                        },
-                                        font: {
-                                            size: 12,
-                                        },
-                                        z: 100,
-                                    },
-                                },
-                                thresholdBox: boxConfig,
-                            },
-                        },
-                    },
-                },
-            });
-
-            $('#threshold-value').on('input', updateThreshold);
-            $('.alert-condition-options li').on('click', updateThreshold);
-
-            function updateThreshold() {
-                const newThresholdValue = parseFloat($('#threshold-value').val()) || 0;
-                const newConditionType = $('#alert-condition span').text();
-                const maxDataValue = Math.max(...datasets.map((d) => Math.max(...d.data)));
-                const maxYTick = maxDataValue * 1.2;
-                const visibleThreshold = Math.min(newThresholdValue, maxYTick);
-
-                let newOperator = '>';
-                let newBoxConfig = {};
-                let thresholdLabel = '';
-
-                if (newConditionType === 'Is above') {
-                    thresholdLabel = `y > ${newThresholdValue}`;
-                    newBoxConfig = {
-                        type: 'box',
-                        yMin: visibleThreshold,
-                        yMax: maxYTick,
-                        backgroundColor: 'rgb(255, 218, 224, 0.8)',
-                        borderWidth: 0,
-                    };
-                } else if (newConditionType === 'Is below') {
-                    thresholdLabel = `y < ${newThresholdValue}`;
-                    newBoxConfig = {
-                        type: 'box',
-                        yMin: 0,
-                        yMax: visibleThreshold,
-                        backgroundColor: 'rgb(255, 218, 224, 0.8)',
-                        borderWidth: 0,
-                    };
-                } else {
-                    newOperator = newConditionType === 'Equal to' ? '=' : '≠';
-                    thresholdLabel = `y ${newOperator} ${newThresholdValue}`;
-                    newBoxConfig = {
-                        borderWidth: 0,
-                    };
-                }
-
-                alertChartInstance.options.plugins.annotation.annotations.thresholdLine.value = visibleThreshold;
-                alertChartInstance.options.plugins.annotation.annotations.thresholdLine.label.content = thresholdLabel;
-                alertChartInstance.options.plugins.annotation.annotations.thresholdBox = newBoxConfig;
-
-                alertChartInstance.update();
-            }
+            alertChartInstance.update();
         }
     }
 }
+
 function prepareLogsChartData(res, hits) {
-    const multipleGroupBy = hits[0].GroupByValues.length > 1;
     const measureFunctions = res.measureFunctions;
 
-    const labels = hits.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy) || 'NULL');
+    let labels;
+    if (res.qtype === 'segstats-query') {
+        labels = ['Total'];
+    } else {
+        // For aggs queries
+        labels = hits.map((item) => {
+            const groupByValues = item.GroupByValues || item.IGroupByValues?.map((v) => v.CVal);
+            if (!Array.isArray(groupByValues)) {
+                return groupByValues || 'NULL';
+            }
+            // If there's only one group by value
+            if (groupByValues.length === 1) {
+                return groupByValues[0] || 'NULL';
+            }
+            return formatGroupByValues(groupByValues, true) || 'NULL';
+        });
+    }
 
     const datasets = measureFunctions.map((measureFunction) => {
         const data = hits.map((item) => item.MeasureVal[measureFunction] || 0);
         return {
             label: measureFunction,
             data: data,
+            backgroundColor: 'rgba(99, 102, 241, 0.8)',
+            borderColor: 'rgba(99, 102, 241, 1)',
+            borderWidth: 1,
         };
     });
 
     return { labels, datasets };
-}
-
-// Helper functions
-function getColumnOrder(res) {
-    let columnOrder = [];
-    if (res.columnsOrder?.length > 0) {
-        columnOrder = res.columnsOrder;
-    } else {
-        if (res.groupByCols) {
-            columnOrder = _.uniq(_.concat(res.groupByCols));
-        }
-        if (res.measureFunctions) {
-            columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-        }
-    }
-    return columnOrder;
 }
 
 function handleErrors(res, logsExplorer) {
@@ -807,15 +807,6 @@ function handleErrors(res, logsExplorer) {
         return true;
     }
     return false;
-}
-
-function hasValidData(res) {
-    const hits = res.measure;
-    if (!hits || hits.length === 0) {
-        $('#logs-explorer').hide();
-        return false;
-    }
-    return true;
 }
 
 function showEmptyChart(logsExplorer) {
