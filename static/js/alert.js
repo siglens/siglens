@@ -18,9 +18,11 @@
  */
 
 let alertData = {};
-let alertEditFlag = 0;
-let alertFromMetricsExplorerFlag = 0;
-let messageTemplateInfo = `<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>`;
+let isEditMode = 0;
+let isFromMetrics = 0;
+let alertChartInstance = null;
+
+let messageTemplateInfo = '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
 let messageInputBox = document.getElementById('message-info');
 if (messageInputBox) messageInputBox.innerHTML += messageTemplateInfo;
 
@@ -57,75 +59,75 @@ let indexValues;
 
 $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
-
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
 
-    // $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
 
-    await getAlertIdFromURL();
+    setupAlertEventHandlers();
+    setupValidationHandlers();
+    setupTooltips();
 
-    $('.alert-condition-options li').on('click', setAlertConditionHandler);
-    $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
-    // $('#logs-language-options li').on('click', setLogsLangHandler);
-    // $('#data-source-options li').on('click', function () {
-    //     let alertType;
-    //     if ($(this).html() === 'Logs') {
-    //         alertType = 1;
-    //     } else {
-    //         alertType = 2;
-    //         $('#save-alert-btn').on('click', function () {
-    //             if ($('#select-metric-input').val === '') {
-    //                 $('#save-alert-btn').prop('disabled', true);
-    //             } else {
-    //                 $('#save-alert-btn').prop('disabled', false);
-    //             }
-    //         });
-    //     }
-    //     setDataSourceHandler(alertType);
-    // });
+    await initializeFromUrl();
+});
+
+function setupAlertEventHandlers() {
+    $('.alert-condition-options li').on('click', function () {
+        $('.alert-condition-option').removeClass('active');
+        $('#alert-condition span').html($(this).html());
+        $(this).addClass('active');
+    });
 
     $('#cancel-alert-btn').on('click', function () {
         window.location.href = '../all-alerts.html';
         resetAddAlertForm();
     });
 
-    // alertForm.on('submit', (e) => {
-    //     console.log('form submit');
-    //     submitAddAlertForm(e);
-    // });
-
-    const tooltipIds = ['info-icon-spl', 'info-icon-msg', 'info-evaluate-every', 'info-evaluate-for'];
-
-    tooltipIds.forEach((id) => {
-        if ($(`#${id}`).length) {
-            $(`#${id}`)
-                .tooltip({
-                    delay: { show: 0, hide: 300 },
-                    trigger: 'click',
-                })
-                .on('click', function () {
-                    $(`#${id}`).tooltip('show');
-                });
-        }
-    });
-
-    $(document).mouseup(function (e) {
-        if ($(e.target).closest('.tooltip-inner').length === 0) {
-            tooltipIds.forEach((id) => $(`#${id}`).tooltip('hide'));
-        }
-    });
+    $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
 
     // Enable the save button when a contact point is selected
     $('.contact-points-options li').on('click', function () {
         $('#contact-points-dropdown span').text($(this).text());
         $('#save-alert-btn').prop('disabled', false);
-        $('#contact-point-error').css('display', 'none'); // Hide error message when a contact point is selected
+        $('#contact-point-error').css('display', 'none');
     });
 
+    $('.contact-points-options').on('click', 'li', function () {
+        $('.contact-points-option').removeClass('active');
+        $('#contact-points-dropdown span').html($(this).html());
+        $('#contact-points-dropdown span').attr('id', $(this).attr('id'));
+        $(this).addClass('active');
+
+        if ($(this).html() === 'Add New') {
+            $('.popupOverlay, .popupContent').addClass('active');
+            $('#contact-form-container').css('display', 'block');
+        }
+    });
+
+    $('#all-alerts-text').click(function () {
+        window.location.href = '../all-alerts.html';
+    });
+
+    $('.add-label-container').on('click', function () {
+        var newLabelContainer = `
+            <div class="label-container d-flex align-items-center">
+                <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
+                <span class="label-equal"> = </span>
+                <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
+                <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
+            </div>
+        `;
+        $('.label-main-container').append(newLabelContainer);
+    });
+
+    $('.label-main-container').on('click', '.delete-icon', function () {
+        $(this).closest('.label-container').remove();
+    });
+}
+
+function setupValidationHandlers() {
     $('#evaluate-for').tooltip({
         title: 'Evaluate For must be greater than or equal to Evaluate Interval',
         placement: 'top',
@@ -159,27 +161,37 @@ $(document).ready(async function () {
     $('#evaluate-every').on('input', function () {
         checkEvaluateConditions();
     });
+}
 
-    $('#all-alerts-text').click(function () {
-        window.location.href = '../all-alerts.html';
+function setupTooltips() {
+    const tooltipIds = ['info-icon-spl', 'info-icon-msg', 'info-evaluate-every', 'info-evaluate-for'];
+
+    tooltipIds.forEach((id) => {
+        if ($(`#${id}`).length) {
+            $(`#${id}`)
+                .tooltip({
+                    delay: { show: 0, hide: 300 },
+                    trigger: 'click',
+                })
+                .on('click', function () {
+                    $(`#${id}`).tooltip('show');
+                });
+        }
     });
 
-    // $(document).on('submit', '#alert-form', function (e) {
-    //     console.log('form submit via delegation');
-    //     e.preventDefault();
-    //     submitAddAlertForm(e);
-    // });
-});
+    $(document).mouseup(function (e) {
+        if ($(e.target).closest('.tooltip-inner').length === 0) {
+            tooltipIds.forEach((id) => $(`#${id}`).tooltip('hide'));
+        }
+    });
+}
 
-async function getAlertIdFromURL() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let alertType = urlParams.get('type') || 'logs';
-    console.log('getAlertIdFromURL', alertType);
+async function toggleAlertTypeUI(type) {
+    const isLogs = type === 'logs';
+    $('.query-container, .logs-lang-container, .index-box, #logs-explorer').toggle(isLogs);
+    $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
 
-    // Alert Creation
-    if (alertType === 'logs') {
-        $('.query-container, .logs-lang-container, .index-box, #logs-explorer').show();
-        $('#metrics-explorer, #metrics-graphs').hide();
+    if (isLogs) {
         let indexes = await getListIndices();
         if (indexes) {
             originalIndexValues = indexes.map((item) => item.index);
@@ -191,49 +203,51 @@ async function getAlertIdFromURL() {
         //Show empty chart initially
         const logsExplorer = document.getElementById('logs-explorer');
         showEmptyChart(logsExplorer);
-    } else if (alertType === 'metrics') {
-        $('.query-container, .logs-lang-container, .index-box, #logs-explorer').hide();
-        $('#metrics-explorer, #metrics-graphs').show();
+        $('#query').attr('required', 'required');
+    } else {
+        $('#query').removeAttr('required');
     }
+}
 
-    // If we have id in URL , alert editing
-    if (urlParams.has('id')) {
-        const id = urlParams.get('id');
-        alertType = await editAlert(id);
+async function initializeFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    let alertType = params.get('type') || 'logs';
+
+    // Edit Mode
+    if (params.has('id')) {
+        alertType = await loadExistingAlert(params.get('id'));
     }
     // If alert created from metrics
-    else if (urlParams.has('queryString')) {
-        console.log('Alert created from metrics');
+    else if (params.has('queryString')) {
         let dataParam = getUrlParameter('queryString');
         let jsonString = decodeURIComponent(dataParam);
         let obj = JSON.parse(jsonString);
-        alertFromMetricsExplorerFlag = 1;
-
-        // createAlertFromMetrics(obj);
+        isFromMetrics = 1;
         fillAlertForm(obj);
         alertData.alert_type = 2;
         alertType = 'metrics';
     }
     // If alert created from logs
-    else if (urlParams.has('queryLanguage')) {
-        const queryLanguage = urlParams.get('queryLanguage');
-        const searchText = urlParams.get('searchText');
-        const startEpoch = urlParams.get('startEpoch');
-        const endEpoch = urlParams.get('endEpoch');
-        const filterTab = urlParams.get('filterTab');
+    else if (params.has('queryLanguage')) {
+        const queryLanguage = params.get('queryLanguage');
+        const searchText = params.get('searchText');
+        const startEpoch = params.get('startEpoch');
+        const endEpoch = params.get('endEpoch');
+        const filterTab = params.get('filterTab');
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
         alertData.alert_type = 2;
         alertType = 'logs';
-
     }
 
-    if (!alertEditFlag && !alertFromMetricsExplorerFlag) {
+    if (!isEditMode && !isFromMetrics) {
         addQueryElement();
     }
+
     handleFormValidationTooltip(alertType);
+    toggleAlertTypeUI(alertType);
 }
 
-async function editAlert(alertId) {
+async function loadExistingAlert(alertId) {
     const res = await $.ajax({
         method: 'get',
         url: 'api/alerts/' + alertId,
@@ -244,20 +258,13 @@ async function editAlert(alertId) {
         dataType: 'json',
         crossDomain: true,
     });
-
-    alertEditFlag = true;
-    alertFromMetricsExplorerFlag = 0;
+    isEditMode = true;
+    isFromMetrics = 0;
     fillAlertForm(res.alert);
-    alertData.alert_type = res.alert.alert_type;
     const alertType = res.alert.alert_type === 1 ? 'logs' : 'metrics';
+    alertData.alert_type = res.alert.alert_type;
 
     return alertType;
-}
-
-function setAlertConditionHandler(_e) {
-    $('.alert-condition-option').removeClass('active');
-    $('#alert-condition span').html($(this).html());
-    $(this).addClass('active');
 }
 
 function contactPointsDropdownHandler() {
@@ -287,18 +294,6 @@ function contactPointsDropdownHandler() {
         });
 }
 
-$('.contact-points-options').on('click', 'li', function () {
-    $('.contact-points-option').removeClass('active');
-    $('#contact-points-dropdown span').html($(this).html());
-    $('#contact-points-dropdown span').attr('id', $(this).attr('id'));
-    $(this).addClass('active');
-
-    if ($(this).html() === 'Add New') {
-        $('.popupOverlay, .popupContent').addClass('active');
-        $('#contact-form-container').css('display', 'block');
-    }
-});
-
 $(document).keyup(function (e) {
     if (e.key === 'Escape' || e.key === 'Esc') {
         $('.popupOverlay, .popupContent').removeClass('active');
@@ -307,29 +302,42 @@ $(document).keyup(function (e) {
 
 function submitAddAlertForm(e) {
     e.preventDefault();
-    console.log('Submit Add Alert Form');
-    console.log('alertEditFlag:', alertEditFlag);
-    console.log('alertFromMetricsExplorerFlag:', alertFromMetricsExplorerFlag);
-
     setAlertRule();
-    console.log('Alert data after setAlertRule:', alertData);
+    saveAlert();
+}
 
-    if (alertEditFlag && !alertFromMetricsExplorerFlag) {
-        console.log('Updating existing alert');
-        updateAlertRule(alertData);
-    } else {
-        console.log('Creating new alert');
-        createNewAlertRule(alertData);
-    }
+function saveAlert() {
+    alertData.alert_type = alertData.alert_type || 1;
+
+    const url = isEditMode && !isFromMetrics ? 'api/alerts/update' : 'api/alerts/create';
+
+    $.ajax({
+        method: 'post',
+        url: url,
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: '*/*',
+        },
+        data: JSON.stringify(alertData),
+        dataType: 'json',
+        crossDomain: true,
+    })
+        .then(() => {
+            $('#alert-form')[0].reset();
+            window.location.href = '../all-alerts.html';
+        })
+        .catch((err) => {
+            showToast(err.responseJSON?.error || 'Failed to save alert', 'error');
+        });
 }
 
 function setAlertRule() {
     let alertType;
-    if (alertEditFlag || alertFromMetricsExplorerFlag) {
-        // For edit mode, get type from alertData's alert_type
+    if (isEditMode || isFromMetrics) {
+        // For edit mode
         alertType = alertData.alert_type === 1 ? 'logs' : 'metrics';
     } else {
-        // For new alerts, get from URL or default to 'logs'
+        // For new alerts
         const urlParams = new URLSearchParams(window.location.search);
         alertType = urlParams.get('type') || 'logs';
     }
@@ -378,57 +386,6 @@ function setAlertRule() {
             alertData.labels.push(labelEntry);
         }
     });
-
-    console.log(alertData);
-}
-
-function createNewAlertRule(alertData) {
-    if (!alertData.alert_type) {
-        alertData.alert_type = 1;
-    }
-    $.ajax({
-        method: 'post',
-        url: 'api/alerts/create',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        data: JSON.stringify(alertData),
-        dataType: 'json',
-        crossDomain: true,
-    })
-        .then((_res) => {
-            resetAddAlertForm();
-            window.location.href = '../all-alerts.html';
-        })
-        .catch((err) => {
-            showToast(err.responseJSON.error, 'error');
-        });
-}
-
-// update alert rule
-function updateAlertRule(alertData) {
-    if (!alertData.alert_type) {
-        alertData.alert_type = 1;
-    }
-    $.ajax({
-        method: 'post',
-        url: 'api/alerts/update',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        data: JSON.stringify(alertData),
-        dataType: 'json',
-        crossDomain: true,
-    })
-        .then((_res) => {
-            // resetAddAlertForm();
-            // window.location.href = '../all-alerts.html';
-        })
-        .catch((err) => {
-            showToast(err.responseJSON.error, 'error');
-        });
 }
 
 function resetAddAlertForm() {
@@ -436,19 +393,11 @@ function resetAddAlertForm() {
 }
 
 async function fillAlertForm(res) {
-    console.log(res);
     $('#alert-rule-name').val(res.alert_name);
-    setDataSourceHandler(res.alert_type);
 
     // Alert Type: Logs
     if (res.alert_type === 1) {
         const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
-
-        // $('#alert-data-source span').html(data_source);
-        // $('#logs-language-btn span').text(queryLanguage);
-        // $('.logs-language-option').removeClass('active');
-        // $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
-        // displayQueryToolTip();
 
         $('#info-icon-spl').show();
 
@@ -485,20 +434,16 @@ async function fillAlertForm(res) {
         fetchLogsPanelData(data, -1).then((res) => {
             alertChart(res);
         });
-
-        // $('#query').val(res.queryParams.queryText);
-
-        // $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-        // datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime);
     }
     // Alert Type: Metrics
     else if (res.alert_type === 2) {
         let metricsQueryParams;
-        if (alertFromMetricsExplorerFlag) {
+        if (isFromMetrics) {
             metricsQueryParams = res;
         } else {
             metricsQueryParams = JSON.parse(res.metricsQueryParams);
-        } // eslint-disable-next-line no-undef
+        }
+        // eslint-disable-next-line no-undef
         populateMetricsQueryElement(metricsQueryParams);
     }
 
@@ -513,7 +458,7 @@ async function fillAlertForm(res) {
     $('#evaluate-for').val(res.eval_for || 1);
     $('.message').val(res.message);
 
-    if (alertEditFlag && !alertFromMetricsExplorerFlag) {
+    if (isEditMode && !isFromMetrics) {
         alertData.alert_id = res.alert_id;
         $('#alert-name').empty().text(res.alert_name);
     }
@@ -535,58 +480,6 @@ async function fillAlertForm(res) {
     });
 }
 
-// function setLogsLangHandler(_e) {
-//     $('.logs-language-option').removeClass('active');
-//     $('#logs-language-btn span').html($(this).html());
-//     $(this).addClass('active');
-//     displayQueryToolTip($(this).html());
-// }
-
-function setDataSourceHandler(alertType) {
-    // $('.data-source-option').removeClass('active');
-    const isLogs = alertType === 1;
-    // const sourceText = isLogs ? 'Logs' : 'Metrics';
-    // const $span = $('#alert-data-source span');
-
-    // $span.html(sourceText);
-    // $(`.data-source-option:contains("${sourceText}")`).addClass('active');
-
-    $('.query-container, .logs-lang-container, .index-box, #logs-explorer').toggle(isLogs);
-    $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
-
-    if (isLogs) {
-        $('#query').attr('required', 'required');
-    } else {
-        $('#query').removeAttr('required');
-    }
-}
-
-// function displayQueryToolTip(selectedQueryLang) {
-//     $('#info-icon-pipeQL, #info-icon-spl').hide();
-//     if (selectedQueryLang === 'Pipe QL') {
-//         $('#info-icon-pipeQL').show();
-//     } else if (selectedQueryLang === 'Splunk QL') {
-//         $('#info-icon-spl').show();
-//     }
-// }
-
-// Add Label
-$('.add-label-container').on('click', function () {
-    var newLabelContainer = `
-        <div class="label-container d-flex align-items-center">
-            <input type="text" id="label-key" class="form-control" placeholder="Label name" tabindex="7" value="">
-            <span class="label-equal"> = </span>
-            <input type="text" id="label-value" class="form-control" placeholder="Value" value="" tabindex="8">
-            <button class="btn-simple delete-icon" type="button" id="delete-alert-label"></button>
-        </div>
-    `;
-    $('.label-main-container').append(newLabelContainer);
-});
-
-$('.label-main-container').on('click', '.delete-icon', function () {
-    $(this).closest('.label-container').remove();
-});
-
 function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
     const urlParams = new URLSearchParams(window.location.search);
     $('#alert-rule-name').val(decodeURIComponent(urlParams.get('ruleName')));
@@ -607,31 +500,22 @@ function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, fi
         indexName: selectedSearchIndex,
         queryLanguage: queryLanguage,
     };
-    console.log(data);
     fetchLogsPanelData(data, -1).then((res) => {
         alertChart(res);
     });
 }
 
-function createAlertFromMetrics(data) {
-    $('#metrics-explorer, #metrics-graphs').show();
-    $('.index-box, #logs-explorer, .query-builder-container').hide();
-    populateMetricsQueryElement(data);
-}
 function handleFormValidationTooltip(alertType) {
-    // Remove any existing click handlers from the save button
     $('#save-alert-btn').off('click');
 
-    // Add our consolidated handler
     $('#save-alert-btn').on('click', function (event) {
         event.preventDefault();
-        console.log('Form Validation Tooltip clicked saved button');
-        console.log('handleFormValidationTooltip: alertType', alertType);
+
         let isLogsCodeMode = $('#custom-code-tab').tabs('option', 'active');
         let isMetricsCodeMode = $('.raw-query-input').is(':visible');
+
         // Logs validation
         if (alertType === 'logs' && !isLogsCodeMode) {
-            console.log('Form Validation Tooltip');
             if (thirdBoxSet.size === 0 && secondBoxSet.size === 0 && firstBoxSet.size === 0) {
                 $('#logs-error').css('display', 'inline-block');
                 $('#metric-error').removeClass('visible');
@@ -645,9 +529,7 @@ function handleFormValidationTooltip(alertType) {
         }
         // Metrics validation
         else if (alertType === 'metrics' && !isMetricsCodeMode) {
-            console.log('handleFormValidationTooltip: alertType=' + alertType);
             if ($('#select-metric-input').val().trim() === '') {
-                console.log('handleFormValidationTooltip: metrics if condition');
                 $('#metric-error').css('display', 'inline-block');
                 $('#contact-point-error').css('display', 'none');
                 document.getElementById('select-metric-input').scrollIntoView({
@@ -660,7 +542,6 @@ function handleFormValidationTooltip(alertType) {
 
         // Contact point validation
         if ($('#contact-points-dropdown span').text() === 'Choose' || $('#contact-points-dropdown span').text() === 'Add New') {
-            console.log('contact point validation');
             $('#contact-point-error').css('display', 'inline-block');
             document.getElementById('contact-points-dropdown').scrollIntoView({
                 behavior: 'smooth',
@@ -669,8 +550,7 @@ function handleFormValidationTooltip(alertType) {
             return false;
         }
 
-        // If all validations pass, call submitAddAlertForm directly
-        console.log('Validation passed, calling submitAddAlertForm');
+        // If all validations pass, submit the form
         submitAddAlertForm(event);
     });
 
@@ -686,8 +566,6 @@ function handleFormValidationTooltip(alertType) {
         }
     });
 }
-
-let alertChartInstance = null;
 
 function alertChart(res) {
     const logsExplorer = document.getElementById('logs-explorer');
