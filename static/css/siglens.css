@@ -3655,24 +3655,40 @@ float: right;
     color: var(--navbar-link-text-active);
 }
 
-
-#app-side-nav .menu.logo .sslogo-text{
-    padding-left: 8px;
-    width: 82px;
-    height: 20px;
+/* Ensure yellow bar only appears on selected menu*/
+#app-side-nav .menu.active {
+    border-left: 5px solid var(--side-nav-selected-border-color);
 }
 
+/* Remove yellow bar when switching*/
+#app-side-nav .menu:not(.active) {
+    border-left: 5px solid transparent;
+}
+
+
+/*Ensure parent & child menu items stay selected*/
+#app-side-nav .big-menu.active,
 #app-side-nav .big-menu.active .nav-link-text,
-#app-side-nav .big-menu:hover .nav-link-text,
-.nav-link-text:hover,
-.help-links:hover .nav-link-text{
+#app-side-nav .submenu-link.active {
     color: var(--navbar-link-text-active);
+    background-color: var(--side-nav-bg-color-selected);
+}
+
+/* Remove yellow bar when switching*/
+#app-side-nav .big-menu:not(.active) {
+    border-left: 5px solid transparent;
 }
 
 #app-side-nav .nav-link-text-sub.active,
 .nav-link-text-sub:hover{
     color: var(--navbar-link-text-active);
+}
 
+
+#app-side-nav .menu.logo .sslogo-text{
+    padding-left: 8px;
+    width: 82px;
+    height: 20px;
 }
 
 #app-side-nav .big-menu.logo .sslogo-text{

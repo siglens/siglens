@@ -39,9 +39,8 @@ let navbarComponent = `
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
          </div>
-
         <div class="big-menu nav-metrics">
-            <a class="nav-links accordion-toggle big-menu-header" id="metrics" href="./metrics.html">
+            <a class="nav-links accordion-toggle big-menu-header" href="./metrics.html">
                 <div class="nav-link-content">
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text">Metrics</span>
@@ -50,7 +49,7 @@ let navbarComponent = `
             </a>
 
             <div class="accordion-content" style="display: none;">
-                <a href="./metrics-explorer.html" class="submenu-link ">
+                <a href="./metrics-explorer.html" class="submenu-link">
                     <span class="nav-link-text-sub">Explorer</span>
                 </a>
                 <a href="./metric-summary.html" class="submenu-link">
@@ -61,7 +60,6 @@ let navbarComponent = `
                 </a>
             </div>
         </div>
-
         {{ if .ShowSLO }}
         <div class="menu nav-slos">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
@@ -192,7 +190,7 @@ const accordionStyles = `
         opacity: 1;
         background-color: orange;
         width: 2px;
-        color: white;
+        color: var(--navbar-link-text-active);
     }
 
     /* Vertical line for submenu links */
@@ -224,6 +222,7 @@ const accordionStyles = `
         opacity: 1;
         background-color: orange;
         width: 2px;
+        color: var(--navbar-link-text-active);
     }
 
     /* Arrow styles */
@@ -268,9 +267,6 @@ let alertsUpperNavTabs = [
     { name: 'Alert Rules', url: './all-alerts.html', class: 'all-alerts' },
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
-
-
-
 
 $(document).ready(function () {
     $('#app-side-nav').prepend(navbarComponent);
@@ -328,17 +324,17 @@ $(document).ready(function () {
     if (currentUrl.includes('index.html')) {
         $('.nav-search').addClass('active');
     }
-    else if(currentUrl.includes('metrics.html')){
+    if(currentUrl.includes('metrics.html')){
         $('.nav-metrics').addClass('active');
         $('.nav-metrics .accordion-content').show();
         $('.nav-metrics .dropdown-arrow').addClass('active');
     }
-    else if (isNavigatingBack) {
+    if (isNavigatingBack) {
         $('.nav-metrics .accordion-content').hide();
         $('.nav-metrics').removeClass('active');
         $('.nav-metrics .dropdown-arrow').removeClass('active');
     }
-    else if (currentUrl.includes('metrics-explorer.html') ||
+    if (currentUrl.includes('metrics-explorer.html') ||
         currentUrl.includes('metric-summary.html') ||
         currentUrl.includes('metric-cardinality.html')) {
         $('.nav-metrics').addClass('active');
@@ -380,34 +376,6 @@ $(document).ready(function () {
     } else if (currentUrl.includes('lookups.html')) {
         $('.nav-lookups').addClass('active');
     }
-
-
-    $('.nav-metrics .accordion-toggle').on('click', function(e) {
-        const $menu = $(this).closest('.menu');
-        const $content = $menu.find('.accordion-content');
-        const $arrow = $menu.find('.dropdown-arrow');
-
-        if ($(e.target).is('.dropdown-arrow')) {
-
-            e.preventDefault();
-
-
-            $content.slideToggle(300, function () {
-                $arrow.toggleClass('active');
-                if ($content.is(':visible')) {
-                    $menu.addClass('active');
-                    $content.addClass('active');
-                } else {
-                    $menu.removeClass('active');
-                    $content.removeClass('active');
-                }
-            });
-        } else {
-            if (!currentUrl.includes('metrics.html')) {
-                window.location.href = './metrics.html';
-            }
-        }
-    });
 
     $('.nav-metrics .accordion-toggle').on('click', function (e) {
         const $menu = $(this).closest('.big-menu');
@@ -501,7 +469,6 @@ $(document).ready(function () {
             $('.nav-metrics .dropdown-arrow').removeClass('active');
         }
     };
-
 
     $('.tracing-dropdown-toggle').hover(
         function () {
