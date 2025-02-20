@@ -20,7 +20,7 @@
 let alertData = {};
 let alertEditFlag = 0;
 let alertFromMetricsExplorerFlag = 0;
-let messageTemplateInfo = '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
+let messageTemplateInfo = `<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>`;
 let messageInputBox = document.getElementById('message-info');
 if (messageInputBox) messageInputBox.innerHTML += messageTemplateInfo;
 
@@ -173,10 +173,9 @@ $(document).ready(async function () {
 
 async function getAlertIdFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    const alertType = urlParams.get('type') || 'logs';
+    let alertType = urlParams.get('type') || 'logs';
     console.log('getAlertIdFromURL', alertType);
 
-    handleFormValidationTooltip(alertType);
     // Alert Creation
     if (alertType === 'logs') {
         $('.query-container, .logs-lang-container, .index-box, #logs-explorer').show();
@@ -200,9 +199,7 @@ async function getAlertIdFromURL() {
     // If we have id in URL , alert editing
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        const editFlag = await editAlert(id);
-        alertEditFlag = editFlag;
-        alertFromMetricsExplorerFlag = 0;
+        alertType = await editAlert(id);
     }
     // If alert created from metrics
     else if (urlParams.has('queryString')) {
@@ -214,6 +211,8 @@ async function getAlertIdFromURL() {
 
         // createAlertFromMetrics(obj);
         fillAlertForm(obj);
+        alertData.alert_type = 2;
+        alertType = 'metrics';
     }
     // If alert created from logs
     else if (urlParams.has('queryLanguage')) {
@@ -223,14 +222,18 @@ async function getAlertIdFromURL() {
         const endEpoch = urlParams.get('endEpoch');
         const filterTab = urlParams.get('filterTab');
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
+        alertData.alert_type = 2;
+        alertType = 'logs';
+
     }
 
     if (!alertEditFlag && !alertFromMetricsExplorerFlag) {
         addQueryElement();
     }
+    handleFormValidationTooltip(alertType);
 }
 
-async function editAlert(alertId, alertType) {
+async function editAlert(alertId) {
     const res = await $.ajax({
         method: 'get',
         url: 'api/alerts/' + alertId,
@@ -244,8 +247,11 @@ async function editAlert(alertId, alertType) {
 
     alertEditFlag = true;
     alertFromMetricsExplorerFlag = 0;
-    fillAlertForm(res.alert, alertType);
-    return true;
+    fillAlertForm(res.alert);
+    alertData.alert_type = res.alert.alert_type;
+    const alertType = res.alert.alert_type === 1 ? 'logs' : 'metrics';
+
+    return alertType;
 }
 
 function setAlertConditionHandler(_e) {
@@ -310,16 +316,23 @@ function submitAddAlertForm(e) {
 
     if (alertEditFlag && !alertFromMetricsExplorerFlag) {
         console.log('Updating existing alert');
-        // updateAlertRule(alertData);
+        updateAlertRule(alertData);
     } else {
         console.log('Creating new alert');
-        // createNewAlertRule(alertData);
+        createNewAlertRule(alertData);
     }
 }
 
 function setAlertRule() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const alertType = urlParams.get('type') || 'logs';
+    let alertType;
+    if (alertEditFlag || alertFromMetricsExplorerFlag) {
+        // For edit mode, get type from alertData's alert_type
+        alertType = alertData.alert_type === 1 ? 'logs' : 'metrics';
+    } else {
+        // For new alerts, get from URL or default to 'logs'
+        const urlParams = new URLSearchParams(window.location.search);
+        alertType = urlParams.get('type') || 'logs';
+    }
     if (alertType === 'logs') {
         let searchText, queryMode;
         if (isQueryBuilderSearch) {
@@ -410,8 +423,8 @@ function updateAlertRule(alertData) {
         crossDomain: true,
     })
         .then((_res) => {
-            resetAddAlertForm();
-            window.location.href = '../all-alerts.html';
+            // resetAddAlertForm();
+            // window.location.href = '../all-alerts.html';
         })
         .catch((err) => {
             showToast(err.responseJSON.error, 'error');
@@ -613,12 +626,12 @@ function handleFormValidationTooltip(alertType) {
     $('#save-alert-btn').on('click', function (event) {
         event.preventDefault();
         console.log('Form Validation Tooltip clicked saved button');
-        console.log("handleFormValidationTooltip: alertType", alertType);
+        console.log('handleFormValidationTooltip: alertType', alertType);
+        let isLogsCodeMode = $('#custom-code-tab').tabs('option', 'active');
+        let isMetricsCodeMode = $('.raw-query-input').is(':visible');
         // Logs validation
-        if (alertType === 'logs') {
-            console.log(
-            "Form Validation Tooltip"
-            )
+        if (alertType === 'logs' && !isLogsCodeMode) {
+            console.log('Form Validation Tooltip');
             if (thirdBoxSet.size === 0 && secondBoxSet.size === 0 && firstBoxSet.size === 0) {
                 $('#logs-error').css('display', 'inline-block');
                 $('#metric-error').removeClass('visible');
@@ -631,7 +644,7 @@ function handleFormValidationTooltip(alertType) {
             }
         }
         // Metrics validation
-        else if (alertType === 'metrics') {
+        else if (alertType === 'metrics' && !isMetricsCodeMode) {
             console.log('handleFormValidationTooltip: alertType=' + alertType);
             if ($('#select-metric-input').val().trim() === '') {
                 console.log('handleFormValidationTooltip: metrics if condition');
@@ -647,7 +660,7 @@ function handleFormValidationTooltip(alertType) {
 
         // Contact point validation
         if ($('#contact-points-dropdown span').text() === 'Choose' || $('#contact-points-dropdown span').text() === 'Add New') {
-            console.log("contact point validation")
+            console.log('contact point validation');
             $('#contact-point-error').css('display', 'inline-block');
             document.getElementById('contact-points-dropdown').scrollIntoView({
                 behavior: 'smooth',
