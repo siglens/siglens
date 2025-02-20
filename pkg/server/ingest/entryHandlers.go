@@ -30,7 +30,6 @@ import (
 	influxquery "github.com/siglens/siglens/pkg/influx/query"
 	influxwriter "github.com/siglens/siglens/pkg/influx/writer"
 	"github.com/siglens/siglens/pkg/instrumentation"
-	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbwriter "github.com/siglens/siglens/pkg/integrations/otsdb/writer"
 	prometheuswriter "github.com/siglens/siglens/pkg/integrations/prometheus/ingest"
 	"github.com/siglens/siglens/pkg/integrations/splunk"
@@ -187,13 +186,6 @@ func getConfigHandler() func(ctx *fasthttp.RequestCtx) {
 func getConfigReloadHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		config.ProcessForceReadConfig(ctx)
-	}
-}
-
-func lokiPostBulkHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		instrumentation.IncrementInt64Counter(instrumentation.POST_REQUESTS_COUNT, 1)
-		serverutils.CallWithMyId(loki.ProcessLokiLogsIngestRequest, ctx)
 	}
 }
 
