@@ -1221,7 +1221,7 @@ function handleRelatedTraces(traceId, timestamp, newTab) {
     if (newTab){
         window.open(url, '_blank'); // Opens in a new tab
     }else{
-        window.open(url);
+        window.location.href = url;
     }
 }
 
