@@ -201,7 +201,7 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 
 		for grpID, ds := range r.DsResults {
 			if ds == nil {
-				err := fmt.Errorf("Group %v has nonexistent downsample series", grpID)
+				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
 				errors = append(errors, err)
 				return errors
 			}
