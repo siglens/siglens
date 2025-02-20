@@ -1386,6 +1386,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                             font: {
                                 size: 12,
                             },
+                            z: 100,
                         },
                     },
                 },
