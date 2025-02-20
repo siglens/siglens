@@ -94,6 +94,18 @@ func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
 		}
 
 		return value, nil
+	case *commonpb.AnyValue_KvlistValue:
+		kvlistValue := anyValue.GetKvlistValue().Values
+		kvMap := make(map[string]interface{}, len(kvlistValue))
+		for _, kv := range kvlistValue {
+			key, value, err := extractKeyValue(kv)
+			if err != nil {
+				return nil, err
+			}
+			kvMap[key] = value
+		}
+
+		return kvMap, nil
 	default:
 		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue.Value)
 	}
