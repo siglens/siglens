@@ -19,6 +19,7 @@ package otlp
 
 import (
 	"encoding/json"
+
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
