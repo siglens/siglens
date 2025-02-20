@@ -48,7 +48,6 @@ $(document).ready(async function () {
     alertDetailsFunctions();
 });
 
-
 async function getAlertIdFromURl() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('id')) {

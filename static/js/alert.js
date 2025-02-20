@@ -700,12 +700,12 @@ function alertChart(res) {
                         position: 'bottom',
                         padding: 0,
                         labels: {
-                            boxWidth: 10, 
+                            boxWidth: 10,
                             boxHeight: 8,
                             padding: 4,
                             font: {
-                                size: 10
-                            }
+                                size: 10,
+                            },
                         },
                     },
                     annotation: {
