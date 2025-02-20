@@ -33,22 +33,36 @@ let navbarComponent = `
                 <span class="icon-traces"></span>
                 <span class="nav-link-text">APM</span>
             </a>
-            <ul class="traces-dropdown navbar-submenu">
-                <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
-                <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
-                <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
-            </ul>
-         </div>
+            <button class="icon-caret-down" data-dropdown="traces-dropdown"></button>
+        </div>
+        <div class="submenu-container">
+            <div class="submenu traces-dropdown">
+                <a class="nav-links" href="./service-health.html"><span class="nav-link-text">Service Health (RED)</span></a>
+            </div>
+            <div class="submenu traces-dropdown">
+                <a class="nav-links" href="./search-traces.html"><span class="nav-link-text">Search Traces</span></a>
+            </div>
+            <div class="submenu traces-dropdown">
+                <a class="nav-links" href="./dependency-graph.html"><span class="nav-link-text">Dependency Graph</span></a>
+            </div>
+        </div>
         <div class="menu nav-metrics metrics-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./metrics-explorer.html">
                 <span class="icon-metrics"></span>
                 <span class="nav-link-text">Metrics</span>
             </a>
-            <ul class="metrics-dropdown navbar-submenu">
-                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
-                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
-            </ul>
+            <button class="icon-caret-down" data-dropdown="metrics-dropdown"></button>
+        </div>
+        <div class="submenu-container">
+            <div class="submenu metrics-dropdown">
+                <a class="nav-links" href="./metrics-explorer.html"><span class="nav-link-text">Explorer</span></a>
+            </div>
+            <div class="submenu metrics-dropdown">
+                <a class="nav-links" href="./metric-summary.html"><span class="nav-link-text">Summary</span></a>
+            </div>
+            <div class="submenu metrics-dropdown">
+                <a class="nav-links" href="./metric-cardinality.html"><span class="nav-link-text">Cardinality</span></a>
+            </div>
         </div>
         {{ if .ShowSLO }}        
         <div class="menu nav-slos">
@@ -86,11 +100,18 @@ let navbarComponent = `
                 <span class="icon-ingest"></span>
                 <span class="nav-link-text">Ingestion</span>
             </a>
-            <ul class="ingestion-dropdown navbar-submenu">
-                <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
-                <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
-            </ul>
+            <button class="icon-caret-down" data-dropdown="ingestion-dropdown"></button>
+        </div>
+        <div class="submenu-container">
+            <div class="submenu ingestion-dropdown">
+                <a class="nav-links" href="./test-data.html"><span class="nav-link-text">Log Ingestion</span></a>
+            </div>
+            <div class="submenu ingestion-dropdown">
+                <a class="nav-links" href="./metrics-ingestion.html"><span class="nav-link-text">Metrics Ingestion</span></a>
+            </div>
+        <div class="submenu ingestion-dropdown">
+                <a class="nav-links" href="./traces-ingestion.html"><span class="nav-link-text">Traces Ingestion</span></a>                
+            </div>
         </div>
     </div>
     <div>
@@ -164,37 +185,45 @@ $(document).ready(function () {
 
 
     if (currentUrl.includes('index.html')) {
-        $('.nav-search').addClass('active');
+        highlightContent('nav-search');
     } else if (currentUrl.includes('metrics-explorer.html')) {
-        $('.nav-metrics').addClass('active');
+        highlightContent('nav-metrics');
+        $('.nav-metrics .icon-caret-down').addClass('up');
         $('.nav-metrics').addClass('disable-hover');
         setTimeout(function () {
             $('.nav-metrics').removeClass('disable-hover');
         }, 500);
+        $('.metrics-dropdown').show();
     } else if (currentUrl.includes('metric-summary.html')) {
-        $('.nav-metrics').addClass('active');
+        highlightContent('nav-metrics');
+        $('.nav-metrics .icon-caret-down').addClass('up');
+        $('.metrics-dropdown').show();
     } else if (currentUrl.includes('metric-cardinality.html')) {
-        $('.nav-metrics').addClass('active');
+        highlightContent('nav-metrics');
+        $('.nav-metrics .icon-caret-down').addClass('up');
+        $('.metrics-dropdown').show();
     } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
-        $('.nav-ldb').addClass('active');
+        highlightContent('nav-ldb');
     } else if (currentUrl.includes('saved-queries.html')) {
-        $('.nav-usq').addClass('active');
+        highlightContent('nav-usq');
     } else if (currentUrl.includes('alerts.html') || currentUrl.includes('alert.html') || currentUrl.includes('alert-details.html') || currentUrl.includes('contacts.html')) {
-        $('.nav-alerts').addClass('active');
+        highlightContent('nav-alerts');
         $('.alerts-nav-tab').appendOrgNavTabs('Alerting', alertsUpperNavTabs);
     } else if (currentUrl.includes('all-slos.html')) {
-        $('.nav-slos').addClass('active');
+        highlightContent('nav-slos');
         $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
     } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html')|| currentUrl.includes('query-stats.html')  || currentUrl.includes('pqs-settings.html') {{ .OrgUpperNavUrls }}
     ||  currentUrl.includes('diagnostics.html')) {
-        $('.nav-myorg').addClass('active');
+        highlightContent('nav-myorg');
         $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
     } else if (currentUrl.includes('minion-searches.html')) {
-        $('.nav-minion').addClass('active');
+        highlightContent('nav-minion');
     } else if (currentUrl.includes('live-tail.html')) {
-        $('.nav-live').addClass('active');
+        highlightContent('nav-live');
     } else if (currentUrl.includes('service-health.html') || currentUrl.includes('service-health-overview.html') || currentUrl.includes('dependency-graph.html') || currentUrl.includes('search-traces.html')) {
-        $('.nav-traces').addClass('active');
+        highlightContent('nav-traces');
+        $('.nav-traces .icon-caret-down').addClass('up');
+        $('.traces-dropdown').show();
         $('.nav-traces').addClass('disable-hover');
         setTimeout(function () {
             $('.nav-traces').removeClass('disable-hover');
@@ -203,54 +232,28 @@ $(document).ready(function () {
             $('.subsection-navbar').appendOrgNavTabs('APM', tracingUpperNavTabs);
         }
     } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
-        $('.nav-ingest').addClass('active');
+        $('.nav-ingest .icon-caret-down').addClass('up');
+        highlightContent('nav-ingest');
+        $('.ingestion-dropdown').show();
         $('.nav-ingest').addClass('disable-hover');
         setTimeout(function () {
             $('.nav-ingest').removeClass('disable-hover');
         }, 500);
     } else if (currentUrl.includes('lookups.html')) {
-        $('.nav-lookups').addClass('active');
+        highlightContent('nav-lookups');
     } 
 
-    // Hover event handlers updated to respect disable-hover class
-    $('.metrics-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
+    $('.icon-caret-down').on('click', function(e) {
+        e.stopPropagation();
+        const dropdownClass = $(this).data('dropdown');
+        const $dropdown = $('.' + dropdownClass);
+        const $allDropdowns = $('.submenu');
+        $allDropdowns.not($dropdown).slideUp(300);
+        $('.icon-caret-down').not(this).removeClass('up');
+        $dropdown.slideToggle(300);
+        $(this).toggleClass('up');
+    });
 
-    $('.tracing-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.traces-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.traces-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
-
-    $('.ingestion-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.ingestion-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.ingestion-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
 
     $('.nav-help').hover(
         function (event) {
@@ -286,28 +289,23 @@ $(document).ready(function () {
 
     $(document).on('click', function (event) {
         var helpOptions = $('.help-options');
-        var metricsDropdown = $('.metrics-dropdown');
-        var tracesDropdown = $('.traces-dropdown');
-        var ingestionDropdown = $('.ingestion-dropdown');
-
-        if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
-            metricsDropdown.hide();
-        }
-        if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
-            tracesDropdown.hide();
-        }
-        if (!ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
-            ingestionDropdown.hide();
-        }
         if (!helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
             helpOptions.slideUp(0);
         }
     });
 
-    const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    menuItem.forEach((item) => {
-        if (item.href === currentUrl) {
-            item.classList.add('active');
-        }
-    });
+    const setActiveMenuItem = (selector) => {
+        document.querySelectorAll(selector).forEach((item) => {
+            if (item.href === currentUrl) {
+                item.classList.add('active');
+            }
+        });
+    };
+    
+    ['.metrics-dropdown a', '.traces-dropdown a', '.ingestion-dropdown a'].forEach(setActiveMenuItem);
+    
+    function highlightContent(navClass) {
+        $(`.${navClass}`).addClass('active');
+        $(`.${navClass} .icon-caret-down`).addClass('active');
+    }
 });
