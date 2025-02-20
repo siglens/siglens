@@ -789,7 +789,7 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 	return nil
 }
 
-// The larger the priority, the earlier it will be popped out. Since we use the value as the priority, for topk, the larger the value, the more we want it to remain in the priority queue. Therefore, its priority should be smaller.
+// The larger the priority, the earlier it will be popped out. Since we use the value as the priority, for `topk`, the larger the value, the more we want it to remain in the priority queue. Therefore, its priority should be smaller.
 // For bottomk, it's the opposite
 func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor float64, seriesEntriesMap map[string]map[uint32][]RunningEntry) error {
 	capacity := int(funcConstant)
@@ -931,7 +931,7 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 			}
 		}
 
-		// Compute variance or standard deviation for each group
+		// Compute standard variance or deviation for each group
 		for grpID, entry := range grpIDToEntryMap {
 			grpID = r.MetricName + "{" + grpID
 			r.Results[grpID] = make(map[uint32]float64)
