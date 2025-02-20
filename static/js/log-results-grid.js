@@ -135,7 +135,7 @@ class TimestampCellRenderer {
             <div class="json-popup-header">
                 <div class="json-popup-header-buttons">
                     ${showRelatedTraceButton ? `
-                        <button class="btn-related-trace btn btn-purple">
+                        <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, 'trace')">
                             <i class="fa fa-file-text"></i>&nbsp; Related Trace
                         </button>
                     ` : ""}
@@ -181,11 +181,6 @@ class TimestampCellRenderer {
             jsonPopup.classList.remove('active');
             this.params.api.sizeColumnsToFit();
         };
-
-        const relatedTraceButton = document.querySelector(".btn-related-trace");
-        relatedTraceButton.onclick = () => {
-            handleRelatedTraces(trace_id, time_stamp);
-        }
 
         this.params.api.sizeColumnsToFit();
     }
