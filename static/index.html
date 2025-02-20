@@ -70,81 +70,152 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             border-radius: 50%;
             cursor: pointer;
             transition: background 0.3s;
+            margin-bottom: 10px;
         }
 
         #toggle-btn:hover {
             background-color: #780790;
         }
 
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dropdown-container {
+            position: relative;
+        }
+
+        .interval-btn, .breakdown-btn {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            gap: 8px;
+        }
+
+        .interval-btn.active, .breakdown-btn.active,
+        .interval-btn:hover, .breakdown-btn:hover{
+            background: var(--tab-active-background) !important;
+            border: 1px solid var(--purple-1) !important;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            z-index: 1000;
+            min-width: 200px;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+            background: var(--tab-active-background) !important;
+            border: 1px solid var(--purple-1) !important;
+
+        }
+
         #histogram-container {
             display: none;
-            width: 98%;
-            margin: auto;
-            text-align: center;
+            padding-left: 50px; /* Make room for y-axis */
+            position: relative;
         }
 
         #histogram-wrapper {
             display: flex;
-            align-items: flex-end;
+            height: 300px;
             position: relative;
+            margin-bottom: 90px; /* Make room for x-axis */
         }
 
         #y-axis {
+            position: absolute;
+            left: -50px;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 300px;
-            margin-right: 10px;
-            position: absolute;
-            left: -30px;
+            width: 50px; /* Fixed width for y-axis */
+            text-align: right;
+            padding-right: 10px;
         }
 
         #y-axis span {
-            display: block;
-            height: 50px;
-            line-height: 50px;
-            text-align: right;
-            font-size: 14px;
+            font-size: 12px;
+            color: #666;
+            transform: translateY(50%);
         }
 
         #histogram {
+            flex-grow: 1;
             display: flex;
             align-items: flex-end;
-            height: 300px;
-            width: 100%;
-            border-left: 2px solid black;
-            border-bottom: 2px solid black;
-            padding: 10px;
-            justify-content: space-between;
+            border-left: 2px solid #ddd;
+            border-bottom: 2px solid #ddd;
+            height: 100%;
+            gap: 2px;
+            padding-top: 10px;
         }
 
         .bar {
-            width: 40px;
+            flex: 1;
             background-color: #40C463;
-            transition: background 0.3s;
-            position: relative;
+            transition: height 0.3s;
+            min-width: 10px;
         }
 
         .bar:hover {
-            background-color: orange;
+            background-color: #2EA043;
         }
 
         .x-axis {
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
             display: flex;
             justify-content: space-between;
-            margin-top: 10px;
-            font-weight: bold;
-            width: 100%;
             padding: 0 10px;
         }
 
         .x-axis span {
-            display: block;
+            font-size: 12px;
+            color: #666;
+            transform: rotate(-45deg);
+            transform-origin: top left;
+            text-align: left;
+            margin-top: 2px;
+            margin-bottom: 25px;
+        }
+
+        .time-range {
             text-align: center;
-            width: 40px;
-            transform: rotate(-90deg);
-            white-space: nowrap;
-            margin-top: 40px;
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .warning-icon {
+            color: #f0a500;
+            margin-left: 8px;
         }
     </style>
 
@@ -369,14 +440,45 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <button id="toggle-btn">
                     <span>📊</span>
                 </button>
+
                 <div id="histogram-container">
+                    <div class="controls">
+                        <div class="dropdown-container">
+                            <button class="interval-btn">
+                                <i class="fas fa-clock"></i>
+                                Interval: <span class="selected-interval">Second</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <div class="dropdown-menu interval-menu">
+                                <div class="dropdown-item">Auto</div>
+                                <div class="dropdown-item">Millisecond</div>
+                                <div class="dropdown-item">Second</div>
+                                <div class="dropdown-item">Minute</div>
+                                <div class="dropdown-item">Hour</div>
+                                <div class="dropdown-item">Day</div>
+                                <div class="dropdown-item">Week</div>
+                            </div>
+                        </div>
+
+                        <div class="dropdown-container">
+                            <button class="breakdown-btn">
+                                <i class="fas fa-chart-bar"></i>
+                                No breakdown
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="histogram-wrapper">
-                        <div class="y-axis" id="y-axis"></div>
-                        <div class="histogram" id="histogram"></div> <!-- Bars -->
+                        <div id="y-axis"></div>
+                        <div id="histogram"></div>
                     </div>
                     <div class="x-axis" id="x-axis"></div>
+                    <div class="time-range" id="time-range"></div>
                 </div>
+
             </div>
+
 
             <div class="custom-chart-container">
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
