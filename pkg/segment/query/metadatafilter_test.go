@@ -28,11 +28,12 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
 	. "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
 	serverutils "github.com/siglens/siglens/pkg/server/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+var IndexName string = "metadatafilter"
 
 func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCount int) {
 
@@ -41,28 +42,28 @@ func testTimeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCoun
 		EndEpochMs:   uint64(numEntriesInBlock),
 	}
 
-	timeFilteredFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	timeFilteredFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{IndexName}, 0)
 	log.Infof("time filter: %v", timeFilteredFiles)
 	assert.Equal(t, passedCheck, uint64(fileCount), "all files passed")
 	assert.Equal(t, totalChecked, uint64(fileCount), "all files passed")
 	assert.Len(t, timeFilteredFiles, 1, "one table")
-	assert.Contains(t, timeFilteredFiles, "evts", "one table")
-	assert.Len(t, timeFilteredFiles["evts"], fileCount)
+	assert.Contains(t, timeFilteredFiles, IndexName, "one table")
+	assert.Len(t, timeFilteredFiles[IndexName], fileCount)
 
 	// adding extra tables that do not exist should not change results
-	extraTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{"evts", "extra-table"}, 0)
+	extraTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{IndexName, "extra-table"}, 0)
 	assert.Equal(t, passedCheck, uint64(fileCount), "all files passed")
 	assert.Equal(t, totalChecked, uint64(fileCount), "all files passed")
 	assert.Len(t, extraTableFiles, 1, "one table")
-	assert.Contains(t, extraTableFiles, "evts", "one table")
-	assert.Len(t, extraTableFiles["evts"], fileCount)
+	assert.Contains(t, extraTableFiles, IndexName, "one table")
+	assert.Len(t, extraTableFiles[IndexName], fileCount)
 
 	// no results when no tables are given
 	noTableFiles, totalChecked, passedCheck := segmetadata.FilterSegmentsByTime(tRange, []string{}, 0)
 	assert.Equal(t, passedCheck, uint64(0), "no tables")
 	assert.Equal(t, totalChecked, uint64(0), "no tables")
 	assert.Len(t, noTableFiles, 0)
-	assert.Len(t, noTableFiles["evts"], 0)
+	assert.Len(t, noTableFiles[IndexName], 0)
 }
 
 func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCount int) {
@@ -70,7 +71,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		StartEpochMs: 0,
 		EndEpochMs:   uint64(numEntriesInBlock),
 	}
-	indexNames := []string{"evts"}
+	indexNames := []string{IndexName}
 	value1, _ := utils.CreateDtypeEnclosure("value1", 0)
 	baseQuery := &SearchQuery{
 		ExpressionFilter: &SearchExpression{
@@ -81,7 +82,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		SearchType: SimpleExpression,
 	}
 	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, indexNames, 0)
-	ti := InitTableInfo("evts", 0, false)
+	ti := InitTableInfo(IndexName, 0, false)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
 			SearchQueries: []*SearchQuery{baseQuery},
@@ -119,7 +120,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 	}
 
 	var randomFile string
-	for fileName := range allFiles["evts"] {
+	for fileName := range allFiles[IndexName] {
 		randomFile = fileName
 		break
 	}
@@ -170,7 +171,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ = segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
+	allFiles, _, _ = segmetadata.FilterSegmentsByTime(tRange, []string{IndexName}, 0)
 	qsrs = ConvertSegKeysToQueryRequests(qInfo, allFiles)
 	keysToRawSearch, _, _ = FilterSegKeysToQueryResults(qInfo, qsrs)
 
@@ -248,8 +249,8 @@ func testRangeFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		},
 		SearchType: SimpleExpression,
 	}
-	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, []string{"evts"}, 0)
-	ti := InitTableInfo("evts", 0, false)
+	allFiles, _, _ := segmetadata.FilterSegmentsByTime(tRange, []string{IndexName}, 0)
+	ti := InitTableInfo(IndexName, 0, false)
 	sn := &SearchNode{
 		AndSearchConditions: &SearchCondition{
 			SearchQueries: []*SearchQuery{rangeQuery},
@@ -292,15 +293,15 @@ func Test_MetadataFilter(t *testing.T) {
 	fileCount := 5
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
-	segBaseDir, _, err := writer.GetMockSegBaseDirAndKeyForTest(dir, "metadatafilter")
-	assert.Nil(t, err)
 	limit.InitMemoryLimiter()
-	err = InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
+	err := InitQueryNode(getMyIds, serverutils.ExtractKibanaRequests)
 	if err != nil {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
 
-	metadata.InitMockColumnarMetadataStore(segBaseDir, fileCount, numBlocks, numEntriesInBlock)
+	_, err = metadata.InitMockColumnarMetadataStore(0, "metadatafilter", fileCount, numBlocks, numEntriesInBlock)
+	assert.Nil(t, err)
+
 	testTimeFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testBloomFilter(t, numBlocks, numEntriesInBlock, fileCount)
 	testRangeFilter(t, numBlocks, numEntriesInBlock, fileCount)
