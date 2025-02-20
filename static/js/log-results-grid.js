@@ -121,11 +121,11 @@ class TimestampCellRenderer {
         // Check if "trace_id" exists and is not empty or null
         const showRelatedTraceButton = Object.keys(flattenedData).some(key => {
             if (key.toLowerCase() === "timestamp") {
-                time_stamp = flattenedData[key]; // Get value of trace_id
+                time_stamp = flattenedData[key];
             }
             if (key.toLowerCase() === "trace_id") {
-                trace_id = flattenedData[key]; // Get value of trace_id
-                return trace_id !== null && trace_id !== ""; // Ensure it's not empty or null
+                trace_id = flattenedData[key];
+                return trace_id !== null && trace_id !== "";
             }
             return false;
         });
