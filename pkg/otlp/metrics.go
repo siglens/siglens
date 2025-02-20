@@ -82,8 +82,13 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 				metricType, extractedMetrics := processMetric(metrics)
 				for _, pm := range extractedMetrics {
 					pm.Type = metricType
-					data, err := ConvertToOTLPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
 					numTotalRecords++
+
+					data, err := ConvertToOTLPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
+					if err != nil {
+						numFailedRecords++
+						log.Errorf("OLTPMetrics: failed to ConvertToOTLPMetricsFormat data=%+v, err=%v", data, err)
+					}
 					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
 					if err != nil {
 						numFailedRecords++
