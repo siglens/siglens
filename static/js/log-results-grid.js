@@ -47,21 +47,17 @@ class TimestampCellRenderer {
         const rowData = this.params.node.data;
 
         window.copyJsonToClipboard = function copyJsonToClipboard() {
-            const jsonContent = document.querySelector('#json-tab div').innerText; // Get JSON text
-            navigator.clipboard
-                .writeText(jsonContent)
-                .then(() => {
-                    alert('Copied to clipboard!');
-                })
-                .catch((err) => {
-                    console.error('Failed to copy: ', err);
-                });
-        };
+            const jsonContent = document.querySelector("#json-tab div").innerText; // Get JSON text
+            navigator.clipboard.writeText(jsonContent).then(() => {
+                alert("Copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy: ", err);
+            });
+        }
 
-        window.switchTab = function (tab) {
-            // Attach to global scope
-            document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('active'));
-            document.querySelectorAll('.tab-button').forEach((el) => el.classList.remove('active'));
+        window.switchTab = function (tab) {  // Attach to global scope
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
 
             document.getElementById(tab + '-tab').classList.add('active');
             document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
@@ -92,31 +88,33 @@ class TimestampCellRenderer {
             const jsonData = JSON.unflatten(rowData);
             const flattenedData = flattenJson(jsonData); // Flatten JSON structure
 
+
             if (!flattenedData || Object.keys(flattenedData).length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No data available</td></tr>`;
                 return;
             }
 
             Object.entries(flattenedData).forEach(([key, value]) => {
-                let formattedValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : value;
+                let formattedValue = (typeof value === "object") ? JSON.stringify(value, null, 2) : value;
 
-                let row = document.createElement('tr');
+                let row = document.createElement("tr");
 
-                let keyCell = document.createElement('td');
+                let keyCell = document.createElement("td");
                 keyCell.textContent = key;
-                keyCell.style.border = '1px solid #ddd';
-                keyCell.style.padding = '6px';
+                keyCell.style.border = "1px solid #ddd";
+                keyCell.style.padding = "6px";
 
-                let valueCell = document.createElement('td');
+                let valueCell = document.createElement("td");
                 valueCell.textContent = formattedValue;
-                valueCell.style.border = '1px solid #ddd';
-                valueCell.style.padding = '6px';
+                valueCell.style.border = "1px solid #ddd";
+                valueCell.style.padding = "6px";
 
                 row.appendChild(keyCell);
                 row.appendChild(valueCell);
                 tableBody.appendChild(row);
             });
         }
+
 
         jsonPopup.innerHTML = `
         <div class="json-popup-header">
@@ -173,6 +171,7 @@ class TimestampCellRenderer {
         return false;
     }
 }
+
 
 function syntaxHighlight(json) {
     if (typeof json !== 'string') {
