@@ -2345,6 +2345,7 @@ div#save-queries {
     height: 90px !important;
     margin: 16px !important;
     padding: 0 !important;
+    overflow-x: hidden;
 }
 
 div#download-info {
