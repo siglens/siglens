@@ -50,13 +50,13 @@ let navbarComponent = `
 
             <div class="accordion-content" style="display: none;">
                 <a href="./metrics-explorer.html" class="submenu-link">
-                    <span class="nav-link-text-sub">Explorer</span>
+                    <span class="nav-link-text-sub-explore">Explorer</span>
                 </a>
                 <a href="./metric-summary.html" class="submenu-link">
-                    <span class="nav-link-text-sub">Summary</span>
+                    <span class="nav-link-text-sub-summary">Summary</span>
                 </a>
                 <a href="./metric-cardinality.html" class="submenu-link">
-                    <span class="nav-link-text-sub">Cardinality</span>
+                    <span class="nav-link-text-sub-cardinality">Cardinality</span>
                 </a>
             </div>
         </div>
@@ -178,19 +178,18 @@ const accordionStyles = `
         display: block;
         padding: 8px 15px 8px 30px;
         text-decoration: none;
-        color: inherit;
+        color: grey;
         position: relative;
     }
 
     .submenu-link:hover {
         background-color: rgba(0, 0, 0, 0.05);
+        color: white;
     }
 
     .submenu-link.active::before {
         opacity: 1;
-        background-color: orange;
-        width: 2px;
-        color: var(--navbar-link-text-active);
+        text-decoration-color: aliceblue;
     }
 
     /* Vertical line for submenu links */
@@ -206,13 +205,6 @@ const accordionStyles = `
         opacity: 0;
     }
 
-
-    /* Show the vertical line when submenu is active
-    .submenu-link.nav-link-text-sub.active::before {
-        opacity: 1;
-        background-color: orange;
-        width: 2px;
-    }*/
 
      .submenu-link::before {
         opacity: 1;
@@ -461,6 +453,32 @@ $(document).ready(function () {
         }
     });
 
+    // Highlight parent menu if metrics.html is active
+    $('.big-menu a').each(function () {
+        if (this.href === currentUrl) {
+            $(this).css({
+                "color": "white",
+                "border-left": "4px solid orange"
+            });
+        }
+    });
+
+    // Highlight submenu if a submenu item is active
+    $('.submenu-link').each(function () {
+        if (currentUrl.includes('metrics-explorer.html') && $(this).attr('href').includes('metrics-explorer.html')) {
+            $(this).css("color", "white");
+            $(this).closest('.big-menu').find('.nav-link-text-sub-explore').css("color", "white"); // Highlight parent
+        }
+        else if (currentUrl.includes('metrics-summary.html') && $(this).attr('href').includes('metrics-summary.html')) {
+            $(this).css("color", "white");
+            $(this).closest('.big-menu').find('.nav-link-text-sub-summary').css("color", "white");
+        }
+        else if (currentUrl.includes('metrics-cardinality.html') && $(this).attr('href').includes('metrics-cardinality.html')) {
+            $(this).css("color", "white");
+            $(this).closest('.big-menu').find('.nav-link-text-sub-cardinality').css("color", "white");
+        }
+    });
+
 
     window.onpopstate = function(event) {
         if (!window.location.href.includes('metrics.html')) {
@@ -530,13 +548,9 @@ $(document).ready(function () {
 
     $(document).on('click', function (event) {
         var helpOptions = $('.help-options');
-        var metricsDropdown = $('.metrics-dropdown');
         var tracesDropdown = $('.traces-dropdown');
         var ingestionDropdown = $('.ingestion-dropdown');
 
-        if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
-            metricsDropdown.hide();
-        }
         if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
             tracesDropdown.hide();
         }
