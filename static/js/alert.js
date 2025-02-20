@@ -18,8 +18,6 @@
  */
 
 let alertData = {};
-let alertID;
-let alertHistoryData = [];
 let alertEditFlag = 0;
 let alertFromMetricsExplorerFlag = 0;
 let messageTemplateInfo = '<i class="fa fa-info-circle position-absolute info-icon sendMsg" rel="tooltip" id="info-icon-msg" style="display: block;" title = "You can use following template variables:' + '\n' + inDoubleBrackets('alert_rule_name') + '\n' + inDoubleBrackets('query_string') + '\n' + inDoubleBrackets('condition') + '\n' + inDoubleBrackets('queryLanguage') + '"></i>';
@@ -61,38 +59,44 @@ $(document).ready(async function () {
     $('.theme-btn').on('click', themePickerHandler);
 
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
-    $('#logs-language-btn').show();
+
+    // $('#logs-language-btn').show();
     let startTime = 'now-30m';
     let endTime = 'now';
     datePickerHandler(startTime, endTime, startTime);
     setupEventHandlers();
 
+    await getAlertIdFromURL();
+
     $('.alert-condition-options li').on('click', setAlertConditionHandler);
     $('#contact-points-dropdown').on('click', contactPointsDropdownHandler);
-    $('#logs-language-options li').on('click', setLogsLangHandler);
-    $('#data-source-options li').on('click', function () {
-        let alertType;
-        if ($(this).html() === 'Logs') {
-            alertType = 1;
-        } else {
-            alertType = 2;
-            $('#save-alert-btn').on('click', function () {
-                if ($('#select-metric-input').val === '') {
-                    $('#save-alert-btn').prop('disabled', true);
-                } else {
-                    $('#save-alert-btn').prop('disabled', false);
-                }
-            });
-        }
-        setDataSourceHandler(alertType);
-    });
+    // $('#logs-language-options li').on('click', setLogsLangHandler);
+    // $('#data-source-options li').on('click', function () {
+    //     let alertType;
+    //     if ($(this).html() === 'Logs') {
+    //         alertType = 1;
+    //     } else {
+    //         alertType = 2;
+    //         $('#save-alert-btn').on('click', function () {
+    //             if ($('#select-metric-input').val === '') {
+    //                 $('#save-alert-btn').prop('disabled', true);
+    //             } else {
+    //                 $('#save-alert-btn').prop('disabled', false);
+    //             }
+    //         });
+    //     }
+    //     setDataSourceHandler(alertType);
+    // });
 
     $('#cancel-alert-btn').on('click', function () {
         window.location.href = '../all-alerts.html';
         resetAddAlertForm();
     });
 
-    alertForm.on('submit', (e) => submitAddAlertForm(e));
+    // alertForm.on('submit', (e) => {
+    //     console.log('form submit');
+    //     submitAddAlertForm(e);
+    // });
 
     const tooltipIds = ['info-icon-spl', 'info-icon-msg', 'info-evaluate-every', 'info-evaluate-for'];
 
@@ -115,16 +119,12 @@ $(document).ready(async function () {
         }
     });
 
-    await getAlertId();
-
     // Enable the save button when a contact point is selected
     $('.contact-points-options li').on('click', function () {
         $('#contact-points-dropdown span').text($(this).text());
         $('#save-alert-btn').prop('disabled', false);
         $('#contact-point-error').css('display', 'none'); // Hide error message when a contact point is selected
     });
-
-    handleFormValidationTooltip();
 
     $('#evaluate-for').tooltip({
         title: 'Evaluate For must be greater than or equal to Evaluate Interval',
@@ -163,67 +163,65 @@ $(document).ready(async function () {
     $('#all-alerts-text').click(function () {
         window.location.href = '../all-alerts.html';
     });
+
+    // $(document).on('submit', '#alert-form', function (e) {
+    //     console.log('form submit via delegation');
+    //     e.preventDefault();
+    //     submitAddAlertForm(e);
+    // });
 });
 
-function updateChartColorsBasedOnTheme() {
-    //eslint-disable-next-line no-undef
-    const { gridLineColor, tickColor } = getGraphGridColors();
-    //eslint-disable-next-line no-undef
-    if (mergedGraph) {
-        //eslint-disable-next-line no-undef
-        mergedGraph.options.scales.x.ticks.color = tickColor;
-        //eslint-disable-next-line no-undef
-        mergedGraph.options.scales.y.ticks.color = tickColor;
-        //eslint-disable-next-line no-undef
-        mergedGraph.options.scales.y.grid.color = gridLineColor;
-        //eslint-disable-next-line no-undef
-        mergedGraph.update();
-    }
-
-    for (const queryName in chartDataCollection) {
-        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
-            //eslint-disable-next-line no-undef
-            const lineChart = lineCharts[queryName];
-
-            lineChart.options.scales.x.ticks.color = tickColor;
-            lineChart.options.scales.y.ticks.color = tickColor;
-            lineChart.options.scales.y.grid.color = gridLineColor;
-            lineChart.update();
-        }
-    }
-}
-
-async function getAlertId() {
+async function getAlertIdFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    // Index
+    const alertType = urlParams.get('type') || 'logs';
+    console.log('getAlertIdFromURL', alertType);
 
-    let indexes = await getListIndices();
-    if (indexes) {
-        originalIndexValues = indexes.map((item) => item.index);
-        indexValues = [...originalIndexValues];
+    handleFormValidationTooltip(alertType);
+    // Alert Creation
+    if (alertType === 'logs') {
+        $('.query-container, .logs-lang-container, .index-box, #logs-explorer').show();
+        $('#metrics-explorer, #metrics-graphs').hide();
+        let indexes = await getListIndices();
+        if (indexes) {
+            originalIndexValues = indexes.map((item) => item.index);
+            indexValues = [...originalIndexValues];
+        }
+        initializeIndexAutocomplete();
+        setIndexDisplayValue(selectedSearchIndex);
+
+        //Show empty chart initially
+        const logsExplorer = document.getElementById('logs-explorer');
+        showEmptyChart(logsExplorer);
+    } else if (alertType === 'metrics') {
+        $('.query-container, .logs-lang-container, .index-box, #logs-explorer').hide();
+        $('#metrics-explorer, #metrics-graphs').show();
     }
-    initializeIndexAutocomplete();
-    setIndexDisplayValue(selectedSearchIndex);
 
+    // If we have id in URL , alert editing
     if (urlParams.has('id')) {
         const id = urlParams.get('id');
-        alertID = id;
         const editFlag = await editAlert(id);
         alertEditFlag = editFlag;
         alertFromMetricsExplorerFlag = 0;
-    } else if (urlParams.has('queryString')) {
+    }
+    // If alert created from metrics
+    else if (urlParams.has('queryString')) {
+        console.log('Alert created from metrics');
         let dataParam = getUrlParameter('queryString');
         let jsonString = decodeURIComponent(dataParam);
         let obj = JSON.parse(jsonString);
         alertFromMetricsExplorerFlag = 1;
-        displayAlert(obj);
-    } else if (urlParams.has('queryLanguage')) {
+
+        // createAlertFromMetrics(obj);
+        fillAlertForm(obj);
+    }
+    // If alert created from logs
+    else if (urlParams.has('queryLanguage')) {
         const queryLanguage = urlParams.get('queryLanguage');
         const searchText = urlParams.get('searchText');
         const startEpoch = urlParams.get('startEpoch');
         const endEpoch = urlParams.get('endEpoch');
         const filterTab = urlParams.get('filterTab');
-
         createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab);
     }
 
@@ -232,7 +230,7 @@ async function getAlertId() {
     }
 }
 
-async function editAlert(alertId) {
+async function editAlert(alertId, alertType) {
     const res = await $.ajax({
         method: 'get',
         url: 'api/alerts/' + alertId,
@@ -246,7 +244,7 @@ async function editAlert(alertId) {
 
     alertEditFlag = true;
     alertFromMetricsExplorerFlag = 0;
-    displayAlert(res.alert);
+    fillAlertForm(res.alert, alertType);
     return true;
 }
 
@@ -303,13 +301,26 @@ $(document).keyup(function (e) {
 
 function submitAddAlertForm(e) {
     e.preventDefault();
+    console.log('Submit Add Alert Form');
+    console.log('alertEditFlag:', alertEditFlag);
+    console.log('alertFromMetricsExplorerFlag:', alertFromMetricsExplorerFlag);
+
     setAlertRule();
-    alertEditFlag && !alertFromMetricsExplorerFlag ? updateAlertRule(alertData) : createNewAlertRule(alertData);
+    console.log('Alert data after setAlertRule:', alertData);
+
+    if (alertEditFlag && !alertFromMetricsExplorerFlag) {
+        console.log('Updating existing alert');
+        // updateAlertRule(alertData);
+    } else {
+        console.log('Creating new alert');
+        // createNewAlertRule(alertData);
+    }
 }
 
 function setAlertRule() {
-    let dataSource = $('#alert-data-source span').text();
-    if (dataSource === 'Logs') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const alertType = urlParams.get('type') || 'logs';
+    if (alertType === 'logs') {
         let searchText, queryMode;
         if (isQueryBuilderSearch) {
             searchText = getQueryBuilderCode();
@@ -320,15 +331,15 @@ function setAlertRule() {
         }
         alertData.alert_type = 1;
         alertData.queryParams = {
-            data_source: dataSource,
-            queryLanguage: $('#logs-language-btn span').text(),
+            data_source: alertType,
+            queryLanguage: 'Splunk QL',
             queryText: searchText,
             startTime: filterStartDate,
             endTime: filterEndDate,
             index: selectedSearchIndex,
             queryMode: queryMode,
         };
-    } else if (dataSource === 'Metrics') {
+    } else if (alertType === 'metrics') {
         alertData.alert_type = 2;
         alertData.metricsQueryParams = JSON.stringify(metricsQueryParams);
     }
@@ -354,6 +365,8 @@ function setAlertRule() {
             alertData.labels.push(labelEntry);
         }
     });
+
+    console.log(alertData);
 }
 
 function createNewAlertRule(alertData) {
@@ -409,20 +422,27 @@ function resetAddAlertForm() {
     alertForm[0].reset();
 }
 
-async function displayAlert(res) {
+async function fillAlertForm(res) {
+    console.log(res);
     $('#alert-rule-name').val(res.alert_name);
     setDataSourceHandler(res.alert_type);
+
+    // Alert Type: Logs
     if (res.alert_type === 1) {
         const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
 
-        $('#alert-data-source span').html(data_source);
-        $('#logs-language-btn span').text(queryLanguage);
-        $('.logs-language-option').removeClass('active');
-        $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
-        displayQueryToolTip(queryLanguage);
+        // $('#alert-data-source span').html(data_source);
+        // $('#logs-language-btn span').text(queryLanguage);
+        // $('.logs-language-option').removeClass('active');
+        // $(`.logs-language-option:contains(${queryLanguage})`).addClass('active');
+        // displayQueryToolTip();
 
+        $('#info-icon-spl').show();
+
+        $('.ranges .inner-range .range-item').removeClass('active');
         $(`.ranges .inner-range #${startTime}`).addClass('active');
         datePickerHandler(startTime, endTime, startTime);
+
         if (index === '') {
             setIndexDisplayValue('*');
         } else {
@@ -431,35 +451,44 @@ async function displayAlert(res) {
 
         if (queryMode === 'Builder') {
             codeToBuilderParsing(queryText);
+            $('#filter-input').val(queryText);
+            isQueryBuilderSearch = true;
         } else if (queryMode === 'Code' || queryMode === '') {
             $('#custom-code-tab').tabs('option', 'active', 1);
             $('#filter-input').val(queryText);
         }
+
         initializeFilterInputEvents();
+
         let data = {
             state: wsState,
             searchText: queryText,
             startEpoch: startTime,
             endEpoch: endTime,
             indexName: index,
-            queryLanguage: queryLanguage,
+            queryLanguage: 'Splunk QL',
         };
+
         fetchLogsPanelData(data, -1).then((res) => {
             alertChart(res);
         });
-        $('#query').val(res.queryParams.queryText);
-        $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
-        datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime);
-    } else if (res.alert_type === 2) {
+
+        // $('#query').val(res.queryParams.queryText);
+
+        // $(`.ranges .inner-range #${res.queryParams.startTime}`).addClass('active');
+        // datePickerHandler(res.queryParams.startTime, res.queryParams.endTime, res.queryParams.startTime);
+    }
+    // Alert Type: Metrics
+    else if (res.alert_type === 2) {
         let metricsQueryParams;
         if (alertFromMetricsExplorerFlag) {
             metricsQueryParams = res;
         } else {
             metricsQueryParams = JSON.parse(res.metricsQueryParams);
-        }
-        // eslint-disable-next-line no-undef
+        } // eslint-disable-next-line no-undef
         populateMetricsQueryElement(metricsQueryParams);
     }
+
     let conditionType = mapIndexToConditionType.get(res.condition);
 
     $('.alert-condition-option').removeClass('active');
@@ -493,21 +522,21 @@ async function displayAlert(res) {
     });
 }
 
-function setLogsLangHandler(_e) {
-    $('.logs-language-option').removeClass('active');
-    $('#logs-language-btn span').html($(this).html());
-    $(this).addClass('active');
-    displayQueryToolTip($(this).html());
-}
+// function setLogsLangHandler(_e) {
+//     $('.logs-language-option').removeClass('active');
+//     $('#logs-language-btn span').html($(this).html());
+//     $(this).addClass('active');
+//     displayQueryToolTip($(this).html());
+// }
 
 function setDataSourceHandler(alertType) {
-    $('.data-source-option').removeClass('active');
+    // $('.data-source-option').removeClass('active');
     const isLogs = alertType === 1;
-    const sourceText = isLogs ? 'Logs' : 'Metrics';
-    const $span = $('#alert-data-source span');
+    // const sourceText = isLogs ? 'Logs' : 'Metrics';
+    // const $span = $('#alert-data-source span');
 
-    $span.html(sourceText);
-    $(`.data-source-option:contains("${sourceText}")`).addClass('active');
+    // $span.html(sourceText);
+    // $(`.data-source-option:contains("${sourceText}")`).addClass('active');
 
     $('.query-container, .logs-lang-container, .index-box, #logs-explorer').toggle(isLogs);
     $('#metrics-explorer, #metrics-graphs').toggle(!isLogs);
@@ -519,14 +548,14 @@ function setDataSourceHandler(alertType) {
     }
 }
 
-function displayQueryToolTip(selectedQueryLang) {
-    $('#info-icon-pipeQL, #info-icon-spl').hide();
-    if (selectedQueryLang === 'Pipe QL') {
-        $('#info-icon-pipeQL').show();
-    } else if (selectedQueryLang === 'Splunk QL') {
-        $('#info-icon-spl').show();
-    }
-}
+// function displayQueryToolTip(selectedQueryLang) {
+//     $('#info-icon-pipeQL, #info-icon-spl').hide();
+//     if (selectedQueryLang === 'Pipe QL') {
+//         $('#info-icon-pipeQL').show();
+//     } else if (selectedQueryLang === 'Splunk QL') {
+//         $('#info-icon-spl').show();
+//     }
+// }
 
 // Add Label
 $('.add-label-container').on('click', function () {
@@ -547,37 +576,49 @@ $('.label-main-container').on('click', '.delete-icon', function () {
 
 function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
     const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('alertRule_name')));
+    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('ruleName')));
 
     if (filterTab === '0') {
         codeToBuilderParsing(searchText);
+        $('#filter-input').val(searchText);
+        isQueryBuilderSearch = true;
     } else if (filterTab === '1') {
         $('#custom-code-tab').tabs('option', 'active', 1);
         $('#filter-input').val(searchText);
     }
     datePickerHandler(startEpoch, endEpoch, startEpoch);
     let data = {
-        state: wsState,
         searchText: searchText,
         startEpoch: startEpoch,
         endEpoch: endEpoch,
         indexName: selectedSearchIndex,
         queryLanguage: queryLanguage,
     };
+    console.log(data);
     fetchLogsPanelData(data, -1).then((res) => {
         alertChart(res);
     });
 }
 
-function handleFormValidationTooltip() {
-    const metricError = $('<div id="metric-error" class="require-field-tooltip">Please select a metric.</div>');
-    $('.metrics-query .query-box .query-builder').append(metricError);
+function createAlertFromMetrics(data) {
+    $('#metrics-explorer, #metrics-graphs').show();
+    $('.index-box, #logs-explorer, .query-builder-container').hide();
+    populateMetricsQueryElement(data);
+}
+function handleFormValidationTooltip(alertType) {
+    // Remove any existing click handlers from the save button
+    $('#save-alert-btn').off('click');
 
+    // Add our consolidated handler
     $('#save-alert-btn').on('click', function (event) {
-        let dataSource = $('#alert-data-source span').text();
-        let isLogsCodeMode = $('#custom-code-tab').tabs('option', 'active');
-        let isMetricsCodeMode = $('.raw-query-input').is(':visible');
-        if (dataSource === 'Logs' && !isLogsCodeMode) {
+        event.preventDefault();
+        console.log('Form Validation Tooltip clicked saved button');
+        console.log("handleFormValidationTooltip: alertType", alertType);
+        // Logs validation
+        if (alertType === 'logs') {
+            console.log(
+            "Form Validation Tooltip"
+            )
             if (thirdBoxSet.size === 0 && secondBoxSet.size === 0 && firstBoxSet.size === 0) {
                 $('#logs-error').css('display', 'inline-block');
                 $('#metric-error').removeClass('visible');
@@ -586,36 +627,38 @@ function handleFormValidationTooltip() {
                     behavior: 'smooth',
                     block: 'center',
                 });
-                event.preventDefault();
-                return;
+                return false;
             }
-        } else if (dataSource === 'Metrics' && !isMetricsCodeMode) {
-            // First, check if the metric input is empty
+        }
+        // Metrics validation
+        else if (alertType === 'metrics') {
+            console.log('handleFormValidationTooltip: alertType=' + alertType);
             if ($('#select-metric-input').val().trim() === '') {
+                console.log('handleFormValidationTooltip: metrics if condition');
                 $('#metric-error').css('display', 'inline-block');
                 $('#contact-point-error').css('display', 'none');
                 document.getElementById('select-metric-input').scrollIntoView({
                     behavior: 'smooth',
                     block: 'center',
                 });
-                event.preventDefault();
-                return;
+                return false;
             }
         }
 
-        // If metric input is not empty, check the contact point
+        // Contact point validation
         if ($('#contact-points-dropdown span').text() === 'Choose' || $('#contact-points-dropdown span').text() === 'Add New') {
-            event.preventDefault(); // Prevent form submission
+            console.log("contact point validation")
             $('#contact-point-error').css('display', 'inline-block');
             document.getElementById('contact-points-dropdown').scrollIntoView({
                 behavior: 'smooth',
                 block: 'center',
             });
-            return;
+            return false;
         }
 
-        // If both metric input and contact point are valid, form submission will continue
-        // The browser will handle required fields with default tooltips
+        // If all validations pass, call submitAddAlertForm directly
+        console.log('Validation passed, calling submitAddAlertForm');
+        submitAddAlertForm(event);
     });
 
     $('#select-metric-input').on('focus', function () {
@@ -639,14 +682,16 @@ function alertChart(res) {
     logsExplorer.innerHTML = '';
 
     if (res.qtype === 'logs-query' || res.qtype === 'segstats-query') {
-        $('#logs-explorer').hide();
+        showEmptyChart(logsExplorer);
         return;
     }
 
     if (res.qtype === 'aggs-query') {
         let columnOrder = getColumnOrder(res);
-        if (handleErrors(res, logsExplorer) || !hasValidData(res)) return;
-
+        if (handleErrors(res, logsExplorer) || !hasValidData(res)) {
+            showEmptyChart(logsExplorer);
+            return;
+        }
         let hits = res.measure;
         const thresholdValue = parseFloat($('#threshold-value').val()) || 0;
         const conditionType = $('#alert-condition span').text();
@@ -680,7 +725,7 @@ function alertChart(res) {
                     type: 'box',
                     yMin: visibleThreshold,
                     yMax: maxYTick,
-                    backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                    backgroundColor: 'rgb(255, 218, 224, 0.8)',
                     borderWidth: 0,
                 };
             } else if (conditionType === 'Is below') {
@@ -689,7 +734,7 @@ function alertChart(res) {
                     type: 'box',
                     yMin: 0,
                     yMax: visibleThreshold,
-                    backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                    backgroundColor: 'rgb(255, 218, 224, 0.8)',
                     borderWidth: 0,
                 };
             } else {
@@ -756,7 +801,7 @@ function alertChart(res) {
                                     scaleID: 'y',
                                     value: visibleThreshold,
                                     borderColor: 'rgb(255, 107, 107)',
-                                    borderWidth: 1.5,
+                                    borderWidth: 2,
                                     borderDash: [5, 5],
                                     label: {
                                         display: true,
@@ -801,7 +846,7 @@ function alertChart(res) {
                         type: 'box',
                         yMin: visibleThreshold,
                         yMax: maxYTick,
-                        backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                        backgroundColor: 'rgb(255, 218, 224, 0.8)',
                         borderWidth: 0,
                     };
                 } else if (newConditionType === 'Is below') {
@@ -810,7 +855,7 @@ function alertChart(res) {
                         type: 'box',
                         yMin: 0,
                         yMax: visibleThreshold,
-                        backgroundColor: 'rgba(255, 235, 235, 0.5)',
+                        backgroundColor: 'rgb(255, 218, 224, 0.8)',
                         borderWidth: 0,
                     };
                 } else {
@@ -827,8 +872,6 @@ function alertChart(res) {
 
                 alertChartInstance.update();
             }
-        } else {
-            handleSingleMeasure(hits, columnOrder);
         }
     }
 }
@@ -884,11 +927,81 @@ function hasValidData(res) {
     return true;
 }
 
-function handleSingleMeasure(hits, columnOrder) {
-    let singleMeasure = hits[0].MeasureVal[columnOrder[0]];
-    if (singleMeasure != null) {
-        displayBigNumber(singleMeasure, -1, 'dataType', 0);
-    } else {
-        $('#logs-explorer').hide();
+function showEmptyChart(logsExplorer) {
+    const canvas = document.createElement('canvas');
+    canvas.style.width = '100%';
+    canvas.style.height = '400px';
+    logsExplorer.appendChild(canvas);
+
+    // Destroy existing chart if it exists
+    if (alertChartInstance) {
+        alertChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    alertChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    data: [],
+                    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#718096',
+                    },
+                },
+                x: {
+                    grid: {
+                        display: false,
+                    },
+                    ticks: {
+                        color: '#718096',
+                    },
+                },
+            },
+            plugins: {
+                legend: {
+                    display: false,
+                },
+            },
+        },
+    });
+}
+
+function updateChartColorsBasedOnTheme() {
+    //eslint-disable-next-line no-undef
+    const { gridLineColor, tickColor } = getGraphGridColors();
+    //eslint-disable-next-line no-undef
+    if (mergedGraph) {
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.x.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.ticks.color = tickColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.options.scales.y.grid.color = gridLineColor;
+        //eslint-disable-next-line no-undef
+        mergedGraph.update();
+    }
+
+    for (const queryName in chartDataCollection) {
+        if (Object.prototype.hasOwnProperty.call(chartDataCollection, queryName)) {
+            //eslint-disable-next-line no-undef
+            const lineChart = lineCharts[queryName];
+
+            lineChart.options.scales.x.ticks.color = tickColor;
+            lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.y.grid.color = gridLineColor;
+            lineChart.update();
+        }
     }
 }

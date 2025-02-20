@@ -2858,7 +2858,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .LogResultsGrid.ag-theme-mycustomtheme .ag-row:hover {
     background: var(--alerting-table-hover) !important;
     border: 1px solid !important;
-    border-color:var(--purple-1) !important;
+    border-color: var(--purple-1) !important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
@@ -4438,8 +4438,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #alert-condition,
 #contact-types,
 #contact-points-dropdown,
-#alert-data-source,
-#logs-language-btn {
+#alert-data-source {
     width: 120px;
 }
 
@@ -4543,7 +4542,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background: var(--search-bar-bg);
     border: none;
     color: var(--search-bar-text-color-regular-or-hover);
-    font-size: 14px;
+    font-size: 12px;
     border-radius: 5px;
     width: 100%;
     padding: .375rem .75rem;
@@ -4555,6 +4554,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background: var(--search-bar-bg);
     outline: 1pt solid var(--drop-down-btn-border-active);
     outline-offset: -1pt;
+}
+
+#info-icon-msg {
+    top: 24px;
 }
 
 .upper-header {
@@ -4634,7 +4637,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 
 #alerting .dropdown-menu.daterangepicker.show {
-    height: 216px !important;
+    height: 166px !important;
 }
 
 .custom-alert-dropdown-menu {
@@ -6220,9 +6223,10 @@ p#versionInfo {
     font-weight: bold;
 }
 
-[data-theme='dark'] .tab.active{
+[data-theme='dark'] .tab.active {
     color: var(--white);
 }
+
 .section {
     background-color: var(--black1-to-white0);
     padding: 16px;

@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 let alertID;
+let alertHistoryData = [];
 let mapIndexToConditionType = new Map([
     [0, 'Is above'],
     [1, 'Is below'],
