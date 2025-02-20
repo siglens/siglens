@@ -88,6 +88,7 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 					if err != nil {
 						numFailedRecords++
 						log.Errorf("OLTPMetrics: failed to ConvertToOTLPMetricsFormat data=%+v, err=%v", data, err)
+						continue
 					}
 					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
 					if err != nil {
