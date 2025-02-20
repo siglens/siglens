@@ -1,54 +1,63 @@
 package utils
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"os"
+	"time"
 
-	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 )
 
-func OnFileChange(files []string, callback func()) error {
+func WatchFileChanges(files []string, refreshIntervalSeconds int, callback func()) error {
 	if len(files) == 0 {
 		return nil
 	}
 
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return fmt.Errorf("OnFileChange: Error creating file watcher: %v", err)
-	}
+	// Track last hash of each file
+	lastHashes := make(map[string]string)
 
-	// Add the files to the watcher
-	for _, file := range files {
-		err = watcher.Add(file)
+	// Compute hash of a file
+	hashFile := func(filePath string) (string, error) {
+		fileBytes, err := os.ReadFile(filePath)
 		if err != nil {
-			return fmt.Errorf("OnFileChange: Error adding file to watcher: %v", err)
+			return "", err
 		}
+
+		hash := sha256.New()
+		_, err = hash.Write(fileBytes)
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("%x", hash.Sum(nil)), nil
 	}
 
-	// Watch for changes
+	// Check new hashes every {refreshIntervalSeconds} seconds
+	ticker := time.NewTicker(time.Duration(refreshIntervalSeconds) * time.Second)
+
 	go func() {
-		defer watcher.Close()
 		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					log.Errorf("OnFileChange: Watcher events channel closed for files: %v", files)
-					return
+			<-ticker.C
+			for _, file := range files {
+				currentHash, err := hashFile(file)
+				if err != nil {
+					log.Errorf("OnFileChange: Error hashing file %v: %v", file, err)
+					continue
 				}
-				if event.Has(fsnotify.Write) {
-					log.Infof("OnFileChange: File %v changed", event.Name)
+
+				// Check if the hash has changed
+				lastHash, exists := lastHashes[file]
+				if !exists || currentHash != lastHash {
+					log.Infof("OnFileChange: File %v has changed", file)
 					callback()
+					lastHashes[file] = currentHash
+				} else {
+					log.Infof("File hasnt changed")
 				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					log.Errorf("OnFileChange: Watcher errors channel closed for files: %v", files)
-					return
-				}
-				log.Errorf("OnFileChange: Watcher error=%v for files %v", err, files)
-				return
 			}
 		}
 	}()
 
-	return err
+	return nil
 }
