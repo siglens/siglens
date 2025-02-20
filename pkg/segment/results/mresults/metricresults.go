@@ -33,7 +33,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -864,7 +863,9 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 
 			for timestamp, entries := range timeSeries {
 				for i := range entries {
-					// Modify grpID to ensure uniqueness
+					// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
+					// even when there is only one tag filter. This prevents all entries from having the same grpID,
+					// which would result in a count of 1 for each timestamp.
 					uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
 					if _, exists := seriesIdEntriesMap[seriesId][timestamp]; !exists {
 						seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
@@ -884,7 +885,6 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 	} else {
 		timestampToCount := make(map[uint32]float64)
 
-		// Iterate through all series and count unique timestamps
 		for _, timeSeries := range seriesEntriesMap {
 			for timestamp, entries := range timeSeries {
 				for _, entry := range entries {
@@ -897,6 +897,7 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 		r.Results[r.MetricName+"{"] = timestampToCount
 	}
 
+	r.DsResults = nil
 	r.State = AGGREGATED
 }
 
@@ -905,7 +906,6 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 	timestampToVals := make(map[uint32][]float64)
 	r.Results = make(map[string]map[uint32]float64)
 
-	log.Errorf("\n\nr.DsResults: %v\n\n", r.DsResults)
 	// If we use group by for this vector, We need to obtain all the timeseries within a group, and then calculate the variance or standard deviation separately for each group
 	if len(aggregation.GroupByFields) > 0 {
 		// All the time series values under one group
