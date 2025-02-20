@@ -68,8 +68,8 @@ Check out this <a href="https://www.siglens.com/blog/siglens-54x-faster-than-cli
 
 # Features:
 
-1. Multiple Ingestion formats: Open Telemetry, Elastic, Splunk HEC, Loki
-2. Multiple Query Languages: Splunk SPL, SQL and Loki LogQL
+1. Multiple Ingestion formats: Open Telemetry, Elastic, Splunk HEC
+2. Multiple Query Languages: Splunk SPL, SQL
 3. Simple architecture, easy to get started.
 
 
