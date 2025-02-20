@@ -2345,6 +2345,7 @@ div#save-queries {
     height: 90px !important;
     margin: 16px !important;
     padding: 0 !important;
+    overflow-x: hidden;
 }
 
 div#download-info {
@@ -2858,7 +2859,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .LogResultsGrid.ag-theme-mycustomtheme .ag-row:hover {
     background: var(--alerting-table-hover) !important;
     border: 1px solid !important;
-    border-color:var(--purple-1) !important;
+    border-color: var(--purple-1) !important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
@@ -5957,7 +5958,6 @@ p#versionInfo {
 }
 
 .logcontainer {
-    margin-left: 10px !important;
     margin-bottom: 6px !important;
     width: 94px;
     height: 26px;
@@ -6226,9 +6226,10 @@ p#versionInfo {
     font-weight: bold;
 }
 
-[data-theme='dark'] .tab.active{
+[data-theme='dark'] .tab.active {
     color: var(--white);
 }
+
 .section {
     background-color: var(--black1-to-white0);
     padding: 16px;
@@ -6290,9 +6291,14 @@ p#versionInfo {
     color: #d63384;
 }
 
+.custom-chart-container {
+    display: flex;
+    height: calc(100% - 120px);
+}
+
 .json-popup {
     width: 0;
-    background-color: var(--black1-to-white0) ;
+    background-color: var(--black1-to-white0);
     transition: width 0.3s ease;
     overflow: hidden;
     border-top: 1px solid var(--panel-table-line-color);
@@ -6314,11 +6320,6 @@ p#versionInfo {
     background: var(--alerting-table-hover);
 }
 
-.json-popup-title h3 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: bold;
-}
 
 .json-popup-close {
     background: none;
@@ -6328,18 +6329,18 @@ p#versionInfo {
     cursor: pointer;
     padding: 4px;
     line-height: 1;
+    margin-left: 418px;
 }
 
 .json-popup-content {
     padding: 16px;
     overflow-y: auto;
-    height: 100%;
+    height: calc(100% - 90px);
 }
 
 .json-popup-content div {
     margin: 0;
     font-family: "Roboto Mono", Menlo, Monaco, "Courier New", monospace;
-    white-space: pre-wrap;
     word-break: break-all;
     font-size: 12px;
     line-height: 1.5;
@@ -6347,9 +6348,93 @@ p#versionInfo {
 }
 
 .json-key {
-    color: rgb(0, 113, 194);
+    color: #0d6efd;
 }
 
+.json-key-values {
+    white-space: pre-wrap !important;
+}
 .json-value {
-    color: rgb(189, 39, 30);
+  color: #dc3545;
+}
+
+.tab-button {
+    padding: 8px 16px;
+    cursor: pointer;
+    border: none;
+    background: var(--myOrg-input);
+    font-weight: bold;
+    transition: 0.3s;
+    color: var(--text-color) !important;
+    border-radius: 5px;
+}
+
+.tab-button.active {
+    background: var(--tab-active-background);
+    border: 1px solid var(--purple-1);
+    border-radius: 5px;
+    color: var(--text-color) !important;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.json-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.json-table th,
+.json-table td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.json-table td {
+    font-family: Inter, "system-ui", Helvetica, Arial, sans-serif;
+    word-break: break-word;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+.json-table th {
+    background-color: var(--datatable-header-bg-color);
+}
+
+.json-table th:first-child,
+.json-table td:first-child {
+    width: 40%;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.json-content-type-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-bottom: 1px solid #ddd;
+    background-color: var(--bg-color);
+}
+
+.copy-json-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #666;
+    margin-left: auto;
+    padding: 5px;
+}
+
+.copy-json-button:hover {
+    color: #000;
 }
