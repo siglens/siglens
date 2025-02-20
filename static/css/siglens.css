@@ -4940,7 +4940,7 @@ p#versionInfo {
 }
 
 #history-grid {
-    height: 100%;
+    height: calc(100% - 120px);
     display: none;
 }
 
