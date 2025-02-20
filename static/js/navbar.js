@@ -95,6 +95,10 @@ let navbarComponent = `
             <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
         </div>
+        <div class="menu nav-infrastructure">
+            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span
+                    class="nav-link-text">Infrastructure</span></a>
+        </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./test-data.html">
                 <span class="icon-ingest"></span>

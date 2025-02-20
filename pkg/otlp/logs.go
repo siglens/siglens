@@ -261,6 +261,18 @@ func extractLogRecord(logRecord *logpb.LogRecord, resource *resourceInfo, scope 
 		record.Attributes[key] = value
 	}
 
+	if record.TraceId == "" {
+		if traceId, ok := record.Attributes["trace_id"]; ok {
+			record.TraceId = fmt.Sprintf("%v", traceId)
+		}
+	}
+
+	if record.SpanId == "" {
+		if spanId, ok := record.Attributes["span_id"]; ok {
+			record.SpanId = fmt.Sprintf("%v", spanId)
+		}
+	}
+
 	return &record, nil
 }
 

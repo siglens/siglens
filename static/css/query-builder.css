@@ -70,7 +70,8 @@
 
 .dashboard-box {
     height: 100vh;
-    padding: 4px;
+    padding: 6px 12px 12px 12px;
+    position: relative;
 }
 
 input.form-control {
@@ -709,6 +710,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 .custom-chart-tab {
     position: relative;
+    width: 100%;
     height: 100%;
     background: none;
     display: none;
@@ -737,7 +739,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #showTable {
     display: none;
     margin: 6px 0 0 0;
-    height: calc(100% - 34px);
+    height: calc(100% - 26px);
 }
 
 .tab-content-size {
@@ -866,16 +868,14 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 #initial-response {
     width: 100%;
-    margin-top: 15%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     font-size: 24px;
-    text-align: center;
-    padding: 40px;
-    border-radius: 5px;
     color: var(--empty-response-text-color);
     display: none;
+    text-align: center;
 }
 
 #empty-response {
