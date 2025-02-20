@@ -17,131 +17,182 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let cellEditingClass = '';
 let isFetching = false;
 
-class ReadOnlyCellEditor {
-    // gets called once before the renderer is used
+class TimestampCellRenderer {
     init(params) {
-        // create the cell
-        this.eInput = document.createElement('textarea');
-        cellEditingClass = params.rowIndex % 2 === 0 ? 'even-popup-textarea' : 'odd-popup-textarea';
-        this.eInput.classList.add(cellEditingClass);
-        this.eInput.classList.add('copyable');
-        this.eInput.readOnly = true;
+        this.params = params;
+        this.eGui = document.createElement('div');
+        this.eGui.style.display = 'flex';
 
-        // Set styles to ensure the textarea fits within its container
-        this.eInput.style.width = '100%';
-        this.eInput.style.height = '100%';
-        this.eInput.style.maxWidth = '100%';
-        this.eInput.style.maxHeight = '100%';
-        this.eInput.style.boxSizing = 'border-box';
-        this.eInput.style.overflow = 'auto';
+        const timestamp = typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value;
 
-        this.eInput.cols = params.cols;
-        this.eInput.rows = params.rows;
-        this.eInput.maxLength = params.maxLength;
-        this.eInput.value = params.value;
+        this.eGui.innerHTML = `
+        <span class="expand-icon-box">
+        <button class="expand-icon-button">
+            <i class="fa-solid fa-up-right-and-down-left-from-center">
+        </button></i>
+    </span>
+    <span>${timestamp}</span>
+        `;
 
-        this.gridApi = params.api;
-
-        // event listener for clicks outside the popup
-        this.onClickOutside = this.onClickOutside.bind(this);
-        document.addEventListener('mousedown', this.onClickOutside);
-    }
-    // gets called once when grid ready to insert the element
-    getGui() {
-        this.gridApi.addEventListener('cellEditingStarted', (event) => {
-            if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
-                this.addCopyIcon();
-            }
-        });
-
-        return this.eInput;
-    }
-    // returns the new value after editing
-    getValue() {
-        return this.eInput.value;
-    }
-    isPopup() {
-        return true;
-    }
-    refresh() {
-        return true;
-    }
-    destroy() {
-        this.eInput.classList.remove(cellEditingClass);
-        document.removeEventListener('mousedown', this.onClickOutside);
-    }
-    addCopyIcon() {
-        // Remove any existing copy icons
-        $('.copy-icon').remove();
-
-        // Add copy icon to the textarea
-        $('.copyable').each(function () {
-            var copyIcon = $('<span class="copy-icon"></span>');
-            $(this).after(copyIcon);
-        });
-
-        // Attach click event handler to the copy icon
-        $('.copy-icon').on('click', function (_event) {
-            var copyIcon = $(this);
-            var inputOrTextarea = copyIcon.prev('.copyable');
-            var inputValue = inputOrTextarea.val();
-
-            var tempInput = document.createElement('textarea');
-            tempInput.value = inputValue;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-
-            copyIcon.addClass('success');
-            setTimeout(function () {
-                copyIcon.removeClass('success');
-            }, 1000);
-        });
+        const expandBtn = this.eGui.querySelector('.expand-icon-box');
+        expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
     }
 
-    onClickOutside(event) {
-        if (this.eInput && !this.eInput.contains(event.target) && !document.querySelector('.ag-popup-editor').contains(event.target)) {
-            this.gridApi.stopEditing();
+    showJsonPanel(event) {
+        event.stopPropagation();
+
+        const jsonPopup = document.querySelector('.json-popup');
+        const rowData = this.params.node.data;
+
+        window.copyJsonToClipboard = function copyJsonToClipboard() {
+            const jsonContent = document.querySelector("#json-tab div").innerText; // Get JSON text
+            navigator.clipboard.writeText(jsonContent).then(() => {
+                alert("Copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy: ", err);
+            });
         }
+
+        window.switchTab = function (tab) {  // Attach to global scope
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+
+            document.getElementById(tab + '-tab').classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+
+            if (tab === 'table') {
+                populateTable();
+            }
+        };
+
+        function flattenJson(data, parentKey = '', result = {}) {
+            Object.entries(data).forEach(([key, value]) => {
+                const newKey = parentKey ? `${parentKey}.${key}` : key; // Create dot-separated key
+
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    flattenJson(value, newKey, result); // Recursively flatten nested objects
+                } else {
+                    result[newKey] = value; // Store flattened key-value pair
+                }
+            });
+            return result;
+        }
+
+        // Convert JSON Data to Table
+        function populateTable() {
+            const tableBody = document.getElementById('table-content');
+            tableBody.innerHTML = ''; // Clear old rows
+
+            const jsonData = JSON.unflatten(rowData);
+            const flattenedData = flattenJson(jsonData); // Flatten JSON structure
+
+
+            if (!flattenedData || Object.keys(flattenedData).length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No data available</td></tr>`;
+                return;
+            }
+
+            Object.entries(flattenedData).forEach(([key, value]) => {
+                let formattedValue = (typeof value === "object") ? JSON.stringify(value, null, 2) : value;
+
+                let row = document.createElement("tr");
+
+                let keyCell = document.createElement("td");
+                keyCell.textContent = key;
+                keyCell.style.border = "1px solid #ddd";
+                keyCell.style.padding = "6px";
+
+                let valueCell = document.createElement("td");
+                valueCell.textContent = formattedValue;
+                valueCell.style.border = "1px solid #ddd";
+                valueCell.style.padding = "6px";
+
+                row.appendChild(keyCell);
+                row.appendChild(valueCell);
+                tableBody.appendChild(row);
+            });
+        }
+
+
+        jsonPopup.innerHTML = `
+        <div class="json-popup-header">
+            <button class="json-popup-close">×</button>
+            </div>
+
+            <!-- Tabs for JSON and Table -->
+            <div class="json-content-type-box">
+                <button class="tab-button active" onclick="switchTab('json')">JSON</button>
+                <button class="tab-button" onclick="switchTab('table')">Table</button>
+
+                <!-- Copy Icon Button -->
+                <button class="copy-json-button" onclick="copyJsonToClipboard()">
+                <i class="fa fa-clipboard"></i>
+            </button>
+            </div>
+
+            <!-- JSON and Table Content -->
+            <div class="json-popup-content">
+            <div id="json-tab" class="tab-content active">
+                <div class="json-key-values">${syntaxHighlight(JSON.unflatten(rowData))}</div>
+            </div>
+            <div id="table-tab" class="tab-content">
+                <table border="1" class="json-table">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-content"></tbody>
+                </table>
+            </div>
+        </div>
+        `;
+
+        // Show JSON panel
+        jsonPopup.classList.add('active');
+
+        const closeBtn = jsonPopup.querySelector('.json-popup-close');
+        closeBtn.onclick = () => {
+            jsonPopup.classList.remove('active');
+            this.params.api.sizeColumnsToFit();
+        };
+
+        this.params.api.sizeColumnsToFit();
+    }
+
+    getGui() {
+        return this.eGui;
+    }
+
+    refresh() {
+        return false;
     }
 }
 
-const cellEditorParams = (params) => {
-    const jsonLog = JSON.stringify(JSON.unflatten(params.data), null, 2);
-    return {
-        value: jsonLog,
-        cols: 100,
-        rows: 10,
-    };
-};
+
+function syntaxHighlight(json) {
+    if (typeof json !== 'string') {
+        json = JSON.stringify(json, null, 2);
+    }
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d*)?([eE][+-]?\d+)?)/g, function (match) {
+        let cls = 'json-value';
+        if (/^"/.test(match) && /:$/.test(match)) {
+            cls = 'json-key';
+        }
+        return `<span class="${cls}">${match}</span>`;
+    });
+}
+
 // initial columns
 let logsColumnDefs = [
     {
         field: 'timestamp',
         headerName: 'timestamp',
-        editable: true,
-        cellEditor: ReadOnlyCellEditor,
-        cellEditorPopup: true,
-        cellEditorPopupPosition: 'under',
-        cellRenderer: (params) => {
-            let timeString = '';
-            let timestamp = moment(params.value).format(timestampDateFmt);
-
-            timeString =
-            `<span class="expand-icon-box">
-                <button class="expand-icon-button">
-                    <i class="fa-solid fa-up-right-and-down-left-from-center">
-                </button></i>
-            </span>
-            <span>${timestamp}</span>`;
-
-            return timeString;
-        },
-        cellEditorParams: cellEditorParams,
+        cellRenderer: TimestampCellRenderer,
         maxWidth: 250,
         minWidth: 250,
     },
