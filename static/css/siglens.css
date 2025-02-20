@@ -1379,7 +1379,7 @@ progress.hidden {
     text-align: center;
     font-size: 24px;
     line-height: 31px;
-    font-weight: var(--fw-500);
+    font-weight: bold;
     color: var(--empty-response-text-color);
     left: 0;
     right: 0;
@@ -1433,6 +1433,8 @@ progress.hidden {
 
 .ui-dialog-buttonset {
     display: flex;
+    padding: 8px;
+    float: inline-end;
 }
 
 .ui-dialog-buttonset button {
@@ -2914,7 +2916,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-.ag-cell-wrapper {
+#LogResultsGrid  .ag-cell-wrapper {
     margin-left: -10px !important;
 }
 
