@@ -1216,9 +1216,9 @@ function createTooltip(selector, content) {
     });
 }
 
-function handleRelatedTraces(traceId, timestamp, new_tab) {
+function handleRelatedTraces(traceId, timestamp, newTab) {
     const url = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
-    if (new_tab){
+    if (newTab){
         window.open(url, '_blank'); // Opens in a new tab
     }else{
         window.open(url);
