@@ -1217,7 +1217,8 @@ function createTooltip(selector, content) {
 }
 
 function handleRelatedTraces(traceId, timestamp) {
-    window.location.href = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
+    const url = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
+    window.open(url, '_blank'); // Opens in a new tab
 
 }
 

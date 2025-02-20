@@ -42,7 +42,8 @@ class TimestampCellRenderer {
 
     showJsonPanel(event) {
         event.stopPropagation();
-
+        let trace_id = '';
+        let time_stamp = '';
         const jsonPopup = document.querySelector('.json-popup');
         const rowData = this.params.node.data;
 
@@ -119,9 +120,12 @@ class TimestampCellRenderer {
 
         // Check if "trace_id" exists and is not empty or null
         const showRelatedTraceButton = Object.keys(flattenedData).some(key => {
+            if (key.toLowerCase() === "timestamp") {
+                time_stamp = flattenedData[key]; // Get value of trace_id
+            }
             if (key.toLowerCase() === "trace_id") {
-                const value = flattenedData[key]; // Get value of trace_id
-                return value !== null && value !== ""; // Ensure it's not empty or null
+                trace_id = flattenedData[key]; // Get value of trace_id
+                return trace_id !== null && trace_id !== ""; // Ensure it's not empty or null
             }
             return false;
         });
@@ -131,7 +135,7 @@ class TimestampCellRenderer {
             <div class="json-popup-header">
                 <div class="json-popup-header-buttons">
                     ${showRelatedTraceButton ? `
-                        <button onclick="handleRelatedTrace()" class="btn-related-trace btn btn-purple">
+                        <button class="btn-related-trace btn btn-purple">
                             <i class="fa fa-file-text"></i>&nbsp; Related Trace
                         </button>
                     ` : ""}
@@ -177,6 +181,11 @@ class TimestampCellRenderer {
             jsonPopup.classList.remove('active');
             this.params.api.sizeColumnsToFit();
         };
+
+        const relatedTraceButton = document.querySelector(".btn-related-trace");
+        relatedTraceButton.onclick = () => {
+            handleRelatedTraces(trace_id, time_stamp);
+        }
 
         this.params.api.sizeColumnsToFit();
     }
