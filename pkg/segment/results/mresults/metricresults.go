@@ -438,7 +438,9 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	if len(errList) > 0 {
 		return errList
 	}
+
 	r.DsResults = nil
+
 	return nil
 }
 
