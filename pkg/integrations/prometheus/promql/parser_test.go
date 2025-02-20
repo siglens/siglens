@@ -1172,6 +1172,72 @@ func Test_parsePromQLQuery_Scalar_SingleValue(t *testing.T) {
 	assert.Equal(t, float64(99), queryArithmetic[0].RHSExpr.Constant)
 }
 
+func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := int64(0)
+
+	query := `label_replace(http_requests_total{job="api-server"}, "new_label", "$1", "label", "(.*)")`
+
+	metricName := "http_requests_total"
+	mHashedMName := xxhash.Sum64String(metricName)
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mQueryReqs))
+	assert.Equal(t, 0, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, metricName, mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.AggBlockType)
+	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.MQueryAggs.AggregatorBlock.AggregatorFunction)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.AggBlockType)
+	assert.Equal(t, structs.LabelFunction, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.FunctionType)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction)
+	assert.Equal(t, "new_label", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.DestinationLabel)
+	assert.Equal(t, structs.IndexBased, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.KeyType)
+	assert.Equal(t, 1, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.IndexBasedVal)
+	assert.Equal(t, "label", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.SourceLabel)
+	assert.Equal(t, "(.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.GobRegexp.GetRawRegex())
+
+	query = `label_replace(prometheus_engine_query_duration_seconds_sum{slice="inner_eval"}, "foo", "$version", "slice", "(?P<name>.*)_(?P<version>.*)")`
+
+	metricName = "prometheus_engine_query_duration_seconds_sum"
+	mHashedMName = xxhash.Sum64String(metricName)
+	tagKeys := []string{"slice"}
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err = ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mQueryReqs))
+	assert.Equal(t, 0, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, metricName, mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.AggBlockType)
+	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.MQueryAggs.AggregatorBlock.AggregatorFunction)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.AggBlockType)
+	assert.Equal(t, structs.LabelFunction, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.FunctionType)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction)
+	assert.Equal(t, "foo", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.DestinationLabel)
+	assert.Equal(t, structs.NameBased, mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.KeyType)
+	assert.Equal(t, "version", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.Replacement.NameBasedVal)
+	assert.Equal(t, "slice", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.SourceLabel)
+	assert.Equal(t, "(?P<name>.*)_(?P<version>.*)", mQueryReqs[0].MetricsQuery.MQueryAggs.Next.FunctionBlock.LabelFunction.GobRegexp.GetRawRegex())
+
+	actualTagKeys := []string{}
+	for _, tag := range mQueryReqs[0].MetricsQuery.TagsFilters {
+		actualTagKeys = append(actualTagKeys, tag.TagKey)
+		if tag.TagKey == "slice" {
+			assert.Equal(t, "inner_eval", tag.RawTagValue)
+		}
+	}
+
+	assert.Equal(t, tagKeys, actualTagKeys)
+}
+
 func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day

@@ -254,8 +254,8 @@ $(document).ready(function () {
         });
     });
 
-    $(document).keypress(function (event) {
-        if (event.keyCode == '13') {
+    $(document).on('keydown', (event) => {
+        if (event.key === 'Escape') {
             $('.popupOverlay, .popupContent').removeClass('active');
         }
     });

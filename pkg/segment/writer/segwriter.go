@@ -993,7 +993,7 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32
 	return compressed, compLen, nil
 }
 
-func writeRunningSegMeta(segKey string, rsm *structs.SegMeta) {
+func WriteRunningSegMeta(segKey string, rsm *structs.SegMeta) {
 
 	segFullMeta := &structs.SegFullMeta{
 		SegMeta:     rsm,

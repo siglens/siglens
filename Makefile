@@ -28,6 +28,9 @@ lint:
 test:
 	$(GO) test ./... -count 1
 
+test_all:
+	$(GO) test ./... -count 1 --tags=e2e_all
+
 build:
 	$(GO) mod tidy
 	$(GO) build -o siglens cmd/siglens/main.go
@@ -39,6 +42,6 @@ gofmt :
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
 	~/go/bin/goimports -w .
 
-all: lint test build
+all: lint test_all build
 
 pr: all gofmt
