@@ -40,7 +40,7 @@ let navbarComponent = `
             </ul>
          </div>
         <div class="big-menu nav-metrics">
-            <a class="nav-links accordion-toggle big-menu-header" href="./metrics.html">
+            <a class="nav-links accordion-toggle big-menu-header" >
                 <div class="nav-link-content">
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text">Metrics</span>
@@ -224,10 +224,6 @@ const accordionStyles = `
         padding: 15px;
     }
 
-    .dropdown-arrow.active {
-        transform: rotate(180deg);
-    }
-
     .accordion-content.active {
         display: block;
     }
@@ -264,31 +260,6 @@ $(document).ready(function () {
     $('#app-side-nav').prepend(navbarComponent);
     const currentUrl = window.location.href;
 
-    const isNavigatingBack = document.referrer.includes('metrics.html');
-
-    //Handling Dropdown
-    $('.nav-header').on('click', function(e) {
-        e.preventDefault();
-        const $menu = $(this).closest('.menu');
-        const $submenu = $menu.find('.submenu');
-        const $arrow = $menu.find('.dropdown-arrow');
-
-        // Close all other submenus
-        $('.submenu').not($submenu).slideUp(300);
-        $('.dropdown-arrow').not($arrow).removeClass('active');
-
-        // Toggle current submenu
-        $submenu.slideToggle(300);
-        $arrow.toggleClass('active');
-
-        // Handle active states
-        if ($submenu.is(':visible')) {
-            $menu.addClass('active');
-        } else {
-            $menu.removeClass('active');
-        }
-    });
-
     //Handling Dropdown
     $('.nav-header').on('click', function(e) {
         e.preventDefault();
@@ -316,19 +287,7 @@ $(document).ready(function () {
     if (currentUrl.includes('index.html')) {
         $('.nav-search').addClass('active');
     }
-    if(currentUrl.includes('metrics.html')){
-        $('.nav-metrics').addClass('active');
-        $('.nav-metrics .accordion-content').show();
-        $('.nav-metrics .dropdown-arrow').addClass('active');
-    }
-    if (isNavigatingBack) {
-        $('.nav-metrics .accordion-content').hide();
-        $('.nav-metrics').removeClass('active');
-        $('.nav-metrics .dropdown-arrow').removeClass('active');
-    }
-    if (currentUrl.includes('metrics-explorer.html') ||
-        currentUrl.includes('metric-summary.html') ||
-        currentUrl.includes('metric-cardinality.html')) {
+    if (currentUrl.includes('metrics-explorer.html') || currentUrl.includes('metric-summary.html') || currentUrl.includes('metric-cardinality.html')) {
         $('.nav-metrics').addClass('active');
         $('.nav-metrics .accordion-content').show();
         $('.nav-metrics .dropdown-arrow').addClass('active');
@@ -373,7 +332,7 @@ $(document).ready(function () {
         const $menu = $(this).closest('.big-menu');
         const $content = $menu.find('.accordion-content');
         const $arrow = $menu.find('.dropdown-arrow');
-        const menuName = $(this).find('.nav-link-text').text().trim(); // Get the menu text
+        const menuName = $(this).find('.nav-link-text').text().trim();
 
         let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
 
@@ -383,7 +342,7 @@ $(document).ready(function () {
             $content.slideToggle(300, function () {
                 $arrow.toggleClass('active');
 
-                if ($content.is(':visible')) {
+                if ($content.is(':visible')){
                     $menu.addClass('active');
                     $content.addClass('active');
 
@@ -399,17 +358,11 @@ $(document).ready(function () {
 
                 localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
             });
-        } else {
-            if (!window.location.href.includes('metrics.html')) {
-                window.location.href = './metrics.html';
-            }
         }
     });
 
     // Handle submenu clicks and store active state
     $('.submenu-link').on('click', function (e) {
-        e.preventDefault();
-
         const subMenuName = $(this).text().trim();
         const parentMenu = $(this).closest('.big-menu').find('.nav-link-text').text().trim();
 
@@ -421,12 +374,8 @@ $(document).ready(function () {
 
         localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
 
-
         $('.submenu-link').removeClass('active');
         $(this).addClass('active');
-
-
-        window.location.href = $(this).attr('href');
     });
 
 
@@ -453,36 +402,35 @@ $(document).ready(function () {
         }
     });
 
-    // Highlight parent menu if metrics.html is active
-    $('.big-menu a').each(function () {
-        if (this.href === currentUrl) {
-            $(this).css({
-                "color": "white",
-                "border-left": "4px solid orange"
-            });
-        }
-    });
 
     // Highlight submenu if a submenu item is active
     $('.submenu-link').each(function () {
         if (currentUrl.includes('metrics-explorer.html') && $(this).attr('href').includes('metrics-explorer.html')) {
-            $(this).css("color", "white");
+            $(this).css({
+                "color": "white",
+                "border-left": "4px solid orange"
+            });
             $(this).closest('.big-menu').find('.nav-link-text-sub-explore').css("color", "white"); // Highlight parent
         }
-        else if (currentUrl.includes('metrics-summary.html') && $(this).attr('href').includes('metrics-summary.html')) {
-            $(this).css("color", "white");
+        else if (currentUrl.includes('metric-summary.html') && $(this).attr('href').includes('metric-summary.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "4px solid orange"
+            });
             $(this).closest('.big-menu').find('.nav-link-text-sub-summary').css("color", "white");
         }
-        else if (currentUrl.includes('metrics-cardinality.html') && $(this).attr('href').includes('metrics-cardinality.html')) {
-            $(this).css("color", "white");
+        else if (currentUrl.includes('metric-cardinality.html') && $(this).attr('href').includes('metric-cardinality.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "4px solid orange"
+            });
             $(this).closest('.big-menu').find('.nav-link-text-sub-cardinality').css("color", "white");
         }
     });
 
 
-    window.onpopstate = function(event) {
-        if (!window.location.href.includes('metrics.html')) {
-            $('.nav-metrics .accordion-content').slideUp(300);
+    window.onpopstate = function (event) {
+        if (!$('.nav-metrics .accordion-content').is(':visible')) {
             $('.nav-metrics').removeClass('active');
             $('.nav-metrics .dropdown-arrow').removeClass('active');
         }
