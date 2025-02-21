@@ -16,21 +16,21 @@ test.describe('Alert Tests', () => {
     test('Create a new log alert', async () => {
         await test.step('Navigate to create alert page', async () => {
             await page.click('#new-alert-rule');
+        });
+
+        await test.step('Select alert type card', async () => {
+            // Since this is for logs data source, we'll click the logs card
+            await page.click('#create-logs-alert');
             await expect(page.locator('#alert-rule-name')).toBeVisible();
         });
+        
 
         await test.step('Fill out alert form', async () => {
             alertName = `Test Alert ${Date.now()}`;
             await page.fill('#alert-rule-name', alertName);
-
-            await page.click('#alert-data-source');
-            await page.click(`#data-source-options #option-1`);
-
+            
             await page.click('#date-picker-btn');
             await page.click('#now-90d');
-
-            await page.click('#logs-language-btn');
-            await page.click(`#logs-language-options #option-1`);
         });
 
         await test.step('Configure alert conditions', async () => {
