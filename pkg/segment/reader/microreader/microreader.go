@@ -106,8 +106,7 @@ func ReadBlockSummaries(fileName string, rbuf []byte) ([]*structs.BlockSummary,
 			if minLen := int(offset + int64(cnamelen) + 12); len(rbuf) < minLen {
 				log.Errorf("ReadBlockSummaries: Bad data; expected at least size %d, got %d for file %s; current offset=%d",
 					minLen, len(rbuf), fileName, offset)
-				// Continue reading segments even if an error is encountered
-				continue
+				return blockSummaries, allBmh, rbuf, errors.New("bad data")
 			}
 
 			cname := string(rbuf[offset : offset+int64(cnamelen)])
