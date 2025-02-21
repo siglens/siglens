@@ -18,6 +18,7 @@
 package otlp
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -295,8 +296,9 @@ func Test_extractLogRecord_KvlistValue(t *testing.T) {
 		}},
 	}
 
-	recordInfo, err := extractLogRecord(protobuf.ResourceLogs[0].ScopeLogs[0].LogRecords[0], nil, nil)
+	recordInfo, indexName, err := extractLogRecord(protobuf.ResourceLogs[0].ScopeLogs[0].LogRecords[0], nil, nil, "index")
 	assert.NoError(t, err)
+	assert.Equal(t, "index", indexName)
 
 	assert.Equal(t, uint64(1234567890), recordInfo.TimeUnixNano)
 	assert.Equal(t, "INFO", recordInfo.SeverityText)
@@ -321,4 +323,246 @@ func Test_extractLogRecord_KvlistValue(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedBody, recordInfo.Body)
+}
+
+func Test_extractLogRecord_K8seventsIndex(t *testing.T) {
+	protobuf := &collogpb.ExportLogsServiceRequest{
+		ResourceLogs: []*logpb.ResourceLogs{{
+			ScopeLogs: []*logpb.ScopeLogs{{
+				LogRecords: []*logpb.LogRecord{{
+					TimeUnixNano: 1234567890,
+					SeverityText: "INFO",
+					Body: &commonpb.AnyValue{
+						Value: &commonpb.AnyValue_StringValue{
+							StringValue: "hello world",
+						},
+					},
+					Attributes: []*commonpb.KeyValue{
+						{
+							Key: "k8s",
+							Value: &commonpb.AnyValue{
+								Value: &commonpb.AnyValue_KvlistValue{
+									KvlistValue: &commonpb.KeyValueList{
+										Values: []*commonpb.KeyValue{
+											{
+												Key: "event",
+												Value: &commonpb.AnyValue{
+													Value: &commonpb.AnyValue_KvlistValue{
+														KvlistValue: &commonpb.KeyValueList{
+															Values: []*commonpb.KeyValue{
+																{
+																	Key: "action",
+																	Value: &commonpb.AnyValue{
+																		Value: &commonpb.AnyValue_StringValue{
+																			StringValue: "create",
+																		},
+																	},
+																},
+																{
+																	Key: "count",
+																	Value: &commonpb.AnyValue{
+																		Value: &commonpb.AnyValue_IntValue{
+																			IntValue: 1,
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}},
+			}},
+		}},
+	}
+
+	indexName := "otel-logs"
+	expectedInexName := k8sEventsIndexName
+
+	recordInfo, actualIndexName, err := extractLogRecord(protobuf.ResourceLogs[0].ScopeLogs[0].LogRecords[0], nil, nil, indexName)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedInexName, actualIndexName)
+
+	fmt.Println("recordInfo.attributes: ", recordInfo.Attributes)
+
+	assert.Equal(t, uint64(1234567890), recordInfo.TimeUnixNano)
+	assert.Equal(t, "INFO", recordInfo.SeverityText)
+
+	expectedAttributes := map[string]interface{}{
+		"k8s": map[string]interface{}{
+			"event": map[string]interface{}{
+				"action": "create",
+				"count":  int64(1),
+			},
+		},
+	}
+
+	assert.Equal(t, expectedAttributes, recordInfo.Attributes)
+}
+
+func Test_Logs_FullSuccess_multiIndex(t *testing.T) {
+	myid := int64(1)
+	initTestConfig(t)
+	err := virtualtable.InitVTable(func() []int64 { return []int64{myid} })
+	assert.NoError(t, err)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.Set("Content-Type", utils.ContentProtobuf)
+	protobuf := &collogpb.ExportLogsServiceRequest{
+		ResourceLogs: []*logpb.ResourceLogs{{
+			ScopeLogs: []*logpb.ScopeLogs{{
+				LogRecords: []*logpb.LogRecord{
+					{
+						TimeUnixNano: 1234567890,
+						SeverityText: "INFO",
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_StringValue{
+								StringValue: "hello world1",
+							},
+						},
+					},
+					{
+						TimeUnixNano: 1234567890,
+						SeverityText: "INFO",
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_StringValue{
+								StringValue: "K8s Event1",
+							},
+						},
+						Attributes: []*commonpb.KeyValue{
+							{
+								Key: "k8s",
+								Value: &commonpb.AnyValue{
+									Value: &commonpb.AnyValue_KvlistValue{
+										KvlistValue: &commonpb.KeyValueList{
+											Values: []*commonpb.KeyValue{
+												{
+													Key: "event",
+													Value: &commonpb.AnyValue{
+														Value: &commonpb.AnyValue_KvlistValue{
+															KvlistValue: &commonpb.KeyValueList{
+																Values: []*commonpb.KeyValue{
+																	{
+																		Key: "action",
+																		Value: &commonpb.AnyValue{
+																			Value: &commonpb.AnyValue_StringValue{
+																				StringValue: "create",
+																			},
+																		},
+																	},
+																	{
+																		Key: "count",
+																		Value: &commonpb.AnyValue{
+																			Value: &commonpb.AnyValue_IntValue{
+																				IntValue: 1,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						TimeUnixNano: 1234567890,
+						SeverityText: "INFO",
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_StringValue{
+								StringValue: "hello world2",
+							},
+						},
+					},
+					{
+						TimeUnixNano: 1234567890,
+						SeverityText: "INFO",
+						Body: &commonpb.AnyValue{
+							Value: &commonpb.AnyValue_StringValue{
+								StringValue: "K8s Event2",
+							},
+						},
+						Attributes: []*commonpb.KeyValue{
+							{
+								Key: "k8s",
+								Value: &commonpb.AnyValue{
+									Value: &commonpb.AnyValue_KvlistValue{
+										KvlistValue: &commonpb.KeyValueList{
+											Values: []*commonpb.KeyValue{
+												{
+													Key: "event",
+													Value: &commonpb.AnyValue{
+														Value: &commonpb.AnyValue_KvlistValue{
+															KvlistValue: &commonpb.KeyValueList{
+																Values: []*commonpb.KeyValue{
+																	{
+																		Key: "action",
+																		Value: &commonpb.AnyValue{
+																			Value: &commonpb.AnyValue_StringValue{
+																				StringValue: "create2",
+																			},
+																		},
+																	},
+																	{
+																		Key: "count",
+																		Value: &commonpb.AnyValue{
+																			Value: &commonpb.AnyValue_IntValue{
+																				IntValue: 2,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}},
+		}},
+	}
+
+	data, err := proto.Marshal(protobuf)
+	assert.NoError(t, err)
+	ctx.Request.SetBody(data)
+	ProcessLogIngest(ctx, myid)
+
+	assert.Equal(t, fasthttp.StatusOK, ctx.Response.StatusCode())
+	assert.Equal(t, utils.ContentProtobuf, string(ctx.Response.Header.Peek("Content-Type")))
+
+	responseBytes := ctx.Response.Body()
+
+	response := &collogpb.ExportLogsServiceResponse{}
+	err = proto.Unmarshal(responseBytes, response)
+	assert.NoError(t, err)
+
+	// From https://opentelemetry.io/docs/specs/otlp/#full-success-1:
+	// The server MUST leave the partial_success field unset in case of a successful response.
+	assert.Nil(t, response.PartialSuccess)
+
+	// Verify usage stats.
+	assert.Equal(t, 4, int(usageStats.GetTotalLogLines(myid)))
+
+	indexName1 := defaultIndexName
+	indexName2 := k8sEventsIndexName
+
+	assert.True(t, virtualtable.IsVirtualTablePresent(&indexName1, myid))
+	assert.True(t, virtualtable.IsVirtualTablePresent(&indexName2, myid))
 }

@@ -287,7 +287,7 @@ invalid input, we should error out
 				MaxSegFileSize:              1_073_741_824,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
-				DataDiskThresholdPercent:    85,
+				DataDiskThresholdPercent:    DEFAULT_DISK_THRESHOLD_PERCENT,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 
@@ -344,7 +344,7 @@ a: b
 				MaxSegFileSize:              4_294_967_296,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
-				DataDiskThresholdPercent:    85,
+				DataDiskThresholdPercent:    DEFAULT_DISK_THRESHOLD_PERCENT,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 				S3IngestBufferSize:          1000,
