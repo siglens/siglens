@@ -1,10 +1,10 @@
 ---
 ## IP and port for SigLens ingestion server
-ingestListenIP: 0.0.0.0
+ingestListenIP: "[::]"
 ingestPort: 8081
 
 ## IP and port for SigLens query server, including UI
-queryListenIP: 0.0.0.0
+queryListenIP: "[::]"
 queryPort: 5122
 
 ## Location for storing local node data
