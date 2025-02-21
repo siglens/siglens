@@ -213,7 +213,13 @@ $(document).ready(function() {
     // Toggle histogram visibility
     $('#toggle-btn').click(function(event) {
         event.stopPropagation();
-        $('#histogram-container').slideToggle();
+        $('#histogram-container').slideToggle(function () {
+            if ($('#histogram-container').is(':visible')) {
+                $('#initial-response').hide(); // Hide initial response when histogram opens
+            }else{
+                $('#initial-response').show();
+            }
+        });
     });
 
     // Close when clicking outside

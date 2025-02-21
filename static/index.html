@@ -51,6 +51,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         .histo-container {
             background: white;
@@ -95,9 +101,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         .my-chart-container canvas {
             cursor: crosshair !important;
         }
-
-
     </style>
+
+
+
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -109,11 +116,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -319,7 +321,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="progress-div"></div>
 
             <div class="histo-container">
-                    <i id="toggle-btn" class='bx bx-bar-chart-square'></i>
+                <i id="toggle-btn" class='bx bx-bar-chart-square'></i>
 
                 <div id="histogram-container">
                     <div class="my-chart-container">
@@ -327,6 +329,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
             </div>
+
 
             <div class="custom-chart-container">
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
