@@ -17,8 +17,3 @@ jobs:
           node-version: "18.18.0"
       - run: npm ci
       - run: npm run prettier:format
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-        with:
-          commit_message: "github actions: style: format files"

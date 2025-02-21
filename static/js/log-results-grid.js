@@ -42,7 +42,8 @@ class TimestampCellRenderer {
 
     showJsonPanel(event) {
         event.stopPropagation();
-
+        let trace_id = '';
+        let time_stamp = '';
         const jsonPopup = document.querySelector('.json-popup');
         const rowData = this.params.node.data;
 
@@ -76,9 +77,9 @@ class TimestampCellRenderer {
                 const newKey = parentKey ? `${parentKey}.${key}` : key; // Create dot-separated key
 
                 if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                    flattenJson(value, newKey, result); // Recursively flatten nested objects
+                    flattenJson(value, newKey, result);
                 } else {
-                    result[newKey] = value; // Store flattened key-value pair
+                    result[newKey] = value;
                 }
             });
             return result;
@@ -90,7 +91,7 @@ class TimestampCellRenderer {
             tableBody.innerHTML = ''; // Clear old rows
 
             const jsonData = JSON.unflatten(rowData);
-            const flattenedData = flattenJson(jsonData); // Flatten JSON structure
+            const flattenedData = flattenJson(jsonData);
 
             if (!flattenedData || Object.keys(flattenedData).length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No data available</td></tr>`;
@@ -118,9 +119,37 @@ class TimestampCellRenderer {
             });
         }
 
+        const jsonData = JSON.unflatten(rowData);
+        const flattenedData = flattenJson(jsonData);
+
+        // Check if "trace_id" exists and is not empty or null
+        const showRelatedTraceButton = Object.keys(flattenedData).some((key) => {
+            if (key.toLowerCase() === 'timestamp') {
+                time_stamp = flattenedData[key];
+            }
+            if (key.toLowerCase() === 'trace_id') {
+                trace_id = flattenedData[key];
+                return trace_id !== null && trace_id !== '';
+            }
+            return false;
+        });
+
+        // Generate the HTML for the popup
+
         jsonPopup.innerHTML = `
-        <div class="json-popup-header">
-            <button class="json-popup-close">×</button>
+            <div class="json-popup-header">
+                <div class="json-popup-header-buttons">
+                    ${
+                        showRelatedTraceButton
+                            ? `
+                        <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
+                            <i class="fa fa-file-text"></i>&nbsp; Related Trace
+                        </button>
+                    `
+                            : ''
+                    }
+                    <button class="json-popup-close">×</button>
+                </div>
             </div>
 
             <!-- Tabs for JSON and Table -->
@@ -130,27 +159,27 @@ class TimestampCellRenderer {
 
                 <!-- Copy Icon Button -->
                 <button class="copy-json-button" onclick="copyJsonToClipboard()">
-                <i class="fa fa-clipboard"></i>
-            </button>
+                    <i class="fa fa-clipboard"></i>
+                </button>
             </div>
 
             <!-- JSON and Table Content -->
             <div class="json-popup-content">
-            <div id="json-tab" class="tab-content active">
-                <div class="json-key-values">${syntaxHighlight(JSON.unflatten(rowData))}</div>
+                <div id="json-tab" class="tab-content active">
+                    <div class="json-key-values">${syntaxHighlight(JSON.unflatten(rowData))}</div>
+                </div>
+                <div id="table-tab" class="tab-content">
+                    <table border="1" class="json-table">
+                        <thead>
+                            <tr>
+                                <th>Key</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-content"></tbody>
+                    </table>
+                </div>
             </div>
-            <div id="table-tab" class="tab-content">
-                <table border="1" class="json-table">
-                    <thead>
-                        <tr>
-                            <th>Key</th>
-                            <th>Value</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-content"></tbody>
-                </table>
-            </div>
-        </div>
         `;
 
         // Show JSON panel
