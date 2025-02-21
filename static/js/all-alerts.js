@@ -48,6 +48,7 @@ $(document).ready(function () {
         window.location.href = './alert.html?type=metrics';
     });
 
+    //eslint-disable-next-line no-undef
     lucide.createIcons();
 });
 
@@ -579,6 +580,7 @@ function displayAllAlerts(res) {
         newRow.set('alertType', mapIndexToAlertType.get(value.alert_type));
         newRow.set('silenceMinutes', value.silence_minutes);
         newRow.set('silenceEndTime', value.silence_end_time);
+        //eslint-disable-next-line no-undef
         const mutedFor = calculateMutedFor(value.silence_end_time);
         newRow.set('mutedFor', mutedFor);
         if (mutedFor) hasMutedAlerts = true;

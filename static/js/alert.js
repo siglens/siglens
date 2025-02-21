@@ -44,13 +44,6 @@ let mapIndexToConditionType = new Map([
     [3, 'Not equal to'],
 ]);
 
-let mapIndexToAlertState = new Map([
-    [0, 'Inactive'],
-    [1, 'Normal'],
-    [2, 'Pending'],
-    [3, 'Firing'],
-]);
-
 const alertForm = $('#alert-form');
 
 let originalIndexValues;
@@ -397,7 +390,7 @@ async function fillAlertForm(res) {
 
     // Alert Type: Logs
     if (res.alert_type === 1) {
-        const { data_source, queryLanguage, startTime, endTime, queryText, queryMode, index } = res.queryParams;
+        const { startTime, endTime, queryText, queryMode, index } = res.queryParams;
 
         $('#info-icon-spl').show();
 
@@ -806,6 +799,7 @@ function prepareLogsChartData(res, hits) {
             if (groupByValues.length === 1) {
                 return groupByValues[0] || 'NULL';
             }
+            //eslint-disable-next-line no-undef
             return formatGroupByValues(groupByValues, true) || 'NULL';
         });
     }
