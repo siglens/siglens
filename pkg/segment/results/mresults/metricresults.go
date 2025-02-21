@@ -197,7 +197,26 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		err := r.aggregateFromAllTimeseries(aggregation)
+		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+		for grpID, ds := range r.DsResults {
+			if ds == nil {
+				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
+				errors = append(errors, err)
+				return errors
+			}
+
+			if _, exists := seriesEntriesMap[grpID]; !exists {
+				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
+			}
+
+			for i := 0; i < ds.idx; i++ {
+				entry := ds.runningEntries[i]
+				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
+			}
+		}
+
+		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
 			errors = append(errors, err)
 			return errors
@@ -297,7 +316,23 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		err := r.aggregateFromAllTimeseries(aggregation)
+		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+		for seriesId, timeSeries := range r.Results {
+			aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
+			if _, ok := results[aggSeriesId]; !ok {
+				results[aggSeriesId] = make(map[uint32]float64, 0)
+				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
+			}
+			for ts, val := range timeSeries {
+				if _, ok := seriesEntriesMap[aggSeriesId][ts]; !ok {
+					seriesEntriesMap[aggSeriesId][ts] = make([]RunningEntry, 0)
+				}
+				seriesEntriesMap[aggSeriesId][ts] = append(seriesEntriesMap[aggSeriesId][ts], RunningEntry{runningCount: 1, runningVal: val})
+			}
+		}
+
+		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
 			errors = append(errors, err)
 			return errors
@@ -731,20 +766,20 @@ func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
 	return 0, errors.New("no suitable step found")
 }
 
-func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation) error {
+func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregation, seriesEntriesMap map[string]map[uint32][]RunningEntry) error {
 
 	var err error
 	switch aggregation.AggregatorFunction {
 	case segutils.Count:
-		r.computeAggCount(aggregation)
+		r.computeAggCount(aggregation, seriesEntriesMap)
 	case segutils.TopK:
-		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0)
+		err = r.computeExtremesKElements(aggregation.FuncConstant, -1.0, seriesEntriesMap)
 	case segutils.BottomK:
-		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0)
+		err = r.computeExtremesKElements(aggregation.FuncConstant, 1.0, seriesEntriesMap)
 	case segutils.Stdvar:
 		fallthrough
 	case segutils.Stddev:
-		r.computeAggStdvarOrStddev(aggregation)
+		r.computeAggStdvarOrStddev(aggregation, seriesEntriesMap)
 	default:
 		return fmt.Errorf("aggregateFromAllTimeseries: Unsupported aggregation: %v", aggregation)
 	}
@@ -758,7 +793,9 @@ func (r *MetricsResult) aggregateFromAllTimeseries(aggregation structs.Aggregati
 
 // The larger the priority, the earlier it will be popped out. Since we use the value as the priority, for `topk`, the larger the value, the more we want it to remain in the priority queue. Therefore, its priority should be smaller.
 // For bottomk, it's the opposite
-func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor float64) error {
+func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor float64, seriesEntriesMap map[string]map[uint32][]RunningEntry) error {
+	r.Results = make(map[string]map[uint32]float64)
+
 	capacity := int(funcConstant)
 
 	if capacity <= 0 {
@@ -767,35 +804,39 @@ func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor fl
 
 	// Use a PriorityQueue to store the top k elements for each timestamp, then separate the (timestamp, val) key-value pairs for each time series and generate the result
 	timestampToHeap := make(map[uint32]*utils.PriorityQueue)
-	for grpID, runningDS := range r.DsResults {
-		for i := 0; i < runningDS.idx; i++ {
-			timestamp := runningDS.runningEntries[i].downsampledTime
 
-			pq, exists := timestampToHeap[timestamp]
-			if !exists {
-				newPQ := make(utils.PriorityQueue, 0)
-				heap.Init(&newPQ)
-				heap.Push(&newPQ, &utils.Item{
-					Value:    grpID,
-					Priority: (runningDS.runningEntries[i].runningVal * factor),
-				})
-				timestampToHeap[timestamp] = &newPQ
-			} else {
-				if len(*pq) >= capacity {
-					item := heap.Pop(pq).(*utils.Item)
-					if item.Priority < runningDS.runningEntries[i].runningVal*factor {
-						heap.Push(pq, item)
-						continue
+	for grpID, runningDS := range seriesEntriesMap {
+		for timestamp, entries := range runningDS {
+			for _, entry := range entries {
+				// Initialize the priority queue if it doesn't exist for this timestamp
+				pq, exists := timestampToHeap[timestamp]
+				if !exists {
+					newPQ := make(utils.PriorityQueue, 0)
+					heap.Init(&newPQ)
+					heap.Push(&newPQ, &utils.Item{
+						Value:    grpID,
+						Priority: (entry.runningVal * factor),
+					})
+					timestampToHeap[timestamp] = &newPQ
+				} else {
+					// Only keep the top k elements by checking the queue size
+					if len(*pq) >= capacity {
+						item := heap.Pop(pq).(*utils.Item)
+						if item.Priority < entry.runningVal*factor {
+							heap.Push(pq, item)
+							continue
+						}
 					}
+					heap.Push(pq, &utils.Item{
+						Value:    grpID,
+						Priority: (entry.runningVal * factor),
+					})
 				}
-				heap.Push(pq, &utils.Item{
-					Value:    grpID,
-					Priority: (runningDS.runningEntries[i].runningVal * factor),
-				})
 			}
 		}
 	}
 
+	// After processing all entries, store the results
 	for timestamp, pq := range timestampToHeap {
 		for pq.Len() > 0 {
 			item := heap.Pop(pq).(*utils.Item)
@@ -814,43 +855,56 @@ func (r *MetricsResult) computeExtremesKElements(funcConstant float64, factor fl
 }
 
 // Count only cares about the number of time series at each timestamp, so it does not need to reduce entries to calculate the values.
-func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
-
+func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesEntriesMap map[string]map[uint32][]RunningEntry) {
 	// groupByCols seriesId mapping to map[uint32]map[string]struct{}
 	// We can determine the number of full unique grpIDs for each timestamp.
 	// For example, count by (color,gender) (metric0)
 	// ["color:red,gender:male"] = { 1: {{"color:red,gender:male,age:20"}, {"color:red,gender:male,age:5"}}, 2: ...   }
 	// ["color:yellow,gender:male"] = { 1: {{"color:yellow,gender:male,age:3"}}, 2: ...   }
 	seriesIdEntriesMap := make(map[string]map[uint32]map[string]struct{})
+	r.Results = make(map[string]map[uint32]float64)
 
-	for grpID, runningDS := range r.DsResults {
-		seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
-		_, exists := seriesIdEntriesMap[seriesId]
-		if !exists {
-			seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
-		}
-
-		for i := 0; i < runningDS.idx; i++ {
-			timestamp := runningDS.runningEntries[i].downsampledTime
-
-			// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
-			// even when there is only one tag filter. This prevents all entries from having the same grpID,
-			// which would result in a count of 1 for each timestamp.
-			uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
-			_, exists := seriesIdEntriesMap[seriesId][timestamp]
-			if !exists {
-				seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+	if len(aggregation.GroupByFields) > 0 {
+		for grpID, timeSeries := range seriesEntriesMap {
+			seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
+			if _, exists := seriesIdEntriesMap[seriesId]; !exists {
+				seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
 			}
-			seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
-		}
-	}
 
-	for seriesId, entries := range seriesIdEntriesMap {
-		grpVal := make(map[uint32]float64)
-		for timestamp, grpIdSet := range entries {
-			grpVal[timestamp] = float64(len(grpIdSet))
+			for timestamp, entries := range timeSeries {
+				for i := range entries {
+					// Modify grpID to include more unique attributes to ensure that each entry is uniquely identified,
+					// even when there is only one tag filter. This prevents all entries from having the same grpID,
+					// which would result in a count of 1 for each timestamp.
+					uniqueGrpID := fmt.Sprintf("%s-%d", grpID, i)
+					if _, exists := seriesIdEntriesMap[seriesId][timestamp]; !exists {
+						seriesIdEntriesMap[seriesId][timestamp] = make(map[string]struct{})
+					}
+					seriesIdEntriesMap[seriesId][timestamp][uniqueGrpID] = struct{}{}
+				}
+			}
 		}
-		r.Results[seriesId] = grpVal
+
+		for seriesId, entries := range seriesIdEntriesMap {
+			grpVal := make(map[uint32]float64)
+			for timestamp, grpIdSet := range entries {
+				grpVal[timestamp] = float64(len(grpIdSet))
+			}
+			r.Results[seriesId] = grpVal
+		}
+	} else {
+		timestampToCount := make(map[uint32]float64)
+
+		for _, timeSeries := range seriesEntriesMap {
+			for timestamp, entries := range timeSeries {
+				for _, entry := range entries {
+					if entry.runningCount > 0 {
+						timestampToCount[timestamp] += float64(entry.runningCount)
+					}
+				}
+			}
+		}
+		r.Results[r.MetricName+"{"] = timestampToCount
 	}
 
 	r.DsResults = nil
@@ -858,7 +912,7 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation) {
 }
 
 // Retrieve all series values at each timestamp and calculate the results based on those values.
-func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation) {
+func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation, seriesEntriesMap map[string]map[uint32][]RunningEntry) {
 	timestampToVals := make(map[uint32][]float64)
 	r.Results = make(map[string]map[uint32]float64)
 
@@ -867,25 +921,21 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 		// All the time series values under one group
 		grpIDToEntryMap := make(map[string]map[uint32][]float64)
 
-		for seriesID, runningDS := range r.DsResults {
-			matchingLabelValStr := putils.ExtractMatchingLabelSet(seriesID, aggregation.GroupByFields, true)
+		for grpID, timeSeries := range seriesEntriesMap {
+			matchingLabelValStr := putils.ExtractMatchingLabelSet(grpID, aggregation.GroupByFields, true)
 
-			_, exists := grpIDToEntryMap[matchingLabelValStr]
-			if !exists {
+			if _, exists := grpIDToEntryMap[matchingLabelValStr]; !exists {
 				grpIDToEntryMap[matchingLabelValStr] = make(map[uint32][]float64)
 			}
 
-			for i := 0; i < runningDS.idx; i++ {
-				_, exists := grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime]
-				if !exists {
-					grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime] = make([]float64, 0)
+			for timestamp, entries := range timeSeries {
+				for _, entry := range entries {
+					grpIDToEntryMap[matchingLabelValStr][timestamp] = append(grpIDToEntryMap[matchingLabelValStr][timestamp], entry.runningVal)
 				}
-
-				grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime] = append(grpIDToEntryMap[matchingLabelValStr][runningDS.runningEntries[i].downsampledTime], runningDS.runningEntries[i].runningVal)
 			}
 		}
 
-		// Compute standard variance or deviation within each group
+		// Compute standard variance or deviation for each group
 		for grpID, entry := range grpIDToEntryMap {
 			grpID = r.MetricName + "{" + grpID
 			r.Results[grpID] = make(map[uint32]float64)
@@ -899,14 +949,11 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 		}
 
 	} else { // Without using group by, perform aggregation for all values at each timestamp.
-		for _, runningDS := range r.DsResults {
-			for i := 0; i < runningDS.idx; i++ {
-				timestamp := runningDS.runningEntries[i].downsampledTime
-				_, exists := timestampToVals[timestamp]
-				if !exists {
-					timestampToVals[timestamp] = make([]float64, 0)
+		for _, timeSeries := range seriesEntriesMap {
+			for timestamp, entries := range timeSeries {
+				for _, entry := range entries {
+					timestampToVals[timestamp] = append(timestampToVals[timestamp], entry.runningVal)
 				}
-				timestampToVals[timestamp] = append(timestampToVals[timestamp], runningDS.runningEntries[i].runningVal)
 			}
 		}
 
@@ -923,6 +970,5 @@ func (r *MetricsResult) computeAggStdvarOrStddev(aggregation structs.Aggregation
 		r.Results[r.MetricName+"{"] = resultMap
 	}
 
-	r.DsResults = nil
 	r.State = AGGREGATED
 }

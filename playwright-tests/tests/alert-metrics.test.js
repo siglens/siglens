@@ -10,15 +10,17 @@ test.describe('Alert Tests', () => {
     test('Create a new metrics alert', async ({ page }) => {
         await test.step('Navigate to create alert page', async () => {
             await page.click('#new-alert-rule');
+        });
+
+        await test.step('Select alert type card', async () => {
+            await page.click('#create-metrics-alert');
             await expect(page.locator('#alert-rule-name')).toBeVisible();
         });
+        
 
         await test.step('Fill out alert form', async () => {
             alertName = `Metric Alert ${Date.now()}`;
             await page.fill('#alert-rule-name', alertName);
-
-            await page.click('#alert-data-source');
-            await page.click(`#data-source-options #option-2`);
 
             await page.click('#date-picker-btn');
             await page.click('#now-90d');
