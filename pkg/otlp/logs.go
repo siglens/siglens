@@ -38,6 +38,9 @@ import (
 
 const defaultIndexName = "otel-logs"
 const indexNameAttributeKey = "siglensIndexName"
+const k8sKey = "k8s"
+const k8sEventsKey = "event"
+const k8sEventsIndexName = "k8s_events_sig"
 
 // Based on https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/logs/v1/logs.proto#L47-L65
 type resourceInfo struct {
@@ -135,7 +138,7 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 
 			for _, logRecord := range scopeLog.LogRecords {
 				numTotalRecords++
-				record, err := extractLogRecord(logRecord, resource, scope)
+				record, logIndexName, err := extractLogRecord(logRecord, resource, scope, indexName)
 				if err != nil {
 					log.Errorf("ingestLogs: failed to extract log record: %v", err)
 					numFailedRecords++
@@ -149,7 +152,7 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 					continue
 				}
 
-				ple, err := segwriter.GetNewPLE(jsonBytes, now, indexName, &timestampKey, jsParsingStackbuf[:])
+				ple, err := segwriter.GetNewPLE(jsonBytes, now, logIndexName, &timestampKey, jsParsingStackbuf[:])
 				if err != nil {
 					log.Errorf("ingestLogs: failed to get new PLE, jsonBytes: %v, err: %v", jsonBytes, err)
 					numFailedRecords++
@@ -231,7 +234,7 @@ func extractScopeInfo(scopeLog *logpb.ScopeLogs) (*scopeInfo, error) {
 	return &scope, nil
 }
 
-func extractLogRecord(logRecord *logpb.LogRecord, resource *resourceInfo, scope *scopeInfo) (*recordInfo, error) {
+func extractLogRecord(logRecord *logpb.LogRecord, resource *resourceInfo, scope *scopeInfo, indexName string) (*recordInfo, string, error) {
 	record := recordInfo{
 		Resource:               resource,
 		Scope:                  scope,
@@ -248,17 +251,30 @@ func extractLogRecord(logRecord *logpb.LogRecord, resource *resourceInfo, scope 
 
 	body, err := extractAnyValue(logRecord.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract body; err=%v", err)
+		return nil, "", fmt.Errorf("failed to extract body; err=%v", err)
 	}
 	record.Body = body
 
 	for _, attribute := range logRecord.Attributes {
 		key, value, err := extractKeyValue(attribute)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract key and value from attribute: %v", err)
+			return nil, "", fmt.Errorf("failed to extract key and value from attribute: %v", err)
 		}
 
 		record.Attributes[key] = value
+
+		if key == k8sKey {
+			k8sMap, ok := value.(map[string]interface{})
+			if ok {
+				k8sEventsValue, ok := k8sMap[k8sEventsKey]
+				if ok {
+					_, ok := k8sEventsValue.(map[string]interface{})
+					if ok {
+						indexName = k8sEventsIndexName
+					}
+				}
+			}
+		}
 	}
 
 	if record.TraceId == "" {
@@ -273,7 +289,7 @@ func extractLogRecord(logRecord *logpb.LogRecord, resource *resourceInfo, scope 
 		}
 	}
 
-	return &record, nil
+	return &record, indexName, nil
 }
 
 func unmarshalLogRequest(data []byte) (*collogpb.ExportLogsServiceRequest, error) {
