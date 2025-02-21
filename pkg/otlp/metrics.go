@@ -81,11 +81,11 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 
 			for _, metrics := range scopeMetrics.Metrics {
 				metricType, extractedMetrics := processMetric(metrics)
-				for _, pm := range extractedMetrics {
-					pm.Type = metricType
+				for _, metric := range extractedMetrics {
+					metric.Type = metricType
 					numTotalRecords++
 
-					data, err := ConvertToOTLPMetricsFormat(pm, int64(pm.TimeUnixNano), float64(pm.Value))
+					data, err := ConvertToOTLPMetricsFormat(metric, int64(metric.TimeUnixNano), float64(metric.Value))
 					if err != nil {
 						numFailedRecords++
 						log.Errorf("OLTPMetrics: failed to ConvertToOTLPMetricsFormat data=%+v, err=%v", data, err)
@@ -177,7 +177,7 @@ func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
 				Unit:         metric.Unit,
 				Attributes:   extractAttributes(dataPoint.Attributes),
 				TimeUnixNano: dataPoint.TimeUnixNano,
-				Value:        uint64(dataPoint.GetAsInt()), // Use GetAsDouble() if required
+				Value:        uint64(dataPoint.GetAsDouble()),
 			})
 		}
 		return "Sum", extracted

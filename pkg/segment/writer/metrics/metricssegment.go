@@ -797,15 +797,19 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 		log.Errorf("ExtractOTLPPayload: failed to parse json %s, err=%v", rawJson, err)
 		return mName, dpVal, ts, err
 	}
+	if len(mName) == 0 && err == nil {
+		return nil, dpVal, 0, nil
+	}
+
 	if len(mName) > 0 && ts > 0 {
 		return mName, dpVal, ts, nil
-	} else if len(mName) == 0 && err == nil {
-		return nil, dpVal, 0, nil
-	} else {
-		err = fmt.Errorf("ExtractOTLPPayload: failed to find all expected keys. mName=%s, ts=%d, dpVal=%f", mName, ts, dpVal)
-		log.Errorf(err.Error())
-		return nil, dpVal, 0, err
 	}
+
+	err = fmt.Errorf("ExtractOTLPPayload: failed to find all expected keys. mName=%s, ts=%d, dpVal=%f", mName, ts, dpVal)
+	log.Errorf(err.Error())
+
+	return nil, dpVal, 0, err
+
 }
 
 // for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
