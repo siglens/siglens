@@ -9,12 +9,7 @@ const verticalLinePlugin = {
             // Draw selection area
             ctx.save();
             ctx.fillStyle = 'rgba(75, 192, 192, 0.2)';
-            ctx.fillRect(
-                chart.dragStart,
-                yAxis.top,
-                chart.dragEnd - chart.dragStart,
-                yAxis.bottom - yAxis.top
-            );
+            ctx.fillRect(chart.dragStart, yAxis.top, chart.dragEnd - chart.dragStart, yAxis.bottom - yAxis.top);
 
             // Draw vertical lines
             ctx.beginPath();
@@ -29,7 +24,7 @@ const verticalLinePlugin = {
             ctx.stroke();
             ctx.restore();
         }
-    }
+    },
 };
 
 // sample log data generator
@@ -55,16 +50,14 @@ function generateSampleData(start, end, interval) {
         const hour = current.hour();
         const baseCount = basePattern[hour];
 
-
         const variation = baseCount * 0.3;
         const count = Math.floor(baseCount + (Math.random() * variation * 2 - variation));
-
 
         const spike = Math.random() < 0.05 ? Math.floor(baseCount * 2) : 0;
 
         data.push({
             timestamp: current.valueOf(),
-            count: count + spike
+            count: count + spike,
         });
 
         current.add(1, interval);
@@ -80,13 +73,15 @@ function initChart() {
         type: 'bar',
         data: {
             labels: [],
-            datasets: [{
-                label: 'Log Count',
-                data: [],
-                backgroundColor: 'rgb(75, 192, 192)',
-                borderColor: 'rgb(75, 192, 192)',
-                borderWidth: 1
-            }]
+            datasets: [
+                {
+                    label: 'Log Count',
+                    data: [],
+                    backgroundColor: 'rgb(75, 192, 192)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    borderWidth: 1,
+                },
+            ],
         },
         options: {
             responsive: true,
@@ -99,34 +94,34 @@ function initChart() {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Count of Logs'
+                        text: 'Count of Logs',
                     },
                     ticks: {
                         stepSize: 500,
-                        callback: function(value) {
+                        callback: function (value) {
                             return value.toLocaleString();
-                        }
+                        },
                     },
                     //the max is always a multiple of 500
                     afterDataLimits: (scale) => {
                         scale.max = Math.ceil(scale.max / 500) * 500;
-                    }
+                    },
                 },
                 x: {
                     title: {
                         display: true,
-                        text: 'Time'
-                    }
-                }
-            }
+                        text: 'Time',
+                    },
+                },
+            },
         },
-        plugins: [verticalLinePlugin]
+        plugins: [verticalLinePlugin],
     });
 
     // Add mouse event listeners
     let isDragging = false;
 
-    $('#histogram').on('mousedown', function(e) {
+    $('#histogram').on('mousedown', function (e) {
         isDragging = true;
         const rect = chart.canvas.getBoundingClientRect();
         chart.dragStart = e.clientX - rect.left;
@@ -134,18 +129,15 @@ function initChart() {
         chart.update();
     });
 
-    $(document).on('mousemove', function(e) {
+    $(document).on('mousemove', function (e) {
         if (isDragging) {
             const rect = chart.canvas.getBoundingClientRect();
-            chart.dragEnd = Math.min(
-                Math.max(e.clientX - rect.left, 0),
-                chart.width
-            );
+            chart.dragEnd = Math.min(Math.max(e.clientX - rect.left, 0), chart.width);
             chart.update();
         }
     });
 
-    $(document).on('mouseup', function() {
+    $(document).on('mouseup', function () {
         if (isDragging) {
             isDragging = false;
 
@@ -169,30 +161,23 @@ function initChart() {
 
 function determineTimeframe(start, end) {
     const diff = end.diff(start, 'hours');
-    if (diff > 168) return 'day';  // > 1 week
-    if (diff > 24) return 'hour';   // > 1 day
-    if (diff > 1) return 'minute';  // > 1 hour
+    if (diff > 168) return 'day'; // > 1 week
+    if (diff > 24) return 'hour'; // > 1 day
+    if (diff > 1) return 'minute'; // > 1 hour
     return 'second';
 }
 
 function updateChart(start, end, timeframe) {
     const data = generateSampleData(start, end, timeframe);
-    const labels = data.map(d =>
-        moment(d.timestamp).format(
-            timeframe === 'day' ? 'YYYY-MM-DD' :
-            timeframe === 'hour' ? 'HH:mm' :
-            timeframe === 'minute' ? 'HH:mm:ss' :
-            'HH:mm:ss.SSS'
-        )
-    );
+    const labels = data.map((d) => moment(d.timestamp).format(timeframe === 'day' ? 'YYYY-MM-DD' : timeframe === 'hour' ? 'HH:mm' : timeframe === 'minute' ? 'HH:mm:ss' : 'HH:mm:ss.SSS'));
     chart.data.labels = labels;
-    chart.data.datasets[0].data = data.map(d => d.count);
+    chart.data.datasets[0].data = data.map((d) => d.count);
     chart.dragStart = undefined;
     chart.dragEnd = undefined;
     chart.update();
 }
 
-$(document).ready(function() {
+$(document).ready(function () {
     const end = moment();
     const start = moment().subtract(7, 'days');
 
@@ -203,7 +188,7 @@ $(document).ready(function() {
     updateChart(start, end, 'day');
 
     // Handle manual date input changes
-    $('.date-range input').on('change', function() {
+    $('.date-range input').on('change', function () {
         const start = moment($('#startDate').val());
         const end = moment($('#endDate').val());
         const timeframe = determineTimeframe(start, end);
@@ -211,19 +196,19 @@ $(document).ready(function() {
     });
 
     // Toggle histogram visibility
-    $('#toggle-btn').click(function(event) {
+    $('#toggle-btn').click(function (event) {
         event.stopPropagation();
         $('#histogram-container').slideToggle(function () {
             if ($('#histogram-container').is(':visible')) {
                 $('#initial-response').hide(); // Hide initial response when histogram opens
-            }else{
+            } else {
                 $('#initial-response').show();
             }
         });
     });
 
     // Close when clicking outside
-    $(document).click(function(event) {
+    $(document).click(function (event) {
         if (!$(event.target).closest('#histogram-container, #toggle-btn').length) {
             $('#histogram-container').slideUp();
         }
