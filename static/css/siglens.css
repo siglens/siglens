@@ -6461,6 +6461,12 @@ p#versionInfo {
     background: var(--alerting-table-hover);
 }
 
+.json-popup-header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 320px;
+    margin-left: auto;
+}
 
 .json-popup-close {
     background: none;
@@ -6470,7 +6476,6 @@ p#versionInfo {
     cursor: pointer;
     padding: 4px;
     line-height: 1;
-    margin-left: 418px;
 }
 
 .json-popup-content {
