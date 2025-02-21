@@ -78,7 +78,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="dashboard">
             <div class="kubernetes-view-page">
                 <div id="kubernetes-breadcrumb" class="header-container"></div>
-                <div class="p-3">
+                <div class="p-3 h-100">
                     <div>
                         <div id="kubernetes-header"></div>
                     </div>
@@ -92,7 +92,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         <div id="resource-usage-container"></div>
                     </div>
-                    <div id="ag-grid" class="ag-theme-mycustomtheme" style="height: 600px;"></div>
+                    <div class="k8-grid-container">
+                        <div id="ag-grid" class="ag-theme-mycustomtheme"></div>
+                        <div class="json-popup"></div>
+                    </div>
                 </div>
             </div>
             <div class="configuration-page">

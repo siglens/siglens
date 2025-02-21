@@ -2797,7 +2797,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 5px;
     padding-left: 0px !important;
     padding-top: 0 !important;
-    border-bottom: none !important;
     color: var(--table-or-regular-text-logs-color);
 }
 
@@ -6219,6 +6218,16 @@ p#versionInfo {
     overflow-y: auto;
 }
 
+.k8-grid-container{
+    height: calc(100% - 140px);
+    display: flex;
+}
+
+.kubernetes-view-page{
+    height: 100%;
+}
+
+/* JSON Popup  */
 .nav-tabs {
     margin-bottom: 16px;
     border-bottom: 1px solid var(--alerting-table-line-color);
@@ -6450,6 +6459,7 @@ p#versionInfo {
     width: 700px;
     margin-left: 5px;
     border-left: 1px solid var(--panel-table-line-color);
+    border-bottom: 1px solid var(--panel-table-line-color);
 }
 
 .json-popup-header {

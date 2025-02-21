@@ -264,7 +264,7 @@ class KubernetesView {
     getColumnDefs() {
         if (this.type === 'events') {
             return [
-                { field: 'severity_text', headerName: 'TYPE' },
+                { field: 'severity_text', headerName: 'TYPE', cellRenderer: ExpandableJsonCellRenderer('events') },
                 { field: 'attributes.k8s.event.name', headerName: 'NAME' },
                 { field: 'attributes.k8s.event.reason', headerName: 'REASON' },
                 { field: 'attributes.k8s.namespace.name', headerName: 'NAMESPACE' },
