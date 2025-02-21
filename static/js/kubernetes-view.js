@@ -99,7 +99,7 @@ class KubernetesView {
                 searchText: '*',
                 startEpoch: this.startTime,
                 endEpoch: this.endTime,
-                indexName: 'k8s_events_sig',
+                indexName: 'k8s-events-sig',
                 queryLanguage: 'Splunk QL',
                 from: this.currentFrom,
             };
