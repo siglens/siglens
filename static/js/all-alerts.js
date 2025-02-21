@@ -34,12 +34,41 @@ let mapIndexToAlertType = new Map([
 
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
-    getAllAlerts();
+    handlePageDisplay();
 
     $('#new-alert-rule').on('click', function () {
-        window.location.href = '../alert.html';
+        window.location.href = './all-alerts.html?page=create';
     });
+
+    $('#create-logs-alert').on('click', function () {
+        window.location.href = './alert.html?type=logs';
+    });
+
+    $('#create-metrics-alert').on('click', function () {
+        window.location.href = './alert.html?type=metrics';
+    });
+
+    //eslint-disable-next-line no-undef
+    lucide.createIcons();
 });
+
+function handlePageDisplay() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const page = urlParams.get('page');
+
+    const allAlertsPage = $('.all-alert-page');
+    const createAlertPage = $('.create-alert-page');
+
+    allAlertsPage.addClass('d-none');
+    createAlertPage.addClass('d-none');
+
+    if (page === 'create') {
+        createAlertPage.removeClass('d-none');
+    } else {
+        allAlertsPage.removeClass('d-none');
+    }
+    getAllAlerts();
+}
 
 //get all alerts
 function getAllAlerts() {
@@ -517,13 +546,26 @@ const alertGridOptions = {
 function displayAllAlerts(res) {
     if (alertGridDiv === null) {
         alertGridDiv = document.querySelector('#ag-grid');
-        //eslint-disable-next-line no-undef
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
     let hasMutedAlerts = false;
+
+    // Add counters for logs and metrics alerts
+    let logsAlertCount = 0;
+    let metricsAlertCount = 0;
+
     $.each(res, function (key, value) {
+        // Count alerts by type
+        if (value.alert_type === 1) {
+            // Logs
+            logsAlertCount++;
+        } else if (value.alert_type === 2) {
+            // Metrics
+            metricsAlertCount++;
+        }
+
         newRow.set('rowId', key);
         newRow.set('alertId', value.alert_id);
         newRow.set('alertName', value.alert_name);
@@ -544,6 +586,11 @@ function displayAllAlerts(res) {
         if (mutedFor) hasMutedAlerts = true;
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     });
+
+    // Update the count displays in the UI
+    $('.logs-count').text(logsAlertCount + ' active');
+    $('.metrics-count').text(metricsAlertCount + ' active');
+
     alertGridOptions.api.setRowData(alertRowData);
     const mutedForColumn = alertGridOptions.columnApi.getColumn('mutedFor');
     if (mutedForColumn) {

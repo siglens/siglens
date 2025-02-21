@@ -48,17 +48,21 @@ class TimestampCellRenderer {
         const rowData = this.params.node.data;
 
         window.copyJsonToClipboard = function copyJsonToClipboard() {
-            const jsonContent = document.querySelector("#json-tab div").innerText; // Get JSON text
-            navigator.clipboard.writeText(jsonContent).then(() => {
-                alert("Copied to clipboard!");
-            }).catch(err => {
-                console.error("Failed to copy: ", err);
-            });
-        }
+            const jsonContent = document.querySelector('#json-tab div').innerText; // Get JSON text
+            navigator.clipboard
+                .writeText(jsonContent)
+                .then(() => {
+                    alert('Copied to clipboard!');
+                })
+                .catch((err) => {
+                    console.error('Failed to copy: ', err);
+                });
+        };
 
-        window.switchTab = function (tab) {  // Attach to global scope
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+        window.switchTab = function (tab) {
+            // Attach to global scope
+            document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach((el) => el.classList.remove('active'));
 
             document.getElementById(tab + '-tab').classList.add('active');
             document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
@@ -95,19 +99,19 @@ class TimestampCellRenderer {
             }
 
             Object.entries(flattenedData).forEach(([key, value]) => {
-                let formattedValue = (typeof value === "object") ? JSON.stringify(value, null, 2) : value;
+                let formattedValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : value;
 
-                let row = document.createElement("tr");
+                let row = document.createElement('tr');
 
-                let keyCell = document.createElement("td");
+                let keyCell = document.createElement('td');
                 keyCell.textContent = key;
-                keyCell.style.border = "1px solid #ddd";
-                keyCell.style.padding = "6px";
+                keyCell.style.border = '1px solid #ddd';
+                keyCell.style.padding = '6px';
 
-                let valueCell = document.createElement("td");
+                let valueCell = document.createElement('td');
                 valueCell.textContent = formattedValue;
-                valueCell.style.border = "1px solid #ddd";
-                valueCell.style.padding = "6px";
+                valueCell.style.border = '1px solid #ddd';
+                valueCell.style.padding = '6px';
 
                 row.appendChild(keyCell);
                 row.appendChild(valueCell);
@@ -131,6 +135,7 @@ class TimestampCellRenderer {
         });
 
         // Generate the HTML for the popup
+
         jsonPopup.innerHTML = `
             <div class="json-popup-header">
                 <div class="json-popup-header-buttons">
@@ -193,7 +198,6 @@ class TimestampCellRenderer {
         return false;
     }
 }
-
 
 function syntaxHighlight(json) {
     if (typeof json !== 'string') {
