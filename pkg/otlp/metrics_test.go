@@ -60,8 +60,8 @@ func TestProcessMetricsIngest(t *testing.T) {
 	ctx := &fasthttp.RequestCtx{}
 	ctx.Request.SetBody(data)
 	ctx.Request.Header.SetContentType("application/x-protobuf")
-	requestData, err := getDataToUnmarshal(ctx)
-	requestMatrix, err := unmarshalMetricRequest(requestData)
+	requestData, _ := getDataToUnmarshal(ctx)
+	requestMatrix, _ := unmarshalMetricRequest(requestData)
 	numTotalRecords, numFailedRecords := ingestMetrics(requestMatrix, 0)
 
 	assert.Greater(t, numTotalRecords, 0, "numTotalRecords should be greater than 0")
