@@ -43,7 +43,10 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const siglensId = -7828473396868711293
+const (
+	siglensId     = -7828473396868711293
+	NameSeparator = "--\x09--"
+)
 
 var excludedInternalIndices = [...]string{"traces", "red-traces", "service-dependency"}
 
@@ -397,11 +400,11 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 		if !exist {
 			allIndexCols[indexName] = make(map[string]struct{})
 			allIndexCols[indexName][tsKey] = struct{}{}
-			totalCols[tsKey+"-"+indexName] = struct{}{}
+			totalCols[tsKey+NameSeparator+indexName] = struct{}{}
 		}
 		for col := range segMeta.ColumnNames {
 			allIndexCols[indexName][col] = struct{}{}
-			totalCols[col+"-"+indexName] = struct{}{}
+			totalCols[col+NameSeparator+indexName] = struct{}{}
 		}
 	}
 
