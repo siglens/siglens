@@ -670,7 +670,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
+                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
         <div>
@@ -1318,14 +1318,82 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
     return chartData;
 }
-
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
-
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
-
     const { gridLineColor, tickColor } = getGraphGridColors();
     var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+
+    // Calculate max value from data
+    const maxDataValue = Math.max(...chartData.datasets.flatMap((d) => Object.values(d.data).filter((v) => v !== null)));
+    const maxYTick = maxDataValue * 1.2;
+
+    const thresholdValue = parseFloat($('#threshold-value').val()) || 0;
+    const conditionType = $('#alert-condition span').text();
+
+    const visibleThreshold = Math.min(thresholdValue, maxYTick);
+
+    // Get threshold value only if we're in alert mode
+    let annotationConfig = {};
+    if (isAlertScreen) {
+        let operator = '≥';
+        let boxConfig = {};
+
+        if (conditionType === 'Is above') {
+            operator = '>';
+            boxConfig = {
+                type: 'box',
+                yMin: visibleThreshold,
+                yMax: maxYTick,
+                backgroundColor: 'rgb(255, 218, 224, 0.8)',
+                borderWidth: 0,
+            };
+        } else if (conditionType === 'Is below') {
+            operator = '<';
+            boxConfig = {
+                type: 'box',
+                yMin: 0,
+                yMax: visibleThreshold,
+                backgroundColor: 'rgb(255, 218, 224, 0.8)',
+                borderWidth: 0,
+            };
+        } else {
+            operator = conditionType === 'Equal to' ? '=' : '≠';
+        }
+
+        annotationConfig = {
+            annotation: {
+                drawTime: 'beforeDatasetsDraw',
+                annotations: {
+                    ...(Object.keys(boxConfig).length > 0 && { thresholdBox: boxConfig }),
+                    thresholdLine: {
+                        type: 'line',
+                        scaleID: 'y',
+                        value: visibleThreshold,
+                        borderColor: 'rgb(255, 107, 107)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        label: {
+                            display: true,
+                            content: `y ${operator} ${thresholdValue}`,
+                            position: 'start',
+                            backgroundColor: 'rgb(255, 107, 107)',
+                            color: '#fff',
+                            padding: {
+                                x: 6,
+                                y: 4,
+                            },
+                            font: {
+                                size: 12,
+                            },
+                            z: 100,
+                        },
+                    },
+                },
+            },
+        };
+    }
+
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
@@ -1345,17 +1413,16 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 tooltip: {
                     callbacks: {
                         title: function (tooltipItems) {
-                            // Display formatted timestamp in the title
                             const date = new Date(tooltipItems[0].parsed.x);
                             const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
                             return formattedDate;
                         },
                         label: function (tooltipItem) {
-                            // Display dataset label and value
                             return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
                         },
                     },
                 },
+                ...annotationConfig,
             },
             scales: {
                 x: {
@@ -1402,18 +1469,40 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     title: {
                         display: false,
                     },
-                    grid: { color: gridLineColor },
-                    ticks: { color: tickColor },
+                    grid: {
+                        drawTicks: true,
+                        color: function (context) {
+                            const maxValue = Math.max(...context.chart.scales.y.ticks.map((t) => t.value));
+                            // Hide the top grid line
+                            if (context.tick.value === maxValue) return 'rgba(0, 0, 0, 0)';
+                            return gridLineColor;
+                        },
+                    },
+                    ticks: {
+                        color: tickColor,
+                        callback: function (value, index, values) {
+                            // Hide label for the maximum tick value
+                            if (index === values.length - 1) return '';
+                            return value;
+                        },
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: maxYTick,
                 },
             },
             spanGaps: true,
         },
     });
 
-    // Apply selected theme colors
+    // Update threshold line if threshold value or condition is changed
+    if (isAlertScreen) {
+        $('#threshold-value').on('input', updateChartThresholds);
+        $('.alert-condition-options li').on('click', updateChartThresholds);
+    }
+
     chartData.datasets.forEach(function (dataset, index) {
         dataset.borderColor = selectedPalette[index % selectedPalette.length];
-        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70'; // opacity
+        dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
         dataset.borderDash = selectedLineStyle === 'Dash' ? [5, 5] : selectedLineStyle === 'Dotted' ? [1, 3] : [];
         dataset.borderWidth = selectedStroke === 'Thin' ? 1 : selectedStroke === 'Thick' ? 3 : 2;
     });
@@ -1431,6 +1520,59 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
     lineChart.update();
     return lineChart;
+}
+
+function updateChartThresholds() {
+    for (let queryName in lineCharts) {
+        if (Object.prototype.hasOwnProperty.call(lineCharts, queryName)) {
+            const chart = lineCharts[queryName];
+            const maxDataValue = Math.max(...chart.data.datasets.flatMap((d) => Object.values(d.data).filter((v) => v !== null)));
+            const maxYTick = maxDataValue * 1.2;
+
+            const thresholdValue = parseFloat($('#threshold-value').val()) || 0;
+            const conditionType = $('#alert-condition span').text();
+
+            const visibleThreshold = Math.min(thresholdValue, maxYTick);
+
+            let operator = '≥';
+            let boxConfig = {};
+
+            if (conditionType === 'Is above') {
+                operator = '>';
+                boxConfig = {
+                    type: 'box',
+                    yMin: visibleThreshold,
+                    yMax: maxYTick,
+                    backgroundColor: 'rgb(255, 218, 224, 0.8)',
+                    borderWidth: 0,
+                };
+            } else if (conditionType === 'Is below') {
+                operator = '<';
+                boxConfig = {
+                    type: 'box',
+                    yMin: 0,
+                    yMax: visibleThreshold,
+                    backgroundColor: 'rgb(255, 218, 224, 0.8)',
+                    borderWidth: 0,
+                };
+            } else {
+                operator = conditionType === 'Equal to' ? '=' : '≠';
+            }
+
+            if (chart.options.plugins.annotation?.annotations) {
+                chart.options.plugins.annotation.annotations.thresholdLine.value = visibleThreshold;
+                chart.options.plugins.annotation.annotations.thresholdLine.label.content = `y ${operator} ${thresholdValue}`;
+
+                if (Object.keys(boxConfig).length > 0) {
+                    chart.options.plugins.annotation.annotations.thresholdBox = boxConfig;
+                } else {
+                    delete chart.options.plugins.annotation.annotations.thresholdBox;
+                }
+
+                chart.update();
+            }
+        }
+    }
 }
 
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
@@ -2774,6 +2916,7 @@ $('#alert-from-metrics-btn').click(function () {
         mformulas = [formulaInput];
     }
     queryParams = {
+        type: 'metrics',
         queryLanguage: 'PromQL',
         queries: mqueries,
         formulas: mformulas,

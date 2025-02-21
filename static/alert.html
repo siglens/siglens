@@ -55,7 +55,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             display: block;
         }
         .metrics-graph{
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+        }
+        .metrics-graph, #merged-graph-container{
+            height: 310px;
+        }
+        .graph-canvas{
+            padding: 0px 10px 50px 10px;
         }
         #metrics-explorer, #metrics-graphs{
             display: none;
@@ -115,29 +121,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         <div class="alert-form-subsection">
                             <div class="query-lang-container">
-                                <div>
-                                    <button class="btn dropdown-toggle" type="button" id="alert-data-source"
-                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                        data-bs-toggle="dropdown" title="Select Query Type">
-                                        <span>Logs</span>
-                                        <i class="dropdown-arrow"></i>
-                                    </button>
-                                    <div class="dropdown-menu box-shadow" id="data-source-options">
-                                        <li id="option-1" class="data-source-option active">Logs</li>
-                                        <li id="option-2" class="data-source-option">Metrics</li>
-                                    </div>
-                                </div>
-                                <div class="logs-lang-container">
-                                    <button class="btn dropdown-toggle" type="button" id="logs-language-btn"
-                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                        data-bs-toggle="dropdown" title="Select Query Type" style="display: none;">
-                                        <span>Splunk QL</span>
-                                        <i class="dropdown-arrow"></i>
-                                    </button>
-                                    <div class="dropdown-menu box-shadow" id="logs-language-options">
-                                        <li id="option-1" class="logs-language-option active">Splunk QL</li>
-                                    </div>
-                                </div>
                                 <div class="index-box">
                                     <div style="margin-right: 5px;">Indexes:</div>
                                     <div class="index-container">
@@ -264,8 +247,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <div id="metrics-queries"></div>
                                 <div id="metrics-formula"></div>
                                  <div class="mt-3 d-flex ">
-                                     <button id="add-query" class="btn" type="button"><span class="plus-icon">+</span> Add Query</button>
-                                     <button id="add-formula" class="btn" type="button"><span class="plus-icon">+</span> Add Formula</button>
+                                     <button id="add-query" class="btn btn-white" type="button"><span class="plus-icon">+</span> Add Query</button>
+                                     <button id="add-formula" class="btn btn-white" type="button"><span class="plus-icon">+</span> Add Formula</button>
                                  </div>
                              </div>
                         </div>
@@ -403,6 +386,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/dashboard-charts.js"></script>
     <script src="./component/upper-navbar/upper-navbar.js"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="./js/lib/chartjs-plugin-annotation.min.js"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
