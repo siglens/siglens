@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -55,6 +55,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="./js/lib/lucide.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -69,29 +70,89 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="alerting">
-            <div class="alerts-nav-tab">
-            </div>
-            <div class="upper-header">
-                <p class="caption">Rules that determine whether an alert will fire
-                </p>
-                <button class="btn btn-primary" id="new-alert-rule">
-                    <span>
-                        <img src="./assets/add-icon.svg" class="add-icon">Add Alert Rule
-                    </span>
-                </button>
-            </div>
-            <div id="alert-grid-container">
-                <div id="ag-grid" class="ag-theme-mycustomtheme">
+            <div class="all-alert-page d-none">
+                <div class="alerts-nav-tab">
+                </div>
+                <div class="upper-header">
+                    <p class="caption">Rules that determine whether an alert will fire
+                    </p>
+                    <button class="btn btn-primary" id="new-alert-rule">
+                        <span>
+                            <img src="./assets/add-icon.svg" class="add-icon">Add Alert Rule
+                        </span>
+                    </button>
+                </div>
+                <div id="alert-grid-container">
+                    <div id="ag-grid" class="ag-theme-mycustomtheme">
+                    </div>
+                </div>
+                <div class="popupOverlay">
+                </div>
+                <div class="popupContent">
+                    <h3 class="header">Confirmation</h3>
+                    <p id="delete-alert-name">Are you sure you want to delete this Alert?</p>
+                    <div class="btncontainer">
+                        <button type="button" id="cancel-btn" class="btn btn-primary">Cancel</button>
+                        <button type="button" id="delete-btn" class="btn btn-secondary">Delete</button>
+                    </div>
                 </div>
             </div>
-            <div class="popupOverlay">
-            </div>
-            <div class="popupContent">
-                <h3 class="header">Confirmation</h3>
-                <p id="delete-alert-name">Are you sure you want to delete this Alert?</p>
-                <div class="btncontainer">
-                    <button type="button" id="cancel-btn" class="btn btn-primary">Cancel</button>
-                    <button type="button" id="delete-btn" class="btn btn-secondary">Delete</button>
+            <div class="create-alert-page d-none">
+                <div>
+                    <h3 class="myOrg-heading">Create New Alert</h3>
+                    <p>Choose an alert type to begin monitoring your systems</p>
+                </div>
+                <div class="cards">
+                    <div class="alert-card" id="create-logs-alert">
+                        <div class="header">
+                            <div class="icon-wrapper logs-icon">
+                                <i data-lucide="database" class="database-icon"></i>
+                            </div>
+                            <div>
+                                <h2 class="card-title">Logs</h2>
+                                <p class="card-description">Monitor log patterns, errors, and events</p>
+                            </div>
+                    </div>
+                        <div class="card-content">
+                            <div class="use-cases-header">
+                                <span class="use-cases-title">Common use cases:</span>
+                                <span class="active-count logs-count"></span>
+                            </div>
+                            <div class="use-case">
+                                <i data-lucide="clock" class="clock-icon"></i>
+                                Error patterns
+                            </div>
+                            <div class="use-case">
+                                <i data-lucide="clock" class="clock-icon"></i>
+                                Missing logs
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert-card" id="create-metrics-alert">
+                        <div class="header">
+                            <div class="icon-wrapper metrics-icon">
+                                <i data-lucide="chart-line" class="graph-icon"></i>
+                            </div>
+                            <div>
+                                <h2 class="card-title">Metrics</h2>
+                                <p class="card-description">Track performance metrics and resource usage</p>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="use-cases-header">
+                                <span class="use-cases-title">Common use cases:</span>
+                                <span class="active-count metrics-count"></span>
+                            </div>
+                            <div class="use-case">
+                                <i data-lucide="clock" class="clock-icon"></i>
+                                CPU/Memory
+                            </div>
+                            <div class="use-case">
+                                <i data-lucide="clock" class="clock-icon"></i>
+                                Custom metrics
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
