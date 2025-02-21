@@ -5,7 +5,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/virtualtable"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
 	collmetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
@@ -20,7 +19,6 @@ func TestProcessMetricsIngest(t *testing.T) {
 	initTestConfig(t)
 	err := virtualtable.InitVTable(func() []int64 { return []int64{myid} })
 	assert.NoError(t, err)
-	log.Infof("Vasudev this log print by you")
 
 	request := &collmetricspb.ExportMetricsServiceRequest{
 		ResourceMetrics: []*metricspb.ResourceMetrics{
