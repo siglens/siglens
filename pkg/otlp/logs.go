@@ -40,7 +40,7 @@ const defaultIndexName = "otel-logs"
 const indexNameAttributeKey = "siglensIndexName"
 const k8sKey = "k8s"
 const k8sEventsKey = "event"
-const k8sEventsIndexName = "k8s_events_sig"
+const k8sEventsIndexName = "k8s-events-sig"
 
 // Based on https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/logs/v1/logs.proto#L47-L65
 type resourceInfo struct {
