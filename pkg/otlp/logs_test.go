@@ -407,7 +407,7 @@ func Test_extractLogRecord_K8seventsIndex(t *testing.T) {
 }
 
 func Test_Logs_FullSuccess_multiIndex(t *testing.T) {
-	myid := int64(0)
+	myid := int64(1)
 	initTestConfig(t)
 	err := virtualtable.InitVTable(func() []int64 { return []int64{myid} })
 	assert.NoError(t, err)

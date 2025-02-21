@@ -113,7 +113,7 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 	numTotalRecords := 0
 	numFailedRecords := 0
 
-	/// PLE Array Management ///
+	/// PLE Array Management Start ///
 	// Keeping this code block here to avoid using mutexes
 	var pleArrayMap = make(map[int][]*segwriter.ParsedLogEvent, 0)
 	var pleArrayMapIndex = 0
@@ -141,7 +141,7 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 		pleArrayMapIndex++
 	}
 
-	/// PLE Array Management ///
+	/// PLE Array Management End ///
 
 	for _, resourceLog := range request.ResourceLogs {
 		resource, indexName, err := extractResourceInfo(resourceLog)
@@ -197,7 +197,6 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 				pleArray, ok := indexToPleMap[logIndexName]
 				if !ok {
 					pleArray = getPleArray()
-					indexToPleMap[logIndexName] = pleArray
 				}
 
 				pleArray = append(pleArray, ple)
