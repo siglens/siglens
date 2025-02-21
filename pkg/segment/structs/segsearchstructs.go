@@ -338,17 +338,6 @@ func GetSearchQueryFromFilterCriteria(criteria *FilterCriteria, qid uint64) *Sea
 		sq = extractSearchQueryFromMatchFilter(criteria.MatchFilter, criteria.FilterIsCaseInsensitive, qid)
 	} else {
 		sq = extractSearchQueryFromExpressionFilter(criteria.ExpressionFilter, criteria.FilterIsCaseInsensitive, qid)
-
-		var colVal *DtypeEnclosure
-		if sq.ExpressionFilter.LeftSearchInput.ColumnValue != nil {
-			colVal = sq.ExpressionFilter.LeftSearchInput.ColumnValue
-		} else if sq.ExpressionFilter.RightSearchInput.ColumnValue != nil {
-			colVal = sq.ExpressionFilter.RightSearchInput.ColumnValue
-		}
-
-		if colVal != nil && colVal.Dtype == SS_DT_STRING && colVal.StringVal == "*" {
-			sq.SearchType = MatchAll
-		}
 	}
 	sq.FilterIsCaseInsensitive = criteria.FilterIsCaseInsensitive
 	return sq

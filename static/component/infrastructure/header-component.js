@@ -50,6 +50,7 @@ class DashboardHeader {
                                     <li class="${this.options.activeMenuItem === 'Namespaces' ? 'active' : ''}">Namespaces</li>
                                     <li class="${this.options.activeMenuItem === 'Workloads' ? 'active' : ''}">Workloads</li>
                                     <li class="${this.options.activeMenuItem === 'Nodes' ? 'active' : ''}">Nodes</li>
+                                    <li class="${this.options.activeMenuItem === 'Events' ? 'active' : ''}">Events</li>
                                     <li class="${this.options.activeMenuItem === 'Configuration' ? 'active' : ''}">Configuration</li>
                                 </div>
                             </div>                      
@@ -164,14 +165,14 @@ class DashboardHeader {
         datePickerHandler(this.options.startTime, this.options.endTime, this.options.startTime);
         setupEventHandlers();
 
-        this.container.find('.range-item').on('click', function () {
+        this.container.on('click', '.range-item', () => {
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.set('startEpoch', filterStartDate);
             currentUrl.searchParams.set('endEpoch', filterEndDate);
             window.history.pushState({}, '', currentUrl);
         });
         
-        this.container.find('#customrange-btn').on('click', function () {
+        this.container.on('click', '#customrange-btn', () => {
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.set('startEpoch', filterStartDate);
             currentUrl.searchParams.set('endEpoch', filterEndDate);
