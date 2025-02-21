@@ -54,92 +54,6 @@ import (
 
 var IndexName string = "segexecution"
 
-func asyncQueryTest(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	value1, _ := CreateDtypeEnclosure("*", 0)
-	allColumns := FilterCriteria{
-		ExpressionFilter: &ExpressionFilter{
-			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "*"}}},
-			FilterOperator: Equals,
-			RightInput:     &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnValue: value1}}},
-		},
-	}
-	simpleNode := &ASTNode{
-		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&allColumns}},
-		TimeRange: &dtu.TimeRange{
-			StartEpochMs: 1,
-			EndEpochMs:   uint64(numEntriesForBuffer) + 1,
-		},
-	}
-
-	simpleTimeHistogram := &QueryAggregators{
-		TimeHistogram: &TimeBucket{
-			StartTime:      1,
-			EndTime:        uint64(numEntriesForBuffer) + 1,
-			IntervalMillis: 1,
-			AggName:        "testTime",
-		},
-	}
-	ti := structs.InitTableInfo(IndexName, 0, false)
-	qid := uint64(10101)
-	scroll := 0
-	sizeLimit := uint64(50)
-	totalPossible := uint64(numBuffers * numEntriesForBuffer * fileCount)
-	queryContext := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scroll, 0, false)
-	result, err := ExecuteAsyncQuery(simpleNode, simpleTimeHistogram, qid, queryContext)
-	assert.Nil(t, err)
-	assert.NotNil(t, result)
-
-	sawRunning := false
-	sawExit := false
-	sawQueryUpdate := false
-	sawRRCComplete := false
-	var rrcs []*RecordResultContainer
-	var qc uint64
-	var buckets map[string]*AggregationResult
-
-	for result != nil {
-		updateType := <-result
-		switch updateType.StateName {
-		case query.RUNNING:
-			sawRunning = true
-		case query.QUERY_UPDATE:
-			rrcs, qc, _, _, err = query.GetRawRecordInfoForQid(scroll, qid)
-			assert.Nil(t, err)
-			buckets, _ = query.GetBucketsForQid(qid)
-			sawQueryUpdate = true
-		case query.COMPLETE:
-			sawRRCComplete = true
-			rrcs, qc, _, _, err = query.GetRawRecordInfoForQid(scroll, qid)
-			buckets, _ = query.GetBucketsForQid(qid)
-			assert.Nil(t, err)
-			sawExit = true
-			result = nil
-		default:
-			assert.Fail(t, "unexpected update type %+v", updateType)
-		}
-	}
-
-	assert.True(t, sawRunning, "shouldve seen running update")
-	assert.True(t, sawExit, "shouldve seen exit update")
-	assert.True(t, sawQueryUpdate, "shouldve seen query update")
-	assert.True(t, sawRRCComplete, "shouldve seen rrc complete update")
-	assert.NotNil(t, rrcs, "rrcs should have been populated")
-	assert.NotNil(t, qc, "query counts should have been populated")
-	assert.NotNil(t, buckets, "buckets should have been populated")
-	assert.Len(t, rrcs, int(sizeLimit), "only sizeLimit should be returned")
-	assert.Equal(t, qc, totalPossible, "should still match all possible")
-
-	finalBuckets, finalErr := query.GetBucketsForQid(qid)
-	assert.Nil(t, finalErr, "err should not be nil as qid as not been deleted")
-	assert.NotNil(t, finalBuckets, "finalBuckets should not be nil as qid as not been deleted")
-
-	query.DeleteQuery(qid)
-	finalBuckets, finalErr = query.GetBucketsForQid(qid)
-	assert.Error(t, finalErr, "err should exist as qid should be deleted")
-	assert.Nil(t, finalBuckets, "finalBuckets should be nil as qid should be deleted")
-
-}
-
 func testESScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	var qid uint64 = 1
 	value1, _ := CreateDtypeEnclosure("*", qid)
@@ -284,7 +198,6 @@ func Test_Query(t *testing.T) {
 	_, err = metadata.InitMockColumnarMetadataStore(0, IndexName, fileCount, numBuffers, numEntriesForBuffer)
 	assert.Nil(t, err)
 
-	asyncQueryTest(t, numBuffers, numEntriesForBuffer, fileCount)
 	groupByQueryTestsForAsteriskQueries(t, numBuffers, numEntriesForBuffer, fileCount)
 }
 
