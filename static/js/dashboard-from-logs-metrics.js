@@ -70,12 +70,13 @@ $(document).ready(function () {
         $('.popupOverlay, .addrulepopupContent').removeClass('active');
 
         var queryParams = {
+            type: 'logs',
             queryLanguage: data.queryLanguage,
             searchText: data.searchText,
             startEpoch: data.startEpoch,
             endEpoch: data.endEpoch,
             filterTab: filterTab,
-            alertRule_name: encodedRuleName,
+            ruleName: encodedRuleName,
         };
 
         var queryString = $.param(queryParams);
