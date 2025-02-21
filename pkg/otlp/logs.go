@@ -110,9 +110,38 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 	localIndexMap := make(map[string]string)
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
-	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	numTotalRecords := 0
 	numFailedRecords := 0
+
+	/// PLE Array Management ///
+	// Keeping this code block here to avoid using mutexes
+	var pleArrayMap = make(map[int][]*segwriter.ParsedLogEvent, 0)
+	var pleArrayMapIndex = 0
+
+	getPleArray := func() []*segwriter.ParsedLogEvent {
+		if len(pleArrayMap) == 0 {
+			pleArrayMap[pleArrayMapIndex] = make([]*segwriter.ParsedLogEvent, 0)
+			pleArrayMapIndex++
+		}
+
+		var pleArray []*segwriter.ParsedLogEvent
+
+		for index, pleArr := range pleArrayMap {
+			delete(pleArrayMap, index)
+			pleArray = pleArr
+			break
+		}
+
+		return pleArray
+	}
+
+	putPleArray := func(pleArray []*segwriter.ParsedLogEvent) {
+		pleArray = pleArray[:0]
+		pleArrayMap[pleArrayMapIndex] = pleArray
+		pleArrayMapIndex++
+	}
+
+	/// PLE Array Management ///
 
 	for _, resourceLog := range request.ResourceLogs {
 		resource, indexName, err := extractResourceInfo(resourceLog)
@@ -125,6 +154,8 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 
 			continue
 		}
+
+		indexToPleMap := make(map[string][]*segwriter.ParsedLogEvent)
 
 		for _, scopeLog := range resourceLog.ScopeLogs {
 			scope, err := extractScopeInfo(scopeLog)
@@ -163,17 +194,26 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 					ple.SetTimestamp(timestampMs)
 				}
 
+				pleArray, ok := indexToPleMap[logIndexName]
+				if !ok {
+					pleArray = getPleArray()
+					indexToPleMap[logIndexName] = pleArray
+				}
+
 				pleArray = append(pleArray, ple)
+				indexToPleMap[logIndexName] = pleArray
 			}
 		}
 
 		shouldFlush := false
-		err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
-		if err != nil {
-			log.Errorf("ingestLogs: Failed to ingest logs, err: %v", err)
-			numFailedRecords += len(pleArray)
+		for indexName, pleArray := range indexToPleMap {
+			err = writer.ProcessIndexRequestPle(now, indexName, shouldFlush, localIndexMap, myid, 0, idxToStreamIdCache, cnameCacheByteHashToStr, jsParsingStackbuf[:], pleArray)
+			if err != nil {
+				log.Errorf("ingestLogs: Failed to ingest logs, err: %v", err)
+				numFailedRecords += len(pleArray)
+			}
+			putPleArray(pleArray)
 		}
-		pleArray = pleArray[:0]
 	}
 
 	return numTotalRecords, numFailedRecords
