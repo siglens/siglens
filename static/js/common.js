@@ -1248,3 +1248,154 @@ function handleRelatedLogs(id, traceStartTime, type = 'trace') {
 
     window.open(`index.html?${searchParams.toString()}`, '_blank');
 }
+
+function syntaxHighlight(json) {
+    if (typeof json !== 'string') {
+        json = JSON.stringify(json, null, 2);
+    }
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d*)?([eE][+-]?\d+)?)/g, function (match) {
+        let cls = 'json-value';
+        if (/^"/.test(match) && /:$/.test(match)) {
+            cls = 'json-key';
+        }
+        return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+function ExpandableJsonCellRenderer(type = 'events') {
+    return class {
+        init(params) {
+            this.params = params;
+            this.eGui = document.createElement('div');
+            this.eGui.style.display = 'flex';
+
+            const displayValue = type === 'logs' && params.column.colId === 'timestamp' 
+                ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
+                : params.value;
+
+            this.eGui.innerHTML = `
+                <span class="expand-icon-box">
+                    <button class="expand-icon-button">
+                        <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                    </button>
+                </span>
+                <span>${displayValue}</span>
+            `;
+
+            const expandBtn = this.eGui.querySelector('.expand-icon-box');
+            expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
+        }
+
+        showJsonPanel(event) {
+            event.stopPropagation();
+            const jsonPopup = document.querySelector('.json-popup');
+            const rowData = this.params.node.data;
+
+            window.copyJsonToClipboard = function() {
+                const jsonContent = document.querySelector('#json-tab div').innerText;
+                navigator.clipboard.writeText(jsonContent)
+                    .then(() => alert('Copied to clipboard!'))
+                    .catch(err => console.error('Failed to copy: ', err));
+            };
+
+            window.switchTab = function(tab) {
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+                document.getElementById(tab + '-tab').classList.add('active');
+                document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+                if (tab === 'table') populateTable();
+            };
+
+            function flattenJson(data, parentKey = '', result = {}) {
+                Object.entries(data).forEach(([key, value]) => {
+                    const newKey = parentKey ? `${parentKey}.${key}` : key;
+                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                        flattenJson(value, newKey, result);
+                    } else {
+                        result[newKey] = value;
+                    }
+                });
+                return result;
+            }
+
+            function populateTable() {
+                const tableBody = document.getElementById('table-content');
+                tableBody.innerHTML = '';
+                const flattenedData = flattenJson(rowData);
+
+                if (!flattenedData || Object.keys(flattenedData).length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="2" style="text-align:center;">No data available</td></tr>';
+                    return;
+                }
+
+                Object.entries(flattenedData).forEach(([key, value]) => {
+                    const formattedValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : value;
+                    const row = document.createElement('tr');
+                    const keyCell = document.createElement('td');
+                    const valueCell = document.createElement('td');
+                    
+                    keyCell.textContent = key;
+                    valueCell.textContent = formattedValue;
+                    [keyCell, valueCell].forEach(cell => {
+                        cell.style.border = '1px solid #ddd';
+                        cell.style.padding = '6px';
+                    });
+
+                    row.appendChild(keyCell);
+                    row.appendChild(valueCell);
+                    tableBody.appendChild(row);
+                });
+            }
+
+            jsonPopup.innerHTML = `
+                <div class="json-popup-header">
+                    <div class="json-popup-header-buttons">
+                        <button class="json-popup-close">×</button>
+                    </div>
+                </div>
+                <div class="json-content-type-box">
+                    <button class="tab-button active" onclick="switchTab('json')">JSON</button>
+                    <button class="tab-button" onclick="switchTab('table')">Table</button>
+                    <button class="copy-json-button" onclick="copyJsonToClipboard()">
+                        <i class="fa fa-clipboard"></i>
+                    </button>
+                </div>
+                <div class="json-popup-content">
+                    <div id="json-tab" class="tab-content active">
+                        <div class="json-key-values">${syntaxHighlight(rowData)}</div>
+                    </div>
+                    <div id="table-tab" class="tab-content">
+                        <table border="1" class="json-table">
+                            <thead>
+                                <tr>
+                                    <th>Key</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-content"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            jsonPopup.classList.add('active');
+
+            const closeBtn = jsonPopup.querySelector('.json-popup-close');
+            closeBtn.onclick = () => {
+                jsonPopup.classList.remove('active');
+                this.params.api.sizeColumnsToFit();
+            };
+
+            this.params.api.sizeColumnsToFit();
+        }
+
+        getGui() {
+            return this.eGui;
+        }
+
+        refresh() {
+            return false;
+        }
+    }
+}
