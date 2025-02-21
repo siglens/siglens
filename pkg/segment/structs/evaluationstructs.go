@@ -721,7 +721,7 @@ func (self *BoolExpr) evaluateToCValueEnclosure(fieldToValue map[string]utils.CV
 			if !exists {
 				return getBoolCValueEnclosure(false), nil
 			}
-			if value.Dtype != utils.SS_DT_BACKFILL {
+			if !value.IsNull() {
 				return getBoolCValueEnclosure(true), nil
 			}
 			return getBoolCValueEnclosure(false), nil

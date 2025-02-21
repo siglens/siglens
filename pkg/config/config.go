@@ -107,6 +107,8 @@ const (
 	DEFAULT_TIMEOUT_SECONDS   = 300  // 5 minutes
 )
 
+const DEFAULT_DISK_THRESHOLD_PERCENT uint64 = 95
+
 func init() {
 	parallelism = int64(runtime.GOMAXPROCS(0))
 	if parallelism <= 1 {
@@ -821,8 +823,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:              "0.0.0.0",
-		QueryListenIP:               "0.0.0.0",
+		IngestListenIP:              "[::]",
+		QueryListenIP:               "[::]",
 		IngestPort:                  8081,
 		QueryPort:                   5122,
 		IngestUrl:                   "",
@@ -966,10 +968,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.IngestListenIP) <= 0 {
-		config.IngestListenIP = "0.0.0.0"
+		config.IngestListenIP = "[::]"
 	}
 	if len(config.QueryListenIP) <= 0 {
-		config.QueryListenIP = "0.0.0.0"
+		config.QueryListenIP = "[::]"
 	}
 
 	if config.IngestPort <= 0 {
@@ -1138,7 +1140,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if config.DataDiskThresholdPercent == 0 {
-		config.DataDiskThresholdPercent = 85
+		config.DataDiskThresholdPercent = DEFAULT_DISK_THRESHOLD_PERCENT
 	}
 
 	memoryLimits := config.MemoryConfig

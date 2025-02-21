@@ -19,86 +19,14 @@
 
 let isFetching = false;
 
-class TimestampCellRenderer {
-    init(params) {
-        this.params = params;
-        this.eGui = document.createElement('div');
-        this.eGui.style.display = 'flex';
 
-        const timestamp = typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value;
-
-        this.eGui.innerHTML = `
-        <span class="expand-icon-box">
-        <button class="expand-icon-button">
-            <i class="fa-solid fa-up-right-and-down-left-from-center">
-        </button></i>
-    </span>
-    <span>${timestamp}</span>
-        `;
-
-        const expandBtn = this.eGui.querySelector('.expand-icon-box');
-        expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
-    }
-
-    showJsonPanel(event) {
-        event.stopPropagation();
-
-        const jsonPopup = document.querySelector('.json-popup');
-        const rowData = this.params.node.data;
-
-        jsonPopup.innerHTML = `
-        <div class="json-popup-header">
-            <div class="json-popup-title">
-                <h3>JSON</h3>
-            </div>
-            <button class="json-popup-close">×</button>
-        </div>
-        <div class="json-popup-content">
-            <div>${syntaxHighlight(JSON.unflatten(rowData))}</div>
-        </div>
-    `;
-
-        // Show JSON panel
-        jsonPopup.classList.add('active');
-
-        const closeBtn = jsonPopup.querySelector('.json-popup-close');
-        closeBtn.onclick = () => {
-            jsonPopup.classList.remove('active');
-            this.params.api.sizeColumnsToFit();
-        };
-
-        this.params.api.sizeColumnsToFit();
-    }
-
-    getGui() {
-        return this.eGui;
-    }
-
-    refresh() {
-        return false;
-    }
-}
-
-function syntaxHighlight(json) {
-    if (typeof json !== 'string') {
-        json = JSON.stringify(json, null, 2);
-    }
-    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(\.\d*)?([eE][+-]?\d+)?)/g, function (match) {
-        let cls = 'json-value';
-        if (/^"/.test(match) && /:$/.test(match)) {
-            cls = 'json-key';
-        }
-        return `<span class="${cls}">${match}</span>`;
-    });
-}
 
 // initial columns
 let logsColumnDefs = [
     {
         field: 'timestamp',
         headerName: 'timestamp',
-        cellRenderer: TimestampCellRenderer,
+        cellRenderer: ExpandableJsonCellRenderer('logs'),
         maxWidth: 250,
         minWidth: 250,
     },

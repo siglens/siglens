@@ -114,7 +114,6 @@ type Hooks struct {
 	AddUsageForRotatedSegmentsHook         func(qid uint64, rotatedSegments map[string]struct{})
 	RemoveUsageForRotatedSegmentsHook      func(qid uint64)
 	RemoveUsageForRotatedSegmentForQidHook func(qid uint64, segKey string)
-	TriggerSegmentEvictionHook             func()
 
 	// Query server
 	QueryMiddlewareRecoveryHook func(ctx *fasthttp.RequestCtx) error

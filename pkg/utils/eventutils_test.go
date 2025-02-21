@@ -22,7 +22,7 @@ func Test_OnFileChange(t *testing.T) {
 	require.NoError(t, err)
 
 	updateChan := make(chan struct{}, 10)
-	err = OnFileChange([]string{file1, file2}, func() {
+	err = WatchFileChanges([]string{file1, file2}, 1, func() {
 		updateChan <- struct{}{}
 	})
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func readChannelOrFail(t *testing.T, updateChan chan struct{}) {
 	select {
 	case <-updateChan:
 		// Do nothing.
-	case <-time.After(time.Second):
+	case <-time.After(2 * time.Second):
 		t.Fatal("reached timeout")
 	}
 }

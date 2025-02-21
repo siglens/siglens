@@ -217,6 +217,7 @@ export default [
                 ResourceUsageComponent: true,
                 agGrid: true,
                 ClusterUsageChart: true,
+                ExpandableJsonCellRenderer: true,
             },
         },
         rules: {
