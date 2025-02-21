@@ -4298,7 +4298,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     max-height: 100vh;
 }
 
-.all-alert-page{
+.all-alert-page {
     height: calc(100% - 90px);
 }
 
@@ -6191,9 +6191,14 @@ p#versionInfo {
     border: 1px solid var(--search-input-border);
     border-radius: 4px;
     padding: 16px;
-    box-shadow: var(--box-shadow);
     width: 290px;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.kubernetes-card:hover {
+    box-shadow: var(--box-shadow);
+    transform: translateY(-2px);
 }
 
 .kubernetes-img {
@@ -6345,13 +6350,13 @@ p#versionInfo {
     background: rgb(240, 253, 244);
 }
 
-[data-theme='dark'] .metrics-icon  {
+[data-theme='dark'] .metrics-icon {
     background: rgb(34, 197, 94);
 }
 
 [data-theme='dark'] .graph-icon,
 [data-theme='dark'] .database-icon {
-    color: var(--white) !important; 
+    color: var(--white) !important;
 }
 
 
@@ -6391,11 +6396,13 @@ p#versionInfo {
     font-weight: bold;
 }
 
-.logs-count, .database-icon {
+.logs-count,
+.database-icon {
     color: #4f46e5;
 }
 
-.metrics-count, .graph-icon {
+.metrics-count,
+.graph-icon {
     color: #059669;
 }
 
