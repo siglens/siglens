@@ -123,13 +123,13 @@ class TimestampCellRenderer {
         const flattenedData = flattenJson(jsonData);
 
         // Check if "trace_id" exists and is not empty or null
-        const showRelatedTraceButton = Object.keys(flattenedData).some(key => {
-            if (key.toLowerCase() === "timestamp") {
+        const showRelatedTraceButton = Object.keys(flattenedData).some((key) => {
+            if (key.toLowerCase() === 'timestamp') {
                 time_stamp = flattenedData[key];
             }
-            if (key.toLowerCase() === "trace_id") {
+            if (key.toLowerCase() === 'trace_id') {
                 trace_id = flattenedData[key];
-                return trace_id !== null && trace_id !== "";
+                return trace_id !== null && trace_id !== '';
             }
             return false;
         });
@@ -139,11 +139,15 @@ class TimestampCellRenderer {
         jsonPopup.innerHTML = `
             <div class="json-popup-header">
                 <div class="json-popup-header-buttons">
-                    ${showRelatedTraceButton ? `
+                    ${
+                        showRelatedTraceButton
+                            ? `
                         <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
                             <i class="fa fa-file-text"></i>&nbsp; Related Trace
                         </button>
-                    ` : ""}
+                    `
+                            : ''
+                    }
                     <button class="json-popup-close">×</button>
                 </div>
             </div>
