@@ -368,7 +368,7 @@ func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Templa
 func (hs *queryserverCfg) RunSafeServer() error {
 	hs.Router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	var err error
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		return err
 	}
