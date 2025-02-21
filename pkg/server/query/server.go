@@ -303,7 +303,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		hook(hs.Router, htmlTemplate)
 	}
 
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		return err
 	}
