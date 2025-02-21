@@ -531,13 +531,13 @@ func ExecuteAsyncQueryForNewPipeline(root *structs.ASTNode, aggs *structs.QueryA
 		err = queryProcessor.GetStreamedResult(rQuery.StateChan)
 		if err != nil {
 			log.Errorf("qid=%v, ExecuteAsyncQueryForNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
-		}
 
-		errorState := query.QueryStateChanData{
-			StateName: query.ERROR,
-			Error:     err,
+			errorState := query.QueryStateChanData{
+				StateName: query.ERROR,
+				Error:     err,
+			}
+			rQuery.StateChan <- &errorState
 		}
-		rQuery.StateChan <- &errorState
 	}()
 	return rQuery.StateChan, nil
 }
@@ -561,15 +561,15 @@ func ExecuteQueryInternalNewPipeline(qid uint64, isAsync bool, root *structs.AST
 		err := queryProcessor.GetStreamedResult(rQuery.StateChan)
 		if err != nil {
 			log.Errorf("qid=%v, ExecuteQueryInternalNewPipeline: failed to GetStreamedResult, err: %v", qid, err)
-		}
 
-		errorState := query.QueryStateChanData{
-			StateName: query.ERROR,
-			Error:     err,
-			Qid:       qid,
-		}
+			errorState := query.QueryStateChanData{
+				StateName: query.ERROR,
+				Error:     err,
+				Qid:       qid,
+			}
 
-		rQuery.StateChan <- &errorState
+			rQuery.StateChan <- &errorState
+		}
 
 		return
 	} else {

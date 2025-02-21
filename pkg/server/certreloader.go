@@ -18,13 +18,15 @@ type CertReloader struct {
 	cert     *tls.Certificate
 }
 
+const refreshIntervalSeconds = 60
+
 func NewCertReloader(certPath string, privateKeyPath string) (*CertReloader, error) {
 	reloader := &CertReloader{
 		certPath: certPath,
 		keyPath:  privateKeyPath,
 	}
 
-	err := utils.OnFileChange([]string{certPath, privateKeyPath}, func() {
+	err := utils.WatchFileChanges([]string{certPath, privateKeyPath}, refreshIntervalSeconds, func() {
 		log.Infof("NewCertReloader: Reloading certificate at %v with key at %v", certPath, privateKeyPath)
 		err := reloader.reload()
 		if err != nil {

@@ -159,15 +159,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		hs.router.DELETE(ELASTIC_PREFIX+"/{indexName}/_alias/{aliasName}", hs.Recovery(esDeleteAliasHandler()))
 	*/
 
-	//loki endpoint
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/labels", hs.Recovery(lokiLabelsHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/label/{labelName}/values", hs.Recovery(lokiLabelValueHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/query", hs.Recovery(lokiQueryHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/query_range", hs.Recovery(lokiQueryHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/index/stats", hs.Recovery(lokiIndexStatsHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
-	hs.Router.POST(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
-
 	//splunk endpoint
 	hs.Router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
 	hs.Router.GET("/services/collector/health/1.0", hs.Recovery(getHealthHandler()))
@@ -334,8 +325,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			return err
 		}
 
-		cfg := &tls.Config{
-			GetCertificate: certReloader.GetCertificate,
+		cfg, err := server_utils.GetTlsConfig(certReloader.GetCertificate)
+		if err != nil {
+			log.Fatalf("Run: error getting TLS config; err=%v", err)
+			return err
 		}
 
 		hs.ln = tls.NewListener(hs.ln, cfg)

@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/smtp"
 	"strconv"
@@ -91,7 +92,7 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 	}
 	if len(webhooks) > 0 {
 		for _, webhook := range webhooks {
-			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage, alertDetails.NumEvaluationsCount)
+			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage, alertDetails.NumEvaluationsCount, alertState)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook.Webhook, alertID, err)
 			} else {
@@ -153,20 +154,32 @@ func sendAlertEmail(emailID, subject, message string, alertDataMessage string) e
 	err := smtp.SendMail(host+":"+strconv.Itoa(port), auth, senderEmail, []string{emailID}, []byte(body))
 	return err
 }
-func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, numEvaluationsCount uint64) error {
+func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, numEvaluationsCount uint64,
+	alertState alertutils.AlertState) error {
+
+	var status string
+	switch alertState {
+	case alertutils.Normal:
+		status = "normal"
+	case alertutils.Firing:
+		status = "firing"
+	case alertutils.Pending, alertutils.Inactive:
+		return fmt.Errorf("sendWebhooks: Invalid alert state %v", alertState)
+	}
+
 	if alertDataMessage != "" {
 		message = message + "\nAlert Data: " + alertDataMessage
 	}
 
 	webhookBody := alertutils.WebhookBody{
 		Receiver:            "My Super Webhook",
-		Status:              "firing",
+		Status:              status,
 		Title:               subject,
 		Body:                message,
 		NumEvaluationsCount: numEvaluationsCount,
 		Alerts: []alertutils.Alert{
 			{
-				Status: "firing",
+				Status: status,
 			},
 		},
 	}
