@@ -20,6 +20,7 @@ class ContainerImagesCard {
     constructor(containerId) {
         this.container = $(`#${containerId}`);
         this.gridOptions = null;
+        this.loadingElement = null;
         this.init();
         this.fetchData();
     }
@@ -41,8 +42,9 @@ class ContainerImagesCard {
                         </div>
                     </div>
                 </div>
-                <div class="">
+                <div class="position-relative">
                     <div id="imagesGrid" style="height: 400px; width: 100%;" class="ag-theme-alpine-dark"></div>
+                    <div id="panel-loading" style="display: none;" class="image-loading"></div>
                     <div class="count-row">
                         <div class="label">Count</div>
                         <div class="total-count">-</div>
@@ -52,6 +54,7 @@ class ContainerImagesCard {
         `;
 
         this.container.html(template);
+        this.loadingElement = this.container.find('#panel-loading');
         this.setupGrid();
         this.setupEventHandlers();
         this.addStyles();
@@ -151,6 +154,8 @@ class ContainerImagesCard {
     }
 
     async fetchData() {
+        this.showLoading();
+
         const urlParams = new URLSearchParams(window.location.search);
         const startTime = urlParams.get('startEpoch') || 'now-1h';
         const endTime = urlParams.get('endEpoch') || 'now';
@@ -195,6 +200,8 @@ class ContainerImagesCard {
             this.updateTable(response);
         } catch (error) {
             this.showError();
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -252,5 +259,16 @@ class ContainerImagesCard {
         $(document).on('click', () => {
             $('.dropdown').removeClass('active');
         });
+    }
+    showLoading() {
+        if (this.loadingElement) {
+            this.loadingElement.show();
+        }
+    }
+
+    hideLoading() {
+        if (this.loadingElement) {
+            this.loadingElement.hide();
+        }
     }
 }

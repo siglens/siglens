@@ -1216,9 +1216,13 @@ function createTooltip(selector, content) {
     });
 }
 
-function handleRelatedTraces(traceId) {
-    window.location.href = `trace.html?trace_id=${traceId}`;
-
+function handleRelatedTraces(traceId, timestamp, newTab) {
+    const url = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
+    if (newTab){
+        window.open(url, '_blank'); // Opens in a new tab
+    }else{
+        window.location.href = url;
+    }
 }
 
 function handleRelatedLogs(id, traceStartTime, type = 'trace') {
