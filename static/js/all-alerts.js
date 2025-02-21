@@ -557,9 +557,11 @@ function displayAllAlerts(res) {
 
     $.each(res, function (key, value) {
         // Count alerts by type
-        if (value.alert_type === 1) { // Logs
+        if (value.alert_type === 1) {
+            // Logs
             logsAlertCount++;
-        } else if (value.alert_type === 2) { // Metrics
+        } else if (value.alert_type === 2) {
+            // Metrics
             metricsAlertCount++;
         }
 
