@@ -28,6 +28,8 @@ import (
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
+	"github.com/siglens/siglens/pkg/segment/tracing/handler"
+
 	"gorm.io/gorm"
 
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
@@ -122,6 +124,11 @@ func validateAlertTypeAndQuery(alertToBeCreated *alertutils.AlertDetails) (strin
 		_, _, _, _, errorLog, _, err := promql.ParseMetricTimeSeriesRequest([]byte(alertToBeCreated.MetricsQueryParamsString))
 		if err != nil {
 			return errorLog, err
+		}
+	case alertutils.AlertTypeAPM:
+		_, _, _, errorlog, _, err := handler.ParseRedMetricsRequest([]byte(alertToBeCreated.APMQueryParamsString))
+		if err != nil {
+			return errorlog, err
 		}
 	case alertutils.AlertTypeMinion:
 		return fmt.Sprintf("Alert Type: %v", alertToBeCreated.AlertType), fmt.Errorf("minion alerts are not supported")

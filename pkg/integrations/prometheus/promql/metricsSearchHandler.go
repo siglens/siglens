@@ -772,7 +772,7 @@ func ProcessGetMetricTimeSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			errorMessages = append(errorMessages, err.Error())
 		}
 		allErrors := strings.Join(errorMessages, "; ")
-		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid=%v", qid), fmt.Errorf(allErrors))
+		utils.SendError(ctx, "Failed to get metric time series: "+allErrors, fmt.Sprintf("qid=%v", qid), fmt.Errorf("%s", allErrors))
 		return
 	}
 
