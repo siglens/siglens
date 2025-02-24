@@ -242,9 +242,9 @@ func ConvertToOTLPMetricsFormat(data processedMetric, timestamp int64, value flo
 	var metricName string
 	tags := make(map[string]string)
 	metricName = data.Name
-	tags[data.Unit] = data.Unit
-	tags[data.Description] = data.Description
-	tags[data.Type] = data.Type
+	tags["unit"] = data.Unit
+	tags["description"] = data.Description
+	tags["type"] = data.Type
 
 	for key, val := range data.Attributes {
 		tags[key] = val

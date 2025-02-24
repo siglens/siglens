@@ -732,46 +732,24 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 						log.Errorf("ExtractOTLPPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
 						return fmt.Errorf("ExtractOTLPPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
 					} else {
-						if toputils.IsTimeInMilli(uint64(fltVal)) {
+						if toputils.IsTimeInNano(uint64(fltVal)) {
+							ts = uint32(fltVal / 1_000_000_000)
+						} else if toputils.IsTimeInMilli(uint64(fltVal)) {
 							ts = uint32(fltVal / 1000)
 						} else {
 							ts = uint32(fltVal)
 						}
 					}
 				} else {
-					if toputils.IsTimeInMilli(uint64(intVal)) {
+					if toputils.IsTimeInNano(uint64(intVal)) {
+						ts = uint32(intVal / 1_000_000_000)
+					} else if toputils.IsTimeInMilli(uint64(intVal)) {
 						ts = uint32(intVal / 1000)
 					} else {
 						ts = uint32(intVal)
 					}
 				}
-			case jp.String:
-				// First, try to parse the date as a number (seconds or milliseconds since epoch)
-				if t, err := strconv.ParseInt(string(value), 10, 64); err == nil {
-					// Determine if the number is in seconds or milliseconds
-					if toputils.IsTimeInMilli(uint64(t)) {
-						ts = uint32(t / 1000)
-					} else {
-						ts = uint32(t)
-					}
 
-					return nil
-				}
-
-				// Parse the string to time using time.Parse and multiple layouts.
-				found := false
-				for _, layout := range dateTimeLayouts {
-					t, err := time.Parse(layout, string(value))
-					if err == nil {
-						found = true
-						ts = uint32(t.Unix())
-						break
-					}
-				}
-				if !found {
-					log.Errorf("ExtractOTLPPayload: unknown timestamp format %s", value)
-					return fmt.Errorf("unknown timestamp format %s", value)
-				}
 			default:
 				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for timestamp %v", valueType, value)
 			}

@@ -32,7 +32,7 @@ func TestProcessMetricsIngest(t *testing.T) {
 									Gauge: &metricspb.Gauge{
 										DataPoints: []*metricspb.NumberDataPoint{
 											{
-												TimeUnixNano: 1234567890,
+												TimeUnixNano: 1740390270409000000,
 												Value:        &metricspb.NumberDataPoint_AsDouble{AsDouble: 75.5},
 												Attributes: []*commonpb.KeyValue{
 													{Key: "host", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "server-1"}}},
