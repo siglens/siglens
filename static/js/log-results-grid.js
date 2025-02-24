@@ -29,7 +29,7 @@ let logsColumnDefs = [
     {
         field: 'logs',
         headerName: 'logs',
-        flex: 1,
+        minWidth: 1128,
         cellRenderer: (params) => {
             let logString = '';
             let counter = 0;
@@ -133,12 +133,6 @@ const gridOptions = {
         `;
         eGridDiv.appendChild(style);
     },
-    onGridSizeChanged: (params) => {
-        params.api.sizeColumnsToFit();
-    },
-    onFirstDataRendered: (params) => {
-        params.api.sizeColumnsToFit();
-    }
 };
 
 //eslint-disable-next-line no-unused-vars
