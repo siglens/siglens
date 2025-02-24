@@ -17,10 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let isFetching = false;
-
-
-
 // initial columns
 let logsColumnDefs = [
     {
@@ -120,43 +116,6 @@ const gridOptions = {
     animateRows: false,
     suppressColumnVirtualisation: false,
     suppressRowVirtualisation: false,
-    onBodyScroll: _.debounce(function (evt) {
-        if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
-            let diff = logsRowData.length - evt.api.getLastDisplayedRow();
-            // if we're less than 5 items from the end...fetch more data
-            if (diff <= 5) {
-                let scrollingTrigger = true;
-                data = getSearchFilter(false, scrollingTrigger);
-                if (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage) {
-                    scrollingErrorPopup();
-                    return; // Prevent further scrolling
-                }
-
-                isFetching = true;
-                showLoadingIndicator();
-                if (data && data.searchText == 'error') {
-                    alert('Error');
-                    hideLoadingIndicator(); // Hide loading indicator on error
-                    isFetching = false;
-                    return;
-                }
-
-                doSearch(data)
-                    .then(() => {
-                        isFetching = false;
-                    })
-                    .catch((error) => {
-                        console.warn('Error fetching data', error);
-                        isFetching = false;
-                    })
-                    .finally(() => {
-                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
-                        isFetching = false;
-                    });
-            }
-        }
-    }, 250),
-    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
     onGridReady: function (_params) {
         const eGridDiv = document.querySelector('#LogResultsGrid');
         const style = document.createElement('style');
@@ -168,22 +127,14 @@ const gridOptions = {
                 display: none;
             }
               
-            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon
+            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon {
                 display: inline-block;
-            }
-            
+            }            
         `;
         eGridDiv.appendChild(style);
     },
 };
 
-function showLoadingIndicator() {
-    gridOptions.api.showLoadingOverlay();
-}
-
-function hideLoadingIndicator() {
-    gridOptions.api.hideOverlay();
-}
 //eslint-disable-next-line no-unused-vars
 const myCellRenderer = (params) => {
     if (typeof params.data !== 'object' || params.data === null) return '';
@@ -232,13 +183,3 @@ JSON.unflatten = function (data) {
     }
     return resultholder[''] || resultholder;
 };
-
-function scrollingErrorPopup() {
-    $('.popupOverlay').addClass('active');
-    $('#error-popup.popupContent').addClass('active');
-
-    $('#okay-button').on('click', function () {
-        $('.popupOverlay').removeClass('active');
-        $('#error-popup.popupContent').removeClass('active');
-    });
-}

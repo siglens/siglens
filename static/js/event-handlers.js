@@ -85,10 +85,10 @@ function windowPopStateHandler(evt) {
         let state = evt.originalEvent.state;
         if (state !== null) {
             data = getInitialSearchFilter(true, false);
+            resetDashboard();
+            wsState = 'query';
+            doSearch(data);
         }
-        resetDashboard();
-        wsState = 'query';
-        doSearch(data);
     }
 }
 
@@ -470,6 +470,8 @@ function runFilterBtnHandler(evt) {
         } else {
             resetDashboard();
             logsRowData = [];
+            accumulatedRecords = [];
+            totalLoadedRecords = 0;
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
@@ -485,6 +487,8 @@ function filterInputHandler(evt) {
     if (evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
         resetDashboard();
         logsRowData = [];
+        accumulatedRecords = [];
+        totalLoadedRecords = 0;
         data = getSearchFilter(false, false);
         initialSearchData = data;
         availColNames = [];
