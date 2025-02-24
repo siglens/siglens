@@ -1,9 +1,9 @@
-// Pagination state
 let currentPage = 1;
 let pageSize = 20; // Default page size
 let totalLoadedRecords = 0;
 let hasMoreRecords = false;
 let accumulatedRecords = [];
+
 function initializePagination() {
     const paginationHtml = `
         <div class="pagination-controls">
@@ -31,11 +31,9 @@ function handlePageSizeChange(event) {
     pageSize = parseInt(event.target.value);
     currentPage = 1; // Reset to first page when changing page size
 
-    // If we're showing aggs data
     if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
         paginateAggsData(segStatsRowData);
     } else {
-        // Your existing logic for non-aggs data
         updateGridView();
         updatePaginationDisplay();
         updateLoadMoreMessage();
@@ -48,12 +46,9 @@ function goToPage(page) {
 
     currentPage = page;
 
-    // Check if we're dealing with aggs data or regular logs
     if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
-        // For aggs data, use paginateAggsData since we already have all the data
         paginateAggsData(segStatsRowData);
     } else {
-        // For regular logs data, use existing logic
         const startIndex = (currentPage - 1) * pageSize;
 
         if (startIndex + pageSize > totalLoadedRecords && hasMoreRecords) {
@@ -66,43 +61,35 @@ function goToPage(page) {
     }
 }
 
-function handleSearchResults(results) {
-    console.log('handleSearchResults', results.qtype);
-    // Handle QUERY_UPDATE state
-    // Handle aggregation queries
+function handleSearchResultsForPagination(results) {
+    // For aggs and segstats queries
     if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
-        console.log('aggs-query accumulatedRecords.length', accumulatedRecords.length);
         if (!accumulatedRecords.length) {
             accumulatedRecords = [];
             currentPage = 1;
         }
         if (results.state === 'QUERY_UPDATE' && results.measure) {
-            // For aggs QUERY_UPDATE, start accumulating results
-
-            // Accumulate measure data
             if (Array.isArray(results.measure)) {
                 accumulatedRecords = [...accumulatedRecords, ...results.measure];
             }
 
-            // Update pagination based on current accumulated records
             totalLoadedRecords = accumulatedRecords.length;
             updateGridView();
             updatePaginationDisplay();
         } else if (results.state === 'COMPLETE') {
-            // For COMPLETE state, we have final bucket count
             if (results.bucketCount) {
                 totalLoadedRecords = results.bucketCount;
-                hasMoreRecords = false; // No load more for aggs
+                hasMoreRecords = false;
             }
 
-            // Update grid and pagination with final data
             updateGridView();
             updatePaginationDisplay();
             updateLoadMoreMessage();
         }
-        return; // Exit early for aggs queries
+        return;
     }
 
+    // For logs-query
     if (results.state === 'QUERY_UPDATE' && results.hits) {
         // Only reset records if this is a new search (not a load more)
         if (totalLoadedRecords === 0) {
@@ -112,14 +99,11 @@ function handleSearchResults(results) {
 
         // Add new records if available
         if (results.hits.records && Array.isArray(results.hits.records)) {
-            // Append new records
             accumulatedRecords = [...accumulatedRecords, ...results.hits.records];
             logsRowData = accumulatedRecords;
             totalLoadedRecords = accumulatedRecords.length;
 
-            // If this was a load more request, update pagination
             if (results.from > 0) {
-                // Calculate new total pages
                 const totalPages = Math.ceil(totalLoadedRecords / pageSize);
 
                 // If we're on the last page, stay there
@@ -129,31 +113,17 @@ function handleSearchResults(results) {
             }
         }
 
-        // Update hasMoreRecords from query update
         if (results.hits.totalMatched) {
             hasMoreRecords = results.hits.totalMatched.relation === 'gte';
         }
 
-        // Update grid and pagination
         updateGridView();
         updatePaginationDisplay();
-    }
-    // Handle COMPLETE state
-    else if (results.state === 'COMPLETE') {
-        // Update final counts and flags
+    } else if (results.state === 'COMPLETE') {
         if (results.totalMatched) {
             totalLoadedRecords = results.totalMatched.value;
             hasMoreRecords = results.totalMatched.relation === 'gte';
         }
-
-        // Update scroll-related data
-        canScrollMore = results.can_scroll_more;
-        if (results.total_rrc_count > 0) {
-            scrollFrom = results.total_rrc_count;
-            totalRrcCount = results.total_rrc_count;
-        }
-
-        // Final updates
         updateGridView();
         updatePaginationDisplay();
         updateLoadMoreMessage();
@@ -161,7 +131,6 @@ function handleSearchResults(results) {
 }
 
 function updatePaginationDisplay() {
-    console.log('updatePaginationDisplay');
     const totalPages = Math.ceil(totalLoadedRecords / pageSize);
     const pagesContainer = document.querySelector('.pagination-right');
 
@@ -204,7 +173,7 @@ function updatePaginationDisplay() {
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info">
-            Showing Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalLoadedRecords.toLocaleString()} records
+            Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalLoadedRecords.toLocaleString()} records
         </span>`;
 
     pagesContainer.innerHTML = paginationHTML;
@@ -218,11 +187,9 @@ function createPageButton(pageNum) {
 function updateLoadMoreMessage() {
     const messageContainer = document.getElementById('load-more-container');
     if (!messageContainer) return;
-    console.log('updateLoadMoreMessage: hasMoreRecords', hasMoreRecords);
-    console.log('updateLoadMoreMessage: isLastPage()', isLastPage());
 
-    // Hide load more for aggs queries
-    if (lastQType === 'aggs-query') {
+    // Hide load more for aggs queries and segstats queries
+    if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
         messageContainer.style.display = 'none';
         return;
     }
@@ -238,10 +205,8 @@ function updateLoadMoreMessage() {
 }
 
 function loadMoreResults() {
-    console.log('Loading results...');
     const data = getSearchFilter(true, true);
     data.from = totalLoadedRecords;
-    // data.size = pageSize;
 
     if (initialSearchData && (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage)) {
         // Show error if search params changed
@@ -249,17 +214,7 @@ function loadMoreResults() {
         return;
     }
 
-    console.log('loadMoreResults', data);
-    console.trace('loadMoreResults called');
-    isLoadingMore = true;
-    doSearch(data)
-        .then(() => {
-            isLoadingMore = false;
-        })
-        .catch((error) => {
-            isLoadingMore = false;
-            console.error('Error loading more results:', error);
-        });
+    doSearch(data);
 }
 
 function isLastPage() {

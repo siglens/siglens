@@ -425,43 +425,43 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         includeNulls: false, // Exclude null values
     };
 }
-// function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
-//     let filterValue = $('#filter-input').val().trim() || '*';
-//     let endDate = 'now';
-//     let date = new Date();
-//     let stDate = new Date(date.getTime() - startTime * 1000).getTime();
-//     if (startTime == 1800) stDate = 'now-1h';
-//     let selIndexName = selectedSearchIndex;
-//     let sFrom = 0;
-//     let queryLanguage = $('#query-language-options .query-language-option.active').html();
+function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
+    let filterValue = $('#filter-input').val().trim() || '*';
+    let endDate = 'now';
+    let date = new Date();
+    let stDate = new Date(date.getTime() - startTime * 1000).getTime();
+    if (startTime == 1800) stDate = 'now-1h';
+    let selIndexName = selectedSearchIndex;
+    let sFrom = 0;
+    let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
-//     setIndexDisplayValue(selIndexName);
+    setIndexDisplayValue(selIndexName);
 
-//     selectedSearchIndex = selIndexName.split(',').join(',');
-//     Cookies.set('IndexList', selIndexName.split(',').join(','));
+    selectedSearchIndex = selIndexName.split(',').join(',');
+    Cookies.set('IndexList', selIndexName.split(',').join(','));
 
-//     addQSParm('searchText', filterValue);
-//     addQSParm('startEpoch', stDate);
-//     addQSParm('endEpoch', endDate);
-//     addQSParm('indexName', selIndexName);
-//     addQSParm('queryLanguage', queryLanguage);
+    addQSParm('searchText', filterValue);
+    addQSParm('startEpoch', stDate);
+    addQSParm('endEpoch', endDate);
+    addQSParm('indexName', selIndexName);
+    addQSParm('queryLanguage', queryLanguage);
 
-//     window.history.pushState({ path: myUrl }, '', myUrl);
+    window.history.pushState({ path: myUrl }, '', myUrl);
 
-//     if (scrollingTrigger) {
-//         sFrom = scrollFrom;
-//     }
+    if (scrollingTrigger) {
+        sFrom = scrollFrom;
+    }
 
-//     return {
-//         state: wsState,
-//         searchText: filterValue,
-//         startEpoch: stDate,
-//         endEpoch: endDate,
-//         indexName: selIndexName,
-//         from: sFrom,
-//         queryLanguage: queryLanguage,
-//     };
-// }
+    return {
+        state: wsState,
+        searchText: filterValue,
+        startEpoch: stDate,
+        endEpoch: endDate,
+        indexName: selIndexName,
+        from: sFrom,
+        queryLanguage: queryLanguage,
+    };
+}
 let filterTextQB = '';
 /**
  * get real time search text
@@ -511,7 +511,6 @@ function getQueryBuilderCode() {
 }
 //eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger) {
-    console.log('getSearchFilter: ', skipPushState, scrollingTrigger);
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -549,7 +548,6 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
-        console.log('do search: history push state changed');
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -689,7 +687,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         columnCount = Math.max(columnCount, columnOrder.length) - 1; // Excluding timestamp
 
         renderAvailableFields(columnOrder, columnCount);
-        handleSearchResults(res);
+        handleSearchResultsForPagination(res);
         renderLogsGrid(columnOrder, accumulatedRecords);
         $('#logs-result-container').show();
         $('#agg-result-container').hide();
@@ -786,14 +784,12 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
 }
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
-    console.log('ProcessCompleteUpdate');
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
         processEmptyQueryResults('Your query returned no data, adjust your query.');
     } else {
-        console.log('handleSearchResults');
-        handleSearchResults(res);
+        handleSearchResultsForPagination(res);
     }
 
     if (res.measureFunctions && res.measureFunctions.length > 0) {
@@ -824,7 +820,6 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             totalHits = res.bucketCount;
             $('#views-container').hide();
             columnCount = Math.max(columnCount, columnOrder.length);
-            // handleSearchResults(res);
         }
     } else {
         measureInfo = [];
@@ -1250,19 +1245,6 @@ function renderLogsGrid(columnOrder, hits) {
         }
     });
     if (hits.length !== 0) {
-        // Map hits objects to match the order of columnsOrder
-        // const mappedHits = hits.map((hit) => {
-        //     const reorderedHit = {};
-        //     columnOrder.forEach((column) => {
-        //         // Check if the property exists in the hit object
-        //         if (Object.prototype.hasOwnProperty.call(hit, column)) {
-        //             reorderedHit[column] = hit[column];
-        //         }
-        //     });
-        //     return reorderedHit;
-        // });
-
-        // logsRowData = [...logsRowData, ...mappedHits];
         logsRowData = hits;
         totalLoadedRecords = hits.length;
         updateGridView();
@@ -1310,19 +1292,15 @@ function updateGridView() {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, totalLoadedRecords);
 
-    // Get current page data from accumulated records
     const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
 
     if (currentPageData.length > 0 && gridOptions?.api) {
-        // For aggs queries, use measure data directly
         if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
             gridOptions.api.setRowData(currentPageData);
         } else {
-            // For logs queries, use the existing logic
             gridOptions.api.setRowData(currentPageData);
         }
 
-        // Auto-size columns
         const allColumnIds = [];
         gridOptions.columnApi.getColumns().forEach((column) => {
             allColumnIds.push(column.getId());

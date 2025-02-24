@@ -69,7 +69,6 @@ let columnsWithNonNullValues = new Set();
 let columnsWithNullValues = new Set();
 let allColumns = new Set();
 let isMetricsScreen = false;
-let isLoadingMore = false;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,

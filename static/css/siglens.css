@@ -5714,12 +5714,6 @@ p#versionInfo {
     margin-right: 5px;
 }
 
-#okay-button {
-    background: var(--component-bg-color);
-    color: var(--component-text-color) !important;
-    width: 100px;
-}
-
 .ingest-inner-container {
     padding: 10px;
     height: 100%;
@@ -6518,4 +6512,5 @@ p#versionInfo {
     color: var(--dashboard-title-color);
     text-decoration: underline;
     cursor: pointer;
+    font-weight: bold;
 }

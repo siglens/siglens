@@ -81,20 +81,9 @@ function setupEventHandlers() {
 }
 
 function windowPopStateHandler(evt) {
-    console.log('windowPopStateHandler triggered');
-    console.log('Previous URL:', document.referrer);
-    console.log('Current URL:', window.location.href);
-    console.log('State:', evt.originalEvent.state);
-    // Add stack trace to see what triggered this
-    console.log('Stack:', new Error().stack);
-    // if (isLoadingMore) {
-    //     console.log('Skipping popstate during load more');
-    //     return;
-    // }
     if (location.href.includes('index.html')) {
         let state = evt.originalEvent.state;
         if (state !== null) {
-            console.log('state not null:', state);
             data = getInitialSearchFilter(true, false);
             resetDashboard();
             wsState = 'query';

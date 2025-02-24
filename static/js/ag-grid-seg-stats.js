@@ -53,10 +53,7 @@ function renderMeasuresGrid(columnOrder, hits) {
     segStatsRowData = [];
 
     hits.measure.forEach((resMap, rowIndex) => {
-        // Use forEach with index
-        let rowData = {}; // Use plain object instead of Map
-
-        // Add unique row ID
+        let rowData = {};
         rowData.id = rowIndex;
 
         columnOrder.forEach((colName) => {
@@ -90,26 +87,17 @@ function displayTextWidth(text, font) {
 }
 
 function paginateAggsData(fullData) {
-    console.log('Paginate Agg Groups');
-    // Ensure pageSize is a number
     pageSize = parseInt(pageSize);
 
     // Calculate start and end indices for current page
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, fullData.length);
 
-    // Get the slice of data for current page
     const paginatedData = fullData.slice(startIndex, endIndex);
 
-    console.log(`Paginating data: Page ${currentPage}, showing records ${startIndex + 1}-${endIndex} of ${fullData.length}`);
-    console.log('First row of current page:', paginatedData[0]);
-
-    // Update total records count
     totalLoadedRecords = fullData.length;
 
-    // Update the grid with paginated data
     aggGridOptions.api.setRowData(paginatedData);
 
-    // Update pagination display
     updatePaginationDisplay();
 }
