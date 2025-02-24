@@ -6438,3 +6438,81 @@ p#versionInfo {
 .copy-json-button:hover {
     color: #000;
 }
+
+
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    background: #fff;
+}
+
+.pagination-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.page-size-select {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.pagination-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.page-btn {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.page-number {
+    padding: 5px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #fff;
+}
+
+.page-number.active {
+    background: #6449D6;
+    color: white;
+    border-color: #6449D6;
+}
+
+.page-ellipsis {
+    padding: 0 5px;
+}
+
+.load-more-container {
+    text-align: center;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    display: none;
+}
+
+.load-more-link {
+    color: #0066cc;
+    text-decoration: underline;
+    cursor: pointer;
+}

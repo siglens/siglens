@@ -549,10 +549,9 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
     window.history.pushState({ path: myUrl }, '', myUrl);
 
     if (scrollingTrigger) {
-        sFrom = scrollFrom;
+        sFrom = totalLoadedRecords; // Use totalLoadedRecords instead of scrollFrom
     }
 
-    filterTextQB = filterValue;
     return {
         state: wsState,
         searchText: filterValue,
@@ -560,6 +559,7 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         endEpoch: endDate,
         indexName: selIndexName,
         from: sFrom,
+        size: pageSize, // Use pageSize for regular queries
         queryLanguage: queryLanguage,
     };
 }
@@ -660,6 +660,7 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
     let columnOrder = [];
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
+
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = _.uniq(
                 _.concat(
@@ -686,7 +687,9 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
 
         renderAvailableFields(columnOrder, columnCount);
         renderLogsGrid(columnOrder, res.hits.records);
-
+        if (res.hits && res.hits.records) {
+            handleSearchResults(res);
+        }
         $('#logs-result-container').show();
         $('#agg-result-container').hide();
 
@@ -782,14 +785,20 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
 }
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
+    console.log("ProcessCompleteUpdate")
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
         processEmptyQueryResults('Your query returned no data, adjust your query.');
+    }else{
+        console.log("handleSearchResults")
+        handleSearchResults(res);
     }
+
     if (res.measureFunctions && res.measureFunctions.length > 0) {
         measureFunctions = res.measureFunctions;
     }
+
     if (res.measure) {
         measureInfo = res.measure;
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
@@ -809,6 +818,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         aggsColumnDefs = [];
         segStatsRowData = [];
         renderMeasuresGrid(columnOrder, res);
+
         if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.bucketCount) {
             totalHits = res.bucketCount;
             $('#views-container').hide();
@@ -1239,18 +1249,21 @@ function renderLogsGrid(columnOrder, hits) {
     });
     if (hits.length !== 0) {
         // Map hits objects to match the order of columnsOrder
-        const mappedHits = hits.map((hit) => {
-            const reorderedHit = {};
-            columnOrder.forEach((column) => {
-                // Check if the property exists in the hit object
-                if (Object.prototype.hasOwnProperty.call(hit, column)) {
-                    reorderedHit[column] = hit[column];
-                }
-            });
-            return reorderedHit;
-        });
+        // const mappedHits = hits.map((hit) => {
+        //     const reorderedHit = {};
+        //     columnOrder.forEach((column) => {
+        //         // Check if the property exists in the hit object
+        //         if (Object.prototype.hasOwnProperty.call(hit, column)) {
+        //             reorderedHit[column] = hit[column];
+        //         }
+        //     });
+        //     return reorderedHit;
+        // });
 
-        logsRowData = [...logsRowData, ...mappedHits];
+        // logsRowData = [...logsRowData, ...mappedHits];
+        logsRowData = hits;
+        totalLoadedRecords = hits.length;
+        updateGridView();
     }
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
@@ -1287,4 +1300,14 @@ function renderLogsGrid(columnOrder, hits) {
 function getLogView() {
     let logview = Cookies.get('log-view') || 'table';
     return logview;
+}
+
+
+function updateGridView() {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalLoadedRecords);
+    
+    // Update grid with current page data
+    visibleData = logsRowData.slice(startIndex, endIndex);
+    gridOptions.api.setRowData(visibleData);
 }
