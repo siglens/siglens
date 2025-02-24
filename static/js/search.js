@@ -66,6 +66,7 @@ let doSearchCounter = 0;
 let columnCount = 0;
 //eslint-disable-next-line no-unused-vars
 function doSearch(data) {
+    console.log('doSearch', data);
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
@@ -424,43 +425,43 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         includeNulls: false, // Exclude null values
     };
 }
-function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
-    let filterValue = $('#filter-input').val().trim() || '*';
-    let endDate = 'now';
-    let date = new Date();
-    let stDate = new Date(date.getTime() - startTime * 1000).getTime();
-    if (startTime == 1800) stDate = 'now-1h';
-    let selIndexName = selectedSearchIndex;
-    let sFrom = 0;
-    let queryLanguage = $('#query-language-options .query-language-option.active').html();
+// function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
+//     let filterValue = $('#filter-input').val().trim() || '*';
+//     let endDate = 'now';
+//     let date = new Date();
+//     let stDate = new Date(date.getTime() - startTime * 1000).getTime();
+//     if (startTime == 1800) stDate = 'now-1h';
+//     let selIndexName = selectedSearchIndex;
+//     let sFrom = 0;
+//     let queryLanguage = $('#query-language-options .query-language-option.active').html();
 
-    setIndexDisplayValue(selIndexName);
+//     setIndexDisplayValue(selIndexName);
 
-    selectedSearchIndex = selIndexName.split(',').join(',');
-    Cookies.set('IndexList', selIndexName.split(',').join(','));
+//     selectedSearchIndex = selIndexName.split(',').join(',');
+//     Cookies.set('IndexList', selIndexName.split(',').join(','));
 
-    addQSParm('searchText', filterValue);
-    addQSParm('startEpoch', stDate);
-    addQSParm('endEpoch', endDate);
-    addQSParm('indexName', selIndexName);
-    addQSParm('queryLanguage', queryLanguage);
+//     addQSParm('searchText', filterValue);
+//     addQSParm('startEpoch', stDate);
+//     addQSParm('endEpoch', endDate);
+//     addQSParm('indexName', selIndexName);
+//     addQSParm('queryLanguage', queryLanguage);
 
-    window.history.pushState({ path: myUrl }, '', myUrl);
+//     window.history.pushState({ path: myUrl }, '', myUrl);
 
-    if (scrollingTrigger) {
-        sFrom = scrollFrom;
-    }
+//     if (scrollingTrigger) {
+//         sFrom = scrollFrom;
+//     }
 
-    return {
-        state: wsState,
-        searchText: filterValue,
-        startEpoch: stDate,
-        endEpoch: endDate,
-        indexName: selIndexName,
-        from: sFrom,
-        queryLanguage: queryLanguage,
-    };
-}
+//     return {
+//         state: wsState,
+//         searchText: filterValue,
+//         startEpoch: stDate,
+//         endEpoch: endDate,
+//         indexName: selIndexName,
+//         from: sFrom,
+//         queryLanguage: queryLanguage,
+//     };
+// }
 let filterTextQB = '';
 /**
  * get real time search text
@@ -510,6 +511,7 @@ function getQueryBuilderCode() {
 }
 //eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger) {
+    console.log("getSearchFilter: ", skipPushState, scrollingTrigger)
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -539,17 +541,20 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         filterValue = $('#filter-input').val().trim() || '*';
         isQueryBuilderSearch = false;
     }
-    addQSParm('searchText', filterValue);
-    addQSParm('startEpoch', stDate);
-    addQSParm('endEpoch', endDate);
-    addQSParm('indexName', selIndexName);
-    addQSParm('queryLanguage', queryLanguage);
-    addQSParm('filterTab', currentTab);
 
-    window.history.pushState({ path: myUrl }, '', myUrl);
+    if (!skipPushState) {
+        addQSParm('searchText', filterValue);
+        addQSParm('startEpoch', stDate);
+        addQSParm('endEpoch', endDate);
+        addQSParm('indexName', selIndexName);
+        addQSParm('queryLanguage', queryLanguage);
+        addQSParm('filterTab', currentTab);
+        console.log("do search: history push state changed");
+        window.history.pushState({ path: myUrl }, '', myUrl);
+    }
 
     if (scrollingTrigger) {
-        sFrom = totalLoadedRecords; // Use totalLoadedRecords instead of scrollFrom
+        sFrom = totalLoadedRecords;
     }
 
     return {
@@ -559,7 +564,6 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         endEpoch: endDate,
         indexName: selIndexName,
         from: sFrom,
-        size: pageSize, // Use pageSize for regular queries
         queryLanguage: queryLanguage,
     };
 }
@@ -660,7 +664,6 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
     let columnOrder = [];
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
-
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = _.uniq(
                 _.concat(
@@ -686,10 +689,8 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         columnCount = Math.max(columnCount, columnOrder.length) - 1; // Excluding timestamp
 
         renderAvailableFields(columnOrder, columnCount);
-        renderLogsGrid(columnOrder, res.hits.records);
-        if (res.hits && res.hits.records) {
-            handleSearchResults(res);
-        }
+        handleSearchResults(res);
+        renderLogsGrid(columnOrder, accumulatedRecords);
         $('#logs-result-container').show();
         $('#agg-result-container').hide();
 
@@ -785,13 +786,13 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
 }
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
-    console.log("ProcessCompleteUpdate")
+    console.log('ProcessCompleteUpdate');
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
         processEmptyQueryResults('Your query returned no data, adjust your query.');
-    }else{
-        console.log("handleSearchResults")
+    } else {
+        console.log('handleSearchResults');
         handleSearchResults(res);
     }
 
@@ -1302,12 +1303,23 @@ function getLogView() {
     return logview;
 }
 
-
 function updateGridView() {
+    if (!accumulatedRecords.length) return;
+
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, totalLoadedRecords);
-    
-    // Update grid with current page data
-    visibleData = logsRowData.slice(startIndex, endIndex);
-    gridOptions.api.setRowData(visibleData);
+
+    // Get current page data from accumulated records
+    const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
+
+    if (currentPageData.length > 0 && gridOptions?.api) {
+        gridOptions.api.setRowData(currentPageData);
+
+        // Auto-size columns
+        const allColumnIds = [];
+        gridOptions.columnApi.getColumns().forEach((column) => {
+            allColumnIds.push(column.getId());
+        });
+        gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
+    }
 }

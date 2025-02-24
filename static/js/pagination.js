@@ -3,7 +3,7 @@ let currentPage = 1;
 let pageSize = 20; // Default page size
 let totalLoadedRecords = 0;
 let hasMoreRecords = false;
-
+let accumulatedRecords = [];
 function initializePagination() {
     const paginationHtml = `
         <div class="pagination-controls">
@@ -55,41 +55,65 @@ function goToPage(page) {
 }
 
 function handleSearchResults(results) {
-    let records;
-    let hasMore = false;
+    // Handle QUERY_UPDATE state
+    console.log(data)
+    const fromValue = data.from || 0;  // 'data' being the last request sent
 
-    if (results.hits?.records) {
-        records = results.hits.records;
-        hasMore = results.hits.totalMatched.relation === 'gte';
-        totalLoadedRecords = results.hits.totalMatched.value;
-    }
-
-    if (results.state === 'COMPLETE') {
-        hasMore = results.totalMatched.relation === 'gte';
-        hasMoreRecords = hasMore;
-        updateLoadMoreMessage();
-    }
-
-    if (records) {
-        if (results.from === 0) {
-            logsRowData = records;
+    if (results.state === 'QUERY_UPDATE' && results.hits) {
+        // Only reset records if this is a new search (not a load more)
+        if (totalLoadedRecords === 0) {
+            accumulatedRecords = [];
             currentPage = 1;
-        } else {
-            logsRowData = [...logsRowData, ...records];
         }
 
-        hasMoreRecords = hasMore;
+        // Add new records if available
+        if (results.hits.records && Array.isArray(results.hits.records)) {
+            // Append new records
+            accumulatedRecords = [...accumulatedRecords, ...results.hits.records];
+            logsRowData = accumulatedRecords;
+            totalLoadedRecords = accumulatedRecords.length;
+
+            // If this was a load more request, update pagination
+            if (results.from > 0) {
+                // Calculate new total pages
+                const totalPages = Math.ceil(totalLoadedRecords / pageSize);
+
+                // If we're on the last page, stay there
+                if (currentPage === Math.ceil(results.from / pageSize)) {
+                    currentPage = totalPages;
+                }
+            }
+        }
+
+        // Update hasMoreRecords from query update
+        if (results.hits.totalMatched) {
+            hasMoreRecords = results.hits.totalMatched.relation === 'gte';
+        }
+
+        // Update grid and pagination
+        updateGridView();
+        updatePaginationDisplay();
+    }
+    // Handle COMPLETE state
+    else if (results.state === 'COMPLETE') {
+        // Update final counts and flags
+        if (results.totalMatched) {
+            totalLoadedRecords = results.totalMatched.value;
+            hasMoreRecords = results.totalMatched.relation === 'gte';
+        }
+
+        // Update scroll-related data
+        canScrollMore = results.can_scroll_more;
+        if (results.total_rrc_count > 0) {
+            scrollFrom = results.total_rrc_count;
+            totalRrcCount = results.total_rrc_count;
+        }
+
+        // Final updates
         updateGridView();
         updatePaginationDisplay();
         updateLoadMoreMessage();
     }
-}
-
-function updateGridView() {
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalLoadedRecords);
-    const currentPageData = logsRowData.slice(startIndex, endIndex);
-    gridOptions.api.setRowData(currentPageData);
 }
 
 function updatePaginationDisplay() {
@@ -162,10 +186,34 @@ function updateLoadMoreMessage() {
 }
 
 function loadMoreResults() {
-    const data = getSearchFilter(false, false);
+    console.log("Loading results...");
+    const data = getSearchFilter(true, true);
     data.from = totalLoadedRecords;
-    data.size = pageSize;
-    doSearch(data);
+    // data.size = pageSize;
+
+    if (initialSearchData && (
+        data.searchText !== initialSearchData.searchText ||
+        data.indexName !== initialSearchData.indexName ||
+        data.startEpoch !== initialSearchData.startEpoch ||
+        data.endEpoch !== initialSearchData.endEpoch ||
+        data.queryLanguage !== initialSearchData.queryLanguage
+    )) {
+        // Show error if search params changed
+        scrollingErrorPopup();
+        return;
+    }
+
+    console.log('loadMoreResults', data);
+    console.trace('loadMoreResults called');
+    isLoadingMore = true;
+    doSearch(data)
+        .then(() => {
+            isLoadingMore = false;
+        })
+        .catch((error) => {
+            isLoadingMore = false;
+            console.error('Error loading more results:', error);
+        });
 }
 
 function isLastPage() {

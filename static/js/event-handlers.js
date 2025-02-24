@@ -81,14 +81,25 @@ function setupEventHandlers() {
 }
 
 function windowPopStateHandler(evt) {
+    console.log('windowPopStateHandler triggered');
+    console.log('Previous URL:', document.referrer);
+    console.log('Current URL:', window.location.href);
+    console.log('State:', evt.originalEvent.state);
+    // Add stack trace to see what triggered this
+    console.log('Stack:', new Error().stack);
+    // if (isLoadingMore) {
+    //     console.log('Skipping popstate during load more');
+    //     return;
+    // }
     if (location.href.includes('index.html')) {
         let state = evt.originalEvent.state;
         if (state !== null) {
+            console.log("state not null:", state);
             data = getInitialSearchFilter(true, false);
+            resetDashboard();
+            wsState = 'query';
+            doSearch(data);
         }
-        resetDashboard();
-        wsState = 'query';
-        doSearch(data);
     }
 }
 
@@ -470,6 +481,8 @@ function runFilterBtnHandler(evt) {
         } else {
             resetDashboard();
             logsRowData = [];
+            accumulatedRecords = [];
+            totalLoadedRecords = 0;
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
@@ -485,6 +498,8 @@ function filterInputHandler(evt) {
     if (evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
         resetDashboard();
         logsRowData = [];
+        accumulatedRecords = [];
+        totalLoadedRecords = 0;
         data = getSearchFilter(false, false);
         initialSearchData = data;
         availColNames = [];
