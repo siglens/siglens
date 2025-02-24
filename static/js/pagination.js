@@ -5,6 +5,7 @@ let hasMoreRecords = false;
 let accumulatedRecords = [];
 let isLoadingMore = false;
 
+//eslint-disable-next-line no-unused-vars
 function initializePagination() {
     const paginationHtml = `
         <div class="pagination-controls">
@@ -42,6 +43,7 @@ function handlePageSizeChange(event) {
     }
 }
 
+//eslint-disable-next-line no-unused-vars
 function goToPage(page) {
     const totalPages = Math.ceil(totalLoadedRecords / pageSize);
     if (page < 1 || page > totalPages) return;
@@ -63,6 +65,7 @@ function goToPage(page) {
     }
 }
 
+//eslint-disable-next-line no-unused-vars
 function handleSearchResultsForPagination(results) {
     $('#pagination-container').show();
     // For aggs and segstats queries
