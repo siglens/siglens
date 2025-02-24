@@ -823,8 +823,8 @@ func GetTestConfig(dataPath string) common.Configuration {
 	// ************************************
 
 	testConfig := common.Configuration{
-		IngestListenIP:              "0.0.0.0",
-		QueryListenIP:               "0.0.0.0",
+		IngestListenIP:              "[::]",
+		QueryListenIP:               "[::]",
 		IngestPort:                  8081,
 		QueryPort:                   5122,
 		IngestUrl:                   "",
@@ -968,10 +968,10 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if len(config.IngestListenIP) <= 0 {
-		config.IngestListenIP = "0.0.0.0"
+		config.IngestListenIP = "[::]"
 	}
 	if len(config.QueryListenIP) <= 0 {
-		config.QueryListenIP = "0.0.0.0"
+		config.QueryListenIP = "[::]"
 	}
 
 	if config.IngestPort <= 0 {

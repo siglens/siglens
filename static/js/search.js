@@ -539,20 +539,21 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         filterValue = $('#filter-input').val().trim() || '*';
         isQueryBuilderSearch = false;
     }
-    addQSParm('searchText', filterValue);
-    addQSParm('startEpoch', stDate);
-    addQSParm('endEpoch', endDate);
-    addQSParm('indexName', selIndexName);
-    addQSParm('queryLanguage', queryLanguage);
-    addQSParm('filterTab', currentTab);
 
-    window.history.pushState({ path: myUrl }, '', myUrl);
-
-    if (scrollingTrigger) {
-        sFrom = scrollFrom;
+    if (!skipPushState) {
+        addQSParm('searchText', filterValue);
+        addQSParm('startEpoch', stDate);
+        addQSParm('endEpoch', endDate);
+        addQSParm('indexName', selIndexName);
+        addQSParm('queryLanguage', queryLanguage);
+        addQSParm('filterTab', currentTab);
+        window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
-    filterTextQB = filterValue;
+    if (scrollingTrigger) {
+        sFrom = totalLoadedRecords;
+    }
+
     return {
         state: wsState,
         searchText: filterValue,
@@ -685,8 +686,8 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         columnCount = Math.max(columnCount, columnOrder.length) - 1; // Excluding timestamp
 
         renderAvailableFields(columnOrder, columnCount);
-        renderLogsGrid(columnOrder, res.hits.records);
-
+        handleSearchResultsForPagination(res);
+        renderLogsGrid(columnOrder, accumulatedRecords);
         $('#logs-result-container').show();
         $('#agg-result-container').hide();
 
@@ -786,10 +787,14 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
         processEmptyQueryResults('Your query returned no data, adjust your query.');
+    } else {
+        handleSearchResultsForPagination(res);
     }
+
     if (res.measureFunctions && res.measureFunctions.length > 0) {
         measureFunctions = res.measureFunctions;
     }
+
     if (res.measure) {
         measureInfo = res.measure;
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
@@ -809,6 +814,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         aggsColumnDefs = [];
         segStatsRowData = [];
         renderMeasuresGrid(columnOrder, res);
+
         if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.bucketCount) {
             totalHits = res.bucketCount;
             $('#views-container').hide();
@@ -1238,19 +1244,9 @@ function renderLogsGrid(columnOrder, hits) {
         }
     });
     if (hits.length !== 0) {
-        // Map hits objects to match the order of columnsOrder
-        const mappedHits = hits.map((hit) => {
-            const reorderedHit = {};
-            columnOrder.forEach((column) => {
-                // Check if the property exists in the hit object
-                if (Object.prototype.hasOwnProperty.call(hit, column)) {
-                    reorderedHit[column] = hit[column];
-                }
-            });
-            return reorderedHit;
-        });
-
-        logsRowData = [...logsRowData, ...mappedHits];
+        logsRowData = hits;
+        totalLoadedRecords = hits.length;
+        updateGridView();
     }
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
@@ -1287,4 +1283,27 @@ function renderLogsGrid(columnOrder, hits) {
 function getLogView() {
     let logview = Cookies.get('log-view') || 'table';
     return logview;
+}
+
+function updateGridView() {
+    if (!accumulatedRecords.length) return;
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalLoadedRecords);
+
+    const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
+
+    if (currentPageData.length > 0 && gridOptions?.api) {
+        if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
+            gridOptions.api.setRowData(currentPageData);
+        } else {
+            gridOptions.api.setRowData(currentPageData);
+        }
+
+        const allColumnIds = [];
+        gridOptions.columnApi.getColumns().forEach((column) => {
+            allColumnIds.push(column.getId());
+        });
+        gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
+    }
 }

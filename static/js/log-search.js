@@ -120,6 +120,12 @@ $(document).ready(async () => {
         $('#initial-response').show();
     }
 
+    initializePagination();
+    const pageSizeSelect = document.getElementById('page-size-select');
+    if (pageSizeSelect) {
+        pageSizeSelect.value = pageSize.toString();
+    }
+
     $('body').css('cursor', 'default');
 
     $('.theme-btn').on('click', themePickerHandler);
