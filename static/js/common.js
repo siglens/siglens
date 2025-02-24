@@ -1265,11 +1265,16 @@ function syntaxHighlight(json) {
 }
 
 function ExpandableJsonCellRenderer(type = 'events') {
+    const state = {
+        currentExpandedCell: null
+    };
+
     return class {
         init(params) {
             this.params = params;
             this.eGui = document.createElement('div');
             this.eGui.style.display = 'flex';
+            this.isExpanded = false;
 
             const displayValue = type === 'logs' && params.column.colId === 'timestamp' 
                 ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
@@ -1284,14 +1289,42 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 <span>${displayValue}</span>
             `;
 
-            const expandBtn = this.eGui.querySelector('.expand-icon-box');
-            expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
+            this.expandBtn = this.eGui.querySelector('.expand-icon-box');
+            this.expandIcon = this.eGui.querySelector('.expand-icon-button i');
+            this.expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
+
+            document.addEventListener('jsonPanelClosed', () => {
+                if (state.currentExpandedCell === this) {
+                    this.isExpanded = false;
+                    this.updateIcon();
+                    state.currentExpandedCell = null;
+                }
+            });
+        }
+
+        updateIcon() {
+            if (this.isExpanded) {
+                this.expandIcon.classList.remove('fa-up-right-and-down-left-from-center');
+                this.expandIcon.classList.add('fa-down-left-and-up-right-to-center');
+            } else {
+                this.expandIcon.classList.remove('fa-down-left-and-up-right-to-center');
+                this.expandIcon.classList.add('fa-up-right-and-down-left-from-center');
+            }
         }
 
         showJsonPanel(event) {
             event.stopPropagation();
             const jsonPopup = document.querySelector('.json-popup');
             const rowData = this.params.node.data;
+
+            if (state.currentExpandedCell && state.currentExpandedCell !== this) {
+                state.currentExpandedCell.isExpanded = false;
+                state.currentExpandedCell.updateIcon();
+            }
+
+            this.isExpanded = !this.isExpanded;
+            this.updateIcon();
+            state.currentExpandedCell = this.isExpanded ? this : null;
 
             window.copyJsonToClipboard = function() {
                 const jsonContent = document.querySelector('#json-tab div').innerText;
@@ -1385,6 +1418,10 @@ function ExpandableJsonCellRenderer(type = 'events') {
             const closeBtn = jsonPopup.querySelector('.json-popup-close');
             closeBtn.onclick = () => {
                 jsonPopup.classList.remove('active');
+                this.isExpanded = false;
+                this.updateIcon();
+                state.currentExpandedCell = null;
+                document.dispatchEvent(new CustomEvent('jsonPanelClosed'));
                 this.params.api.sizeColumnsToFit();
             };
 

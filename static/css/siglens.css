@@ -6610,6 +6610,7 @@ p#versionInfo {
     z-index: 10;
 }
 
+/* Pagination  */
 .pagination-controls {
     display: flex;
     justify-content: space-between;
@@ -6627,6 +6628,8 @@ p#versionInfo {
     padding: 4px 8px;
     border: 1px solid var(--border-btn-color);
     border-radius: 4px;
+    background-color: var(--default-tab);
+    color: var(--text-color);
 }
 
 .pagination-right {
@@ -6683,7 +6686,7 @@ p#versionInfo {
 }
 
 .load-more-link {
-    color: var(--dashboard-title-color);
+    color: var(--dashboard-title-color) !important;
     text-decoration: underline;
     cursor: pointer;
     font-weight: bold;
