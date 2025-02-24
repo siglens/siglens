@@ -824,6 +824,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             totalHits = res.bucketCount;
             $('#views-container').hide();
             columnCount = Math.max(columnCount, columnOrder.length);
+            // handleSearchResults(res);
         }
     } else {
         measureInfo = [];
@@ -1313,7 +1314,13 @@ function updateGridView() {
     const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
 
     if (currentPageData.length > 0 && gridOptions?.api) {
-        gridOptions.api.setRowData(currentPageData);
+        // For aggs queries, use measure data directly
+        if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
+            gridOptions.api.setRowData(currentPageData);
+        } else {
+            // For logs queries, use the existing logic
+            gridOptions.api.setRowData(currentPageData);
+        }
 
         // Auto-size columns
         const allColumnIds = [];

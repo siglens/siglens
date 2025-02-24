@@ -21,20 +21,25 @@ function initializePagination() {
         <div id="load-more-container" class="load-more-container"></div>
     `;
 
-    // Add pagination HTML after the grid
-    const container = document.querySelector('#LogResultsGrid');
-    container.insertAdjacentHTML('afterend', paginationHtml);
+    const paginationContainer = document.querySelector('#pagination-container');
+    paginationContainer.innerHTML = paginationHtml;
 
-    // Add event listener
     document.getElementById('page-size-select').addEventListener('change', handlePageSizeChange);
 }
 
 function handlePageSizeChange(event) {
     pageSize = parseInt(event.target.value);
-    currentPage = 1;
-    updateGridView();
-    updatePaginationDisplay();
-    updateLoadMoreMessage(); // Add here
+    currentPage = 1; // Reset to first page when changing page size
+
+    // If we're showing aggs data
+    if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
+        paginateAggsData(segStatsRowData);
+    } else {
+        // Your existing logic for non-aggs data
+        updateGridView();
+        updatePaginationDisplay();
+        updateLoadMoreMessage();
+    }
 }
 
 function goToPage(page) {
@@ -42,22 +47,61 @@ function goToPage(page) {
     if (page < 1 || page > totalPages) return;
 
     currentPage = page;
-    const startIndex = (currentPage - 1) * pageSize;
 
-    // If we need more data and this is the last page
-    if (startIndex + pageSize > totalLoadedRecords && hasMoreRecords) {
-        loadMoreResults();
+    // Check if we're dealing with aggs data or regular logs
+    if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
+        // For aggs data, use paginateAggsData since we already have all the data
+        paginateAggsData(segStatsRowData);
     } else {
-        updateGridView();
-        updatePaginationDisplay();
-        updateLoadMoreMessage(); // Add here
+        // For regular logs data, use existing logic
+        const startIndex = (currentPage - 1) * pageSize;
+
+        if (startIndex + pageSize > totalLoadedRecords && hasMoreRecords) {
+            loadMoreResults();
+        } else {
+            updateGridView();
+            updatePaginationDisplay();
+            updateLoadMoreMessage();
+        }
     }
 }
 
 function handleSearchResults(results) {
+    console.log('handleSearchResults', results.qtype);
     // Handle QUERY_UPDATE state
-    console.log(data)
-    const fromValue = data.from || 0;  // 'data' being the last request sent
+    // Handle aggregation queries
+    if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
+        console.log('aggs-query accumulatedRecords.length', accumulatedRecords.length);
+        if (!accumulatedRecords.length) {
+            accumulatedRecords = [];
+            currentPage = 1;
+        }
+        if (results.state === 'QUERY_UPDATE' && results.measure) {
+            // For aggs QUERY_UPDATE, start accumulating results
+
+            // Accumulate measure data
+            if (Array.isArray(results.measure)) {
+                accumulatedRecords = [...accumulatedRecords, ...results.measure];
+            }
+
+            // Update pagination based on current accumulated records
+            totalLoadedRecords = accumulatedRecords.length;
+            updateGridView();
+            updatePaginationDisplay();
+        } else if (results.state === 'COMPLETE') {
+            // For COMPLETE state, we have final bucket count
+            if (results.bucketCount) {
+                totalLoadedRecords = results.bucketCount;
+                hasMoreRecords = false; // No load more for aggs
+            }
+
+            // Update grid and pagination with final data
+            updateGridView();
+            updatePaginationDisplay();
+            updateLoadMoreMessage();
+        }
+        return; // Exit early for aggs queries
+    }
 
     if (results.state === 'QUERY_UPDATE' && results.hits) {
         // Only reset records if this is a new search (not a load more)
@@ -117,6 +161,7 @@ function handleSearchResults(results) {
 }
 
 function updatePaginationDisplay() {
+    console.log('updatePaginationDisplay');
     const totalPages = Math.ceil(totalLoadedRecords / pageSize);
     const pagesContainer = document.querySelector('.pagination-right');
 
@@ -159,7 +204,7 @@ function updatePaginationDisplay() {
             <i class="fa fa-angle-double-right"></i>
         </button>
         <span class="pagination-info">
-            Showing ${startRecord}-${endRecord} of ${totalLoadedRecords} records
+            Showing Showing ${startRecord.toLocaleString()}-${endRecord.toLocaleString()} of ${totalLoadedRecords.toLocaleString()} records
         </span>`;
 
     pagesContainer.innerHTML = paginationHTML;
@@ -175,6 +220,13 @@ function updateLoadMoreMessage() {
     if (!messageContainer) return;
     console.log('updateLoadMoreMessage: hasMoreRecords', hasMoreRecords);
     console.log('updateLoadMoreMessage: isLastPage()', isLastPage());
+
+    // Hide load more for aggs queries
+    if (lastQType === 'aggs-query') {
+        messageContainer.style.display = 'none';
+        return;
+    }
+
     if (hasMoreRecords && isLastPage()) {
         messageContainer.innerHTML = `
             Search results are limited to ${totalLoadedRecords} documents. 
@@ -186,18 +238,12 @@ function updateLoadMoreMessage() {
 }
 
 function loadMoreResults() {
-    console.log("Loading results...");
+    console.log('Loading results...');
     const data = getSearchFilter(true, true);
     data.from = totalLoadedRecords;
     // data.size = pageSize;
 
-    if (initialSearchData && (
-        data.searchText !== initialSearchData.searchText ||
-        data.indexName !== initialSearchData.indexName ||
-        data.startEpoch !== initialSearchData.startEpoch ||
-        data.endEpoch !== initialSearchData.endEpoch ||
-        data.queryLanguage !== initialSearchData.queryLanguage
-    )) {
+    if (initialSearchData && (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage)) {
         // Show error if search params changed
         scrollingErrorPopup();
         return;

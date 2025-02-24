@@ -2914,6 +2914,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    outline: none;
 }
 
 .ag-cell-wrapper {
@@ -6354,8 +6355,9 @@ p#versionInfo {
 .json-key-values {
     white-space: pre-wrap !important;
 }
+
 .json-value {
-  color: #dc3545;
+    color: #dc3545;
 }
 
 .tab-button {
@@ -6445,8 +6447,6 @@ p#versionInfo {
     justify-content: space-between;
     align-items: center;
     padding: 10px;
-    border-top: 1px solid #ddd;
-    background: #fff;
 }
 
 .pagination-left {
@@ -6457,7 +6457,7 @@ p#versionInfo {
 
 .page-size-select {
     padding: 4px 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-btn-color);
     border-radius: 4px;
 }
 
@@ -6469,10 +6469,11 @@ p#versionInfo {
 
 .page-btn {
     padding: 5px 10px;
-    border: 1px solid #ddd;
-    background: #fff;
+    border: 1px solid var(--border-btn-color);
+    background-color: var(--default-tab);
     border-radius: 4px;
     cursor: pointer;
+    color: var(--text-color);
 }
 
 .page-btn:disabled {
@@ -6488,10 +6489,11 @@ p#versionInfo {
 
 .page-number {
     padding: 5px 10px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-btn-color);
     border-radius: 4px;
     cursor: pointer;
-    background: #fff;
+    background-color: var(--default-tab);
+    color: var(--text-color);
 }
 
 .page-number.active {
@@ -6507,12 +6509,13 @@ p#versionInfo {
 .load-more-container {
     text-align: center;
     padding: 10px;
-    border-top: 1px solid #ddd;
+    border: 1px solid var(--border-btn-color);
     display: none;
+    border-radius: 4px;
 }
 
 .load-more-link {
-    color: #0066cc;
+    color: var(--dashboard-title-color);
     text-decoration: underline;
     cursor: pointer;
 }

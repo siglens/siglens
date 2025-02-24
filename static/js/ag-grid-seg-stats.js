@@ -46,34 +46,39 @@ function renderMeasuresGrid(columnOrder, hits) {
             cellRenderer: cellRenderer,
         };
     });
+
     aggsColumnDefs = _.chain(aggsColumnDefs).concat(colDefs).uniqBy('field').value();
     aggGridOptions.api.setColumnDefs(aggsColumnDefs);
-    let newRow = new Map();
-    $.each(hits.measure, function (_key, resMap) {
-        newRow.set('id', 0);
-        columnOrder.map((colName, _index) => {
-            let fieldId = colName.replace(/\s+/g, '_').replace(/[^\w\s]/gi, ''); // Replace special characters and spaces
+
+    segStatsRowData = [];
+
+    hits.measure.forEach((resMap, rowIndex) => {
+        // Use forEach with index
+        let rowData = {}; // Use plain object instead of Map
+
+        // Add unique row ID
+        rowData.id = rowIndex;
+
+        columnOrder.forEach((colName) => {
+            let fieldId = colName.replace(/\s+/g, '_').replace(/[^\w\s]/gi, '');
             let ind = -1;
             if (hits.groupByCols != undefined && hits.groupByCols.length > 0) {
                 ind = findColumnIndex(hits.groupByCols, colName);
             }
-            //group by col
+
             if (ind != -1 && resMap.GroupByValues.length != 1 && resMap.GroupByValues[ind] != '*') {
-                newRow.set(fieldId, resMap.GroupByValues[ind]);
+                rowData[fieldId] = resMap.GroupByValues[ind];
             } else if (ind != -1 && resMap.GroupByValues.length === 1 && resMap.GroupByValues[0] != '*') {
-                newRow.set(fieldId, resMap.GroupByValues[0]);
+                rowData[fieldId] = resMap.GroupByValues[0];
             } else {
-                // Check if MeasureVal is undefined or null and set it to ''
-                if (resMap.MeasureVal[colName] === undefined || resMap.MeasureVal[colName] === null) {
-                    newRow.set(fieldId, '');
-                } else {
-                    newRow.set(fieldId, resMap.MeasureVal[colName]);
-                }
+                rowData[fieldId] = resMap.MeasureVal[colName] ?? '';
             }
         });
-        segStatsRowData = _.concat(segStatsRowData, Object.fromEntries(newRow));
+
+        segStatsRowData.push(rowData);
     });
-    aggGridOptions.api.setRowData(segStatsRowData);
+
+    paginateAggsData(segStatsRowData);
 }
 
 function displayTextWidth(text, font) {
@@ -82,4 +87,29 @@ function displayTextWidth(text, font) {
     context.font = font;
     let metrics = context.measureText(text);
     return metrics.width;
+}
+
+function paginateAggsData(fullData) {
+    console.log("Paginate Agg Groups")
+    // Ensure pageSize is a number
+    pageSize = parseInt(pageSize);
+
+    // Calculate start and end indices for current page
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, fullData.length);
+
+    // Get the slice of data for current page
+    const paginatedData = fullData.slice(startIndex, endIndex);
+
+    console.log(`Paginating data: Page ${currentPage}, showing records ${startIndex + 1}-${endIndex} of ${fullData.length}`);
+    console.log('First row of current page:', paginatedData[0]);
+
+    // Update total records count
+    totalLoadedRecords = fullData.length;
+
+    // Update the grid with paginated data
+    aggGridOptions.api.setRowData(paginatedData);
+
+    // Update pagination display
+    updatePaginationDisplay();
 }
