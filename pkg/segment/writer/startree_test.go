@@ -271,7 +271,7 @@ func TestStarTree(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, cwip := range ss.wipBlock.colWips {
-			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+			ss.wipBlock.maxIdx = max(ss.wipBlock.maxIdx, cwip.cbufidx)
 		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
@@ -372,7 +372,7 @@ func TestStarTreeMedium(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, cwip := range ss.wipBlock.colWips {
-			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+			ss.wipBlock.maxIdx = max(ss.wipBlock.maxIdx, cwip.cbufidx)
 		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
@@ -473,7 +473,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, cwip := range ss.wipBlock.colWips {
-			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+			ss.wipBlock.maxIdx = max(ss.wipBlock.maxIdx, cwip.cbufidx)
 		}
 		ss.wipBlock.blockSummary.RecCount += 1
 		ss.RecordCount++
@@ -576,7 +576,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, cwip := range ss.wipBlock.colWips {
-			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+			ss.wipBlock.maxIdx = max(ss.wipBlock.maxIdx, cwip.cbufidx)
 		}
 
 		ss.wipBlock.blockSummary.RecCount += 1
@@ -935,7 +935,7 @@ func TestStarTree2(t *testing.T) {
 		assert.NoError(t, err)
 
 		for _, cwip := range ss.wipBlock.colWips {
-			ss.wipBlock.maxIdx = utils.MaxUint32(ss.wipBlock.maxIdx, cwip.cbufidx)
+			ss.wipBlock.maxIdx = max(ss.wipBlock.maxIdx, cwip.cbufidx)
 		}
 		ss.wipBlock.blockSummary.RecCount += 1
 	}
