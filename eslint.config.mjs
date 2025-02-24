@@ -85,8 +85,6 @@ export default [
                 panelChart: true,
                 defaultDashboardIds: true,
                 uuidv4: true,
-                ReadOnlyCellEditor: true,
-                cellEditorParams: true,
                 canScrollMore: true,
                 getQueryParamsData: true,
                 runPanelLogsQuery: true,
