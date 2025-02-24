@@ -1399,11 +1399,13 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 <div class="json-popup-header">
                     <div class="json-popup-header-buttons">
                         ${showRelatedTraceButton ? `
-                            <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
-                                <i class="fa fa-file-text"></i>&nbsp; Related Trace
-                            </button>
+                            <div>
+                                <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
+                                    <i class="fa fa-file-text"></i>&nbsp; Related Trace
+                                </button>
+                            </div>
                         ` : ''}
-                        <button class="json-popup-close">×</button>
+                        <div><button class="json-popup-close">×</button></div>
                     </div>
                 </div>
                 <div class="json-content-type-box">

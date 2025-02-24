@@ -6249,7 +6249,7 @@ p#versionInfo {
     color: var(--white);
 }
 
-.section {
+.config-container .section {
     background-color: var(--black1-to-white0);
     padding: 16px;
     margin: 14px 0;

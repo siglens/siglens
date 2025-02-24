@@ -66,7 +66,6 @@ let doSearchCounter = 0;
 let columnCount = 0;
 //eslint-disable-next-line no-unused-vars
 function doSearch(data) {
-    console.log('doSearch', data);
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
