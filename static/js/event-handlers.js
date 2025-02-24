@@ -94,7 +94,7 @@ function windowPopStateHandler(evt) {
     if (location.href.includes('index.html')) {
         let state = evt.originalEvent.state;
         if (state !== null) {
-            console.log("state not null:", state);
+            console.log('state not null:', state);
             data = getInitialSearchFilter(true, false);
             resetDashboard();
             wsState = 'query';

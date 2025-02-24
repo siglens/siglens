@@ -404,7 +404,8 @@ function scrollingErrorPopup() {
     $('.popupOverlay').addClass('active');
     $('#error-popup.popupContent').addClass('active');
 
-    $('#okay-button').on('click', function () { // Not working
+    $('#okay-button').on('click', function () {
+        // Not working
         $('.popupOverlay').removeClass('active');
         $('#error-popup.popupContent').removeClass('active');
     });

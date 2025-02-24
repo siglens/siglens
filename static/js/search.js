@@ -511,7 +511,7 @@ function getQueryBuilderCode() {
 }
 //eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger) {
-    console.log("getSearchFilter: ", skipPushState, scrollingTrigger)
+    console.log('getSearchFilter: ', skipPushState, scrollingTrigger);
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -549,7 +549,7 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
-        console.log("do search: history push state changed");
+        console.log('do search: history push state changed');
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 

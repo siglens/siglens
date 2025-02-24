@@ -90,7 +90,7 @@ function displayTextWidth(text, font) {
 }
 
 function paginateAggsData(fullData) {
-    console.log("Paginate Agg Groups")
+    console.log('Paginate Agg Groups');
     // Ensure pageSize is a number
     pageSize = parseInt(pageSize);
 
