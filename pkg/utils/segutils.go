@@ -81,36 +81,6 @@ func CreateUniqueIndentifier() string {
 	return UUID_GENERATOR.Hex128()
 }
 
-func Max[T ~int | ~uint64](x, y T) T {
-	if x < y {
-		return y
-	}
-	return x
-}
-
-func Min[T ~int | ~uint64](x, y T) T {
-	if x > y {
-		return y
-	}
-	return x
-}
-
-// TODO: delete these functions (and all similar in the codebase). Use the
-// generic min/max functions instead.
-func MaxInt64(x, y int64) int64 {
-	if x < y {
-		return y
-	}
-	return x
-}
-
-func MinInt64(x, y int64) int64 {
-	if x > y {
-		return y
-	}
-	return x
-}
-
 func HashString(x string) string {
 	return fmt.Sprintf("%d", xxhash.Sum64String(x))
 }

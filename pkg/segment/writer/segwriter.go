@@ -497,7 +497,7 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 		}
 
 		for _, cwip := range segstore.wipBlock.colWips {
-			segstore.wipBlock.maxIdx = MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+			segstore.wipBlock.maxIdx = max(segstore.wipBlock.maxIdx, cwip.cbufidx)
 		}
 
 		segstore.wipBlock.blockSummary.RecCount += 1

@@ -225,48 +225,6 @@ func ConvertFloatBytesToMB(bytes float64) float64 {
 	return bytes / 1048576
 }
 
-func MinUint64(a1 uint64, b1 uint64) uint64 {
-	if a1 < b1 {
-		return a1
-	}
-	return b1
-}
-
-func MaxUint64(a1 uint64, b1 uint64) uint64 {
-	if a1 < b1 {
-		return b1
-	}
-	return a1
-}
-
-func MinInt64(a1 int64, b1 int64) int64 {
-	if a1 < b1 {
-		return a1
-	}
-	return b1
-}
-
-func MaxInt64(a1 int64, b1 int64) int64 {
-	if a1 < b1 {
-		return b1
-	}
-	return a1
-}
-
-func MaxUint32(a1 uint32, b1 uint32) uint32 {
-	if a1 < b1 {
-		return b1
-	}
-	return a1
-}
-
-func MaxUint16(a1 uint16, b1 uint16) uint16 {
-	if a1 < b1 {
-		return b1
-	}
-	return a1
-}
-
 // converts the input byte slice to a string representation of all read values
 // returns array of strings with groupBy values
 func ConvertGroupByKey(rec []byte) ([]string, error) {

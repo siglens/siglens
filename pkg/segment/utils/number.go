@@ -195,9 +195,9 @@ func (n *Number) ReduceFast(other *Number, fun AggregateFunctions) error {
 		case Sum:
 			n.SetInt64(ni + oi)
 		case Min:
-			n.SetInt64(MinInt64(ni, oi))
+			n.SetInt64(min(ni, oi))
 		case Max:
-			n.SetInt64(MaxInt64(ni, oi))
+			n.SetInt64(max(ni, oi))
 		case Count:
 			n.SetInt64(ni + oi)
 		default:

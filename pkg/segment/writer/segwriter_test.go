@@ -102,7 +102,7 @@ func Test_isTimeRangeOverlapping(t *testing.T) {
 }
 
 func isTimeRangeOverlapping(start1, end1, start2, end2 uint64) bool {
-	return utils.Max(start1, start2) <= utils.Min(end1, end2)
+	return max(start1, start2) <= min(end1, end2)
 }
 
 func Test_getNumberTypeAndVal(t *testing.T) {

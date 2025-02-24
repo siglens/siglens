@@ -120,7 +120,7 @@ func InitBlockResults(count uint64, aggs *structs.QueryAggregators, qid uint64) 
 		blockRes.sortResults = true
 		blockRes.SortedResults = sortedRes
 	} else {
-		initialSize := utils.MinUint64(count, utils.MAX_RECS_PER_WIP)
+		initialSize := min(count, utils.MAX_RECS_PER_WIP)
 		blockRes.sortResults = false
 		blockRes.UnsortedResults = make([]*utils.RecordResultContainer, initialSize)
 		blockRes.nextUnsortedIdx = 0
