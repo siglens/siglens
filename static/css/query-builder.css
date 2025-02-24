@@ -738,7 +738,14 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #showTable {
     display: none;
     margin: 6px 0 0 0;
-    height: calc(100% - 26px);
+    height: calc(100% - 30px);
+}
+
+#showTable {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .tab-content-size {

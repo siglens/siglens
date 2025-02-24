@@ -99,6 +99,7 @@ function showError(errorMsg) {
     $('#data-row-container').hide();
     $('#empty-response').hide();
     $('#initial-response').hide();
+    $('#pagination-container').hide();
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
         $('#save-query-div').children().show();
@@ -1264,11 +1265,16 @@ function syntaxHighlight(json) {
 }
 
 function ExpandableJsonCellRenderer(type = 'events') {
+    const state = {
+        currentExpandedCell: null
+    };
+
     return class {
         init(params) {
             this.params = params;
             this.eGui = document.createElement('div');
             this.eGui.style.display = 'flex';
+            this.isExpanded = false;
 
             const displayValue = type === 'logs' && params.column.colId === 'timestamp' 
                 ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
@@ -1283,14 +1289,44 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 <span>${displayValue}</span>
             `;
 
-            const expandBtn = this.eGui.querySelector('.expand-icon-box');
-            expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
+            this.expandBtn = this.eGui.querySelector('.expand-icon-box');
+            this.expandIcon = this.eGui.querySelector('.expand-icon-button i');
+            this.expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
+
+            document.addEventListener('jsonPanelClosed', () => {
+                if (state.currentExpandedCell === this) {
+                    this.isExpanded = false;
+                    this.updateIcon();
+                    state.currentExpandedCell = null;
+                }
+            });
+        }
+
+        updateIcon() {
+            if (this.isExpanded) {
+                this.expandIcon.classList.remove('fa-up-right-and-down-left-from-center');
+                this.expandIcon.classList.add('fa-down-left-and-up-right-to-center');
+            } else {
+                this.expandIcon.classList.remove('fa-down-left-and-up-right-to-center');
+                this.expandIcon.classList.add('fa-up-right-and-down-left-from-center');
+            }
         }
 
         showJsonPanel(event) {
             event.stopPropagation();
             const jsonPopup = document.querySelector('.json-popup');
             const rowData = this.params.node.data;
+            let trace_id = '';
+            let time_stamp = '';
+
+            if (state.currentExpandedCell && state.currentExpandedCell !== this) {
+                state.currentExpandedCell.isExpanded = false;
+                state.currentExpandedCell.updateIcon();
+            }
+
+            this.isExpanded = !this.isExpanded;
+            this.updateIcon();
+            state.currentExpandedCell = this.isExpanded ? this : null;
 
             window.copyJsonToClipboard = function() {
                 const jsonContent = document.querySelector('#json-tab div').innerText;
@@ -1348,10 +1384,28 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 });
             }
 
+            const showRelatedTraceButton = type === 'logs' && Object.keys(rowData).some(key => {
+                if (key.toLowerCase() === 'timestamp') {
+                    time_stamp = rowData[key];
+                }
+                if (key.toLowerCase() === 'trace_id') {
+                    trace_id = rowData[key];
+                    return trace_id !== null && trace_id !== '';
+                }
+                return false;
+            });
+
             jsonPopup.innerHTML = `
                 <div class="json-popup-header">
                     <div class="json-popup-header-buttons">
-                        <button class="json-popup-close">×</button>
+                        ${showRelatedTraceButton ? `
+                            <div>
+                                <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
+                                    <i class="fa fa-file-text"></i>&nbsp; Related Trace
+                                </button>
+                            </div>
+                        ` : ''}
+                        <div><button class="json-popup-close">×</button></div>
                     </div>
                 </div>
                 <div class="json-content-type-box">
@@ -1384,6 +1438,10 @@ function ExpandableJsonCellRenderer(type = 'events') {
             const closeBtn = jsonPopup.querySelector('.json-popup-close');
             closeBtn.onclick = () => {
                 jsonPopup.classList.remove('active');
+                this.isExpanded = false;
+                this.updateIcon();
+                state.currentExpandedCell = null;
+                document.dispatchEvent(new CustomEvent('jsonPanelClosed'));
                 this.params.api.sizeColumnsToFit();
             };
 
