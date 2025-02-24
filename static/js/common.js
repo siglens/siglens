@@ -1316,6 +1316,8 @@ function ExpandableJsonCellRenderer(type = 'events') {
             event.stopPropagation();
             const jsonPopup = document.querySelector('.json-popup');
             const rowData = this.params.node.data;
+            let trace_id = '';
+            let time_stamp = '';
 
             if (state.currentExpandedCell && state.currentExpandedCell !== this) {
                 state.currentExpandedCell.isExpanded = false;
@@ -1382,9 +1384,25 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 });
             }
 
+            const showRelatedTraceButton = type === 'logs' && Object.keys(rowData).some(key => {
+                if (key.toLowerCase() === 'timestamp') {
+                    time_stamp = rowData[key];
+                }
+                if (key.toLowerCase() === 'trace_id') {
+                    trace_id = rowData[key];
+                    return trace_id !== null && trace_id !== '';
+                }
+                return false;
+            });
+
             jsonPopup.innerHTML = `
                 <div class="json-popup-header">
                     <div class="json-popup-header-buttons">
+                        ${showRelatedTraceButton ? `
+                            <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
+                                <i class="fa fa-file-text"></i>&nbsp; Related Trace
+                            </button>
+                        ` : ''}
                         <button class="json-popup-close">×</button>
                     </div>
                 </div>
