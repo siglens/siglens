@@ -33,7 +33,7 @@ let logsColumnDefs = [
     {
         field: 'logs',
         headerName: 'logs',
-        minWidth: 1128,
+        flex: 1,
         cellRenderer: (params) => {
             let logString = '';
             let counter = 0;
@@ -131,12 +131,18 @@ const gridOptions = {
                 display: none;
             }
               
-            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon
+            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon {
                 display: inline-block;
             }            
         `;
         eGridDiv.appendChild(style);
     },
+    onGridSizeChanged: (params) => {
+        params.api.sizeColumnsToFit();
+    },
+    onFirstDataRendered: (params) => {
+        params.api.sizeColumnsToFit();
+    }
 };
 
 //eslint-disable-next-line no-unused-vars
@@ -187,14 +193,3 @@ JSON.unflatten = function (data) {
     }
     return resultholder[''] || resultholder;
 };
-
-function scrollingErrorPopup() {
-    $('.popupOverlay').addClass('active');
-    $('#error-popup.popupContent').addClass('active');
-
-    $('#okay-button').on('click', function () {
-        // Not working
-        $('.popupOverlay').removeClass('active');
-        $('#error-popup.popupContent').removeClass('active');
-    });
-}

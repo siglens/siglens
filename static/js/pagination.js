@@ -240,3 +240,13 @@ function loadMoreResults() {
 function isLastPage() {
     return currentPage === Math.ceil(totalLoadedRecords / pageSize);
 }
+
+function scrollingErrorPopup() {
+    $('.popupOverlay').addClass('active');
+    $('#error-popup.popupContent').addClass('active');
+
+    $('#okay-button').on('click', function () {
+        $('.popupOverlay').removeClass('active');
+        $('#error-popup.popupContent').removeClass('active');
+    });
+}
