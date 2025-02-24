@@ -3,6 +3,7 @@ let pageSize = 20; // Default page size
 let totalLoadedRecords = 0;
 let hasMoreRecords = false;
 let accumulatedRecords = [];
+let isLoadingMore = false;
 
 function initializePagination() {
     const paginationHtml = `
@@ -190,16 +191,23 @@ function updateLoadMoreMessage() {
     const messageContainer = document.getElementById('load-more-container');
     if (!messageContainer) return;
 
-    // Hide load more for aggs queries and segstats queries
     if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
         messageContainer.style.display = 'none';
         return;
     }
 
     if (hasMoreRecords && isLastPage()) {
-        messageContainer.innerHTML = `
-            Search results are limited to ${totalLoadedRecords} documents. 
-            <a href="#" onclick="loadMoreResults()" class="load-more-link">Load more</a>`;
+        if (isLoadingMore) {
+            messageContainer.innerHTML = `
+                <div class="loading-more">
+                    <div class="loading-spinner"></div>
+                    <span>Loading more results...</span>
+                </div>`;
+        } else {
+            messageContainer.innerHTML = `
+                Search results are limited to ${totalLoadedRecords} documents. 
+                <a href="#" onclick="loadMoreResults()" class="load-more-link">Load more</a>`;
+        }
         messageContainer.style.display = 'block';
     } else {
         messageContainer.style.display = 'none';
@@ -207,16 +215,26 @@ function updateLoadMoreMessage() {
 }
 
 function loadMoreResults() {
+    if (isLoadingMore) return;
+
+    isLoadingMore = true;
+    updateLoadMoreMessage();
+
     const data = getSearchFilter(true, true);
     data.from = totalLoadedRecords;
 
     if (initialSearchData && (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage)) {
         // Show error if search params changed
         scrollingErrorPopup();
+        isLoadingMore = false;
+        updateLoadMoreMessage();
         return;
     }
 
-    doSearch(data);
+    doSearch(data).finally(() => {
+        isLoadingMore = false;
+        updateLoadMoreMessage();
+    });
 }
 
 function isLastPage() {

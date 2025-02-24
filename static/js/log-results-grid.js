@@ -120,7 +120,6 @@ const gridOptions = {
     animateRows: false,
     suppressColumnVirtualisation: false,
     suppressRowVirtualisation: false,
-    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
     onGridReady: function (_params) {
         const eGridDiv = document.querySelector('#LogResultsGrid');
         const style = document.createElement('style');
@@ -134,20 +133,12 @@ const gridOptions = {
               
             .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon
                 display: inline-block;
-            }
-            
+            }            
         `;
         eGridDiv.appendChild(style);
     },
 };
 
-function showLoadingIndicator() {
-    gridOptions.api.showLoadingOverlay();
-}
-
-function hideLoadingIndicator() {
-    gridOptions.api.hideOverlay();
-}
 //eslint-disable-next-line no-unused-vars
 const myCellRenderer = (params) => {
     if (typeof params.data !== 'object' || params.data === null) return '';
