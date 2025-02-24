@@ -1378,14 +1378,13 @@ progress.hidden {
 #empty-response {
     text-align: center;
     font-size: 24px;
-    line-height: 31px;
     font-weight: bold;
     color: var(--empty-response-text-color);
-    left: 0;
-    right: 0;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 15%;
+    width: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 /* Save Query Dialog box */
@@ -6213,12 +6212,12 @@ p#versionInfo {
     overflow-y: auto;
 }
 
-.k8-grid-container{
+.k8-grid-container {
     height: calc(100% - 140px);
     display: flex;
 }
 
-.kubernetes-view-page{
+.kubernetes-view-page {
     height: 100%;
 }
 
@@ -6438,7 +6437,10 @@ p#versionInfo {
 
 .custom-chart-container {
     display: flex;
-    height: calc(100% - 120px);
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
 }
 
 .json-popup {

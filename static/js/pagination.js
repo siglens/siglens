@@ -23,6 +23,7 @@ function initializePagination() {
 
     const paginationContainer = document.querySelector('#pagination-container');
     paginationContainer.innerHTML = paginationHtml;
+    $('#pagination-container').hide();
 
     document.getElementById('page-size-select').addEventListener('change', handlePageSizeChange);
 }
@@ -62,6 +63,7 @@ function goToPage(page) {
 }
 
 function handleSearchResultsForPagination(results) {
+    $('#pagination-container').show();
     // For aggs and segstats queries
     if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
         if (!accumulatedRecords.length) {

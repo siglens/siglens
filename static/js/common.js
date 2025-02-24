@@ -99,6 +99,7 @@ function showError(errorMsg) {
     $('#data-row-container').hide();
     $('#empty-response').hide();
     $('#initial-response').hide();
+    $('#pagination-container').hide();
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
         $('#save-query-div').children().show();
