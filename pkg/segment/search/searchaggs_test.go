@@ -63,7 +63,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
@@ -105,7 +105,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *testing.
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
@@ -113,7 +113,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *testing.
 					StrEnc:      "count(*)",
 				},
 			},
-	}}
+		}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	recs, finalCols := getMockRecsAndFinalCols(uint64(sizeLimit))
@@ -140,7 +140,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
@@ -148,7 +148,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 					StrEnc:      "count(*)",
 				},
 			},
-	}}
+		}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	for i := 0; i < numSegments; i++ {
@@ -185,7 +185,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
@@ -193,7 +193,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 					StrEnc:      "count(*)",
 				},
 			},
-	}}
+		}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	for i := 0; i < numSegments; i++ {
@@ -225,7 +225,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_Zero_MultiSegment(t *testing.
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			GroupByRequest: &structs.GroupByRequest{
 				MeasureOperations: []*structs.MeasureAggregator{
 					{
@@ -238,7 +238,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_Zero_MultiSegment(t *testing.
 				BucketCount:    3000,
 			},
 		},
-		GroupByCols:       []string{"measure3"},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -284,7 +284,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *t
 				BucketCount:    3000,
 			},
 		},
-		GroupByCols:       []string{"measure3"},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -325,7 +325,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 				BucketCount:    3000,
 			},
 		},
-		GroupByCols:       []string{"measure3"},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -385,7 +385,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 				BucketCount:    3000,
 			},
 		},
-		GroupByCols:       []string{"measure3"},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -417,7 +417,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "measure1",
@@ -456,7 +456,7 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 	nodeResult := &structs.NodeResult{
 		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
-			RecsAggsType: structs.MeasureAggsType,
+			RecsAggsType:      structs.MeasureAggsType,
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "measure1",

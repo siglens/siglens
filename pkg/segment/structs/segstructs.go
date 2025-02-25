@@ -484,14 +484,12 @@ type Progress struct {
 	TotalRecords    uint64
 }
 
-
-
 type RecsAggregator struct {
-	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest              *GroupByRequest
-	MeasureOperations           []*MeasureAggregator
-	NextQueryAgg                *QueryAggregators
+	PerformAggsOnRecs bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType      PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest    *GroupByRequest
+	MeasureOperations []*MeasureAggregator
+	NextQueryAgg      *QueryAggregators
 }
 
 type RecsAggResults struct {
@@ -518,10 +516,10 @@ type NodeResult struct {
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
 	SegStatsMap                 map[string]*SegStats
-	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
-	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
-	RecsAggregator							*RecsAggregator
-	RecsAggResults							*RecsAggResults
+	GroupByBuckets              interface{} // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{} // *blockresults.TimeBuckets
+	RecsAggregator              *RecsAggregator
+	RecsAggResults              *RecsAggResults
 	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
 	TransactionEventRecords     map[string]map[string]interface{}
 	TransactionsProcessed       map[string]map[string]interface{}
@@ -534,7 +532,6 @@ type NodeResult struct {
 	RemoteLogs                  []map[string]interface{}
 	QueryStartTime              time.Time // time when the query execution started. Can be removed once we switch to the new query pipeline
 }
-
 
 type SegStats struct {
 	IsNumeric   bool

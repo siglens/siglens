@@ -244,7 +244,6 @@ func Test_addToBlockBloom(t *testing.T) {
 	}
 }
 
-
 func Test_ParseRawJson(t *testing.T) {
 	tsKey := config.GetTimeStampKey()
 	var jsParsingStackbuf [utils.UnescapeStackBufSize]byte
