@@ -466,9 +466,9 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 		httpRespOuter.ColumnsOrder = query.GetFinalColsOrder(nodeResult.ColumnsOrder)
 	}
 
-	if nodeResult.RecsAggsType == structs.GroupByType && nodeResult.GroupByRequest != nil {
+	if nodeResult.RecsAggregator.RecsAggsType == structs.GroupByType && nodeResult.GroupByRequest != nil {
 		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.GroupByRequest.MeasureOperations)
-	} else if nodeResult.RecsAggsType == structs.MeasureAggsType && nodeResult.MeasureOperations != nil {
+	} else if nodeResult.RecsAggregator.RecsAggsType == structs.MeasureAggsType && nodeResult.MeasureOperations != nil {
 		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.MeasureOperations)
 	}
 	httpRespOuter.RenameColumns = nodeResult.RenameColumns
