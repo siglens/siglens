@@ -1095,7 +1095,7 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	}
 
 	for _, cwip := range segstore.wipBlock.colWips {
-		segstore.wipBlock.maxIdx = utils.MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+		segstore.wipBlock.maxIdx = max(segstore.wipBlock.maxIdx, cwip.cbufidx)
 	}
 
 	segstore.wipBlock.blockSummary.RecCount += 1
