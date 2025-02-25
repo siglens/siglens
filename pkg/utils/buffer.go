@@ -220,7 +220,7 @@ func (b *Buffer) WriteAt(src []byte, start int) error {
 	numSkippedChunks := start / chunkSize
 	offset := start % chunkSize
 	for i := numSkippedChunks; i < len(b.chunks) && len(src) > 0; i++ {
-		numBytesToCopy := Min(len(src), chunkSize-offset)
+		numBytesToCopy := min(len(src), chunkSize-offset)
 		copy(b.chunks[i][offset:], src[:numBytesToCopy])
 		src = src[numBytesToCopy:]
 		offset = 0
