@@ -484,6 +484,22 @@ type Progress struct {
 	TotalRecords    uint64
 }
 
+
+
+type RecsAggregator struct {
+	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest              *GroupByRequest
+	MeasureOperations           []*MeasureAggregator
+	NextQueryAgg                *QueryAggregators
+}
+
+type RecsAggResults struct {
+	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsProcessedSegments uint64
+	RecsRunningSegStats       []*SegStats
+}
+
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
@@ -504,15 +520,9 @@ type NodeResult struct {
 	SegStatsMap                 map[string]*SegStats
 	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
 	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
-	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest              *GroupByRequest
-	MeasureOperations           []*MeasureAggregator
-	NextQueryAgg                *QueryAggregators
-	RecsAggsBlockResults        interface{}              // Evaluates to *blockresults.BlockResults
+	RecsAggregator							*RecsAggregator
+	RecsAggResults							*RecsAggResults
 	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
-	RecsAggsProcessedSegments   uint64
-	RecsRunningSegStats         []*SegStats
 	TransactionEventRecords     map[string]map[string]interface{}
 	TransactionsProcessed       map[string]map[string]interface{}
 	ColumnsOrder                map[string]int
@@ -524,6 +534,7 @@ type NodeResult struct {
 	RemoteLogs                  []map[string]interface{}
 	QueryStartTime              time.Time // time when the query execution started. Can be removed once we switch to the new query pipeline
 }
+
 
 type SegStats struct {
 	IsNumeric   bool
