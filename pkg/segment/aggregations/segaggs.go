@@ -141,7 +141,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		if len(nodeResult.TransactionEventRecords) > 0 {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
-		} else if nodeResult.PerformAggsOnRecs && recs != nil {
+		} else if nodeResult.RecsAggregator.PerformAggsOnRecs && recs != nil {
 			nodeResult.NextQueryAgg = agg
 			return nodeResult
 		}
@@ -230,13 +230,13 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			}
 		}
 	case structs.GroupByType:
-		nodeResult.PerformAggsOnRecs = true
-		nodeResult.RecsAggsType = structs.GroupByType
+		nodeResult.RecsAggregator.PerformAggsOnRecs = true
+		nodeResult.RecsAggregator.RecsAggsType = structs.GroupByType
 		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
 		nodeResult.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
-		nodeResult.PerformAggsOnRecs = true
-		nodeResult.RecsAggsType = structs.MeasureAggsType
+		nodeResult.RecsAggregator.PerformAggsOnRecs = true
+		nodeResult.RecsAggregator.RecsAggsType = structs.MeasureAggsType
 		nodeResult.MeasureOperations = agg.MeasureOperations
 	case structs.TransactionType:
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)

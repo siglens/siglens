@@ -297,11 +297,11 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esRespo
 					} else {
 						break // Break out of the loop to process next segment.
 					}
-				} else if nodeRes.PerformAggsOnRecs {
+				} else if nodeRes.RecsAggregator.PerformAggsOnRecs {
 					resultRecMap = search.PerformAggsOnRecs(nodeRes, aggs, recs, finalCols, numTotalSegments, finishesSegment, qid)
 					// By default reset PerformAggsOnRecs flag, otherwise the execution will immediately return here from PostQueryBucketCleaning;
 					// Without performing the aggs from the start for the next segment or next bulk.
-					nodeRes.PerformAggsOnRecs = false
+					nodeRes.RecsAggregator.PerformAggsOnRecs = false
 					if len(resultRecMap) > 0 {
 						boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
 						if exists && boolVal {
