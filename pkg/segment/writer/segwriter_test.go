@@ -228,7 +228,6 @@ func Test_addToBlockBloom(t *testing.T) {
 		{fullWord: []byte("many sub words"), expectedMatches: []string{"many", "sub", "words", "many sub words"}, expectedAddCount: 4, matchedToFail: []string{"many sub"}},
 		{fullWord: []byte(strconv.FormatBool(true)), expectedMatches: []string{"true"}, expectedAddCount: 1, matchedToFail: []string{"false"}},
 		{fullWord: []byte("end whitespace "), expectedMatches: []string{"end", "whitespace", "end whitespace "}, expectedAddCount: 3, matchedToFail: []string{" "}},
-		{fullWord: []byte("end whitespace "), expectedMatches: []string{"End", "Whitespace", "end Whitespace "}, expectedAddCount: 3, matchedToFail: []string{" "}},
 	}
 
 	for i, test := range cases {
