@@ -518,8 +518,8 @@ type NodeResult struct {
 	SegStatsMap                 map[string]*SegStats
 	GroupByBuckets              interface{} // *blockresults.GroupByBuckets
 	TimeBuckets                 interface{} // *blockresults.TimeBuckets
-	RecsAggregator              *RecsAggregator
-	RecsAggResults              *RecsAggResults
+	RecsAggregator              RecsAggregator
+	RecsAggResults              RecsAggResults
 	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
 	TransactionEventRecords     map[string]map[string]interface{}
 	TransactionsProcessed       map[string]map[string]interface{}

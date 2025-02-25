@@ -376,7 +376,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	measureInfo, internalMops := blockRes.GetConvertedMeasureInfo()
 
-	if nodeResult.RecsAggregator != nil && nodeResult.RecsAggregator.GroupByRequest != nil && nodeResult.RecsAggregator.GroupByRequest.MeasureOperations != nil {
+	if nodeResult.RecsAggregator.GroupByRequest != nil && nodeResult.RecsAggregator.GroupByRequest.MeasureOperations != nil {
 		for _, mOp := range nodeResult.RecsAggregator.GroupByRequest.MeasureOperations {
 			if mOp.MeasureFunc == utils.Count {
 				internalMops = append(internalMops, mOp)
