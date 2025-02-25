@@ -746,7 +746,12 @@ function logOptionMultiHandler() {
     gridOptions.columnApi.setColumnVisible('logs', true);
 
     gridOptions.columnApi.autoSizeColumn(gridOptions.columnApi.getColumn('logs'), false);
-    gridOptions.api.setRowData(logsRowData);
+
+    setTimeout(() => {
+        gridOptions.api.refreshCells({ force: true });
+        gridOptions.api.redrawRows();
+    }, 50);
+    
     hideOrShowFieldsInLineViews();
     gridOptions.api.sizeColumnsToFit();
     Cookies.set('log-view', 'multi-line', { expires: 365 });
