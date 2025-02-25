@@ -122,23 +122,31 @@ func ReadSegFullMetas(smFilename string) []*structs.SegMeta {
 
 func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 	// continue reading/merging from individual segfiles
+	waitGroup := sync.WaitGroup{}
 	for _, smentry := range segmetas {
-		workSfm, err := ReadSfm(smentry.SegmentKey)
-		if err != nil {
-			// error is logged in the func
-			continue
-		}
-		if smentry.AllPQIDs == nil {
-			smentry.AllPQIDs = workSfm.AllPQIDs
-		} else {
-			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, workSfm.AllPQIDs)
-		}
-		if smentry.ColumnNames == nil {
-			smentry.ColumnNames = workSfm.ColumnNames
-		} else {
-			utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
-		}
+		waitGroup.Add(1)
+		go func(smentry *structs.SegMeta) {
+			defer waitGroup.Done()
+
+			workSfm, err := ReadSfm(smentry.SegmentKey)
+			if err != nil {
+				// error is logged in the func
+				return
+			}
+			if smentry.AllPQIDs == nil {
+				smentry.AllPQIDs = workSfm.AllPQIDs
+			} else {
+				utils.MergeMapsRetainingFirst(smentry.AllPQIDs, workSfm.AllPQIDs)
+			}
+			if smentry.ColumnNames == nil {
+				smentry.ColumnNames = workSfm.ColumnNames
+			} else {
+				utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
+			}
+		}(smentry)
 	}
+
+	waitGroup.Wait()
 }
 
 // read only the current node's segmeta
