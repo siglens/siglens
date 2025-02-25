@@ -368,7 +368,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	nodeResult.RecsAggregator.GroupByRequest.BucketCount = 3000
 
-	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.GroupByRequest}, qid)
+	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.RecsAggregator.GroupByRequest}, qid)
 	if err != nil {
 		log.Errorf("PerformGroupByRequestAggsOnRecs: failed to initialize block results reader. Err: %v", err)
 		return nil
@@ -461,7 +461,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		}
 		return nil
 	} else {
-		blockRes = nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+		blockRes = nodeResult.RecsAggResults.RecsAggsBlockResults.(*blockresults.BlockResults)
 		if sizeLimit > 0 && nodeResult.TotalRRCCount >= sizeLimit {
 			log.Info("PerformGroupByRequestAggsOnRecs: Reached size limit, Returning the Bucket Results.")
 			nodeResult.RecsAggResults.RecsAggsProcessedSegments = numTotalSegments
@@ -529,7 +529,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64, sizeLimit uint64) map[string]bool {
 
-	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.MeasureOperations}, structs.SegmentStatsCmd, qid)
+	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.RecsAggregator.MeasureOperations}, structs.SegmentStatsCmd, qid)
 	if err != nil {
 		log.Errorf("PerformMeasureAggsOnRecs: failed to initialize search results. Err: %v", err)
 		return nil

@@ -70,8 +70,9 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 					MeasureFunc: utils.Count,
 					StrEnc:      "count(*)",
 				},
-			}
-	}}
+			},
+		},
+	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	for i := 0; i < numSegments; i++ {
@@ -111,7 +112,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *testing.
 					MeasureFunc: utils.Count,
 					StrEnc:      "count(*)",
 				},
-			}
+			},
 	}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -146,7 +147,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 					MeasureFunc: utils.Count,
 					StrEnc:      "count(*)",
 				},
-			}
+			},
 	}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -191,7 +192,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 					MeasureFunc: utils.Count,
 					StrEnc:      "count(*)",
 				},
-			}
+			},
 	}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -309,7 +310,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 	recsSize := 100
 	sizeLimit := 180
 	nodeResult := &structs.NodeResult{
-		RecsAggregator: &structs.RecsAggregator{{
+		RecsAggregator: &structs.RecsAggregator{
 			PerformAggsOnRecs: true,
 			RecsAggsType:      structs.GroupByType,
 			GroupByRequest: &structs.GroupByRequest{
@@ -323,7 +324,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 				GroupByColumns: []string{"measure3"},
 				BucketCount:    3000,
 			},
-		}},
+		},
 		GroupByCols:       []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
@@ -382,7 +383,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 				},
 				GroupByColumns: []string{"measure3"},
 				BucketCount:    3000,
-			}
+			},
 		},
 		GroupByCols:       []string{"measure3"},
 	}
@@ -423,8 +424,8 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 					MeasureFunc: utils.List,
 					StrEnc:      "list(measure1)",
 				},
-			}
-		}
+			},
+		},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 	for i := 0; i < numSegments; i++ {
@@ -462,8 +463,8 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 					MeasureFunc: utils.List,
 					StrEnc:      "list(measure1)",
 				},
-			}
-		}
+			},
+		},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 	for i := 0; i < numSegments; i++ {

@@ -931,7 +931,7 @@ RenamingLoop:
 		}
 
 		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
-		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.MeasureFunctions, colReq.IncludeColumns, true)
+		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
 		nodeResult.ColumnsOrder = getColumnsInOrder(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, nodeResult.MeasureFunctions, colReq.IncludeColumns)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
