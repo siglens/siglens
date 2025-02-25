@@ -468,8 +468,8 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 
 	if nodeResult.RecsAggregator.RecsAggsType == structs.GroupByType && nodeResult.RecsAggregator.GroupByRequest != nil {
 		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.RecsAggregator.GroupByRequest.MeasureOperations)
-	} else if nodeResult.RecsAggregator.RecsAggsType == structs.MeasureAggsType && nodeResult.MeasureOperations != nil {
-		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.MeasureOperations)
+	} else if nodeResult.RecsAggregator.RecsAggsType == structs.MeasureAggsType && nodeResult.RecsAggregator.MeasureOperations != nil {
+		httpRespOuter.MeasureAggregationCols = structs.GetMeasureAggregatorStrEncColumns(nodeResult.RecsAggregator.MeasureOperations)
 	}
 	httpRespOuter.RenameColumns = nodeResult.RenameColumns
 

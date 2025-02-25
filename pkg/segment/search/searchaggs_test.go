@@ -80,7 +80,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -119,7 +119,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *testing.
 
 	resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
+	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
 
 	assert.Equal(t, 1, len(resultMap), "The resultMap should have a single key")
 	assert.True(t, resultMap["CHECK_NEXT_AGG"], "The resultMap should have a key CHECK_NEXT_AGG set to true")
@@ -159,7 +159,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -200,7 +200,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
@@ -246,7 +246,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_Zero_MultiSegment(t *testing.
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -291,7 +291,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *t
 
 	resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
+	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
 
 	assert.Equal(t, 1, len(resultMap), "The resultMap should have a single key")
 	assert.True(t, resultMap["CHECK_NEXT_AGG"], "The resultMap should have a key CHECK_NEXT_AGG set to true")
@@ -337,7 +337,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
@@ -393,7 +393,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
@@ -431,7 +431,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -470,7 +470,7 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")

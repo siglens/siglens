@@ -292,7 +292,7 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esRespo
 					if exists {
 						// Reset the TransactionEventRecords and update aggs with NextQueryAgg to loop for next Aggs processing.
 						delete(nodeRes.TransactionEventRecords, "CHECK_NEXT_AGG")
-						aggs = &structs.QueryAggregators{Next: nodeRes.NextQueryAgg.Next}
+						aggs = &structs.QueryAggregators{Next: nodeRes.RecsAggregator.NextQueryAgg.Next}
 						nodeRes.CurrentSearchResultCount = len(recs)
 					} else {
 						break // Break out of the loop to process next segment.
@@ -306,7 +306,7 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esRespo
 						boolVal, exists := resultRecMap["CHECK_NEXT_AGG"]
 						if exists && boolVal {
 							// Update aggs with NextQueryAgg to loop for additional cleaning.
-							aggs = nodeRes.NextQueryAgg
+							aggs = nodeRes.RecsAggregator.NextQueryAgg
 							nodeRes.CurrentSearchResultCount = len(recs)
 						} else {
 							break
