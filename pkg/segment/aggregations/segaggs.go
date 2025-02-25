@@ -113,7 +113,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 
 	if post.GroupByRequest != nil {
 		nodeResult.GroupByCols = post.GroupByRequest.GroupByColumns
-		nodeResult.GroupByRequest = post.GroupByRequest
+		nodeResult.RecsAggregator.GroupByRequest = post.GroupByRequest
 	}
 
 	if post.TransactionArguments != nil && len(recs) == 0 {
@@ -233,7 +233,7 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 		nodeResult.RecsAggregator.PerformAggsOnRecs = true
 		nodeResult.RecsAggregator.RecsAggsType = structs.GroupByType
 		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
-		nodeResult.GroupByRequest = agg.GroupByRequest
+		nodeResult.RecsAggregator.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
 		nodeResult.RecsAggregator.PerformAggsOnRecs = true
 		nodeResult.RecsAggregator.RecsAggsType = structs.MeasureAggsType
@@ -913,11 +913,11 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		if nodeResult.GroupByRequest == nil {
+		if nodeResult.RecsAggregator.GroupByRequest == nil {
 			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling ExcludeColumns")
 		}
 
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.ExcludeColumns, false)
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, colReq.ExcludeColumns, false)
 		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
@@ -926,13 +926,13 @@ RenamingLoop:
 		}
 	}
 	if colReq.IncludeColumns != nil {
-		if nodeResult.GroupByRequest == nil {
+		if nodeResult.RecsAggregator.GroupByRequest == nil {
 			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling IncludeColumns")
 		}
 
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
-		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
-		nodeResult.ColumnsOrder = getColumnsInOrder(nodeResult.GroupByRequest.GroupByColumns, nodeResult.MeasureFunctions, colReq.IncludeColumns)
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
+		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.MeasureFunctions, colReq.IncludeColumns, true)
+		nodeResult.ColumnsOrder = getColumnsInOrder(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, nodeResult.MeasureFunctions, colReq.IncludeColumns)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
 		if err != nil {
@@ -1064,10 +1064,10 @@ func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []
 		}
 	}
 
-	if nodeResult.GroupByRequest == nil {
+	if nodeResult.RecsAggregator.GroupByRequest == nil {
 		return fmt.Errorf("removeAggColumns: expected non-nil GroupByRequest")
 	} else {
-		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
+		nodeResult.RecsAggregator.GroupByRequest.GroupByColumns = groupByColNamesToKeep
 	}
 
 	return nil

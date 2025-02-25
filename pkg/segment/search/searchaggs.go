@@ -366,7 +366,7 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 
 func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64, sizeLimit uint64) map[string]bool {
 
-	nodeResult.GroupByRequest.BucketCount = 3000
+	nodeResult.RecsAggregator.GroupByRequest.BucketCount = 3000
 
 	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.GroupByRequest}, qid)
 	if err != nil {
@@ -376,8 +376,8 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	measureInfo, internalMops := blockRes.GetConvertedMeasureInfo()
 
-	if nodeResult.GroupByRequest != nil && nodeResult.GroupByRequest.MeasureOperations != nil {
-		for _, mOp := range nodeResult.GroupByRequest.MeasureOperations {
+	if nodeResult.RecsAggregator.GroupByRequest != nil && nodeResult.RecsAggregator.GroupByRequest.MeasureOperations != nil {
+		for _, mOp := range nodeResult.RecsAggregator.GroupByRequest.MeasureOperations {
 			if mOp.MeasureFunc == utils.Count {
 				internalMops = append(internalMops, mOp)
 			}
