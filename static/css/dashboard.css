@@ -464,11 +464,6 @@
   justify-content: flex-end;
 }
 
-
-.panEdit-navBar #date-picker-btn, .table-view-toggle-container{
-  margin-left: 15px;
-}
-
 .panEdit-navBtns {
   display: flex;
   flex-direction: row;
@@ -1362,10 +1357,6 @@
   cursor: pointer;
 }
 
-.avail-fields-btn{
-  height: 32px !important;
-  margin-left: 15px;
-}
 #avail-field-container{
   display: none;
 }
