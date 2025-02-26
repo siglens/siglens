@@ -471,7 +471,7 @@ func Test_PerformGroupByAggsWithRexColumns(t *testing.T) {
 		RecsAggsType:      structs.GroupByType,
 		GroupByCols:       []string{"rex_field"},
 		GroupByRequest: &structs.GroupByRequest{
-			GroupByColumns:   []string{"rex_field"},
+			GroupByColumns: []string{"rex_field"},
 			MeasureOperations: []*structs.MeasureAggregator{
 				{
 					MeasureCol:  "*",
