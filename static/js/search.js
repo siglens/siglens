@@ -681,11 +681,11 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
             );
         }
 
-        columnCount = Math.max(columnCount, columnOrder.length) - 1; // Excluding timestamp
+        columnCount = Math.max(columnCount, columnOrder.length) - 2; // Excluding timestamp and logs
 
         handleSearchResultsForPagination(res);
         renderLogsGrid(columnOrder, accumulatedRecords);
-        initializeAvailableFieldsSidebar(columnOrder, columnCount);
+        initializeAvailableFieldsSidebar(columnOrder);
         $('#logs-result-container').show();
         $('#agg-result-container').hide();
 
@@ -709,7 +709,6 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         aggsColumnDefs = [];
         segStatsRowData = [];
         $('#views-container, .fields-sidebar').hide();
-        columnCount = Math.max(columnCount, columnOrder.length) - 1;
         renderMeasuresGrid(columnOrder, res);
     }
     timeChart(res.qtype);
@@ -723,7 +722,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
 function processEmptyQueryResults(message) {
     $('#logs-result-container').hide();
     $('#custom-chart-tab').show().css({ height: 'auto' });
-    $('.tab-chart-list, #views-container, .fields-sidebar').hide();
+    $('.tab-chart-list, #views-container, .fields-sidebar, #pagination-container').hide();
     $('#agg-result-container').hide();
     $('#data-row-container').hide();
     $('#corner-popup').hide();

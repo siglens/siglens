@@ -122,13 +122,17 @@ function setupSectionToggling() {
     sections.forEach((section) => {
         const headerElement = $(section.header);
         const listElement = $(section.list);
-        const chevronIcon = headerElement.find('.chevron-icon');
+        const chevronIcon = headerElement.find('.fa-chevron-down');
 
         if (headerElement.length && listElement.length && chevronIcon.length) {
             headerElement.off('click').on('click', function () {
                 const isVisible = listElement.is(':visible');
                 listElement.toggle(!isVisible);
-                chevronIcon.text(isVisible ? '▶' : '▼');
+                if (isVisible) {
+                    chevronIcon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+                } else {
+                    chevronIcon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+                }
             });
         }
     });
