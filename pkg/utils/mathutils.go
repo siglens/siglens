@@ -30,10 +30,3 @@ func CalculateStandardVariance(values []float64) float64 {
 	}
 	return sumValSquare / length
 }
-
-func MinUint64(a, b uint64) uint64 {
-	if a < b {
-		return a
-	}
-	return b
-}

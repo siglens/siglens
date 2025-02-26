@@ -5,7 +5,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -82,7 +81,7 @@ func (self *MemoryPool) Get(minCapacity uint64) []byte {
 	}
 
 	// All items are in use, so make a new item.
-	bufferCapacity := utils.Max(minCapacity, self.defaultBufferCapacity)
+	bufferCapacity := max(minCapacity, self.defaultBufferCapacity)
 	item := newItem(bufferCapacity, true)
 	self.items = append(self.items, item)
 
