@@ -82,3 +82,21 @@ const myCellRenderer = (params) => {
     }
     return value;
 };
+
+JSON.unflatten = function (data) {
+    if (Object(data) !== data || Array.isArray(data)) return data;
+    //eslint-disable-next-line no-useless-escape
+    let regex = /\.?([^.\[\]]+)|\[(\d+)\]/g,
+        resultholder = {};
+    for (let p in data) {
+        let cur = resultholder,
+            prop = '',
+            m;
+        while ((m = regex.exec(p))) {
+            cur = cur[prop] || (cur[prop] = m[2] ? [] : {});
+            prop = m[2] || m[1];
+        }
+        cur[prop] = data[p];
+    }
+    return resultholder[''] || resultholder;
+};
