@@ -530,6 +530,12 @@ function handleLogOptionChange(viewType) {
 
     if (viewType === VIEW_TYPES.TABLE) {
         logsColumnDefs.forEach(function (colDef) {
+            if (colDef.field !== 'timestamp') {
+                colDef.cellRenderer = function(params) {
+                    return (params.value === '' || params.value === null || params.value === undefined) ? '-' : params.value;
+                };
+            }
+
             if (colDef.field === 'logs') {
                 colDef.cellStyle = null;
                 colDef.autoHeight = null;
