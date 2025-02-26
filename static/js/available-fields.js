@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+//eslint-disable-next-line no-unused-vars
 function initializeAvailableFieldsSidebar(columnOrder) {
     const columnsToIgnore = ['timestamp', 'logs'];
 
@@ -174,22 +175,7 @@ function removeFieldFromSelected(fieldName) {
     refreshColumnVisibility();
 }
 
-// Handler for hiding a column from grid header 'X' icon
-function hideColumnHandler(evt, isCloseIcon = false) {
-    evt.preventDefault();
-    evt.stopPropagation();
-
-    let colName;
-    if (isCloseIcon) {
-        const outerDiv = evt.currentTarget.closest('.ag-header-cell');
-        colName = outerDiv.getAttribute('col-id');
-    } else {
-        colName = evt.currentTarget.dataset.index;
-    }
-
-    removeFieldFromSelected(colName);
-}
-
+//eslint-disable-next-line no-unused-vars
 function resetAvailableFields() {
     $('#available-fields-list').empty();
     $('#selected-fields-list').empty();

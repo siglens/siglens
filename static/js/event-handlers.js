@@ -38,8 +38,6 @@ function setupEventHandlers() {
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
     $('#query-mode-options .query-mode-option').on('click', setQueryModeHandler);
 
-    // $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
-
     $('#log-opt-single-btn').on('click', function () {
         handleLogOptionChange(VIEW_TYPES.SINGLE);
     });
@@ -599,13 +597,13 @@ function configureLogsColumn(viewType) {
                         addSeparator = true;
                     });
 
-                    const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
-                
-                    if (!logString) {
-                        return `<div style="white-space: ${whiteSpaceStyle};">-</div>`;
-                    }
-                    
-                    return `<div style="white-space: ${whiteSpaceStyle};">${logString}</div>`;
+                const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
+
+                if (!logString) {
+                    return `<div style="white-space: ${whiteSpaceStyle};">-</div>`;
+                }
+
+                return `<div style="white-space: ${whiteSpaceStyle};">${logString}</div>`;
             };
         }
     });

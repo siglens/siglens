@@ -681,7 +681,10 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
 
         handleSearchResultsForPagination(res);
         renderLogsGrid(columnOrder, accumulatedRecords);
+
+        //eslint-disable-next-line no-undef
         initializeAvailableFieldsSidebar(columnOrder);
+
         $('#logs-result-container').show();
         $('#agg-result-container').hide();
 
@@ -1244,12 +1247,15 @@ function renderLogsGrid(columnOrder, hits) {
 
     gridOptions.api.setRowData(logsRowData);
 
+    //eslint-disable-next-line no-undef
     handleLogOptionChange(logView);
 }
 
 function getLogView() {
+    //eslint-disable-next-line no-undef
     return Cookies.get('log-view') || VIEW_TYPES.TABLE;
 }
+
 function updateGridView() {
     if (!accumulatedRecords.length) return;
 
