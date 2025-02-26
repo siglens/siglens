@@ -103,10 +103,10 @@ function showError(errorMsg) {
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
         $('#save-query-div').children().show();
-        $('#views-container').show();
+        $('#views-container, .fields-sidebar').show();
     } else {
         $('#save-query-div').children().hide();
-        $('#views-container').show();
+        $('#views-container, .fields-sidebar').show();
     }
     $('#custom-chart-tab').show().css({ height: '100%' });
     $('#corner-popup .corner-text').html(errorMsg);

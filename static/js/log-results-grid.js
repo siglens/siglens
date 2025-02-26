@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// initial columns
+let logsRowData = [];
 let logsColumnDefs = [
     {
         field: 'timestamp',
@@ -30,42 +30,15 @@ let logsColumnDefs = [
         field: 'logs',
         headerName: 'logs',
         minWidth: 1128,
-        cellRenderer: (params) => {
-            let logString = '';
-            let counter = 0;
-            if (updatedSelFieldList) {
-                selectedFieldsList = _.intersection(selectedFieldsList, availColNames);
-            } else {
-                selectedFieldsList = _.union(selectedFieldsList, availColNames);
-            }
-
-            if (selectedFieldsList.length != 0) {
-                availColNames.forEach((colName, _index) => {
-                    if (selectedFieldsList.includes(colName)) {
-                        $(`.toggle-${string2Hex(colName)}`).addClass('active');
-                    } else {
-                        $(`.toggle-${string2Hex(colName)}`).removeClass('active');
-                    }
-                });
-            }
-            _.forEach(params.data, (value, key) => {
-                let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
-                if (key != 'logs' && selectedFieldsList.includes(key)) {
-                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
-                    counter++;
-                }
-            });
-            return logString;
-        },
     },
 ];
 
-// initial dataset
-let logsRowData = [];
+
 //eslint-disable-next-line no-unused-vars
 let allLiveTailColumns = [];
 //eslint-disable-next-line no-unused-vars
 let total_liveTail_searched = 0;
+
 // let the grid know which columns and what data to use
 const gridOptions = {
     columnDefs: logsColumnDefs,
@@ -146,6 +119,7 @@ const myCellRenderer = (params) => {
     return value;
 };
 //eslint-disable-next-line no-unused-vars
+// Used in old Available Fields
 function updateColumns() {
     // Always show timestamp
     gridOptions.columnApi.setColumnVisible('timestamp', true);
@@ -165,21 +139,3 @@ function updateColumns() {
     }
     gridOptions.api.sizeColumnsToFit();
 }
-
-JSON.unflatten = function (data) {
-    if (Object(data) !== data || Array.isArray(data)) return data;
-    //eslint-disable-next-line no-useless-escape
-    let regex = /\.?([^.\[\]]+)|\[(\d+)\]/g,
-        resultholder = {};
-    for (let p in data) {
-        let cur = resultholder,
-            prop = '',
-            m;
-        while ((m = regex.exec(p))) {
-            cur = cur[prop] || (cur[prop] = m[2] ? [] : {});
-            prop = m[2] || m[1];
-        }
-        cur[prop] = data[p];
-    }
-    return resultholder[''] || resultholder;
-};

@@ -1367,11 +1367,12 @@ progress.hidden {
 
 #corner-popup .corner-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     margin-bottom: 28px;
     column-gap: 3px;
     flex-wrap: nowrap;
     align-self: center;
+    font-weight: bold;
 }
 
 #empty-qsearch-response,
@@ -1491,7 +1492,7 @@ progress.hidden {
     align-self: center;
     margin: auto;
     padding: 10px 28px;
-    font-size: 16px;
+    font-size: 12px;
     display: flex;
     background-color: var(--btn-regular-bg-color);
     color: var(--button-text-color) !important;
@@ -2417,7 +2418,6 @@ div[aria-describedby="download-info"] {
 
 /* end save query dialog  */
 
-#hide-null-column-box,
 .starred-filter {
     display: flex;
     align-items: center;
@@ -6471,8 +6471,8 @@ p#versionInfo {
 .json-popup-header-buttons {
     display: flex;
     align-items: center;
-    gap: 320px;
-    margin-left: auto;
+    justify-content: space-between;
+    width: 100%;
 }
 
 .json-popup-close {
@@ -6690,4 +6690,102 @@ p#versionInfo {
     text-decoration: underline;
     cursor: pointer;
     font-weight: bold;
+}
+
+.fields-sidebar {
+    width: 250px;
+    background-color: var(--black1-to-white0);
+    border: 1px solid var(--panel-table-line-color);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    margin-right: 5px;
+    border-radius: 4px;
+}
+
+.fields-section {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.fields-header {
+    padding: 8px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.fields-header:hover {
+    background: var(--alerting-table-hover)
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+}
+
+.chevron-icon {
+    margin-right: 8px;
+    font-size: 12px;
+}
+
+.field-count {
+    background: var(--datatable-header-bg-color);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+.fields-list {
+    padding: 0 8px;
+}
+
+.field-item {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    height: 30px;
+}
+
+.field-item:hover {
+    background: var(--alerting-table-hover);
+}
+
+.field-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.field-action {
+    opacity: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 16px;
+    border: 1px solid var(--panel-table-line-color);
+    padding-bottom: 3px;
+    cursor: pointer;
+}
+
+.field-item:hover .field-action {
+    opacity: 1;
+}
+
+.field-action-add {
+    background-color: var(--black1-to-white0);
+}
+
+.field-action-remove {
+    color: var(--error);
+    background-color: var(--black1-to-white0);
 }

@@ -17,6 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+const VIEW_TYPES = {
+    SINGLE: 'single-line',
+    MULTI: 'multi-line',
+    TABLE: 'table',
+};
+
 //eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
     $('#filter-input').on('keyup', filterInputHandler);
@@ -25,10 +31,6 @@ function setupEventHandlers() {
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
-    $('#available-fields').off('click').on('click', availableFieldsClickHandler);
-    $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
-    $('#views-container #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
-    $('#available-fields .fields').off('click').on('click', '.available-fields-dropdown-item', availableFieldsSelectHandler);
     $('#hide-null-columns-checkbox').on('change', handleHideNullColumnsCheckbox);
 
     $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
@@ -38,21 +40,18 @@ function setupEventHandlers() {
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
     $('#query-mode-options .query-mode-option').on('click', setQueryModeHandler);
 
-    $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
+    // $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
 
     $('#log-opt-single-btn').on('click', function () {
-        logOptionSingleHandler();
-        refreshColumnVisibility();
+        handleLogOptionChange(VIEW_TYPES.SINGLE);
     });
 
     $('#log-opt-multi-btn').on('click', function () {
-        logOptionMultiHandler();
-        refreshColumnVisibility();
+        handleLogOptionChange(VIEW_TYPES.MULTI);
     });
 
     $('#log-opt-table-btn').on('click', function () {
-        logOptionTableHandler();
-        refreshColumnVisibility();
+        handleLogOptionChange(VIEW_TYPES.TABLE);
     });
 
     $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
@@ -352,13 +351,6 @@ function resetCustomDateRange() {
     appliedEndTime = tempEndTime = '';
 }
 
-function hideColumnHandler(evt, isCloseIcon = false) {
-    evt.preventDefault();
-    evt.stopPropagation();
-
-    availableFieldsSelectHandler(evt, isCloseIcon);
-}
-
 function setQueryLangHandler(_e) {
     let previousQueryLanguageId = $('#query-language-options .query-language-option.active').attr('id').split('-')[1];
     $('.query-language-option').removeClass('active');
@@ -476,6 +468,7 @@ function runFilterBtnHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             availColNames = [];
+            selectedFieldsList = [];
             doSearch(data);
         }
         $('#daterangepicker').hide();
@@ -492,300 +485,11 @@ function filterInputHandler(evt) {
         data = getSearchFilter(false, false);
         initialSearchData = data;
         availColNames = [];
+        selectedFieldsList = [];
         doSearch(data);
     }
 }
 
-// prevent the available fields popup from closing when you toggle an available field
-function availableFieldsClickHandler(evt) {
-    evt.stopPropagation();
-}
-
-function availableFieldsSelectHandler(evt, isCloseIcon = false) {
-    let colName;
-
-    if (isCloseIcon) {
-        const outerDiv = evt.currentTarget.closest('.ag-header-cell');
-        const colId = outerDiv.getAttribute('col-id');
-        colName = colId;
-    } else {
-        colName = evt.currentTarget.dataset.index;
-    }
-
-    let encColName = string2Hex(colName);
-    // don't toggle the timestamp column
-    if (colName !== 'timestamp') {
-        // toggle the column visibility
-        $(`.toggle-${encColName}`).toggleClass('active');
-        const isSelected = $(`.toggle-${encColName}`).hasClass('active');
-
-        if (isSelected) {
-            // Update the selectedFieldsList everytime a field is selected
-            if (!selectedFieldsList.includes(colName)) {
-                selectedFieldsList.push(colName);
-            }
-        } else {
-            // Everytime the field is unselected, remove it from selectedFieldsList
-            selectedFieldsList = selectedFieldsList.filter((field) => field !== colName);
-        }
-
-        // Check if the selected/unselected column is a null column
-        //eslint-disable-next-line no-undef
-        const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues?.has(column) && !columnsWithNonNullValues?.has(column));
-        const isNullColumn = nullColumns.includes(colName);
-
-        if (isNullColumn) {
-            const $checkbox = $('#hide-null-columns-checkbox');
-            if (isSelected) {
-                $checkbox.prop('checked', false);
-            } else {
-                $checkbox.prop('checked', true);
-            }
-        }
-    }
-
-    let visibleColumns = 0;
-    let totalColumns = -1;
-
-    availColNames.forEach((colName, _index) => {
-        if (selectedFieldsList.includes(colName)) {
-            visibleColumns++;
-            totalColumns++;
-        }
-    });
-
-    if (visibleColumns == 1) {
-        shouldCloseAllDetails = true;
-    } else {
-        if (shouldCloseAllDetails) {
-            shouldCloseAllDetails = false;
-        }
-    }
-    let el = $('#available-fields .select-unselect-header');
-
-    // uncheck the toggle-all fields if the selected columns count is different
-    if (visibleColumns < totalColumns) {
-        let cmClass = el.find('.select-unselect-checkmark');
-        cmClass.remove();
-    }
-    // We do not count time and log column
-    if (visibleColumns == totalColumns - 2) {
-        if (theme === 'light') {
-            el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-        } else {
-            el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-        }
-    }
-
-    if ($('#log-opt-single-btn').hasClass('active')) {
-        hideOrShowFieldsInLineViews();
-    } else if ($('#log-opt-multi-btn').hasClass('active')) {
-        hideOrShowFieldsInLineViews();
-    } else if ($('#log-opt-table-btn').hasClass('active')) {
-        hideOrShowFieldsInLineViews();
-        updateColumns();
-    }
-
-    if (window.location.pathname.includes('dashboard.html')) {
-        hideOrShowFieldsInLineViews();
-        updateColumns(); // Function for updating dashboard logs panel
-        currentPanel.selectedFields = selectedFieldsList;
-        panelGridOptions.api.sizeColumnsToFit();
-    } else {
-        gridOptions.api.sizeColumnsToFit();
-    }
-
-    updatedSelFieldList = true;
-}
-
-function toggleAllAvailableFieldsHandler(_evt) {
-    processTableViewOption();
-    let el = $('#available-fields .select-unselect-header');
-    let isChecked = el.find('.select-unselect-checkmark');
-    const nullColumnCheckbox = $('#hide-null-columns-checkbox');
-    //eslint-disable-next-line no-undef
-    const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
-
-    if (isChecked.length === 0) {
-        if (theme === 'light') {
-            el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-        } else {
-            el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-        }
-        let tempFieldList = [];
-        availColNames.forEach((colName, _index) => {
-            $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            tempFieldList.push(colName);
-            gridOptions.columnApi.setColumnVisible(colName, true);
-        });
-        selectedFieldsList = tempFieldList;
-
-        // Uncheck the null column checkbox if there are any null columns
-        if (nullColumns.length > 0) {
-            nullColumnCheckbox.prop('checked', false);
-        }
-    } else {
-        let cmClass = el.find('.select-unselect-checkmark');
-        cmClass.remove();
-
-        availColNames.forEach((colName, _index) => {
-            $(`.toggle-${string2Hex(colName)}`).removeClass('active');
-            gridOptions.columnApi.setColumnVisible(colName, false);
-        });
-        selectedFieldsList = [];
-        nullColumnCheckbox.prop('checked', true);
-    }
-    updatedSelFieldList = true;
-    // Always hide the logs column
-    gridOptions.columnApi.setColumnVisible('logs', false);
-}
-
-function hideOrShowFieldsInLineViews() {
-    let allSelected = true;
-    availColNames.forEach((colName, _index) => {
-        let encColName = string2Hex(colName);
-        if ($(`.toggle-${encColName}`).hasClass('active')) {
-            $(`.cname-hide-${encColName}`).show();
-        } else {
-            $(`.cname-hide-${encColName}`).hide();
-            allSelected = false;
-        }
-    });
-    let el = $('#available-fields .select-unselect-header');
-    let isChecked = el.find('.select-unselect-checkmark');
-    if (allSelected) {
-        if (isChecked.length === 0) {
-            if (theme === 'light') {
-                el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-            } else {
-                el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-            }
-        }
-    } else {
-        isChecked.remove();
-    }
-}
-
-function logOptionSingleHandler() {
-    $('#logs-result-container').removeClass('multi');
-    $('#views-container .btn-group .btn').removeClass('active');
-    $('#log-opt-single-btn').addClass('active');
-
-    logsColumnDefs.forEach(function (colDef, _index) {
-        if (colDef.field === 'logs') {
-            colDef.cellStyle = null;
-            colDef.autoHeight = null;
-            colDef.suppressSizeToFit = true;
-            colDef.cellRenderer = function (params) {
-                const data = params.data || {};
-                let logString = '';
-                let addSeparator = false;
-
-                Object.entries(data)
-                    .filter(([key]) => key !== 'timestamp')
-                    .forEach(([key, value]) => {
-                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-
-                        // Convert objects and arrays to JSON strings
-                        let formattedValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
-
-                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}">${key}=${formattedValue}</span>`;
-                        addSeparator = true;
-                    });
-
-                return `<div style="white-space: nowrap;">${logString}</div>`;
-            };
-        }
-    });
-
-    gridOptions.api.setColumnDefs(logsColumnDefs);
-    gridOptions.api.resetRowHeights();
-
-    availColNames.forEach((colName, _index) => {
-        gridOptions.columnApi.setColumnVisible(colName, false);
-    });
-    gridOptions.columnApi.setColumnVisible('logs', true);
-
-    gridOptions.columnApi.autoSizeColumn(gridOptions.columnApi.getColumn('logs'), false);
-    hideOrShowFieldsInLineViews();
-    Cookies.set('log-view', 'single-line', { expires: 365 });
-}
-
-function logOptionMultiHandler() {
-    $('#logs-result-container').addClass('multi');
-    $('#views-container .btn-group .btn').removeClass('active');
-    $('#log-opt-multi-btn').addClass('active');
-
-    logsColumnDefs.forEach(function (colDef, _index) {
-        if (colDef.field === 'logs') {
-            colDef.cellStyle = { 'white-space': 'normal' };
-            colDef.autoHeight = true;
-            colDef.suppressSizeToFit = false;
-            colDef.cellRenderer = function (params) {
-                const data = params.data || {};
-                let logString = '';
-                let addSeparator = false;
-                Object.entries(data)
-                    .filter(([key]) => key !== 'timestamp')
-                    .forEach(([key, value]) => {
-                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        let formattedValue = formatLogsValue(value);
-                        logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=${formattedValue}</span>`;
-                        addSeparator = true;
-                    });
-
-                return `<div style="white-space: pre-wrap;">${logString}</div>`;
-            };
-        }
-    });
-    gridOptions.api.setColumnDefs(logsColumnDefs);
-
-    availColNames.forEach((colName, _index) => {
-        gridOptions.columnApi.setColumnVisible(colName, false);
-    });
-    gridOptions.columnApi.setColumnVisible('logs', true);
-
-    gridOptions.columnApi.autoSizeColumn(gridOptions.columnApi.getColumn('logs'), false);
-
-    setTimeout(() => {
-        gridOptions.api.refreshCells({ force: true });
-        gridOptions.api.redrawRows();
-    }, 50);
-    
-    hideOrShowFieldsInLineViews();
-    gridOptions.api.sizeColumnsToFit();
-    Cookies.set('log-view', 'multi-line', { expires: 365 });
-}
-
-// Function to format logs value, replacing newlines with <br> tags
-function formatLogsValue(value) {
-    if (typeof value === 'string') {
-        return value.replace(/\n/g, '<br>');
-    } else {
-        return JSON.stringify(JSON.unflatten(value), null, 2);
-    }
-}
-
-function logOptionTableHandler() {
-    processTableViewOption();
-    updateColumns();
-}
-
-function processTableViewOption() {
-    $('#logs-result-container').addClass('multi');
-    $('#views-container .btn-group .btn').removeClass('active');
-    $('#log-opt-table-btn').addClass('active');
-    logsColumnDefs.forEach(function (colDef, _index) {
-        if (colDef.field === 'logs') {
-            colDef.cellStyle = null;
-            colDef.autoHeight = null;
-        }
-    });
-    gridOptions.api.setColumnDefs(logsColumnDefs);
-    gridOptions.api.resetRowHeights();
-    gridOptions.api.sizeColumnsToFit();
-    Cookies.set('log-view', 'table', { expires: 365 });
-}
 //eslint-disable-next-line no-unused-vars
 function themePickerHandler(evt) {
     if (Cookies.get('theme')) {
@@ -814,6 +518,169 @@ function saveqInputHandler(evt) {
     evt.preventDefault();
     $(this).addClass('active');
 }
+
+function handleLogOptionChange(viewType) {
+    $('#logs-result-container').toggleClass('multi', viewType !== VIEW_TYPES.SINGLE);
+    $('#views-container .btn-group .btn').removeClass('active');
+
+    switch (viewType) {
+        case VIEW_TYPES.SINGLE:
+            $('#log-opt-single-btn').addClass('active');
+            break;
+        case VIEW_TYPES.MULTI:
+            $('#log-opt-multi-btn').addClass('active');
+            break;
+        case VIEW_TYPES.TABLE:
+            $('#log-opt-table-btn').addClass('active');
+            break;
+    }
+
+    if (viewType === VIEW_TYPES.TABLE) {
+        logsColumnDefs.forEach(function (colDef) {
+            if (colDef.field === 'logs') {
+                colDef.cellStyle = null;
+                colDef.autoHeight = null;
+            }
+        });
+
+        gridOptions.api.setColumnDefs(logsColumnDefs);
+        gridOptions.api.resetRowHeights();
+    } else {
+        // Configure logs column for single/multi view
+        configureLogsColumn(viewType);
+    }
+
+    Cookies.set('log-view', viewType, { expires: 365 });
+
+    refreshColumnVisibility();
+
+    if (viewType === VIEW_TYPES.MULTI) {
+        setTimeout(() => {
+            gridOptions.api.refreshCells({ force: true });
+            gridOptions.api.redrawRows();
+        }, 50);
+    }
+
+    gridOptions.api.sizeColumnsToFit();
+}
+
+function configureLogsColumn(viewType) {
+    const isSingleLine = viewType === VIEW_TYPES.SINGLE;
+
+    logsColumnDefs.forEach(function (colDef) {
+        if (colDef.field === 'logs') {
+            colDef.cellStyle = isSingleLine ? null : { 'white-space': 'normal' };
+            colDef.autoHeight = isSingleLine ? null : true;
+            colDef.suppressSizeToFit = isSingleLine;
+
+            colDef.cellRenderer = function (params) {
+                const data = params.data || {};
+                let logString = '';
+                let addSeparator = false;
+
+                Object.entries(data)
+                    .filter(([key]) => key !== 'timestamp')
+                    .forEach(([key, value]) => {
+                        // Only show selected fields (or all if none selected)
+                        if (key !== 'logs' && selectedFieldsList.length > 0 && !selectedFieldsList.includes(key)) {
+                            return;
+                        }
+
+                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
+                        let formattedValue = isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
+
+                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}"><b>${key}</b> ${formattedValue}</span>`;
+                        addSeparator = true;
+                    });
+
+                const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
+                return `<div style="white-space: ${whiteSpaceStyle};">${logString}</div>`;
+            };
+        }
+    });
+
+    gridOptions.api.setColumnDefs(logsColumnDefs);
+
+    if (isSingleLine) {
+        gridOptions.api.resetRowHeights();
+    }
+
+    // Configure visibility
+    availColNames.forEach((colName) => {
+        gridOptions.columnApi.setColumnVisible(colName, false);
+    });
+    gridOptions.columnApi.setColumnVisible('timestamp', true);
+    gridOptions.columnApi.setColumnVisible('logs', true);
+
+    gridOptions.columnApi.autoSizeColumn(gridOptions.columnApi.getColumn('logs'), false);
+}
+
+function formatLogsValue(value) {
+    if (typeof value === 'string') {
+        return value.replace(/\n/g, '<br>');
+    } else if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(JSON.unflatten(value), null, 2).replace(/\n/g, '<br>');
+    } else {
+        return String(value);
+    }
+}
+
+function refreshColumnVisibility() {
+    if (!gridOptions || !gridOptions.columnApi) return;
+
+    // Get current view mode
+    const logView = Cookies.get('log-view') || VIEW_TYPES.SINGLE;
+    const isTableView = logView === VIEW_TYPES.TABLE;
+
+    // Hide all non-essential columns first
+    const allColumns = gridOptions.columnApi.getColumns();
+    allColumns.forEach((column) => {
+        const colId = column.getColId();
+        if (colId !== 'timestamp' && colId !== 'logs') {
+            gridOptions.columnApi.setColumnVisible(colId, false);
+        }
+    });
+
+    gridOptions.columnApi.setColumnVisible('timestamp', true);
+    gridOptions.columnApi.setColumnVisible('logs', !isTableView);
+
+    if (isTableView) {
+        // Show selected columns in table view
+        availColNames.forEach((colName) => {
+            if (colName !== 'timestamp' && colName !== 'logs') {
+                const isVisible = selectedFieldsList.length === 0 || selectedFieldsList.includes(colName);
+                gridOptions.columnApi.setColumnVisible(colName, isVisible);
+            }
+        });
+    } else {
+        // Update logs column for single/multi view
+        updateLogsViewColumn(logView);
+    }
+
+    gridOptions.api.sizeColumnsToFit();
+}
+
+function updateLogsViewColumn(viewType) {
+    if (!gridOptions || !gridOptions.api) return;
+
+    const logsColDef = logsColumnDefs.find((col) => col.field === 'logs');
+    if (!logsColDef) return;
+
+    const isSingleLine = viewType === VIEW_TYPES.SINGLE;
+
+    logsColDef.cellStyle = isSingleLine ? null : { 'white-space': 'normal' };
+    logsColDef.autoHeight = isSingleLine ? null : true;
+    logsColDef.suppressSizeToFit = isSingleLine;
+
+    gridOptions.api.setColumnDefs(logsColumnDefs);
+
+    gridOptions.api.refreshCells({
+        force: true,
+        columns: ['logs'],
+    });
+}
+
+// TODO: Remove the code related to hide null columns
 //eslint-disable-next-line no-unused-vars
 function updateNullColumnsTracking(records) {
     if (!records || records.length === 0) return;
@@ -886,7 +753,7 @@ function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
     updateAvailableFieldsUI(updatedSelectedFieldsList);
     gridOptions.api?.sizeColumnsToFit();
 
-    updateLogsColumnRenderer(currentView, updatedSelectedFieldsList, nullColumns);
+    // updateLogsColumnRenderer(currentView, updatedSelectedFieldsList, nullColumns);
 }
 
 function updateAvailableFieldsUI(updatedSelectedFieldsList) {
@@ -918,49 +785,4 @@ function updateAvailableFieldsUI(updatedSelectedFieldsList) {
             el.find('.select-unselect-checkmark').remove();
         }
     }
-}
-
-function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
-    const logsColumnDef = gridOptions.columnApi?.getColumn('logs').getColDef();
-    const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
-
-    if (logsColumnDef) {
-        if (currentView === 'table') {
-            logsColumnDef.cellRenderer = null;
-        } else {
-            logsColumnDef.cellRenderer = (params) => {
-                const data = params.data || {};
-                let logString = '';
-                let addSeparator = false;
-
-                Object.entries(data)
-                    .filter(([key]) => key !== 'timestamp' && key !== 'logs')
-                    .forEach(([key, value]) => {
-                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        let formattedValue;
-                        if (currentView === 'single-line') {
-                            formattedValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
-                        } else if (currentView === 'multi-line') {
-                            formattedValue = formatLogsValue(value);
-                        }
-
-                        const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
-                        const visibilityClass = isVisible ? '' : 'style="display:none;"';
-
-                        logString += `<span class="cname-hide-${string2Hex(key)}"${visibilityClass}>${colSep}<b>${key}</b></span>`;
-                        logString += `<span class="cname-hide-${string2Hex(key)}"${visibilityClass}> ${formattedValue}</span>`;
-                        addSeparator = true;
-                    });
-
-                return currentView === 'single-line' ? `<div style="white-space: nowrap;">${logString}</div>` : `<div style="white-space: pre-wrap;">${logString}</div>`;
-            };
-        }
-
-        gridOptions.api.refreshCells({ force: true, columns: ['logs'] });
-    }
-}
-
-function refreshColumnVisibility() {
-    const hideNullColumns = $('#hide-null-columns-checkbox').is(':checked');
-    updateColumnsVisibility(hideNullColumns);
 }
