@@ -445,3 +445,78 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 		}
 	}
 }
+
+func Test_PerformGroupByAggsWithRexColumns(t *testing.T) {
+	// Create a set of records that simulate the output of a rex search.
+	// The "rex_field" is the field that was extracted via a rex expression.
+	// We expect to see three groups: "alpha", "beta" and "gamma".
+	recs := map[string]map[string]interface{}{
+		"rec1": {"rex_field": "alpha", "other_field": "value1"},
+		"rec2": {"rex_field": "beta", "other_field": "value2"},
+		"rec3": {"rex_field": "alpha", "other_field": "value3"},
+		"rec4": {"rex_field": "gamma", "other_field": "value4"},
+		"rec5": {"rex_field": "beta", "other_field": "value5"},
+	}
+	// Final columns indicate which columns will be returned in the final aggregated result.
+	finalCols := map[string]bool{
+		"rex_field":   true,
+		"other_field": true,
+		"count(*)":    true,
+	}
+
+	// Set up the nodeResult so that aggregation is performed as a GroupBy.
+	// The GroupByRequest specifies that we group by the "rex_field" column and count the records.
+	nodeResult := &structs.NodeResult{
+		PerformAggsOnRecs: true,
+		RecsAggsType:      structs.GroupByType,
+		GroupByCols:       []string{"rex_field"},
+		GroupByRequest: &structs.GroupByRequest{
+			GroupByColumns:   []string{"rex_field"},
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "*",
+					MeasureFunc: utils.Count,
+					StrEnc:      "count(*)",
+				},
+			},
+			BucketCount: 3000,
+		},
+	}
+
+	// For this test we simulate a single segment that is completely processed.
+	numTotalSegments := uint64(1)
+	qid := uint64(1)
+
+	// Call PerformAggsOnRecs.
+	// Since RecsAggsType is GroupByType, this will call PerformGroupByRequestAggsOnRecs internally.
+	resultMap := PerformAggsOnRecs(nodeResult, &structs.QueryAggregators{Limit: 0}, recs, finalCols, numTotalSegments, true, qid)
+
+	// When the last (or only) segment is processed, a resultMap with a key "CHECK_NEXT_AGG"
+	// should be returned. Also, the recs map is replaced by the aggregated result.
+	assert.NotNil(t, resultMap, "Expected a non-nil resultMap on final segment processing")
+	assert.True(t, resultMap["CHECK_NEXT_AGG"], "Expected CHECK_NEXT_AGG to be set to true in resultMap")
+
+	// The aggregated results are stored in 'recs'. Because we are grouping by "rex_field",
+	// we expect one aggregated record per distinct group.
+	// In our test, we have three groups: "alpha", "beta", "gamma".
+	assert.Equal(t, 3, len(recs), "Expected three aggregated groups in the result")
+
+	// Verify that the count(*) aggregation is correct for each group.
+	// "alpha" appears twice, "beta" appears twice, and "gamma" appears once.
+	expectedCounts := map[string]int{
+		"alpha": 2,
+		"beta":  2,
+		"gamma": 1,
+	}
+	for recID, record := range recs {
+		groupVal, exists := record["rex_field"]
+		assert.True(t, exists, "Aggregated record %s missing group-by column 'rex_field'", recID)
+		countStr := fmt.Sprint(record["count(*)"])
+		var count int
+		_, err := fmt.Sscanf(countStr, "%d", &count)
+		assert.NoError(t, err, "Failed to parse count(*) for record %s", recID)
+		expected, ok := expectedCounts[fmt.Sprint(groupVal)]
+		assert.True(t, ok, "Unexpected group value %v found in record %s", groupVal, recID)
+		assert.Equal(t, expected, count, "Unexpected count for group %v in record %s", groupVal, recID)
+	}
+}
