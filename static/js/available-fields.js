@@ -43,8 +43,10 @@ function renderAvailableFields() {
     const el = $('#available-fields-list');
     el.empty();
 
-    // Render all available fields
-    availColNames.forEach((colName) => {
+    // Sort column names alphabetically
+    const sortedColNames = [...availColNames].sort((a, b) => a.localeCompare(b));
+
+    sortedColNames.forEach((colName) => {
         const isSelected = selectedFieldsList.includes(colName);
         el.append(`
             <div class="field-item" data-field="${colName}">

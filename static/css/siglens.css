@@ -6771,7 +6771,7 @@ p#versionInfo {
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    font-size: 16px;
+    font-size: 21px;
     border: 1px solid var(--panel-table-line-color);
     padding-bottom: 3px;
     cursor: pointer;

@@ -528,11 +528,17 @@ function handleLogOptionChange(viewType) {
             break;
     }
 
+    logsColumnDefs.forEach(function (colDef) {
+        if (colDef.field !== 'timestamp' && colDef.field !== 'logs') {
+            colDef.cellRenderer = null;
+        }
+    });
+
     if (viewType === VIEW_TYPES.TABLE) {
         logsColumnDefs.forEach(function (colDef) {
             if (colDef.field !== 'timestamp') {
-                colDef.cellRenderer = function(params) {
-                    return (params.value === '' || params.value === null || params.value === undefined) ? '-' : params.value;
+                colDef.cellRenderer = function (params) {
+                    return params.value === '' || params.value === null || params.value === undefined ? '-' : params.value;
                 };
             }
 
@@ -593,8 +599,13 @@ function configureLogsColumn(viewType) {
                         addSeparator = true;
                     });
 
-                const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
-                return `<div style="white-space: ${whiteSpaceStyle};">${logString}</div>`;
+                    const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
+                
+                    if (!logString) {
+                        return `<div style="white-space: ${whiteSpaceStyle};">-</div>`;
+                    }
+                    
+                    return `<div style="white-space: ${whiteSpaceStyle};">${logString}</div>`;
             };
         }
     });

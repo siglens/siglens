@@ -118,24 +118,3 @@ const myCellRenderer = (params) => {
     }
     return value;
 };
-//eslint-disable-next-line no-unused-vars
-// Used in old Available Fields
-function updateColumns() {
-    // Always show timestamp
-    gridOptions.columnApi.setColumnVisible('timestamp', true);
-    let isAnyColActive = false;
-    availColNames.forEach((colName, _index) => {
-        if ($(`.toggle-${string2Hex(colName)}`).hasClass('active')) {
-            isAnyColActive = true;
-            gridOptions.columnApi.setColumnVisible(colName, true);
-        } else {
-            gridOptions.columnApi.setColumnVisible(colName, false);
-        }
-    });
-
-    if (isAnyColActive) {
-        // Always hide logs column if we have some fields selected
-        gridOptions.columnApi.setColumnVisible('logs', false);
-    }
-    gridOptions.api.sizeColumnsToFit();
-}
