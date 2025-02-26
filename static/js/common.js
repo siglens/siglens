@@ -165,6 +165,12 @@ function decodeJwt(token) {
 //eslint-disable-next-line no-unused-vars
 function resetDashboard() {
     resetAvailableFields();
+
+    // Clear Selected Fields if index changes
+    if (initialSearchData && initialSearchData.indexName !== selectedSearchIndex) {
+        selectedFieldsList = [];
+    }
+
     $('#LogResultsGrid').html('');
     $('#measureAggGrid').html('');
     columnCount = 0;
@@ -897,6 +903,7 @@ function findColumnIndex(columnsMap, columnName) {
 }
 //eslint-disable-next-line no-unused-vars
 function setIndexDisplayValue(selectedSearchIndex) {
+    console.log("selectedIndex: " + selectedSearchIndex)
     if (selectedSearchIndex) {
         // Remove all existing selected indexes
         $('.index-container .selected-index').remove();
