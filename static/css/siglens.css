@@ -6593,6 +6593,9 @@ p#versionInfo {
     color: #000;
 }
 
+.json-popup-header-buttons>div:last-child {
+    margin-left: auto;
+}
 
 #panel-loading {
     border: 4px solid var(--purple-1);
@@ -6693,6 +6696,7 @@ p#versionInfo {
 }
 
 .fields-sidebar {
+    min-width: 180px;
     width: 250px;
     background-color: var(--black1-to-white0);
     border: 1px solid var(--panel-table-line-color);
