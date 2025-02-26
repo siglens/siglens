@@ -187,7 +187,6 @@ function hideColumnHandler(evt, isCloseIcon = false) {
 function resetAvailableFields() {
     $('#available-fields-list').empty();
     $('#selected-fields-list').empty();
-    selectedFieldsList = [];
     availColNames = [];
     updateFieldCounts();
 }

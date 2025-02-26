@@ -427,7 +427,6 @@ function runLiveTailBtnHandler(evt) {
         total_liveTail_searched = 0;
         wsState = 'query';
         data = getLiveTailFilter(false, false, 1800);
-        availColNames = [];
         createLiveTailSocket(data);
     } else {
         $('#live-tail-btn').html('Live Tail');
@@ -467,8 +466,6 @@ function runFilterBtnHandler(evt) {
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
-            availColNames = [];
-            selectedFieldsList = [];
             doSearch(data);
         }
         $('#daterangepicker').hide();
@@ -484,8 +481,6 @@ function filterInputHandler(evt) {
         totalLoadedRecords = 0;
         data = getSearchFilter(false, false);
         initialSearchData = data;
-        availColNames = [];
-        selectedFieldsList = [];
         doSearch(data);
     }
 }
