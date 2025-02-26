@@ -31,8 +31,6 @@ function setupEventHandlers() {
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
-    $('#hide-null-columns-checkbox').on('change', handleHideNullColumnsCheckbox);
-
     $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
 
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
@@ -575,6 +573,7 @@ function configureLogsColumn(viewType) {
 
                 Object.entries(data)
                     .filter(([key]) => key !== 'timestamp')
+                    .filter(([_, value]) => value !== '' && value !== null && value !== undefined) // Filter out the column which is empty
                     .forEach(([key, value]) => {
                         // Only show selected fields (or all if none selected)
                         if (key !== 'logs' && selectedFieldsList.length > 0 && !selectedFieldsList.includes(key)) {
@@ -673,111 +672,4 @@ function updateLogsViewColumn(viewType) {
         force: true,
         columns: ['logs'],
     });
-}
-
-// TODO: Remove the code related to hide null columns
-//eslint-disable-next-line no-unused-vars
-function updateNullColumnsTracking(records) {
-    if (!records || records.length === 0) return;
-
-    records.forEach((record) => {
-        Object.keys(record).forEach((column) => {
-            allColumns.add(column);
-            if (record[column] !== null && record[column] !== undefined && record[column] !== '') {
-                //eslint-disable-next-line no-undef
-                columnsWithNonNullValues.add(column);
-            } else {
-                //eslint-disable-next-line no-undef
-                columnsWithNullValues.add(column);
-            }
-        });
-    });
-}
-//eslint-disable-next-line no-unused-vars
-function finalizeNullColumnsHiding() {
-    //eslint-disable-next-line no-undef
-    const nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
-    const checkbox = $('#hide-null-columns-checkbox');
-    const checkboxParent = $('#hide-null-column-box');
-
-    if (nullColumns.length === 0) {
-        // No null columns, hide checkbox
-        checkboxParent.hide();
-        updateColumnsVisibility(false, []); // Show all columns
-        return;
-    }
-
-    checkboxParent.show();
-    // Update column visibility if the checkbox is checked
-    const hideNullColumns = checkbox.is(':checked');
-    updateColumnsVisibility(hideNullColumns, nullColumns);
-}
-
-function handleHideNullColumnsCheckbox(event) {
-    const hideNullColumns = event.target.checked;
-    updateColumnsVisibility(hideNullColumns);
-}
-
-function updateColumnsVisibility(hideNullColumns, nullColumns = null) {
-    const columnDefs = gridOptions.columnApi?.getColumns().map((col) => ({ field: col.getColId() }));
-    let updatedSelectedFieldsList = [...selectedFieldsList];
-
-    if (!nullColumns) {
-        //eslint-disable-next-line no-undef
-        nullColumns = Array.from(allColumns).filter((column) => columnsWithNullValues.has(column) && !columnsWithNonNullValues.has(column));
-    }
-
-    const currentView = Cookies.get('log-view');
-    columnDefs?.forEach((colDef) => {
-        const colField = colDef.field;
-        if (colField !== 'timestamp' && colField !== 'logs') {
-            const isSelected = selectedFieldsList.includes(colField);
-            const isNullColumn = nullColumns.includes(colField);
-
-            let shouldBeVisible = isSelected;
-
-            if (hideNullColumns && isNullColumn && isSelected) {
-                shouldBeVisible = false;
-                updatedSelectedFieldsList = updatedSelectedFieldsList.filter((field) => field !== colField);
-                if (currentView === 'table') {
-                    gridOptions.columnApi.setColumnVisible(colField, shouldBeVisible);
-                }
-            }
-        }
-    });
-    updateAvailableFieldsUI(updatedSelectedFieldsList);
-    gridOptions.api?.sizeColumnsToFit();
-
-    // updateLogsColumnRenderer(currentView, updatedSelectedFieldsList, nullColumns);
-}
-
-function updateAvailableFieldsUI(updatedSelectedFieldsList) {
-    let visibleColumns = 0;
-    let totalColumns = availColNames.length;
-    if (updatedSelectedFieldsList && updatedSelectedFieldsList.length > 0) {
-        availColNames.forEach((colName) => {
-            if (updatedSelectedFieldsList.includes(colName)) {
-                visibleColumns++;
-                $(`.toggle-${string2Hex(colName)}`).addClass('active');
-            } else {
-                $(`.toggle-${string2Hex(colName)}`).removeClass('active');
-            }
-        });
-
-        let el = $('#available-fields .select-unselect-header');
-
-        // Update the toggle-all checkbox
-        if (visibleColumns === totalColumns - 2) {
-            // Excluding timestamp and logs
-            if (theme === 'light') {
-                el.find('.select-unselect-checkmark').remove();
-                el.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-            } else {
-                el.find('.select-unselect-checkmark').remove();
-                el.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-            }
-        } else {
-            el.find('.select-unselect-checkmark').remove();
-        }
-    }
 }
