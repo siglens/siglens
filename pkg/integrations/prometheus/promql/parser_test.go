@@ -14,6 +14,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
@@ -1301,4 +1302,27 @@ func Test_parsePromQLQuery_Parse_Promql_Test_CSV(t *testing.T) {
 		assert.Nil(t, err)
 		assert.True(t, len(mQueryReqs) > 0, "No Metric Search Reqs found for query: %s", query)
 	}
+}
+
+func Test_GetAllLabels(t *testing.T) {
+	assertGetAllLabels(t, true, `allocated_bytes`)
+	assertGetAllLabels(t, false, `allocated_bytes{app="foo"}`)
+	assertGetAllLabels(t, false, `avg(allocated_bytes)`)
+	assertGetAllLabels(t, false, `group by (app) (allocated_bytes)`)
+}
+
+func assertGetAllLabels(t *testing.T, expected bool, query string) {
+	t.Helper()
+
+	mQuery := parsePromQLForTest(t, query)
+	assert.Equal(t, expected, mQuery.GetAllLabels)
+}
+
+func parsePromQLForTest(t *testing.T, query string) structs.MetricsQuery {
+	t.Helper()
+
+	allRequests, _, _, err := parsePromQLQuery(query, 0, 0, 0)
+	require.Nil(t, err)
+	require.Len(t, allRequests, 1)
+	return (*allRequests[0]).MetricsQuery
 }
