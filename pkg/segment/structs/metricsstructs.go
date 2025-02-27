@@ -42,10 +42,14 @@ type MetricsQuery struct {
 	QueryHash              uint64            // hash of the query
 	HashedMName            uint64
 	PqlQueryType           parser.ValueType // promql query type
-	Function               Function
 	Downsampler            Downsampler
 	TagsFilters            []*TagsFilter    // all tags filters to apply
 	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
+
+	// TODO: remove this. It's currently used only temporarily, to copy the
+	// value into SubsequentAggs, and then SubsequentAggs.FunctionBlock is
+	// used.
+	Function Function
 
 	// If set, the query needs to get all series for the matched metrics to
 	// compute the result, but the result may be an aggregation, so fewer
