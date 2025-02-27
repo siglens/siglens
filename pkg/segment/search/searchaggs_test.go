@@ -60,13 +60,19 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 0
 	recsSize := 100
-	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		{
-			MeasureCol:  "*",
-			MeasureFunc: utils.Count,
-			StrEnc:      "count(*)",
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.MeasureAggsType,
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "*",
+					MeasureFunc: utils.Count,
+					StrEnc:      "count(*)",
+				},
+			},
 		},
-	}}
+	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	for i := 0; i < numSegments; i++ {
@@ -75,7 +81,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -96,20 +102,25 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_Zero_MultiSegments(t *testing.T) {
 func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 99
-	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		{
-			MeasureCol:  "*",
-			MeasureFunc: utils.Count,
-			StrEnc:      "count(*)",
-		},
-	}}
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.MeasureAggsType,
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "*",
+					MeasureFunc: utils.Count,
+					StrEnc:      "count(*)",
+				},
+			},
+		}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	recs, finalCols := getMockRecsAndFinalCols(uint64(sizeLimit))
 
 	resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
+	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
 
 	assert.Equal(t, 1, len(resultMap), "The resultMap should have a single key")
 	assert.True(t, resultMap["CHECK_NEXT_AGG"], "The resultMap should have a key CHECK_NEXT_AGG set to true")
@@ -126,13 +137,18 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 	numSegments := 2
 	recsSize := 100
 	sizeLimit := 180
-	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		{
-			MeasureCol:  "*",
-			MeasureFunc: utils.Count,
-			StrEnc:      "count(*)",
-		},
-	}}
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.MeasureAggsType,
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "*",
+					MeasureFunc: utils.Count,
+					StrEnc:      "count(*)",
+				},
+			},
+		}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	for i := 0; i < numSegments; i++ {
@@ -144,7 +160,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *testing.T
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -166,13 +182,18 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 	numSegments := 2
 	recsSize := 100
 	sizeLimit := 250
-	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		{
-			MeasureCol:  "*",
-			MeasureFunc: utils.Count,
-			StrEnc:      "count(*)",
-		},
-	}}
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.MeasureAggsType,
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "*",
+					MeasureFunc: utils.Count,
+					StrEnc:      "count(*)",
+				},
+			},
+		}}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
 	for i := 0; i < numSegments; i++ {
@@ -180,7 +201,7 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t *testi
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
@@ -202,20 +223,22 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_Zero_MultiSegment(t *testing.
 	sizeLimit := 0
 	recsSize := 100
 	nodeResult := &structs.NodeResult{
-		PerformAggsOnRecs: true,
-		RecsAggsType:      structs.GroupByType,
-		GroupByCols:       []string{"measure3"},
-		GroupByRequest: &structs.GroupByRequest{
-			MeasureOperations: []*structs.MeasureAggregator{
-				{
-					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
-					StrEnc:      "count(*)",
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.GroupByType,
+			GroupByRequest: &structs.GroupByRequest{
+				MeasureOperations: []*structs.MeasureAggregator{
+					{
+						MeasureCol:  "*",
+						MeasureFunc: utils.Count,
+						StrEnc:      "count(*)",
+					},
 				},
+				GroupByColumns: []string{"measure3"},
+				BucketCount:    3000,
 			},
-			GroupByColumns: []string{"measure3"},
-			BucketCount:    3000,
 		},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -224,7 +247,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_Zero_MultiSegment(t *testing.
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -246,20 +269,22 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *t
 	numSegments := 2
 	sizeLimit := 99
 	nodeResult := &structs.NodeResult{
-		PerformAggsOnRecs: true,
-		RecsAggsType:      structs.GroupByType,
-		GroupByCols:       []string{"measure3"},
-		GroupByRequest: &structs.GroupByRequest{
-			MeasureOperations: []*structs.MeasureAggregator{
-				{
-					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
-					StrEnc:      "count(*)",
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.GroupByType,
+			GroupByRequest: &structs.GroupByRequest{
+				MeasureOperations: []*structs.MeasureAggregator{
+					{
+						MeasureCol:  "*",
+						MeasureFunc: utils.Count,
+						StrEnc:      "count(*)",
+					},
 				},
+				GroupByColumns: []string{"measure3"},
+				BucketCount:    3000,
 			},
-			GroupByColumns: []string{"measure3"},
-			BucketCount:    3000,
 		},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -267,7 +292,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_LessThanSegments(t *t
 
 	resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
+	assert.Equal(t, uint64(numSegments), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The number of Segments processed should be equal to the total number of segments")
 
 	assert.Equal(t, 1, len(resultMap), "The resultMap should have a single key")
 	assert.True(t, resultMap["CHECK_NEXT_AGG"], "The resultMap should have a key CHECK_NEXT_AGG set to true")
@@ -285,20 +310,22 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 	recsSize := 100
 	sizeLimit := 180
 	nodeResult := &structs.NodeResult{
-		PerformAggsOnRecs: true,
-		RecsAggsType:      structs.GroupByType,
-		GroupByCols:       []string{"measure3"},
-		GroupByRequest: &structs.GroupByRequest{
-			MeasureOperations: []*structs.MeasureAggregator{
-				{
-					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
-					StrEnc:      "count(*)",
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.GroupByType,
+			GroupByRequest: &structs.GroupByRequest{
+				MeasureOperations: []*structs.MeasureAggregator{
+					{
+						MeasureCol:  "*",
+						MeasureFunc: utils.Count,
+						StrEnc:      "count(*)",
+					},
 				},
+				GroupByColumns: []string{"measure3"},
+				BucketCount:    3000,
 			},
-			GroupByColumns: []string{"measure3"},
-			BucketCount:    3000,
 		},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -311,7 +338,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_EqualToSegments(t *te
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
@@ -343,20 +370,22 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 	recsSize := 100
 	sizeLimit := 250
 	nodeResult := &structs.NodeResult{
-		PerformAggsOnRecs: true,
-		RecsAggsType:      structs.GroupByType,
-		GroupByCols:       []string{"measure3"},
-		GroupByRequest: &structs.GroupByRequest{
-			MeasureOperations: []*structs.MeasureAggregator{
-				{
-					MeasureCol:  "*",
-					MeasureFunc: utils.Count,
-					StrEnc:      "count(*)",
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.GroupByType,
+			GroupByRequest: &structs.GroupByRequest{
+				MeasureOperations: []*structs.MeasureAggregator{
+					{
+						MeasureCol:  "*",
+						MeasureFunc: utils.Count,
+						StrEnc:      "count(*)",
+					},
 				},
+				GroupByColumns: []string{"measure3"},
+				BucketCount:    3000,
 			},
-			GroupByColumns: []string{"measure3"},
-			BucketCount:    3000,
 		},
+		GroupByCols: []string{"measure3"},
 	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 
@@ -365,7 +394,7 @@ func Test_PerformGroupByRequestAggsOnRecsSizeLimit_NonZero_GreaterThanSegments(t
 
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The Processed Segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The Last Segment should return a resultMap with a single key.")
@@ -385,19 +414,25 @@ func Test_PerformMeasureAggsOnRecsSizeLimit_WithList(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 0
 	recsSize := utils.MAX_SPL_LIST_SIZE * 2
-	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		{
-			MeasureCol:  "measure1",
-			MeasureFunc: utils.List,
-			StrEnc:      "list(measure1)",
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.MeasureAggsType,
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "measure1",
+					MeasureFunc: utils.List,
+					StrEnc:      "list(measure1)",
+				},
+			},
 		},
-	}}
+	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 	for i := 0; i < numSegments; i++ {
 		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
@@ -418,19 +453,25 @@ func Test_PerformMeasureAggsOnRecs_WithList(t *testing.T) {
 	numSegments := 2
 	sizeLimit := 0
 	recsSize := 20
-	nodeResult := &structs.NodeResult{PerformAggsOnRecs: true, RecsAggsType: structs.MeasureAggsType, MeasureOperations: []*structs.MeasureAggregator{
-		{
-			MeasureCol:  "measure1",
-			MeasureFunc: utils.List,
-			StrEnc:      "list(measure1)",
+	nodeResult := &structs.NodeResult{
+		RecsAggregator: structs.RecsAggregator{
+			PerformAggsOnRecs: true,
+			RecsAggsType:      structs.MeasureAggsType,
+			MeasureOperations: []*structs.MeasureAggregator{
+				{
+					MeasureCol:  "measure1",
+					MeasureFunc: utils.List,
+					StrEnc:      "list(measure1)",
+				},
+			},
 		},
-	}}
+	}
 	aggs := &structs.QueryAggregators{Limit: sizeLimit}
 	for i := 0; i < numSegments; i++ {
 		recs, finalCols := getMockRecsAndFinalCols(uint64(recsSize))
 		resultMap := PerformAggsOnRecs(nodeResult, aggs, recs, finalCols, uint64(numSegments), true, 1)
 
-		assert.Equal(t, uint64(i+1), nodeResult.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
+		assert.Equal(t, uint64(i+1), nodeResult.RecsAggResults.RecsAggsProcessedSegments, "The processed segments count should be incremented for each Segment that is processed completely.")
 
 		if i == numSegments-1 {
 			assert.Equal(t, 1, len(resultMap), "The last Segment should return a resultMap with a single key.")
