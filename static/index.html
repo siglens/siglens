@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
-    
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -49,6 +49,75 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/tippy.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet"> <!-- For bx icons -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.2.0/chartjs-adapter-moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+
+    <style>
+        .histo-container {
+            background: white;
+            width: 100%;
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            z-index: 1000;
+        }
+        #toggle-btn {
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+        }
+        .bx-bar-chart-square {
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 10px;
+            font-size: 40px;
+        }
+        .bx-bar-chart-square:hover {
+            color: var(--purple-1) !important;
+        }
+        #histogram-container {
+            display: none;
+            margin-top: 5px;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            position: absolute;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .my-chart-container {
+            background: white;
+            padding: 5px;
+            border: none;
+            width: 100%;
+            height: 200px;
+        }
+        .my-chart-container canvas {
+            cursor: crosshair !important;
+        }
+        #timechart-visualization-container {
+            display: none; /* Hidden by default unless runTimechart is true */
+            margin-top: 5px;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            position: absolute;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #timechart-visualization {
+            width: 100%;
+            height: 200px;
+        }
+    </style>
 
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -77,7 +146,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="dashboard" class="dashboard-box">
-            
+
             <div id="custom-code-tab" class="custom-code-tab w-100">
                 <div class="query-builder-container">
                     <div class="dropdown-box">
@@ -231,7 +300,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
                                                                             SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
                                                                             SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-                    
+
                                     </i>
                                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
                                         title=' {app="mysql",name="mysql-backup"}
@@ -264,6 +333,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div id="record-searched"></div>
             <div id="progress-div"></div>
+
+            <div class="histo-container">
+                <i id="toggle-btn" class='bx bx-bar-chart-square'></i>
+                <div id="histogram-container">
+                    <div class="my-chart-container">
+                        <canvas id="histogram"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden element for timechart state -->
+            <div id="timechart-state" style="display: none;" data-run-timechart="false" data-timechart-data='{}'></div>
 
 
             <div class="custom-chart-container">
@@ -348,8 +429,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="pagination-container"></div>
             <div id="empty-response"></div>
             <div id="initial-response">Create a query using the builder to access and view the logs.</div>
-            
-           
+
+
 
             <div id="corner-popup">
                 <div class="corner-container">
@@ -445,7 +526,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </button>
                 </div>
             </div>
-        
+
         <div class="popupContent" id="error-popup">
             <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
             <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
@@ -476,6 +557,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/query-builder.js"></script>
     <script src="./js/pagination.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/histo.js?cb=1_1_10"></script>
+    <!-- <script>
+        // Optionally show/hide timechart visualization based on runTimechart flag
+        $(document).ready(function () {
+            if (window.runTimechart) {
+                $('#timechart-visualization-container').show();
+            } else {
+                $('#timechart-visualization-container').hide();
+            }
+        });
+    </script> -->
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
