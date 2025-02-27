@@ -45,6 +45,9 @@ type MetricsQuery struct {
 	Downsampler            Downsampler
 	TagsFilters            []*TagsFilter    // all tags filters to apply
 	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
+	reordered              bool             // if the tags filters have been reordered
+	numStarFilters         int              // index such that TagsFilters[:numStarFilters] are all star filters
+	numValueFilters        uint32           // number of value filters
 
 	// TODO: remove this. It's currently used only temporarily, to copy the
 	// value into SubsequentAggs, and then SubsequentAggs.FunctionBlock is
@@ -59,10 +62,7 @@ type MetricsQuery struct {
 	FirstAggregator Aggregation
 	SubsequentAggs  *MetricQueryAgg
 
-	reordered       bool   // if the tags filters have been reordered
-	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
-	numValueFilters uint32 // number of value filters
-	OrgId           int64  // organization id
+	OrgId int64 // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
