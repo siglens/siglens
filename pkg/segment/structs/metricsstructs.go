@@ -47,7 +47,11 @@ type MetricsQuery struct {
 	Downsampler            Downsampler
 	TagsFilters            []*TagsFilter    // all tags filters to apply
 	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
-	SelectAllSeries        bool             //flag to select all series - for promQl
+
+	// If set, the query needs to get all series for the matched metrics to
+	// compute the result, but the result may be an aggregation, so fewer
+	// series may be returned
+	SelectAllSeries bool
 
 	MQueryAggs *MetricQueryAgg
 
@@ -58,7 +62,7 @@ type MetricsQuery struct {
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
-	GetAllLabels        bool // flag to get all label sets for each time series
+	GetAllLabels        bool // If set, the query should return all series for the matched metrics
 	Groupby             bool // flag to group by tags
 	GroupByMetricName   bool // flag to group by metric name
 }
