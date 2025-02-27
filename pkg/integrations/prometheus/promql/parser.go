@@ -194,6 +194,9 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 			AggBlockType:    structs.AggregatorBlock,
 			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
 		}
+		if len(mQuery.TagsFilters) == 0 {
+			mQuery.GetAllLabels = true
+		}
 		mQueryReqs[0].MetricsQuery = mQuery
 	} else {
 		// If the first Block in the MQueryAggs is not an aggregator block, then add an default aggregator block with avg function
