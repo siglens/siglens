@@ -67,6 +67,10 @@ type MetricsQuery struct {
 	GroupByMetricName   bool // flag to group by metric name
 }
 
+// This is used to aggregate multiple things into fewer things. Currently, two
+// use cases:
+// 1. Aggregate multiple series into fewer series (e.g., sum with an optional group by).
+// 2. Aggregate points in a series into fewer points (e.g., when used by a downsampler).
 type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
@@ -103,6 +107,9 @@ type LabelFunctionExpr struct {
 	GobRegexp        *toputils.GobbableRegex
 }
 
+// This works on a per-series basis. Generally, it changes the values in a
+// series or changes the series itself (e.g., changes a label), but doesn't
+// aggregate multiple series together.
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
