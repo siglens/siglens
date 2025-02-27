@@ -1223,7 +1223,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	}
 	pqlQuerytype := expr.Type()
 	var mquery structs.MetricsQuery
-	mquery.Aggregator = structs.Aggregation{}
+	mquery.FirstAggregator = structs.Aggregation{}
 	selectors := extractSelectors(expr)
 	//go through labels
 	for _, lblEntry := range selectors {
@@ -1259,7 +1259,7 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 			// LookbackDelta: 0,
 		}
 
-		mquery.Aggregator = structs.Aggregation{}
+		mquery.FirstAggregator = structs.Aggregation{}
 		parser.Inspect(es.Expr, func(node parser.Node, path []parser.Node) error {
 			// If there is no child node, just return nil
 			if node == nil {
@@ -1270,37 +1270,37 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				aggFunc := extractFuncFromPath(path)
 				switch aggFunc {
 				case "avg":
-					mquery.Aggregator.AggregatorFunction = segutils.Avg
+					mquery.FirstAggregator.AggregatorFunction = segutils.Avg
 				case "count":
-					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.FirstAggregator.AggregatorFunction = segutils.Count
 					mquery.GetAllLabels = true
 				case "sum":
-					mquery.Aggregator.AggregatorFunction = segutils.Sum
+					mquery.FirstAggregator.AggregatorFunction = segutils.Sum
 				case "max":
-					mquery.Aggregator.AggregatorFunction = segutils.Max
+					mquery.FirstAggregator.AggregatorFunction = segutils.Max
 				case "min":
-					mquery.Aggregator.AggregatorFunction = segutils.Min
+					mquery.FirstAggregator.AggregatorFunction = segutils.Min
 				case "quantile":
-					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+					mquery.FirstAggregator.AggregatorFunction = segutils.Quantile
 				case "topk":
-					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.FirstAggregator.AggregatorFunction = segutils.TopK
 					mquery.GetAllLabels = true
 				case "bottomk":
-					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.FirstAggregator.AggregatorFunction = segutils.BottomK
 					mquery.GetAllLabels = true
 				case "stddev":
-					mquery.Aggregator.AggregatorFunction = segutils.Stddev
+					mquery.FirstAggregator.AggregatorFunction = segutils.Stddev
 				case "stdvar":
-					mquery.Aggregator.AggregatorFunction = segutils.Stdvar
+					mquery.FirstAggregator.AggregatorFunction = segutils.Stdvar
 				case "group":
-					mquery.Aggregator.AggregatorFunction = segutils.Group
+					mquery.FirstAggregator.AggregatorFunction = segutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for AggregateExpr (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+					mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
 			case *parser.VectorSelector:
 				_, grouping := extractGroupsFromPath(path)
-				mquery.Aggregator.GroupByFields = sort.StringSlice(grouping)
+				mquery.FirstAggregator.GroupByFields = sort.StringSlice(grouping)
 				aggFunc := extractFuncFromPath(path)
 				for _, grp := range grouping {
 					groupby = true
@@ -1315,37 +1315,37 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 				}
 				switch aggFunc {
 				case "avg":
-					mquery.Aggregator.AggregatorFunction = segutils.Avg
+					mquery.FirstAggregator.AggregatorFunction = segutils.Avg
 				case "count":
-					mquery.Aggregator.AggregatorFunction = segutils.Count
+					mquery.FirstAggregator.AggregatorFunction = segutils.Count
 					mquery.GetAllLabels = true
 					mquery.TagsFilters = make([]*structs.TagsFilter, 0)
 				case "sum":
-					mquery.Aggregator.AggregatorFunction = segutils.Sum
+					mquery.FirstAggregator.AggregatorFunction = segutils.Sum
 				case "max":
-					mquery.Aggregator.AggregatorFunction = segutils.Max
+					mquery.FirstAggregator.AggregatorFunction = segutils.Max
 				case "min":
-					mquery.Aggregator.AggregatorFunction = segutils.Min
+					mquery.FirstAggregator.AggregatorFunction = segutils.Min
 				case "quantile":
-					mquery.Aggregator.AggregatorFunction = segutils.Quantile
+					mquery.FirstAggregator.AggregatorFunction = segutils.Quantile
 				case "topk":
-					mquery.Aggregator.AggregatorFunction = segutils.TopK
+					mquery.FirstAggregator.AggregatorFunction = segutils.TopK
 					mquery.GetAllLabels = true
 				case "bottomk":
-					mquery.Aggregator.AggregatorFunction = segutils.BottomK
+					mquery.FirstAggregator.AggregatorFunction = segutils.BottomK
 					mquery.GetAllLabels = true
 				case "stddev":
-					mquery.Aggregator.AggregatorFunction = segutils.Stddev
+					mquery.FirstAggregator.AggregatorFunction = segutils.Stddev
 				case "stdvar":
-					mquery.Aggregator.AggregatorFunction = segutils.Stdvar
+					mquery.FirstAggregator.AggregatorFunction = segutils.Stdvar
 				case "group":
-					mquery.Aggregator.AggregatorFunction = segutils.Group
+					mquery.FirstAggregator.AggregatorFunction = segutils.Group
 				default:
 					log.Infof("convertPqlToMetricsQuery: using avg aggregator by default for VectorSelector (got %v)", aggFunc)
-					mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+					mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 				}
 			case *parser.NumberLiteral:
-				mquery.Aggregator.FuncConstant = expr.Val
+				mquery.FirstAggregator.FuncConstant = expr.Val
 			default:
 				err := fmt.Errorf("convertPqlToMetricsQuery: parser.Inspect: Unsupported node type %T", node)
 				log.Errorf("%v", err)
@@ -1628,10 +1628,10 @@ func ConvertPqlToMetricsQuery(searchText string, startTime, endTime uint32, myid
 	metricName := mquery.MetricName
 	mquery.HashedMName = xxhash.Sum64String(metricName)
 
-	if mquery.Aggregator.AggregatorFunction == 0 && !groupby {
-		mquery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+	if mquery.FirstAggregator.AggregatorFunction == 0 && !groupby {
+		mquery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 	}
-	mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: mquery.Aggregator}
+	mquery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: mquery.FirstAggregator}
 	if len(mquery.TagsFilters) > 0 {
 		mquery.SelectAllSeries = false
 	} else {
