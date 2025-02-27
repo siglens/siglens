@@ -42,23 +42,27 @@ type MetricsQuery struct {
 	QueryHash              uint64            // hash of the query
 	HashedMName            uint64
 	PqlQueryType           parser.ValueType // promql query type
-	Aggregator             Aggregation
-	Function               Function
 	Downsampler            Downsampler
 	TagsFilters            []*TagsFilter    // all tags filters to apply
 	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
+	reordered              bool             // if the tags filters have been reordered
+	numStarFilters         int              // index such that TagsFilters[:numStarFilters] are all star filters
+	numValueFilters        uint32           // number of value filters
+
+	// TODO: remove this. It's currently used only temporarily, to copy the
+	// value into SubsequentAggs, and then SubsequentAggs.FunctionBlock is
+	// used.
+	Function Function
 
 	// If set, the query needs to get all series for the matched metrics to
 	// compute the result, but the result may be an aggregation, so fewer
 	// series may be returned
 	SelectAllSeries bool
 
-	MQueryAggs *MetricQueryAgg
+	FirstAggregator Aggregation
+	SubsequentAggs  *MetricQueryAgg
 
-	reordered       bool   // if the tags filters have been reordered
-	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
-	numValueFilters uint32 // number of value filters
-	OrgId           int64  // organization id
+	OrgId int64 // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
@@ -67,6 +71,10 @@ type MetricsQuery struct {
 	GroupByMetricName   bool // flag to group by metric name
 }
 
+// This is used to aggregate multiple things into fewer things. Currently, two
+// use cases:
+// 1. Aggregate multiple series into fewer series (e.g., sum with an optional group by).
+// 2. Aggregate points in a series into fewer points (e.g., when used by a downsampler).
 type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
@@ -103,6 +111,9 @@ type LabelFunctionExpr struct {
 	GobRegexp        *toputils.GobbableRegex
 }
 
+// This works on a per-series basis. Generally, it changes the values in a
+// series or changes the series itself (e.g., changes a label), but doesn't
+// aggregate multiple series together.
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
