@@ -97,3 +97,56 @@ func Test_Metrics_Failure(t *testing.T) {
 	statusCode := ctx.Response.StatusCode()
 	assert.True(t, statusCode >= 400 && statusCode < 600, "invalid status code: %d", statusCode)
 }
+
+func TestProcessMetricsIngestWithSpecialSymbol(t *testing.T) {
+	myid := int64(0)
+	initTestConfig(t)
+	err := virtualtable.InitVTable(func() []int64 { return []int64{myid} })
+	assert.NoError(t, err)
+
+	request := &collmetricspb.ExportMetricsServiceRequest{
+		ResourceMetrics: []*metricspb.ResourceMetrics{
+			{
+				ScopeMetrics: []*metricspb.ScopeMetrics{
+					{
+						Metrics: []*metricspb.Metric{
+							{
+								Name: "mysql_buffer_pool.data-pages",
+								Data: &metricspb.Metric_Gauge{
+									Gauge: &metricspb.Gauge{
+										DataPoints: []*metricspb.NumberDataPoint{
+											{
+												TimeUnixNano: 1740390270409000000,
+												Value:        &metricspb.NumberDataPoint_AsDouble{AsDouble: 75.5},
+												Attributes: []*commonpb.KeyValue{
+													{Key: "host-name", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "server-1"}}},
+													{Key: "region", Value: &commonpb.AnyValue{Value: &commonpb.AnyValue_StringValue{StringValue: "us-east-1"}}},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	data, err := proto.Marshal(request)
+	if err != nil {
+		t.Fatalf("Failed to marshal request: %v", err)
+	}
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetBody(data)
+	ctx.Request.Header.SetContentType("application/x-protobuf")
+	requestData, _ := getDataToUnmarshal(ctx)
+	requestMatrix, _ := unmarshalMetricRequest(requestData)
+	numTotalRecords, numFailedRecords := ingestMetrics(requestMatrix, 0)
+
+	assert.Greater(t, numTotalRecords, 0, "numTotalRecords should be greater than 0")
+	assert.GreaterOrEqual(t, numFailedRecords, 0, "numFailedRecords should be = 0")
+
+}

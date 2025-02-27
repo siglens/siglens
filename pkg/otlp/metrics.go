@@ -19,6 +19,8 @@ package otlp
 
 import (
 	"encoding/json"
+	"regexp"
+	"strconv"
 
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -35,9 +37,6 @@ import (
 
 type processedMetric struct {
 	Name         string
-	Description  string
-	Unit         string
-	Type         string
 	Attributes   map[string]string
 	TimeUnixNano uint64
 	Value        uint64
@@ -80,11 +79,9 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
 
 			for _, metrics := range scopeMetrics.Metrics {
-				metricType, extractedMetrics := processMetric(metrics)
+				extractedMetrics := processMetric(metrics)
 				for _, metric := range extractedMetrics {
-					metric.Type = metricType
 					numTotalRecords++
-
 					data, err := ConvertToOTLPMetricsFormat(metric, int64(metric.TimeUnixNano), float64(metric.Value))
 					if err != nil {
 						numFailedRecords++
@@ -151,36 +148,31 @@ func setMetricsIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, 
 	}
 }
 
-func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
+func processMetric(metric *metricspb.Metric) []processedMetric {
 	var extracted []processedMetric
 
 	if gauge := metric.GetGauge(); gauge != nil {
 		for _, dataPoint := range gauge.DataPoints {
 			extracted = append(extracted, processedMetric{
 				Name:         metric.Name,
-				Description:  metric.Description,
-				Unit:         metric.Unit,
 				Attributes:   extractAttributes(dataPoint.Attributes),
 				TimeUnixNano: dataPoint.TimeUnixNano,
 				Value:        uint64(dataPoint.GetAsDouble()),
 			})
 		}
-		return "Gauge", extracted
+		return extracted
 	}
 
-	// Process Sum
 	if sum := metric.GetSum(); sum != nil {
 		for _, dataPoint := range sum.DataPoints {
 			extracted = append(extracted, processedMetric{
 				Name:         metric.Name,
-				Description:  metric.Description,
-				Unit:         metric.Unit,
 				Attributes:   extractAttributes(dataPoint.Attributes),
 				TimeUnixNano: dataPoint.TimeUnixNano,
 				Value:        uint64(dataPoint.GetAsDouble()),
 			})
 		}
-		return "Sum", extracted
+		return extracted
 	}
 
 	// Process Histogram
@@ -188,14 +180,12 @@ func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
 		for _, dataPoint := range histogram.DataPoints {
 			extracted = append(extracted, processedMetric{
 				Name:         metric.Name,
-				Description:  metric.Description,
-				Unit:         metric.Unit,
 				Attributes:   extractAttributes(dataPoint.Attributes),
 				TimeUnixNano: dataPoint.TimeUnixNano,
 				Value:        dataPoint.Count,
 			})
 		}
-		return "Histogram", extracted
+		return extracted
 	}
 
 	// Process Exponential Histogram
@@ -203,14 +193,12 @@ func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
 		for _, dataPoint := range expHistogram.DataPoints {
 			extracted = append(extracted, processedMetric{
 				Name:         metric.Name,
-				Description:  metric.Description,
-				Unit:         metric.Unit,
 				Attributes:   extractAttributes(dataPoint.Attributes),
 				TimeUnixNano: dataPoint.TimeUnixNano,
 				Value:        uint64(dataPoint.Scale),
 			})
 		}
-		return "ExponentialHistogram", extracted
+		return extracted
 	}
 
 	// Process Summary
@@ -218,17 +206,15 @@ func processMetric(metric *metricspb.Metric) (string, []processedMetric) {
 		for _, dataPoint := range summary.DataPoints {
 			extracted = append(extracted, processedMetric{
 				Name:         metric.Name,
-				Description:  metric.Description,
-				Unit:         metric.Unit,
 				Attributes:   extractAttributes(dataPoint.Attributes),
 				TimeUnixNano: dataPoint.TimeUnixNano,
 				Value:        dataPoint.Count,
 			})
 		}
-		return "Summary", extracted
+		return extracted
 	}
 
-	return "Unknown", extracted
+	return extracted
 }
 
 func ConvertToOTLPMetricsFormat(data processedMetric, timestamp int64, value float64) ([]byte, error) {
@@ -241,11 +227,8 @@ func ConvertToOTLPMetricsFormat(data processedMetric, timestamp int64, value flo
 
 	var metricName string
 	tags := make(map[string]string)
-	metricName = data.Name
-	tags["unit"] = data.Unit
-	tags["description"] = data.Description
-	tags["type"] = data.Type
-
+	re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+	metricName = re.ReplaceAllString(data.Name, "_")
 	for key, val := range data.Attributes {
 		tags[key] = val
 	}
@@ -265,11 +248,20 @@ func ConvertToOTLPMetricsFormat(data processedMetric, timestamp int64, value flo
 	return modifiedData, nil
 }
 
-// Helper function to extract attributes from KeyValue pairs
 func extractAttributes(attributes []*commonpb.KeyValue) map[string]string {
 	attrMap := make(map[string]string)
 	for _, attr := range attributes {
-		attrMap[attr.Key] = attr.Value.GetStringValue()
+		re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+		key := re.ReplaceAllString(attr.Key, "_")
+		if value := attr.Value.GetIntValue(); value != 0 {
+			attrMap[key] = strconv.FormatInt(value, 10)
+		} else if value := attr.Value.GetDoubleValue(); value != 0 {
+			attrMap[key] = strconv.FormatFloat(value, 'f', -1, 64)
+		} else if value := attr.Value.GetBoolValue(); value != false {
+			attrMap[key] = strconv.FormatBool(value)
+		} else if value := attr.Value.GetStringValue(); value != "" {
+			attrMap[key] = value
+		}
 	}
 	return attrMap
 }
