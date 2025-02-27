@@ -42,7 +42,6 @@ type MetricsQuery struct {
 	QueryHash              uint64            // hash of the query
 	HashedMName            uint64
 	PqlQueryType           parser.ValueType // promql query type
-	Aggregator             Aggregation
 	Function               Function
 	Downsampler            Downsampler
 	TagsFilters            []*TagsFilter    // all tags filters to apply
@@ -53,7 +52,8 @@ type MetricsQuery struct {
 	// series may be returned
 	SelectAllSeries bool
 
-	MQueryAggs *MetricQueryAgg
+	FirstAggregator Aggregation
+	SubsequentAggs  *MetricQueryAgg
 
 	reordered       bool   // if the tags filters have been reordered
 	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters

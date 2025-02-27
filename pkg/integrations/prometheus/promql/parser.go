@@ -97,7 +97,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 
 	pqlQuerytype := expr.Type()
 	var mQuery structs.MetricsQuery
-	mQuery.Aggregator = structs.Aggregation{}
+	mQuery.FirstAggregator = structs.Aggregation{}
 	selectors := extractSelectors(expr)
 	//go through labels
 	for _, labelEntry := range selectors {
@@ -189,8 +189,8 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		tags[idx].HashTagValue = hashedTagVal
 	}
 
-	if mQuery.MQueryAggs == nil {
-		mQuery.MQueryAggs = &structs.MetricQueryAgg{
+	if mQuery.SubsequentAggs == nil {
+		mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 			AggBlockType:    structs.AggregatorBlock,
 			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
 		}
@@ -201,11 +201,11 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 	} else {
 		// If the first Block in the MQueryAggs is not an aggregator block, then add an default aggregator block with avg function
 
-		if mQuery.MQueryAggs.AggBlockType != structs.AggregatorBlock {
-			mQuery.MQueryAggs = &structs.MetricQueryAgg{
+		if mQuery.SubsequentAggs.AggBlockType != structs.AggregatorBlock {
+			mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 				AggBlockType:    structs.AggregatorBlock,
 				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
-				Next:            mQuery.MQueryAggs,
+				Next:            mQuery.SubsequentAggs,
 			}
 			mQueryReqs[0].MetricsQuery = mQuery
 		}
@@ -243,12 +243,12 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 		exit = true
 	case *parser.MatrixSelector:
 		// Process only if the MQueryAggs is nil. Otherwise, it will be handled in the handleCallExpr
-		if mQuery.MQueryAggs == nil {
+		if mQuery.SubsequentAggs == nil {
 			mQueryReqs[0].TimeRange.StartEpochSec = mQueryReqs[0].TimeRange.EndEpochSec - uint32(node.Range.Seconds())
 		}
 	case *parser.SubqueryExpr:
 		// Process only if the MQueryAggs is nil. Otherwise, it will be handled in the handleCallExpr
-		if mQuery.MQueryAggs == nil {
+		if mQuery.SubsequentAggs == nil {
 			mQueryReqs, queryArithmetic, exit, err = parsePromQLExprNode(node.Expr, mQueryReqs, queryArithmetic, intervalSeconds)
 		}
 	case *parser.ParenExpr:
@@ -289,51 +289,51 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	// Handle parameters if necessary
 	if aggFunc == "quantile" && expr.Param != nil {
 		if param, ok := expr.Param.(*parser.NumberLiteral); ok {
-			mQuery.Aggregator.FuncConstant = param.Val
+			mQuery.FirstAggregator.FuncConstant = param.Val
 		}
 	}
 
 	switch aggFunc {
 	case "avg":
-		mQuery.Aggregator.AggregatorFunction = segutils.Avg
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
-		mQuery.Aggregator.AggregatorFunction = segutils.Count
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
 		mQuery.GetAllLabels = true
 	case "sum":
-		mQuery.Aggregator.AggregatorFunction = segutils.Sum
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
-		mQuery.Aggregator.AggregatorFunction = segutils.Max
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Max
 	case "min":
-		mQuery.Aggregator.AggregatorFunction = segutils.Min
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Min
 	case "quantile":
-		mQuery.Aggregator.AggregatorFunction = segutils.Quantile
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Quantile
 	case "topk":
 		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
 		if !ok {
 			return nil, fmt.Errorf("handleAggregateExpr: topk contains invalid param: %v", expr.Param)
 		}
-		mQuery.Aggregator.AggregatorFunction = segutils.TopK
-		mQuery.Aggregator.FuncConstant = numberLiteral.Val
+		mQuery.FirstAggregator.AggregatorFunction = segutils.TopK
+		mQuery.FirstAggregator.FuncConstant = numberLiteral.Val
 		mQuery.GetAllLabels = true
 	case "bottomk":
 		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
 		if !ok {
 			return nil, fmt.Errorf("handleAggregateExpr: bottomk contains invalid param: %v", expr.Param)
 		}
-		mQuery.Aggregator.AggregatorFunction = segutils.BottomK
-		mQuery.Aggregator.FuncConstant = numberLiteral.Val
+		mQuery.FirstAggregator.AggregatorFunction = segutils.BottomK
+		mQuery.FirstAggregator.FuncConstant = numberLiteral.Val
 		mQuery.GetAllLabels = true
 	case "stddev":
-		mQuery.Aggregator.AggregatorFunction = segutils.Stddev
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Stddev
 		mQuery.GetAllLabels = true
 	case "stdvar":
-		mQuery.Aggregator.AggregatorFunction = segutils.Stdvar
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Stdvar
 		mQuery.GetAllLabels = true
 	case "group":
-		mQuery.Aggregator.AggregatorFunction = segutils.Group
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Group
 	case "":
 		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got empty string)")
-		mQuery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+		mQuery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 	default:
 		return nil, fmt.Errorf("handleAggregateExpr: unsupported aggregation function %v", aggFunc)
 	}
@@ -362,11 +362,11 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Groupby = true
 	}
 
-	mQuery.Aggregator.GroupByFields = sort.StringSlice(expr.Grouping)
+	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
-		AggregatorBlock: mQuery.Aggregator.ShallowClone(),
+		AggregatorBlock: mQuery.FirstAggregator.ShallowClone(),
 	}
 
 	return mQueryAgg, nil
@@ -677,10 +677,10 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 
 	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
-	if mQuery.MQueryAggs != nil && mQuery.MQueryAggs.AggregatorBlock != nil {
-		agg.AggregatorFunction = mQuery.MQueryAggs.AggregatorBlock.AggregatorFunction
-		agg.FuncConstant = mQuery.MQueryAggs.AggregatorBlock.FuncConstant
-		agg.GroupByFields = mQuery.MQueryAggs.AggregatorBlock.GroupByFields
+	if mQuery.SubsequentAggs != nil && mQuery.SubsequentAggs.AggregatorBlock != nil {
+		agg.AggregatorFunction = mQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction
+		agg.FuncConstant = mQuery.SubsequentAggs.AggregatorBlock.FuncConstant
+		agg.GroupByFields = mQuery.SubsequentAggs.AggregatorBlock.GroupByFields
 	}
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
@@ -753,7 +753,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
-	if mQueryReqs[0].MetricsQuery.MQueryAggs == nil {
+	if mQueryReqs[0].MetricsQuery.SubsequentAggs == nil {
 		mQueryReqs = lhsRequest
 	} else if mQueryReqs[0].MetricsQuery.HashedMName == uint64(0) {
 		// This means there is a common group by on multiple metrics separated by operators.
@@ -798,11 +798,11 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 
 func appendMetricAggsToTheMQuery(mQueryReqs []*structs.MetricsQueryRequest, mQuery *structs.MetricsQuery) []*structs.MetricsQueryRequest {
 	for _, mQueryReq := range mQueryReqs {
-		currentAggs := mQueryReq.MetricsQuery.MQueryAggs
+		currentAggs := mQueryReq.MetricsQuery.SubsequentAggs
 		for currentAggs.Next != nil {
 			currentAggs = currentAggs.Next
 		}
-		currentAggs.Next = mQuery.MQueryAggs
+		currentAggs.Next = mQuery.SubsequentAggs
 
 		mQueryReq.MetricsQuery.Groupby = mQuery.Groupby
 		mQueryReq.MetricsQuery.SelectAllSeries = mQuery.SelectAllSeries
@@ -814,16 +814,16 @@ func appendMetricAggsToTheMQuery(mQueryReqs []*structs.MetricsQueryRequest, mQue
 func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.MetricQueryAgg) {
 
 	// If MQueryAggs is nil, set it to the new MetricQueryAgg
-	if mQuery.MQueryAggs == nil {
-		mQuery.MQueryAggs = mQueryAgg
+	if mQuery.SubsequentAggs == nil {
+		mQuery.SubsequentAggs = mQueryAgg
 	} else {
 		// Otherwise, set the new MetricQueryAgg to the head of the chain
 		// and set the current head as the next of the new MetricQueryAgg
-		mQueryAgg.Next = mQuery.MQueryAggs
-		mQuery.MQueryAggs = mQueryAgg
+		mQueryAgg.Next = mQuery.SubsequentAggs
+		mQuery.SubsequentAggs = mQueryAgg
 	}
 
 	// Reset the Function And Aggregator fields to handle the next function call correctly
 	mQuery.Function = structs.Function{}
-	mQuery.Aggregator = structs.Aggregation{}
+	mQuery.FirstAggregator = structs.Aggregation{}
 }
