@@ -24,25 +24,29 @@ import (
 )
 
 func Test_implementsSeries(t *testing.T) {
-	var _ Series = &rawSeries{}
+	var _ timeseries = &normalTimeseries{}
 }
 
 func Test_rawSeries(t *testing.T) {
-	series := &rawSeries{
-		values: []Entry{
+	series := &normalTimeseries{
+		values: []entry{
 			{timestamp: 1, value: 101},
 			{timestamp: 2, value: 102},
 		},
 	}
 
-	value, ok := series.At(1)
-	assert.True(t, ok)
-	assert.Equal(t, 101.0, value)
-	value, ok = series.At(42)
+	value, ok := series.AtOrBefore(0)
 	assert.False(t, ok)
 
-	assert.Equal(t, []Entry{
-		{timestamp: 1, value: 101},
-		{timestamp: 2, value: 102},
-	}, series.GetValues())
+	value, ok = series.AtOrBefore(1)
+	assert.True(t, ok)
+	assert.Equal(t, 101.0, value)
+
+	value, ok = series.AtOrBefore(2)
+	assert.True(t, ok)
+	assert.Equal(t, 102.0, value)
+
+	value, ok = series.AtOrBefore(100)
+	assert.True(t, ok)
+	assert.Equal(t, 102.0, value)
 }

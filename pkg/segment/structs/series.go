@@ -19,49 +19,42 @@ package structs
 
 import "sort"
 
-type Series interface {
-	At(timestamp uint32) (float64, bool)
-	GetValues() []Entry
+type epoch uint32
 
-	GetLabels() map[string]string
-	GetTagValue(tag string) (string, bool)
+type timeseries interface {
+	GetTimestamps() []epoch
+	// Gets the first value at or before the given timestamp.
+	AtOrBefore(timestamp epoch) (float64, bool)
 }
 
-type Entry struct {
-	timestamp uint32
+type entry struct {
+	timestamp epoch
 	value     float64
 }
 
-type baseSeries struct {
-	labels map[string]string
+type normalTimeseries struct {
+	values []entry
 }
 
-func (s *baseSeries) GetLabels() map[string]string {
-	return s.labels
+// TODO: make this more efficient.
+func (t *normalTimeseries) GetTimestamps() []epoch {
+	timestamps := make([]epoch, len(t.values))
+
+	for i, entry := range t.values {
+		timestamps[i] = entry.timestamp
+	}
+
+	return timestamps
 }
 
-func (s *baseSeries) GetTagValue(tag string) (string, bool) {
-	val, ok := s.labels[tag]
-	return val, ok
-}
-
-type rawSeries struct {
-	baseSeries
-	values []Entry
-}
-
-func (s *rawSeries) At(timestamp uint32) (float64, bool) {
-	i := sort.Search(len(s.values), func(k int) bool {
-		return s.values[k].timestamp >= timestamp
+func (t *normalTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
+	i := sort.Search(len(t.values), func(k int) bool {
+		return t.values[k].timestamp > timestamp
 	})
 
-	if i >= 0 && i < len(s.values) && s.values[i].timestamp == timestamp {
-		return s.values[i].value, true
+	if i > 0 {
+		return t.values[i-1].value, true
 	}
 
 	return 0, false
-}
-
-func (s *rawSeries) GetValues() []Entry {
-	return s.values
 }
