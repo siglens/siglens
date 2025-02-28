@@ -97,3 +97,20 @@ func (w *windowedTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
 
 	return w.timeseries.AtOrBefore(timestamp)
 }
+
+type timeBasedSeries struct {
+	timestamps []epoch
+	valueAt    func(epoch) float64
+}
+
+func (t *timeBasedSeries) GetTimestamps() []epoch {
+	return t.timestamps
+}
+
+func (t *timeBasedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+	if len(t.timestamps) == 0 || timestamp < t.timestamps[0] {
+		return 0, false
+	}
+
+	return t.valueAt(timestamp), true
+}

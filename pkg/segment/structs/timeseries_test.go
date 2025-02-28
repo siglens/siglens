@@ -25,6 +25,8 @@ import (
 
 func Test_implementsSeries(t *testing.T) {
 	var _ timeseries = &normalTimeseries{}
+	var _ timeseries = &windowedTimeseries{}
+	var _ timeseries = &timeBasedSeries{}
 }
 
 func Test_normalTimeseries(t *testing.T) {
@@ -90,5 +92,55 @@ func Test_windowedTimeseries(t *testing.T) {
 		value, ok = series.AtOrBefore(3)
 		assert.True(t, ok)
 		assert.Equal(t, 102.0, value)
+	})
+}
+
+func Test_timeBasedSeries(t *testing.T) {
+	series := &timeBasedSeries{
+		timestamps: []epoch{1, 2},
+		valueAt: func(timestamp epoch) float64 {
+			return float64(timestamp) + 100
+		},
+	}
+
+	t.Run("GetTimestamps", func(t *testing.T) {
+		timestamps := series.GetTimestamps()
+		assert.Equal(t, []epoch{1, 2}, timestamps)
+	})
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		value, ok := series.AtOrBefore(0)
+		assert.False(t, ok)
+
+		value, ok = series.AtOrBefore(1)
+		assert.True(t, ok)
+		assert.Equal(t, 101.0, value)
+
+		value, ok = series.AtOrBefore(2)
+		assert.True(t, ok)
+		assert.Equal(t, 102.0, value)
+
+		value, ok = series.AtOrBefore(3)
+		assert.True(t, ok)
+		assert.Equal(t, 103.0, value)
+	})
+}
+
+func Test_timeBasedSeries_empty(t *testing.T) {
+	series := &timeBasedSeries{
+		timestamps: []epoch{},
+		valueAt: func(timestamp epoch) float64 {
+			return float64(timestamp) + 100
+		},
+	}
+
+	t.Run("GetTimestamps", func(t *testing.T) {
+		timestamps := series.GetTimestamps()
+		assert.Equal(t, []epoch{}, timestamps)
+	})
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		_, ok := series.AtOrBefore(0)
+		assert.False(t, ok)
 	})
 }
