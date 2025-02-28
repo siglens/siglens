@@ -17,15 +17,51 @@
 
 package structs
 
+import "sort"
+
 type Series interface {
 	At(timestamp uint32) (float64, bool)
-	GetValues() []float64
+	GetValues() []Entry
 
 	GetLabels() map[string]string
 	GetTagValue(tag string) (string, bool)
 }
 
-type entry struct {
+type Entry struct {
 	timestamp uint32
 	value     float64
+}
+
+type baseSeries struct {
+	labels map[string]string
+}
+
+func (s *baseSeries) GetLabels() map[string]string {
+	return s.labels
+}
+
+func (s *baseSeries) GetTagValue(tag string) (string, bool) {
+	val, ok := s.labels[tag]
+	return val, ok
+}
+
+type rawSeries struct {
+	baseSeries
+	values []Entry
+}
+
+func (s *rawSeries) At(timestamp uint32) (float64, bool) {
+	i := sort.Search(len(s.values), func(k int) bool {
+		return s.values[k].timestamp >= timestamp
+	})
+
+	if i >= 0 && i < len(s.values) && s.values[i].timestamp == timestamp {
+		return s.values[i].value, true
+	}
+
+	return 0, false
+}
+
+func (s *rawSeries) GetValues() []Entry {
+	return s.values
 }
