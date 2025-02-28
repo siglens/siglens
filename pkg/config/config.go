@@ -595,6 +595,10 @@ func IsSafeMode() bool {
 	return runningConfig.SafeServerStart
 }
 
+func IsPauseModeEnabled() bool {
+	return runningConfig.PauseModeConverted
+}
+
 func GetRunningConfigAsJsonStr() (string, error) {
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)

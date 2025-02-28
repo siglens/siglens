@@ -152,7 +152,7 @@ func Main() {
 	log.Infof("----- Siglens server type %s starting up.... ----- \n", nodeType.String())
 	log.Infof("----- Siglens server logging to %s ----- \n", logOut)
 
-	if config.GetRunningConfig().PauseModeConverted {
+	if config.IsPauseModeEnabled() {
 		for {
 			msg := fmt.Sprintf("pauseMode has been enabled. Going to sleep for %v minutes...", pauseModeSleepDuration)
 			log.Info(msg)
