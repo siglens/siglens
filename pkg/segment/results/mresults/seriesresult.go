@@ -791,20 +791,30 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 
 		return ts, nil
 	case segutils.Count_Over_Time:
-		ts[sortedTimeSeries[0].downsampledTime] = 1
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
+		step := uint32(function.Step)
+		nextEvaluationTime := timeRange.StartEpochSec
+
+		for nextEvaluationTime <= timeRange.EndEpochSec {
+			timeWindowStartTime := nextEvaluationTime - timeWindow
+
+			// Find index of the first point within the time window using binary search
 			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
 				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
 			})
 
-			if i <= preIndex { // Can not find the second point within the time window
-				ts[sortedTimeSeries[i].downsampledTime] = 1
-				continue
+			lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+				return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
+			}) - 1
+
+			if lastIndex < preIndex || lastIndex < 0 {
+				ts[nextEvaluationTime] = 0
+			} else {
+				ts[nextEvaluationTime] = float64(lastIndex - preIndex + 1)
 			}
 
-			ts[sortedTimeSeries[i].downsampledTime] = float64(i - preIndex + 1)
+			nextEvaluationTime += step
 		}
+
 		return ts, nil
 	case segutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil

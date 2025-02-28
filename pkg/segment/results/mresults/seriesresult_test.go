@@ -597,37 +597,33 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 		EndEpochSec:   uint32(1025),
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: 10}, timeRange)
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: 10, Step: 10}, timeRange)
 	assert.Nil(t, err)
 
-	assert.Len(t, res, 6)
+	/**
+	 * The result will be:
+	 Evalution starts at 1000 and evaluates at every 10 seconds with 10 seconds lookback at each evaluation
+	 => 1000: 1000-10 = 990 => 0
+	 => 1010: 1010-10 = 1000 => 3
+	 => 1020: 1020-10 = 1010 => 1
+	**/
+
+	assert.Len(t, res, 3)
 
 	var val float64
 	var ok bool
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 1))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0))
 
-	val, ok = res[1003]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2))
-
-	val, ok = res[1008]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 3))
-
-	val, ok = res[1012]
+	val, ok = res[1010]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 3))
 
 	val, ok = res[1020]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2))
-
-	val, ok = res[1025]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2))
+	assert.True(t, dtypeutils.AlmostEquals(val, 1))
 }
 
 func Test_applyRangeFunctionStdvarOverTime(t *testing.T) {
