@@ -27,7 +27,7 @@ func Test_implementsSeries(t *testing.T) {
 	var _ timeseries = &normalTimeseries{}
 }
 
-func Test_rawSeries(t *testing.T) {
+func Test_normalTimeseries(t *testing.T) {
 	series := &normalTimeseries{
 		values: []entry{
 			{timestamp: 1, value: 101},
@@ -35,18 +35,60 @@ func Test_rawSeries(t *testing.T) {
 		},
 	}
 
-	value, ok := series.AtOrBefore(0)
-	assert.False(t, ok)
+	t.Run("GetTimestamps", func(t *testing.T) {
+		timestamps := series.GetTimestamps()
+		assert.Equal(t, []epoch{1, 2}, timestamps)
+	})
 
-	value, ok = series.AtOrBefore(1)
-	assert.True(t, ok)
-	assert.Equal(t, 101.0, value)
+	t.Run("AtOrBefore", func(t *testing.T) {
+		value, ok := series.AtOrBefore(0)
+		assert.False(t, ok)
 
-	value, ok = series.AtOrBefore(2)
-	assert.True(t, ok)
-	assert.Equal(t, 102.0, value)
+		value, ok = series.AtOrBefore(1)
+		assert.True(t, ok)
+		assert.Equal(t, 101.0, value)
 
-	value, ok = series.AtOrBefore(100)
+		value, ok = series.AtOrBefore(2)
+		assert.True(t, ok)
+		assert.Equal(t, 102.0, value)
+
+		value, ok = series.AtOrBefore(100)
+		assert.True(t, ok)
+		assert.Equal(t, 102.0, value)
+	})
+}
+
+func Test_windowedTimeseries(t *testing.T) {
+	innerSeries := &normalTimeseries{
+		values: []entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+			{timestamp: 3, value: 103},
+		},
+	}
+
+	series := RestrictRange(innerSeries, 1, 2)
+	_, ok := series.(*windowedTimeseries)
 	assert.True(t, ok)
-	assert.Equal(t, 102.0, value)
+
+	t.Run("GetTimestamps", func(t *testing.T) {
+		timestamps := series.GetTimestamps()
+		assert.Equal(t, []epoch{2}, timestamps)
+	})
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		value, ok := series.AtOrBefore(0)
+		assert.False(t, ok)
+
+		value, ok = series.AtOrBefore(1)
+		assert.False(t, ok)
+
+		value, ok = series.AtOrBefore(2)
+		assert.True(t, ok)
+		assert.Equal(t, 102.0, value)
+
+		value, ok = series.AtOrBefore(3)
+		assert.True(t, ok)
+		assert.Equal(t, 102.0, value)
+	})
 }

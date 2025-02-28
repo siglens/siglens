@@ -58,3 +58,42 @@ func (t *normalTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
 
 	return 0, false
 }
+
+type windowedTimeseries struct {
+	timeseries     timeseries
+	startExclusive epoch
+	endInclusive   epoch
+}
+
+func RestrictRange(series timeseries, startExclusive, endInclusive epoch) timeseries {
+	return &windowedTimeseries{
+		timeseries:     series,
+		startExclusive: startExclusive,
+		endInclusive:   endInclusive,
+	}
+}
+
+func (w *windowedTimeseries) GetTimestamps() []epoch {
+	timestamps := w.timeseries.GetTimestamps()
+
+	startIndex := sort.Search(len(timestamps), func(i int) bool {
+		return timestamps[i] > w.startExclusive
+	})
+	endIndex := sort.Search(len(timestamps), func(i int) bool {
+		return timestamps[i] > w.endInclusive
+	})
+
+	return timestamps[startIndex:endIndex]
+}
+
+func (w *windowedTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
+	if timestamp <= w.startExclusive {
+		return 0, false
+	}
+
+	if timestamp > w.endInclusive {
+		return w.timeseries.AtOrBefore(w.endInclusive)
+	}
+
+	return w.timeseries.AtOrBefore(timestamp)
+}
