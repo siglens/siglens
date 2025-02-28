@@ -257,8 +257,6 @@ func extractAttributes(attributes []*commonpb.KeyValue) map[string]string {
 			attrMap[key] = strconv.FormatInt(value, 10)
 		} else if value := attr.Value.GetDoubleValue(); value != 0 {
 			attrMap[key] = strconv.FormatFloat(value, 'f', -1, 64)
-		} else if value := attr.Value.GetBoolValue(); value != false {
-			attrMap[key] = strconv.FormatBool(value)
 		} else if value := attr.Value.GetStringValue(); value != "" {
 			attrMap[key] = value
 		}
