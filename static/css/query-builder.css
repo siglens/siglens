@@ -799,6 +799,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 .bx-bar-chart-square {
+    display: none;
     cursor: pointer;
     transition: background 0.3s;
     margin-bottom: 10px;
@@ -813,8 +814,9 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 .histo-container.visible + .show-table {
-    transform: translateY(200px); /* Reduced to 200px (height) + 20px (smaller margin) */
+    transform: translateY(210px);
 }
+
 .tab-content-size {
     height: 100%;
 }
