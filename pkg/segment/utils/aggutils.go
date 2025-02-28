@@ -78,10 +78,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = e1.CVal.(uint64) + e2.CVal.(uint64)
 			return e1, nil
 		case Min:
-			e1.CVal = MinUint64(e1.CVal.(uint64), e2.CVal.(uint64))
+			e1.CVal = min(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
 		case Max:
-			e1.CVal = MaxUint64(e1.CVal.(uint64), e2.CVal.(uint64))
+			e1.CVal = max(e1.CVal.(uint64), e2.CVal.(uint64))
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for unsigned int", fun)
@@ -92,10 +92,10 @@ func Reduce(e1 CValueEnclosure, e2 CValueEnclosure, fun AggregateFunctions) (CVa
 			e1.CVal = e1.CVal.(int64) + e2.CVal.(int64)
 			return e1, nil
 		case Min:
-			e1.CVal = MinInt64(e1.CVal.(int64), e2.CVal.(int64))
+			e1.CVal = min(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
 		case Max:
-			e1.CVal = MaxInt64(e1.CVal.(int64), e2.CVal.(int64))
+			e1.CVal = max(e1.CVal.(int64), e2.CVal.(int64))
 			return e1, nil
 		default:
 			return e1, fmt.Errorf("Reduce: unsupported aggregation type %v for signed int", fun)
@@ -213,10 +213,10 @@ func (self *NumTypeEnclosure) ReduceFast(e2Dtype SS_DTYPE, e2int64 int64,
 			self.IntgrVal = self.IntgrVal + e2int64
 			return nil
 		case Min:
-			self.IntgrVal = MinInt64(self.IntgrVal, e2int64)
+			self.IntgrVal = min(self.IntgrVal, e2int64)
 			return nil
 		case Max:
-			self.IntgrVal = MaxInt64(self.IntgrVal, e2int64)
+			self.IntgrVal = max(self.IntgrVal, e2int64)
 			return nil
 		case Count:
 			self.IntgrVal = self.IntgrVal + e2int64

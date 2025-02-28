@@ -516,7 +516,7 @@ func Test_SimpleMetricQuery_v1(t *testing.T) {
 
 	for _, mName := range metricNames {
 
-		query := fmt.Sprintf("(%v)", mName)
+		query := fmt.Sprintf("avg(%v)", mName)
 		metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
 		assert.Nil(t, err)
 
@@ -569,7 +569,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(20), intervalSeconds)
 
-	query := `({__name__=~"testmetric.*"})`
+	query := `avg({__name__=~"testmetric.*"})`
 	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
 	assert.Nil(t, err)
 
@@ -638,7 +638,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(20), intervalSeconds)
 
-	query := `({__name__=~"testmetric(0|1)"})`
+	query := `avg({__name__=~"testmetric(0|1)"})`
 	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
 	assert.Nil(t, err)
 
