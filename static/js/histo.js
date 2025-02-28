@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 $(document).ready(function () {
     let socket = null;
     let wsConnected = false;
@@ -80,14 +99,14 @@ $(document).ready(function () {
         socket.onerror = function (error) {
             console.error('WebSocket error:', error);
             wsConnected = false;
-            setTimeout(initializeWebSocket, 2000); // Retry after 2 seconds
+            setTimeout(initializeWebSocket, 2000);
         };
     }
 
     // Initialize WebSocket on page load
     initializeWebSocket();
 
-    // Handle toggle click to show/hide histogram
+
     $('#toggle-btn').on('click', toggleHistogram);
 
     // Add this function to determine appropriate time format based on range duration
@@ -98,23 +117,23 @@ $(document).ready(function () {
         // Define thresholds for different time formats
         if (rangeHours <= 2) {
             return {
-                format: 'HH:mm:ss', // Show hours:minutes:seconds for small ranges (≤ 2 hours)
+                format: 'HH:mm:ss',
                 tooltipFormat: 'MMM Do, YYYY @ HH:mm:ss.SSS',
                 granularity: 'second'
             };
         } else if (rangeHours <= 24) {
             return {
-                format: 'HH:mm', // Show hours:minutes for medium ranges (≤ 24 hours)
+                format: 'HH:mm',
                 tooltipFormat: 'MMM Do, YYYY @ HH:mm:ss',
                 granularity: 'minute'
             };
-        } else if (rangeHours <= 168) { // 7 days
+        } else if (rangeHours <= 168) {
             return {
-                format: 'MMM Do, HH:mm', // Show day + hour for ≤ 7 days
+                format: 'MMM Do, HH:mm',
                 tooltipFormat: 'MMM Do, YYYY @ HH:mm',
                 granularity: 'hour'
             };
-        } else if (rangeHours <= 720) { // 30 days
+        } else if (rangeHours <= 720) {
             return {
                 format: 'MMM Do', // Show month and day for ≤ 30 days
                 tooltipFormat: 'MMM Do, YYYY',
@@ -271,13 +290,13 @@ $(document).ready(function () {
         const chart = window.myChart;
         if (!chart) return;
 
-        // Clear selection area
+
         if (chart.options.plugins.annotation && chart.options.plugins.annotation.annotations) {
             chart.options.plugins.annotation.annotations = {};
             chart.update();
         }
 
-        // Clear zoom info
+
         $('#zoom-info').remove();
 
         // Reset to original data range
@@ -416,13 +435,13 @@ function updateHistogram(buckets) {
 
     console.log(`Using time format: ${timeFormat.format} for range: ${firstTimestamp.format('YYYY-MM-DD HH:mm:ss')} to ${lastTimestamp.format('YYYY-MM-DD HH:mm:ss')}`);
 
-    // Store the full timestamps and use appropriate date format for display
+
     const timestamps = buckets.map(bucket => moment(bucket.timestamp));
-    // Format x-axis labels according to selected time range
+
     const dateLabels = timestamps.map(time => time.format(timeFormat.format));
     const data = buckets.map(bucket => bucket.count);
 
-    // Store full timestamp formatted strings for tooltips with appropriate detail
+
     const fullTimestamps = timestamps.map(time => time.format(timeFormat.tooltipFormat));
 
     // If chart exists, update its data and axis formatting
@@ -516,7 +535,7 @@ function updateHistogram(buckets) {
                     annotations: {}
                 }
             },
-            // Allow interactions with the chart
+
             interaction: {
                 mode: 'nearest',
                 intersect: false
@@ -530,7 +549,7 @@ function updateHistogram(buckets) {
     // Store the full timestamps for tooltip use
     window.myChart.fullTimestamps = fullTimestamps;
 
-    // Store the original data for reset functionality
+
     window.originalBuckets = [...buckets];
 
     // Add zoom info
@@ -546,7 +565,7 @@ function getTimeFormatForRange(startTime, endTime) {
     const rangeMs = endTime - startTime;
     const rangeHours = rangeMs / (1000 * 60 * 60);
 
-    // Define thresholds for different time formats
+
     if (rangeHours <= 2) {
         return {
             format: 'HH:mm:ss', // Show hours:minutes:seconds for small ranges (≤ 2 hours)
@@ -555,19 +574,19 @@ function getTimeFormatForRange(startTime, endTime) {
         };
     } else if (rangeHours <= 24) {
         return {
-            format: 'HH:mm', // Show hours:minutes for medium ranges (≤ 24 hours)
+            format: 'HH:mm',
             tooltipFormat: 'MMM Do, YYYY @ HH:mm:ss',
             granularity: 'minute'
         };
     } else if (rangeHours <= 168) {
         return {
-            format: 'MMM Do, HH:mm', // Show day + hour for ≤ 7 days
+            format: 'MMM Do, HH:mm',
             tooltipFormat: 'MMM Do, YYYY @ HH:mm',
             granularity: 'hour'
         };
-    } else if (rangeHours <= 720) { 
+    } else if (rangeHours <= 720) {
         return {
-            format: 'MMM Do', // Show month and day for ≤ 30 days
+            format: 'MMM Do',
             tooltipFormat: 'MMM Do, YYYY',
             granularity: 'day'
         };

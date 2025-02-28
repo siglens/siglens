@@ -50,7 +50,6 @@ let logsColumnDefs = [
                 });
             }
             _.forEach(params.data, (value, key) => {
-                console.log(JSON.stringify(params.data));
                 let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
                 if (key != 'logs' && selectedFieldsList.includes(key)) {
                     logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
@@ -146,33 +145,6 @@ const gridOptions = {
         `;
         eGridDiv.appendChild(style);
 
-        // // Ensure DOM is ready and histogram canvas exists before initializing
-        // $(document).ready(function () {
-        //     const histogramCanvas = document.getElementById('histogram');
-        //     if (histogramCanvas && typeof window.updateHistogram === 'function') {
-        //         window.updateHistogram(logsRowData); // Initial histogram update with current data
-        //     } else {
-        //         console.warn("Histogram canvas '#histogram' not found or updateHistogram not available.");
-        //     }
-        //     // Optionally initialize timechart visualization if runTimechart is true
-        //     if (window.runTimechart && typeof window.updateTimechartVisualization === 'function' && window.timechartData) {
-        //         window.updateTimechartVisualization(window.timechartData);
-        //     }
-        // });
-
-        // // Initial search to populate the grid and histogram
-        // const start = moment().subtract(7, 'days');
-        // const end = moment();
-        // const initialData = {
-        //     searchText: "*",
-        //     startEpoch: start.valueOf(),
-        //     endEpoch: end.valueOf(),
-        //     runTimechart: false, // Default to false, no UI change unless explicitly set
-        //     queryLanguage: "Splunk QL"
-        // };
-        // if (typeof doSearch === 'function') {
-        //     doSearch(initialData);
-        // }
     },
 
 };
@@ -183,7 +155,6 @@ console.log(logsRowData);
 const myCellRenderer = (params) => {
     if (typeof params.data !== 'object' || params.data === null) return '';
     const value = params.data[params.colName];
-    console.log(JSON.stringify(params.data));
     if (value == null || value === '') return '';
     if (Array.isArray(value)) {
         return JSON.stringify(JSON.unflatten(value));
