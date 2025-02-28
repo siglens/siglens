@@ -666,156 +666,8 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_Time:
-		prefixSum := make([]float64, len(sortedTimeSeries)+1)
-		prefixSum[1] = sortedTimeSeries[0].dpVal
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
-		}
-
-		step := uint32(function.Step)
-		nextEvaluationTime := timeRange.StartEpochSec
-
-		for nextEvaluationTime <= timeRange.EndEpochSec {
-			timeWindowStartTime := nextEvaluationTime - timeWindow
-
-			// Find index of the first point within the time window using binary search
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
-			}) - 1
-
-			if lastIndex < preIndex || lastIndex < 0 {
-				ts[nextEvaluationTime] = 0
-			} else {
-				ts[nextEvaluationTime] = (prefixSum[lastIndex+1] - prefixSum[preIndex]) / float64(lastIndex-preIndex+1)
-			}
-
-			nextEvaluationTime += step
-		}
-
-		return ts, nil
-	case segutils.Min_Over_Time:
-		step := uint32(function.Step)
-		nextEvaluationTime := timeRange.StartEpochSec
-
-		for nextEvaluationTime <= timeRange.EndEpochSec {
-			timeWindowStartTime := nextEvaluationTime - timeWindow
-
-			// Find index of the first point within the time window using binary search
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
-			}) - 1
-
-			if lastIndex < preIndex || lastIndex < 0 {
-				ts[nextEvaluationTime] = 0
-			} else {
-				min := math.MaxFloat64
-				for j := preIndex; j <= lastIndex; j++ {
-					min = math.Min(min, sortedTimeSeries[j].dpVal)
-				}
-				ts[nextEvaluationTime] = min
-			}
-
-			nextEvaluationTime += step
-		}
-
-		return ts, nil
-	case segutils.Max_Over_Time:
-		step := uint32(function.Step)
-		nextEvaluationTime := timeRange.StartEpochSec
-
-		for nextEvaluationTime <= timeRange.EndEpochSec {
-			timeWindowStartTime := nextEvaluationTime - timeWindow
-
-			// Find index of the first point within the time window using binary search
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
-			}) - 1
-
-			if lastIndex < preIndex || lastIndex < 0 {
-				ts[nextEvaluationTime] = 0
-			} else {
-				max := -math.MaxFloat64
-				for j := preIndex; j <= lastIndex; j++ {
-					max = math.Max(max, sortedTimeSeries[j].dpVal)
-				}
-				ts[nextEvaluationTime] = max
-			}
-
-			nextEvaluationTime += step
-		}
-
-		return ts, nil
-	case segutils.Sum_Over_Time:
-		step := uint32(function.Step)
-		nextEvaluationTime := timeRange.StartEpochSec
-
-		prefixSum := make([]float64, len(sortedTimeSeries)+1)
-		prefixSum[1] = sortedTimeSeries[0].dpVal
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
-		}
-
-		for nextEvaluationTime <= timeRange.EndEpochSec {
-			timeWindowStartTime := nextEvaluationTime - timeWindow
-
-			// Find index of the first point within the time window using binary search
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
-			}) - 1
-
-			if lastIndex < preIndex || lastIndex < 0 {
-				ts[nextEvaluationTime] = 0
-			} else {
-				ts[nextEvaluationTime] = prefixSum[lastIndex+1] - prefixSum[preIndex]
-			}
-
-			nextEvaluationTime += step
-		}
-
-		return ts, nil
-	case segutils.Count_Over_Time:
-		step := uint32(function.Step)
-		nextEvaluationTime := timeRange.StartEpochSec
-
-		for nextEvaluationTime <= timeRange.EndEpochSec {
-			timeWindowStartTime := nextEvaluationTime - timeWindow
-
-			// Find index of the first point within the time window using binary search
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
-			}) - 1
-
-			if lastIndex < preIndex || lastIndex < 0 {
-				ts[nextEvaluationTime] = 0
-			} else {
-				ts[nextEvaluationTime] = float64(lastIndex - preIndex + 1)
-			}
-
-			nextEvaluationTime += step
-		}
-
-		return ts, nil
+	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time:
+		return evaluateAggregationOverTime(sortedTimeSeries, ts, function, timeRange)
 	case segutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
 	case segutils.Stddev_Over_Time:
@@ -865,6 +717,75 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 	default:
 		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type: %v", function.RangeFunction)
 	}
+}
+
+func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64, function structs.Function,
+	timeRange *dtypeutils.MetricsTimeRange) (map[uint32]float64, error) {
+
+	if len(sortedTimeSeries) == 0 {
+		return ts, nil
+	}
+
+	timeWindow := uint32(function.TimeWindow)
+	step := uint32(function.Step)
+	nextEvaluationTime := timeRange.StartEpochSec
+
+	var prefixSum []float64
+
+	if function.RangeFunction == segutils.Sum_Over_Time || function.RangeFunction == segutils.Avg_Over_Time {
+		prefixSum = make([]float64, len(sortedTimeSeries)+1)
+		prefixSum[1] = sortedTimeSeries[0].dpVal
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+		}
+	}
+
+	for nextEvaluationTime <= timeRange.EndEpochSec {
+		timeWindowStartTime := nextEvaluationTime - timeWindow
+
+		// Find index of the first point within the time window using binary search (Inclusive)
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+		})
+
+		// Find index of the last point within the time window using binary search (Exclusive)
+		lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
+		}) - 1
+
+		if lastIndex < preIndex {
+			ts[nextEvaluationTime] = 0
+			nextEvaluationTime += step
+			continue
+		}
+
+		switch function.RangeFunction {
+		case segutils.Count_Over_Time:
+			ts[nextEvaluationTime] = float64(lastIndex - preIndex + 1)
+		case segutils.Sum_Over_Time:
+			ts[nextEvaluationTime] = prefixSum[lastIndex+1] - prefixSum[preIndex]
+		case segutils.Avg_Over_Time:
+			ts[nextEvaluationTime] = (prefixSum[lastIndex+1] - prefixSum[preIndex]) / float64(lastIndex-preIndex+1)
+		case segutils.Min_Over_Time:
+			min := math.MaxFloat64
+			for j := preIndex; j <= lastIndex; j++ {
+				min = math.Min(min, sortedTimeSeries[j].dpVal)
+			}
+			ts[nextEvaluationTime] = min
+		case segutils.Max_Over_Time:
+			max := -math.MaxFloat64
+			for j := preIndex; j <= lastIndex; j++ {
+				max = math.Max(max, sortedTimeSeries[j].dpVal)
+			}
+			ts[nextEvaluationTime] = max
+		default:
+			return ts, fmt.Errorf("evaluateAggregationOverTime: unsupported function type %v", function.RangeFunction)
+		}
+
+		nextEvaluationTime += step
+	}
+
+	return ts, nil
 }
 
 /*
