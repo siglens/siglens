@@ -774,7 +774,7 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.AggBlockType)
 	assert.Equal(t, segutils.Avg_Over_Time, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, float64(0), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
+	assert.Equal(t, getStepValueFromTimeRange(&timeRange), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
 
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[1].MetricsQuery.SubsequentAggs.AggBlockType)
 	assert.Equal(t, segutils.Avg, mQueryReqs[1].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
@@ -874,7 +874,7 @@ func Test_parsePromQLQuery_NestedQueries_v7(t *testing.T) {
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.AggBlockType)
 	assert.Equal(t, segutils.Max_Over_Time, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, float64(0), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
+	assert.Equal(t, getStepValueFromTimeRange(&timeRange), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
 }
 
 func Test_parsePromQLQuery_NestedQueries_v8(t *testing.T) {
