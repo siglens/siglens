@@ -37,8 +37,32 @@ type MetricsGenerator struct {
 	multiTimestampsEnabled bool // Generate multiple timestamps for benchmark tests
 }
 
-func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, error) {
+// func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, error) {
 
+// 	multiTimestampsEnabled := false
+// 	seed := int64(fastrand.Uint32n(1_000))
+// 	switch gentype {
+// 	case "", "static":
+// 		log.Infof("Initializing static reader")
+// 	case "dynamic-user":
+// 		log.Infof("Initializing static reader")
+// 	case "benchmark":
+// 		log.Infof("Initializing benchmark reader")
+// 		seed = int64(1001)
+// 		multiTimestampsEnabled = true
+// 	default:
+// 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,benchmark]", gentype)
+// 	}
+
+// 	return &MetricsGenerator{
+// 		nMetrics:               uint32(nmetrics),
+// 		f:                      gofakeit.NewUnlocked(seed),
+// 		val:                    0,
+// 		multiTimestampsEnabled: multiTimestampsEnabled,
+// 	}, nil
+// }
+
+func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, error) {
 	multiTimestampsEnabled := false
 	seed := int64(fastrand.Uint32n(1_000))
 	switch gentype {
@@ -50,8 +74,12 @@ func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, erro
 		log.Infof("Initializing benchmark reader")
 		seed = int64(1001)
 		multiTimestampsEnabled = true
+	case "k8s":
+		log.Infof("Initializing k8s reader")
+		seed = int64(1001)
+		multiTimestampsEnabled = true
 	default:
-		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,benchmark]", gentype)
+		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,benchmark,k8s]", gentype)
 	}
 
 	return &MetricsGenerator{
@@ -61,6 +89,7 @@ func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, erro
 		multiTimestampsEnabled: multiTimestampsEnabled,
 	}, nil
 }
+
 
 func (mg *MetricsGenerator) Init(fName ...string) error {
 	return nil

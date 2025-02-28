@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 package config
 
 import (
@@ -1138,7 +1139,7 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	}
 
 	if config.DataDiskThresholdPercent == 0 {
-		config.DataDiskThresholdPercent = 85
+		config.DataDiskThresholdPercent = 90
 	}
 
 	memoryLimits := config.MemoryConfig

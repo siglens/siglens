@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 package cmd
 
 import (
@@ -24,10 +25,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var generatorType string
+
 var rootCmd = &cobra.Command{
 	Use:   "sigscalr-client",
 	Short: "sigscalr client",
 	Long:  `Client to send data to sigscalr and other related storages`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if generatorType != "" {
+			handleGenerator()
+			return
+		}
+		fmt.Println("Use -h to see available commands")
+	},
 }
 
 func Execute() {
@@ -35,4 +45,19 @@ func Execute() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func handleGenerator() {
+	switch generatorType {
+	case "k8s":
+		fmt.Println("Kubernetes metrics generator is initialized via the ingest command.")
+	default:
+		fmt.Printf("Unsupported generator type: %s\n", generatorType)
+		os.Exit(1)
+	}
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&generatorType, "generator", "g", "",
+		"Metrics generator type (k8s)")
 }
