@@ -17,8 +17,32 @@
 
 package structs
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func Test_implementsSeries(t *testing.T) {
 	var _ Series = &rawSeries{}
+}
+
+func Test_rawSeries(t *testing.T) {
+	series := &rawSeries{
+		values: []Entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+		},
+	}
+
+	value, ok := series.At(1)
+	assert.True(t, ok)
+	assert.Equal(t, 101.0, value)
+	value, ok = series.At(42)
+	assert.False(t, ok)
+
+	assert.Equal(t, []Entry{
+		{timestamp: 1, value: 101},
+		{timestamp: 2, value: 102},
+	}, series.GetValues())
 }
