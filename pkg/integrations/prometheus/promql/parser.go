@@ -232,7 +232,7 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 			updateMetricQueryWithAggs(mQuery, mQueryAgg)
 		}
 	case *parser.Call:
-		mQueryAgg, err = handleCallExpr(node, mQuery)
+		mQueryAgg, err = handleCallExpr(node, mQueryReqs[0])
 		if err == nil {
 			updateMetricQueryWithAggs(mQuery, mQueryAgg)
 		}
@@ -372,20 +372,22 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	return mQueryAgg, nil
 }
 
-func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
+func handleCallExpr(call *parser.Call, mQueryReq *structs.MetricsQueryRequest) (*structs.MetricQueryAgg, error) {
 	var err error
 	defaultCase := false
+
+	mQuery := &mQueryReq.MetricsQuery
 
 	for _, arg := range call.Args {
 		switch arg := arg.(type) {
 		case *parser.MatrixSelector:
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		case *parser.VectorSelector:
 			err = handleCallExprVectorSelectorNode(call, mQuery)
 		case *parser.ParenExpr:
-			err = handleCallExprParenExprNode(call, arg, mQuery)
+			err = handleCallExprParenExprNode(call, arg, mQueryReq)
 		case *parser.SubqueryExpr:
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		default:
 			defaultCase = true
 		}
@@ -406,7 +408,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 		// So, we need to check for both the cases.
 		err = handleCallExprVectorSelectorNode(call, mQuery)
 		if err != nil {
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		}
 	}
 
@@ -422,22 +424,24 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 	return mQueryAgg, nil
 }
 
-func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQuery *structs.MetricsQuery) error {
+func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQueryReq *structs.MetricsQueryRequest) error {
 	var err error
+
+	mQuery := &mQueryReq.MetricsQuery
 
 	switch expr.Expr.(type) {
 	case *parser.MatrixSelector:
-		err = handleCallExprMatrixSelectorNode(call, mQuery)
+		err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 	case *parser.VectorSelector:
 		err = handleCallExprVectorSelectorNode(call, mQuery)
 	case *parser.ParenExpr:
-		err = handleCallExprParenExprNode(call, expr.Expr.(*parser.ParenExpr), mQuery)
+		err = handleCallExprParenExprNode(call, expr.Expr.(*parser.ParenExpr), mQueryReq)
 	}
 
 	return err
 }
 
-func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.MetricsQuery) error {
+func handleCallExprMatrixSelectorNode(expr *parser.Call, mQueryReq *structs.MetricsQueryRequest) error {
 	function := expr.Func.Name
 
 	timeWindow, step, err := extractTimeWindow(expr.Args)
@@ -445,8 +449,14 @@ func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		return fmt.Errorf("handleCallExprMatrixSelectorNode: cannot extract time window: %v", err)
 	}
 
+	mQuery := &mQueryReq.MetricsQuery
+
 	if mQuery.TagsFilters != nil {
 		mQuery.Groupby = true
+	}
+
+	if step == 0 {
+		step = getStepValueFromTimeRange(&mQueryReq.TimeRange)
 	}
 
 	return handlePromQLRangeFunctionNode(function, timeWindow, step, expr, mQuery)
@@ -503,6 +513,9 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	default:
 		return fmt.Errorf("handlePromQLRangeFunctionNode: unsupported function type %v", functionName)
 	}
+
+	mQuery.LookBackToInclude = timeWindow
+	mQuery.GetAllLabels = true
 
 	return nil
 }
@@ -826,4 +839,8 @@ func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.
 	// Reset the Function And Aggregator fields to handle the next function call correctly
 	mQuery.Function = structs.Function{}
 	mQuery.FirstAggregator = structs.Aggregation{}
+}
+
+func getStepValueFromTimeRange(timeRange *dtu.MetricsTimeRange) float64 {
+	return float64(timeRange.EndEpochSec-timeRange.StartEpochSec) / structs.MAX_POINTS_TO_EVALUATE
 }

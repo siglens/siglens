@@ -40,7 +40,12 @@ func Test_applyRangeFunctionRate(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	// There's six timestamps in the series, but we need two points to calculate
@@ -85,7 +90,12 @@ func Test_applyRangeFunctionIRate(t *testing.T) {
 		1009: 1.0,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IRate, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1009),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IRate, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	// There's six timestamps in the series, but we need two points to calculate
@@ -132,6 +142,11 @@ func Test_applyRangeFunctionPredict_Linear(t *testing.T) {
 		1003: 7.0,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1003),
+	}
+
 	result := make(map[string]map[uint32]float64)
 	result["metric"] = timeSeries
 
@@ -147,7 +162,7 @@ func Test_applyRangeFunctionPredict_Linear(t *testing.T) {
 
 	function := structs.Function{RangeFunction: segutils.Predict_Linear, TimeWindow: 10, ValueList: []string{"1000"}}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -172,8 +187,13 @@ func Test_applyRangeFunctionIncrease(t *testing.T) {
 		1020: 18.0,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1020),
+	}
+
 	timeWindow := float64(10)
-	increase, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow})
+	increase, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}, timeRange)
 	assert.Nil(t, err)
 
 	assert.Len(t, increase, 4)
@@ -208,7 +228,12 @@ func Test_applyRangeFunctionDelta(t *testing.T) {
 		1018: 2.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Delta, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Delta, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 3)
@@ -241,7 +266,12 @@ func Test_applyRangeFunctionIDelta(t *testing.T) {
 		1018: 2.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IDelta, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.IDelta, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 3)
@@ -275,7 +305,12 @@ func Test_applyRangeFunctionChanges(t *testing.T) {
 		1025: 2.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Changes, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Changes, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -318,7 +353,12 @@ func Test_applyRangeFunctionResets(t *testing.T) {
 		1025: 2.8,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Resets, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Resets, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -353,6 +393,7 @@ func Test_applyRangeFunctionResets(t *testing.T) {
 
 func Test_applyRangeFunctionAvg(t *testing.T) {
 	timeSeries := map[uint32]float64{
+		990:  1.0,
 		1000: 2.0,
 		1003: 3.0,
 		1008: 4.0,
@@ -361,37 +402,38 @@ func Test_applyRangeFunctionAvg(t *testing.T) {
 		1035: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1035),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Avg_Over_Time, TimeWindow: 20, Step: 15}, timeRange)
 	assert.Nil(t, err)
 
-	assert.Len(t, res, 6)
+	/**
+	 * The result will be:
+	 Evalution starts at 1000 and evaluates at every 15 seconds with 20 seconds lookback at each evaluation
+	 => 1000: 1000-20 = 980 => 1.0
+	 => 1015: 1015-20 = 995 => (2.0 + 3.0 + 4.0 + 18.0) / 4 = 6.75
+	 => 1030: 1030-20 = 1010 => 18.0 + 2.5 / 2 = 10.25
+	**/
+
+	assert.Len(t, res, 3)
 
 	var val float64
 	var ok bool
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 1.0))
 
-	val, ok = res[1003]
+	val, ok = res[1015]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (3.0+2.0)/(2)))
+	assert.True(t, dtypeutils.AlmostEquals(val, (2.0+3.0+4.0+18.0)/(4)))
 
-	val, ok = res[1008]
+	val, ok = res[1030]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (4.0+3.0+2.0)/(3)))
-
-	val, ok = res[1012]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (18.0+4.0+3.0)/(3)))
-
-	val, ok = res[1020]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (2.5+18.0)/(2)))
-
-	val, ok = res[1035]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 6.5))
+	assert.True(t, dtypeutils.AlmostEquals(val, (18.0+2.5)/(2)))
 }
 
 func Test_applyRangeFunctionMin(t *testing.T) {
@@ -404,35 +446,41 @@ func Test_applyRangeFunctionMin(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1035),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Min_Over_Time, TimeWindow: 10, Step: 10}, timeRange)
 	assert.Nil(t, err)
 
-	assert.Len(t, res, 6)
+	/**
+	 * The result will be:
+	 Evalution starts at 1000 and evaluates at every 10 seconds with 10 seconds lookback at each evaluation
+	 => 1000: 1000-10 = 990 => 0.0 // since 1000 is not included
+	 => 1010: 1010-10 = 1000 => 1.0
+	 => 1020: 1020-10 = 1010 => 18.0
+	 => 1030: 1030-10 = 1020 => 2.5
+	**/
+
+	assert.Len(t, res, 4)
 
 	var val float64
 	var ok bool
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.0))
 
-	val, ok = res[1003]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
-
-	val, ok = res[1008]
+	val, ok = res[1010]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 1.0))
 
-	val, ok = res[1012]
+	val, ok = res[1020]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 1.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 18.0))
 
-	val, ok = res[1023]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
-
-	val, ok = res[1025]
+	val, ok = res[1030]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
 }
@@ -447,53 +495,76 @@ func Test_applyRangeFunctionMax(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1035),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Max_Over_Time, TimeWindow: 10, Step: 10}, timeRange)
 	assert.Nil(t, err)
 
-	assert.Len(t, res, 6)
+	/**
+	 * The result will be:
+	 Evalution starts at 1000 and evaluates at every 10 seconds with 10 seconds lookback at each evaluation
+	 => 1000: 1000-10 = 990 => 0.0 // since 1000 is not included
+	 => 1010: 1010-10 = 1000 => 3.0
+	 => 1020: 1020-10 = 1010 => 18.0
+	 => 1030: 1030-10 = 1020 => 6.5
+	**/
+
+	assert.Len(t, res, 4)
 
 	var val float64
 	var ok bool
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.0))
 
-	val, ok = res[1003]
+	val, ok = res[1010]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 3.0))
 
-	val, ok = res[1008]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 3.0))
-
-	val, ok = res[1012]
+	val, ok = res[1020]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 18.0))
 
-	val, ok = res[1023]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
-
-	val, ok = res[1025]
+	val, ok = res[1030]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 6.5))
 }
 
 func Test_applyRangeFunctionSum(t *testing.T) {
 	timeSeries := map[uint32]float64{
+		980:  1.0,
+		990:  1.0,
 		1000: 2.0,
 		1003: 3.0,
 		1008: 4.0,
 		1012: 18.0,
 		1020: 2.5,
 		1025: 6.5,
+		1030: 1.5,
+		1035: 2.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1035),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Sum_Over_Time, TimeWindow: 20, Step: 15}, timeRange)
 	assert.Nil(t, err)
 
-	assert.Len(t, res, 6)
+	/**
+	 * The result will be:
+	 Evalution starts at 1000 and evaluates at every 15 seconds with 20 seconds lookback at each evaluation
+	 => 1000: 1000-20 = 980 => 1.0 + 1.0 = 2.0
+	 => 1015: 1015-20 = 995 => 2.0 + 3.0 + 4.0 + 18.0 = 27.0
+	 => 1030: 1030-20 = 1010 => 18.0 + 2.5 + 6.5 = 27.0
+	**/
+
+	assert.Len(t, res, 3)
 
 	var val float64
 	var ok bool
@@ -502,25 +573,13 @@ func Test_applyRangeFunctionSum(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
 
-	val, ok = res[1003]
+	val, ok = res[1015]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (3.0+2.0)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 27.0))
 
-	val, ok = res[1008]
+	val, ok = res[1030]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (4.0+3.0+2.0)))
-
-	val, ok = res[1012]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (18.0+4.0+3.0)))
-
-	val, ok = res[1020]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (2.5+18.0)))
-
-	val, ok = res[1025]
-	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (6.5+2.5)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 27.0))
 }
 
 func Test_applyRangeFunctionCount(t *testing.T) {
@@ -533,7 +592,12 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 		1025: 6.5,
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: 10})
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: 10}, timeRange)
 	assert.Nil(t, err)
 
 	assert.Len(t, res, 6)
@@ -578,6 +642,11 @@ func Test_applyRangeFunctionStdvarOverTime(t *testing.T) {
 		1020: 70,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
 	result["metric"] = ts
 
 	metricsResults := &MetricsResult{
@@ -596,7 +665,7 @@ func Test_applyRangeFunctionStdvarOverTime(t *testing.T) {
 
 	function := structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: 10}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -640,9 +709,14 @@ func Test_applyRangeFunctionStddevOverTime(t *testing.T) {
 		1020: math.Sqrt(125),
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
 	function := structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: 10}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -670,6 +744,11 @@ func Test_applyRangeFunctionQuantileOverTime(t *testing.T) {
 		1020: 0.7,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
 	result["metric"] = ts
 
 	metricsResults := &MetricsResult{
@@ -688,7 +767,7 @@ func Test_applyRangeFunctionQuantileOverTime(t *testing.T) {
 
 	function := structs.Function{RangeFunction: segutils.Quantile_Over_Time, ValueList: []string{"0.9"}, TimeWindow: 10}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -716,6 +795,11 @@ func Test_applyRangeFunctionLastOverTime(t *testing.T) {
 		1020: 0.7,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
 	result["metric"] = ts
 
 	metricsResults := &MetricsResult{
@@ -734,7 +818,7 @@ func Test_applyRangeFunctionLastOverTime(t *testing.T) {
 
 	function := structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: 10}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -762,6 +846,11 @@ func Test_applyRangeFunctionPresentOverTime(t *testing.T) {
 		1020: 0.7,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
 	result["metric"] = ts
 
 	metricsResults := &MetricsResult{
@@ -780,7 +869,7 @@ func Test_applyRangeFunctionPresentOverTime(t *testing.T) {
 
 	function := structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: 10}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -941,7 +1030,7 @@ func Test_applyMathFunctionAbs(t *testing.T) {
 
 	function := structs.Function{MathFunction: segutils.Abs}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -978,7 +1067,7 @@ func Test_applyMathFunctionSqrt(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Sqrt}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -997,7 +1086,7 @@ func Test_applyMathFunctionSqrt(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(8, function)
+	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.NotNil(t, err)
 }
 
@@ -1019,7 +1108,7 @@ func Test_applyMathFunctionFloor(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Floor, ValueList: []string{""}}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1054,7 +1143,7 @@ func Test_applyMathFunctionCeil(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Ceil, ValueList: []string{""}}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1090,7 +1179,7 @@ func Test_applyMathFunctionRoundWithoutPrecision(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{""}}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1125,7 +1214,7 @@ func Test_applyMathFunctionRoundWithPrecision1(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{"0.3"}}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1157,7 +1246,7 @@ func Test_applyMathFunctionRoundWithPrecision2(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Round, ValueList: []string{"1 /2"}}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1193,7 +1282,7 @@ func Test_applyMathFunctionExp(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Exp}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1226,7 +1315,7 @@ func Test_applyMathFunctionLog2(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Log2}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1244,7 +1333,7 @@ func Test_applyMathFunctionLog2(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(8, function)
+	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.NotNil(t, err)
 }
 
@@ -1264,7 +1353,7 @@ func Test_applyMathFunctionLog10(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Log10}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1282,7 +1371,7 @@ func Test_applyMathFunctionLog10(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(8, function)
+	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.NotNil(t, err)
 }
 
@@ -1302,7 +1391,7 @@ func Test_applyMathFunctionLn(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Ln}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1320,7 +1409,7 @@ func Test_applyMathFunctionLn(t *testing.T) {
 	ts[3] = -1
 	result["metric"] = ts
 	metricsResults.Results = result
-	err = metricsResults.ApplyFunctionsToResults(8, function)
+	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.NotNil(t, err)
 }
 
@@ -1342,7 +1431,7 @@ func Test_applyMathFunctionSgn(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Sgn}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1376,7 +1465,7 @@ func Test_applyMathFunctionDeg(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Deg}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1410,7 +1499,7 @@ func Test_applyMathFunctionRad(t *testing.T) {
 	}
 
 	function := structs.Function{MathFunction: segutils.Rad}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1504,7 +1593,7 @@ func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFuncti
 	}
 
 	function := structs.Function{MathFunction: mathFunction}
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1523,13 +1612,13 @@ func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFuncti
 	if testError {
 		// Modify values to trigger error
 		ts[3] = -10.2465
-		err = metricsResults.ApplyFunctionsToResults(8, function)
+		err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 		assert.NotNil(t, err)
 	} else {
 		// Add specific test for acosh case where valid input should be > 1
 		if mathFunction == utils.Acosh {
 			ts[3] = 0.2465
-			err = metricsResults.ApplyFunctionsToResults(8, function)
+			err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 			assert.NotNil(t, err)
 		}
 	}
@@ -1557,7 +1646,7 @@ func Test_applyMathFunctionClamp(t *testing.T) {
 
 	function := structs.Function{MathFunction: segutils.Clamp, ValueList: []string{"1", "10"}}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1595,7 +1684,7 @@ func Test_applyMathFunctionClampMin(t *testing.T) {
 
 	function := structs.Function{MathFunction: segutils.Clamp_Min, ValueList: []string{"1"}}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1633,7 +1722,7 @@ func Test_applyMathFunctionClampMax(t *testing.T) {
 
 	function := structs.Function{MathFunction: segutils.Clamp_Max, ValueList: []string{"4"}}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1671,7 +1760,7 @@ func Test_applyMathFunctionTimestamp(t *testing.T) {
 
 	function := structs.Function{MathFunction: segutils.Timestamp}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
@@ -1709,7 +1798,7 @@ func runTimeFunctionTest(t *testing.T, timeFunction utils.TimeFunctions, expecte
 
 	function := structs.Function{TimeFunction: timeFunction}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, nil)
 	assert.Nil(t, err)
 	for metric, timeSeries := range metricsResults.Results {
 		for dpTs, actualValue := range timeSeries {
@@ -1788,9 +1877,14 @@ func Test_applyRangeFunctionMADOverTime(t *testing.T) {
 		1020: 9.875,
 	}
 
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(1000),
+		EndEpochSec:   uint32(1025),
+	}
+
 	function := structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: 10}
 
-	err := metricsResults.ApplyFunctionsToResults(8, function)
+	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
