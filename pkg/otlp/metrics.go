@@ -253,12 +253,17 @@ func extractAttributes(attributes []*commonpb.KeyValue) map[string]string {
 	for _, attr := range attributes {
 		re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
 		key := re.ReplaceAllString(attr.Key, "_")
-		if value := attr.Value.GetIntValue(); value != 0 {
-			attrMap[key] = strconv.FormatInt(value, 10)
-		} else if value := attr.Value.GetDoubleValue(); value != 0 {
-			attrMap[key] = strconv.FormatFloat(value, 'f', -1, 64)
-		} else if value := attr.Value.GetStringValue(); value != "" {
-			attrMap[key] = value
+		value := attr.Value.GetValue()
+
+		switch v := value.(type) {
+		case *commonpb.AnyValue_StringValue:
+			attrMap[key] = v.StringValue
+		case *commonpb.AnyValue_BoolValue:
+			attrMap[key] = strconv.FormatBool(v.BoolValue)
+		case *commonpb.AnyValue_IntValue:
+			attrMap[key] = strconv.FormatInt(v.IntValue, 10)
+		case *commonpb.AnyValue_DoubleValue:
+			attrMap[key] = strconv.FormatFloat(v.DoubleValue, 'f', -1, 64)
 		}
 	}
 	return attrMap
