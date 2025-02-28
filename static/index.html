@@ -56,68 +56,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.2.0/chartjs-adapter-moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2/dist/chartjs-plugin-annotation.min.js"></script>
 
-    <style>
-        .histo-container {
-            background: white;
-            width: 100%;
-            position: relative;
-            display: inline-block;
-            width: 100%;
-            z-index: 1000;
-        }
-        #toggle-btn {
-            cursor: pointer;
-            border: none;
-            display: flex;
-            align-items: center;
-        }
-        .bx-bar-chart-square {
-            cursor: pointer;
-            transition: background 0.3s;
-            margin-bottom: 10px;
-            font-size: 40px;
-        }
-        .bx-bar-chart-square:hover {
-            color: var(--purple-1) !important;
-        }
-        #histogram-container {
-            display: none;
-            margin-top: 5px;
-            background: white;
-            padding: 5px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            position: absolute;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .my-chart-container {
-            background: white;
-            padding: 5px;
-            border: none;
-            width: 100%;
-            height: 200px;
-        }
-        .my-chart-container canvas {
-            cursor: crosshair !important;
-        }
-        #timechart-visualization-container {
-            display: none; /* Hidden by default unless runTimechart is true */
-            margin-top: 5px;
-            background: white;
-            padding: 5px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            position: absolute;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        #timechart-visualization {
-            width: 100%;
-            height: 200px;
-        }
-    </style>
 
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -335,7 +275,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="progress-div"></div>
 
             <div class="histo-container">
-                <i id="toggle-btn" class='bx bx-bar-chart-square'></i>
+
                 <div id="histogram-container">
                     <div class="my-chart-container">
                         <canvas id="histogram"></canvas>
@@ -350,6 +290,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="custom-chart-container">
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                     <div class="d-flex align-items-center">
+                        <i id="toggle-btn" class='bx bx-bar-chart-square'></i>
                         <ul class="tab-chart-list">
                             <li class="tab-li" id="tab-table-title"><a href="#showTable" class="custom-query-builder">Table</a>
                             </li>
@@ -409,6 +350,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                     </div>
+
                     <div id="tabs-chart" class="tab-content-size">
                         <div id="columnChart" class="column-chart"></div>
                         <div id="hideGraph" class="hide-graph">

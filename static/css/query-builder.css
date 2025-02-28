@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -739,6 +739,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     display: none;
     margin: 6px 0 0 0;
     height: calc(100% - 30px);
+    /* transition: transform 0.3s ease; */
 }
 
 #showTable {
@@ -746,8 +747,74 @@ div.show-record-popup .ui-dialog-buttonpane button {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    margin-top: 30px;
 }
 
+.histo-container {
+    background: white;
+    width: 100%;
+    margin-top: 10px;
+    height: 0;
+    position: relative;
+    display: inline-block;
+    z-index: 1000;
+}
+
+#toggle-btn {
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+}
+
+.histo-container.visible {
+    height: 220px;
+}
+
+#histogram-container {
+    display: none;
+    margin-top: 40px;
+    background: white;
+    padding: 5px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: absolute;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.my-chart-container {
+    background: white;
+    padding: 5px;
+    border: none;
+    width: 100%;
+    height: 200px;
+    margin-top: 20px;
+}
+
+/* Remove the transform from show-table class since we'll control it with JavaScript */
+.show-table {
+    transition: transform 0.3s ease;
+    transform: translateY(0); /* Default position*/
+}
+
+.bx-bar-chart-square {
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-bottom: 10px;
+    font-size: 30px;
+}
+.bx-bar-chart-square:hover {
+    color: var(--purple-1) !important;
+}
+
+.my-chart-container canvas {
+    cursor: crosshair !important;
+}
+
+.histo-container.visible + .show-table {
+    transform: translateY(200px); /* Reduced to 200px (height) + 20px (smaller margin) */
+}
 .tab-content-size {
     height: 100%;
 }

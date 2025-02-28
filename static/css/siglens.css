@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -6434,6 +6434,7 @@ p#versionInfo {
     height: 16px;
     opacity: 0.7;
 }
+
 
 .custom-chart-container {
     display: flex;
