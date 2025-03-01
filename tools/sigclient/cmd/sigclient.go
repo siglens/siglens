@@ -1,17 +1,17 @@
 // Copyright (c) 2021-2024 SigScalr, Inc.
-//
+
 // This file is part of SigLens Observability Solution
-//
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-//
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-//
+
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -66,6 +66,21 @@ var esBulkCmd = &cobra.Command{
 		uniqColumns, _ := cmd.Flags().GetUint32("uniqColumns")
 		enableVariableNumColumns, _ := cmd.Flags().GetBool("enableVariableNumColumns")
 
+		// New flags for KSM and node-exporter for esBulk
+		ksmOnly, _ := cmd.Flags().GetBool("ksm")      // Get the --ksm flag
+		nodeOnly, _ := cmd.Flags().GetBool("node")    // Get the --node flag
+		bothMetrics, _ := cmd.Flags().GetBool("both") // Get the --both flag
+
+		// Validate flags
+		if ksmOnly && nodeOnly || ksmOnly && bothMetrics || nodeOnly && bothMetrics {
+			log.Fatalf("You can only use one of --ksm, --node, or --both at a time.")
+		}
+
+		// Default to generating both metrics if no flag is specified
+		if !ksmOnly && !nodeOnly && !bothMetrics {
+			bothMetrics = true
+		}
+
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
 				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
@@ -103,7 +118,10 @@ var esBulkCmd = &cobra.Command{
 			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
 		}
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+		// ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+		// ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, false, false, true)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, ksmOnly, nodeOnly, bothMetrics)
+
 	},
 }
 
@@ -149,8 +167,10 @@ var functionalTestCmd = &cobra.Command{
 
 			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+			// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
+			// 	indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+
+			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig, false, false, true)
 
 			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
 			if err != nil {
@@ -200,8 +220,9 @@ var performanceTestCmd = &cobra.Command{
 		go func(cancel context.CancelFunc) {
 			defer cancel()
 			// addTs should be false for performance testing
-			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
-				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+			// ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
+			// 	indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig, false, false, true)
 		}(cancel)
 
 		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
@@ -258,6 +279,42 @@ var clickBenchTestCmd = &cobra.Command{
 }
 
 // metricsIngestCmd represents the metrics ingestion
+// var metricsIngestCmd = &cobra.Command{
+// 	Use:   "metrics",
+// 	Short: "ingest metrics to /api/put in OTSDB format",
+// 	Run: func(cmd *cobra.Command, args []string) {
+// 		processCount, _ := cmd.Flags().GetInt("processCount")
+// 		dest, _ := cmd.Flags().GetString("dest")
+// 		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
+// 		continuous, _ := cmd.Flags().GetBool("continuous")
+// 		batchSize, _ := cmd.Flags().GetInt("batchSize")
+// 		nMetrics, _ := cmd.Flags().GetInt("metrics")
+// 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+// 		generatorType, _ := cmd.Flags().GetString("generator")
+// 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
+// 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+
+// 		if eventsPerDay > 0 {
+// 			if cmd.Flags().Changed("totalEvents") {
+// 				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
+// 				return
+// 			}
+// 			continuous = true
+// 		}
+
+// 		log.Infof("processCount : %+v\n", processCount)
+// 		log.Infof("dest : %+v\n", dest)
+// 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
+// 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
+// 		log.Infof("bearerToken : %+v\n", bearerToken)
+// 		log.Infof("generatorType : %+v.\n", generatorType)
+// 		log.Infof("cardinality : %+v.\n", cardinality)
+// 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+
+// 		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
+// 	},
+// }
+
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
 	Short: "ingest metrics to /api/put in OTSDB format",
@@ -272,6 +329,19 @@ var metricsIngestCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		ksmOnly, _ := cmd.Flags().GetBool("ksm")      // New flag for KSM metrics
+		nodeOnly, _ := cmd.Flags().GetBool("node")    // New flag for node-exporter metrics
+		bothMetrics, _ := cmd.Flags().GetBool("both") // New flag for both metrics
+
+		// Validate flags
+		if ksmOnly && nodeOnly || ksmOnly && bothMetrics || nodeOnly && bothMetrics {
+			log.Fatalf("You can only use one of --ksm, --node, or --both at a time.")
+		}
+
+		// Default to generating both metrics if no flag is specified
+		if !ksmOnly && !nodeOnly && !bothMetrics {
+			bothMetrics = true
+		}
 
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
@@ -289,8 +359,13 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("generatorType : %+v.\n", generatorType)
 		log.Infof("cardinality : %+v.\n", cardinality)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+		log.Infof("ksmOnly : %+v\n", ksmOnly)
+		log.Infof("nodeOnly : %+v\n", nodeOnly)
+		log.Infof("bothMetrics : %+v\n", bothMetrics)
 
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
+		// Pass the configuration to StartIngestion
+		// ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, ksmOnly, nodeOnly, bothMetrics)
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, ksmOnly, nodeOnly, bothMetrics)
 	},
 }
 
@@ -536,12 +611,19 @@ func init() {
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
-	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
+	// esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
+	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user",
+		"type of generator to use. Options=[static,dynamic-user,file,benchmark,k8s]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
 	esBulkCmd.PersistentFlags().Uint32P("maxColumns", "", 100, "maximum number of columns to generate. Default is 100")
 	esBulkCmd.PersistentFlags().Uint32P("minColumns", "", 0, "minimum number of columns to generate. Default is 0. if 0, it will be set to maxColumns")
 	esBulkCmd.PersistentFlags().Uint32P("uniqColumns", "", 0, "unique column names to generate")
 	esBulkCmd.PersistentFlags().BoolP("enableVariableNumColumns", "", false, "generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns")
+
+	// New flags for KSM and node-exporter for esBulk
+	esBulkCmd.PersistentFlags().Bool("ksm", false, "Generate only KSM metrics")
+	esBulkCmd.PersistentFlags().Bool("node", false, "Generate only node-exporter metrics")
+	esBulkCmd.PersistentFlags().Bool("both", false, "Generate both KSM and node-exporter metrics")
 
 	functionalTestCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address, format is IP:PORT")
 	functionalTestCmd.PersistentFlags().StringP("queriesToRunFile", "f", "", "Path of the file containing paths of functional query files to be tested")
@@ -554,6 +636,11 @@ func init() {
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
+
+	// New flags for KSM and node-exporter metrics
+	metricsIngestCmd.PersistentFlags().Bool("ksm", false, "Generate only KSM metrics")
+	metricsIngestCmd.PersistentFlags().Bool("node", false, "Generate only node-exporter metrics")
+	metricsIngestCmd.PersistentFlags().Bool("both", false, "Generate both KSM and node-exporter metrics")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")

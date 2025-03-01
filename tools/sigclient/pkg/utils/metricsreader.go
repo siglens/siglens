@@ -38,7 +38,6 @@ type MetricsGenerator struct {
 }
 
 func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, error) {
-
 	multiTimestampsEnabled := false
 	seed := int64(fastrand.Uint32n(1_000))
 	switch gentype {
@@ -50,8 +49,12 @@ func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, erro
 		log.Infof("Initializing benchmark reader")
 		seed = int64(1001)
 		multiTimestampsEnabled = true
+	case "k8s":
+		log.Infof("Initializing k8s reader")
+		seed = int64(1001)
+		multiTimestampsEnabled = true
 	default:
-		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,benchmark]", gentype)
+		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,benchmark,k8s]", gentype)
 	}
 
 	return &MetricsGenerator{
