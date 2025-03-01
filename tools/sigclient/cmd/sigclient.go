@@ -118,8 +118,6 @@ var esBulkCmd = &cobra.Command{
 			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
 		}
 
-		// ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
-		// ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, false, false, true)
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, ksmOnly, nodeOnly, bothMetrics)
 
 	},
@@ -166,9 +164,6 @@ var functionalTestCmd = &cobra.Command{
 		if doIngest {
 
 			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
-
-			// ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-			// 	indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
 
 			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig, false, false, true)
 
@@ -220,8 +215,7 @@ var performanceTestCmd = &cobra.Command{
 		go func(cancel context.CancelFunc) {
 			defer cancel()
 			// addTs should be false for performance testing
-			// ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
-			// 	indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+
 			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig, false, false, true)
 		}(cancel)
 
@@ -278,43 +272,6 @@ var clickBenchTestCmd = &cobra.Command{
 	},
 }
 
-// metricsIngestCmd represents the metrics ingestion
-// var metricsIngestCmd = &cobra.Command{
-// 	Use:   "metrics",
-// 	Short: "ingest metrics to /api/put in OTSDB format",
-// 	Run: func(cmd *cobra.Command, args []string) {
-// 		processCount, _ := cmd.Flags().GetInt("processCount")
-// 		dest, _ := cmd.Flags().GetString("dest")
-// 		totalEvents, _ := cmd.Flags().GetInt("totalEvents")
-// 		continuous, _ := cmd.Flags().GetBool("continuous")
-// 		batchSize, _ := cmd.Flags().GetInt("batchSize")
-// 		nMetrics, _ := cmd.Flags().GetInt("metrics")
-// 		bearerToken, _ := cmd.Flags().GetString("bearerToken")
-// 		generatorType, _ := cmd.Flags().GetString("generator")
-// 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
-// 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
-
-// 		if eventsPerDay > 0 {
-// 			if cmd.Flags().Changed("totalEvents") {
-// 				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
-// 				return
-// 			}
-// 			continuous = true
-// 		}
-
-// 		log.Infof("processCount : %+v\n", processCount)
-// 		log.Infof("dest : %+v\n", dest)
-// 		log.Infof("totalEvents : %+v. Continuous: %+v\n", totalEvents, continuous)
-// 		log.Infof("batchSize : %+v. Num metrics: %+v\n", batchSize, nMetrics)
-// 		log.Infof("bearerToken : %+v\n", bearerToken)
-// 		log.Infof("generatorType : %+v.\n", generatorType)
-// 		log.Infof("cardinality : %+v.\n", cardinality)
-// 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
-
-// 		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
-// 	},
-// }
-
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
 	Short: "ingest metrics to /api/put in OTSDB format",
@@ -364,7 +321,7 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("bothMetrics : %+v\n", bothMetrics)
 
 		// Pass the configuration to StartIngestion
-		// ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, ksmOnly, nodeOnly, bothMetrics)
+
 		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, ksmOnly, nodeOnly, bothMetrics)
 	},
 }
@@ -611,7 +568,7 @@ func init() {
 
 	esBulkCmd.Flags().BoolP("timestamp", "s", false, "Add timestamp in payload")
 	esBulkCmd.PersistentFlags().IntP("numIndices", "n", 1, "number of indices to ingest to")
-	// esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
+
 	esBulkCmd.PersistentFlags().StringP("generator", "g", "dynamic-user",
 		"type of generator to use. Options=[static,dynamic-user,file,benchmark,k8s]. If file is selected, -x/--filePath must be specified")
 	esBulkCmd.PersistentFlags().StringP("filePath", "x", "", "path to json file to use as logs")
