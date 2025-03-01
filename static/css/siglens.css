@@ -6073,6 +6073,7 @@ p#versionInfo {
     position: absolute;
     right: 6px;
     top: 24px;
+    z-index: 1;
 }
 
 .dropdown.active .dropdown-content {
