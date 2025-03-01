@@ -37,7 +37,6 @@ type MetricsGenerator struct {
 	multiTimestampsEnabled bool // Generate multiple timestamps for benchmark tests
 }
 
-
 func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, error) {
 	multiTimestampsEnabled := false
 	seed := int64(fastrand.Uint32n(1_000))
@@ -65,7 +64,6 @@ func InitMetricsGenerator(nmetrics int, gentype string) (*MetricsGenerator, erro
 		multiTimestampsEnabled: multiTimestampsEnabled,
 	}, nil
 }
-
 
 func (mg *MetricsGenerator) Init(fName ...string) error {
 	return nil

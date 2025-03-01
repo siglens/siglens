@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
 package ingest
 
 import (
@@ -398,7 +396,6 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int, uniqColumns int) *utils.GeneratorDataConfig {
 	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns, uniqColumns)
 }
-
 
 // Start the ingestion process.
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,

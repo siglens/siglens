@@ -1,10 +1,11 @@
 package ingest
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
-	"encoding/json"
+
 	"github.com/brianvoe/gofakeit/v6"
 )
 
@@ -30,11 +31,11 @@ type podInfo struct {
 
 func InitK8sGenerator(seed int64, ksmOnly, nodeOnly, bothMetrics bool) *K8sGenerator {
 	g := &K8sGenerator{
-		seed:      seed,
-		ksmOnly:   ksmOnly,
-		nodeOnly:  nodeOnly,
+		seed:        seed,
+		ksmOnly:     ksmOnly,
+		nodeOnly:    nodeOnly,
 		bothMetrics: bothMetrics,
-		nodes:     []string{"node-01", "node-02", "node-03"},
+		nodes:       []string{"node-01", "node-02", "node-03"},
 		namespaces: []string{
 			"default", "kube-system", "monitoring",
 			"prod-backend", "prod-database",
@@ -81,7 +82,7 @@ func (g *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 		ksmMetric := g.generateKSMMetric()
 		nodeMetric := g.generateNodeExporterMetric()
 		return map[string]interface{}{
-			"ksm_metric":   ksmMetric,
+			"ksm_metric":  ksmMetric,
 			"node_metric": nodeMetric,
 		}, nil
 	}
@@ -113,16 +114,16 @@ func (g *K8sGenerator) generateKSMMetric() map[string]interface{} {
 			"metric": "kube_pod_info",
 			"value":  1,
 			"tags": map[string]string{
-				"pod":       pod.name,
-				"namespace": pod.namespace,
-				"node":      pod.node,
-				"phase":     pod.phase,
+				"pod":             pod.name,
+				"namespace":       pod.namespace,
+				"node":            pod.node,
+				"phase":           pod.phase,
 				"created_by_kind": "Deployment",
 				"created_by_name": fmt.Sprintf("%s-deployment", g.faker.AppName()),
 			},
 			"timestamp": time.Now().Unix(),
 		}
-	
+
 	case 1: // kube_node_status_condition
 		node := g.nodes[rand.Intn(len(g.nodes))]
 		return map[string]interface{}{
@@ -152,8 +153,8 @@ func (g *K8sGenerator) generateKSMMetric() map[string]interface{} {
 			"metric": "kube_service_info",
 			"value":  1,
 			"tags": map[string]string{
-				"namespace": g.namespaces[rand.Intn(len(g.namespaces))],
-				"service":   fmt.Sprintf("%s-service", g.faker.AppName()),
+				"namespace":  g.namespaces[rand.Intn(len(g.namespaces))],
+				"service":    fmt.Sprintf("%s-service", g.faker.AppName()),
 				"cluster_ip": g.faker.IPv4Address(),
 			},
 			"timestamp": time.Now().Unix(),
@@ -228,7 +229,7 @@ func (g *K8sGenerator) generateNodeExporterMetric() map[string]interface{} {
 			"metric": "node_disk_io_time_seconds_total",
 			"value":  g.faker.Float64Range(1000, 50000),
 			"tags": map[string]string{
-				"node": node,
+				"node":   node,
 				"device": []string{"sda", "nvme0n1"}[rand.Intn(2)],
 			},
 			"timestamp": time.Now().Unix(),
