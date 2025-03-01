@@ -46,6 +46,7 @@ const QUERIES = {
     )`,
 };
 
+//eslint-disable-next-line no-unused-vars
 const MetricsUtils = {
     navigateToMetricsExplorer(query, dropdown) {
         const urlParams = new URLSearchParams(window.location.search);
