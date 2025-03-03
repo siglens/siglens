@@ -20,6 +20,7 @@ package structs
 import (
 	"testing"
 
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,18 +56,10 @@ func Test_lookupSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		iter := series.Iterator()
-
-		point, ok := iter.Next()
-		assert.True(t, ok)
-		assert.Equal(t, entry{timestamp: 1, value: 101}, point)
-
-		point, ok = iter.Next()
-		assert.True(t, ok)
-		assert.Equal(t, entry{timestamp: 2, value: 102}, point)
-
-		_, ok = iter.Next()
-		assert.False(t, ok)
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+		}), series.Iterator())
 	})
 }
 
@@ -96,18 +89,10 @@ func Test_generatedSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		iter := series.Iterator()
-
-		point, ok := iter.Next()
-		assert.True(t, ok)
-		assert.Equal(t, entry{timestamp: 1, value: 101}, point)
-
-		point, ok = iter.Next()
-		assert.True(t, ok)
-		assert.Equal(t, entry{timestamp: 2, value: 102}, point)
-
-		_, ok = iter.Next()
-		assert.False(t, ok)
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+		}), series.Iterator())
 	})
 }
 
@@ -173,17 +158,25 @@ func Test_Downsample(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		iter := downsampled.Iterator()
-
-		point, ok := iter.Next()
-		assert.True(t, ok)
-		assert.Equal(t, entry{timestamp: 0, value: 101.5}, point)
-
-		point, ok = iter.Next()
-		assert.True(t, ok)
-		assert.Equal(t, entry{timestamp: 30, value: 130}, point)
-
-		_, ok = iter.Next()
-		assert.False(t, ok)
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 0, value: 101.5},
+			{timestamp: 30, value: 101.5},
+		}), downsampled.Iterator())
 	})
+}
+
+func assertEqualIterators[T any](t *testing.T, expected utils.Iterator[T], actual utils.Iterator[T]) {
+	t.Helper()
+
+	for {
+		expectedValue, expectedOk := expected.Next()
+		actualValue, actualOk := actual.Next()
+
+		assert.Equal(t, expectedOk, actualOk)
+		if !expectedOk {
+			break
+		}
+
+		assert.Equal(t, expectedValue, actualValue)
+	}
 }
