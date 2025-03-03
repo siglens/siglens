@@ -32,6 +32,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// https://github.com/prometheus/prometheus/blob/e483cff61ff1b68e8925db1059393c4d36af9df5/web/ui/react-app/src/pages/graph/Panel.tsx#L114
+const MAX_POINTS_TO_EVALUATE float64 = 250
+
 /*
 Struct to represent a single metrics query request.
 */
@@ -41,13 +44,16 @@ type MetricsQuery struct {
 	MetricNameRegexPattern string            // regex pattern to apply on metric name
 	QueryHash              uint64            // hash of the query
 	HashedMName            uint64
-	PqlQueryType           parser.ValueType // promql query type
-	Downsampler            Downsampler
-	TagsFilters            []*TagsFilter    // all tags filters to apply
-	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
-	reordered              bool             // if the tags filters have been reordered
-	numStarFilters         int              // index such that TagsFilters[:numStarFilters] are all star filters
-	numValueFilters        uint32           // number of value filters
+	// Some queries include lookback time and for those queries, this field will be set.
+	// Example: sum_over_time(metrics[1m]) - in this case, the LookBackToInclude will be the 1m
+	LookBackToInclude float64
+	PqlQueryType      parser.ValueType // promql query type
+	Downsampler       Downsampler
+	TagsFilters       []*TagsFilter    // all tags filters to apply
+	TagIndicesToKeep  map[int]struct{} // indices of tags to keep in the result
+	reordered         bool             // if the tags filters have been reordered
+	numStarFilters    int              // index such that TagsFilters[:numStarFilters] are all star filters
+	numValueFilters   uint32           // number of value filters
 
 	// TODO: remove this. It's currently used only temporarily, to copy the
 	// value into SubsequentAggs, and then SubsequentAggs.FunctionBlock is
