@@ -17,20 +17,20 @@
 
 package utils
 
-type Iterable[T any] interface {
+type Iterator[T any] interface {
 	Next() (T, bool)
 }
 
-type Iterator[T any] struct {
+type iterator[T any] struct {
 	slice []T
 	index int
 }
 
-func NewIterator[T any](slice []T) *Iterator[T] {
-	return &Iterator[T]{slice: slice}
+func NewIterator[T any](slice []T) *iterator[T] {
+	return &iterator[T]{slice: slice}
 }
 
-func (it *Iterator[T]) Next() (T, bool) {
+func (it *iterator[T]) Next() (T, bool) {
 	if it.index >= len(it.slice) {
 		var defaultValue T
 		return defaultValue, false

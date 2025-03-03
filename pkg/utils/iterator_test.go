@@ -24,24 +24,24 @@ import (
 )
 
 func Test_Iterator_empty(t *testing.T) {
-	iterator := NewIterator([]int{})
+	iter := NewIterator([]int{})
 
-	_, ok := iterator.Next()
+	_, ok := iter.Next()
 	assert.False(t, ok)
 }
 
 func Test_Iterator(t *testing.T) {
 	slice := []int{42, 100}
-	iterator := NewIterator(slice)
+	iter := NewIterator(slice)
 
-	value, ok := iterator.Next()
+	value, ok := iter.Next()
 	assert.True(t, ok)
 	assert.Equal(t, 42, value)
 
-	value, ok = iterator.Next()
+	value, ok = iter.Next()
 	assert.True(t, ok)
 	assert.Equal(t, 100, value)
 
-	_, ok = iterator.Next()
+	_, ok = iter.Next()
 	assert.False(t, ok)
 }
