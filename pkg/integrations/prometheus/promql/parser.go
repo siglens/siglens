@@ -298,7 +298,6 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
-		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
