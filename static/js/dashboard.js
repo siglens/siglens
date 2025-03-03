@@ -51,8 +51,6 @@ $(document).ready(async function () {
 
     initializeFilterInputEvents();
 
-    $('#new-dashboard').css('transform', 'translate(122px)');
-    $('#new-dashboard').css('width', 'calc(100% - 122px)');
 
     $('#dbSet-edit-json').on('click', enableJsonEditing);
     $('#dbSet-save-json').on('click', saveJsonChanges);
@@ -121,9 +119,9 @@ $(document).ready(async function () {
         }
     });
 
-    $('.all-dashboards').click(function () {
-        window.location.href = '../dashboards-home.html';
-    });
+    // $('.all-dashboards').click(function () {
+    //     window.location.href = '../dashboards-home.html';
+    // });
 
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
