@@ -410,7 +410,7 @@ func Test_parsePromQLQuery_NestedQueries_v1(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -445,7 +445,7 @@ func Test_parsePromQLQuery_NestedQueries_v1(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "cpu_usage_user", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys = []string{}
@@ -496,7 +496,7 @@ func Test_parsePromQLQuery_NestedQueries_v2(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_request_duration_seconds_bucket", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -586,7 +586,7 @@ func Test_parsePromQLQuery_NestedQueries_v3(t *testing.T) {
 	assert.Equal(t, "node_cpu_seconds_total", mQueryReqs[1].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedMName2, mQueryReqs[1].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.False(t, mQueryReqs[1].MetricsQuery.Groupby)
@@ -665,7 +665,7 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedName2, mQueryReqs[1].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedMName3, mQueryReqs[2].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[2].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
@@ -982,7 +982,7 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v1(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
