@@ -83,6 +83,11 @@ func (t *lookupSeries) rangeIterator(start epoch, end epoch, mode RangeMode) uti
 		endIndex := sort.Search(len(t.values), func(i int) bool {
 			return t.values[i].timestamp > end
 		})
+
+		if startIndex >= endIndex {
+			return utils.NewIterator([]entry{})
+		}
+
 		return utils.NewIterator(t.values[startIndex:endIndex])
 	}
 

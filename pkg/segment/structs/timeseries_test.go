@@ -96,6 +96,51 @@ func Test_generatedSeries_empty(t *testing.T) {
 	})
 }
 
+func Test_rangeSeries(t *testing.T) {
+	lookupSeries := &lookupSeries{
+		values: []entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+			{timestamp: 3, value: 103},
+		},
+	}
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		rangeSeries := lookupSeries.Range(1, 3, PromQl3Range)
+		assertAtOrBefore(t, rangeSeries, 0, 0.0, false)
+		assertAtOrBefore(t, rangeSeries, 1, 0.0, false)
+		assertAtOrBefore(t, rangeSeries, 2, 102.0, true)
+		assertAtOrBefore(t, rangeSeries, 3, 103.0, true)
+
+		// Test outside the range.
+		assertAtOrBefore(t, lookupSeries, 4, 103.0, true)
+		assertAtOrBefore(t, rangeSeries, 4, 0.0, false)
+	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 2, value: 102},
+			{timestamp: 3, value: 103},
+		}), lookupSeries.Range(1, 3, PromQl3Range).Iterator())
+
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 2, value: 102},
+		}), lookupSeries.Range(1, 3, PromQl3Range).Range(0, 2, PromQl3Range).Iterator())
+
+		assertEqualIterators(t, utils.NewIterator([]entry{}),
+			lookupSeries.Range(1, 1, PromQl3Range).Iterator(),
+		)
+
+		assertEqualIterators(t, utils.NewIterator([]entry{}),
+			lookupSeries.Range(5, 1, PromQl3Range).Iterator(),
+		)
+
+		assertEqualIterators(t, utils.NewIterator([]entry{}),
+			lookupSeries.Range(2, 3, PromQl3Range).Range(0, 1, PromQl3Range).Iterator(),
+		)
+	})
+}
+
 func Test_Downsample(t *testing.T) {
 	series := &lookupSeries{
 		values: []entry{
