@@ -249,7 +249,7 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 	varFaker := gofakeit.NewUnlocked(int64(varFakerSeed))
 
 	if dataConfig.functionalTest == nil {
-		return nil, fmt.Errorf("Functional test config is nil")
+		return nil, fmt.Errorf("functional test config is nil")
 	}
 
 	functionalTest := &FunctionalTestConfig{
@@ -281,7 +281,7 @@ func InitFunctionalUserGenerator(ts bool, seed int64, accFakerSeed int64, dataCo
 
 func InitPerfTestGenerator(ts bool, seed int64, accFakerSeed int64, dataConfig *GeneratorDataConfig, processIndex int) (*DynamicUserGenerator, error) {
 	if dataConfig.perfTestConfig == nil {
-		return nil, fmt.Errorf("Perf test config is nil")
+		return nil, fmt.Errorf("perf test config is nil")
 	}
 	gen, err := InitFunctionalUserGenerator(ts, seed, accFakerSeed, dataConfig, processIndex)
 	if err != nil {
