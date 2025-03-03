@@ -232,7 +232,7 @@ func Test_Downsample(t *testing.T) {
 		},
 	}
 
-	downsampler := downsampler{
+	downsampler := windowMappingSeries{
 		timeseries: series,
 		aggregator: func(values []float64) float64 {
 			sum := 0.0
@@ -241,12 +241,13 @@ func Test_Downsample(t *testing.T) {
 			}
 			return sum / float64(len(values))
 		},
-		interval: 10,
+		windowSize: 10,
+		stepSize:   10,
 	}
 
-	downsampled := downsampler.Evaluate()
+	downsampled := downsampler.evaluate()
 	t.Run("AtOrBefore", func(t *testing.T) {
-		assertAtOrBefore(t, downsampled, 0, 101.5, true)
+		assertAtOrBefore(t, downsampled, 0, 0.0, false)
 		assertAtOrBefore(t, downsampled, 10, 101.5, true)
 		assertAtOrBefore(t, downsampled, 30, 130.0, true)
 		assertAtOrBefore(t, downsampled, 100, 130.0, true)
@@ -254,7 +255,7 @@ func Test_Downsample(t *testing.T) {
 
 	t.Run("Iterator", func(t *testing.T) {
 		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 0, value: 101.5},
+			{timestamp: 10, value: 101.5},
 			{timestamp: 30, value: 130.0},
 		}), downsampled.Iterator())
 	})

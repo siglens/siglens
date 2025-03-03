@@ -352,56 +352,98 @@ func (v *valueMappingSeries) Range(start epoch, end epoch, mode RangeMode) times
 	}
 }
 
-type downsampler struct {
+// This constructs a new series by taking an existing series, sliding a window
+// over it, and performing some operation on the values in each window.
+//
+// Downsampling is a special case of this, where the window size and step size
+// are equal.
+type windowMappingSeries struct {
 	timeseries timeseries
 	aggregator func([]float64) float64
-	interval   epoch
+	windowSize epoch
+	stepSize   epoch // How far to slide the window each time
+
+	isEvaluated bool
+	result      timeseries
 }
 
-func (d *downsampler) Evaluate() timeseries {
-	iterator := d.timeseries.Iterator()
+func (w *windowMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+	if !w.isEvaluated {
+		w.result = w.evaluate()
+		w.isEvaluated = true
+	}
 
-	firstEntry, ok := iterator.Next()
-	if !ok {
+	return w.result.AtOrBefore(timestamp)
+}
+
+func (w *windowMappingSeries) Iterator() utils.Iterator[entry] {
+	if !w.isEvaluated {
+		w.result = w.evaluate()
+		w.isEvaluated = true
+	}
+
+	return w.result.Iterator()
+}
+
+func (w *windowMappingSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+	if !w.isEvaluated {
+		w.result = w.evaluate()
+		w.isEvaluated = true
+	}
+
+	return w.result.Range(start, end, mode)
+}
+
+func (w *windowMappingSeries) evaluate() timeseries {
+	if w.stepSize == 0 || w.windowSize == 0 {
 		return &lookupSeries{}
 	}
 
-	currentBucket := d.snapToInterval(firstEntry.timestamp)
-	currentValues := []float64{firstEntry.value}
-
-	finalEntries := make([]entry, 0)
+	// Get all values from the input series
+	iterator := w.timeseries.Iterator()
+	allValues := make([]entry, 0)
 
 	for {
-		firstEntry, ok = iterator.Next()
+		e, ok := iterator.Next()
 		if !ok {
 			break
 		}
-
-		thisBucket := d.snapToInterval(firstEntry.timestamp)
-		if thisBucket == currentBucket {
-			currentValues = append(currentValues, firstEntry.value)
-			continue
-		}
-
-		// Close the current bucket.
-		if len(currentValues) > 0 {
-			value := d.aggregator(currentValues)
-			finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
-		}
-
-		currentBucket = d.snapToInterval(firstEntry.timestamp)
-		currentValues = []float64{firstEntry.value}
+		allValues = append(allValues, e)
 	}
 
-	// Close the last bucket.
-	if len(currentValues) > 0 {
-		value := d.aggregator(currentValues)
-		finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+	if len(allValues) == 0 {
+		return &lookupSeries{}
+	}
+
+	// Find start and end timestamps
+	startTimestamp := allValues[0].timestamp
+	endTimestamp := allValues[len(allValues)-1].timestamp
+
+	// Align to step boundaries
+	startTimestamp = (startTimestamp / w.stepSize) * w.stepSize
+
+	// Create sliding windows and compute results
+	finalEntries := make([]entry, 0)
+
+	for windowEnd := startTimestamp + w.windowSize; windowEnd < endTimestamp+w.stepSize; windowEnd += w.stepSize {
+		windowStart := windowEnd - w.windowSize
+		valuesInWindow := make([]float64, 0)
+
+		for _, entry := range allValues {
+			// The window is (windowStart, windowEnd]
+			if entry.timestamp > windowStart && entry.timestamp <= windowEnd {
+				valuesInWindow = append(valuesInWindow, entry.value)
+			}
+		}
+
+		if len(valuesInWindow) > 0 {
+			aggregatedValue := w.aggregator(valuesInWindow)
+			finalEntries = append(finalEntries, entry{
+				timestamp: windowEnd,
+				value:     aggregatedValue,
+			})
+		}
 	}
 
 	return &lookupSeries{values: finalEntries}
-}
-
-func (d *downsampler) snapToInterval(timestamp epoch) epoch {
-	return timestamp - timestamp%d.interval
 }
