@@ -141,6 +141,56 @@ func Test_rangeSeries(t *testing.T) {
 	})
 }
 
+func Test_aggSeries(t *testing.T) {
+	series1 := &lookupSeries{
+		values: []entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+			{timestamp: 4, value: 104},
+		},
+	}
+
+	series2 := &lookupSeries{
+		values: []entry{
+			{timestamp: 2, value: 202},
+			{timestamp: 3, value: 203},
+			{timestamp: 4, value: 204},
+			{timestamp: 5, value: 205},
+		},
+	}
+
+	result := &aggSeries{
+		allSeries: []timeseries{series1, series2},
+		aggregator: func(values []float64) float64 {
+			sum := 0.0
+			for _, v := range values {
+				sum += v
+			}
+			return sum
+		},
+	}
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		assertAtOrBefore(t, result, 0, 0.0, false)
+		assertAtOrBefore(t, result, 1, 101.0, true)
+		assertAtOrBefore(t, result, 2, 304.0, true)
+		assertAtOrBefore(t, result, 3, 203.0, true)
+		assertAtOrBefore(t, result, 4, 308.0, true)
+		assertAtOrBefore(t, result, 5, 205.0, true)
+		assertAtOrBefore(t, result, 100, 205.0, true)
+	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 304},
+			{timestamp: 3, value: 203},
+			{timestamp: 4, value: 308},
+			{timestamp: 5, value: 205},
+		}), result.Iterator())
+	})
+}
+
 func Test_Downsample(t *testing.T) {
 	series := &lookupSeries{
 		values: []entry{
