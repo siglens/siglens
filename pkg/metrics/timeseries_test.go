@@ -191,6 +191,38 @@ func Test_aggSeries(t *testing.T) {
 	})
 }
 
+func Test_valueMappingSeries(t *testing.T) {
+	series := &lookupSeries{
+		values: []entry{
+			{timestamp: 1, value: 3},
+			{timestamp: 2, value: 4},
+		},
+	}
+
+	mapping := func(value float64) float64 {
+		return value * value
+	}
+
+	mappedSeries := &valueMappingSeries{
+		series:  series,
+		mapping: mapping,
+	}
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		assertAtOrBefore(t, mappedSeries, 0, 0.0, false)
+		assertAtOrBefore(t, mappedSeries, 1, 9.0, true)
+		assertAtOrBefore(t, mappedSeries, 2, 16.0, true)
+		assertAtOrBefore(t, mappedSeries, 100, 16.0, true)
+	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 1, value: 9},
+			{timestamp: 2, value: 16},
+		}), mappedSeries.Iterator())
+	})
+}
+
 func Test_Downsample(t *testing.T) {
 	series := &lookupSeries{
 		values: []entry{

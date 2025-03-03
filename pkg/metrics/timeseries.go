@@ -310,6 +310,48 @@ func (a *aggSeries) evaluate() timeseries {
 	return &lookupSeries{values: result}
 }
 
+type valueMappingSeries struct {
+	series  timeseries
+	mapping func(float64) float64
+}
+
+func (v *valueMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+	value, ok := v.series.AtOrBefore(timestamp)
+	if !ok {
+		return 0, false
+	}
+
+	return v.mapping(value), true
+}
+
+func (v *valueMappingSeries) Iterator() utils.Iterator[entry] {
+	return &valueMappingIterator{
+		series: v.series.Iterator(),
+		mapper: v.mapping,
+	}
+}
+
+type valueMappingIterator struct {
+	series utils.Iterator[entry]
+	mapper func(float64) float64
+}
+
+func (v *valueMappingIterator) Next() (entry, bool) {
+	value, ok := v.series.Next()
+	if !ok {
+		return entry{}, false
+	}
+
+	return entry{timestamp: value.timestamp, value: v.mapper(value.value)}, true
+}
+
+func (v *valueMappingSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+	return &valueMappingSeries{
+		series:  v.series.Range(start, end, mode),
+		mapping: v.mapping,
+	}
+}
+
 type downsampler struct {
 	timeseries timeseries
 	aggregator func([]float64) float64
