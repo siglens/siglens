@@ -52,9 +52,9 @@ func Test_MetricsQuery(t *testing.T) {
 	mQRequest, err := otsdbquery.ParseRequest(startTime, endTime, m, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, mQRequest)
-	mQRequest.MetricsQuery.MQueryAggs = &structs.MetricQueryAgg{
+	mQRequest.MetricsQuery.SubsequentAggs = &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
-		AggregatorBlock: &mQRequest.MetricsQuery.Aggregator,
+		AggregatorBlock: &mQRequest.MetricsQuery.FirstAggregator,
 	}
 	res := segment.ExecuteMetricsQuery(&mQRequest.MetricsQuery, &mQRequest.TimeRange, uint64(0))
 	mQResponse, err := res.GetOTSDBResults(&mQRequest.MetricsQuery)
@@ -92,9 +92,9 @@ func Test_MetricsQueryMultipleTagValues(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, mQRequest)
 	assert.Len(t, mQRequest.MetricsQuery.TagsFilters, 3)
-	mQRequest.MetricsQuery.MQueryAggs = &structs.MetricQueryAgg{
+	mQRequest.MetricsQuery.SubsequentAggs = &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
-		AggregatorBlock: &mQRequest.MetricsQuery.Aggregator,
+		AggregatorBlock: &mQRequest.MetricsQuery.FirstAggregator,
 	}
 	for _, tags := range mQRequest.MetricsQuery.TagsFilters {
 		assert.Contains(t, expectedTagKeys, tags.TagKey)

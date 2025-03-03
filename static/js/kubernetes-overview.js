@@ -46,6 +46,43 @@ const QUERIES = {
     )`,
 };
 
+//eslint-disable-next-line no-unused-vars
+const MetricsUtils = {
+    navigateToMetricsExplorer(query, dropdown) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const startTime = urlParams.get('startEpoch') || 'now-1h';
+        const endTime = urlParams.get('endEpoch') || 'now';
+
+        const metricsQueryParamsData = {
+            start: startTime,
+            end: endTime,
+            queries: [
+                {
+                    name: 'a',
+                    query: query,
+                    qlType: 'promql',
+                    state: 'raw',
+                },
+            ],
+            formulas: [
+                {
+                    formula: 'a',
+                },
+            ],
+        };
+
+        const transformedMetricsQueryParams = JSON.stringify(metricsQueryParamsData);
+        const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
+
+        const newUrl = `metrics-explorer.html?queryString=${encodedMetricsQueryParams}`;
+        window.open(newUrl, '_blank');
+
+        if (dropdown) {
+            $(dropdown).removeClass('active');
+        }
+    },
+};
+
 let dashboardComponents = {
     clusters: null,
     nodes: null,

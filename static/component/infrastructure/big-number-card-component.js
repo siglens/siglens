@@ -36,7 +36,7 @@ class BigNumberCard {
         const namespaceMatch = namespaceFilter === 'all' ? '.+' : namespaceFilter;
 
         const queries = {
-            clusters: `count(count by (cluster) (kube_pod_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"}))`,
+            clusters: `count(group by (cluster) (kube_pod_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"}))`,
             nodes: `count(group by (cluster, node) (kube_pod_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}", node!=""}))`,
             namespaces: `count(group by (cluster, namespace) (kube_namespace_status_phase{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"}))`,
             workloads: `count(group by (cluster, namespace, workload, workload_type) (namespace_workload_pod:kube_pod_owner:relabel{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}", workload!=""}))`,
@@ -97,15 +97,17 @@ class BigNumberCard {
     updateValue(response) {
         const contentDiv = this.container.find('.cluster-content');
 
-        if (!response || !response.values || response.values.length === 0) {
+        if (!response || !response.values || response.values[0].length === 0) {
             contentDiv.html('<div class="big-number error">No data</div>');
             return;
         }
 
-        // Sum up
-        const total = response.series.length;
+        const latestTimestampIndex = response.timestamps.length - 1;
 
-        contentDiv.html(`<div class="big-number">${total}</div>`);
+        // Get the value at the latest timestamp
+        const latestValue = response.values[0][latestTimestampIndex];
+
+        contentDiv.html(`<div class="big-number">${latestValue}</div>`);
     }
 
     showError() {
@@ -167,6 +169,8 @@ class BigNumberCard {
 
         this.container.find('.explore-option').on('click', (e) => {
             e.stopPropagation();
+            const query = this.getQueryForType();
+            MetricsUtils.navigateToMetricsExplorer(query, dropdown);
         });
     }
 }

@@ -113,7 +113,7 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 
 	if post.GroupByRequest != nil {
 		nodeResult.GroupByCols = post.GroupByRequest.GroupByColumns
-		nodeResult.GroupByRequest = post.GroupByRequest
+		nodeResult.RecsAggregator.GroupByRequest = post.GroupByRequest
 	}
 
 	if post.TransactionArguments != nil && len(recs) == 0 {
@@ -139,10 +139,10 @@ func PostQueryBucketCleaning(nodeResult *structs.NodeResult, post *structs.Query
 		err := performAggOnResult(nodeResult, agg, recs, recordIndexInFinal, finalCols, numTotalSegments, finishesSegment, hasSort, timeSort, timeSortAsc)
 
 		if len(nodeResult.TransactionEventRecords) > 0 {
-			nodeResult.NextQueryAgg = agg
+			nodeResult.RecsAggregator.NextQueryAgg = agg
 			return nodeResult
-		} else if nodeResult.PerformAggsOnRecs && recs != nil {
-			nodeResult.NextQueryAgg = agg
+		} else if nodeResult.RecsAggregator.PerformAggsOnRecs && recs != nil {
+			nodeResult.RecsAggregator.NextQueryAgg = agg
 			return nodeResult
 		}
 
@@ -230,14 +230,14 @@ func performAggOnResult(nodeResult *structs.NodeResult, agg *structs.QueryAggreg
 			}
 		}
 	case structs.GroupByType:
-		nodeResult.PerformAggsOnRecs = true
-		nodeResult.RecsAggsType = structs.GroupByType
+		nodeResult.RecsAggregator.PerformAggsOnRecs = true
+		nodeResult.RecsAggregator.RecsAggsType = structs.GroupByType
 		nodeResult.GroupByCols = agg.GroupByRequest.GroupByColumns
-		nodeResult.GroupByRequest = agg.GroupByRequest
+		nodeResult.RecsAggregator.GroupByRequest = agg.GroupByRequest
 	case structs.MeasureAggsType:
-		nodeResult.PerformAggsOnRecs = true
-		nodeResult.RecsAggsType = structs.MeasureAggsType
-		nodeResult.MeasureOperations = agg.MeasureOperations
+		nodeResult.RecsAggregator.PerformAggsOnRecs = true
+		nodeResult.RecsAggregator.RecsAggsType = structs.MeasureAggsType
+		nodeResult.RecsAggregator.MeasureOperations = agg.MeasureOperations
 	case structs.TransactionType:
 		performTransactionCommandRequest(nodeResult, agg, recs, finalCols, numTotalSegments, finishesSegment)
 	default:
@@ -913,11 +913,11 @@ RenamingLoop:
 	}
 
 	if colReq.ExcludeColumns != nil {
-		if nodeResult.GroupByRequest == nil {
+		if nodeResult.RecsAggregator.GroupByRequest == nil {
 			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling ExcludeColumns")
 		}
 
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.ExcludeColumns, false)
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, colReq.ExcludeColumns, false)
 		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.ExcludeColumns, false)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
@@ -926,13 +926,13 @@ RenamingLoop:
 		}
 	}
 	if colReq.IncludeColumns != nil {
-		if nodeResult.GroupByRequest == nil {
+		if nodeResult.RecsAggregator.GroupByRequest == nil {
 			return errors.New("performColumnsRequest: expected non-nil GroupByRequest while handling IncludeColumns")
 		}
 
-		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
+		groupByColIndicesToKeep, groupByColNamesToKeep, _ := getColumnsToKeepAndRemove(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, colReq.IncludeColumns, true)
 		_, _, measureColNamesToRemove := getColumnsToKeepAndRemove(nodeResult.MeasureFunctions, colReq.IncludeColumns, true)
-		nodeResult.ColumnsOrder = getColumnsInOrder(nodeResult.GroupByRequest.GroupByColumns, nodeResult.MeasureFunctions, colReq.IncludeColumns)
+		nodeResult.ColumnsOrder = getColumnsInOrder(nodeResult.RecsAggregator.GroupByRequest.GroupByColumns, nodeResult.MeasureFunctions, colReq.IncludeColumns)
 
 		err := removeAggColumns(nodeResult, groupByColIndicesToKeep, groupByColNamesToKeep, measureColNamesToRemove)
 		if err != nil {
@@ -1064,10 +1064,10 @@ func removeAggColumns(nodeResult *structs.NodeResult, groupByColIndicesToKeep []
 		}
 	}
 
-	if nodeResult.GroupByRequest == nil {
+	if nodeResult.RecsAggregator.GroupByRequest == nil {
 		return fmt.Errorf("removeAggColumns: expected non-nil GroupByRequest")
 	} else {
-		nodeResult.GroupByRequest.GroupByColumns = groupByColNamesToKeep
+		nodeResult.RecsAggregator.GroupByRequest.GroupByColumns = groupByColNamesToKeep
 	}
 
 	return nil
@@ -3878,7 +3878,7 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 		var err error
 
 		if finishesSegment {
-			nodeResult.RecsAggsProcessedSegments++
+			nodeResult.RecsAggResults.RecsAggsProcessedSegments++
 
 			// Sort the records by timestamp. The records in the segment may not be sorted. We need to sort them before processing.
 			// This method also assumes that all records in the segment will come before the records in the next segment(Segments are Sorted).
@@ -3886,7 +3886,7 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 				return aggs.TransactionArguments.SortedRecordsSlice[i]["timestamp"].(uint64) < aggs.TransactionArguments.SortedRecordsSlice[j]["timestamp"].(uint64)
 			})
 
-			cols, err = processTransactionsOnRecords(nodeResult.TransactionEventRecords, nodeResult.TransactionsProcessed, nil, aggs.TransactionArguments, nodeResult.RecsAggsProcessedSegments == numTotalSegments)
+			cols, err = processTransactionsOnRecords(nodeResult.TransactionEventRecords, nodeResult.TransactionsProcessed, nil, aggs.TransactionArguments, nodeResult.RecsAggResults.RecsAggsProcessedSegments == numTotalSegments)
 			if err != nil {
 				log.Errorf("performTransactionCommandRequest: %v", err)
 				return
@@ -3897,12 +3897,12 @@ func performTransactionCommandRequest(nodeResult *structs.NodeResult, aggs *stru
 
 			// Creating a single Map after processing the segment.
 			// This tells the PostQueryBucketCleaning function to return to the rrcreader.go to process the further segments.
-			nodeResult.TransactionEventRecords["PROCESSED_SEGMENT_"+fmt.Sprint(nodeResult.RecsAggsProcessedSegments)] = make(map[string]interface{})
+			nodeResult.TransactionEventRecords["PROCESSED_SEGMENT_"+fmt.Sprint(nodeResult.RecsAggResults.RecsAggsProcessedSegments)] = make(map[string]interface{})
 
 			aggs.TransactionArguments.SortedRecordsSlice = nil // Clear the sorted records slice.
 		}
 
-		if nodeResult.RecsAggsProcessedSegments == numTotalSegments {
+		if nodeResult.RecsAggResults.RecsAggsProcessedSegments == numTotalSegments {
 			nodeResult.TransactionEventRecords = nil
 			nodeResult.TransactionEventRecords = make(map[string]map[string]interface{})
 			nodeResult.TransactionEventRecords["CHECK_NEXT_AGG"] = make(map[string]interface{}) // All segments have been processed. Check the next aggregation.

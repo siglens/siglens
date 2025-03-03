@@ -112,18 +112,4 @@ test.describe('Logs Page Tests', () => {
         const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
         await downloadPromise;
     });
-
-    test('should toggle available fields', async ({ page }) => {
-        // Open the available fields dropdown
-        await page.click('#avail-fields-btn');
-        await expect(page.locator('#available-fields')).toBeVisible();
-
-        // Click on the 'app_name' field
-        await page.click('#available-fields .fields .available-fields-dropdown-item[data-index="app_name"]');
-
-        await page.waitForTimeout(1000);
-
-        // Verify the field was toggled (column should not be visible in the grid)
-        await expect(page.locator('.LogResultsGrid')).not.toContainText('app_name');
-    });
 });

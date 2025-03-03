@@ -18,52 +18,186 @@
  */
 
 //eslint-disable-next-line no-unused-vars
-function renderAvailableFields(columnOrder, columnCount) {
-    let el = $('#available-fields .fields');
-    let columnsToIgnore = ['timestamp', 'logs'];
-    el.empty();
-    $('.column-count').html(columnCount);
-    columnOrder.forEach((colName, _index) => {
-        if (columnsToIgnore.indexOf(colName) == -1) {
-            if (!availColNames.includes(colName)) {
-                availColNames.push(colName);
-            }
+function initializeAvailableFieldsSidebar(columnOrder) {
+    const columnsToIgnore = ['timestamp', 'logs'];
+
+    columnOrder.forEach((colName) => {
+        if (columnsToIgnore.indexOf(colName) === -1 && !availColNames.includes(colName)) {
+            availColNames.push(colName);
         }
     });
 
-    // Render all the available fields
-    availColNames.forEach((colName, _index) => {
-        el.append(`<div class="available-fields-dropdown-item toggle-field toggle-${string2Hex(colName)}" data-index="${colName}">
-                        <span class="fieldname-text">${colName}</span>
-                        <img src="/assets/index-selection-check.svg">
-                        </div>`);
-    });
-
-    let afieldDropDownItem = $('.fields .available-fields-dropdown-item');
-    afieldDropDownItem.each(function (idx, li) {
-        li.style.width = 'auto';
-    });
-
-    let afieldDropDown = document.getElementById('available-fields');
-    afieldDropDown.style.width = 'auto';
-
-    if (updatedSelFieldList) {
-        selectedFieldsList = _.intersection(selectedFieldsList, availColNames);
-    } else {
-        selectedFieldsList = _.union(selectedFieldsList, availColNames);
+    if (!updatedSelFieldList) {
+        selectedFieldsList = [];
     }
 
-    if (selectedFieldsList.length != 0) {
-        availColNames.forEach((colName, _index) => {
-            if (selectedFieldsList.includes(colName)) {
-                $(`.toggle-${string2Hex(colName)}`).addClass('active');
+    renderAvailableFields();
+    renderSelectedFields();
+
+    setupSectionToggling();
+    setupFieldsEventHandlers();
+
+    refreshColumnVisibility();
+}
+
+function renderAvailableFields() {
+    const el = $('#available-fields-list');
+    el.empty();
+
+    // Sort column names alphabetically
+    const sortedColNames = [...availColNames].sort((a, b) => a.localeCompare(b));
+
+    sortedColNames.forEach((colName) => {
+        const isSelected = selectedFieldsList.includes(colName);
+        el.append(`
+            <div class="field-item" data-field="${colName}">
+                <div class="field-name">${colName}</div>
+                <div class="field-action ${isSelected ? 'field-action-remove' : 'field-action-add'}">
+                    ${isSelected ? '×' : '+'}
+                </div>
+            </div>
+        `);
+    });
+
+    updateFieldCounts();
+}
+
+function renderSelectedFields() {
+    let el = $('#selected-fields-list');
+    if (!el.length) return;
+
+    el.empty();
+
+    // Render only fields that are in selectedFieldsList
+    selectedFieldsList.forEach((field) => {
+        el.append(`
+            <div class="field-item" data-field="${field}">
+                <div class="field-name">${field}</div>
+                <div class="field-action field-action-remove">×</div>
+            </div>
+        `);
+    });
+
+    updateFieldCounts();
+}
+
+function setupFieldsEventHandlers() {
+    $('#available-fields-list .field-action')
+        .off('click')
+        .on('click', function (e) {
+            e.stopPropagation();
+            const fieldName = $(this).closest('.field-item').data('field');
+            const isSelected = $(this).hasClass('field-action-remove');
+
+            if (isSelected) {
+                removeFieldFromSelected(fieldName);
             } else {
-                $(`.toggle-${string2Hex(colName)}`).removeClass('active');
+                addFieldToSelected(fieldName);
             }
         });
-    }
+
+    $('#selected-fields-list .field-action-remove')
+        .off('click')
+        .on('click', function (e) {
+            e.stopPropagation();
+            const fieldName = $(this).closest('.field-item').data('field');
+            removeFieldFromSelected(fieldName);
+        });
+
+    $('.field-item')
+        .off('click')
+        .on('click', function (e) {
+            e.stopPropagation();
+        });
 }
+
+function updateFieldCounts() {
+    $('#selected-fields-header .field-count').text(selectedFieldsList.length);
+    $('#available-fields-header .field-count').text(availColNames.length);
+}
+
+function setupSectionToggling() {
+    const sections = [
+        { header: '#selected-fields-header', list: '#selected-fields-list' },
+        { header: '#available-fields-header', list: '#available-fields-list' },
+    ];
+
+    sections.forEach((section) => {
+        const headerElement = $(section.header);
+        const listElement = $(section.list);
+        const chevronIcon = headerElement.find('.fa-chevron-down');
+
+        if (headerElement.length && listElement.length && chevronIcon.length) {
+            headerElement.off('click').on('click', function () {
+                const isVisible = listElement.is(':visible');
+                listElement.toggle(!isVisible);
+                if (isVisible) {
+                    chevronIcon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+                } else {
+                    chevronIcon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+                }
+            });
+        }
+    });
+}
+
+function addFieldToSelected(fieldName) {
+    if (fieldName === 'timestamp' || fieldName === 'logs') {
+        return;
+    }
+
+    if (selectedFieldsList.includes(fieldName)) {
+        return;
+    }
+
+    selectedFieldsList.push(fieldName);
+
+    renderSelectedFields();
+    updateAvailableFieldsUI();
+
+    setupFieldsEventHandlers();
+
+    updatedSelFieldList = true;
+
+    refreshColumnVisibility();
+}
+
+function removeFieldFromSelected(fieldName) {
+    selectedFieldsList = selectedFieldsList.filter((field) => field !== fieldName);
+
+    renderSelectedFields();
+    updateAvailableFieldsUI();
+
+    setupFieldsEventHandlers();
+
+    updatedSelFieldList = true;
+
+    refreshColumnVisibility();
+}
+
 //eslint-disable-next-line no-unused-vars
 function resetAvailableFields() {
-    $('#available-fields .fields').html('');
+    $('#available-fields-list').empty();
+    $('#selected-fields-list').empty();
+    availColNames = [];
+    updateFieldCounts();
+}
+
+function updateAvailableFieldsUI() {
+    const availableFieldsList = $('#available-fields-list');
+
+    availableFieldsList.find('.field-item').each(function () {
+        const fieldName = $(this).data('field');
+        const actionButton = $(this).find('.field-action');
+
+        if (selectedFieldsList.includes(fieldName)) {
+            // Field is selected - show remove icon
+            actionButton.removeClass('field-action-add').addClass('field-action-remove');
+            actionButton.text('×');
+        } else {
+            // Field is not selected - show add icon
+            actionButton.removeClass('field-action-remove').addClass('field-action-add');
+            actionButton.text('+');
+        }
+    });
 }

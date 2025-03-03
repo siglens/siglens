@@ -484,6 +484,20 @@ type Progress struct {
 	TotalRecords    uint64
 }
 
+type RecsAggregator struct {
+	PerformAggsOnRecs bool            // if true, perform aggregations on records that are returned from rrcreader.go
+	RecsAggsType      PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
+	GroupByRequest    *GroupByRequest
+	MeasureOperations []*MeasureAggregator
+	NextQueryAgg      *QueryAggregators
+}
+
+type RecsAggResults struct {
+	RecsAggsBlockResults      interface{} // Evaluates to *blockresults.BlockResults
+	RecsAggsProcessedSegments uint64
+	RecsRunningSegStats       []*SegStats
+}
+
 // A helper struct to keep track of errors and results together
 // In cases of partial failures, both logLines and errList can be defined
 type NodeResult struct {
@@ -502,17 +516,11 @@ type NodeResult struct {
 	Qtype                       string          `json:"qtype,omitempty"`
 	BucketCount                 int             `json:"bucketCount,omitempty"`
 	SegStatsMap                 map[string]*SegStats
-	GroupByBuckets              interface{}     // *blockresults.GroupByBuckets
-	TimeBuckets                 interface{}     // *blockresults.TimeBuckets
-	PerformAggsOnRecs           bool            // if true, perform aggregations on records that are returned from rrcreader.go
-	RecsAggsType                PipeCommandType // To determine Whether it is GroupByType or MeasureAggsType
-	GroupByRequest              *GroupByRequest
-	MeasureOperations           []*MeasureAggregator
-	NextQueryAgg                *QueryAggregators
-	RecsAggsBlockResults        interface{}              // Evaluates to *blockresults.BlockResults
+	GroupByBuckets              interface{} // *blockresults.GroupByBuckets
+	TimeBuckets                 interface{} // *blockresults.TimeBuckets
+	RecsAggregator              RecsAggregator
+	RecsAggResults              RecsAggResults
 	RecsAggsColumnKeysMap       map[string][]interface{} // map of column name to column keys for GroupBy Recs
-	RecsAggsProcessedSegments   uint64
-	RecsRunningSegStats         []*SegStats
 	TransactionEventRecords     map[string]map[string]interface{}
 	TransactionsProcessed       map[string]map[string]interface{}
 	ColumnsOrder                map[string]int

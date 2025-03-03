@@ -347,17 +347,17 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggregators, recs map[string]map[string]interface{},
 	finalCols map[string]bool, numTotalSegments uint64, finishesSegment bool, qid uint64) map[string]bool {
 
-	if !nodeResult.PerformAggsOnRecs {
+	if !nodeResult.RecsAggregator.PerformAggsOnRecs {
 		return nil
 	}
 
 	if finishesSegment {
-		nodeResult.RecsAggsProcessedSegments++
+		nodeResult.RecsAggResults.RecsAggsProcessedSegments++
 	}
 
-	if nodeResult.RecsAggsType == structs.GroupByType {
+	if nodeResult.RecsAggregator.RecsAggsType == structs.GroupByType {
 		return PerformGroupByRequestAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments, uint64(aggs.Limit))
-	} else if nodeResult.RecsAggsType == structs.MeasureAggsType {
+	} else if nodeResult.RecsAggregator.RecsAggsType == structs.MeasureAggsType {
 		return PerformMeasureAggsOnRecs(nodeResult, recs, finalCols, qid, numTotalSegments, uint64(aggs.Limit))
 	}
 
@@ -366,9 +366,9 @@ func PerformAggsOnRecs(nodeResult *structs.NodeResult, aggs *structs.QueryAggreg
 
 func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64, sizeLimit uint64) map[string]bool {
 
-	nodeResult.GroupByRequest.BucketCount = 3000
+	nodeResult.RecsAggregator.GroupByRequest.BucketCount = 3000
 
-	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.GroupByRequest}, qid)
+	blockRes, err := blockresults.InitBlockResults(uint64(len(recs)), &structs.QueryAggregators{GroupByRequest: nodeResult.RecsAggregator.GroupByRequest}, qid)
 	if err != nil {
 		log.Errorf("PerformGroupByRequestAggsOnRecs: failed to initialize block results reader. Err: %v", err)
 		return nil
@@ -376,8 +376,8 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 	measureInfo, internalMops := blockRes.GetConvertedMeasureInfo()
 
-	if nodeResult.GroupByRequest != nil && nodeResult.GroupByRequest.MeasureOperations != nil {
-		for _, mOp := range nodeResult.GroupByRequest.MeasureOperations {
+	if nodeResult.RecsAggregator.GroupByRequest != nil && nodeResult.RecsAggregator.GroupByRequest.MeasureOperations != nil {
+		for _, mOp := range nodeResult.RecsAggregator.GroupByRequest.MeasureOperations {
 			if mOp.MeasureFunc == utils.Count {
 				internalMops = append(internalMops, mOp)
 			}
@@ -446,25 +446,25 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		blockRes.AddMeasureResultsToKey(currKey.Bytes(), measureResults, "", false, qid)
 	}
 
-	if nodeResult.RecsAggsBlockResults == nil {
-		nodeResult.RecsAggsBlockResults = blockRes
+	if nodeResult.RecsAggResults.RecsAggsBlockResults == nil {
+		nodeResult.RecsAggResults.RecsAggsBlockResults = blockRes
 	} else {
-		recAggsBlockresults := nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+		recAggsBlockresults := nodeResult.RecsAggResults.RecsAggsBlockResults.(*blockresults.BlockResults)
 		recAggsBlockresults.MergeBuckets(blockRes)
 	}
 
 	nodeResult.TotalRRCCount += uint64(len(recs))
 
-	if (nodeResult.RecsAggsProcessedSegments < numTotalSegments) && (sizeLimit == 0 || nodeResult.TotalRRCCount < sizeLimit) {
+	if (nodeResult.RecsAggResults.RecsAggsProcessedSegments < numTotalSegments) && (sizeLimit == 0 || nodeResult.TotalRRCCount < sizeLimit) {
 		for k := range recs {
 			delete(recs, k)
 		}
 		return nil
 	} else {
-		blockRes = nodeResult.RecsAggsBlockResults.(*blockresults.BlockResults)
+		blockRes = nodeResult.RecsAggResults.RecsAggsBlockResults.(*blockresults.BlockResults)
 		if sizeLimit > 0 && nodeResult.TotalRRCCount >= sizeLimit {
 			log.Info("PerformGroupByRequestAggsOnRecs: Reached size limit, Returning the Bucket Results.")
-			nodeResult.RecsAggsProcessedSegments = numTotalSegments
+			nodeResult.RecsAggResults.RecsAggsProcessedSegments = numTotalSegments
 		}
 	}
 
@@ -529,18 +529,18 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 
 func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]map[string]interface{}, finalCols map[string]bool, qid uint64, numTotalSegments uint64, sizeLimit uint64) map[string]bool {
 
-	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.MeasureOperations}, structs.SegmentStatsCmd, qid)
+	searchResults, err := segresults.InitSearchResults(uint64(len(recs)), &structs.QueryAggregators{MeasureOperations: nodeResult.RecsAggregator.MeasureOperations}, structs.SegmentStatsCmd, qid)
 	if err != nil {
 		log.Errorf("PerformMeasureAggsOnRecs: failed to initialize search results. Err: %v", err)
 		return nil
 	}
 
-	searchResults.InitSegmentStatsResults(nodeResult.MeasureOperations)
+	searchResults.InitSegmentStatsResults(nodeResult.RecsAggregator.MeasureOperations)
 
 	anyCountStat := -1
 	lenRecords := len(recs)
 
-	for idx, mOp := range nodeResult.MeasureOperations {
+	for idx, mOp := range nodeResult.RecsAggregator.MeasureOperations {
 		if mOp.String() == "count(*)" {
 			anyCountStat = idx
 			break
@@ -557,7 +557,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 	for recInden, record := range recs {
 		sstMap := make(map[string]*structs.SegStats, 0)
 
-		for _, mOp := range nodeResult.MeasureOperations {
+		for _, mOp := range nodeResult.RecsAggregator.MeasureOperations {
 			dtypeVal, err := utils.CreateDtypeEnclosure(record[mOp.MeasureCol], qid)
 			if err != nil {
 				log.Errorf("PerformMeasureAggsOnRecs: failed to create Dtype Value from rec: %v", err)
@@ -612,7 +612,7 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 			sstMap[mOp.MeasureCol] = segStat
 		}
 
-		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations)
+		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.RecsAggregator.MeasureOperations)
 		if err != nil {
 			log.Errorf("PerformMeasureAggsOnRecs: failed to update segment stats: %v", err)
 		}
@@ -620,21 +620,21 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		delete(recs, recInden)
 	}
 
-	if nodeResult.RecsRunningSegStats == nil {
-		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
+	if nodeResult.RecsAggResults.RecsRunningSegStats == nil {
+		nodeResult.RecsAggResults.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	} else {
 		sstMap := make(map[string]*structs.SegStats, 0)
 
-		for idx, mOp := range nodeResult.MeasureOperations {
-			sstMap[mOp.MeasureCol] = nodeResult.RecsRunningSegStats[idx]
+		for idx, mOp := range nodeResult.RecsAggregator.MeasureOperations {
+			sstMap[mOp.MeasureCol] = nodeResult.RecsAggResults.RecsRunningSegStats[idx]
 		}
 
-		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.MeasureOperations)
+		err := searchResults.UpdateSegmentStats(sstMap, nodeResult.RecsAggregator.MeasureOperations)
 		if err != nil {
 			log.Errorf("PerformMeasureAggsOnRecs: failed to update segment stats: %v", err)
 		}
 
-		nodeResult.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
+		nodeResult.RecsAggResults.RecsRunningSegStats = searchResults.GetSegmentRunningStats()
 	}
 
 	nodeResult.TotalRRCCount += uint64(lenRecords)
@@ -647,8 +647,8 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 		finalSegment := make(map[string]interface{}, 0)
 
 		if anyCountStat > -1 {
-			finalCols[nodeResult.MeasureOperations[anyCountStat].String()] = true
-			finalSegment[nodeResult.MeasureOperations[anyCountStat].String()] = humanize.Comma(int64(nodeResult.TotalRRCCount))
+			finalCols[nodeResult.RecsAggregator.MeasureOperations[anyCountStat].String()] = true
+			finalSegment[nodeResult.RecsAggregator.MeasureOperations[anyCountStat].String()] = humanize.Comma(int64(nodeResult.TotalRRCCount))
 		}
 
 		for colName, value := range searchResults.GetSegmentStatsMeasureResults() {
@@ -681,9 +681,9 @@ func PerformMeasureAggsOnRecs(nodeResult *structs.NodeResult, recs map[string]ma
 
 	if sizeLimit > 0 && nodeResult.TotalRRCCount >= sizeLimit {
 		log.Info("PerformMeasureAggsOnRecs: Reached size limit, processing final segment.")
-		nodeResult.RecsAggsProcessedSegments = numTotalSegments
+		nodeResult.RecsAggResults.RecsAggsProcessedSegments = numTotalSegments
 		processFinalSegement()
-	} else if nodeResult.RecsAggsProcessedSegments < numTotalSegments {
+	} else if nodeResult.RecsAggResults.RecsAggsProcessedSegments < numTotalSegments {
 		return nil
 	} else {
 		processFinalSegement()
