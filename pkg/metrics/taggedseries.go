@@ -17,8 +17,6 @@
 
 package metrics
 
-import "github.com/siglens/siglens/pkg/utils"
-
 type TaggedSeries interface {
 	Taggable
 	timeseries
@@ -26,49 +24,15 @@ type TaggedSeries interface {
 
 // Implements the TaggedSeries interface.
 type Series struct {
-	tags   TaggedMetric
-	series timeseries
+	TaggedMetric
+	timeseries
 }
 
 func NewTaggedSeries(tags map[string]string, series timeseries) *Series {
 	return &Series{
-		tags:   TaggedMetric{tags: tags},
-		series: series,
+		TaggedMetric: TaggedMetric{
+			tags: tags,
+		},
+		timeseries: series,
 	}
-}
-
-func (s *Series) GetValue(key string) (string, bool) {
-	return s.tags.GetValue(key)
-}
-
-func (s *Series) SetValue(key string, value string) {
-	s.tags.SetValue(key, value)
-}
-
-func (s *Series) RemoveTag(key string) {
-	s.tags.RemoveTag(key)
-}
-
-func (s *Series) HasTag(key string) bool {
-	return s.tags.HasTag(key)
-}
-
-func (s *Series) SetTags(tags map[string]string) {
-	s.tags.SetTags(tags)
-}
-
-func (s *Series) Id() string {
-	return s.tags.Id()
-}
-
-func (s *Series) AtOrBefore(timestamp epoch) (float64, bool) {
-	return s.series.AtOrBefore(timestamp)
-}
-
-func (s *Series) Iterator() utils.Iterator[entry] {
-	return s.series.Iterator()
-}
-
-func (s *Series) Range(start epoch, end epoch, mode RangeMode) timeseries {
-	return s.series.Range(start, end, mode)
 }
