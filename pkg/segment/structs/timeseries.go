@@ -89,59 +89,6 @@ func (t *lookupSeries) rangeIterator(start epoch, end epoch, mode RangeMode) uti
 	return utils.NewIterator([]entry{})
 }
 
-// When getting the value at time T, and T is outside the range, no value is returned.
-type rangeSeries struct {
-	series rangeIterableSeries
-	start  epoch
-	end    epoch
-	mode   RangeMode
-}
-
-type RangeMode int
-
-const (
-	// Start is exclusive; end is inclusive.
-	// See https://github.com/prometheus/prometheus/issues/13213
-	PromQl3Range RangeMode = iota + 1
-)
-
-func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
-	switch r.mode {
-	case PromQl3Range:
-		if timestamp <= r.start || timestamp > r.end {
-			return 0, false
-		}
-
-		return r.series.AtOrBefore(timestamp)
-	}
-
-	return 0, false
-}
-
-func (r *rangeSeries) Iterator() utils.Iterator[entry] {
-	return r.series.rangeIterator(r.start, r.end, r.mode)
-}
-
-func (r *rangeSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
-	if mode != r.mode {
-		return nil
-	}
-
-	switch r.mode {
-	case PromQl3Range:
-		start := max(r.start, start)
-		end := min(r.end, end)
-		return &rangeSeries{
-			series: r.series,
-			start:  start,
-			end:    end,
-			mode:   r.mode,
-		}
-	}
-
-	return nil
-}
-
 type generatedSeries struct {
 	timestamps []epoch
 	valueAt    func(epoch) float64
@@ -198,6 +145,59 @@ func (g *generatedSeries) Range(start epoch, end epoch, mode RangeMode) timeseri
 		}
 
 		return &lookupSeries{values: values}
+	}
+
+	return nil
+}
+
+// When getting the value at time T, and T is outside the range, no value is returned.
+type rangeSeries struct {
+	series rangeIterableSeries
+	start  epoch
+	end    epoch
+	mode   RangeMode
+}
+
+type RangeMode int
+
+const (
+	// Start is exclusive; end is inclusive.
+	// See https://github.com/prometheus/prometheus/issues/13213
+	PromQl3Range RangeMode = iota + 1
+)
+
+func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+	switch r.mode {
+	case PromQl3Range:
+		if timestamp <= r.start || timestamp > r.end {
+			return 0, false
+		}
+
+		return r.series.AtOrBefore(timestamp)
+	}
+
+	return 0, false
+}
+
+func (r *rangeSeries) Iterator() utils.Iterator[entry] {
+	return r.series.rangeIterator(r.start, r.end, r.mode)
+}
+
+func (r *rangeSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+	if mode != r.mode {
+		return nil
+	}
+
+	switch r.mode {
+	case PromQl3Range:
+		start := max(r.start, start)
+		end := min(r.end, end)
+		return &rangeSeries{
+			series: r.series,
+			start:  start,
+			end:    end,
+			mode:   r.mode,
+		}
 	}
 
 	return nil
