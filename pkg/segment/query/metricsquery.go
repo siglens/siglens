@@ -119,7 +119,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		}
 	}
 
-	if mQuery.SelectAllSeries || mQuery.GetAllLabels {
+	if mQuery.SelectAllSeries {
 		for _, v := range mQuery.TagsFilters {
 			delete(allTagKeys, v.TagKey)
 		}

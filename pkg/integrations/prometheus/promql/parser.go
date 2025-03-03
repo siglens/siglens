@@ -514,6 +514,7 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	}
 
 	mQuery.LookBackToInclude = timeWindow
+	mQuery.SelectAllSeries = true
 	mQuery.GetAllLabels = true
 
 	return nil
@@ -685,7 +686,6 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSeconds uint32) ([]*structs.MetricsQueryRequest, error) {
 	mQuery := &mQueryReqs[0].MetricsQuery
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
-	mQuery.SelectAllSeries = true
 
 	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
@@ -697,9 +697,7 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
-	if len(mQuery.TagsFilters) > 0 {
-		mQuery.SelectAllSeries = false
-	} else {
+	if len(mQuery.TagsFilters) == 0 {
 		mQuery.SelectAllSeries = true
 	}
 
