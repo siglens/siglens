@@ -453,6 +453,10 @@ async function fillAlertForm(res) {
 
     if (isEditMode && !isFromMetrics) {
         alertData.alert_id = res.alert_id;
+        initializeBreadcrumbs([
+            { name: 'Alerting', url: './all-alerts.html' },
+            { name: res.alert_name ? res.alert_name : 'New Alert', url: '#' },
+        ]);
         $('#alert-name').empty().text(res.alert_name);
     }
 
