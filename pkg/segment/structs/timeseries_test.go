@@ -144,3 +144,48 @@ func Test_timeBasedSeries_empty(t *testing.T) {
 		assert.False(t, ok)
 	})
 }
+
+func Test_Downsample(t *testing.T) {
+	series := &normalTimeseries{
+		values: []entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+			{timestamp: 30, value: 130},
+		},
+	}
+
+	downsampler := downsampler{
+		timeseries: series,
+		aggregator: func(values []float64) float64 {
+			sum := 0.0
+			for _, v := range values {
+				sum += v
+			}
+			return sum / float64(len(values))
+		},
+		interval: 10,
+	}
+
+	downsampled := downsampler.Evaluate()
+	t.Run("GetTimestamps", func(t *testing.T) {
+		timestamps := downsampled.GetTimestamps()
+		assert.Equal(t, []epoch{10, 30}, timestamps)
+	})
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		value, ok := downsampled.AtOrBefore(0)
+		assert.False(t, ok)
+
+		value, ok = downsampled.AtOrBefore(10)
+		assert.True(t, ok)
+		assert.Equal(t, 101.5, value)
+
+		value, ok = downsampled.AtOrBefore(30)
+		assert.True(t, ok)
+		assert.Equal(t, 130.0, value)
+
+		value, ok = downsampled.AtOrBefore(100)
+		assert.True(t, ok)
+		assert.Equal(t, 130.0, value)
+	})
+}

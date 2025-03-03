@@ -17,14 +17,27 @@
 
 package structs
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/siglens/siglens/pkg/utils"
+)
 
 type epoch uint32
 
 type timeseries interface {
-	GetTimestamps() []epoch
-	// Gets the first value at or before the given timestamp.
 	AtOrBefore(timestamp epoch) (float64, bool)
+	Iterator() utils.Iterator[entry]
+	Range(start epoch, end epoch, mode RangeMode) timeseries
+}
+
+type rangeIterable interface {
+	rangeIterator(start epoch, end epoch, mode RangeMode) utils.Iterator[entry]
+}
+
+type rangeIterableSeries interface {
+	rangeIterable
+	timeseries
 }
 
 type entry struct {
@@ -34,17 +47,6 @@ type entry struct {
 
 type normalTimeseries struct {
 	values []entry
-}
-
-// TODO: make this more efficient.
-func (t *normalTimeseries) GetTimestamps() []epoch {
-	timestamps := make([]epoch, len(t.values))
-
-	for i, entry := range t.values {
-		timestamps[i] = entry.timestamp
-	}
-
-	return timestamps
 }
 
 func (t *normalTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
@@ -59,52 +61,90 @@ func (t *normalTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return 0, false
 }
 
-type windowedTimeseries struct {
-	timeseries     timeseries
-	startExclusive epoch
-	endInclusive   epoch
+func (t *normalTimeseries) Iterator() utils.Iterator[entry] {
+	return utils.NewIterator(t.values)
 }
 
-func RestrictRange(series timeseries, startExclusive, endInclusive epoch) timeseries {
-	return &windowedTimeseries{
-		timeseries:     series,
-		startExclusive: startExclusive,
-		endInclusive:   endInclusive,
+func (t *normalTimeseries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+	return &rangeSeries{
+		series: t,
+		start:  start,
+		end:    end,
+		mode:   mode,
 	}
 }
 
-func (w *windowedTimeseries) GetTimestamps() []epoch {
-	timestamps := w.timeseries.GetTimestamps()
+func (t *normalTimeseries) rangeIterator(start epoch, end epoch, mode RangeMode) utils.Iterator[entry] {
+	switch mode {
+	case PromQl3Range:
+		startIndex := sort.Search(len(t.values), func(i int) bool {
+			return t.values[i].timestamp > start
+		})
+		endIndex := sort.Search(len(t.values), func(i int) bool {
+			return t.values[i].timestamp > end
+		})
+		return utils.NewIterator(t.values[startIndex:endIndex])
+	}
 
-	startIndex := sort.Search(len(timestamps), func(i int) bool {
-		return timestamps[i] > w.startExclusive
-	})
-	endIndex := sort.Search(len(timestamps), func(i int) bool {
-		return timestamps[i] > w.endInclusive
-	})
-
-	return timestamps[startIndex:endIndex]
+	return utils.NewIterator([]entry{})
 }
 
-func (w *windowedTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
-	if timestamp <= w.startExclusive {
-		return 0, false
+// When getting the value at time T, and T is outside the range, no value is returned.
+type rangeSeries struct {
+	series rangeIterableSeries
+	start  epoch
+	end    epoch
+	mode   RangeMode
+}
+
+type RangeMode int
+
+const (
+	// Start is exclusive; end is inclusive.
+	// See https://github.com/prometheus/prometheus/issues/13213
+	PromQl3Range RangeMode = iota + 1
+)
+
+func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+	switch r.mode {
+	case PromQl3Range:
+		if timestamp <= r.start || timestamp > r.end {
+			return 0, false
+		}
+
+		return r.series.AtOrBefore(timestamp)
 	}
 
-	if timestamp > w.endInclusive {
-		return w.timeseries.AtOrBefore(w.endInclusive)
+	return 0, false
+}
+
+func (r *rangeSeries) Iterator() utils.Iterator[entry] {
+	return r.series.rangeIterator(r.start, r.end, r.mode)
+}
+
+func (r *rangeSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+	if mode != r.mode {
+		return nil
 	}
 
-	return w.timeseries.AtOrBefore(timestamp)
+	switch r.mode {
+	case PromQl3Range:
+		start := max(r.start, start)
+		end := min(r.end, end)
+		return &rangeSeries{
+			series: r.series,
+			start:  start,
+			end:    end,
+			mode:   r.mode,
+		}
+	}
+
+	return nil
 }
 
 type timeBasedSeries struct {
 	timestamps []epoch
 	valueAt    func(epoch) float64
-}
-
-func (t *timeBasedSeries) GetTimestamps() []epoch {
-	return t.timestamps
 }
 
 func (t *timeBasedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
@@ -113,4 +153,62 @@ func (t *timeBasedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	}
 
 	return t.valueAt(timestamp), true
+}
+
+func (t *timeBasedSeries) Iterator() utils.Iterator[entry] {
+	return &timeBasedIterator{
+		series: t,
+		index:  0,
+	}
+}
+
+type timeBasedIterator struct {
+	series *timeBasedSeries
+	index  int
+}
+
+func (t *timeBasedIterator) Next() (entry, bool) {
+	if t.index >= len(t.series.timestamps) {
+		return entry{}, false
+	}
+
+	value := entry{
+		timestamp: t.series.timestamps[t.index],
+		value:     t.series.valueAt(t.series.timestamps[t.index]),
+	}
+
+	t.index++
+
+	return value, true
+}
+
+func (t *timeBasedSeries) Range(startExclusive, endInclusive epoch) timeseries {
+	startIndex := sort.Search(len(t.timestamps), func(i int) bool {
+		return t.timestamps[i] > startExclusive
+	})
+	endIndex := sort.Search(len(t.timestamps), func(i int) bool {
+		return t.timestamps[i] > endInclusive
+	})
+
+	values := make([]entry, 0)
+	for i := startIndex; i < endIndex; i++ {
+		values = append(values, entry{timestamp: t.timestamps[i], value: t.valueAt(t.timestamps[i])})
+	}
+
+	return &normalTimeseries{values: values}
+}
+
+type downsampler struct {
+	timeseries timeseries
+	aggregator func([]float64) float64
+	interval   epoch
+}
+
+func (d *downsampler) Evaluate() timeseries {
+	// TODO
+	return nil
+}
+
+func (d *downsampler) snapToInterval(timestamp epoch) epoch {
+	return timestamp - timestamp%d.interval
 }
