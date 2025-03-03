@@ -45,11 +45,11 @@ type entry struct {
 	value     float64
 }
 
-type normalTimeseries struct {
+type lookupSeries struct {
 	values []entry
 }
 
-func (t *normalTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
+func (t *lookupSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	i := sort.Search(len(t.values), func(k int) bool {
 		return t.values[k].timestamp > timestamp
 	})
@@ -61,11 +61,11 @@ func (t *normalTimeseries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return 0, false
 }
 
-func (t *normalTimeseries) Iterator() utils.Iterator[entry] {
+func (t *lookupSeries) Iterator() utils.Iterator[entry] {
 	return utils.NewIterator(t.values)
 }
 
-func (t *normalTimeseries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (t *lookupSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
 	return &rangeSeries{
 		series: t,
 		start:  start,
@@ -74,7 +74,7 @@ func (t *normalTimeseries) Range(start epoch, end epoch, mode RangeMode) timeser
 	}
 }
 
-func (t *normalTimeseries) rangeIterator(start epoch, end epoch, mode RangeMode) utils.Iterator[entry] {
+func (t *lookupSeries) rangeIterator(start epoch, end epoch, mode RangeMode) utils.Iterator[entry] {
 	switch mode {
 	case PromQl3Range:
 		startIndex := sort.Search(len(t.values), func(i int) bool {
@@ -142,62 +142,62 @@ func (r *rangeSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
 	return nil
 }
 
-type timeBasedSeries struct {
+type generatedSeries struct {
 	timestamps []epoch
 	valueAt    func(epoch) float64
 }
 
-func (t *timeBasedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
-	if len(t.timestamps) == 0 || timestamp < t.timestamps[0] {
+func (g *generatedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+	if len(g.timestamps) == 0 || timestamp < g.timestamps[0] {
 		return 0, false
 	}
 
-	return t.valueAt(timestamp), true
+	return g.valueAt(timestamp), true
 }
 
-func (t *timeBasedSeries) Iterator() utils.Iterator[entry] {
-	return &timeBasedIterator{
-		series: t,
+func (g *generatedSeries) Iterator() utils.Iterator[entry] {
+	return &generatedIterator{
+		series: g,
 		index:  0,
 	}
 }
 
-type timeBasedIterator struct {
-	series *timeBasedSeries
+type generatedIterator struct {
+	series *generatedSeries
 	index  int
 }
 
-func (t *timeBasedIterator) Next() (entry, bool) {
-	if t.index >= len(t.series.timestamps) {
+func (gi *generatedIterator) Next() (entry, bool) {
+	if gi.index >= len(gi.series.timestamps) {
 		return entry{}, false
 	}
 
 	value := entry{
-		timestamp: t.series.timestamps[t.index],
-		value:     t.series.valueAt(t.series.timestamps[t.index]),
+		timestamp: gi.series.timestamps[gi.index],
+		value:     gi.series.valueAt(gi.series.timestamps[gi.index]),
 	}
 
-	t.index++
+	gi.index++
 
 	return value, true
 }
 
-func (t *timeBasedSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (g *generatedSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
 	switch mode {
 	case PromQl3Range:
-		startIndex := sort.Search(len(t.timestamps), func(i int) bool {
-			return t.timestamps[i] > start
+		startIndex := sort.Search(len(g.timestamps), func(i int) bool {
+			return g.timestamps[i] > start
 		})
-		endIndex := sort.Search(len(t.timestamps), func(i int) bool {
-			return t.timestamps[i] > end
+		endIndex := sort.Search(len(g.timestamps), func(i int) bool {
+			return g.timestamps[i] > end
 		})
 
 		values := make([]entry, 0)
 		for i := startIndex; i < endIndex; i++ {
-			values = append(values, entry{timestamp: t.timestamps[i], value: t.valueAt(t.timestamps[i])})
+			values = append(values, entry{timestamp: g.timestamps[i], value: g.valueAt(g.timestamps[i])})
 		}
 
-		return &normalTimeseries{values: values}
+		return &lookupSeries{values: values}
 	}
 
 	return nil
@@ -214,7 +214,7 @@ func (d *downsampler) Evaluate() timeseries {
 
 	firstEntry, ok := iterator.Next()
 	if !ok {
-		return &normalTimeseries{}
+		return &lookupSeries{}
 	}
 
 	currentBucket := d.snapToInterval(firstEntry.timestamp)
@@ -250,7 +250,7 @@ func (d *downsampler) Evaluate() timeseries {
 		finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
 	}
 
-	return &normalTimeseries{values: finalEntries}
+	return &lookupSeries{values: finalEntries}
 }
 
 func (d *downsampler) snapToInterval(timestamp epoch) epoch {

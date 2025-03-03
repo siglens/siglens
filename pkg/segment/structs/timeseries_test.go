@@ -24,13 +24,13 @@ import (
 )
 
 func Test_implementsSeries(t *testing.T) {
-	var _ timeseries = &normalTimeseries{}
-	var _ timeseries = &timeBasedSeries{}
+	var _ timeseries = &lookupSeries{}
+	var _ timeseries = &generatedSeries{}
 	var _ timeseries = &rangeSeries{}
 }
 
-func Test_normalTimeseries(t *testing.T) {
-	series := &normalTimeseries{
+func Test_lookupSeries(t *testing.T) {
+	series := &lookupSeries{
 		values: []entry{
 			{timestamp: 1, value: 101},
 			{timestamp: 2, value: 102},
@@ -70,8 +70,8 @@ func Test_normalTimeseries(t *testing.T) {
 	})
 }
 
-func Test_timeBasedSeries(t *testing.T) {
-	series := &timeBasedSeries{
+func Test_generatedSeries(t *testing.T) {
+	series := &generatedSeries{
 		timestamps: []epoch{1, 2},
 		valueAt: func(timestamp epoch) float64 {
 			return float64(timestamp) + 100
@@ -111,8 +111,8 @@ func Test_timeBasedSeries(t *testing.T) {
 	})
 }
 
-func Test_timeBasedSeries_empty(t *testing.T) {
-	series := &timeBasedSeries{
+func Test_generatedSeries_empty(t *testing.T) {
+	series := &generatedSeries{
 		timestamps: []epoch{},
 		valueAt: func(timestamp epoch) float64 {
 			return float64(timestamp) + 100
@@ -133,7 +133,7 @@ func Test_timeBasedSeries_empty(t *testing.T) {
 }
 
 func Test_Downsample(t *testing.T) {
-	series := &normalTimeseries{
+	series := &lookupSeries{
 		values: []entry{
 			{timestamp: 1, value: 101},
 			{timestamp: 2, value: 102},
