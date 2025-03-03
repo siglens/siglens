@@ -38,7 +38,7 @@
             </form></div>
             <div class="pop-download" id="pop-box">
             <div class="pop-text">Downloading...</div>
-            <button class="btn cancel-loading" id="cancel-loading">Cancel</button>
+            <button class="btn cancel-loading btn-secondary" id="cancel-loading">Cancel</button>
         </div>
             `);
 

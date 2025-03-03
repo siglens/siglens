@@ -46,7 +46,7 @@ var diskUsageExceeded atomic.Bool
 
 func MonitorDiskUsage() {
 	for {
-		usage, err := getDiskUsagePercent()
+		usage, err := GetDiskUsagePercent()
 		if err != nil {
 			time.Sleep(30 * time.Second)
 			continue
@@ -61,7 +61,7 @@ func MonitorDiskUsage() {
 	}
 }
 
-func getDiskUsagePercent() (uint64, error) {
+func GetDiskUsagePercent() (uint64, error) {
 	s, err := disk.Usage(config.GetDataPath())
 	if err != nil {
 		log.Errorf("getDiskUsagePercent: Error getting disk usage for the disk data path=%v, err=%v", config.GetDataPath(), err)
@@ -161,6 +161,12 @@ func prometheusPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 func otlpIngestTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyId(otlp.ProcessTraceIngest, ctx)
+	}
+}
+
+func otlpIngestLogsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyId(otlp.ProcessLogIngest, ctx)
 	}
 }
 

@@ -54,7 +54,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	page := 1
 	pageVal, ok := readJSON["page"]
@@ -80,7 +80,7 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	} else {
 		// In order to get unique trace_id,  append group by block to the "searchText" field
 		if len(searchRequestBody.SearchText) > 0 {
-			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count BY trace_id"
+			searchRequestBody.SearchText = searchRequestBody.SearchText + " | stats count(*) BY trace_id"
 		} else {
 			writeErrMsg(ctx, "ProcessSearchTracesRequest", "request does not contain required parameter: searchText", nil)
 			return
@@ -267,6 +267,20 @@ func ExtractTraceID(searchText string) (bool, string) {
 	if err != nil {
 		return false, ""
 	}
+
+	matches := regex.FindStringSubmatch(searchText)
+	if len(matches) != 2 {
+		return false, ""
+	}
+
+	return true, matches[1]
+}
+
+// Check if searchText only contains spanId as query condition
+func ExtractSpanID(searchText string) (bool, string) {
+	pattern := `^span_id=([a-zA-Z0-9]+)$`
+
+	regex := regexp.MustCompile(pattern)
 
 	matches := regex.FindStringSubmatch(searchText)
 	if len(matches) != 2 {
@@ -765,7 +779,7 @@ func ProcessGeneratedDepGraph(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	nowTs := putils.GetCurrentTimeInMs()
-	_, startEpoch, endEpoch, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+	_, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
 
 	startEpochInt64 := int64(startEpoch)
 	endEpochInt64 := int64(endEpoch)
@@ -967,4 +981,82 @@ func writeErrMsg(ctx *fasthttp.RequestCtx, functionName string, errorMsg string,
 		log.Errorf(functionName, ": could not write error message err=%v", err)
 	}
 	log.Errorf(functionName, ": failed to decode search request body! Err=%v", err)
+}
+
+func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {
+	searchRequestBody, readJSON, err := ParseAndValidateRequestBody(ctx)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "could not parse and validate request body", err)
+		return
+	}
+
+	nowTs := putils.GetCurrentTimeInMs()
+	searchText, startEpoch, endEpoch, _, _, _, _, _ := pipesearch.ParseSearchBody(readJSON, nowTs)
+
+	// Validate query
+	isOnlySpanID, spanId := ExtractSpanID(searchText)
+	if !isOnlySpanID {
+		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "only provide 1 span ID", nil)
+		return
+	}
+
+	page := 1
+	pageVal, ok := readJSON["page"]
+	if ok && pageVal != 0 {
+		switch val := pageVal.(type) {
+		case json.Number:
+			pageInt, err := val.Int64()
+			if err != nil {
+				log.Errorf("ProcessSpanGanttChartRequest: error converting page Val=%v to int: %v", val, err)
+			}
+			page = int(pageInt)
+		default:
+			log.Errorf("ProcessSpanGanttChartRequest: page is not a int Val %+v", val)
+		}
+	}
+
+	searchRequestBody.IndexName = "traces"
+
+	// Find all unique Trace IDs for the spanId
+	searchRequestBody.SearchText = "span_id=" + spanId + " | stats count BY trace_id"
+	pipeSearchResponseOuter, err := processSearchRequest(searchRequestBody, myid)
+	if err != nil {
+		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", err.Error(), nil)
+		return
+	}
+
+	totalTraces := GetTotalUniqueTraceIds(pipeSearchResponseOuter)
+
+	if totalTraces == 0 {
+		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "Span ID not found", nil)
+		return
+	} else if totalTraces > 1 {
+		// Log if more than 1 trace id belongs to a span id, should not be the case
+		log.Errorf("Span ID should be unique to Trace ID")
+	}
+
+	traceIds := GetUniqueTraceIds(pipeSearchResponseOuter, startEpoch, endEpoch, page)
+
+	traceId := traceIds[0]
+	if traceId == "" {
+		writeErrMsg(ctx, "ProcessSpanGanttChartRequest", "Orphaned Span ID", nil)
+		return
+	}
+
+	requestBody := map[string]interface{}{
+		"indexName":     "traces",
+		"startEpoch":    searchRequestBody.StartEpoch,
+		"endEpoch":      searchRequestBody.EndEpoch,
+		"searchText":    "trace_id=" + traceId,
+		"queryLanguage": "Splunk QL",
+	}
+	requestBodyJSON, err := json.Marshal(requestBody)
+	if err != nil {
+		fmt.Printf("ProcessSpanGanttChartRequest: Error marshaling request body=%v, Error=%v", requestBody, err)
+		return
+	}
+
+	ctx.Request.SetBody(requestBodyJSON)
+
+	ProcessGanttChartRequest(ctx, myid)
 }

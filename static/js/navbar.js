@@ -31,10 +31,10 @@ let navbarComponent = `
         <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./service-health.html">
                 <span class="icon-traces"></span>
-                <span class="nav-link-text">Tracing</span>
+                <span class="nav-link-text">APM</span>
             </a>
             <ul class="traces-dropdown navbar-submenu">
-                <a href="./service-health.html"><li class="traces-link">Service Health</li></a>
+                <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
@@ -50,13 +50,13 @@ let navbarComponent = `
 
             <div class="accordion-content" style="display: none;">
                 <a href="./metrics-explorer.html" class="submenu-link">
-                    <span class="nav-link-text-sub-explore">Explorer</span>
+                    <span class="nav-link-text-explore">Explorer</span>
                 </a>
                 <a href="./metric-summary.html" class="submenu-link">
-                    <span class="nav-link-text-sub-summary">Summary</span>
+                    <span class="nav-link-text-summary">Summary</span>
                 </a>
                 <a href="./metric-cardinality.html" class="submenu-link">
-                    <span class="nav-link-text-sub-cardinality">Cardinality</span>
+                    <span class="nav-link-text-cardinality">Cardinality</span>
                 </a>
             </div>
         </div>
@@ -90,6 +90,10 @@ let navbarComponent = `
         <div class="menu nav-lookups">
             <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
+        </div>
+        <div class="menu nav-infrastructure">
+            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span
+                    class="nav-link-text">Infrastructure</span></a>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
             <a class="nav-links" href="./test-data.html">
@@ -158,7 +162,7 @@ let orgUpperNavTabs = [
 ];
 
 let tracingUpperNavTabs = [
-    { name: 'Service Health', url: './service-health.html', class: 'service-health' },
+    { name: 'Service Health (RED)', url: './service-health.html', class: 'service-health' },
     { name: 'Search Traces', url: './search-traces.html', class: 'search-traces' },
     { name: 'Dependency Graph', url: './dependency-graph.html', class: 'dependency-graph' },
 ];
@@ -170,49 +174,51 @@ let alertsUpperNavTabs = [
 
 $(document).ready(function () {
     $('#app-side-nav').prepend(navbarComponent);
-    // Handle Metrics menu click
-    $('.big-menu .nav-links').on('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
 
-        const $menu = $(this).closest('.big-menu');
+    // Handle Metrics menu click
+$('.big-menu .nav-links').on('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const $menu = $(this).closest('.big-menu');
+    const $submenu = $menu.find('.accordion-content');
+    const $arrow = $menu.find('.nav-dropdown-icon');
+
+    const isOpen = $submenu.is(':visible');
+
+    $submenu.slideToggle(300);
+    $arrow.toggleClass('rotated', !isOpen);
+
+    let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+    const menuText = $menu.find('.nav-link-text, .nav-link-text-explore, .nav-link-text-summary, .nav-link-text-cardinality').text().trim();
+
+    if (isOpen) {
+        activeMenus = activeMenus.filter(item => item !== menuText);
+    } else {
+        activeMenus.push(menuText);
+    }
+    localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+});
+
+
+function restoreMenuStates() {
+    let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+    $('.big-menu').each(function () {
+        const $menu = $(this);
         const $submenu = $menu.find('.accordion-content');
         const $arrow = $menu.find('.nav-dropdown-icon');
+        const menuText = $menu.find('.nav-link-text, .nav-link-text-explore, .nav-link-text-summary, .nav-link-text-cardinality').text().trim();
 
-        const isOpen = $submenu.is(':visible');
-
-        $submenu.slideToggle(300);
-        $arrow.toggleClass('active', !isOpen);
-
-        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
-        const menuText = $menu.find('.nav-link-text').text().trim();
-
-        if (isOpen) {
-            activeMenus = activeMenus.filter(item => item !== menuText);
+        if (activeMenus.includes(menuText)) {
+            $submenu.css('display', 'block');
+            $arrow.addClass('rotated');
         } else {
-            activeMenus.push(menuText);
+            $submenu.css('display', 'none');
+            $arrow.removeClass('rotated');
         }
-        localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
     });
+}
 
-    // Restore menu states from localStorage on page load without animation
-    function restoreMenuStates() {
-        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
-        $('.big-menu').each(function () {
-            const $menu = $(this);
-            const $submenu = $menu.find('.accordion-content');
-            const $arrow = $menu.find('.nav-dropdown-icon');
-            const menuText = $menu.find('.nav-link-text').text().trim();
-
-            if (activeMenus.includes(menuText)) {
-                $submenu.css('display', 'block');
-                $arrow.addClass('active');
-            } else {
-                $submenu.css('display', 'none');
-                $arrow.removeClass('active');
-            }
-        });
-    }
 
     // Call restoration immediately
     restoreMenuStates();
@@ -259,7 +265,7 @@ $(document).ready(function () {
             $('.nav-traces').removeClass('disable-hover');
         }, 500);
         if ($('.subsection-navbar').length) {
-            $('.subsection-navbar').appendOrgNavTabs('Tracing', tracingUpperNavTabs);
+            $('.subsection-navbar').appendOrgNavTabs('APM', tracingUpperNavTabs);
         }
     } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
         $('.nav-ingest').addClass('active');
@@ -276,21 +282,21 @@ $(document).ready(function () {
         if (currentUrl.includes('metrics-explorer.html') && $(this).attr('href').includes('metrics-explorer.html')) {
             $(this).css({
                 "color": "white",
-                "border-left": "4px solid orange"
+                "border-left": "2px solid orange"
             });
             $(this).closest('.big-menu').find('.nav-link-text-sub-explore').css("color", "white"); // Highlight parent
         }
         else if (currentUrl.includes('metric-summary.html') && $(this).attr('href').includes('metric-summary.html')) {
             $(this).css({
                 "color": "white",
-                "border-left": "4px solid orange"
+                "border-left": "2px solid orange"
             });
             $(this).closest('.big-menu').find('.nav-link-text-sub-summary').css("color", "white");
         }
         else if (currentUrl.includes('metric-cardinality.html') && $(this).attr('href').includes('metric-cardinality.html')) {
             $(this).css({
                 "color": "white",
-                "border-left": "4px solid orange"
+                "border-left": "2px solid orange"
             });
             $(this).closest('.big-menu').find('.nav-link-text-sub-cardinality').css("color", "white");
         }

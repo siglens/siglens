@@ -18,6 +18,7 @@
  */
 let panelGridDiv = null;
 let panelID = null;
+let isFetching = false;
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkbox', toggleAllAvailableFieldsHandler);
 $('.panEdit-navBar #available-fields .select-unselect-header').on('click', '.select-unselect-checkmark', toggleAllAvailableFieldsHandler);
 
@@ -25,14 +26,9 @@ let panelLogsColumnDefs = [
     {
         field: 'timestamp',
         headerName: 'timestamp',
-        editable: true,
-        cellEditor: ReadOnlyCellEditor,
-        cellEditorPopup: true,
-        cellEditorPopupPosition: 'under',
         cellRenderer: (params) => {
             return moment(params.value).format(timestampDateFmt);
         },
-        cellEditorParams: cellEditorParams,
         maxWidth: 250,
         minWidth: 250,
     },
@@ -64,7 +60,7 @@ function createPanelGridOptions(currentPanel) {
         animateRows: true,
         readOnlyEdit: true,
         singleClickEdit: true,
-        headerHeight: 32,
+        headerHeight: 26,
         defaultColDef: {
             initialWidth: 100,
             sortable: true,

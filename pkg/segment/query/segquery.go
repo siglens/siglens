@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/siglens/siglens/pkg/blob"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -72,7 +73,7 @@ func InitQueryNode(getMyIds func() []int64, extractKibanaRequestsFn func([]strin
 	pqsmeta.InitPqsMeta()
 	initMetadataRefresh()
 	initGlobalMetadataRefresh(getMyIds)
-	go initSyncSegMetaForAllIds(getMyIds)
+	go initSyncSegMetaForAllIds(getMyIds, hooks.GlobalHooks.GetAllSegmentsHook)
 	go runQueryInfoRefreshLoop(getMyIds)
 
 	// Init specific writer components for kibana requests
@@ -104,16 +105,29 @@ func queryMetricsLooper() {
 	}
 }
 
-func initSyncSegMetaForAllIds(getMyIds func() []int64) {
-	defaultId := int64(0)
-	syncSegMetaWithSegFullMeta(defaultId)
+func initSyncSegMetaForAllIds(getMyIds func() []int64, allSegmentsHook func() (map[string]struct{}, error)) {
+	var allSegKeys map[string]struct{}
+	var err error
+
+	if allSegmentsHook != nil {
+		allSegKeys, err = allSegmentsHook()
+		if err != nil {
+			log.Errorf("initSyncSegMetaForAllIds: Error in getting all SegKeys, err:%v", err)
+			return
+		}
+	}
+
+	totalAddedSmiCount := 0
 
 	for _, myId := range getMyIds() {
-		if myId == defaultId {
-			continue
-		}
+		totalAddedSmiCount += syncSegMetaWithSegFullMeta(myId, allSegKeys)
+	}
 
-		syncSegMetaWithSegFullMeta(myId)
+	if totalAddedSmiCount > 0 {
+		err := blob.UploadIngestNodeDir()
+		if err != nil {
+			log.Errorf("initSyncSegMetaForAllIds: Error in uploading ingest node dir, err:%v", err)
+		}
 	}
 }
 

@@ -109,7 +109,7 @@ function setSaveQueriesDialog() {
         },
         buttons: {
             Cancel: {
-                class: 'cancelqButton',
+                class: 'cancelqButton btn btn-secondary',
                 text: 'Cancel',
                 click: function () {
                     dialog.dialog('close');
@@ -117,7 +117,7 @@ function setSaveQueriesDialog() {
                 },
             },
             Save: {
-                class: 'saveqButton',
+                class: 'saveqButton btn btn-primary',
                 text: 'Save',
                 click: function () {
                     saveQuery();
@@ -254,8 +254,8 @@ $(document).ready(function () {
         });
     });
 
-    $(document).keypress(function (event) {
-        if (event.keyCode == '13') {
+    $(document).on('keydown', (event) => {
+        if (event.key === 'Escape') {
             $('.popupOverlay, .popupContent').removeClass('active');
         }
     });
@@ -300,7 +300,7 @@ let queriesColumnDefs = [
     },
     {
         field: 'queryLanguage',
-        headerName: 'QueryLanguage',
+        headerName: 'Query Language',
         resizable: true,
     },
     {
@@ -321,8 +321,8 @@ const sqgridOptions = {
     columnDefs: queriesColumnDefs,
     rowData: sqRowData,
     animateRows: true,
-    headerHeight: 32,
-    rowHeight: 44,
+    headerHeight: 26,
+    rowHeight: 34,
     defaultColDef: {
         initialWidth: 200,
         icons: {
@@ -352,7 +352,7 @@ function displaySavedQueries(res, flag) {
         //for search
         let sqFilteredRowData = [];
         if (sqgridDiv === null) {
-            sqgridDiv = document.querySelector('#queries-grid');
+            sqgridDiv = document.querySelector('#ag-grid');
             //eslint-disable-next-line no-undef
             new agGrid.Grid(sqgridDiv, sqgridOptions);
         }
@@ -384,7 +384,7 @@ function displaySavedQueries(res, flag) {
         sqgridOptions.api.sizeColumnsToFit();
     } else {
         if (sqgridDiv === null) {
-            sqgridDiv = document.querySelector('#queries-grid');
+            sqgridDiv = document.querySelector('#ag-grid');
             //eslint-disable-next-line no-undef
             new agGrid.Grid(sqgridDiv, sqgridOptions);
         }
@@ -420,7 +420,7 @@ function displayOriginalSavedQueries() {
     let searchText = $('#sq-filter-input').val();
     if (searchText.length === 0) {
         if (sqgridDiv === null) {
-            sqgridDiv = document.querySelector('#queries-grid');
+            sqgridDiv = document.querySelector('#ag-grid');
             //eslint-disable-next-line no-undef
             new agGrid.Grid(sqgridDiv, sqgridOptions);
         }

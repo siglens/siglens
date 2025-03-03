@@ -106,8 +106,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/search", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/search/{dbPanel-id}", tracing.TraceMiddleware(hs.Recovery(dashboardPipeSearchHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
-
 	hs.Router.POST(server_utils.API_PREFIX+"/search/ws", tracing.TraceMiddleware(hs.Recovery(pipeSearchWebsocketHandler())))
+
 	hs.Router.POST(server_utils.API_PREFIX+"/sampledataset_bulk", tracing.TraceMiddleware(hs.Recovery(sampleDatasetBulkHandler())))
 
 	// common routes
@@ -158,15 +158,6 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	/*
 		hs.router.DELETE(ELASTIC_PREFIX+"/{indexName}/_alias/{aliasName}", hs.Recovery(esDeleteAliasHandler()))
 	*/
-
-	//loki endpoint
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/labels", hs.Recovery(lokiLabelsHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/label/{labelName}/values", hs.Recovery(lokiLabelValueHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/query", hs.Recovery(lokiQueryHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/query_range", hs.Recovery(lokiQueryHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/index/stats", hs.Recovery(lokiIndexStatsHandler()))
-	hs.Router.GET(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
-	hs.Router.POST(server_utils.LOKI_PREFIX+"/api/v1/series", hs.Recovery(lokiSeriesHandler()))
 
 	//splunk endpoint
 	hs.Router.GET("/services/collector/health", hs.Recovery(getHealthHandler()))
@@ -254,6 +245,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/dependencies", tracing.TraceMiddleware(hs.Recovery(getDependencyGraphHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/generate-dep-graph", hs.Recovery(generateDependencyGraphHandler()))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/ganttChart", tracing.TraceMiddleware(hs.Recovery(ganttChartHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/traces/span/ganttChart", tracing.TraceMiddleware(hs.Recovery(spanGanttChartHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/traces/count", tracing.TraceMiddleware(hs.Recovery((totalTracesHandler()))))
 	// query server should still setup ES APIs for Kibana integration
 	hs.Router.POST(server_utils.ELASTIC_PREFIX+"/_bulk", hs.Recovery(esPostBulkHandler()))
@@ -311,7 +303,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 		hook(hs.Router, htmlTemplate)
 	}
 
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		return err
 	}
@@ -333,8 +325,10 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 			return err
 		}
 
-		cfg := &tls.Config{
-			GetCertificate: certReloader.GetCertificate,
+		cfg, err := server_utils.GetTlsConfig(certReloader.GetCertificate)
+		if err != nil {
+			log.Fatalf("Run: error getting TLS config; err=%v", err)
+			return err
 		}
 
 		hs.ln = tls.NewListener(hs.ln, cfg)
@@ -374,7 +368,7 @@ func renderJavaScriptTemplate(ctx *fasthttp.RequestCtx, tpl *texttemplate.Templa
 func (hs *queryserverCfg) RunSafeServer() error {
 	hs.Router.GET("/health", hs.Recovery(getSafeHealthHandler()))
 	var err error
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,6 @@ import (
 	"github.com/siglens/siglens/pkg/health"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
-	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbquery "github.com/siglens/siglens/pkg/integrations/otsdb/query"
 	prom "github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	lookups "github.com/siglens/siglens/pkg/lookups"
@@ -500,36 +499,6 @@ func sampleDatasetBulkHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func lokiLabelsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(loki.ProcessLokiLabelRequest, ctx)
-	}
-}
-
-func lokiLabelValueHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(loki.ProcessLokiLabelValuesRequest, ctx)
-	}
-}
-
-func lokiQueryHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(loki.ProcessQueryRequest, ctx)
-	}
-}
-
-func lokiIndexStatsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(loki.ProcessIndexStatsRequest, ctx)
-	}
-}
-
-func lokiSeriesHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyIdQuery(loki.ProcessLokiSeriesRequest, ctx)
-	}
-}
-
 // alerting apis
 func createAlertHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
@@ -671,6 +640,12 @@ func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 func searchTracesHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSearchTracesRequest, ctx)
+	}
+}
+
+func spanGanttChartHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessSpanGanttChartRequest, ctx)
 	}
 }
 

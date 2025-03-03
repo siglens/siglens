@@ -142,12 +142,13 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 	// OTLP Handlers
 	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/traces", hs.Recovery(otlpIngestTracesHandler()))
+	hs.router.POST(server_utils.OTLP_PREFIX+"/v1/logs", hs.Recovery(otlpIngestLogsHandler()))
 
 	if hook := hooks.GlobalHooks.ExtraIngestEndpointsHook; hook != nil {
 		hook(hs.router, hs.Recovery)
 	}
 
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		log.Errorf("ingestionServerCfg.Run: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err
@@ -170,8 +171,10 @@ func (hs *ingestionServerCfg) Run() (err error) {
 			return err
 		}
 
-		cfg := &tls.Config{
-			GetCertificate: certReloader.GetCertificate,
+		cfg, err := server_utils.GetTlsConfig(certReloader.GetCertificate)
+		if err != nil {
+			log.Fatalf("Run: error getting TLS config; err=%v", err)
+			return err
 		}
 
 		hs.ln = tls.NewListener(hs.ln, cfg)
@@ -190,7 +193,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	hs.router.GET("/health", hs.Recovery(getSafeHealthHandler()))
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		log.Errorf("ingestionServerCfg.RunSafeServer: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err

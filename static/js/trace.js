@@ -122,7 +122,11 @@ const colorArray = [
 
 let svgWidth;
 let traceId;
-let colorIndex = 0;
+let spanDetailsClosed = false;
+
+const SEARCH_WINDOW_MINUTES = 15;
+const MS_PER_MINUTE = 60 * 1000;
+const NANO_TO_MS = 1000000;
 
 $(document).ready(() => {
     $('.theme-btn').on('click', themePickerHandler);
@@ -130,7 +134,8 @@ $(document).ready(() => {
     svgWidth = $('#timeline-container').width();
 
     traceId = getParameterFromUrl('trace_id');
-    getTraceInformation(traceId);
+    const timestampNano = getParameterFromUrl('timestamp');
+    getTraceInformation(traceId, timestampNano);
 });
 
 function getParameterFromUrl(param) {
@@ -138,7 +143,16 @@ function getParameterFromUrl(param) {
     return urlParams.get(param);
 }
 
-function getTraceInformation(traceId) {
+function getTraceInformation(traceId, timestampNano) {
+    const timestampMS = Math.floor(Number(timestampNano) / NANO_TO_MS);
+    const windowMs = SEARCH_WINDOW_MINUTES * MS_PER_MINUTE;
+
+    // Calculate search start and end time (ms)
+    //eslint-disable-next-line no-unused-vars
+    const windowStart = timestampMS - windowMs;
+    //eslint-disable-next-line no-unused-vars
+    const windowEnd = timestampMS + windowMs;
+
     $.ajax({
         method: 'POST',
         url: 'api/traces/ganttchart',
@@ -148,6 +162,8 @@ function getTraceInformation(traceId) {
         },
         data: JSON.stringify({
             searchText: `trace_id=${traceId}`,
+            // startEpoch: windowStart.toString(),
+            // endEpoch: windowEnd.toString(),
             startEpoch: 'now-365d',
             endEpoch: 'now',
         }),
@@ -173,7 +189,11 @@ function traceDetails(res) {
     <div class="d-flex trace-details">
         <div>Trace Start: <span>${convertNanosecondsToDateTime(res.actual_start_time)}</span></div>
         <div>Duration:<span>${nsToMs(res.duration)}ms</span></div>
-    </div>`
+    </div>
+    <button onclick="handleRelatedLogs('${traceId}', ${res.actual_start_time}, 'trace')" class="btn-related-logs btn btn-purple">
+        <i class="fa fa-file-text"></i>
+        Logs for this trace
+    </button>`
     );
 }
 
@@ -200,149 +220,438 @@ function convertNanosecondsToDateTime(timestamp) {
 }
 
 function displayTimeline(data) {
-    const totalHeight = calculateTotalHeight(data);
-    const padding = { top: 0, right: 10, bottom: 10, left: 20 };
-    const labelWidth = 400;
+    spanDetailsClosed = false;
+    const serviceColors = new Map();
 
-    d3.select('#timeline-container').selectAll('*').remove();
-
-    const containerDiv = d3.select('#timeline-container');
-
-    // Create fixed header container
-    const headerDiv = containerDiv.append('div').attr('class', 'header-div');
-    // Service and Operation header (fixed)
-    headerDiv.append('div').style('min-width', `${labelWidth}px`).style('padding-left', `${padding.left}px`).style('padding-top', '10px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
-
-    // Time labels container (scrolls horizontally with chart)
-    const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1');
-
-    const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px');
-
-    // Main scrollable container
-    const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)');
-
-    // Labels container (Service and Operation)
-    const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', `${labelWidth}px`);
-
-    const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
-
-    // Timeline container (scrolls both directions)
-    const timelineContainer = scrollContainer.append('div').style('overflow', 'visible').style('flex-grow', '1');
-
-    const timelineSvg = timelineContainer.append('svg').attr('width', svgWidth).attr('height', totalHeight);
-
-    // Setup scales
-    const xScale = d3
-        .scaleLinear()
-        .domain([nsToMs(data.start_time), nsToMs(data.end_time)])
-        .range([0, svgWidth - 100]);
-
-    // Add time labels
-    const timeTicks = xScale.ticks(4);
-    timeHeaderSvg
-        .selectAll('.time-label')
-        .data(timeTicks)
-        .enter()
-        .append('text')
-        .attr('class', 'time-label')
-        .attr('x', (d) => xScale(d) + 14)
-        .attr('y', 26)
-        .attr('text-anchor', 'middle')
-        .text((d) => `${d}ms`);
-
-    // Add time grid
-    timelineSvg
-        .selectAll('.time-tick')
-        .data(timeTicks)
-        .enter()
-        .append('line')
-        .attr('class', 'time-tick')
-        .attr('x1', (d) => xScale(d))
-        .attr('x2', (d) => xScale(d))
-        .attr('y1', 0)
-        .attr('y2', totalHeight)
-        .attr('stroke', '#eee')
-        .attr('stroke-dasharray', '2,2');
-
-    // Sync horizontal scrolling between time header and timeline
-    scrollContainer.on('scroll', function () {
-        const scrollLeft = this.scrollLeft;
-        timeHeaderDiv.node().scrollLeft = scrollLeft;
-    });
-
-    let y = 20;
-    let firstSpan = null;
-
-    function renderTimeline(node, level = 0) {
-        const labelGroup = labelsSvg.append('g').attr('transform', `translate(${10 * level}, ${y})`);
-
-        // Add status circle for error nodes
-        if (node.is_anomalous) {
-            const errorGroup = labelGroup.append('g').attr('transform', 'translate(-20, 4)').style('cursor', 'pointer');
-
-            // Add red circle
-            errorGroup.append('circle').attr('cx', 8).attr('cy', 5).attr('r', 8).attr('fill', '#ef4444');
-
-            // Add exclamation mark
-            errorGroup.append('text').attr('x', 8).attr('y', 6).attr('text-anchor', 'middle').attr('fill', 'white').attr('font-size', '12px').attr('font-weight', 'bold').style('dominant-baseline', 'middle').text('!');
-            errorGroup.on('click', () => showSpanDetails(node));
+    function assignServiceColors(node) {
+        if (!serviceColors.has(node.service_name)) {
+            serviceColors.set(node.service_name, colorArray[serviceColors.size % colorArray.length]);
         }
-
-        // Add node labels
-        labelGroup
-            .append('text')
-            .attr('x', 0)
-            .attr('y', 12)
-            .text(`${node.service_name}:${node.operation_name}`)
-            .attr('class', 'node-label')
-            .classed('anomalous-node', node.is_anomalous)
-            .classed('normal-node', !node.is_anomalous)
-            .classed('error-node', node.status === 'STATUS_CODE_ERROR')
-            .style('cursor', 'pointer')
-            .on('click', () => showSpanDetails(node));
-
-        if (!node.is_anomalous) {
-            // Store the first non-anomalous span
-            if (firstSpan === null) {
-                firstSpan = node;
-            }
-            //eslint-disable-next-line no-unused-vars
-            const rect = timelineSvg
-                .append('rect')
-                .attr('x', xScale(nsToMs(node.start_time)))
-                .attr('y', y)
-                .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
-                .attr('height', 14)
-                .attr('rx', 2)
-                .attr('ry', 2)
-                .attr('fill', colorArray[colorIndex])
-                .on('mouseover', function (event) {
-                    d3.select(this).style('cursor', 'pointer');
-                    showTooltip(event, node);
-                })
-                .on('mouseout', hideTooltip)
-                .on('click', () => showSpanDetails(node));
-
-            timelineSvg
-                .append('text')
-                .attr('x', xScale(nsToMs(node.end_time)) + 5)
-                .attr('y', y + 12)
-                .text(`${nsToMs(node.duration)}ms`)
-                .style('font-size', '10px')
-                .attr('class', 'normal-node')
-                .style('cursor', 'pointer')
-                .on('click', () => showSpanDetails(node));
-        }
-
-        colorIndex = (colorIndex + 1) % colorArray.length;
-        y += 40;
-
+        node.color = serviceColors.get(node.service_name);
         if (node.children && node.children.length > 0) {
-            node.children.forEach((child) => renderTimeline(child, level + 1));
+            node.children.forEach(assignServiceColors);
         }
     }
 
+    function prepareData(node) {
+        node.isExpanded = true; // Start expanded by default
+        if (node.children && node.children.length > 0) {
+            node.children.forEach(prepareData);
+        }
+        return node;
+    }
+
+    data = prepareData(data);
+    assignServiceColors(data);
+
+    function updateTimeline() {
+        const oldContainer = document.querySelector('#timeline-container > div:nth-child(3)');
+        const scrollTop = oldContainer ? oldContainer.scrollTop : 0;
+        const scrollLeft = oldContainer ? oldContainer.scrollLeft : 0;
+
+        const totalHeight = calculateTotalHeight(data);
+        const padding = { top: 0, right: 10, bottom: 10, left: 30 };
+        let labelWidth = 400;
+
+        const containerDiv = d3.select('#timeline-container');
+        containerDiv.selectAll('*').remove();
+
+        const wrapper = containerDiv.append('div').style('position', 'relative').style('width', '100%').style('display', 'flex').style('flex-direction', 'column').style('min-width', '600px');
+
+        // Fixed header container
+        const headerDiv = wrapper.append('div').attr('class', 'header-div').style('min-width', '600px');
+
+        // Service and Operation header (fixed)
+        const labelHeaderDiv = headerDiv.append('div').style('min-width', '200px').style('padding-left', `${padding.left}px`).style('width', `${labelWidth}px`).style('padding-top', '10px').style('flex-shrink', '0').append('text').attr('class', 'gantt-chart-heading').text('Service and Operation');
+
+        // Time labels container
+        const timeHeaderDiv = headerDiv.append('div').style('overflow-x', 'hidden').style('flex-grow', '1').style('min-width', '400px');
+
+        const timeHeaderSvg = timeHeaderDiv.append('svg').attr('width', svgWidth).attr('height', '45px').style('min-width', '400px');
+
+        const resizer = containerDiv
+            .append('div')
+            .attr('class', 'gantt-chart-resizer')
+            .style('left', labelWidth + 'px')
+            .style('min-left', '200px');
+
+        const scrollContainer = containerDiv.append('div').style('display', 'flex').style('position', 'relative').style('overflow', 'auto').style('height', 'calc(100% - 45px)');
+
+        // Labels container
+        const labelsContainer = scrollContainer.append('div').attr('class', 'labels-container').style('min-width', '200px').style('width', `${labelWidth}px`).style('flex-shrink', '0');
+
+        const labelsSvg = labelsContainer.append('svg').attr('width', labelWidth).attr('height', totalHeight).append('g').attr('transform', `translate(${padding.left},${padding.top})`).attr('class', 'labels-container');
+
+        // Timeline container
+        const timelineContainer = scrollContainer.append('div').style('flex-grow', '1').style('width', '100%').style('min-width', '400px');
+
+        const timelineSvg = timelineContainer
+            .append('svg')
+            .style('width', '100%')
+            .style('height', totalHeight + 'px')
+            .attr('height', totalHeight)
+            .attr('preserveAspectRatio', 'none');
+
+        let containerWidth = timelineContainer.node().getBoundingClientRect().width;
+        const xScale = d3
+            .scaleLinear()
+            .domain([nsToMs(data.start_time), nsToMs(data.end_time)])
+            .range([0, containerWidth - 100]);
+
+        function updateTimelineElements() {
+            // Update time scale
+            containerWidth = Math.max(400, timelineContainer.node().getBoundingClientRect().width);
+            xScale.range([0, containerWidth - 100]);
+
+            // Update time labels
+            const timeTicks = xScale.ticks(4);
+            timeHeaderSvg
+                .selectAll('.time-label')
+                .data(timeTicks)
+                .join('text')
+                .attr('class', 'time-label')
+                .attr('x', (d) => xScale(d) + 16)
+                .attr('y', 26)
+                .attr('text-anchor', 'middle')
+                .text((d) => `${d}ms`);
+
+            // Update grid lines
+            timelineSvg
+                .selectAll('.time-tick')
+                .data(timeTicks)
+                .join('line')
+                .attr('class', 'time-tick')
+                .attr('x1', (d) => xScale(d))
+                .attr('x2', (d) => xScale(d))
+                .attr('y1', 0)
+                .attr('y2', totalHeight)
+                .attr('stroke', '#eee')
+                .attr('stroke-dasharray', '2,2');
+
+            // Update timeline bars
+            timelineSvg
+                .selectAll('rect.timeline-bar')
+                .attr('x', (d) => xScale(nsToMs(d.start_time)))
+                .attr('width', (d) => Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time))));
+
+            // Update duration labels
+            timelineSvg.selectAll('text.duration-label').attr('x', (d) => xScale(nsToMs(d.end_time)) + 5);
+        }
+
+        // Setup resize functionality
+        let isResizing = false;
+        let startX;
+        let startWidth;
+
+        resizer.on('mousedown', function (event) {
+            isResizing = true;
+            startX = event.clientX;
+            startWidth = labelWidth;
+            d3.select('body').style('cursor', 'col-resize').style('user-select', 'none');
+        });
+
+        d3.select('body')
+            .on('mousemove', function (event) {
+                if (!isResizing) return;
+
+                const dx = event.clientX - startX;
+                const newWidth = Math.max(200, Math.min(startWidth + dx, window.innerWidth - 400));
+
+                labelWidth = newWidth;
+
+                labelsContainer.style('width', `${newWidth}px`).style('min-width', newWidth + 'px');
+                labelHeaderDiv.style('width', `${newWidth}px`);
+                headerDiv.select('div').style('width', `${newWidth}px`);
+                resizer.style('left', `${newWidth}px`);
+                labelsContainer.select('svg').attr('width', newWidth);
+                labelsSvg.attr('width', newWidth);
+
+                updateTimelineElements();
+            })
+            .on('mouseup', function () {
+                if (!isResizing) return;
+                isResizing = false;
+                d3.select('body').style('cursor', 'default').style('user-select', 'auto');
+            });
+
+        // Initial render
+        updateTimelineElements();
+
+        // Add time labels
+        const timeTicks = xScale.ticks(4);
+        timeHeaderSvg
+            .selectAll('.time-label')
+            .data(timeTicks)
+            .enter()
+            .append('text')
+            .attr('class', 'time-label')
+            .attr('x', (d) => xScale(d) + 14)
+            .attr('y', 26)
+            .attr('text-anchor', 'middle')
+            .text((d) => `${d}ms`);
+
+        timelineSvg
+            .selectAll('.time-tick')
+            .data(timeTicks)
+            .enter()
+            .append('line')
+            .attr('class', 'time-tick')
+            .attr('x1', (d) => xScale(d))
+            .attr('x2', (d) => xScale(d))
+            .attr('y1', 0)
+            .attr('y2', totalHeight)
+            .attr('stroke', '#eee')
+            .attr('stroke-dasharray', '2,2');
+
+        let y = 0;
+        let firstSpan = null;
+
+        function renderTimeline(node, level = 0, isVisible = true) {
+            if (!isVisible) return;
+
+            // Draw connecting lines for parent nodes to their children
+            if (node.children && node.children.length > 0 && node.isExpanded) {
+                const calculateTotalDepth = (node) => {
+                    let depth = 1;
+                    if (node.children && node.children.length > 0 && node.isExpanded) {
+                        node.children.forEach((child) => {
+                            depth += calculateTotalDepth(child);
+                        });
+                    }
+                    return depth;
+                };
+                let totalDepth = 0;
+                node.children.forEach((child) => {
+                    totalDepth += calculateTotalDepth(child);
+                });
+
+                const firstChildY = y + 40;
+                const lastChildY = y + 40 + totalDepth * 40;
+
+                labelsSvg
+                    .append('line')
+                    .attr('x1', 30 * level + 1.5)
+                    .attr('y1', firstChildY)
+                    .attr('x2', 30 * level + 1.5)
+                    .attr('y2', lastChildY)
+                    .attr('class', 'connecting-lines');
+            }
+
+            const labelBackground = labelsSvg.append('rect').attr('x', -30).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `hover-area-${node.span_id}`);
+
+            const labelGroup = labelsSvg.append('g').attr('transform', `translate(${30 * level}, ${y})`);
+
+            // Add vertical color strip
+            labelGroup.append('rect').attr('x', 0).attr('y', 10).attr('width', 3).attr('height', 20).attr('fill', node.color).attr('rx', 1).attr('ry', 1);
+
+            // Add expand/collapse button if node has children
+            if (node.children && node.children.length > 0) {
+                const buttonGroup = labelGroup
+                    .append('g')
+                    .attr('transform', 'translate(-20, 0)')
+                    .style('cursor', 'pointer')
+                    .on('click', () => {
+                        event.stopPropagation();
+                        node.isExpanded = !node.isExpanded;
+                        updateTimeline();
+                    });
+
+                // Create a foreign object to hold the HTML content
+                const fo = buttonGroup.append('foreignObject').attr('width', 16).attr('height', 16).attr('y', 12);
+
+                // Add the Font Awesome icon
+                const div = fo.append('xhtml:div').style('width', '100%').style('height', '100%').style('display', 'flex').style('align-items', 'center').style('justify-content', 'center');
+                div.append('xhtml:i')
+                    .attr('class', node.isExpanded ? 'fa fa-chevron-down' : 'fa fa-chevron-right')
+                    .style('color', '#666')
+                    .style('font-size', '12px'); // Adjust size as needed
+            }
+
+            // Add error indicator
+            let errorGroup;
+            if (node.is_anomalous) {
+                errorGroup = labelGroup.append('g').attr('transform', 'translate(10, 4)');
+
+                errorGroup.append('circle').attr('cx', 6).attr('cy', 16).attr('r', 6).attr('fill', '#ef4444');
+
+                errorGroup
+                    .append('text')
+                    .attr('x', 6)
+                    .attr('y', 17)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', 'white')
+                    .attr('font-size', '9px')
+                    .attr('font-weight', 'bold')
+                    .style('dominant-baseline', 'middle')
+                    .text('!')
+                    .on('click', () => showSpanDetails(node));
+            }
+
+            // Add node labels
+            labelGroup
+                .append('text')
+                .attr('x', node.is_anomalous ? 28 : 10)
+                .attr('y', 24)
+                .attr('class', 'node-label')
+                .classed('anomalous-node', node.is_anomalous)
+                .classed('normal-node', !node.is_anomalous)
+                .classed('error-node', node.status === 'STATUS_CODE_ERROR')
+                .style('cursor', 'pointer')
+                .on('click', () => showSpanDetails(node))
+                .each(function () {
+                    const text = d3.select(this);
+                    text.append('tspan').attr('class', 'node-label-service').text(node.service_name);
+                    text.append('tspan').attr('class', 'node-label-operation').text(node.operation_name).attr('dx', '10');
+                });
+
+            const timelineBackground = timelineSvg.append('rect').attr('x', 0).attr('y', y).attr('width', '100%').attr('height', 40).attr('fill', 'transparent').attr('class', `timeline-hover-area-${node.span_id}`);
+
+            let timelineBar, durationLabel;
+            if (!node.is_anomalous) {
+                if (firstSpan === null) {
+                    firstSpan = node;
+                }
+
+                timelineBar = timelineSvg
+                    .append('rect')
+                    .attr('class', 'timeline-bar')
+                    .attr('x', xScale(nsToMs(node.start_time)))
+                    .attr('y', y + 14)
+                    .attr('width', xScale(nsToMs(node.end_time)) - xScale(nsToMs(node.start_time)))
+                    .attr('height', 14)
+                    .attr('rx', 2)
+                    .attr('ry', 2)
+                    .attr('fill', node.color)
+                    .datum(node);
+
+                durationLabel = timelineSvg
+                    .append('text')
+                    .attr('class', 'duration-label')
+                    .datum(node)
+                    .attr('x', xScale(nsToMs(node.end_time)) + 5)
+                    .attr('y', y + 24)
+                    .text(`${nsToMs(node.duration)}ms`)
+                    .style('font-size', '10px')
+                    .attr('class', 'normal-node duration-label');
+            }
+
+            function addHoverEffect() {
+                labelBackground.classed('hover-highlight', true);
+                timelineBackground.classed('hover-highlight', true);
+            }
+
+            function removeHoverEffect() {
+                labelBackground.classed('hover-highlight', false);
+                timelineBackground.classed('hover-highlight', false);
+            }
+
+            const elements = [labelBackground.node(), timelineBackground.node(), labelGroup.node()];
+
+            if (!node.is_anomalous) {
+                durationLabel.node();
+            }
+            if (node.is_anomalous && errorGroup) {
+                elements.push(errorGroup.node());
+            }
+
+            d3.selectAll(elements)
+                .style('cursor', 'pointer')
+                .on('mouseover', function () {
+                    addHoverEffect();
+                })
+                .on('mouseout', removeHoverEffect)
+                .on('click', () => showSpanDetails(node));
+
+            if (timelineBar) {
+                timelineBar
+                    .style('cursor', 'pointer')
+                    .on('mouseover', function (event) {
+                        addHoverEffect();
+                        showTooltip(event, node);
+                    })
+                    .on('mouseout', function () {
+                        removeHoverEffect();
+                        hideTooltip();
+                    })
+                    .on('click', () => showSpanDetails(node));
+            }
+            y += 40;
+
+            // Render children only if expanded
+            if (node.children && node.children.length > 0 && node.isExpanded) {
+                node.children.forEach((child) => renderTimeline(child, level + 1, true));
+            }
+        }
+
+        // Render the timeline
+        renderTimeline(data);
+
+        // Show details for the first span by default
+        if (firstSpan && !spanDetailsClosed) {
+            showSpanDetails(firstSpan);
+            updateTimelineElements();
+        }
+
+        requestAnimationFrame(() => {
+            const newContainer = document.querySelector('#timeline-container > div:nth-child(3)');
+            if (newContainer) {
+                newContainer.scrollTop = scrollTop;
+                newContainer.scrollLeft = scrollLeft;
+            }
+        });
+
+        const resizeHandler = () => {
+            // Update container width
+            containerWidth = timelineContainer.node().getBoundingClientRect().width;
+
+            xScale.range([0, containerWidth - 100]);
+
+            // Update time labels
+            const timeTicks = xScale.ticks(4);
+            timeHeaderSvg
+                .selectAll('.time-label')
+                .data(timeTicks)
+                .join('text')
+                .attr('class', 'time-label')
+                .attr('x', (d) => xScale(d) + 14)
+                .attr('y', 26)
+                .attr('text-anchor', 'middle')
+                .text((d) => `${d}ms`);
+
+            // Update time grid lines
+            timelineSvg
+                .selectAll('.time-tick')
+                .data(timeTicks)
+                .join('line')
+                .attr('class', 'time-tick')
+                .attr('x1', (d) => xScale(d))
+                .attr('x2', (d) => xScale(d))
+                .attr('y1', 0)
+                .attr('y2', totalHeight)
+                .attr('stroke', '#eee')
+                .attr('stroke-dasharray', '2,2');
+
+            // Update rectangles
+            timelineSvg
+                .selectAll('rect.timeline-bar')
+                .attr('x', (d) => xScale(nsToMs(d.start_time)))
+                .attr('width', (d) => Math.max(0, xScale(nsToMs(d.end_time)) - xScale(nsToMs(d.start_time))));
+
+            timelineSvg.selectAll('text.duration-label').attr('x', (d) => {
+                const barEndX = xScale(nsToMs(d.end_time));
+                return barEndX + 5;
+            });
+        };
+
+        const debouncedResize = _.debounce(resizeHandler, 150);
+        window.addEventListener('resize', debouncedResize);
+    }
+
     const tooltip = d3.select('body').append('div').attr('class', 'tooltip-gantt').style('display', 'none');
+
+    function hideTooltip() {
+        tooltip.style('display', 'none');
+    }
 
     function showTooltip(event, node) {
         tooltip
@@ -363,17 +672,7 @@ function displayTimeline(data) {
             .style('top', event.pageY - 28 + 'px');
     }
 
-    function hideTooltip() {
-        tooltip.style('display', 'none');
-    }
-
-    // Render the timeline
-    renderTimeline(data);
-
-    // Show details for the first span by default
-    if (firstSpan) {
-        showSpanDetails(firstSpan);
-    }
+    updateTimeline();
 }
 
 function showSpanDetails(node) {
@@ -382,15 +681,20 @@ function showSpanDetails(node) {
     spanDetailsContainer.html(
         `
         <div class="d-flex justify-content-between align-items-center">
-            <div class="operation-name"><strong>${node.operation_name}</strong></div>
+            <div class="operation-name"><strong style="margin-right: 10px;">${node.operation_name}</strong><span class="node-label-operation">${node.span_id}</span></div>
             <div class="close-btn"></div>
         </div>
         <hr>
         <div class="details-container">
-            <div><strong>SpanId</strong>: ${node.span_id} </div>
-            <div><strong>Service</strong>: ${node.service_name}</div>
-            <div><strong>Start Time</strong>: ${nsToMs(node.start_time)}ms  |  <strong>End Time</strong>: ${nsToMs(node.end_time)}ms</div>
-            <div><strong>Duration</strong>: ${nsToMs(node.duration)}ms </div>
+            <div class="details">
+                <div>Service: <strong>${node.service_name}</strong> | Start Time: <strong>${nsToMs(node.start_time)}ms</strong> | Duration: <strong>${nsToMs(node.duration)}ms </strong></div>
+            </div>
+            <div class="my-3">
+                <button onclick="handleRelatedLogs('${node.span_id}', ${node.actual_start_time}, 'span')" class="btn-related-logs btn btn-purple">
+                    <i class="fa fa-file-text"></i>
+                    Logs for this span
+                </button>
+            </div>
             <div><strong>Tags</strong>:</div>
             <table style="border-collapse: collapse; width: 100%; margin-top:6px" >
               ${Object.entries(node.tags)
@@ -409,29 +713,25 @@ function showSpanDetails(node) {
 
     spanDetailsContainer.select('.close-btn').on('click', function () {
         spanDetailsContainer.style('display', 'none');
+        spanDetailsClosed = true;
+        window.dispatchEvent(new Event('resize'));
     });
+
+    window.dispatchEvent(new Event('resize'));
 }
 
 function calculateTotalHeight(node) {
     let totalHeight = 0;
-    function calculateHeight(node) {
+    function calculateHeight(node, isVisible = true) {
+        if (!isVisible) return;
+
         totalHeight += 40;
-        if (node.children !== null) {
-            node.children.forEach(calculateHeight);
+
+        // Only process children if node is expanded and has children
+        if (node.children && node.children.length > 0 && node.isExpanded) {
+            node.children.forEach((child) => calculateHeight(child, true));
         }
     }
     calculateHeight(node);
-    return totalHeight + 40;
+    return totalHeight;
 }
-
-$('.section-button').click(function () {
-    $('.section-button').removeClass('active');
-    $(this).addClass('active');
-});
-
-$('.max-min-btn').click(function () {
-    $(this).toggleClass('minimized');
-    $('.logs-metrics-container').toggleClass('minimized');
-    $('#timeline-container').toggleClass('expanded');
-    $('.span-details-container').toggleClass('expanded');
-});

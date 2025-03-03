@@ -18,7 +18,6 @@
 package pipesearch
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -26,8 +25,8 @@ import (
 	"time"
 
 	"github.com/fasthttp/websocket"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/siglens/siglens/pkg/alerts/alertutils"
+	"github.com/siglens/siglens/pkg/ast/pipesearch/multiplexer"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	fileutils "github.com/siglens/siglens/pkg/common/fileutils"
@@ -46,6 +45,12 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const KEY_INDEX_NAME string = "indexName"
+
+// When this flag is set, run a timechart query as well; only applicable when
+// the query returns logs.
+const runTimechartFlag = "runTimechart"
+
 /*
 Example incomingBody
 
@@ -55,11 +60,12 @@ Example incomingBody
 
 finalSize = size + from
 */
-func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool) {
+func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, uint64, uint64, uint64, string, int, bool, bool) {
 	var searchText, indexName string
 	var startEpoch, endEpoch, finalSize uint64
 	var scrollFrom int
 	var includeNulls bool
+	var runTimechart bool
 	sText, ok := jsonSource["searchText"]
 	if !ok || sText == "" {
 		searchText = "*"
@@ -72,8 +78,11 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
-	iText, ok := jsonSource["indexName"]
+	iText, ok := jsonSource[KEY_INDEX_NAME]
 	if !ok || iText == "" {
+		indexName = "*"
+	} else if iText == KEY_TRACE_RELATED_LOGS_INDEX {
+		// TODO: set indexNameIn to otel-collector indexes
 		indexName = "*"
 	} else {
 		switch val := iText.(type) {
@@ -223,9 +232,24 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		}
 	}
 
+	timechartFlagVal, ok := jsonSource[runTimechartFlag]
+	if !ok {
+		runTimechart = false
+	} else {
+		switch val := timechartFlagVal.(type) {
+		case bool:
+			runTimechart = val
+		case string:
+			runTimechart = val == "true"
+		default:
+			log.Infof("ParseSearchBody: unexpected type for runTimechartQuery: %T, value: %+v. Defaulting to false", val, val)
+			runTimechart = false
+		}
+	}
+
 	finalSize = finalSize + uint64(scrollFrom)
 
-	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls
+	return searchText, startEpoch, endEpoch, finalSize, indexName, scrollFrom, includeNulls, runTimechart
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
@@ -239,7 +263,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON := make(map[string]interface{})
 	var err error
 	readJSON["from"] = "0"
-	readJSON["indexName"] = "*"
+	readJSON[KEY_INDEX_NAME] = queryParams.Index
 	readJSON["queryLanguage"] = queryParams.QueryLanguage
 	readJSON["searchText"] = queryParams.QueryText
 	readJSON["startEpoch"] = queryParams.StartTime
@@ -262,7 +286,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
-	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls := ParseSearchBody(readJSON, nowTs)
+	searchText, startEpoch, endEpoch, sizeLimit, indexNameIn, scrollFrom, includeNulls, _ := ParseSearchBody(readJSON, nowTs)
 
 	if scrollFrom > 10_000 {
 		return nil, true, nil, nil
@@ -321,7 +345,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	qc.IncludeNulls = includeNulls
 	qc.RawQuery = searchText
 	if config.IsNewQueryPipelineEnabled() {
-		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, qc)
+		return RunQueryForNewPipeline(nil, qid, simpleNode, aggs, nil, nil, qc)
 	} else {
 		result := segment.ExecuteQuery(simpleNode, aggs, qid, qc)
 		httpRespOuter := getQueryResponseJson(result, indexNameIn, queryStart, sizeLimit, qid, aggs, result.TotalRRCCount, dbPanelId, result.AllColumnsInAggs, includeNulls)
@@ -362,11 +386,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	readJSON := make(map[string]interface{})
-	var jsonc = jsoniter.ConfigCompatibleWithStandardLibrary
-	decoder := jsonc.NewDecoder(bytes.NewReader(rawJSON))
-	decoder.UseNumber()
-	err := decoder.Decode(&readJSON)
+	readJSON, err := utils.DecodeJsonToMap(rawJSON)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
@@ -569,8 +589,26 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 }
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
+	timechartRoot *structs.ASTNode, timechartAggs *structs.QueryAggregators,
 	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
+
 	isAsync := conn != nil
+
+	runTimechartQuery := (timechartRoot != nil && timechartAggs != nil)
+	var timechartQid uint64
+	var timechartQuery *query.RunningQueryState
+	var timechartStateChan chan *query.QueryStateChanData
+	var err error
+	if runTimechartQuery {
+		timechartQid = rutils.GetNextQid()
+		timechartQuery, err = query.StartQueryAsCoordinator(timechartQid, isAsync, nil, timechartRoot, timechartAggs, qc, nil, false)
+		if err != nil {
+			log.Errorf("qid=%v, RunQueryForNewPipeline: failed to start timechart query, err: %v", qid, err)
+			return nil, false, nil, err
+		}
+
+		timechartStateChan = timechartQuery.StateChan
+	}
 
 	rQuery, err := query.StartQueryAsCoordinator(qid, isAsync, nil, root, aggs, qc, nil, false)
 	if err != nil {
@@ -580,25 +618,39 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 
 	var httpRespOuter *structs.PipeSearchResponseOuter
 
+	stateChan := multiplexer.NewQueryStateMultiplexer(rQuery.StateChan, timechartStateChan).Multiplex()
+
 	for {
-		queryStateData, ok := <-rQuery.StateChan
+		queryStateData, ok := <-stateChan
 		if !ok {
-			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
 			query.LogGlobalSearchErrors(qid)
 			query.DeleteQuery(qid)
-			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %v", qid, queryStateData.StateName)
+			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
 		}
 
-		if queryStateData.Qid != qid {
+		if queryStateData.Qid != qid && queryStateData.Qid != timechartQid {
+			log.Errorf("RunQueryForNewPipeline: qid mismatch, expected %v or %v, got: %v",
+				qid, timechartQid, queryStateData.Qid)
 			continue
 		}
 
 		switch queryStateData.StateName {
 		case query.READY:
-			go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+			switch queryStateData.ChannelIndex {
+			case multiplexer.MainIndex:
+				go segment.ExecuteQueryInternalNewPipeline(qid, isAsync, root, aggs, qc, rQuery)
+			case multiplexer.TimechartIndex:
+				go segment.ExecuteQueryInternalNewPipeline(timechartQid, isAsync, timechartRoot, timechartAggs, qc, timechartQuery)
+			}
 		case query.RUNNING:
 			if isAsync {
-				processQueryStateUpdate(conn, qid, queryStateData.StateName)
+				switch queryStateData.ChannelIndex {
+				case multiplexer.MainIndex:
+					processQueryStateUpdate(conn, qid, queryStateData.StateName)
+				case multiplexer.TimechartIndex:
+					processQueryStateUpdate(conn, timechartQid, queryStateData.StateName)
+				}
 			}
 		case query.QUERY_UPDATE:
 			if isAsync {
@@ -609,6 +661,7 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 		case query.COMPLETE:
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 
 			if isAsync {
 				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
@@ -626,14 +679,24 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 				if err != nil {
 					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query for rpc failure, err: %v", qid, err)
 				} else {
-					rQuery = newRQuery
-					qid = newQid
+					newTimechartQuery, newTimechartQid, err := listenToRestartQuery(timechartQid, timechartQuery, isAsync, conn)
+					if err != nil {
+						log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart timechart query for rpc failure, err: %v", qid, err)
+						defer query.DeleteQuery(newQid)
+					} else {
+						rQuery = newRQuery
+						qid = newQid
 
-					continue
+						timechartQuery = newTimechartQuery
+						timechartQid = newTimechartQid
+
+						continue
+					}
 				}
 			}
 
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 			if isAsync {
 				wErr := conn.WriteJSON(createErrorResponse(queryStateData.Error.Error()))
 				if wErr != nil {
@@ -644,28 +707,43 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 				return nil, false, root.TimeRange, queryStateData.Error
 			}
 		case query.QUERY_RESTART:
-			newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
-			if err != nil {
-				log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
-				continue
+			switch queryStateData.ChannelIndex {
+			case multiplexer.MainIndex:
+				newRQuery, newQid, err := handleRestartQuery(qid, rQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart query, err: %v", qid, err)
+					continue
+				}
+
+				rQuery = newRQuery
+				qid = newQid
+			case multiplexer.TimechartIndex:
+				newRQuery, newQid, err := handleRestartQuery(timechartQid, timechartQuery, isAsync, conn)
+				if err != nil {
+					log.Errorf("qid=%v, RunQueryForNewPipeline: failed to restart timechart query, err: %v", qid, err)
+					continue
+				}
+
+				timechartQuery = newRQuery
+				timechartQid = newQid
 			}
-
-			rQuery = newRQuery
-			qid = newQid
-
 		case query.TIMEOUT:
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 			if isAsync {
 				processTimeoutUpdate(conn, qid)
+				processTimeoutUpdate(conn, timechartQid)
 			} else {
 				return nil, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: query timed out", qid)
 			}
 		case query.CANCELLED:
 			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
 			defer query.DeleteQuery(qid)
+			defer query.DeleteQuery(timechartQid)
 
 			if isAsync {
 				processCancelQuery(conn, qid)
+				processCancelQuery(conn, timechartQid)
 			}
 			return nil, false, root.TimeRange, nil
 		}

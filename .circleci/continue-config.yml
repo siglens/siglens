@@ -115,5 +115,13 @@ jobs:
 workflows:
   test_and_lint:
     jobs:
-      - functional-test
-      - e2e-server
+      - functional-test:
+          filters:
+            branches:
+              ignore:
+                - main
+      - e2e-server:
+          filters:
+            branches:
+              ignore:
+                - main

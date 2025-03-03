@@ -17,122 +17,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let cellEditingClass = '';
-let isFetching = false;
-
-class ReadOnlyCellEditor {
-    // gets called once before the renderer is used
-    init(params) {
-        // create the cell
-        this.eInput = document.createElement('textarea');
-        cellEditingClass = params.rowIndex % 2 === 0 ? 'even-popup-textarea' : 'odd-popup-textarea';
-        this.eInput.classList.add(cellEditingClass);
-        this.eInput.classList.add('copyable');
-        this.eInput.readOnly = true;
-
-        // Set styles to ensure the textarea fits within its container
-        this.eInput.style.width = '100%';
-        this.eInput.style.height = '100%';
-        this.eInput.style.maxWidth = '100%';
-        this.eInput.style.maxHeight = '100%';
-        this.eInput.style.boxSizing = 'border-box';
-        this.eInput.style.overflow = 'auto';
-
-        this.eInput.cols = params.cols;
-        this.eInput.rows = params.rows;
-        this.eInput.maxLength = params.maxLength;
-        this.eInput.value = params.value;
-
-        this.gridApi = params.api;
-
-        // event listener for clicks outside the popup
-        this.onClickOutside = this.onClickOutside.bind(this);
-        document.addEventListener('mousedown', this.onClickOutside);
-    }
-    // gets called once when grid ready to insert the element
-    getGui() {
-        this.gridApi.addEventListener('cellEditingStarted', (event) => {
-            if (event.rowIndex === this.gridApi.getDisplayedRowAtIndex(event.rowIndex).rowIndex) {
-                this.addCopyIcon();
-            }
-        });
-
-        return this.eInput;
-    }
-    // returns the new value after editing
-    getValue() {
-        return this.eInput.value;
-    }
-    isPopup() {
-        return true;
-    }
-    refresh() {
-        return true;
-    }
-    destroy() {
-        this.eInput.classList.remove(cellEditingClass);
-        document.removeEventListener('mousedown', this.onClickOutside);
-    }
-    addCopyIcon() {
-        // Remove any existing copy icons
-        $('.copy-icon').remove();
-
-        // Add copy icon to the textarea
-        $('.copyable').each(function () {
-            var copyIcon = $('<span class="copy-icon"></span>');
-            $(this).after(copyIcon);
-        });
-
-        // Attach click event handler to the copy icon
-        $('.copy-icon').on('click', function (_event) {
-            var copyIcon = $(this);
-            var inputOrTextarea = copyIcon.prev('.copyable');
-            var inputValue = inputOrTextarea.val();
-
-            var tempInput = document.createElement('textarea');
-            tempInput.value = inputValue;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-
-            copyIcon.addClass('success');
-            setTimeout(function () {
-                copyIcon.removeClass('success');
-            }, 1000);
-        });
-    }
-
-    onClickOutside(event) {
-        if (this.eInput && !this.eInput.contains(event.target) && !document.querySelector('.ag-popup-editor').contains(event.target)) {
-            this.gridApi.stopEditing();
-        }
-    }
-}
-
-const cellEditorParams = (params) => {
-    const jsonLog = JSON.stringify(JSON.unflatten(params.data), null, 2);
-    return {
-        value: jsonLog,
-        cols: 100,
-        rows: 10,
-    };
-};
 // initial columns
 let logsColumnDefs = [
     {
         field: 'timestamp',
         headerName: 'timestamp',
-        editable: true,
-        cellEditor: ReadOnlyCellEditor,
-        cellEditorPopup: true,
-        cellEditorPopupPosition: 'under',
-        cellRenderer: (params) => {
-            return moment(params.value).format(timestampDateFmt);
-        },
-        cellEditorParams: cellEditorParams,
-        maxWidth: 216,
-        minWidth: 216,
+        cellRenderer: ExpandableJsonCellRenderer('logs'),
+        maxWidth: 250,
+        minWidth: 250,
     },
     {
         field: 'logs',
@@ -180,9 +72,8 @@ const gridOptions = {
     rowData: logsRowData,
     readOnlyEdit: true,
     singleClickEdit: true,
-    headerHeight: 32,
+    headerHeight: 26,
     suppressDragLeaveHidesColumns: true,
-    maintainRowOrder: true,
     defaultColDef: {
         initialWidth: 100,
         sortable: true,
@@ -225,43 +116,6 @@ const gridOptions = {
     animateRows: false,
     suppressColumnVirtualisation: false,
     suppressRowVirtualisation: false,
-    onBodyScroll: _.debounce(function (evt) {
-        if (evt.direction === 'vertical' && canScrollMore && !isFetching) {
-            let diff = logsRowData.length - evt.api.getLastDisplayedRow();
-            // if we're less than 5 items from the end...fetch more data
-            if (diff <= 5) {
-                let scrollingTrigger = true;
-                data = getSearchFilter(false, scrollingTrigger);
-                if (data.searchText !== initialSearchData.searchText || data.indexName !== initialSearchData.indexName || data.startEpoch !== initialSearchData.startEpoch || data.endEpoch !== initialSearchData.endEpoch || data.queryLanguage !== initialSearchData.queryLanguage) {
-                    scrollingErrorPopup();
-                    return; // Prevent further scrolling
-                }
-
-                isFetching = true;
-                showLoadingIndicator();
-                if (data && data.searchText == 'error') {
-                    alert('Error');
-                    hideLoadingIndicator(); // Hide loading indicator on error
-                    isFetching = false;
-                    return;
-                }
-
-                doSearch(data)
-                    .then(() => {
-                        isFetching = false;
-                    })
-                    .catch((error) => {
-                        console.warn('Error fetching data', error);
-                        isFetching = false;
-                    })
-                    .finally(() => {
-                        hideLoadingIndicator(); // Hide loading indicator once data is fetched
-                        isFetching = false;
-                    });
-            }
-        }
-    }, 250),
-    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
     onGridReady: function (_params) {
         const eGridDiv = document.querySelector('#LogResultsGrid');
         const style = document.createElement('style');
@@ -273,22 +127,14 @@ const gridOptions = {
                 display: none;
             }
               
-            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon
+            .ag-header-cell:not([col-id="timestamp"]):not([col-id="logs"]):hover .close-icon {
                 display: inline-block;
-            }
-            
+            }            
         `;
         eGridDiv.appendChild(style);
     },
 };
 
-function showLoadingIndicator() {
-    gridOptions.api.showLoadingOverlay();
-}
-
-function hideLoadingIndicator() {
-    gridOptions.api.hideOverlay();
-}
 //eslint-disable-next-line no-unused-vars
 const myCellRenderer = (params) => {
     if (typeof params.data !== 'object' || params.data === null) return '';
@@ -337,13 +183,3 @@ JSON.unflatten = function (data) {
     }
     return resultholder[''] || resultholder;
 };
-
-function scrollingErrorPopup() {
-    $('.popupOverlay').addClass('active');
-    $('#error-popup.popupContent').addClass('active');
-
-    $('#okay-button').on('click', function () {
-        $('.popupOverlay').removeClass('active');
-        $('#error-popup.popupContent').removeClass('active');
-    });
-}

@@ -48,7 +48,7 @@ const columnDefs = [
         cellRenderer: function (params) {
             return `
                 <button class="btn-simple download-button" onclick="downloadLookupFile('${params.data.name}')"></button>
-                <button class="btn-simple delete-button" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
+                <button class="btn-simple delete-button mx-4" id="delbutton" onclick="deleteLookupFile('${params.data.name}')"></button>
             `;
         },
     },
@@ -58,8 +58,8 @@ const gridOptions = {
     columnDefs: columnDefs,
     rowData: [],
     animateRows: true,
-    rowHeight: 44,
-    headerHeight: 32,
+    headerHeight: 26,
+    rowHeight: 34,
     defaultColDef: {
         cellClass: 'align-center-grid',
         resizable: true,
@@ -228,9 +228,9 @@ function displayCompressedFileInfo(filename) {
         <p>This is a compressed file (.csv.gz). You cannot view its contents directly.</p>
     </div>
     <div class="d-flex mt-4">
-        <a href="/api/lookup-files/${encodeURIComponent(filename)}" download="${filename}" class="btn primary-btn w-100" >Download
+        <a href="/api/lookup-files/${encodeURIComponent(filename)}" download="${filename}" class="btn btn-primary w-100" >Download
             File</a>
-        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 410px; margin-left: 10px;">Close</button>
+        <button type="button" onclick="closeCSVModal()" class="btn btn-secondary" style="width: 410px; margin-left: 10px;">Close</button>
     </div>
     `;
 
@@ -272,7 +272,7 @@ function displayCSVContent(filename, content) {
     $('#csvViewerModal .csv-container').empty().append(gridDiv);
     $('#csvViewerModal .csv-container').append(`
     <div class="d-flex mt-4 justify-content-end">
-        <button type="button" onclick="closeCSVModal()" class="btn grey-btn" style="width: 150px; margin-left: 10px;">Close</button>
+        <button type="button" onclick="closeCSVModal()" class="btn btn-secondary" style="width: 150px; margin-left: 10px;">Close</button>
     </div>`);
 
     //eslint-disable-next-line no-undef

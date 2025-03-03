@@ -446,6 +446,13 @@ const (
 	Resets
 )
 
+type LabelFunctions int
+
+const (
+	LabelJoin LabelFunctions = iota + 1
+	LabelReplace
+)
+
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
 // For columns only used by aggs without eval statements, we should not keep their raw values because it is a waste of performance
 // If we only use two modes. Later occurring aggs will overwrite earlier occurring aggs' usage status. E.g. stats dc(eval(lower(state))), dc(state)
@@ -752,7 +759,9 @@ func (dte *DtypeEnclosure) AddStringAsByteSlice() {
 	case SS_DT_STRING:
 		dte.StringValBytes = []byte(dte.StringVal)
 	default:
-		log.Errorf("AddStringAsByteSlice: unsupported Dtype: %v", dte.Dtype)
+		// This function is only for string dtype. And converts only string to byte slice.
+		// We do not want to log error for other dtypes. So we will just log debug message.
+		log.Debugf("AddStringAsByteSlice: unsupported Dtype: %v", dte.Dtype)
 	}
 }
 

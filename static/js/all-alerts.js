@@ -34,12 +34,41 @@ let mapIndexToAlertType = new Map([
 
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
-    getAllAlerts();
+    handlePageDisplay();
 
     $('#new-alert-rule').on('click', function () {
-        window.location.href = '../alert.html';
+        window.location.href = './all-alerts.html?page=create';
     });
+
+    $('#create-logs-alert').on('click', function () {
+        window.location.href = './alert.html?type=logs';
+    });
+
+    $('#create-metrics-alert').on('click', function () {
+        window.location.href = './alert.html?type=metrics';
+    });
+
+    //eslint-disable-next-line no-undef
+    lucide.createIcons();
 });
+
+function handlePageDisplay() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const page = urlParams.get('page');
+
+    const allAlertsPage = $('.all-alert-page');
+    const createAlertPage = $('.create-alert-page');
+
+    allAlertsPage.addClass('d-none');
+    createAlertPage.addClass('d-none');
+
+    if (page === 'create') {
+        createAlertPage.removeClass('d-none');
+    } else {
+        allAlertsPage.removeClass('d-none');
+    }
+    getAllAlerts();
+}
 
 //get all alerts
 function getAllAlerts() {
@@ -77,7 +106,7 @@ function stateCellRenderer(params) {
         default:
             color = getCssVariableValue('--color-inactive');
     }
-    return `<div style="background-color: ${color}; padding: 5px; border-radius: 5px; color: white">${state}</div>`;
+    return `<div style="background-color: ${color}; padding: 2px 10px; border-radius: 3px; color: white">${state}</div>`;
 }
 
 class btnRenderer {
@@ -90,7 +119,7 @@ class btnRenderer {
         this.eGui.innerHTML = `
             <div id="alert-grid-btn">
                 <button class='btn' id="editbutton" title="Edit Alert Rule"></button>
-                <button class="btn-simple" id="delbutton" title="Delete Alert Rule"></button>
+                <button class="btn-simple mx-4" id="delbutton" title="Delete Alert Rule"></button>
                 <div class="custom-alert-dropdown">
                     <button class="btn mute-icon" id="mute-icon" title="Mute"></button>
                 </div>
@@ -222,7 +251,7 @@ class btnRenderer {
             const left = buttonRect.right - gridRect.left + gridContainer.scrollLeft;
 
             this.dropdown.style.top = `${top}px`;
-            this.dropdown.style.left = `${left - 330}px`;
+            this.dropdown.style.left = `${left - 300}px`;
             this.dropdown.style.zIndex = '9999';
         }
     }
@@ -493,8 +522,8 @@ const alertGridOptions = {
     columnDefs: alertColumnDefs,
     rowData: alertRowData,
     animateRows: true,
-    rowHeight: 44,
-    headerHeight: 32,
+    rowHeight: 34,
+    headerHeight: 26,
     defaultColDef: {
         icons: {
             sortAscending: '<i class="fa fa-sort-alpha-desc"/>',
@@ -517,13 +546,26 @@ const alertGridOptions = {
 function displayAllAlerts(res) {
     if (alertGridDiv === null) {
         alertGridDiv = document.querySelector('#ag-grid');
-        //eslint-disable-next-line no-undef
         new agGrid.Grid(alertGridDiv, alertGridOptions);
     }
     alertGridOptions.api.setColumnDefs(alertColumnDefs);
     let newRow = new Map();
     let hasMutedAlerts = false;
+
+    // Add counters for logs and metrics alerts
+    let logsAlertCount = 0;
+    let metricsAlertCount = 0;
+
     $.each(res, function (key, value) {
+        // Count alerts by type
+        if (value.alert_type === 1) {
+            // Logs
+            logsAlertCount++;
+        } else if (value.alert_type === 2) {
+            // Metrics
+            metricsAlertCount++;
+        }
+
         newRow.set('rowId', key);
         newRow.set('alertId', value.alert_id);
         newRow.set('alertName', value.alert_name);
@@ -544,6 +586,11 @@ function displayAllAlerts(res) {
         if (mutedFor) hasMutedAlerts = true;
         alertRowData = _.concat(alertRowData, Object.fromEntries(newRow));
     });
+
+    // Update the count displays in the UI
+    $('.logs-count').text(logsAlertCount + ' active');
+    $('.metrics-count').text(metricsAlertCount + ' active');
+
     alertGridOptions.api.setRowData(alertRowData);
     const mutedForColumn = alertGridOptions.columnApi.getColumn('mutedFor');
     if (mutedForColumn) {

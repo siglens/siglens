@@ -20,7 +20,7 @@ package writer
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"math"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -120,6 +120,11 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 				Timestamp: model.Time(s.Timestamp),
 			}
 
+			if isBadValue(float64(sample.Value)) {
+				failedCount++
+				continue
+			}
+
 			data, err := sample.MarshalJSON()
 			if err != nil {
 				failedCount++
@@ -135,40 +140,12 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 				continue
 			}
 
-			var metricName string
-			tags := "{"
-			for key, val := range dataJson {
-				if key == "metric" {
-					valMap, ok := val.(map[string]interface{})
-					if ok {
-						for k, v := range valMap {
-							if k == "__name__" {
-								valString, ok := v.(string)
-								if ok {
-									metricName = valString
-								}
-								continue // skip metric __name__ as tag
-							}
-							valString, ok := v.(string)
-							if ok {
-								tags += `"` + k + `":"` + valString + `",`
-							}
-						}
-					}
-				}
-			}
-			if tags[len(tags)-1] == ',' {
-				tags = tags[:len(tags)-1]
-			}
-			tags += "}"
-
-			if metricName == "" {
+			modifiedData, err := ConvertToOTSDBFormat(data, s.Timestamp, s.Value)
+			if err != nil {
 				failedCount++
-				log.Errorf("HandlePutMetrics: the Metric name is empty. json data payload: %+v", dataJson)
+				log.Errorf("HandlePutMetrics: failed to convert data=%+v to OTSDB format, err=%v", string(data), err)
 				continue
 			}
-
-			modifiedData := `{"metric":"` + metricName + `","tags":` + tags + `,"timestamp":` + strconv.FormatInt(s.Timestamp, 10) + `,"value":` + strconv.FormatFloat(s.Value, 'f', -1, 64) + `}`
 
 			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
 			if err != nil {
@@ -182,6 +159,70 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	bytesReceived := uint64(len(compressed))
 	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
+}
+
+func isBadValue(v float64) bool {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return true
+	}
+
+	return false
+}
+
+func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, error) {
+	var dataJson map[string]interface{}
+	err := json.Unmarshal(data, &dataJson)
+	if err != nil {
+		return nil, err
+	}
+
+	type Metric struct {
+		Name      string            `json:"metric"`
+		Tags      map[string]string `json:"tags"`
+		Timestamp int64             `json:"timestamp"`
+		Value     float64           `json:"value"`
+	}
+
+	var metricName string
+	tags := make(map[string]string)
+	for key, val := range dataJson {
+		if key == "metric" {
+			valMap, ok := val.(map[string]interface{})
+			if ok {
+				for k, v := range valMap {
+					if k == "__name__" {
+						valString, ok := v.(string)
+						if ok {
+							metricName = valString
+						}
+						continue // skip metric __name__ as tag
+					}
+					valString, ok := v.(string)
+					if ok {
+						tags[k] = valString
+					}
+				}
+			}
+		}
+	}
+
+	if metricName == "" {
+		return nil, fmt.Errorf("ConvertToOTSDBFormat: the Metric name is empty. json data payload: %+v", dataJson)
+	}
+
+	modifiedMetric := Metric{
+		Name:      metricName,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	}
+
+	modifiedData, err := json.Marshal(modifiedMetric)
+	if err != nil {
+		return nil, err
+	}
+
+	return modifiedData, nil
 }
 
 func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedCount uint64, err string, code int) {

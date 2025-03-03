@@ -38,10 +38,6 @@ function setupEventHandlers() {
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
     $('#query-mode-options .query-mode-option').on('click', setQueryModeHandler);
 
-    $('#index-btn').on('show.bs.dropdown', indexOnShowHandler);
-    $('#index-btn').on('hide.bs.dropdown', indexOnHideHandler);
-    $('#available-indexes').on('click', '.index-dropdown-item', indexOnSelectHandler);
-
     $('#logs-result-container').on('click', '.hide-column', hideColumnHandler);
 
     $('#log-opt-single-btn').on('click', function () {
@@ -89,10 +85,10 @@ function windowPopStateHandler(evt) {
         let state = evt.originalEvent.state;
         if (state !== null) {
             data = getInitialSearchFilter(true, false);
+            resetDashboard();
+            wsState = 'query';
+            doSearch(data);
         }
-        resetDashboard();
-        wsState = 'query';
-        doSearch(data);
     }
 }
 
@@ -428,54 +424,6 @@ function qLangOnHideHandler() {
     $('#query-language-btn').removeClass('active');
 }
 
-function indexOnShowHandler() {
-    $('#index-btn').addClass('active');
-    if (Cookies.get('IndexList')) {
-        let allAvailableIndices = [];
-        let selectedIndexList = Cookies.get('IndexList').split(',');
-        // Get all available indices
-
-        $.each($('.index-dropdown-item'), function () {
-            allAvailableIndices.push($(this).data('index'));
-        });
-        let allSelectedIndices = _.intersection(selectedIndexList, allAvailableIndices);
-        $.each($('.index-dropdown-item'), function () {
-            let indexName = $(this).data('index');
-            if (allSelectedIndices.includes(indexName)) {
-                $(this).addClass('active');
-            }
-        });
-        selectedSearchIndex = allSelectedIndices.join(',');
-        Cookies.set('IndexList', allSelectedIndices.join(','));
-    }
-}
-
-function indexOnHideHandler() {
-    $('#index-btn').removeClass('active');
-}
-
-function indexOnSelectHandler(evt) {
-    evt.stopPropagation();
-
-    var target = $(evt.currentTarget);
-    var isChecked = target.hasClass('active');
-
-    if ($('.index-dropdown-item.active').length === 1 && isChecked) {
-        // If only one index is selected and it's being clicked again, prevent deselection
-        return;
-    }
-
-    target.toggleClass('active');
-
-    let checkedIndices = [];
-    $('.index-dropdown-item.active').each(function () {
-        checkedIndices.push($(this).data('index'));
-    });
-    selectedSearchIndex = checkedIndices.join(',');
-    setIndexDisplayValue(selectedSearchIndex);
-    Cookies.set('IndexList', selectedSearchIndex);
-}
-
 function runLiveTailBtnHandler(evt) {
     $('.popover').hide();
     evt.preventDefault();
@@ -522,6 +470,8 @@ function runFilterBtnHandler(evt) {
         } else {
             resetDashboard();
             logsRowData = [];
+            accumulatedRecords = [];
+            totalLoadedRecords = 0;
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
@@ -537,6 +487,8 @@ function filterInputHandler(evt) {
     if (evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
         resetDashboard();
         logsRowData = [];
+        accumulatedRecords = [];
+        totalLoadedRecords = 0;
         data = getSearchFilter(false, false);
         initialSearchData = data;
         availColNames = [];
@@ -794,7 +746,12 @@ function logOptionMultiHandler() {
     gridOptions.columnApi.setColumnVisible('logs', true);
 
     gridOptions.columnApi.autoSizeColumn(gridOptions.columnApi.getColumn('logs'), false);
-    gridOptions.api.setRowData(logsRowData);
+
+    setTimeout(() => {
+        gridOptions.api.refreshCells({ force: true });
+        gridOptions.api.redrawRows();
+    }, 50);
+    
     hideOrShowFieldsInLineViews();
     gridOptions.api.sizeColumnsToFit();
     Cookies.set('log-view', 'multi-line', { expires: 365 });
@@ -990,7 +947,8 @@ function updateLogsColumnRenderer(currentView, selectedFields, nullColumns) {
                         const isVisible = selectedFields.includes(key) && (!nullColumns.includes(key) || !hideNullColumns);
                         const visibilityClass = isVisible ? '' : 'style="display:none;"';
 
-                        logString += `<span class="cname-hide-${string2Hex(key)}" ${visibilityClass}>${colSep}${key}=${formattedValue}</span>`;
+                        logString += `<span class="cname-hide-${string2Hex(key)}"${visibilityClass}>${colSep}<b>${key}</b></span>`;
+                        logString += `<span class="cname-hide-${string2Hex(key)}"${visibilityClass}> ${formattedValue}</span>`;
                         addSeparator = true;
                     });
 

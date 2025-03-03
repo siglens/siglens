@@ -102,8 +102,6 @@
   padding: 0.25rem 0.5rem;
   width: 100%;
   border-radius: 5px;
-  font-size: 18px;
-  height: 32px;
 }
 
 .panEdit-descrChange {
@@ -128,7 +126,7 @@
 
 #panEdit-descrChangeInput,
 #panEdit-nameChangeInput {
-  font-size: 14px;
+  font-size: 12px;
   background-color: var(--drop-down-btn-bg-regular);
   color: var(--text-color);
 }
@@ -145,12 +143,11 @@
   cursor: pointer;
   transition: all 0.3s;
   border-radius: 5px;
-  height: 32px;
+  height: 24px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
   border: 1px solid var(--border-color-regular);
 }
 
@@ -213,7 +210,6 @@
   list-style: none;
   width: 85%;
   cursor: pointer;
-  font-size: 14px;
   background-color: var(--edit-panel-bg-color);
   display: flex;
   flex-direction: column;
@@ -338,11 +334,11 @@
 
 .dropDown-dataSource {
   width: 120px;
-  height: 32px;
+  height: 24px;
 }
 
 .queryInput {
-  height: 32px;
+  height: 24px;
   font-size: 14px;
   width: 100%;
   color: var(--text-color);
@@ -415,7 +411,7 @@
   padding: 0px 12px;
   text-decoration: none;
   border: none;
-  height: 32px;
+  height: 24px;
   line-height: 7px;
   align-self: flex-end;
   border-radius: 5px;
@@ -458,7 +454,7 @@
   width: 100%;
   background-color: var(--db-bg-color);
   color: var(--text-color);
-  font-size: 18px;
+  font-size: 14px;
   margin-bottom: 12px;
 }
 
@@ -466,11 +462,6 @@
   display: flex;
   flex-direction: row;
   justify-content: flex-end;
-}
-
-
-.panEdit-navBar #date-picker-btn, .table-view-toggle-container{
-  margin-left: 15px;
 }
 
 .panEdit-navBtns {
@@ -484,15 +475,13 @@
 }
 
 .panEdit-btn {
-  height: 32px;
+  height: 24px;
   outline: none;
   border: 0px;
   margin-right: 10px;
   line-height: 14px;
   border-radius: 5px;
   box-shadow: none !important;
-  font-size: 14px;
-  border: 1px solid var(--border-color-regular) !important;
 }
 
 /* DASHBOARD.HTML */
@@ -935,89 +924,6 @@
 .queryInput-InnerContainer .info-icon{
   right: 5px;
 }
-#panel-loading {
-  border: 4px solid var(--purple-1);
-  border-radius: 50%;
-  border-top: 4px solid var(--lavender-1);
-  border-bottom: 4px solid var(--lavender-1);
-  width: 30px;
-  height: 30px;
-  -webkit-animation: spin 2s linear infinite;
-  animation: spin 2s linear infinite;
-  position: absolute;
-  z-index: 100;
-}
-
-@-webkit-keyframes spin {
-  0% { -webkit-transform: rotate(0deg); }
-  100% { -webkit-transform: rotate(360deg); }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 32px;
-  height: 16px;
-}
-
-.switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--db-options-bg-color);
-  transition: .4s;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 12px;
-  width: 12px;
-  left: 2px;
-  bottom: 2px;
-  background-color: var(--white-0);
-  -webkit-transition: .4s;
-  transition: .4s;
-}
-
-input:checked + .slider {
-  background-color: var(--purple-1);
-}
-
-input:checked + .slider:before {
-  transform: translateX(15px);
-}
-
-.slider.round {
-  border-radius: 34px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
-}
-
-.table-view-toggle-container{
-  height: 32px;
-  width: 147px;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border-color-regular);
-  margin-right: 15px;
-}
 
 .label-table-view{
   padding-right: 10px;
@@ -1025,6 +931,7 @@ input:checked + .slider:before {
 
 .navbar-options{
   display: flex;
+  gap:8px;
 }
 
 .panel-info-corner{
@@ -1051,72 +958,12 @@ input:checked + .slider:before {
   font-weight: 600;
 }
 
-.refresh-container{
-  display: flex;
-}
-
-#refresh-picker-btn{
-  margin: 0;
-  text-decoration: none;
-  border: none;
-  height: 32px;
-  line-height: 14px;
-  cursor: pointer;
-  border-radius: 0 5px 5px 0 !important;
-  width: auto;
-  padding: 0 5px;
-}
-
-#refresh-picker-btn:hover {
-  background: var(--drop-down-btn-bg-hover);
-}
-
-#refresh-picker-btn.active {
-  background: var(--drop-down-btn-bg-active) !important;
-  outline: 1px solid var(--drop-down-btn-border-active);
-  outline-offset: -1pt;
-}
-
-.refresh-btn{
-  border-radius: 5px 0 0 5px !important;
-  background-color: var(--drop-down-btn-bg-regular) !important;
-  width: 32px;
-}
-
-.refresh-picker.show{
-  min-width: 53px !important;
-  height: auto !important;
-  background: var(--timepicker-bg-color);
-  border: 1px solid var(--timepicker-border-color);
-  color: var(--table-or-regular-text-color);
-  border-radius: 5px;
-  left:3px !important;
-  padding: 0.5rem;
-}
-
-.refresh-range-item.active {
-  background-color: var(--index-drop-down-item-active-bg-color);
-  color: var(--index-drop-down-item-active-text-color);
-}
-.refresh-range-item {
-  padding:6px 10px !important;
-  display: flex;
-  align-items: center;
-  border-radius: 5px;
-  line-height: 23px;
-  cursor: pointer;
-}
-
-.refresh-range-item:hover {
-  color: var(--timepicker-text-color-hover);
-}
-
 .panEdit-navBtns .refresh-btn{
   border-radius: 5px !important;
 }
 .btn-top{
   width: 137px;
-  height: 32px !important;
+  height: 24px !important;
   border: 1px solid var(--border-color-regular);
 }
 .btn-top:hover{
@@ -1124,19 +971,14 @@ input:checked + .slider:before {
 }
 .settings-btn{
   margin-left: 0px;
-  width: 32px;
-  height: 32px;
   border: 1px solid var(--border-color-regular) !important;
   background: var(--top-setting-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
   background-size: 50% !important;
+  width: 24px !important;
 }
-.refresh-btn{
-  height: 32px !important;
-  background: var(--top-refresh-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 46% !important;
-}
+
 .chart-display{
-  width: 16px;
+  width: 14px;
   /* height: 30px; */
 }
 .panEdit-discard{
@@ -1166,18 +1008,12 @@ input:checked + .slider:before {
 .panel-header:hover{
   background: var(--datatable-bg-color)  !important;
 }
-.panelDisplay,
-.refresh-btn,
-.dropdown-dash,
-.dropdown-toggle{
-  border: 1px solid var(--border-color-regular) !important;
-}
+
 .dropdown-dash{
   width: 32px;
 }
 #query-language-btn,
-#date-picker-btn,
-#index-btn{
+#date-picker-btn{
   line-height: 6px !important;
 }
 .logs-options{
@@ -1186,13 +1022,10 @@ input:checked + .slider:before {
 
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
-  background-size: 45% !important;
+  background-size: 50% !important;
+  width: 24px;
 }
-#add-panel-btn,
-#save-db-btn,
-#query-language-btn{
-  height: 32px !important;
-}
+
 #add-panel-btn:hover,#add-panel-btn.active {
   background: var(--btn-hover-or-click-bg-color) !important;
 }
@@ -1323,7 +1156,7 @@ input:checked + .slider:before {
   background-color: var(--edit-panel-bg-color) !important;
   color: var(--text-color-regular);
   width: 100%;
-  padding: 4px 10px;
+  padding: 0px 10px;
   margin: 0px;
   cursor: pointer;
   margin-top: 5px;
@@ -1334,7 +1167,7 @@ input:checked + .slider:before {
   color: var(--text-color-regular);
 }
 .widgets-text{
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   border-bottom: 2px solid var(--purple-1);
   margin-left: 8px;
@@ -1364,7 +1197,7 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   padding: 0px 12px;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 #index-listing{
@@ -1451,7 +1284,7 @@ input:checked + .slider:before {
   color: var(--lavender-2);
 }
 .add-panel-div .text{
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--lavender-2);
 }
@@ -1524,10 +1357,6 @@ input:checked + .slider:before {
   cursor: pointer;
 }
 
-.avail-fields-btn{
-  height: 32px !important;
-  margin-left: 15px;
-}
 #avail-field-container{
   display: none;
 }
@@ -1539,4 +1368,9 @@ input:checked + .slider:before {
 }
 .panelLogResultsGrid .ag-cell{
   user-select: all;
+}
+
+#run-dashboard-fliter{
+  height: 24px !important;
+  width: 24px !important;
 }

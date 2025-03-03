@@ -38,8 +38,8 @@ func Test_ExtractConfigData(t *testing.T) {
 	}{
 		{ // case 1 - For correct input parameters and values
 			[]byte(`
- ingestListenIP: "0.0.0.0"
- queryListenIP: "0.0.0.0"
+ ingestListenIP: "[::]"
+ queryListenIP: "[::]"
  ingestPort: 9090
  baseLogDir: "./pkg/ingestor/httpserver/"
  queryNode: true
@@ -96,10 +96,13 @@ func Test_ExtractConfigData(t *testing.T) {
    metricsPercent: 10
    bytesPerQuery: 100
  maxAllowedColumns: 42
+ tls:
+   mtlsEnabled: true
+   clientCaPath: "/path/to/ca.pem"
  `),
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  9090,
 				IngestUrl:                   "http://localhost:9090",
 				QueryPort:                   5122,
@@ -149,12 +152,16 @@ func Test_ExtractConfigData(t *testing.T) {
 					BytesPerQuery:                100,
 				},
 				MaxAllowedColumns: 42,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false).Set(true),
+					ClientCaPath: "/path/to/ca.pem",
+				},
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
 			[]byte(`
- ingestListenIP: "0.0.0.0"
- queryListenIP: "0.0.0.0"
+ ingestListenIP: "[::]"
+ queryListenIP: "[::]"
  ingestPort: 9090
  queryPort: 9000
  queryNode: true
@@ -195,11 +202,14 @@ func Test_ExtractConfigData(t *testing.T) {
  compressStatic: bad string
  memoryLimits:
    maxMemoryAllowedToUseInBytes: 10000000000
+ tls:
+   mtlsEnabled: bad string
+   clientCaPath: ""
  `),
 
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  9090,
 				QueryPort:                   9000,
 				IngestUrl:                   "http://localhost:9090",
@@ -249,6 +259,10 @@ func Test_ExtractConfigData(t *testing.T) {
 				},
 				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false),
+					ClientCaPath: "",
+				},
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -257,8 +271,8 @@ invalid input, we should error out
 `),
 
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  8081,
 				QueryPort:                   0,
 				IngestUrl:                   "http://localhost:8081",
@@ -273,7 +287,7 @@ invalid input, we should error out
 				MaxSegFileSize:              1_073_741_824,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
-				DataDiskThresholdPercent:    85,
+				DataDiskThresholdPercent:    DEFAULT_DISK_THRESHOLD_PERCENT,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 
@@ -303,6 +317,10 @@ invalid input, we should error out
 				},
 				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false),
+					ClientCaPath: "",
+				},
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -310,8 +328,8 @@ invalid input, we should error out
 a: b
 `),
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  8081,
 				QueryPort:                   5122,
 				IngestUrl:                   "http://localhost:8081",
@@ -326,7 +344,7 @@ a: b
 				MaxSegFileSize:              4_294_967_296,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
-				DataDiskThresholdPercent:    85,
+				DataDiskThresholdPercent:    DEFAULT_DISK_THRESHOLD_PERCENT,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 				S3IngestBufferSize:          1000,
@@ -360,6 +378,10 @@ a: b
 				},
 				MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
 				QueryTimeoutSecs:  DEFAULT_TIMEOUT_SECONDS,
+				TLS: common.TLSConfig{
+					MtlsEnabled:  utils.DefaultValue(false),
+					ClientCaPath: "",
+				},
 			},
 		},
 	}

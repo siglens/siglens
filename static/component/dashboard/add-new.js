@@ -38,15 +38,15 @@ class AddNewComponent {
                 </div>
             </div>
             <div id="buttons-popupContent">
-                <button type="button" id="cancel-dbbtn">Cancel</button>
-                <button type="button" id="save-dbbtn">Save</button>
+                <button type="button" id="cancel-dbbtn" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="save-dbbtn" class="btn btn-primary">Save</button>
             </div>
         </div>
     `;
 
         this.container.html(`
             <div class="dropdown">
-                <button class="btn dropdown-toggle primary-btn" data-toggle="dropdown" 
+                <button class="btn dropdown-toggle btn-primary" data-toggle="dropdown" 
                         aria-haspopup="true" aria-expanded="true" data-bs-toggle="dropdown">
                     <span>
                         <img src="./assets/add-icon.svg" class="add-icon">
@@ -68,8 +68,8 @@ class AddNewComponent {
                     <p class="error-tip"></p>
                 </div>
                 <div id="buttons-popupContent">
-                    <button type="button" id="cancel-dbbtn">Cancel</button>
-                    <button type="button" id="save-folder-btn" class="primary-btn">Save</button>
+                    <button type="button" id="cancel-dbbtn" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="save-folder-btn" class="btn btn-primary">Save</button>
                 </div>
             </div>
         `);
@@ -90,11 +90,30 @@ class AddNewComponent {
         $('#db-name, #folder-name').on('focus', function () {
             $('.error-tip').removeClass('active').text('');
         });
+
+        $(document).on('keydown', (event) => {
+            if (event.key === 'Escape') {
+                this.closeModals();
+            }
+        });
+
+        $('#db-name, #db-description').on('keydown', (event) => {
+            if (event.key === 'Enter') {
+                this.createDashboard();
+            }
+        });
+
+        $('#folder-name').on('keydown', (event) => {
+            if (event.key === 'Enter') {
+                this.createFolder();
+            }
+        });
     }
 
     showDashboardModal() {
         $('.popupOverlay, #new-dashboard-modal').addClass('active');
         $('.error-tip').removeClass('active');
+        $('#db-name').focus();
 
         const currentFolderId = this.getCurrentFolderId();
         const currentFolderName = currentFolderId === 'root-folder' ? 'Dashboards' : $('.name-dashboard').text().trim();
@@ -114,6 +133,7 @@ class AddNewComponent {
     showFolderModal() {
         $('.popupOverlay, #new-folder-modal').addClass('active');
         $('.error-tip').removeClass('active');
+        $('#folder-name').focus();
     }
 
     closeModals() {

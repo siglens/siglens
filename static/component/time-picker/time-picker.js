@@ -26,8 +26,7 @@
         this.append(`<button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
                             aria-expanded="false" data-bs-toggle="dropdown" title="Pick the time window">
                             <span id="span-time-value">${setting.spanName}</span>
-                            <img class="dropdown-arrow orange" src="assets/arrow-btn.svg">
-                            <img class="dropdown-arrow blue" src="assets/up-arrow-btn-light-theme.svg">
+                            <i class="dropdown-arrow"></i>
                         </button>
                         <div class="dropdown-menu daterangepicker dropdown-time-picker" aria-labelledby="index-btn" id="daterangepicker">
                             <p class="dt-header">Search the last</p>
@@ -243,6 +242,7 @@
             $(evt.currentTarget).addClass('active');
             datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
             $('#daterangepicker').removeClass('show').hide();
+            $('#date-picker-btn').removeClass('active')
         }
 
         function resetCustomDateRange() {

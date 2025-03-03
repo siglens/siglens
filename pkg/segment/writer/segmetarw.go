@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/blob"
+	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
@@ -121,23 +122,31 @@ func ReadSegFullMetas(smFilename string) []*structs.SegMeta {
 
 func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 	// continue reading/merging from individual segfiles
+	waitGroup := sync.WaitGroup{}
 	for _, smentry := range segmetas {
-		workSfm, err := ReadSfm(smentry.SegmentKey)
-		if err != nil {
-			// error is logged in the func
-			continue
-		}
-		if smentry.AllPQIDs == nil {
-			smentry.AllPQIDs = workSfm.AllPQIDs
-		} else {
-			utils.MergeMapsRetainingFirst(smentry.AllPQIDs, workSfm.AllPQIDs)
-		}
-		if smentry.ColumnNames == nil {
-			smentry.ColumnNames = workSfm.ColumnNames
-		} else {
-			utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
-		}
+		waitGroup.Add(1)
+		go func(smentry *structs.SegMeta) {
+			defer waitGroup.Done()
+
+			workSfm, err := ReadSfm(smentry.SegmentKey)
+			if err != nil {
+				// error is logged in the func
+				return
+			}
+			if smentry.AllPQIDs == nil {
+				smentry.AllPQIDs = workSfm.AllPQIDs
+			} else {
+				utils.MergeMapsRetainingFirst(smentry.AllPQIDs, workSfm.AllPQIDs)
+			}
+			if smentry.ColumnNames == nil {
+				smentry.ColumnNames = workSfm.ColumnNames
+			} else {
+				utils.MergeMapsRetainingFirst(smentry.ColumnNames, workSfm.ColumnNames)
+			}
+		}(smentry)
 	}
+
+	waitGroup.Wait()
 }
 
 // read only the current node's segmeta
@@ -370,7 +379,7 @@ func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[stri
 }
 
 func AddOrReplaceRotatedSegmeta(segmeta structs.SegMeta) {
-	removeSegmetas(map[string]struct{}{segmeta.SegmentKey: struct{}{}}, "")
+	removeSegmetas(map[string]struct{}{segmeta.SegmentKey: {}}, "")
 	addSegmeta(segmeta)
 }
 
@@ -397,6 +406,11 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 
 	var allSegmetaJson []byte
 	for _, segmeta := range finalSegmetas {
+		err := uploadFilesToBlob(segmeta.SegbaseDir)
+		if err != nil {
+			log.Errorf("BulkAddRotatedSegmetas: failed to upload files to blob: err=%v", err)
+		}
+
 		segmetaJson, err := json.Marshal(segmeta)
 		if err != nil {
 			log.Errorf("bulkAddSegmetas: failed to Marshal: err=%v", err)
@@ -852,4 +866,20 @@ func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {
 		}
 	}
 	return stats
+}
+
+func uploadFilesToBlob(segBaseDir string) error {
+	if !config.IsS3Enabled() {
+		return nil
+	}
+
+	// Upload segment files to blob
+	filesToUpload := fileutils.GetAllFilesInDirectory(segBaseDir)
+
+	blobErr := blob.UploadSegmentFiles(filesToUpload)
+	if blobErr != nil {
+		return fmt.Errorf("uploadFilesToBlob: failed to upload segment files , err=%v", blobErr)
+	}
+
+	return nil
 }

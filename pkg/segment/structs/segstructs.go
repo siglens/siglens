@@ -1181,6 +1181,10 @@ func (qa *QueryAggregators) UsedByTimechart() bool {
 	return qa != nil && qa.TimeHistogram != nil && qa.TimeHistogram.Timechart != nil
 }
 
+func (qa *QueryAggregators) HasTimechartInChain() bool {
+	return qa.HasInChain((*QueryAggregators).UsedByTimechart)
+}
+
 func (qa *QueryAggregators) CanLimitBuckets() bool {
 	// We shouldn't limit the buckets if there's other things to do after the
 	// aggregation, like sorting, filtering, making new columns, etc.
@@ -1673,6 +1677,34 @@ func (qa *QueryAggregators) IsStatsAggPresentInChain() bool {
 		return obj.GroupByRequest != nil || obj.MeasureOperations != nil
 	}
 	return qa.HasInChain(statsAggPresentInCur)
+}
+
+func (qa *QueryAggregators) GetAllMeasureAggsInChain() [][]*MeasureAggregator {
+	measureAggGroups := make([][]*MeasureAggregator, 0)
+	getCur := func(obj *QueryAggregators) []*MeasureAggregator {
+		if obj.MeasureOperations != nil {
+			return obj.MeasureOperations
+		} else if obj.GroupByRequest != nil && obj.GroupByRequest.MeasureOperations != nil {
+			return obj.GroupByRequest.MeasureOperations
+		}
+
+		return nil
+	}
+
+	for {
+		measureAggs := getCur(qa)
+		if measureAggs != nil {
+			measureAggGroups = append(measureAggGroups, measureAggs)
+		}
+
+		if qa.Next == nil {
+			break
+		}
+
+		qa = qa.Next
+	}
+
+	return measureAggGroups
 }
 
 // TODO: use toputils.BatchError instead

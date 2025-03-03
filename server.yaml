@@ -1,10 +1,10 @@
 ---
 ## IP and port for SigLens ingestion server
-ingestListenIP: 0.0.0.0
+ingestListenIP: "[::]"
 ingestPort: 8081
 
 ## IP and port for SigLens query server, including UI
-queryListenIP: 0.0.0.0
+queryListenIP: "[::]"
 queryPort: 5122
 
 ## Location for storing local node data
@@ -39,6 +39,8 @@ tls:
   enabled: false   # Set to true to enable TLS
   certificatePath: ""  # Path to the certificate file
   privateKeyPath: ""   # Path to the private key file
+  mtlsEnabled: false
+  clientCaPath: ""  # Path to the client Certificate Authority file. Required for mTLS.
 
 # SigLens server hostname
 queryHostname: ""

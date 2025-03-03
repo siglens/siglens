@@ -49,7 +49,7 @@ function initPage() {
 }
 
 function getValuesOfColumn(chooseColumn, spanName) {
-    let searchText = 'SELECT DISTINCT ' + chooseColumn + ' FROM `traces`';
+    let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
     let param = {
         state: 'query',
         searchText: searchText,
@@ -94,7 +94,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
 }
 function fetchData(chooseColumn) {
     return new Promise((resolve, reject) => {
-        let searchText = 'SELECT DISTINCT ' + chooseColumn + ' FROM `traces`';
+        let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
         if (chooseColumn == 'name' && $('#service-span-name').text() && $('#service-span-name').text() != 'All') {
             searchText += " WHERE service='" + $('#service-span-name').text() + "'";
         } else if (chooseColumn == 'service' && $('#operation-span-name').text() && $('#operation-span-name').text() != 'All') {
@@ -262,6 +262,8 @@ function searchTraceHandler(e) {
     if (chart != null && chart != '' && chart != undefined) {
         echarts?.dispose(chart);
     }
+    $('body').css('cursor', 'progress');
+    $('#search-trace-btn').prop('disabled', true).addClass('disabled');
     searchTrace(params);
     handleSort();
     return false;
@@ -310,57 +312,69 @@ function searchTrace(params) {
         crossDomain: true,
         dataType: 'json',
         data: JSON.stringify(params),
-    }).then(async (res) => {
-        if (res && res.traces && res.traces.length > 0) {
-            if ((limitation < 50 && limitation > 0) || limitation == 0) {
-                let newArr = res.traces.sort(compare('start_time', 'most'));
-                if (limitation > 0) newArr.splice(limitation);
-                else newArr.splice(requestFlag);
-                limitation = 0;
-                requestFlag = 0;
-                returnResTotal = returnResTotal.concat(newArr);
-            } else {
-                returnResTotal = returnResTotal.concat(res.traces);
-            }
-            //concat new traces results
-            returnResTotal = returnResTotal.sort(compare('start_time', 'most'));
-            //reset total size
-            traceSize = returnResTotal.length;
-            if ($('#traces-number').text().trim() === '') {
-                await getTotalTraces(params);
-            }
-            scatterData = [];
-            for (let i = traceSize - 1; i >= 0; i--) {
-                let json = returnResTotal[i];
-                let milliseconds = Number(json.start_time / 1000000);
-                let dataInfo = new Date(milliseconds);
-                let dataStr = dataInfo.toLocaleString().toLowerCase();
-                let duration = Number((json.end_time - json.start_time) / 1000000);
-                scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id]);
-            }
-            showScatterPlot();
-            reSort();
-
-            // If the number of traces returned is 50, call getData again
-            if (res.traces.length == 50 && params.page < 2) {
-                getData(params);
-            }
-            if (returnResTotal.length >= totalTraces && res.traces.length < 50) {
-                allResultsFetched = true;
-            }
-        } else {
-            if (returnResTotal.length == 0) {
-                if (chart != null && chart != '' && chart != undefined) {
-                    chart.dispose();
+    })
+        .then(async (res) => {
+            if (res && res.traces && res.traces.length > 0) {
+                if ((limitation < 50 && limitation > 0) || limitation == 0) {
+                    let newArr = res.traces.sort(compare('start_time', 'most'));
+                    if (limitation > 0) newArr.splice(limitation);
+                    else newArr.splice(requestFlag);
+                    limitation = 0;
+                    requestFlag = 0;
+                    returnResTotal = returnResTotal.concat(newArr);
+                } else {
+                    returnResTotal = returnResTotal.concat(res.traces);
                 }
-                $('#traces-number').text('0 Traces');
-                let queryText = 'Your query returned no data, adjust your query.';
-                $('#graph-show').html(queryText);
-                $('#graph-show').addClass('empty-result-show');
+                //concat new traces results
+                returnResTotal = returnResTotal.sort(compare('start_time', 'most'));
+                //reset total size
+                traceSize = returnResTotal.length;
+                if ($('#traces-number').text().trim() === '') {
+                    await getTotalTraces(params);
+                }
+                scatterData = [];
+                for (let i = traceSize - 1; i >= 0; i--) {
+                    let json = returnResTotal[i];
+                    let milliseconds = Number(json.start_time / 1000000);
+                    let dataInfo = new Date(milliseconds);
+                    let dataStr = dataInfo.toLocaleString().toLowerCase();
+                    let duration = Number((json.end_time - json.start_time) / 1000000);
+                    scatterData.push([dataStr, duration, json.span_count, json.span_errors_count, json.service_name, json.operation_name, json.trace_id, json.start_time]);
+                }
+                showScatterPlot();
+                reSort();
+
+                // If the number of traces returned is 50, call getData again
+                if (res.traces.length == 50 && params.page < 2) {
+                    getData(params);
+                }
+                if (returnResTotal.length >= totalTraces && res.traces.length < 50) {
+                    allResultsFetched = true;
+                }
+            } else {
+                if (returnResTotal.length == 0) {
+                    if (chart != null && chart != '' && chart != undefined) {
+                        chart.dispose();
+                    }
+                    $('#traces-number').text('0 Traces');
+                    let queryText = 'Your query returned no data, adjust your query.';
+                    $('#graph-show').html(queryText);
+                    $('#graph-show').addClass('empty-result-show');
+                }
             }
-        }
-        isLoading = false; // Set the flag to false after getting the response
-    });
+            isLoading = false; // Set the flag to false after getting the response
+        })
+        .fail(() => {
+            $('#traces-number').text('0 Traces');
+            $('#graph-show').html('An error occurred while fetching data.');
+            $('#graph-show').addClass('empty-result-show');
+        })
+        .always(() => {
+            // Reset cursor
+            $('body').css('cursor', 'default');
+            $('#search-trace-btn').prop('disabled', false).removeClass('disabled');
+            isLoading = false;
+        });
 }
 const resizeObserver = new ResizeObserver((_entries) => {
     if (chart != null && chart != '' && chart != undefined) chart.resize();
@@ -424,9 +438,28 @@ function showScatterPlot() {
                 var duration = param.value[1];
                 var spans = param.value[2];
                 var errors = param.value[3];
-                var traceId = param.value[6] ? param.value[6].substring(0, 7) : '';
+                var traceId = param.value[6] ? param.value[6] : '';
+                var traceTimestamp = param.value[7];
 
-                return '<div>' + green + ': ' + red + '<br>Trace ID: ' + traceId + '<br>Duration: ' + duration + 'ms' + '<br>No. of Spans: ' + spans + '<br>No. of Error Spans: ' + errors + '</div>';
+                return `<div class="custom-tooltip">
+                    <div class="tooltip-content">
+                        <div class="trace-name">${green}: ${red}</div>
+                        <div class="trace-id">Trace ID: ${traceId.substring(0, 7)}</div>
+                        <hr>
+                        <div>Duration: ${duration}ms</div>
+                        <div>No. of Spans: ${spans}</div>
+                        <div>No. of Error Spans: ${errors}</div>
+                    </div>
+                    <hr>
+                    <div class="tooltip-context">
+                        <div class="context-option" onclick="handleRelatedTraces('${traceId}', ${traceTimestamp}, false)">View Traces</div>
+                        <div class="context-option" onclick="handleRelatedLogs('${traceId}', ${traceTimestamp}, 'trace')">Related Logs</div>
+                    </div>
+                </div>`;
+            },
+            enterable: true,
+            position: function (point) {
+                return [point[0], point[1]];
             },
         },
         series: [
@@ -462,14 +495,16 @@ function showScatterPlot() {
     });
     // Open Gantt Chart when click on Scatter Chart
     chart.on('click', function (params) {
-        window.location.href = 'trace.html?trace_id=' + params.data[6];
+        const traceId = params.data[6];
+        const traceTimestamp = params.data[7]; // nanoseconds
+        window.location.href = `trace.html?trace_id=${traceId}&timestamp=${traceTimestamp}`;
     });
 }
 function reSort() {
     $('.warn-box').remove();
     for (let i = 0; i < returnResTotal.length; i++) {
         let json = returnResTotal[i];
-        $('#warn-bottom').append(`<a href="../trace.html?trace_id=${json.trace_id}" class="warn-box-anchor">
+        $('#warn-bottom').append(`<a href="../trace.html?trace_id=${json.trace_id}&timestamp=${json.start_time}" class="warn-box-anchor">
       <div class="warn-box warn-box-${i}"><div class="warn-head">
                               <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
                               <span class = "duration-time" id  = "duration-time-${i}"></span>
@@ -544,22 +579,20 @@ function calculateTimeToNow(startTime) {
 let lastScrollPosition = 0;
 let isLoading = false; // Flag to indicate whether an API call is in progress
 
-let dashboard = document.getElementById('dashboard');
+$('#dashboard .scrollable-container').on('scroll', function () {
+    const container = $(this);
+    const scrollHeight = this.scrollHeight;
+    const scrollPosition = container.height() + container.scrollTop();
 
-dashboard.onscroll = function () {
-    let scrollHeight = dashboard.scrollHeight;
-    let scrollPosition = dashboard.clientHeight + dashboard.scrollTop;
     if (!isLoading && hasLoaded && !allResultsFetched && scrollPosition / scrollHeight >= 0.6) {
-        // 60% scroll
-        isLoading = true; // Set the flag to true to indicate that an API call is in progress
-        lastScrollPosition = dashboard.scrollTop;
+        isLoading = true;
+        lastScrollPosition = container.scrollTop();
+
         getData();
-        dashboard.scrollTo({
-            top: lastScrollPosition,
-            behavior: 'smooth',
-        });
+
+        container.scrollTop(lastScrollPosition);
     }
-};
+});
 function getData() {
     //users did not set limitation
     if (limitation == -1) {

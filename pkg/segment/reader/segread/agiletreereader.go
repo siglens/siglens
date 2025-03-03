@@ -482,7 +482,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 				grpByCol, err)
 			return err
 		}
-		maxGrpLevel = utils.MaxUint16(maxGrpLevel, uint16(level))
+		maxGrpLevel = max(maxGrpLevel, uint16(level))
 		grpTreeLevels[i] = uint16(level)
 	}
 

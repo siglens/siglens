@@ -32,7 +32,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
-	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -178,43 +177,6 @@ func spanToJson(span *tracepb.Span, service string) ([]byte, error) {
 
 	bytes, err := json.Marshal(result)
 	return bytes, err
-}
-
-func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
-	value, err := extractAnyValue(keyvalue.Value)
-	if err != nil {
-		log.Errorf("extractKeyValue: failed to extract value for key %s: %v", keyvalue.Key, err)
-		return "", nil, err
-	}
-
-	return keyvalue.Key, value, nil
-}
-
-func extractAnyValue(anyValue *commonpb.AnyValue) (interface{}, error) {
-	switch anyValue.Value.(type) {
-	case *commonpb.AnyValue_StringValue:
-		return anyValue.GetStringValue(), nil
-	case *commonpb.AnyValue_IntValue:
-		return anyValue.GetIntValue(), nil
-	case *commonpb.AnyValue_DoubleValue:
-		return anyValue.GetDoubleValue(), nil
-	case *commonpb.AnyValue_BoolValue:
-		return anyValue.GetBoolValue(), nil
-	case *commonpb.AnyValue_ArrayValue:
-		arrayValue := anyValue.GetArrayValue().Values
-		value := make([]interface{}, len(arrayValue))
-		for i := range arrayValue {
-			var err error
-			value[i], err = extractAnyValue(arrayValue[i])
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		return value, nil
-	default:
-		return nil, fmt.Errorf("extractAnyValue: unsupported value type: %T", anyValue.Value)
-	}
 }
 
 func linksToJson(spanLinks []*tracepb.Span_Link) ([]byte, error) {

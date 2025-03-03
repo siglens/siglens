@@ -19,15 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <!DOCTYPE html>
 <html lang="en">
-
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
-<!-- <script>
+<script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
-</script> -->
+</script>
 
 <head>
     <meta charset="UTF-8">
@@ -44,54 +43,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/lib/tippy.css" />
     <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
 
-    <style>
-        .dash {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
-            gap: 20px;
-            max-width: 100vw; /* Full width */
-            height: 100vh; /* Full height */
-            padding: 20px;
-        }
-        
-        .card {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-            text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            cursor: pointer;
-            width: 100%; /* Full width of container */
-            height: 80%; /* Full height of grid cell */
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            border: 3px solid var(--purple-3);
-        }
-        
-        .title {
-            font-size: 24px; /* Bigger text */
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 15px; /* Space between title and description */
-        }
-        
-        .description {
-            font-size: 18px; /* Bigger text */
-            color: #666;
-        }   
-    </style>    
-    {{ .SLOCss | safeHTML }}
-
+    <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -99,6 +58,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/moment.min.js"></script>
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
@@ -109,32 +69,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </head>
 
 <body>
+    <div class="pop-layer" id="pop-layer">
+    </div>
     <div id="app-container">
 
         <div id="app-side-nav">
         </div>
-
-        <div id="all-slos">
-            <h1 class="myOrg-heading">Metrics Dashboard</h1>
-            <div class="dash">
-        
-                <div class="card"  onclick="window.location.href='metrics-explorer.html'">
-                    <div class="title">Explorer</div>
-                    <div class="description">Manage your enrolled courses.</div>
-                </div>
-        
-                <div class="card" onclick="window.location.href='metric-summary.html'">
-                    <div class="title">Summary</div>
-                    <div class="description">View your daily schedule.</div>
-                </div>
-        
-                <div class="card" onclick="window.location.href='metric-cardinality.html'">
-                    <div class="title">Cardinality</div>
-                    <div class="description">Check faculty details.</div>
+        <div id="dashboard" class="p-4">
+            <div>
+                <h1 class="myOrg-heading">Infrastructure</h1>
+                <p class="caption">Understand your infrastructure's health</p>
+            </div>
+            <div>
+                <div class="kubernetes-card">
+                    <div class="myOrg-heading">Kubernetes</div>
+                    <p class="mt-2">
+                        Quickly and easily monitor you Kubernetes infrastructure with SigLens
+                    </p>
                 </div>
             </div>
         </div>
-
         <div id="app-footer">
             2024 &copy; SigLens
         </div>
@@ -145,11 +99,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/common.js?cb=1_1_10"></script>
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/all-slos.js"></script>
-    <script src="./component/upper-navbar/upper-navbar.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $('.theme-btn').on('click', themePickerHandler);
+            $('.kubernetes-card').click(function () {
+                window.location.href = 'kubernetes-overview.html';
+            });
+        });
+    </script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
+
 </body>
 
 </html>

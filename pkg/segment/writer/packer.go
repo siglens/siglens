@@ -573,7 +573,7 @@ func (ss *SegStore) initAndBackFillColumn(key string, ssType SS_DTYPE,
 }
 
 func initMicroIndices(key string, ssType SS_DTYPE, colBlooms map[string]*BloomIndex,
-	colRis map[string]*RangeIndex) {
+	colRis map[string]*RangeIndex) error {
 
 	switch ssType {
 	case SS_DT_STRING:
@@ -581,7 +581,7 @@ func initMicroIndices(key string, ssType SS_DTYPE, colBlooms map[string]*BloomIn
 		bi.uniqueWordCount = 0
 		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
-	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM:
+	case SS_DT_SIGNED_NUM, SS_DT_UNSIGNED_NUM, SS_DT_FLOAT:
 		ri := &RangeIndex{}
 		ri.Ranges = make(map[string]*Numbers)
 		colRis[key] = ri
@@ -592,14 +592,20 @@ func initMicroIndices(key string, ssType SS_DTYPE, colBlooms map[string]*BloomIn
 		bi.Bf = bloom.NewWithEstimates(uint(BLOCK_BLOOM_SIZE), BLOOM_COLL_PROBABILITY)
 		colBlooms[key] = bi
 	default:
-		log.Errorf("initMicroIndices: unknown ssType: %v", ssType)
+		return fmt.Errorf("initMicroIndices: unknown ssType: %v", ssType)
 	}
+
+	return nil
 }
 
 func (ss *SegStore) backFillPastRecords(key string, ssType SS_DTYPE, recNum uint16, colBlooms map[string]*BloomIndex,
 	colRis map[string]*RangeIndex, colWip *ColWip) uint32 {
 
-	initMicroIndices(key, ssType, colBlooms, colRis)
+	err := initMicroIndices(key, ssType, colBlooms, colRis)
+	if err != nil {
+		ss.StoreSegmentError(err.Error(), log.ErrorLevel, err)
+	}
+
 	packedLen := uint32(0)
 
 	recArr := make([]uint16, recNum)
@@ -938,6 +944,17 @@ func GetMockSegBaseDirAndKeyForTest(dataDir string, indexName string) (string, s
 	}
 	segKey := segBaseDir + "0"
 	return segBaseDir, segKey, nil
+}
+
+func GetMockVTableDirForTest(myid int64, vTableName string) (string, error) {
+	streamid := utils.CreateStreamId(vTableName, myid)
+	vTableDir := config.GetBaseVTableDir(streamid, vTableName)
+	err := os.MkdirAll(vTableDir, 0755)
+	if err != nil {
+		return "", err
+	}
+
+	return vTableDir, nil
 }
 
 func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,

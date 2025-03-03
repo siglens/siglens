@@ -294,19 +294,14 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 	return nil
 }
 
-func syncSegMetaWithSegFullMeta(myId int64) {
+func syncSegMetaWithSegFullMeta(myId int64, allSegKeys map[string]struct{}) int {
 	vTableNames, err := virtualtable.GetVirtualTableNames(myId)
 	if err != nil {
 		log.Errorf("syncSegMetaWithSegFullMeta: Error in getting vtable names, err:%v", err)
-		return
+		return 0
 	}
 
 	allSmi := make([]*segmetadata.SegmentMicroIndex, 0)
-
-	var ownedSegments map[string]struct{}
-	if hook := hooks.GlobalHooks.GetOwnedSegmentsHook; hook != nil {
-		ownedSegments = hook()
-	}
 
 	for vTableName := range vTableNames {
 		streamid := utils.CreateStreamId(vTableName, myId)
@@ -321,11 +316,14 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 		for _, file := range filesInDir {
 			fileName := file.Name()
 			segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fileName)
-			if ownedSegments != nil {
-				if _, exists := ownedSegments[segkey]; !exists {
+
+			if allSegKeys != nil {
+				if _, exists := allSegKeys[segkey]; exists {
+					// This segment is already in the segmetadata
 					continue
 				}
 			}
+
 			_, exists := segmetadata.GetMicroIndex(segkey)
 			if exists {
 				continue
@@ -348,15 +346,17 @@ func syncSegMetaWithSegFullMeta(myId int64) {
 
 	segmetadata.BulkAddSegmentMicroIndex(allSmi)
 
-	smiCount := len(allSmi)
-	segMetaSlice := make([]*structs.SegMeta, smiCount)
+	addedSmiCount := len(allSmi)
+	segMetaSlice := make([]*structs.SegMeta, addedSmiCount)
 	for idx, smi := range allSmi {
-		reverseIdx := smiCount - idx - 1
+		reverseIdx := addedSmiCount - idx - 1
 		segMetaSlice[reverseIdx] = &smi.SegMeta
 	}
 
 	writer.BulkAddRotatedSegmetas(segMetaSlice, false)
-	log.Infof("syncSegMetaWithSegFullMeta: Added %d segmeta entries", smiCount)
+	log.Infof("syncSegMetaWithSegFullMeta: myid=%v, Added %d segmeta entries", myId, addedSmiCount)
+
+	return addedSmiCount
 }
 
 func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {

@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Prettier Format JS code Files
     needs: check-changed-files
-    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true' }}
+    if: ${{ needs.check-changed-files.outputs.skip_tests != 'true'  && github.event.pull_request.base.ref != 'main' }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -17,8 +17,3 @@ jobs:
           node-version: "18.18.0"
       - run: npm ci
       - run: npm run prettier:format
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-        with:
-          commit_message: "github actions: style: format files"

@@ -550,7 +550,7 @@ function getValuesofColumn(chooseColumn) {
     valuesOfColumn.clear();
     let param = {
         state: 'query',
-        searchText: `SELECT DISTINCT ${chooseColumn} FROM \`${selectedSearchIndex}\``,
+        searchText: `SELECT DISTINCT \`${chooseColumn}\` FROM \`${selectedSearchIndex}\``,
         startEpoch: filterStartDate,
         endEpoch: filterEndDate,
         indexName: selectedSearchIndex,
@@ -613,7 +613,7 @@ function setShowColumnInfoDialog() {
         },
         buttons: {
             Cancel: {
-                class: 'cancelqButton cancel-record-btn',
+                class: 'cancelqButton cancel-record-btn btn btn-secondary',
                 text: 'OK',
                 click: function () {
                     $('#show-record-popup').dialog('close');
