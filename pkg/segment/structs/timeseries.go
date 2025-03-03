@@ -182,20 +182,25 @@ func (t *timeBasedIterator) Next() (entry, bool) {
 	return value, true
 }
 
-func (t *timeBasedSeries) Range(startExclusive, endInclusive epoch) timeseries {
-	startIndex := sort.Search(len(t.timestamps), func(i int) bool {
-		return t.timestamps[i] > startExclusive
-	})
-	endIndex := sort.Search(len(t.timestamps), func(i int) bool {
-		return t.timestamps[i] > endInclusive
-	})
+func (t *timeBasedSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+	switch mode {
+	case PromQl3Range:
+		startIndex := sort.Search(len(t.timestamps), func(i int) bool {
+			return t.timestamps[i] > start
+		})
+		endIndex := sort.Search(len(t.timestamps), func(i int) bool {
+			return t.timestamps[i] > end
+		})
 
-	values := make([]entry, 0)
-	for i := startIndex; i < endIndex; i++ {
-		values = append(values, entry{timestamp: t.timestamps[i], value: t.valueAt(t.timestamps[i])})
+		values := make([]entry, 0)
+		for i := startIndex; i < endIndex; i++ {
+			values = append(values, entry{timestamp: t.timestamps[i], value: t.valueAt(t.timestamps[i])})
+		}
+
+		return &normalTimeseries{values: values}
 	}
 
-	return &normalTimeseries{values: values}
+	return nil
 }
 
 type downsampler struct {
@@ -236,6 +241,7 @@ func (d *downsampler) Evaluate() timeseries {
 		}
 
 		currentBucket = d.snapToInterval(firstEntry.timestamp)
+		currentValues = []float64{firstEntry.value}
 	}
 
 	// Close the last bucket.

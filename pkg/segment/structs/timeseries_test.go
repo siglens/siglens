@@ -25,8 +25,8 @@ import (
 
 func Test_implementsSeries(t *testing.T) {
 	var _ timeseries = &normalTimeseries{}
-	var _ timeseries = &windowedTimeseries{}
 	var _ timeseries = &timeBasedSeries{}
+	var _ timeseries = &rangeSeries{}
 }
 
 func Test_normalTimeseries(t *testing.T) {
@@ -36,11 +36,6 @@ func Test_normalTimeseries(t *testing.T) {
 			{timestamp: 2, value: 102},
 		},
 	}
-
-	t.Run("GetTimestamps", func(t *testing.T) {
-		timestamps := series.GetTimestamps()
-		assert.Equal(t, []epoch{1, 2}, timestamps)
-	})
 
 	t.Run("AtOrBefore", func(t *testing.T) {
 		value, ok := series.AtOrBefore(0)
@@ -58,40 +53,20 @@ func Test_normalTimeseries(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, 102.0, value)
 	})
-}
 
-func Test_windowedTimeseries(t *testing.T) {
-	innerSeries := &normalTimeseries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
-			{timestamp: 3, value: 103},
-		},
-	}
+	t.Run("Iterator", func(t *testing.T) {
+		iter := series.Iterator()
 
-	series := RestrictRange(innerSeries, 1, 2)
-	_, ok := series.(*windowedTimeseries)
-	assert.True(t, ok)
-
-	t.Run("GetTimestamps", func(t *testing.T) {
-		timestamps := series.GetTimestamps()
-		assert.Equal(t, []epoch{2}, timestamps)
-	})
-
-	t.Run("AtOrBefore", func(t *testing.T) {
-		value, ok := series.AtOrBefore(0)
-		assert.False(t, ok)
-
-		value, ok = series.AtOrBefore(1)
-		assert.False(t, ok)
-
-		value, ok = series.AtOrBefore(2)
+		point, ok := iter.Next()
 		assert.True(t, ok)
-		assert.Equal(t, 102.0, value)
+		assert.Equal(t, entry{timestamp: 1, value: 101}, point)
 
-		value, ok = series.AtOrBefore(3)
+		point, ok = iter.Next()
 		assert.True(t, ok)
-		assert.Equal(t, 102.0, value)
+		assert.Equal(t, entry{timestamp: 2, value: 102}, point)
+
+		_, ok = iter.Next()
+		assert.False(t, ok)
 	})
 }
 
@@ -102,11 +77,6 @@ func Test_timeBasedSeries(t *testing.T) {
 			return float64(timestamp) + 100
 		},
 	}
-
-	t.Run("GetTimestamps", func(t *testing.T) {
-		timestamps := series.GetTimestamps()
-		assert.Equal(t, []epoch{1, 2}, timestamps)
-	})
 
 	t.Run("AtOrBefore", func(t *testing.T) {
 		value, ok := series.AtOrBefore(0)
@@ -124,6 +94,21 @@ func Test_timeBasedSeries(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, 103.0, value)
 	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		iter := series.Iterator()
+
+		point, ok := iter.Next()
+		assert.True(t, ok)
+		assert.Equal(t, entry{timestamp: 1, value: 101}, point)
+
+		point, ok = iter.Next()
+		assert.True(t, ok)
+		assert.Equal(t, entry{timestamp: 2, value: 102}, point)
+
+		_, ok = iter.Next()
+		assert.False(t, ok)
+	})
 }
 
 func Test_timeBasedSeries_empty(t *testing.T) {
@@ -134,13 +119,15 @@ func Test_timeBasedSeries_empty(t *testing.T) {
 		},
 	}
 
-	t.Run("GetTimestamps", func(t *testing.T) {
-		timestamps := series.GetTimestamps()
-		assert.Equal(t, []epoch{}, timestamps)
-	})
-
 	t.Run("AtOrBefore", func(t *testing.T) {
 		_, ok := series.AtOrBefore(0)
+		assert.False(t, ok)
+	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		iter := series.Iterator()
+
+		_, ok := iter.Next()
 		assert.False(t, ok)
 	})
 }
@@ -167,14 +154,10 @@ func Test_Downsample(t *testing.T) {
 	}
 
 	downsampled := downsampler.Evaluate()
-	t.Run("GetTimestamps", func(t *testing.T) {
-		timestamps := downsampled.GetTimestamps()
-		assert.Equal(t, []epoch{10, 30}, timestamps)
-	})
-
 	t.Run("AtOrBefore", func(t *testing.T) {
 		value, ok := downsampled.AtOrBefore(0)
-		assert.False(t, ok)
+		assert.True(t, ok)
+		assert.Equal(t, 101.5, value)
 
 		value, ok = downsampled.AtOrBefore(10)
 		assert.True(t, ok)
@@ -187,5 +170,20 @@ func Test_Downsample(t *testing.T) {
 		value, ok = downsampled.AtOrBefore(100)
 		assert.True(t, ok)
 		assert.Equal(t, 130.0, value)
+	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		iter := downsampled.Iterator()
+
+		point, ok := iter.Next()
+		assert.True(t, ok)
+		assert.Equal(t, entry{timestamp: 0, value: 101.5}, point)
+
+		point, ok = iter.Next()
+		assert.True(t, ok)
+		assert.Equal(t, entry{timestamp: 30, value: 130}, point)
+
+		_, ok = iter.Next()
+		assert.False(t, ok)
 	})
 }
