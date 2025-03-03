@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package structs
+package metrics
 
 import (
 	"testing"
@@ -53,7 +53,7 @@ func Test_TaggedMetric(t *testing.T) {
 		assert.Equal(t, "value1", val)
 
 		// Non-existent key
-		val, exists = item.GetValue("nonexistent")
+		_, exists = item.GetValue("nonexistent")
 		assert.False(t, exists)
 	})
 
