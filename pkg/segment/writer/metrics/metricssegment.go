@@ -687,6 +687,109 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	}
 }
 
+func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint32, error) {
+	var mName []byte
+	var dpVal float64
+	var ts uint32
+	var err error
+
+	if tags == nil {
+		log.Errorf("ExtractOTLPPayload: tags holder is nil")
+		return nil, 0, 0, fmt.Errorf("tags holder is nil")
+	}
+
+	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
+		switch {
+		case bytes.Equal(key, otsdb_mname):
+			switch valueType {
+			case jp.String:
+				_, err := jp.ParseString(value)
+				if err != nil {
+					log.Errorf("ExtractOTLPPayload: failed to parse %v as string, err=%v", value, err)
+					return err
+				}
+				mName = value
+			default:
+				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for metric name %v", valueType, value)
+			}
+		case bytes.Equal(key, otsdb_tags):
+			if valueType != jp.Object {
+				log.Errorf("ExtractOTLPPayload: tags key %s has value %s of type %v, which is not an object", key, value, valueType)
+				return fmt.Errorf("value type %v is not an object", valueType)
+			}
+			err = extractTagsFromJson(value, tags)
+			if err != nil {
+				log.Errorf("ExtractOTLPPayload: failed to extract tags. value=%s, tags=%+v, err=%v", value, tags, err)
+				return err
+			}
+		case bytes.Equal(key, otsdb_timestamp):
+			switch valueType {
+			case jp.Number:
+				intVal, err := jp.ParseInt(value)
+				if err != nil {
+					fltVal, err := jp.ParseFloat(value)
+					if err != nil {
+						log.Errorf("ExtractOTLPPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
+						return fmt.Errorf("ExtractOTLPPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
+					} else {
+						if toputils.IsTimeInNano(uint64(fltVal)) {
+							ts = uint32(fltVal / 1_000_000_000)
+						} else if toputils.IsTimeInMilli(uint64(fltVal)) {
+							ts = uint32(fltVal / 1000)
+						} else {
+							ts = uint32(fltVal)
+						}
+					}
+				} else {
+					if toputils.IsTimeInNano(uint64(intVal)) {
+						ts = uint32(intVal / 1_000_000_000)
+					} else if toputils.IsTimeInMilli(uint64(intVal)) {
+						ts = uint32(intVal / 1000)
+					} else {
+						ts = uint32(intVal)
+					}
+				}
+
+			default:
+				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for timestamp %v", valueType, value)
+			}
+		case bytes.Equal(key, otsdb_value):
+			if valueType != jp.Number {
+				log.Errorf("ExtractOTLPPayload: value %s of type %v is not a number", value, valueType)
+				return fmt.Errorf("value is not a number")
+			}
+			fltVal, err := jp.ParseFloat(value)
+			if err != nil {
+				log.Errorf("ExtractOTLPPayload: failed to parse value %v as float, err=%v", value, err)
+				return fmt.Errorf("failed to convert value to float! %+v", err)
+			}
+			dpVal = fltVal
+
+		}
+		return nil
+	}
+	rawJson = bytes.Replace(rawJson, []byte("NaN"), []byte("0"), -1)
+	err = jp.ObjectEach(rawJson, handler)
+
+	if err != nil {
+		log.Errorf("ExtractOTLPPayload: failed to parse json %s, err=%v", rawJson, err)
+		return mName, dpVal, ts, err
+	}
+	if len(mName) == 0 && err == nil {
+		return nil, dpVal, 0, nil
+	}
+
+	if len(mName) > 0 && ts > 0 {
+		return mName, dpVal, ts, nil
+	}
+
+	err = fmt.Errorf("ExtractOTLPPayload: failed to find all expected keys. mName=%s, ts=%d, dpVal=%f", mName, ts, dpVal)
+	log.Errorf(err.Error())
+
+	return nil, dpVal, 0, err
+
+}
+
 // for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
 // Call the EncodeDatapoint function to add the datapoint to the respective series
 // Return the number of datapoints ingested and any errors encountered
