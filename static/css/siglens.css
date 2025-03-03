@@ -715,13 +715,18 @@ body {
 }
 
 /* Arrow styles */
-.big-menu .dropdown-arrow {
+
+.nav-dropdown-icon{
+    border: none;
+}
+
+.big-menu .nav-dropdown-icon {
     transition: transform 0.3s ease;
     display: inline-block;
     padding: 15px;
 }
 
-.big-menu .dropdown-arrow.active {
+.big-menu .nav-dropdown-icon.active {
     transform: rotate(180deg);
 }
 
@@ -1015,6 +1020,7 @@ body {
 #associated-alerts {
     width: 300px;
 }
+
 #app-footer {
     position: fixed;
     bottom: 0;

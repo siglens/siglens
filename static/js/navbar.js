@@ -45,7 +45,7 @@ let navbarComponent = `
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text">Metrics</span>
                 </div>
-                <img class="dropdown-arrow orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">
+                <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">
             </a>
 
             <div class="accordion-content" style="display: none;">
@@ -177,7 +177,7 @@ $(document).ready(function () {
 
         const $menu = $(this).closest('.big-menu');
         const $submenu = $menu.find('.accordion-content');
-        const $arrow = $menu.find('.dropdown-arrow');
+        const $arrow = $menu.find('.nav-dropdown-icon');
 
         const isOpen = $submenu.is(':visible');
 
@@ -201,7 +201,7 @@ $(document).ready(function () {
         $('.big-menu').each(function () {
             const $menu = $(this);
             const $submenu = $menu.find('.accordion-content');
-            const $arrow = $menu.find('.dropdown-arrow');
+            const $arrow = $menu.find('.nav-dropdown-icon');
             const menuText = $menu.find('.nav-link-text').text().trim();
 
             if (activeMenus.includes(menuText)) {
@@ -233,7 +233,7 @@ $(document).ready(function () {
         currentUrl.includes('metric-cardinality.html')) {
         $('.nav-metrics').addClass('active');
         $('.nav-metrics .accordion-content').show();
-        $('.nav-metrics .dropdown-arrow').addClass('active');
+        $('.nav-metrics .nav-dropdown-icon').addClass('active');
     } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
         $('.nav-ldb').addClass('active');
     } else if (currentUrl.includes('saved-queries.html')) {
