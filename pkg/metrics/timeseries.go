@@ -425,13 +425,13 @@ func (w *windowMappingSeries) evaluate() timeseries {
 	// Create sliding windows and compute results
 	finalEntries := make([]entry, 0)
 
-	for windowEnd := startTimestamp + w.windowSize; windowEnd < endTimestamp+w.stepSize; windowEnd += w.stepSize {
-		windowStart := windowEnd - w.windowSize
+	for windowEnd := startTimestamp; windowEnd < endTimestamp+w.stepSize; windowEnd += w.stepSize {
+		windowStart := int32(windowEnd - w.windowSize)
 		valuesInWindow := make([]float64, 0)
 
 		for _, entry := range allValues {
 			// The window is (windowStart, windowEnd]
-			if entry.timestamp > windowStart && entry.timestamp <= windowEnd {
+			if int32(entry.timestamp) > windowStart && entry.timestamp <= windowEnd {
 				valuesInWindow = append(valuesInWindow, entry.value)
 			}
 		}

@@ -261,6 +261,46 @@ func Test_Downsample(t *testing.T) {
 	})
 }
 
+func Test_WindowMappingSeries_SmallStep(t *testing.T) {
+	baseSeries := &lookupSeries{
+		values: []entry{
+			{timestamp: 1, value: 101},
+			{timestamp: 2, value: 102},
+			{timestamp: 3, value: 103},
+			{timestamp: 4, value: 104},
+			{timestamp: 5, value: 105},
+			{timestamp: 6, value: 106},
+		},
+	}
+
+	series := &windowMappingSeries{
+		timeseries: baseSeries,
+		aggregator: avg,
+		windowSize: 3,
+		stepSize:   2,
+	}
+
+	t.Run("AtOrBefore", func(t *testing.T) {
+		assertAtOrBefore(t, series, 0, 0.0, false)
+		assertAtOrBefore(t, series, 1, 0.0, false)
+		assertAtOrBefore(t, series, 2, 101.5, true)
+		assertAtOrBefore(t, series, 3, 101.5, true)
+		assertAtOrBefore(t, series, 4, 103.0, true)
+		assertAtOrBefore(t, series, 5, 103.0, true)
+		assertAtOrBefore(t, series, 6, 105.0, true)
+		assertAtOrBefore(t, series, 7, 105.0, true)
+		assertAtOrBefore(t, series, 100, 105.0, true)
+	})
+
+	t.Run("Iterator", func(t *testing.T) {
+		assertEqualIterators(t, utils.NewIterator([]entry{
+			{timestamp: 2, value: 101.5}, // (101 + 102) / 2
+			{timestamp: 4, value: 103},   // (102 + 103 + 104) / 3
+			{timestamp: 6, value: 105},   // (104 + 105 + 106) / 3
+		}), series.Iterator())
+	})
+}
+
 func assertAtOrBefore(t *testing.T, series timeseries, timestamp epoch, expectedValue float64, expectedOk bool) {
 	t.Helper()
 
@@ -283,4 +323,13 @@ func assertEqualIterators[T any](t *testing.T, expected utils.Iterator[T], actua
 
 		assert.Equal(t, expectedValue, actualValue)
 	}
+}
+
+func avg(values []float64) float64 {
+	sum := 0.0
+	for _, v := range values {
+		sum += v
+	}
+
+	return sum / float64(len(values))
 }
