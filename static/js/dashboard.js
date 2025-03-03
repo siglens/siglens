@@ -119,10 +119,6 @@ $(document).ready(async function () {
         }
     });
 
-    // $('.all-dashboards').click(function () {
-    //     window.location.href = '../dashboards-home.html';
-    // });
-
     $('#theme-btn').click(() => displayPanels());
     getDashboardData();
     $(`.dbSet-textareaContainer .copy`).tooltip({
