@@ -229,6 +229,7 @@ export default [
                 goToPage: true,
                 updatePaginationDisplay: true,
                 refreshColumnVisibility: true,
+                initializeBreadcrumbs: true,
             },
         },
         rules: {
