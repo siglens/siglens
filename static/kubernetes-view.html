@@ -77,12 +77,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
         <div id="dashboard">
             <div class="kubernetes-view-page">
-                <div id="kubernetes-breadcrumb" class="header-container"></div>
-                <div class="p-3">
+                <div class="p-3 h-100">
                     <div>
                         <div id="kubernetes-header"></div>
                     </div>
-                    <div class="d-flex justify-content-between align-items-baseline main-filter-container">
+                    <div class="justify-content-between align-items-baseline main-filter-container">
                         <div class="filters-wrapper d-flex gap-3">
                             <div id="filter-cluster" class="d-flex align-items-center"></div>
                             <div id="filter-namespace" class="d-flex align-items-center"></div>
@@ -92,11 +91,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         <div id="resource-usage-container"></div>
                     </div>
-                    <div id="ag-grid" class="ag-theme-mycustomtheme mt-3" style="height: 600px;"></div>
+                    <div class="k8-grid-container">
+                        <div id="ag-grid" class="ag-theme-mycustomtheme"></div>
+                        <div class="json-popup"></div>
+                    </div>
                 </div>
             </div>
             <div class="configuration-page">
-                <div id="config-breadcrumb" class="header-container"></div>
                 <div class="p-3">
                     <div>
                         <div id="config-header"></div>
@@ -116,7 +117,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb=1_1_10"></script>
     <script src="./js/date-picker.js?cb=1_1_10"></script>
     <script src="./js/kubernetes-view.js"></script>
-    <script src="./component/infrastructure/breadcrumb-component.js"></script>
     <script src="./component/infrastructure/header-component.js"></script>
     <script src="./component/infrastructure/big-number-card-component.js"></script>
     <script src="./component/infrastructure/search-dropdown-component.js"></script>

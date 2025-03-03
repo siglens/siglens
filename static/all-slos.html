@@ -69,13 +69,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div id="app-side-nav">
         </div>
 
-        <div id="all-slos">
-            <h1 class="myOrg-heading">SLOs</h1>
-            {{ if .EnterpriseEnabled }}
-            {{ .OrgSLOs | safeHTML }}
-            {{ else }}
-            {{ EntMsg }}
-            {{ end }}
+        <div id="dashboard">
+            <div class="p-4">
+                {{ if .EnterpriseEnabled }}
+                {{ .OrgSLOs | safeHTML }}
+                {{ else }}
+                {{ EntMsg }}
+                {{ end }}
+            </div>
         </div>
 
         <div id="app-footer">

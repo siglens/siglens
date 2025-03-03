@@ -24,12 +24,18 @@ class KubernetesView {
         this.endTime = urlParams.get('endEpoch') || 'now';
         this.gridOptions = null;
         this.filters = {};
+        this.currentFrom = 0;
         this.init();
+
+        datePickerHandler(this.startTime, this.endTime, this.startTime);
+        setupEventHandlers();
     }
 
     init() {
         if (this.type === 'configuration') {
             this.initConfigurationView();
+        } else if (this.type === 'events') {
+            this.initEventsView();
         } else {
             this.initMainView();
         }
@@ -39,7 +45,7 @@ class KubernetesView {
         $('.kubernetes-view-page').hide();
         $('.configuration-page').show();
 
-        this.initBreadcrumb('config-breadcrumb');
+        this.initBreadcrumb();
         const header = new DashboardHeader('config-header', {
             title: 'Configuration',
             showTimeRange: false,
@@ -51,11 +57,94 @@ class KubernetesView {
         new ConfigurationPage(config);
     }
 
+    initEventsView() {
+        $('.kubernetes-view-page').show();
+        $('.configuration-page, .main-filter-container').hide();
+
+        this.initBreadcrumb();
+        this.initEventsHeader();
+        this.initGrid();
+        this.loadEventsData();
+    }
+
+    initEventsHeader() {
+        const header = new DashboardHeader('kubernetes-header', {
+            title: 'Events',
+            startTime: this.startTime,
+            endTime: this.endTime,
+            showRefresh: false,
+            showTimeRange: true,
+        });
+        header.render();
+
+        $(document).on('click', '.range-item', () => {
+            this.startTime = filterStartDate;
+            this.endTime = filterEndDate;
+            this.currentFrom = 0;
+            this.loadEventsData();
+        });
+
+        $(document).on('click', '#customrange-btn', () => {
+            this.startTime = filterStartDate;
+            this.endTime = filterEndDate;
+            this.currentFrom = 0;
+            this.loadEventsData();
+        });
+    }
+
+    async loadEventsData(append = false) {
+        try {
+            const param = {
+                state: 'query',
+                searchText: '*',
+                startEpoch: this.startTime,
+                endEpoch: this.endTime,
+                indexName: 'k8s-events-sig',
+                queryLanguage: 'Splunk QL',
+                from: this.currentFrom,
+            };
+
+            const response = await $.ajax({
+                method: 'post',
+                url: 'api/search',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    Accept: '*/*',
+                },
+                crossDomain: true,
+                dataType: 'json',
+                data: JSON.stringify(param),
+            });
+
+            if (response?.hits?.records) {
+                const newData = response.hits.records;
+                if (append) {
+                    // Store scroll position
+                    const gridBody = document.querySelector('.ag-body-viewport');
+                    const scrollTop = gridBody.scrollTop;
+
+                    // Update data
+                    let currentData = [];
+                    this.gridOptions.api.forEachNode((node) => {
+                        currentData.push(node.data);
+                    });
+                    this.gridOptions.api.setRowData([...currentData, ...newData]);
+
+                    // Restore scroll position
+                    gridBody.scrollTop = scrollTop;
+                } else {
+                    this.gridOptions.api.setRowData(newData);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading events data:', error);
+        }
+    }
     initMainView() {
         $('.kubernetes-view-page').show();
         $('.configuration-page').hide();
 
-        this.initBreadcrumb('kubernetes-breadcrumb');
+        this.initBreadcrumb();
         this.initHeader();
         this.initFilters();
         this.initGrid();
@@ -122,14 +211,13 @@ class KubernetesView {
         });
     }
 
-    initBreadcrumb(containerId) {
+    initBreadcrumb() {
         const capitalizedType = this.type.charAt(0).toUpperCase() + this.type.slice(1);
-        const breadcrumb = new Breadcrumb(containerId);
 
-        breadcrumb.render([
-            { label: 'Infrastructure', url: 'infrastructure', className: 'all-dashboards' },
-            { label: 'Kubernetes', url: 'kubernetes-overview', className: 'all-dashboards' },
-            { label: capitalizedType, url: this.type, className: 'myOrg-heading' },
+        initializeBreadcrumbs([
+            { name: 'Infrastructure', url: 'infrastructure.html' },
+            { name: 'Kubernetes', url: 'kubernetes-overview.html' },
+            { name: capitalizedType, url: this.type },
         ]);
     }
 
@@ -139,7 +227,7 @@ class KubernetesView {
         this.gridOptions = {
             columnDefs: columnDefs,
             rowData: [],
-            rowHeight: 34,
+            rowHeight: 32,
             headerHeight: 26,
             defaultColDef: {
                 sortable: true,
@@ -155,6 +243,17 @@ class KubernetesView {
             },
             enableCellTextSelection: true,
             suppressCopyRowsToClipboard: true,
+            onBodyScroll: (params) => {
+                if (this.type === 'events') {
+                    const lastRow = params.api.getLastDisplayedRow();
+                    const totalRows = params.api.getModel().getRowCount();
+
+                    if (lastRow >= totalRows - 10) {
+                        this.currentFrom += 100;
+                        this.loadEventsData(true);
+                    }
+                }
+            },
         };
 
         const gridDiv = document.querySelector('#ag-grid');
@@ -162,6 +261,18 @@ class KubernetesView {
     }
 
     getColumnDefs() {
+        if (this.type === 'events') {
+            return [
+                { field: 'severity_text', headerName: 'TYPE', cellRenderer: ExpandableJsonCellRenderer('events') },
+                { field: 'attributes.k8s.event.name', headerName: 'NAME' },
+                { field: 'attributes.k8s.event.reason', headerName: 'REASON' },
+                { field: 'attributes.k8s.namespace.name', headerName: 'NAMESPACE' },
+                { field: 'resource.attributes.k8s.object.kind', headerName: 'KIND' },
+                { field: 'attributes.k8s.event.start_time', headerName: 'TIME' },
+                { field: 'body', headerName: 'MESSAGE' },
+            ];
+        }
+
         const columnConfigs = {
             clusters: [{ field: 'CLUSTER' }, { field: 'PROVIDER' }, { field: 'NODES' }, { field: 'CPU_AVG', headerName: 'CPU AVG' }, { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_MAX', headerName: 'MEM MAX' }, { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' }],
             namespaces: [{ field: 'NAMESPACE' }, { field: 'CLUSTER' }, { field: 'WORKLOADS' }, { field: 'CPU_AVG', headerName: 'CPU AVG' }, { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_MAX', headerName: 'MEM MAX' }, { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' }],
@@ -169,7 +280,7 @@ class KubernetesView {
             nodes: [{ field: 'NODE' }, { field: 'CLUSTER' }, { field: 'CPU_AVG', headerName: 'CPU AVG' }, { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_MAX', headerName: 'MEM MAX' }, { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' }],
         };
 
-        return columnConfigs[this.type] || columnConfigs.clusters;
+        return columnConfigs[this.type] || [];
     }
 
     // TODO: Implement retrieving actual data and display that in table

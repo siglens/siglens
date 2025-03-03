@@ -968,6 +968,11 @@ func GetAllRemoteLogs(inrrcs []*utils.RecordResultContainer, qid uint64) ([]map[
 		return nil, nil, fmt.Errorf("qid does not exist")
 	}
 
+	if rQuery.searchRes == nil {
+		log.Errorf("GetAllRemoteLogs: qid %+v does not have searchRes", qid)
+		return nil, nil, fmt.Errorf("searchRes does not exist")
+	}
+
 	return rQuery.searchRes.GetRemoteInfo("", inrrcs, true)
 }
 

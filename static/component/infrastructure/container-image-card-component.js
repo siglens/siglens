@@ -20,6 +20,7 @@ class ContainerImagesCard {
     constructor(containerId) {
         this.container = $(`#${containerId}`);
         this.gridOptions = null;
+        this.loadingElement = null;
         this.init();
         this.fetchData();
     }
@@ -41,8 +42,9 @@ class ContainerImagesCard {
                         </div>
                     </div>
                 </div>
-                <div class="">
+                <div class="position-relative">
                     <div id="imagesGrid" style="height: 400px; width: 100%;" class="ag-theme-alpine-dark"></div>
+                    <div id="panel-loading" style="display: none;" class="image-loading"></div>
                     <div class="count-row">
                         <div class="label">Count</div>
                         <div class="total-count">-</div>
@@ -52,6 +54,7 @@ class ContainerImagesCard {
         `;
 
         this.container.html(template);
+        this.loadingElement = this.container.find('#panel-loading');
         this.setupGrid();
         this.setupEventHandlers();
         this.addStyles();
@@ -150,17 +153,25 @@ class ContainerImagesCard {
         this.container.append(styles);
     }
 
-    async fetchData() {
+    getQuery() {
         const urlParams = new URLSearchParams(window.location.search);
-        const startTime = urlParams.get('startEpoch') || 'now-1h';
-        const endTime = urlParams.get('endEpoch') || 'now';
         const clusterFilter = urlParams.get('cluster') || 'all';
         const namespaceFilter = urlParams.get('namespace') || 'all';
 
         const clusterMatch = clusterFilter === 'all' ? '.+' : clusterFilter;
         const namespaceMatch = namespaceFilter === 'all' ? '.+' : namespaceFilter;
 
-        const query = `sum by (image_spec) (kube_pod_container_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"})`;
+        return `sum by (image_spec) (kube_pod_container_info{cluster=~"${clusterMatch}", namespace=~"${namespaceMatch}"})`;
+    }
+
+    async fetchData() {
+        this.showLoading();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const startTime = urlParams.get('startEpoch') || 'now-1h';
+        const endTime = urlParams.get('endEpoch') || 'now';
+
+        const query = this.getQuery();
 
         const requestData = {
             start: startTime,
@@ -195,6 +206,8 @@ class ContainerImagesCard {
             this.updateTable(response);
         } catch (error) {
             this.showError();
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -241,6 +254,7 @@ class ContainerImagesCard {
     setupEventHandlers() {
         const dropdown = this.container.find('.dropdown');
         const menuButton = dropdown.find('.menu-button');
+        const exploreOption = this.container.find('.explore-option');
 
         menuButton.on('click', (e) => {
             e.stopPropagation();
@@ -252,5 +266,23 @@ class ContainerImagesCard {
         $(document).on('click', () => {
             $('.dropdown').removeClass('active');
         });
+
+        exploreOption.on('click', (e) => {
+            e.stopPropagation();
+            const query = this.getQuery();
+            MetricsUtils.navigateToMetricsExplorer(query, dropdown);
+        });
+    }
+
+    showLoading() {
+        if (this.loadingElement) {
+            this.loadingElement.show();
+        }
+    }
+
+    hideLoading() {
+        if (this.loadingElement) {
+            this.loadingElement.hide();
+        }
     }
 }

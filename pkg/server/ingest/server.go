@@ -149,7 +149,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 		hook(hs.router, hs.Recovery)
 	}
 
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		log.Errorf("ingestionServerCfg.Run: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err
@@ -194,7 +194,7 @@ func (hs *ingestionServerCfg) Run() (err error) {
 
 func (hs *ingestionServerCfg) RunSafeServer() (err error) {
 	hs.router.GET("/health", hs.Recovery(getSafeHealthHandler()))
-	hs.ln, err = net.Listen("tcp4", hs.Addr)
+	hs.ln, err = net.Listen("tcp", hs.Addr)
 	if err != nil {
 		log.Errorf("ingestionServerCfg.RunSafeServer: Failed to listen on %s, err=%v", hs.Addr, err)
 		return err

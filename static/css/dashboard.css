@@ -464,11 +464,6 @@
   justify-content: flex-end;
 }
 
-
-.panEdit-navBar #date-picker-btn, .table-view-toggle-container{
-  margin-left: 15px;
-}
-
 .panEdit-navBtns {
   display: flex;
   flex-direction: row;
@@ -558,13 +553,6 @@
   background-color: var(--black-1) !important;
   color: var(--white-3) !important;
   border-bottom: 1px solid var(--white-4) !important;
-}
-
-/* SIDENAV */
-#app-container #app-side-nav {
-  height: 100vh;
-  position: fixed;
-  z-index: 2;
 }
 
 /* BIG NUMBER */
@@ -929,29 +917,6 @@
 .queryInput-InnerContainer .info-icon{
   right: 5px;
 }
-#panel-loading {
-  border: 4px solid var(--purple-1);
-  border-radius: 50%;
-  border-top: 4px solid var(--lavender-1);
-  border-bottom: 4px solid var(--lavender-1);
-  width: 30px;
-  height: 30px;
-  -webkit-animation: spin 2s linear infinite;
-  animation: spin 2s linear infinite;
-  position: absolute;
-  z-index: 100;
-}
-
-@-webkit-keyframes spin {
-  0% { -webkit-transform: rotate(0deg); }
-  100% { -webkit-transform: rotate(360deg); }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 
 .label-table-view{
   padding-right: 10px;
@@ -1173,8 +1138,8 @@
     width: 20%;
     padding: 10px 10px;
     position: absolute;
-    right: 20px;
-    top: 50px;
+    right: 10px;
+    top: 90px;
     cursor: default;
     box-shadow: var(--box-shadow);
     z-index: 0;
@@ -1225,7 +1190,7 @@
   display: flex;
   align-items: center;
   padding: 0px 12px;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 #index-listing{
@@ -1385,10 +1350,6 @@
   cursor: pointer;
 }
 
-.avail-fields-btn{
-  height: 32px !important;
-  margin-left: 15px;
-}
 #avail-field-container{
   display: none;
 }

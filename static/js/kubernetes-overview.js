@@ -46,6 +46,43 @@ const QUERIES = {
     )`,
 };
 
+//eslint-disable-next-line no-unused-vars
+const MetricsUtils = {
+    navigateToMetricsExplorer(query, dropdown) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const startTime = urlParams.get('startEpoch') || 'now-1h';
+        const endTime = urlParams.get('endEpoch') || 'now';
+
+        const metricsQueryParamsData = {
+            start: startTime,
+            end: endTime,
+            queries: [
+                {
+                    name: 'a',
+                    query: query,
+                    qlType: 'promql',
+                    state: 'raw',
+                },
+            ],
+            formulas: [
+                {
+                    formula: 'a',
+                },
+            ],
+        };
+
+        const transformedMetricsQueryParams = JSON.stringify(metricsQueryParamsData);
+        const encodedMetricsQueryParams = encodeURIComponent(transformedMetricsQueryParams);
+
+        const newUrl = `metrics-explorer.html?queryString=${encodedMetricsQueryParams}`;
+        window.open(newUrl, '_blank');
+
+        if (dropdown) {
+            $(dropdown).removeClass('active');
+        }
+    },
+};
+
 let dashboardComponents = {
     clusters: null,
     nodes: null,
@@ -258,7 +295,10 @@ function setupRefreshHandlers() {
 
 $(document).ready(async () => {
     try {
-        $('.theme-btn').on('click', themePickerHandler);
+        $('.theme-btn').on('click', function (e) {
+            themePickerHandler(e);
+            document.dispatchEvent(new Event('themeChanged')); //Update chart theme
+        });
 
         const params = initializeUrlParameters();
 
@@ -272,10 +312,9 @@ $(document).ready(async () => {
         dashboardComponents.cpuUsage = new ClusterUsageChart('cpu-usage', 'CPU Usage by Cluster', QUERIES.CPU_USAGE, 'cpu');
         dashboardComponents.memoryUsage = new ClusterUsageChart('memory-usage', 'Memory Usage by Cluster', QUERIES.MEMORY_USAGE, 'memory');
 
-        const breadcrumb = new Breadcrumb('breadcrumb-container');
-        breadcrumb.render([
-            { label: 'Infrastructure', url: 'infrastructure', className: 'all-dashboards' },
-            { label: 'Kubernetes', url: 'kubernetes-overview', className: 'myOrg-heading' },
+        initializeBreadcrumbs([
+            { name: 'Infrastructure', url: 'infrastructure.html' },
+            { name: 'Kubernetes', url: 'kubernetes-overview.html' },
         ]);
 
         const dashboardHeader = new DashboardHeader('header-container', {
@@ -324,19 +363,5 @@ $(document).ready(async () => {
         }
     } catch (error) {
         console.error('Error initializing dashboard:', error);
-
-        /* eslint-disable no-unused-vars */
-        const namespaceFilter = new SearchableDropdown(document.getElementById('filter1-container'), {
-            type: 'namespace',
-            items: [],
-            selectedValues: ['All'],
-        });
-
-        /* eslint-disable no-unused-vars */
-        const clusterFilter = new SearchableDropdown(document.getElementById('filter2-container'), {
-            type: 'cluster',
-            items: [],
-            selectedValues: ['All'],
-        });
     }
 });

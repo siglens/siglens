@@ -38,8 +38,8 @@ func Test_ExtractConfigData(t *testing.T) {
 	}{
 		{ // case 1 - For correct input parameters and values
 			[]byte(`
- ingestListenIP: "0.0.0.0"
- queryListenIP: "0.0.0.0"
+ ingestListenIP: "[::]"
+ queryListenIP: "[::]"
  ingestPort: 9090
  baseLogDir: "./pkg/ingestor/httpserver/"
  queryNode: true
@@ -101,8 +101,8 @@ func Test_ExtractConfigData(t *testing.T) {
    clientCaPath: "/path/to/ca.pem"
  `),
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  9090,
 				IngestUrl:                   "http://localhost:9090",
 				QueryPort:                   5122,
@@ -160,8 +160,8 @@ func Test_ExtractConfigData(t *testing.T) {
 		},
 		{ // case 2 - For wrong input type, show error message
 			[]byte(`
- ingestListenIP: "0.0.0.0"
- queryListenIP: "0.0.0.0"
+ ingestListenIP: "[::]"
+ queryListenIP: "[::]"
  ingestPort: 9090
  queryPort: 9000
  queryNode: true
@@ -208,8 +208,8 @@ func Test_ExtractConfigData(t *testing.T) {
  `),
 
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  9090,
 				QueryPort:                   9000,
 				IngestUrl:                   "http://localhost:9090",
@@ -271,8 +271,8 @@ invalid input, we should error out
 `),
 
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  8081,
 				QueryPort:                   0,
 				IngestUrl:                   "http://localhost:8081",
@@ -287,7 +287,7 @@ invalid input, we should error out
 				MaxSegFileSize:              1_073_741_824,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
-				DataDiskThresholdPercent:    85,
+				DataDiskThresholdPercent:    DEFAULT_DISK_THRESHOLD_PERCENT,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 
@@ -328,8 +328,8 @@ invalid input, we should error out
 a: b
 `),
 			common.Configuration{
-				IngestListenIP:              "0.0.0.0",
-				QueryListenIP:               "0.0.0.0",
+				IngestListenIP:              "[::]",
+				QueryListenIP:               "[::]",
 				IngestPort:                  8081,
 				QueryPort:                   5122,
 				IngestUrl:                   "http://localhost:8081",
@@ -344,7 +344,7 @@ a: b
 				MaxSegFileSize:              4_294_967_296,
 				LicenseKeyPath:              "./",
 				ESVersion:                   "6.8.20",
-				DataDiskThresholdPercent:    85,
+				DataDiskThresholdPercent:    DEFAULT_DISK_THRESHOLD_PERCENT,
 				S3IngestQueueName:           "",
 				S3IngestQueueRegion:         "",
 				S3IngestBufferSize:          1000,

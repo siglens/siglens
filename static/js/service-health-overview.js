@@ -33,7 +33,11 @@ $(document).ready(() => {
     const stDate = getParameterFromUrl('startEpoch');
     const endDate = getParameterFromUrl('endEpoch');
     redMetrics['searchText'] = 'service=' + serviceName + '';
-    $('.service-name').text(serviceName);
+    initializeBreadcrumbs([
+        { name: 'APM', url: './service-health.html' },
+        { name: 'Service Health', url: './service-health.html' },
+        { name: serviceName},
+    ]);
     $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
