@@ -39,20 +39,10 @@ func Test_lookupSeries(t *testing.T) {
 	}
 
 	t.Run("AtOrBefore", func(t *testing.T) {
-		value, ok := series.AtOrBefore(0)
-		assert.False(t, ok)
-
-		value, ok = series.AtOrBefore(1)
-		assert.True(t, ok)
-		assert.Equal(t, 101.0, value)
-
-		value, ok = series.AtOrBefore(2)
-		assert.True(t, ok)
-		assert.Equal(t, 102.0, value)
-
-		value, ok = series.AtOrBefore(100)
-		assert.True(t, ok)
-		assert.Equal(t, 102.0, value)
+		assertAtOrBefore(t, series, 0, 0.0, false)
+		assertAtOrBefore(t, series, 1, 101.0, true)
+		assertAtOrBefore(t, series, 2, 102.0, true)
+		assertAtOrBefore(t, series, 100, 102.0, true)
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
@@ -72,20 +62,10 @@ func Test_generatedSeries(t *testing.T) {
 	}
 
 	t.Run("AtOrBefore", func(t *testing.T) {
-		value, ok := series.AtOrBefore(0)
-		assert.False(t, ok)
-
-		value, ok = series.AtOrBefore(1)
-		assert.True(t, ok)
-		assert.Equal(t, 101.0, value)
-
-		value, ok = series.AtOrBefore(2)
-		assert.True(t, ok)
-		assert.Equal(t, 102.0, value)
-
-		value, ok = series.AtOrBefore(3)
-		assert.True(t, ok)
-		assert.Equal(t, 103.0, value)
+		assertAtOrBefore(t, series, 0, 0.0, false)
+		assertAtOrBefore(t, series, 1, 101.0, true)
+		assertAtOrBefore(t, series, 2, 102.0, true)
+		assertAtOrBefore(t, series, 3, 103.0, true)
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
@@ -105,8 +85,7 @@ func Test_generatedSeries_empty(t *testing.T) {
 	}
 
 	t.Run("AtOrBefore", func(t *testing.T) {
-		_, ok := series.AtOrBefore(0)
-		assert.False(t, ok)
+		assertAtOrBefore(t, series, 0, 0.0, false)
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
@@ -140,29 +119,26 @@ func Test_Downsample(t *testing.T) {
 
 	downsampled := downsampler.Evaluate()
 	t.Run("AtOrBefore", func(t *testing.T) {
-		value, ok := downsampled.AtOrBefore(0)
-		assert.True(t, ok)
-		assert.Equal(t, 101.5, value)
-
-		value, ok = downsampled.AtOrBefore(10)
-		assert.True(t, ok)
-		assert.Equal(t, 101.5, value)
-
-		value, ok = downsampled.AtOrBefore(30)
-		assert.True(t, ok)
-		assert.Equal(t, 130.0, value)
-
-		value, ok = downsampled.AtOrBefore(100)
-		assert.True(t, ok)
-		assert.Equal(t, 130.0, value)
+		assertAtOrBefore(t, downsampled, 0, 101.5, true)
+		assertAtOrBefore(t, downsampled, 10, 101.5, true)
+		assertAtOrBefore(t, downsampled, 30, 130.0, true)
+		assertAtOrBefore(t, downsampled, 100, 130.0, true)
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
 		assertEqualIterators(t, utils.NewIterator([]entry{
 			{timestamp: 0, value: 101.5},
-			{timestamp: 30, value: 101.5},
+			{timestamp: 30, value: 130.0},
 		}), downsampled.Iterator())
 	})
+}
+
+func assertAtOrBefore(t *testing.T, series timeseries, timestamp epoch, expectedValue float64, expectedOk bool) {
+	t.Helper()
+
+	value, ok := series.AtOrBefore(timestamp)
+	assert.Equal(t, expectedOk, ok)
+	assert.Equal(t, expectedValue, value)
 }
 
 func assertEqualIterators[T any](t *testing.T, expected utils.Iterator[T], actual utils.Iterator[T]) {
