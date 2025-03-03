@@ -312,10 +312,9 @@ $(document).ready(async () => {
         dashboardComponents.cpuUsage = new ClusterUsageChart('cpu-usage', 'CPU Usage by Cluster', QUERIES.CPU_USAGE, 'cpu');
         dashboardComponents.memoryUsage = new ClusterUsageChart('memory-usage', 'Memory Usage by Cluster', QUERIES.MEMORY_USAGE, 'memory');
 
-        const breadcrumb = new Breadcrumb('breadcrumb-container');
-        breadcrumb.render([
-            { label: 'Infrastructure', url: 'infrastructure', className: 'all-dashboards' },
-            { label: 'Kubernetes', url: 'kubernetes-overview', className: 'myOrg-heading' },
+        initializeBreadcrumbs([
+            { name: 'Infrastructure', url: 'infrastructure.html' },
+            { name: 'Kubernetes', url: 'kubernetes-overview.html' },
         ]);
 
         const dashboardHeader = new DashboardHeader('header-container', {

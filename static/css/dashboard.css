@@ -555,13 +555,6 @@
   border-bottom: 1px solid var(--white-4) !important;
 }
 
-/* SIDENAV */
-#app-container #app-side-nav {
-  height: 100vh;
-  position: fixed;
-  z-index: 2;
-}
-
 /* BIG NUMBER */
 .big-number-display-container {
   display: flex;
@@ -1145,8 +1138,8 @@
     width: 20%;
     padding: 10px 10px;
     position: absolute;
-    right: 20px;
-    top: 50px;
+    right: 10px;
+    top: 90px;
     cursor: default;
     box-shadow: var(--box-shadow);
     z-index: 0;
