@@ -205,8 +205,46 @@ type downsampler struct {
 }
 
 func (d *downsampler) Evaluate() timeseries {
-	// TODO
-	return nil
+	iterator := d.timeseries.Iterator()
+
+	firstEntry, ok := iterator.Next()
+	if !ok {
+		return &normalTimeseries{}
+	}
+
+	currentBucket := d.snapToInterval(firstEntry.timestamp)
+	currentValues := []float64{firstEntry.value}
+
+	finalEntries := make([]entry, 0)
+
+	for {
+		firstEntry, ok = iterator.Next()
+		if !ok {
+			break
+		}
+
+		thisBucket := d.snapToInterval(firstEntry.timestamp)
+		if thisBucket == currentBucket {
+			currentValues = append(currentValues, firstEntry.value)
+			continue
+		}
+
+		// Close the current bucket.
+		if len(currentValues) > 0 {
+			value := d.aggregator(currentValues)
+			finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+		}
+
+		currentBucket = d.snapToInterval(firstEntry.timestamp)
+	}
+
+	// Close the last bucket.
+	if len(currentValues) > 0 {
+		value := d.aggregator(currentValues)
+		finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+	}
+
+	return &normalTimeseries{values: finalEntries}
 }
 
 func (d *downsampler) snapToInterval(timestamp epoch) epoch {
