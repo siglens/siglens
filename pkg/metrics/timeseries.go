@@ -422,6 +422,9 @@ func (w *windowMappingSeries) evaluate() timeseries {
 		if w.windowSize > windowEnd {
 			// Handle underflow
 			windowStart = 0
+		}
+
+		if w.stepSize > windowEnd {
 			breakNextIter = true
 		}
 
