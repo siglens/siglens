@@ -18,8 +18,21 @@
  */
 
 let navbarComponent = `
-<div>
-     
+<div class="nav-header">
+    <div class="sl-hamburger" id="navbar-toggle">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"></line>
+            <line x1="4" x2="20" y1="6" y2="6"></line>
+            <line x1="4" x2="20" y1="18" y2="18"></line>
+        </svg>
+        </div>
+    <div class="nav-main-menu logo">
+        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
+        </a>
+    </div>
+</div>
+<div class="d-flex justify-content-between h-100 flex-column">
+    <div>
         <div class="menu nav-search">
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
@@ -203,7 +216,7 @@ const navigationStructure = {
         temporaryDisableHover: true,
         breadcrumbs: [
             { name: 'APM', noLink: true},
-            { name: 'Service Health' }
+            { name: 'Service Health (RED)' }
         ],
         upperNavTabs: 'tracingUpperNavTabs'
     },
