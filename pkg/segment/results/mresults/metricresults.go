@@ -60,7 +60,7 @@ Depending on the State the stored information is different:
 type MetricsResult struct {
 	MetricName string
 	// maps tsid to the raw read series (with downsampled timestamp)
-	AllSeries map[uint64]*Series
+	AllInitialSeries map[uint64]*Series
 
 	// maps groupid to all raw downsampled series. This downsampled series may have repeated timestamps from different tsids
 	DsResults map[string]*DownsampleSeries
@@ -86,7 +86,7 @@ TODO: depending on metrics query, have different cases on how to resolve dps
 func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult {
 	return &MetricsResult{
 		MetricName:           mQuery.MetricName,
-		AllSeries:            make(map[uint64]*Series),
+		AllInitialSeries:     make(map[uint64]*Series),
 		rwLock:               &sync.RWMutex{},
 		ErrList:              make([]error, 0),
 		AllSeriesTagsOnlyMap: make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0),
@@ -99,10 +99,10 @@ Add a given series for the tsid and group information
 This does not protect againt concurrency. The caller is responsible for coordination
 */
 func (r *MetricsResult) AddSeries(series *Series, tsid uint64, tsGroupId *bytebufferpool.ByteBuffer) {
-	currSeries, ok := r.AllSeries[tsid]
+	currSeries, ok := r.AllInitialSeries[tsid]
 	if !ok {
 		currSeries = series
-		r.AllSeries[tsid] = series
+		r.AllInitialSeries[tsid] = series
 		return
 	}
 	currSeries.Merge(series)
@@ -130,7 +130,7 @@ This means that a single tsid will have unique timetamps, but those timestamps c
 func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism int) []error {
 
 	// maps a group id to the running downsampled series
-	allDSSeries := make(map[string]*DownsampleSeries, len(r.AllSeries))
+	allDSSeries := make(map[string]*DownsampleSeries, len(r.AllInitialSeries))
 
 	var idx int
 	wg := &sync.WaitGroup{}
@@ -139,7 +139,7 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 	errorLock := &sync.Mutex{}
 	errors := make([]error, 0)
 
-	for _, series := range r.AllSeries {
+	for _, series := range r.AllInitialSeries {
 		wg.Add(1)
 
 		go func(s *Series) {
@@ -172,7 +172,7 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 	wg.Wait()
 	r.DsResults = allDSSeries
 	r.State = DOWNSAMPLING
-	r.AllSeries = nil
+	r.AllInitialSeries = nil
 
 	if len(errors) > 0 {
 		return errors
@@ -465,11 +465,11 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 	r.rwLock.Lock()
 	defer r.rwLock.Unlock()
 	r.ErrList = append(r.ErrList, localRes.ErrList...)
-	for tsid, series := range localRes.AllSeries {
-		currSeries, ok := r.AllSeries[tsid]
+	for tsid, series := range localRes.AllInitialSeries {
+		currSeries, ok := r.AllInitialSeries[tsid]
 		if !ok {
 			currSeries = series
-			r.AllSeries[tsid] = series
+			r.AllInitialSeries[tsid] = series
 			continue
 		}
 		currSeries.Merge(series)
