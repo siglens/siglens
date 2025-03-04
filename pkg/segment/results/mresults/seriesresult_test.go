@@ -415,7 +415,7 @@ func Test_applyRangeFunctionAvg(t *testing.T) {
 	 Evalution starts at 1000 and evaluates at every 15 seconds with 20 seconds lookback at each evaluation
 	 => 1000: 1000-20 = 980 => 1.0
 	 => 1015: 1015-20 = 995 => (2.0 + 3.0 + 4.0 + 18.0) / 4 = 6.75
-	 => 1030: 1030-20 = 1010 => 18.0 + 2.5 / 2 = 10.25
+	 => 1030: 1030-20 = 1010 => (18.0 + 2.5) / 2 = 10.25
 	**/
 
 	assert.Len(t, res, 3)
