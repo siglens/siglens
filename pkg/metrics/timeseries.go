@@ -18,6 +18,7 @@
 package metrics
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/siglens/siglens/pkg/utils"
@@ -48,6 +49,10 @@ type entry struct {
 
 type lookupSeries struct {
 	values []entry
+}
+
+func NewLookupSeries(values []entry) timeseries {
+	return &lookupSeries{values: values}
 }
 
 func (t *lookupSeries) AtOrBefore(timestamp epoch) (float64, bool) {
@@ -99,6 +104,17 @@ func (t *lookupSeries) rangeIterator(start epoch, end epoch, mode RangeMode) uti
 type generatedSeries struct {
 	timestamps []epoch
 	valueAt    func(epoch) float64
+}
+
+func NewGeneratedSeries(timestamps []epoch, valueAt func(epoch) float64) (timeseries, error) {
+	if valueAt == nil {
+		return nil, fmt.Errorf("nil valueAt function")
+	}
+
+	return &generatedSeries{
+		timestamps: timestamps,
+		valueAt:    valueAt,
+	}, nil
 }
 
 func (g *generatedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
@@ -174,6 +190,34 @@ const (
 	PromQl3Range RangeMode = iota + 1
 )
 
+func isValidRangeMode(mode RangeMode) bool {
+	switch mode {
+	case PromQl3Range:
+		return true
+	}
+
+	return false
+}
+
+func NewRangeSeries(series rangeIterableSeries, start epoch, end epoch,
+	mode RangeMode) (timeseries, error) {
+
+	if start > end {
+		return nil, fmt.Errorf("start %v is after end %v", start, end)
+	}
+
+	if !isValidRangeMode(mode) {
+		return nil, fmt.Errorf("invalid range mode %v", mode)
+	}
+
+	return &rangeSeries{
+		series: series,
+		start:  start,
+		end:    end,
+		mode:   mode,
+	}, nil
+}
+
 func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	switch r.mode {
 	case PromQl3Range:
@@ -219,6 +263,17 @@ type aggSeries struct {
 
 	isEvaluated bool
 	result      timeseries
+}
+
+func NewAggSeries(allSeries []timeseries, aggregator func([]float64) float64) (timeseries, error) {
+	if aggregator == nil {
+		return nil, fmt.Errorf("nil aggregator")
+	}
+
+	return &aggSeries{
+		allSeries:  allSeries,
+		aggregator: aggregator,
+	}, nil
 }
 
 func (a *aggSeries) AtOrBefore(timestamp epoch) (float64, bool) {
@@ -320,6 +375,17 @@ type valueMappingSeries struct {
 	mapping func(float64) float64
 }
 
+func NewValueMappingSeries(series timeseries, mapping func(float64) float64) (timeseries, error) {
+	if mapping == nil {
+		return nil, fmt.Errorf("nil mapping function")
+	}
+
+	return &valueMappingSeries{
+		series:  series,
+		mapping: mapping,
+	}, nil
+}
+
 func (v *valueMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	value, ok := v.series.AtOrBefore(timestamp)
 	if !ok {
@@ -369,6 +435,32 @@ type windowMappingSeries struct {
 
 	isEvaluated bool
 	result      timeseries
+}
+
+func NewWindowMappingSeries(timeseries timeseries, aggregator func([]float64) float64,
+	windowSize epoch, stepSize epoch, endTime epoch, mode RangeMode) (timeseries, error) {
+
+	if aggregator == nil {
+		return nil, fmt.Errorf("nil aggregator")
+	}
+	if windowSize <= 0 {
+		return nil, fmt.Errorf("non-positive window size %v", windowSize)
+	}
+	if stepSize <= 0 {
+		return nil, fmt.Errorf("non-positive step size %v", stepSize)
+	}
+	if !isValidRangeMode(mode) {
+		return nil, fmt.Errorf("invalid mode %v", mode)
+	}
+
+	return &windowMappingSeries{
+		timeseries: timeseries,
+		aggregator: aggregator,
+		windowSize: windowSize,
+		stepSize:   stepSize,
+		endTime:    endTime,
+		mode:       mode,
+	}, nil
 }
 
 func (w *windowMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
