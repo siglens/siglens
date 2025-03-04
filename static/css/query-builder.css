@@ -794,14 +794,12 @@ div.show-record-popup .ui-dialog-buttonpane button {
     margin-top: 0;
 }
 
-/* Remove the transform from show-table class since we'll control it with JavaScript */
 .show-table {
     transition: transform 0.3s ease;
-    transform: translateY(0); /* Default position*/
+    transform: translateY(0);
 }
 
 .bx-bar-chart-square {
-    /* display: none; */
     display: inline-block;
     cursor: pointer;
     transition: background 0.3s;
