@@ -18,13 +18,14 @@
  */
 
 let navbarComponent = `
-<div>
-     
-        <div class="menu nav-search">
-            <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
-                    class="nav-link-text">Logs</span></a>
+    <div>
+        <div class="nav-main-menu logo">
+            <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg"></a>
         </div>
-        <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
+        <div class="menu nav-search">
+            <a href="./index.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Logs</span></a>
+        </div>
+        <div class="menu nav-traces tracing-dropdown-toggle" style="display:flex;flex-direction:row">
             <a class="nav-links" href="./service-health.html">
                 <span class="icon-traces"></span>
                 <span class="nav-link-text">APM</span>
@@ -34,22 +35,30 @@ let navbarComponent = `
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
-         </div>
-        <div class="menu nav-metrics metrics-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links" href="./metrics-explorer.html">
-                <span class="icon-metrics"></span>
-                <span class="nav-link-text">Metrics</span>
-            </a>
-            <ul class="metrics-dropdown navbar-submenu">
-                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
-                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
-            </ul>
         </div>
-        {{ if .ShowSLO }}        
+        <div class="big-menu nav-metrics">
+            <a class="nav-links accordion-toggle big-menu-header">
+                <div class="nav-link-content">
+                    <span class="icon-metrics"></span>
+                    <span class="nav-link-text">Metrics</span>
+                </div>
+                <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">
+            </a>
+            <div class="accordion-content" style="display: none;">
+                <a href="./metrics-explorer.html" class="submenu-link">
+                    <span class="nav-link-text-explore">Explorer</span>
+                </a>
+                <a href="./metric-summary.html" class="submenu-link">
+                    <span class="nav-link-text-summary">Summary</span>
+                </a>
+                <a href="./metric-cardinality.html" class="submenu-link">
+                    <span class="nav-link-text-cardinality">Cardinality</span>
+                </a>
+            </div>
+        </div>
+        {{ if .ShowSLO }}
         <div class="menu nav-slos">
-            <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
-                    class="nav-link-text">SLOs</span></a>
+            <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
         <div class="menu nav-alerts">
@@ -61,27 +70,22 @@ let navbarComponent = `
         </div>
         {{ if not .EnterpriseEnabled }}
         <div class="menu nav-minion">
-            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
-                    class="nav-link-text">Minion</span></a>
+            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span class="nav-link-text">Minion</span></a>
         </div>
         {{ end }}
         <div class="menu nav-usq">
-            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
-                    class="nav-link-text">Saved Queries</span></a>
+            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span class="nav-link-text">Saved Queries</span></a>
         </div>
         <div class="menu nav-myorg">
-            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
-                    class="nav-link-text">My Org</span></a>
+            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span class="nav-link-text">My Org</span></a>
         </div>
         <div class="menu nav-lookups">
-            <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span
-                    class="nav-link-text">Lookups</span></a>
+            <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Lookups</span></a>
         </div>
         <div class="menu nav-infrastructure">
-            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span
-                    class="nav-link-text">Infrastructure</span></a>
+            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span class="nav-link-text">Infrastructure</span></a>
         </div>
-        <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
+        <div class="menu nav-ingest ingestion-dropdown-toggle" style="display:flex;flex-direction:row">
             <a class="nav-links" href="./test-data.html">
                 <span class="icon-ingest"></span>
                 <span class="nav-link-text">Ingestion</span>
@@ -89,7 +93,7 @@ let navbarComponent = `
             <ul class="ingestion-dropdown navbar-submenu">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
         </div>
     </div>
@@ -108,22 +112,21 @@ let navbarComponent = `
         </div>
         <div class="position-relative mb-2">
             <div class="menu nav-help">
-                <a href="#" class="help-links"><span class="icon-help">
-                </span><span class="nav-link-text">Help & Support</span></a>
+                <a href="#" class="help-links"><span class="icon-help"></span><span class="nav-link-text">Help & Support</span></a>
             </div>
             <div class="help-options">
                 <div class="nav-docs">
-                    <a href="https://www.siglens.com/siglens-docs/"  target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
+                    <a href="https://www.siglens.com/siglens-docs/" target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
                 </div>
                 <div class="nav-slack">
-                    <a href="https://www.siglens.com/slack.html"  target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
+                    <a href="https://www.siglens.com/slack.html" target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
                 </div>
                 <div class="nav-linkedin">
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
                 <div class="nav-twitter">
-                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
-                    target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
+                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ"
+                        target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
                 <div class="nav-feedback">
@@ -147,8 +150,7 @@ const headerHTML = `
         </svg>
     </div>
     <div class="nav-main-menu logo">
-        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
-        </a>
+        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg"></a>
     </div>
     <div class="sl-breadcrumb-container">
         <ul class="sl-breadcrumb" id="sl-breadcrumb"></ul>
@@ -295,42 +297,42 @@ const navigationStructure = {
 
 // Pages related to My Org section
 const orgPages = {
-    'cluster-stats.html': { 
+    'cluster-stats.html': {
         name: 'Cluster Stats',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Cluster Stats' }
         ]
-    }, 
-    'org-settings.html': { 
+    },
+    'org-settings.html': {
         name: 'Org Settings',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Org Settings' }
         ]
-    }, 
-    'application-version.html': { 
+    },
+    'application-version.html': {
         name: 'Version',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Version' }
         ]
-    }, 
-    'query-stats.html': { 
+    },
+    'query-stats.html': {
         name: 'Query Stats',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Query Stats' }
         ]
-    }, 
-    'pqs-settings.html': { 
+    },
+    'pqs-settings.html': {
         name: 'PQS Settings',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'PQS Settings' }
         ]
-    }, 
-    'diagnostics.html': { 
+    },
+    'diagnostics.html': {
         name: 'Diagnostics',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
@@ -343,113 +345,88 @@ const orgPages = {
 $(document).ready(function () {
     $('#app-side-nav').before(headerHTML);
     $('#app-side-nav').prepend(navbarComponent);
-    
+
+    // Combine HEAD's Metrics menu click handling with develop's navigation state
+    $('.big-menu .nav-links').on('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const $menu = $(this).closest('.big-menu');
+        const $submenu = $menu.find('.accordion-content');
+        const $arrow = $menu.find('.nav-dropdown-icon');
+
+        const isOpen = $submenu.is(':visible');
+
+        $submenu.slideToggle(300);
+        $arrow.toggleClass('rotated', !isOpen);
+
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+        const menuText = $menu.find('.nav-link-text, .nav-link-text-explore, .nav-link-text-summary, .nav-link-text-cardinality').text().trim();
+
+        if (isOpen) {
+            activeMenus = activeMenus.filter(item => item !== menuText);
+        } else {
+            activeMenus.push(menuText);
+        }
+        localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+    });
+
+    function restoreMenuStates() {
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+        $('.big-menu').each(function () {
+            const $menu = $(this);
+            const $submenu = $menu.find('.accordion-content');
+            const $arrow = $menu.find('.nav-dropdown-icon');
+            const menuText = $menu.find('.nav-link-text, .nav-link-text-explore, .nav-link-text-summary, .nav-link-text-cardinality').text().trim();
+
+            if (activeMenus.includes(menuText)) {
+                $submenu.css('display', 'block');
+                $arrow.addClass('rotated');
+            } else {
+                $submenu.css('display', 'none');
+                $arrow.removeClass('rotated');
+            }
+        });
+    }
+
+    // Call restoration immediately
+    restoreMenuStates();
+
+    // Integrate develop's navigation state setup
     setupNavigationState();
-    
     initializeDropdowns();
-    
     setupHamburgerBehavior();
-    
-    $('.navbar-submenu').hide();
-    $('.help-options').hide();
-});
 
-function setupNavigationState() {
-    const currentUrl = window.location.href;
-    let matchedConfig = null;
-    let isOrgPage = false;
-    
-    if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
-        matchedConfig = navigationStructure['index.html'];
-    } 
-    else{
-        for (const [urlKey, config] of Object.entries(navigationStructure)) {
-            if (currentUrl.includes(urlKey)) {
-                matchedConfig = config;
-                break;
-            }
-        }
-    }
-    
-    // Check for org pages if no exact match
-    if (!matchedConfig) {
+    // Handle other menu clicks without affecting Metrics
+    $('.nav-links').not('.big-menu .nav-links').on('click', function (e) {
+        e.stopPropagation();
+    });
 
-        for (const page of Object.keys(orgPages)) {
-            if (currentUrl.includes(page)) {
-                isOrgPage = true;
-                orgPageConfig = orgPages[page];
-                break;
-            }
-        }        
-        if (isOrgPage) {
-            matchedConfig = {
-                activeClass: 'nav-myorg',
-                breadcrumbs: orgPageConfig.breadcrumbs,
-                upperNavTabs: 'orgUpperNavTabs'
-            };
+    // Highlight submenu if a submenu item is active
+    $('.submenu-link').each(function () {
+        const currentUrl = window.location.href;
+        if (currentUrl.includes('metrics-explorer.html') && $(this).attr('href').includes('metrics-explorer.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "2px solid orange"
+            });
+            $(this).closest('.big-menu').find('.nav-link-text-explore').css("color", "white");
+        } else if (currentUrl.includes('metric-summary.html') && $(this).attr('href').includes('metric-summary.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "2px solid orange"
+            });
+            $(this).closest('.big-menu').find('.nav-link-text-summary').css("color", "white");
+        } else if (currentUrl.includes('metric-cardinality.html') && $(this).attr('href').includes('metric-cardinality.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "2px solid orange"
+            });
+            $(this).closest('.big-menu').find('.nav-link-text-cardinality').css("color", "white");
         }
-    }
-    
-    if (!matchedConfig) {
-        // Check each org page
-        for (const [page, config] of Object.entries(orgPages)) {
-            if (currentUrl.includes(page)) {
-                isOrgPage = true;
-                orgPageConfig = config;
-                break;
-            }
-        }
-        
-        if (isOrgPage) {
-            matchedConfig = {
-                activeClass: 'nav-myorg',
-                breadcrumbs: orgPageConfig.breadcrumbs,
-                upperNavTabs: 'orgUpperNavTabs'
-            };
-        }
-    }
-    if (matchedConfig) {
-        $(`.${matchedConfig.activeClass}`).addClass('active');
-        
-        if (matchedConfig.temporaryDisableHover) {
-            $(`.${matchedConfig.activeClass}`).addClass('disable-hover');
-            setTimeout(function () {
-                $(`.${matchedConfig.activeClass}`).removeClass('disable-hover');
-            }, 500);
-        }
-        
-        initializeBreadcrumbs(matchedConfig.breadcrumbs);
-        
-        if (matchedConfig.upperNavTabs) {
-            if (matchedConfig.upperNavTabs === 'tracingUpperNavTabs' && $('.subsection-navbar').length) {
-                $('.subsection-navbar').appendOrgNavTabs(tracingUpperNavTabs);
-            } else if (matchedConfig.upperNavTabs === 'alertsUpperNavTabs') {
-                $('.alerts-nav-tab').appendOrgNavTabs(alertsUpperNavTabs);
-            } else if (matchedConfig.upperNavTabs === 'orgUpperNavTabs') {
-                $('.org-nav-tab').appendOrgNavTabs(orgUpperNavTabs);
-            } else if (matchedConfig.upperNavTabs === 'sloTabs') {
-                $('.alerts-nav-tab').appendOrgNavTabs([]);
-            }
-        }
-    }
-}
+    });
 
-function initializeDropdowns() {
-    // Metrics dropdown behavior
-    $('.metrics-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
-
-    // Tracing dropdown behavior
+    // Tracing, Ingestion, and Help dropdown behaviors from develop
     $('.tracing-dropdown-toggle').hover(
         function () {
             if (!$(this).closest('.menu').hasClass('disable-hover')) {
@@ -463,7 +440,6 @@ function initializeDropdowns() {
         }
     );
 
-    // Ingestion dropdown behavior
     $('.ingestion-dropdown-toggle').hover(
         function () {
             if (!$(this).closest('.menu').hasClass('disable-hover')) {
@@ -477,7 +453,6 @@ function initializeDropdowns() {
         }
     );
 
-    // Help dropdown behavior
     $('.nav-help').hover(
         function (event) {
             event.stopPropagation();
@@ -493,7 +468,6 @@ function initializeDropdowns() {
         event.preventDefault();
     });
 
-    // Help options hover behavior
     $('.help-options').hover(
         function (event) {
             event.stopPropagation();
@@ -522,14 +496,67 @@ function initializeDropdowns() {
             }
         });
     });
-    
-    // Check active menu items
-    const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    menuItem.forEach((item) => {
-        if (item.href === window.location.href) {
-            item.classList.add('active');
+});
+
+function setupNavigationState() {
+    const currentUrl = window.location.href;
+    let matchedConfig = null;
+    let isOrgPage = false;
+
+    if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
+        matchedConfig = navigationStructure['index.html'];
+    } else {
+        for (const [urlKey, config] of Object.entries(navigationStructure)) {
+            if (currentUrl.includes(urlKey)) {
+                matchedConfig = config;
+                break;
+            }
         }
-    });
+    }
+
+    // Check for org pages if no exact match
+    if (!matchedConfig) {
+        for (const [page, config] of Object.entries(orgPages)) {
+            if (currentUrl.includes(page)) {
+                isOrgPage = true;
+                matchedConfig = {
+                    activeClass: 'nav-myorg',
+                    breadcrumbs: config.breadcrumbs,
+                    upperNavTabs: 'orgUpperNavTabs'
+                };
+                break;
+            }
+        }
+    }
+
+    if (matchedConfig) {
+        $(`.${matchedConfig.activeClass}`).addClass('active');
+
+        if (matchedConfig.temporaryDisableHover) {
+            $(`.${matchedConfig.activeClass}`).addClass('disable-hover');
+            setTimeout(function () {
+                $(`.${matchedConfig.activeClass}`).removeClass('disable-hover');
+            }, 500);
+        }
+
+        initializeBreadcrumbs(matchedConfig.breadcrumbs);
+
+        if (matchedConfig.upperNavTabs) {
+            if (matchedConfig.upperNavTabs === 'tracingUpperNavTabs' && $('.subsection-navbar').length) {
+                $('.subsection-navbar').appendOrgNavTabs(tracingUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'alertsUpperNavTabs') {
+                $('.alerts-nav-tab').appendOrgNavTabs(alertsUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'orgUpperNavTabs') {
+                $('.org-nav-tab').appendOrgNavTabs(orgUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'sloTabs') {
+                $('.alerts-nav-tab').appendOrgNavTabs([]);
+            }
+        }
+    }
+}
+
+function initializeDropdowns() {
+    // Metrics dropdown behavior (handled by click event above)
 }
 
 function setupHamburgerBehavior() {
@@ -576,18 +603,17 @@ function setupHamburgerBehavior() {
 function initializeBreadcrumbs(breadcrumbConfig) {
     const breadcrumb = $('#sl-breadcrumb');
     breadcrumb.empty();
-    
+
     if (breadcrumbConfig && breadcrumbConfig.length) {
         $.each(breadcrumbConfig, function(index, crumb) {
             const li = $('<li>');
             let a;
-            
+
             if ((index === breadcrumbConfig.length - 1) || crumb.noLink) {
-                // For the last item or explicitly non-clickable items, create a span instead of a link
                 a = $('<span>')
                     .addClass('breadcrumb-text')
                     .text(crumb.name);
-                
+
                 if (index === breadcrumbConfig.length - 1) {
                     a.addClass('active');
                 }
@@ -596,14 +622,34 @@ function initializeBreadcrumbs(breadcrumbConfig) {
                     .attr('href', crumb.url || '#')
                     .text(crumb.name);
             }
-            
+
             li.append(a);
             breadcrumb.append(li);
-            
+
             if (index < breadcrumbConfig.length - 1) {
                 const arrow = $('<span>').addClass('dashboard-arrow');
                 breadcrumb.append(arrow);
             }
         });
     }
+}
+
+function toggleDropdown(element) {
+    const $menu = $(element).closest('.big-menu');
+    const $submenu = $menu.find('.accordion-content');
+    const $arrow = $menu.find('.nav-dropdown-icon');
+
+    const isOpen = $submenu.is(':visible');
+    $submenu.slideToggle(300);
+    $arrow.toggleClass('rotated', !isOpen);
+
+    let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+    const menuText = $menu.find('.nav-link-text').text().trim();
+
+    if (isOpen) {
+        activeMenus = activeMenus.filter(item => item !== menuText);
+    } else {
+        activeMenus.push(menuText);
+    }
+    localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
 }
