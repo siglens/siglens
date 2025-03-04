@@ -213,7 +213,9 @@ Aggregate results for series sharing a groupid
 Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
-func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
+func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation,
+	groupToSeries map[string][]*metrics.TaggedSeries) []error {
+
 	if r.State != DOWNSAMPLING {
 		return []error{fmt.Errorf("AggregateResults: results is not in downsampling state, state: %v", r.State)}
 	}
