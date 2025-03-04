@@ -30,6 +30,7 @@ import (
 	parser "github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
+	"github.com/siglens/siglens/pkg/metrics"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -66,6 +67,8 @@ type MetricsResult struct {
 	DsResults map[string]*DownsampleSeries
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results map[string]map[uint32]float64
+
+	AllSeries map[string]*metrics.TaggedSeries
 
 	IsScalar    bool
 	ScalarValue float64
