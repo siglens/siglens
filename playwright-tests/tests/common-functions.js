@@ -1,7 +1,7 @@
 const { expect } = require('@playwright/test');
 
 async function testThemeToggle(page) {
-    const navbarHamburger = page.locator('.sl-hamburger');
+    const navbarHamburger = page.locator('#navbar-toggle').first();
     await navbarHamburger.hover();
 
     await page.waitForTimeout(300);

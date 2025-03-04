@@ -1,5 +1,5 @@
 let currentPage = 1;
-let pageSize = 20; // Default page size
+let pageSize = 50; // Default page size
 let totalLoadedRecords = 0;
 let hasMoreRecords = false;
 let accumulatedRecords = [];

@@ -90,9 +90,20 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	// init metrics results structs
 	mRes := mresults.InitMetricResults(mQuery, qid)
 
-	mSegments, err := getAllRequestsWithinTimeRange(timeRange, mQuery.OrgId, querySummary)
+	finalTimeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: timeRange.StartEpochSec,
+		EndEpochSec:   timeRange.EndEpochSec,
+	}
+
+	// If LookBackToInclude is set, then we need to adjust the StartEpochSec
+	// to include the lookback time.
+	if mQuery.LookBackToInclude > 0 {
+		finalTimeRange.StartEpochSec = timeRange.StartEpochSec - uint32(mQuery.LookBackToInclude)
+	}
+
+	mSegments, err := getAllRequestsWithinTimeRange(finalTimeRange, mQuery.OrgId, querySummary)
 	if err != nil {
-		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", timeRange, err)
+		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", finalTimeRange, err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
@@ -137,7 +148,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	// iterate through all metrics segments, applying search as needed
-	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+	// use finalTimeRange to get the series and data points including the lookback time
+	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, finalTimeRange, qid, querySummary)
 	if mQuery.ExitAfterTagsSearch {
 		return mRes
 	}
@@ -165,7 +177,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	for mQuery.SubsequentAggs != nil {
 		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {
 			mQuery.Function = *mQuery.SubsequentAggs.FunctionBlock
-			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
+			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function, timeRange)
 			if errors != nil {
 				for _, err := range errors {
 					mRes.AddError(err)
