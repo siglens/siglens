@@ -173,11 +173,11 @@ func MetricsQueryExpressionsParseRequest(queryRequest *structs.OTSDBMetricsQuery
 
 		mReq := &structs.MetricsQueryRequest{
 			MetricsQuery: structs.MetricsQuery{
-				MetricName:  metricInfo["metric-name"].(string),
-				HashedMName: metricInfo["hashed-mname"].(uint64),
-				TagsFilters: tagsFilter,
-				Aggregator:  structs.Aggregation{AggregatorFunction: aggregator},
-				Downsampler: downsampler,
+				MetricName:      metricInfo["metric-name"].(string),
+				HashedMName:     metricInfo["hashed-mname"].(uint64),
+				TagsFilters:     tagsFilter,
+				FirstAggregator: structs.Aggregation{AggregatorFunction: aggregator},
+				Downsampler:     downsampler,
 			},
 			TimeRange: timeRange,
 		}

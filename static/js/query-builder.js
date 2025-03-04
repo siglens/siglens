@@ -56,10 +56,10 @@ $('#custom-chart-tab').tabs({
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#save-query-div').children().show();
-            $('#views-container').show();
+            $('#views-container, .fields-sidebar, #pagination-container').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container').hide();
+            $('#views-container, .fields-sidebar, #pagination-container').hide();
 
             timeChart();
         }

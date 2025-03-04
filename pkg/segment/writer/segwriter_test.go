@@ -268,6 +268,32 @@ func Test_ParseRawJson(t *testing.T) {
 	assert.Equal(t, "x/f", string(ple2.allCvals[1]))
 }
 
+func Test_addToBlockBloomBothCases(t *testing.T) {
+	cases := []struct {
+		fullWord         []byte   // full word to add
+		expectedMatches  []string // expected words to pass bloom check
+		expectedAddCount uint32   // expected number of words added to the bloom
+		matchedToFail    []string // words that should not pass bloom check
+	}{
+		{fullWord: []byte("singleword"), expectedMatches: []string{"singleword"}, expectedAddCount: 1, matchedToFail: []string{"word"}},
+		{fullWord: []byte("multiple words"), expectedMatches: []string{"multiple", "words", "multiple words"}, expectedAddCount: 3, matchedToFail: []string{"multiple words together"}},
+		{fullWord: []byte("true"), expectedMatches: []string{"true"}, expectedAddCount: 1, matchedToFail: []string{"false"}},
+		{fullWord: []byte("with space "), expectedMatches: []string{"with", "space", "with space "}, expectedAddCount: 3, matchedToFail: []string{" "}},
+	}
+
+	for i, test := range cases {
+		mockBloom := bloom.NewWithEstimates(uint(1000), 0.01)
+		_ = addToBlockBloomBothCases(mockBloom, test.fullWord)
+
+		for _, word := range test.expectedMatches {
+			assert.True(t, mockBloom.TestString(word), "Test case %d failed: expected word '%s' to be found", i, word)
+		}
+		for _, word := range test.matchedToFail {
+			assert.False(t, mockBloom.TestString(word), "Test case %d failed: word '%s' should not be found", i, word)
+		}
+	}
+}
+
 func Benchmark_wrapperForUpdateRange(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()

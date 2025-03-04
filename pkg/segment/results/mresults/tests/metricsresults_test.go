@@ -34,8 +34,8 @@ import (
 func Test_GetResults_AggFn_Sum(t *testing.T) {
 	aggregator := structs.Aggregation{AggregatorFunction: utils.Sum}
 	mQuery := &structs.MetricsQuery{
-		MetricName: "test.metric.0",
-		Aggregator: aggregator,
+		MetricName:      "test.metric.0",
+		FirstAggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
@@ -104,8 +104,8 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 func Test_GetResults_AggFn_Avg(t *testing.T) {
 	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	mQuery := &structs.MetricsQuery{
-		MetricName: "test.metric.0",
-		Aggregator: aggregator,
+		MetricName:      "test.metric.0",
+		FirstAggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   1,
 			Unit:       "h",
@@ -327,8 +327,8 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	var numSeries int = 5
 	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
 	mQuery := &structs.MetricsQuery{
-		MetricName: "test.metric.0",
-		Aggregator: aggregator,
+		MetricName:      "test.metric.0",
+		FirstAggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   2,
 			Unit:       "s",
@@ -388,8 +388,8 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 func Test_GetResults_AggFn_Quantile(t *testing.T) {
 	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5}
 	mQuery := &structs.MetricsQuery{
-		MetricName: "test.metric.0",
-		Aggregator: aggregator,
+		MetricName:      "test.metric.0",
+		FirstAggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
@@ -458,8 +458,8 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3}
 	mQuery := &structs.MetricsQuery{
-		MetricName: "test.metric.0",
-		Aggregator: aggregator,
+		MetricName:      "test.metric.0",
+		FirstAggregator: aggregator,
 		Downsampler: structs.Downsampler{
 			Interval:   3,
 			Unit:       "h",
@@ -1174,7 +1174,7 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 
 	metricsResults.DownsampleResults(mQuery.Downsampler, 1)
 
-	errors := metricsResults.AggregateResults(1, mQuery.Aggregator)
+	errors := metricsResults.AggregateResults(1, mQuery.FirstAggregator)
 	assert.Nil(t, errors)
 
 	res, _, err := segment.HelperQueryArithmeticAndLogical(&queryOps[0], map[uint64]*mresults.MetricsResult{
@@ -1325,7 +1325,7 @@ func initialize_Single_Metric_Results(t *testing.T, timeSeriesMap map[string]map
 		Downsampler:     downsampler,
 		GetAllLabels:    true,
 		SelectAllSeries: true,
-		Aggregator:      aggregator,
+		FirstAggregator: aggregator,
 	}
 	qid := uint64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
@@ -1356,7 +1356,7 @@ func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32
 		Downsampler:     downsampler,
 		GetAllLabels:    true,
 		SelectAllSeries: true,
-		Aggregator:      aggregator,
+		FirstAggregator: aggregator,
 	}
 	qid := uint64(0)
 	metricsResults1 := mresults.InitMetricResults(mQuery1, qid)
@@ -1371,7 +1371,7 @@ func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32
 	}
 
 	metricsResults1.DownsampleResults(mQuery1.Downsampler, 1)
-	errors := metricsResults1.AggregateResults(1, mQuery1.Aggregator)
+	errors := metricsResults1.AggregateResults(1, mQuery1.FirstAggregator)
 	assert.Nil(t, errors)
 
 	// Add 1 group in metric2
@@ -1394,7 +1394,7 @@ func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32
 	}
 
 	metricsResults2.DownsampleResults(mQuery2.Downsampler, 1)
-	errors = metricsResults2.AggregateResults(1, mQuery2.Aggregator)
+	errors = metricsResults2.AggregateResults(1, mQuery2.FirstAggregator)
 	assert.Nil(t, errors)
 
 	return map[uint64]*mresults.MetricsResult{
