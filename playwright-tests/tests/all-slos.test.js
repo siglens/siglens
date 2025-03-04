@@ -5,7 +5,8 @@ test.describe('SLO Screen Test', () => {
     test('should have SLOs div with correct heading and message', async ({ page }) => {
         // Navigate to the page containing the SLOs div
         await page.goto('http://localhost:5122/all-slos.html');
-
+        const slosDiv = page.locator('#dashboard');
+        await expect(slosDiv).toBeVisible();
         // Check if the enterprise version message is present
         await expect(slosDiv).toContainText('This feature is available in Enterprise version');
 
