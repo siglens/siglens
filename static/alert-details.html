@@ -79,12 +79,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <button class="btn" type="button" id="delete-alert">Delete</button>
                     </div>
                 </div>
-                <div id="properties-grid" class="ag-theme-mycustomtheme" style="height: 500px; width: 100%; padding-top: 20px;"></div>
+                <div id="properties-grid" class="ag-theme-mycustomtheme"
+                    style="height: 500px; width: 100%; padding-top: 20px;"></div>
                 <div id="history-search-container" style="display: none; margin-left: -5px;">
                     <div class="d-flex align-items-center">
-                        <input type="text" class="form-control" id="history-filter-input" placeholder="Search by Action or State" title="Search history" style="margin-right: 5px;">
+                        <input type="text" class="form-control" id="history-filter-input"
+                            placeholder="Search by Action or State" title="Search history" style="margin-right: 5px;">
                     </div>
-                </div>                       
+                </div>
                 <div id="history-grid" class="ag-theme-mycustomtheme"></div>
             </div>
         </div>
@@ -102,12 +104,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             2024 &copy; SigLens
         </div>
     </div>
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./component/upper-navbar/upper-navbar.js"></script>
-    <script src="./js/alert-details.js"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/alert-details.js?cb={{ AppVersion }}"></script>
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>
