@@ -457,6 +457,7 @@ func (w *windowMappingSeries) evaluate() timeseries {
 			}
 		}
 
+		// Reverse the finalValues since we built it in reverse order.
 		for i := 0; i < len(finalValues)/2; i++ {
 			k := len(finalValues) - 1 - i
 			finalValues[i], finalValues[k] = finalValues[k], finalValues[i]
