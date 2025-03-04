@@ -574,6 +574,41 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 		Data:   pqldata,
 	}, nil
 }
+
+func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueType, startTime, endTime uint32, step uint32) (*structs.MetricsQueryResponsePromQl, error) {
+	if pqlQueryType != parser.ValueTypeScalar {
+		return nil, fmt.Errorf("GetResultsPromQlForScalarType: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	var pqlData structs.Data
+	pqlData.ResultType = parser.ValueType("matrix")
+
+	scalarValue := r.ScalarValue
+
+	evalTime := startTime
+
+	pqlData.Result = make([]structs.Result, 1)
+
+	values := make([]interface{}, 0)
+
+	fmt.Println("startTime: ", startTime, "endTime: ", endTime, "step: ", step, "endTime-startTime: ", endTime-startTime, "total: ", (endTime-startTime)/step)
+
+	for evalTime <= endTime {
+		values = append(values, []interface{}{evalTime, fmt.Sprintf("%v", scalarValue)})
+		evalTime += step
+	}
+
+	pqlData.Result[0] = structs.Result{
+		Metric: map[string]string{},
+		Value:  values,
+	}
+
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqlData,
+	}, nil
+}
+
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
 		return nil, nil, fmt.Errorf("GetMetricTagsResultSet: results is not in Series Reading state, state: %v", res.State)
