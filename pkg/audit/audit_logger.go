@@ -1,7 +1,3 @@
-
-// Interview Process for Software Engineering Intern @ SigLens
-// Creating Audit Events Assignment
-
 package audit
 
 import (
@@ -12,7 +8,7 @@ import (
 )
 
 const (
-	AuditLogFile = "./audit.json"
+	DefaultAuditLogFile = "./audit.json"
 )
 
 type LogEntry struct {
@@ -23,8 +19,20 @@ type LogEntry struct {
 	OrgID             string `json:"orgId"`
 }
 
-// The CreateAuditEvent creates a LogEntry object to record any user related activity in audit.json file
-func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec int64, orgID string) error {
+type Logger struct {
+	LogFilePath string
+}
+
+func NewLogger(logFilePath string) *Logger {
+	if logFilePath == "" {
+		logFilePath = DefaultAuditLogFile
+	}
+	return &Logger{
+		LogFilePath: logFilePath,
+	}
+}
+
+func (l *Logger) CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec int64, orgID string) error {
 	logEntry := LogEntry{
 		Username:          username,
 		ActionString:      actionString,
@@ -38,7 +46,7 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 		return fmt.Errorf("error marshaling log entry: %w", err)
 	}
 
-	file, err := os.OpenFile(AuditLogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(l.LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("error opening audit log file: %w", err)
 	}
@@ -52,15 +60,14 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 	return nil
 }
 
-// The ReadAuditEvent returns all the log details in a given interval for an orgID
-func ReadAuditEvents(orgID string, startEpochSec, endEpochSec int64) ([]LogEntry, error) {
+func (l *Logger) ReadAuditEvents(orgID string, startEpochSec, endEpochSec int64) ([]LogEntry, error) {
 	var logs []LogEntry
 
-	if _, err := os.Stat(AuditLogFile); os.IsNotExist(err) {
+	if _, err := os.Stat(l.LogFilePath); os.IsNotExist(err) {
 		return logs, nil
 	}
 
-	file, err := os.Open(AuditLogFile)
+	file, err := os.Open(l.LogFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening audit log file: %w", err)
 	}
@@ -71,11 +78,10 @@ func ReadAuditEvents(orgID string, startEpochSec, endEpochSec int64) ([]LogEntry
 		var entry LogEntry
 		if err := decoder.Decode(&entry); err != nil {
 			if err.Error() == "EOF" {
-				break 
+				break
 			}
 			return nil, fmt.Errorf("error decoding log entry: %w", err)
 		}
-
 
 		if entry.OrgID == orgID && entry.EpochTimestampSec >= startEpochSec && entry.EpochTimestampSec <= endEpochSec {
 			logs = append(logs, entry)
@@ -83,4 +89,14 @@ func ReadAuditEvents(orgID string, startEpochSec, endEpochSec int64) ([]LogEntry
 	}
 
 	return logs, nil
+}
+
+func (l *Logger) CreateEventNow(username, actionString, extraMsg, orgID string) error {
+	return l.CreateAuditEvent(username, actionString, extraMsg, time.Now().Unix(), orgID)
+}
+
+func (l *Logger) ReadRecentEvents(orgID string, durationBack time.Duration) ([]LogEntry, error) {
+	endTime := time.Now().Unix()
+	startTime := time.Now().Add(-durationBack).Unix()
+	return l.ReadAuditEvents(orgID, startTime, endTime)
 }
