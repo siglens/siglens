@@ -354,9 +354,6 @@ func (v *valueMappingSeries) Range(start epoch, end epoch, mode RangeMode) times
 
 // This constructs a new series by taking an existing series, sliding a window
 // over it, and performing some operation on the values in each window.
-//
-// Downsampling is a special case of this, where the window size and step size
-// are equal.
 type windowMappingSeries struct {
 	timeseries timeseries
 	aggregator func([]float64) float64
@@ -446,4 +443,58 @@ func (w *windowMappingSeries) evaluate() timeseries {
 	}
 
 	return &lookupSeries{values: finalEntries}
+}
+
+type downsampler struct {
+	timeseries timeseries
+	aggregator func([]float64) float64
+	interval   epoch
+}
+
+func (d *downsampler) Evaluate() timeseries {
+	iterator := d.timeseries.Iterator()
+
+	firstEntry, ok := iterator.Next()
+	if !ok {
+		return &lookupSeries{}
+	}
+
+	currentBucket := d.snapToInterval(firstEntry.timestamp)
+	currentValues := []float64{firstEntry.value}
+
+	finalEntries := make([]entry, 0)
+
+	for {
+		firstEntry, ok = iterator.Next()
+		if !ok {
+			break
+		}
+
+		thisBucket := d.snapToInterval(firstEntry.timestamp)
+		if thisBucket == currentBucket {
+			currentValues = append(currentValues, firstEntry.value)
+			continue
+		}
+
+		// Close the current bucket.
+		if len(currentValues) > 0 {
+			value := d.aggregator(currentValues)
+			finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+		}
+
+		currentBucket = d.snapToInterval(firstEntry.timestamp)
+		currentValues = []float64{firstEntry.value}
+	}
+
+	// Close the last bucket.
+	if len(currentValues) > 0 {
+		value := d.aggregator(currentValues)
+		finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+	}
+
+	return &lookupSeries{values: finalEntries}
+}
+
+func (d *downsampler) snapToInterval(timestamp epoch) epoch {
+	return timestamp - timestamp%d.interval
 }
