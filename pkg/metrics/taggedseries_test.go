@@ -23,6 +23,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_TaggedSeriesImplementsTimeseries(t *testing.T) {
+	var _ timeseries = &TaggedSeries{}
+}
+
 func Test_TaggedMetric(t *testing.T) {
 	series := TaggedSeries{}
 
