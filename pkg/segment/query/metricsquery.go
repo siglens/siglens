@@ -126,9 +126,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 	mQuery.ReorderTagFilters()
 
-	if mQuery.MQueryAggs != nil {
-		mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
-		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+	if mQuery.SubsequentAggs != nil {
+		mQuery.FirstAggregator = *mQuery.SubsequentAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
+		mQuery.SubsequentAggs = mQuery.SubsequentAggs.Next
 	}
 
 	if mQuery.TagValueSearchOnly {
@@ -153,7 +153,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 	mRes.MetricName = mQuery.MetricName
 
-	errors = mRes.AggregateResults(parallelism, mQuery.Aggregator)
+	errors = mRes.AggregateResults(parallelism, mQuery.FirstAggregator)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)
@@ -162,9 +162,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
-	for mQuery.MQueryAggs != nil {
-		if mQuery.MQueryAggs.AggBlockType == structs.FunctionBlock {
-			mQuery.Function = *mQuery.MQueryAggs.FunctionBlock
+	for mQuery.SubsequentAggs != nil {
+		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {
+			mQuery.Function = *mQuery.SubsequentAggs.FunctionBlock
 			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
 			if errors != nil {
 				for _, err := range errors {
@@ -173,9 +173,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 				return mRes
 			}
-		} else if mQuery.MQueryAggs.AggBlockType == structs.AggregatorBlock {
-			mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock
-			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.Aggregator)
+		} else if mQuery.SubsequentAggs.AggBlockType == structs.AggregatorBlock {
+			mQuery.FirstAggregator = *mQuery.SubsequentAggs.AggregatorBlock
+			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.FirstAggregator)
 			if errors != nil {
 				for _, err := range errors {
 					mRes.AddError(err)
@@ -184,12 +184,12 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 				return mRes
 			}
 		} else {
-			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType)
-			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType))
+			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType)
+			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType))
 			return mRes
 		}
 
-		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+		mQuery.SubsequentAggs = mQuery.SubsequentAggs.Next
 	}
 
 	return mRes

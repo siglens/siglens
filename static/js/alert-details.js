@@ -69,7 +69,10 @@ async function getAlertForEdit(id) {
         crossDomain: true,
     });
     if (window.location.href.includes('alert-details.html')) {
-        $('.alert-name').empty().text(res.alert.alert_name);
+        initializeBreadcrumbs([
+            { name: 'Alerting', url: './all-alerts.html' },
+            { name: res.alert.alert_name, url: '#' }
+        ]);
         fetchAlertProperties(res);
         fetchAlertHistory();
         return false;

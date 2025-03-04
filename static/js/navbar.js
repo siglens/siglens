@@ -20,15 +20,12 @@
 let navbarComponent = `
     <div>
         <div class="nav-main-menu logo">
-            <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
-            </a>
+            <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg"></a>
         </div>
-     
         <div class="menu nav-search">
-            <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
-                    class="nav-link-text">Logs</span></a>
+            <a href="./index.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Logs</span></a>
         </div>
-        <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
+        <div class="menu nav-traces tracing-dropdown-toggle" style="display:flex;flex-direction:row">
             <a class="nav-links" href="./service-health.html">
                 <span class="icon-traces"></span>
                 <span class="nav-link-text">APM</span>
@@ -38,22 +35,30 @@ let navbarComponent = `
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
-         </div>
-        <div class="menu nav-metrics metrics-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links" href="./metrics-explorer.html">
-                <span class="icon-metrics"></span>
-                <span class="nav-link-text">Metrics</span>
-            </a>
-            <ul class="metrics-dropdown navbar-submenu">
-                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
-                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
-            </ul>
         </div>
-        {{ if .ShowSLO }}        
+        <div class="big-menu nav-metrics">
+            <a class="nav-links accordion-toggle big-menu-header">
+                <div class="nav-link-content">
+                    <span class="icon-metrics"></span>
+                    <span class="nav-link-text">Metrics</span>
+                </div>
+                <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" onclick="toggleDropdown(this.closest('.nav-links')); event.stopPropagation();" alt="Dropdown Arrow">
+            </a>
+            <div class="accordion-content" style="display: none;">
+                <a href="./metrics-explorer.html" class="submenu-link">
+                    <span class="nav-link-text-explore">Explorer</span>
+                </a>
+                <a href="./metric-summary.html" class="submenu-link">
+                    <span class="nav-link-text-summary">Summary</span>
+                </a>
+                <a href="./metric-cardinality.html" class="submenu-link">
+                    <span class="nav-link-text-cardinality">Cardinality</span>
+                </a>
+            </div>
+        </div>
+        {{ if .ShowSLO }}
         <div class="menu nav-slos">
-            <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
-                    class="nav-link-text">SLOs</span></a>
+            <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
         <div class="menu nav-alerts">
@@ -65,27 +70,22 @@ let navbarComponent = `
         </div>
         {{ if not .EnterpriseEnabled }}
         <div class="menu nav-minion">
-            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
-                    class="nav-link-text">Minion</span></a>
+            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span class="nav-link-text">Minion</span></a>
         </div>
         {{ end }}
         <div class="menu nav-usq">
-            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
-                    class="nav-link-text">Saved Queries</span></a>
+            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span class="nav-link-text">Saved Queries</span></a>
         </div>
         <div class="menu nav-myorg">
-            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
-                    class="nav-link-text">My Org</span></a>
+            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span class="nav-link-text">My Org</span></a>
         </div>
         <div class="menu nav-lookups">
-            <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span
-                    class="nav-link-text">Lookups</span></a>
+            <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Lookups</span></a>
         </div>
         <div class="menu nav-infrastructure">
-            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span
-                    class="nav-link-text">Infrastructure</span></a>
+            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span class="nav-link-text">Infrastructure</span></a>
         </div>
-        <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
+        <div class="menu nav-ingest ingestion-dropdown-toggle" style="display:flex;flex-direction:row">
             <a class="nav-links" href="./test-data.html">
                 <span class="icon-ingest"></span>
                 <span class="nav-link-text">Ingestion</span>
@@ -93,7 +93,7 @@ let navbarComponent = `
             <ul class="ingestion-dropdown navbar-submenu">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
         </div>
     </div>
@@ -112,22 +112,21 @@ let navbarComponent = `
         </div>
         <div class="position-relative mb-2">
             <div class="menu nav-help">
-                <a href="#" class="help-links"><span class="icon-help">
-                </span><span class="nav-link-text">Help & Support</span></a>
+                <a href="#" class="help-links"><span class="icon-help"></span><span class="nav-link-text">Help & Support</span></a>
             </div>
             <div class="help-options">
                 <div class="nav-docs">
-                    <a href="https://www.siglens.com/siglens-docs/"  target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
+                    <a href="https://www.siglens.com/siglens-docs/" target="_blank" class="help-links"><span class="icon-docs"></span><span class="nav-link-text">Documentation</span></a>
                 </div>
                 <div class="nav-slack">
-                    <a href="https://www.siglens.com/slack.html"  target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
+                    <a href="https://www.siglens.com/slack.html" target="_blank" class="help-links"><span class="icon-slack"></span><span class="nav-link-text">Join Slack Community</span></a>
                 </div>
                 <div class="nav-linkedin">
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
                 <div class="nav-twitter">
-                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
-                    target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
+                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ"
+                        target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
                 <div class="nav-feedback">
@@ -140,6 +139,23 @@ let navbarComponent = `
         </div>
     </div>
 `;
+
+const headerHTML = `
+<div class="sl-header">
+    <div class="sl-hamburger" id="navbar-toggle">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"></line>
+            <line x1="4" x2="20" y1="6" y2="6"></line>
+            <line x1="4" x2="20" y1="18" y2="18"></line>
+        </svg>
+    </div>
+    <div class="nav-main-menu logo">
+        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg"></a>
+    </div>
+    <div class="sl-breadcrumb-container">
+        <ul class="sl-breadcrumb" id="sl-breadcrumb"></ul>
+    </div>
+</div>`;
 
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
@@ -162,74 +178,255 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
+const navigationStructure = {
+    'index.html': {
+        activeClass: 'nav-search',
+        breadcrumbs: [{ name: 'Logs'}]
+    },
+    'metrics-explorer.html': {
+        activeClass: 'nav-metrics',
+        temporaryDisableHover: true,
+        breadcrumbs: [{ name: 'Metrics Explorer'}]
+    },
+    'metric-summary.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics Summary'}
+        ]
+    },
+    'metric-cardinality.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics Cardinality' }
+        ]
+    },
+    'service-health.html': {
+        activeClass: 'nav-traces',
+        temporaryDisableHover: true,
+        breadcrumbs: [
+            { name: 'APM', noLink: true},
+            { name: 'Service Health' }
+        ],
+        upperNavTabs: 'tracingUpperNavTabs'
+    },
+    'service-health-overview.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [
+            { name: 'APM', noLink: true},
+            { name: 'Service Health' }
+        ],
+    },
+    'search-traces.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [
+            { name: 'APM', url: './service-health.html', noLink: true },
+            { name: 'Search Traces'}
+        ],
+        upperNavTabs: 'tracingUpperNavTabs'
+    },
+    'dependency-graph.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [
+            { name: 'APM', noLink: true},
+            { name: 'Dependency Graph', url: './dependency-graph.html' }
+        ],
+        upperNavTabs: 'tracingUpperNavTabs'
+    },
+    'all-alerts.html': {
+        activeClass: 'nav-alerts',
+        breadcrumbs: [{ name: 'Alerting', url: './all-alerts.html' },
+                      { name: 'Alert Rules'}],
+        upperNavTabs: 'alertsUpperNavTabs'
+    },
+    'contacts.html': {
+        activeClass: 'nav-alerts',
+        breadcrumbs: [
+            { name: 'Alerting', url: './all-alerts.html' },
+            { name: 'Contact Points'}
+        ],
+        upperNavTabs: 'alertsUpperNavTabs'
+    },
+    'alert.html': {
+        activeClass: 'nav-alerts',
+    },
+    'alert-details.html': {
+        activeClass: 'nav-alerts',
+    },
+    'all-slos.html': {
+        activeClass: 'nav-slos',
+        breadcrumbs: [{ name: 'SLOs'}],
+        upperNavTabs: 'sloTabs'
+    },
+    'dashboards-home.html': {
+        activeClass: 'nav-ldb',
+        breadcrumbs: [{ name: 'Dashboards'}]
+    },
+    'dashboard.html': {
+        activeClass: 'nav-ldb',
+    },
+    'saved-queries.html': {
+        activeClass: 'nav-usq',
+        breadcrumbs: [{ name: 'Saved Queries'}]
+    },
+    'minion-searches.html': {
+        activeClass: 'nav-minion',
+        breadcrumbs: [{ name: 'Minion Searches'}]
+    },
+    'lookups.html': {
+        activeClass: 'nav-lookups',
+        breadcrumbs: [{ name: 'Lookups'}]
+    },
+    'infrastructure.html': {
+        activeClass: 'nav-infrastructure',
+        breadcrumbs: [{ name: 'Infrastructure'}]
+    },
+    'test-data.html': {
+        activeClass: 'nav-ingest',
+        temporaryDisableHover: true,
+        breadcrumbs: [{ name: 'Log Ingestion Methods'}]
+    },
+    'metrics-ingestion.html': {
+        activeClass: 'nav-ingest',
+        breadcrumbs: [{ name: 'Metrics Ingestion Methods'}]
+    },
+    'traces-ingestion.html': {
+        activeClass: 'nav-ingest',
+        breadcrumbs: [{ name: 'Traces Ingestion Methods'}]
+    }
+};
+
+// Pages related to My Org section
+const orgPages = {
+    'cluster-stats.html': {
+        name: 'Cluster Stats',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Cluster Stats' }
+        ]
+    },
+    'org-settings.html': {
+        name: 'Org Settings',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Org Settings' }
+        ]
+    },
+    'application-version.html': {
+        name: 'Version',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Version' }
+        ]
+    },
+    'query-stats.html': {
+        name: 'Query Stats',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Query Stats' }
+        ]
+    },
+    'pqs-settings.html': {
+        name: 'PQS Settings',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'PQS Settings' }
+        ]
+    },
+    'diagnostics.html': {
+        name: 'Diagnostics',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Diagnostics' }
+        ]
+    },
+    {{ .OrgUpperNavUrls }}
+};
+
 $(document).ready(function () {
+    $('#app-side-nav').before(headerHTML);
     $('#app-side-nav').prepend(navbarComponent);
-    const currentUrl = window.location.href;
 
+    // Combine HEAD's Metrics menu click handling with develop's navigation state
+    $('.big-menu .nav-links').on('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
 
-    if (currentUrl.includes('index.html')) {
-        $('.nav-search').addClass('active');
-    } else if (currentUrl.includes('metrics-explorer.html')) {
-        $('.nav-metrics').addClass('active');
-        $('.nav-metrics').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-metrics').removeClass('disable-hover');
-        }, 500);
-    } else if (currentUrl.includes('metric-summary.html')) {
-        $('.nav-metrics').addClass('active');
-    } else if (currentUrl.includes('metric-cardinality.html')) {
-        $('.nav-metrics').addClass('active');
-    } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
-        $('.nav-ldb').addClass('active');
-    } else if (currentUrl.includes('saved-queries.html')) {
-        $('.nav-usq').addClass('active');
-    } else if (currentUrl.includes('alerts.html') || currentUrl.includes('alert.html') || currentUrl.includes('alert-details.html') || currentUrl.includes('contacts.html')) {
-        $('.nav-alerts').addClass('active');
-        $('.alerts-nav-tab').appendOrgNavTabs('Alerting', alertsUpperNavTabs);
-    } else if (currentUrl.includes('all-slos.html')) {
-        $('.nav-slos').addClass('active');
-        $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
-    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html')|| currentUrl.includes('query-stats.html')  || currentUrl.includes('pqs-settings.html') {{ .OrgUpperNavUrls }}
-    ||  currentUrl.includes('diagnostics.html')) {
-        $('.nav-myorg').addClass('active');
-        $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
-    } else if (currentUrl.includes('minion-searches.html')) {
-        $('.nav-minion').addClass('active');
-    } else if (currentUrl.includes('live-tail.html')) {
-        $('.nav-live').addClass('active');
-    } else if (currentUrl.includes('service-health.html') || currentUrl.includes('service-health-overview.html') || currentUrl.includes('dependency-graph.html') || currentUrl.includes('search-traces.html')) {
-        $('.nav-traces').addClass('active');
-        $('.nav-traces').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-traces').removeClass('disable-hover');
-        }, 500);
-        if ($('.subsection-navbar').length) {
-            $('.subsection-navbar').appendOrgNavTabs('APM', tracingUpperNavTabs);
+        const $menu = $(this).closest('.big-menu');
+        const $submenu = $menu.find('.accordion-content');
+        const $arrow = $menu.find('.nav-dropdown-icon');
+
+        const isOpen = $submenu.is(':visible');
+
+        $submenu.slideToggle(300);
+        $arrow.toggleClass('rotated', !isOpen);
+
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+        const menuText = $menu.find('.nav-link-text, .nav-link-text-explore, .nav-link-text-summary, .nav-link-text-cardinality').text().trim();
+
+        if (isOpen) {
+            activeMenus = activeMenus.filter(item => item !== menuText);
+        } else {
+            activeMenus.push(menuText);
         }
-    } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
-        $('.nav-ingest').addClass('active');
-        $('.nav-ingest').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-ingest').removeClass('disable-hover');
-        }, 500);
-    } else if (currentUrl.includes('lookups.html')) {
-        $('.nav-lookups').addClass('active');
-    } 
+        localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+    });
 
-    // Hover event handlers updated to respect disable-hover class
-    $('.metrics-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideDown(0);
+    function restoreMenuStates() {
+        let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+        $('.big-menu').each(function () {
+            const $menu = $(this);
+            const $submenu = $menu.find('.accordion-content');
+            const $arrow = $menu.find('.nav-dropdown-icon');
+            const menuText = $menu.find('.nav-link-text, .nav-link-text-explore, .nav-link-text-summary, .nav-link-text-cardinality').text().trim();
+
+            if (activeMenus.includes(menuText)) {
+                $submenu.css('display', 'block');
+                $arrow.addClass('rotated');
+            } else {
+                $submenu.css('display', 'none');
+                $arrow.removeClass('rotated');
             }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideUp(30);
-            }
+        });
+    }
+
+    // Call restoration immediately
+    restoreMenuStates();
+
+    // Integrate develop's navigation state setup
+    setupNavigationState();
+    initializeDropdowns();
+    setupHamburgerBehavior();
+
+    // Handle other menu clicks without affecting Metrics
+    $('.nav-links').not('.big-menu .nav-links').on('click', function (e) {
+        e.stopPropagation();
+    });
+
+    // Highlight submenu if a submenu item is active
+    $('.submenu-link').each(function () {
+        const currentUrl = window.location.href;
+        if (currentUrl.includes('metrics-explorer.html') && $(this).attr('href').includes('metrics-explorer.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "2px solid orange"
+            });
+            $(this).closest('.big-menu').find('.nav-link-text-explore').css("color", "white");
+        } else if (currentUrl.includes('metric-summary.html') && $(this).attr('href').includes('metric-summary.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "2px solid orange"
+            });
+            $(this).closest('.big-menu').find('.nav-link-text-summary').css("color", "white");
+        } else if (currentUrl.includes('metric-cardinality.html') && $(this).attr('href').includes('metric-cardinality.html')) {
+            $(this).css({
+                "color": "white",
+                "border-left": "2px solid orange"
+            });
+            $(this).closest('.big-menu').find('.nav-link-text-cardinality').css("color", "white");
         }
-    );
+    });
 
+    // Tracing, Ingestion, and Help dropdown behaviors from develop
     $('.tracing-dropdown-toggle').hover(
         function () {
             if (!$(this).closest('.menu').hasClass('disable-hover')) {
@@ -267,51 +464,192 @@ $(document).ready(function () {
             event.preventDefault();
             $('.help-options').stop(true, true).slideUp(30);
         }
-    );
-
-    // Prevent the default click action for Help & Support
-    $('.nav-help').on('click', function (event) {
+    ).on('click', function (event) {
         event.preventDefault();
     });
 
-    // Handle the hover event for the help-options to keep it visible
     $('.help-options').hover(
         function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $('.help-options').stop(true, true).slideDown(0);
+            $(this).stop(true, true).slideDown(0);
         },
         function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $('.help-options').stop(true, true).slideUp(30);
+            $(this).stop(true, true).slideUp(30);
         }
     );
 
+    // Close dropdowns when clicking elsewhere
     $(document).on('click', function (event) {
-        var helpOptions = $('.help-options');
-        var metricsDropdown = $('.metrics-dropdown');
-        var tracesDropdown = $('.traces-dropdown');
-        var ingestionDropdown = $('.ingestion-dropdown');
+        const dropdowns = [
+            { selector: '.metrics-dropdown', condition: $('.metrics-dropdown').is(event.target) || $('.metrics-dropdown').has(event.target).length > 0 },
+            { selector: '.traces-dropdown', condition: $('.traces-dropdown').is(event.target) || $('.traces-dropdown').has(event.target).length > 0 },
+            { selector: '.ingestion-dropdown', condition: $('.ingestion-dropdown').is(event.target) || $('.ingestion-dropdown').has(event.target).length > 0 },
+            { selector: '.help-options', condition: $('.help-options').is(event.target) || $('.help-options').has(event.target).length > 0 }
+        ];
 
-        if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
-            metricsDropdown.hide();
-        }
-        if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
-            tracesDropdown.hide();
-        }
-        if (!ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
-            ingestionDropdown.hide();
-        }
-        if (!helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
-            helpOptions.slideUp(0);
-        }
-    });
-
-    const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    menuItem.forEach((item) => {
-        if (item.href === currentUrl) {
-            item.classList.add('active');
-        }
+        dropdowns.forEach(dropdown => {
+            if (!dropdown.condition) {
+                $(dropdown.selector).hide();
+            }
+        });
     });
 });
+
+function setupNavigationState() {
+    const currentUrl = window.location.href;
+    let matchedConfig = null;
+    let isOrgPage = false;
+
+    if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
+        matchedConfig = navigationStructure['index.html'];
+    } else {
+        for (const [urlKey, config] of Object.entries(navigationStructure)) {
+            if (currentUrl.includes(urlKey)) {
+                matchedConfig = config;
+                break;
+            }
+        }
+    }
+
+    // Check for org pages if no exact match
+    if (!matchedConfig) {
+        for (const [page, config] of Object.entries(orgPages)) {
+            if (currentUrl.includes(page)) {
+                isOrgPage = true;
+                matchedConfig = {
+                    activeClass: 'nav-myorg',
+                    breadcrumbs: config.breadcrumbs,
+                    upperNavTabs: 'orgUpperNavTabs'
+                };
+                break;
+            }
+        }
+    }
+
+    if (matchedConfig) {
+        $(`.${matchedConfig.activeClass}`).addClass('active');
+
+        if (matchedConfig.temporaryDisableHover) {
+            $(`.${matchedConfig.activeClass}`).addClass('disable-hover');
+            setTimeout(function () {
+                $(`.${matchedConfig.activeClass}`).removeClass('disable-hover');
+            }, 500);
+        }
+
+        initializeBreadcrumbs(matchedConfig.breadcrumbs);
+
+        if (matchedConfig.upperNavTabs) {
+            if (matchedConfig.upperNavTabs === 'tracingUpperNavTabs' && $('.subsection-navbar').length) {
+                $('.subsection-navbar').appendOrgNavTabs(tracingUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'alertsUpperNavTabs') {
+                $('.alerts-nav-tab').appendOrgNavTabs(alertsUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'orgUpperNavTabs') {
+                $('.org-nav-tab').appendOrgNavTabs(orgUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'sloTabs') {
+                $('.alerts-nav-tab').appendOrgNavTabs([]);
+            }
+        }
+    }
+}
+
+function initializeDropdowns() {
+    // Metrics dropdown behavior (handled by click event above)
+}
+
+function setupHamburgerBehavior() {
+    const navbarToggle = $('#navbar-toggle');
+    const appSideNav = $('#app-side-nav');
+    let navTimeout;
+
+    navbarToggle.on('mouseenter', function () {
+        clearTimeout(navTimeout);
+        $('body').addClass('nav-expanded');
+    });
+
+    appSideNav.on('mouseenter', function () {
+        clearTimeout(navTimeout);
+    });
+
+    appSideNav.on('mouseleave', function () {
+        navTimeout = setTimeout(function () {
+            $('body').removeClass('nav-expanded');
+        }, 300);
+    });
+
+    navbarToggle.on('mouseleave', function (e) {
+        if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
+            navTimeout = setTimeout(function () {
+                $('body').removeClass('nav-expanded');
+            }, 300);
+        }
+    });
+
+    navbarToggle.on('click', function (e) {
+        e.stopPropagation();
+        $('body').toggleClass('nav-expanded');
+    });
+
+    $(document).on('click', function (e) {
+        if (!appSideNav.is(e.target) && !appSideNav.has(e.target).length &&
+            !navbarToggle.is(e.target) && !navbarToggle.has(e.target).length) {
+            $('body').removeClass('nav-expanded');
+        }
+    });
+}
+
+function initializeBreadcrumbs(breadcrumbConfig) {
+    const breadcrumb = $('#sl-breadcrumb');
+    breadcrumb.empty();
+
+    if (breadcrumbConfig && breadcrumbConfig.length) {
+        $.each(breadcrumbConfig, function(index, crumb) {
+            const li = $('<li>');
+            let a;
+
+            if ((index === breadcrumbConfig.length - 1) || crumb.noLink) {
+                a = $('<span>')
+                    .addClass('breadcrumb-text')
+                    .text(crumb.name);
+
+                if (index === breadcrumbConfig.length - 1) {
+                    a.addClass('active');
+                }
+            } else {
+                a = $('<a>')
+                    .attr('href', crumb.url || '#')
+                    .text(crumb.name);
+            }
+
+            li.append(a);
+            breadcrumb.append(li);
+
+            if (index < breadcrumbConfig.length - 1) {
+                const arrow = $('<span>').addClass('dashboard-arrow');
+                breadcrumb.append(arrow);
+            }
+        });
+    }
+}
+
+function toggleDropdown(element) {
+    const $menu = $(element).closest('.big-menu');
+    const $submenu = $menu.find('.accordion-content');
+    const $arrow = $menu.find('.nav-dropdown-icon');
+
+    const isOpen = $submenu.is(':visible');
+    $submenu.slideToggle(300);
+    $arrow.toggleClass('rotated', !isOpen);
+
+    let activeMenus = JSON.parse(localStorage.getItem('activeMenus')) || [];
+    const menuText = $menu.find('.nav-link-text').text().trim();
+
+    if (isOpen) {
+        activeMenus = activeMenus.filter(item => item !== menuText);
+    } else {
+        activeMenus.push(menuText);
+    }
+    localStorage.setItem('activeMenus', JSON.stringify(activeMenus));
+}

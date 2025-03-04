@@ -91,7 +91,7 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	if downsampleAggFn == utils.Avg {
 		convertedDownsampleAggFn = utils.Sum
 	}
-	aggregationConstant := mQuery.Aggregator.FuncConstant
+	aggregationConstant := mQuery.FirstAggregator.FuncConstant
 
 	retVal := make([]Entry, initial_len, extend_capacity)
 	return &Series{
