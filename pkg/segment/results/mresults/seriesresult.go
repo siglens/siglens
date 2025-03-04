@@ -971,7 +971,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 
 		index := fnConstant * float64(len(entriesCopy)-1)
 		// Check for special cases when quantile position doesn't fall on an exact index
-		if index > 0 && index != float64(int(index)) && int(index)+1 < len(entriesCopy) {
+		if index >= 0 && index != float64(int(index)) && int(index)+1 < len(entriesCopy) {
 			// Calculate the weight for interpolation
 			fraction := index - float64(int(index))
 
@@ -979,7 +979,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			dpVal2 := entriesCopy[int(index)+1].runningVal
 
 			ret = dpVal1 + fraction*(dpVal2-dpVal1)
-		} else if index > 0 && int(index) < len(entriesCopy) {
+		} else if index >= 0 && int(index) < len(entriesCopy) {
 			ret = entriesCopy[int(index)].runningVal
 		} else {
 			log.Errorf("reduceRunningEntries: invalid index: %v, len(entriesCopy): %v", index, len(entriesCopy))
