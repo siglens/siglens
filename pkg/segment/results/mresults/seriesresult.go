@@ -907,6 +907,7 @@ func aggFunc(aggName utils.AggregateFunctions) func([]float64) float64 {
 		}
 	case utils.Quantile, utils.Stddev, utils.Stdvar:
 		// TODO andrew: implement quantile, stddev, and stdvar
+		log.Errorf("aggFunc: not implemented yet for AggregateFunction: %v", aggName)
 		return nil
 	default:
 		log.Errorf("aggFunc: unsupported AggregateFunction: %v", aggName)

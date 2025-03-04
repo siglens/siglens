@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash"
 	parser "github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
@@ -226,30 +227,20 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
-
-		for grpID, ds := range r.DsResults {
-			if ds == nil {
-				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
+		aggregatedSeries := make(map[uint64]*metrics.TaggedSeries, len(groupToSeries))
+		for groupId, seriesList := range groupToSeries {
+			aggregator := aggFunc(aggregation.AggregatorFunction)
+			result, err := metrics.Aggregate(seriesList, aggregator, groupId)
+			if err != nil {
+				err := fmt.Errorf("AggregateResults: Group %v has error: %v", groupId, err)
 				errors = append(errors, err)
 				return errors
 			}
 
-			if _, exists := seriesEntriesMap[grpID]; !exists {
-				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
-			}
-
-			for i := 0; i < ds.idx; i++ {
-				entry := ds.runningEntries[i]
-				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
-			}
+			hash := xxhash.Sum64String(groupId)
+			aggregatedSeries[hash] = result
 		}
 
-		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
-		if err != nil {
-			errors = append(errors, err)
-			return errors
-		}
 		return nil
 	}
 

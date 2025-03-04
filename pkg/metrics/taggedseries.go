@@ -101,6 +101,32 @@ func (t *TaggedSeries) Id() string {
 	return id.String()
 }
 
+func (t *TaggedSeries) SetTagsFromId(id string) error {
+	tags := make(map[string]string)
+
+	// Parse metric name.
+	idx := strings.Index(id, "{")
+	if idx == -1 {
+		return fmt.Errorf("ID is missing '{': %v", id)
+	}
+
+	tags["__name__"] = id[:idx]
+
+	// Parse tags.
+	id = id[idx+1 : len(id)-1]
+	pairs := strings.Split(id, ",")
+	for _, pair := range pairs {
+		kv := strings.Split(pair, "=")
+		if len(kv) != 2 {
+			continue
+		}
+		tags[kv[0]] = kv[1]
+	}
+
+	t.tags = tags
+	return nil
+}
+
 func (t *TaggedSeries) Downsample(interval Epoch, aggregator func([]float64) float64) error {
 	if interval <= 0 {
 		return fmt.Errorf("non-positive interval %v", interval)
@@ -118,4 +144,21 @@ func (t *TaggedSeries) Downsample(interval Epoch, aggregator func([]float64) flo
 	t.timeseries = downsampler.evaluate()
 
 	return nil
+}
+
+// TODO: extract the groupId from the input series.
+func Aggregate(inputSeries []*TaggedSeries, aggregator func([]float64) float64,
+	groupId string) (*TaggedSeries, error) {
+
+	timeseries := make([]timeseries, 0, len(inputSeries))
+	for _, s := range inputSeries {
+		timeseries = append(timeseries, s.timeseries)
+	}
+
+	aggSeries, err := NewAggSeries(timeseries, aggregator)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewTaggedSeries(nil, aggSeries, groupId), nil
 }

@@ -89,4 +89,19 @@ func Test_TaggedMetric(t *testing.T) {
 		// Check old tags are gone
 		assert.False(t, series.HasTag("key1"))
 	})
+
+	t.Run("SetTagsFromId", func(t *testing.T) {
+		err := series.SetTagsFromId("metric_name{key1=value1,key2=value2}")
+		assert.NoError(t, err)
+		assert.Equal(t, "metric_name{key1=value1,key2=value2}", series.Id())
+		value, ok := series.GetValue("key1")
+		assert.True(t, ok)
+		assert.Equal(t, "value1", value)
+		value, ok = series.GetValue("key2")
+		assert.True(t, ok)
+		assert.Equal(t, "value2", value)
+
+		err = series.SetTagsFromId("invalid")
+		assert.Error(t, err)
+	})
 }
