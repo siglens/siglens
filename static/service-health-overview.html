@@ -40,10 +40,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/tracing.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/tracing.css?cb={{ AppVersion }}" />
 
-    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -52,6 +51,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/date_fns.min.js"></script>
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
@@ -157,12 +157,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     </div>
 
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/lib/chart.umd.min.js"></script>
-    <script src="./js/service-health-overview.js?cb=1_1_10"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./js/service-health-overview.js?cb={{ AppVersion }}"></script>    
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
