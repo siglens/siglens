@@ -359,6 +359,7 @@ type windowMappingSeries struct {
 	aggregator func([]float64) float64
 	windowSize epoch
 	stepSize   epoch // How far to slide the window each time
+	endTime    epoch // The final window ends here (inclusive)
 
 	isEvaluated bool
 	result      timeseries
@@ -412,37 +413,45 @@ func (w *windowMappingSeries) evaluate() timeseries {
 		return &lookupSeries{}
 	}
 
-	// Find start and end timestamps
+	finalValues := make([]entry, 0)
+
 	startTimestamp := allValues[0].timestamp
-	endTimestamp := allValues[len(allValues)-1].timestamp
+	breakNextIter := false
+	for windowEnd := w.endTime; windowEnd >= startTimestamp && !breakNextIter; windowEnd -= w.stepSize {
+		windowStart := windowEnd - w.windowSize
+		if w.windowSize > windowEnd {
+			// Handle underflow
+			windowStart = 0
+			breakNextIter = true
+		}
 
-	// Align to step boundaries
-	startTimestamp = (startTimestamp / w.stepSize) * w.stepSize
-
-	// Create sliding windows and compute results
-	finalEntries := make([]entry, 0)
-
-	for windowEnd := startTimestamp; windowEnd < endTimestamp+w.stepSize; windowEnd += w.stepSize {
-		windowStart := int32(windowEnd - w.windowSize)
+		subSeries := w.timeseries.Range(windowStart, windowEnd, PromQl3Range)
+		subIterator := subSeries.Iterator()
 		valuesInWindow := make([]float64, 0)
-
-		for _, entry := range allValues {
-			// The window is (windowStart, windowEnd]
-			if int32(entry.timestamp) > windowStart && entry.timestamp <= windowEnd {
-				valuesInWindow = append(valuesInWindow, entry.value)
+		for {
+			point, ok := subIterator.Next()
+			if !ok {
+				break
 			}
+
+			valuesInWindow = append(valuesInWindow, point.value)
 		}
 
 		if len(valuesInWindow) > 0 {
 			aggregatedValue := w.aggregator(valuesInWindow)
-			finalEntries = append(finalEntries, entry{
+			finalValues = append(finalValues, entry{
 				timestamp: windowEnd,
 				value:     aggregatedValue,
 			})
 		}
 	}
 
-	return &lookupSeries{values: finalEntries}
+	for i := 0; i < len(finalValues)/2; i++ {
+		k := len(finalValues) - 1 - i
+		finalValues[i], finalValues[k] = finalValues[k], finalValues[i]
+	}
+
+	return &lookupSeries{values: finalValues}
 }
 
 type downsampler struct {
