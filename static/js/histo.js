@@ -50,7 +50,7 @@ $(document).ready(function () {
             const jsonEvent = JSON.parse(event.data);
             console.log('WebSocket message received in histo.js:', jsonEvent.state, JSON.stringify(jsonEvent, null, 2));
 
-            // Capture initial startEpoch and endEpoch from the first message
+            // Capture initial startEpoch and endEpoch from the first msg
             if (!initialStartEpoch || !initialEndEpoch) {
                 initialStartEpoch = jsonEvent.startEpoch || moment().subtract(30, 'days').valueOf();
                 initialEndEpoch = jsonEvent.endEpoch || moment().valueOf();
