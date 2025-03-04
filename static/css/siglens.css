@@ -829,7 +829,6 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     width: 122px !important;
 }
 
@@ -843,11 +842,6 @@ body {
 }
 
 #app-side-nav .nav-main-menu {
-    min-height: 38px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-    margin-bottom: 2px;
     margin-right: 8px;
 }
 
@@ -862,7 +856,6 @@ body {
 #app-side-nav .nav-main-menu.logo {
     display: flex;
     justify-content: center;
-    padding: 12px;
 }
 
 #app-side-nav.active .nav-main-menu.logo {
@@ -1073,14 +1066,13 @@ body {
 #app-side-nav {
     position: fixed;
     left: -250px;
-    top: 40px;
-    height: calc(100vh - 40px);
+    top: 0px;
+    height: 100vh;
     width: 250px;
     transition: all 0.3s ease-in-out;
     overflow-y: auto;
     z-index: 1000;
     box-shadow: 3px 0 5px rgba(0, 0, 0, 0.1);
-    padding-top: 10px;
 }
 
 body.nav-expanded #app-side-nav {
@@ -6177,7 +6169,7 @@ p#versionInfo {
 }
 
 .kubernetes-card {
-    background-color: var(--black1-to-white0);
+    background-color: var(--drop-down-btn-bg-regular);
     border: 1px solid var(--search-input-border);
     border-radius: 4px;
     padding: 16px;
@@ -6816,6 +6808,23 @@ p#versionInfo {
 
 .sl-hamburger svg {
     height: 14px;
+}
+
+#app-side-nav .sl-hamburger {
+    background-color: var(--side-nav-bg-color);
+}
+
+#app-side-nav .sl-hamburger {
+    color: var(--white-0);
+    background-color: var(--side-nav-bg-color-selected);
+}
+
+.nav-header {
+    padding: 8px 0px 8px 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--side-nav-bg-color-selected);
+    display: flex;
+    margin-bottom: 10px;
 }
 
 /* Breadcrumb Styles */
