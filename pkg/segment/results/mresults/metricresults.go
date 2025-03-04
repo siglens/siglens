@@ -224,49 +224,32 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	r.Results = make(map[string]map[uint32]float64)
 	errors := make([]error, 0)
 
-	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
-	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
-	if aggregation.IsAggregateFromAllTimeseries() {
-		aggregatedSeries := make(map[uint64]*metrics.TaggedSeries, len(groupToSeries))
-		for groupId, seriesList := range groupToSeries {
-			aggregator := aggFunc(aggregation.AggregatorFunction)
-			result, err := metrics.Aggregate(seriesList, aggregator, groupId)
-			if err != nil {
-				err := fmt.Errorf("AggregateResults: Group %v has error: %v", groupId, err)
-				errors = append(errors, err)
-				return errors
-			}
-
-			hash := xxhash.Sum64String(groupId)
-			aggregatedSeries[hash] = result
-		}
-
-		return nil
-	}
-
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
 
+	results := make(map[uint64]*metrics.TaggedSeries, len(groupToSeries))
 	var idx int
-	for grpID, runningDS := range r.DsResults {
+	for groupId, seriesList := range groupToSeries {
 		wg.Add(1)
-		go func(grp string, ds *DownsampleSeries) {
+		go func(grp string, seriesList []*metrics.TaggedSeries) {
 			defer wg.Done()
 
-			grpVal, err := ds.AggregateFromSingleTimeseries()
+			aggregator := aggFunc(aggregation.AggregatorFunction)
+			result, err := metrics.Aggregate(seriesList, aggregator, groupId)
 			if err != nil {
 				errorLock.Lock()
+				err := fmt.Errorf("AggregateResults: Group %v has error: %v", groupId, err)
 				errors = append(errors, err)
 				errorLock.Unlock()
 				return
 			}
 
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[xxhash.Sum64String(groupId)] = result
 			lock.Unlock()
-		}(grpID, runningDS)
+		}(groupId, seriesList)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -280,6 +263,8 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	if len(errors) > 0 {
 		return errors
 	}
+
+	r.AllSeries = results
 
 	return nil
 }
