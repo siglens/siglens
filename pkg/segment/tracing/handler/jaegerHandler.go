@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
