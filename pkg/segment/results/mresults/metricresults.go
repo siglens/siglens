@@ -638,6 +638,11 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 			for k, v := range results {
 				result.Value = append(result.Value, []interface{}{int64(k), fmt.Sprintf("%v", v)})
 			}
+
+			sort.Slice(result.Value, func(i, j int) bool {
+				return result.Value[i].([]interface{})[0].(int64) < result.Value[j].([]interface{})[0].(int64)
+			})
+
 			pqldata.Result = append(pqldata.Result, *result)
 		}
 	default:
