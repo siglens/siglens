@@ -4098,14 +4098,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     right: 30px;
 }
 
-#login-error-message {
-    background-color: rgba(224, 104, 124, 0.5);
-    border-top: 4px solid rgb(224 104 125 / 1);
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 20px;
+.error-container {
+    background-color: rgba(127, 29, 29, 0.4);
+    border: 1px solid rgb(185, 28, 28);
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 20px;
     display: none;
     font-weight: 600;
+    color: rgb(254, 202, 202);
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.error-container.show {
+    display: flex;
 }
 
 #login-form {
@@ -4118,23 +4126,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .form-box {
-    width: 500px;
+    width: 470px;
     background: var(--black-1);
-    border-radius: 5px;
-    padding: 30px 40px;
+    border-radius: 10px;
+    padding: 38px;
     color: var(--white-0);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
 }
 
 .form-box .sslogo {
-    width: 200px;
+    width: 240px;
+    height: auto;
+    margin-bottom: 10px;
 }
 
 .form-box .tag-line {
     color: #B4A6E6;
-    font-size: 20px;
+    font-size: 28px;
     font-weight: 600;
     margin-top: 10px;
     margin-bottom: 20px;
@@ -4148,10 +4159,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .signup-fields a {
-    background: #262038;
-    border-radius: 5px;
+    background: #352f48;
+    border-radius: 8px;
     text-decoration: none;
-    height: 36px;
+    height: 40px;
     width: 100%;
     margin-bottom: 15px;
     font-size: 14px;
@@ -4166,7 +4177,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .signup-fields a:hover,
 .signup-fields a:focus {
     /* border: 1px solid var(--purple-1); */
-    background: #352f48;
+    background: #262038;
+
 }
 
 .signup-fields a span img {
