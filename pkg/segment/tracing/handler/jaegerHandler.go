@@ -3,6 +3,8 @@ package handler
 import (
 	"encoding/json"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
@@ -26,10 +28,20 @@ type SearchResponse struct {
 
 func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
+	startEpoch := string(ctx.QueryArgs().Peek("startEpoch"))
+	endEpoch := string(ctx.QueryArgs().Peek("endEpoch"))
+
+	if startEpoch == "" {
+		startEpoch = "now-24h"
+	}
+	if endEpoch == "" {
+		endEpoch = "now"
+	}
+
 	requestBody := structs.SearchRequestBody{
 		SearchText:    "SELECT DISTINCT `service` FROM `traces`",
-		StartEpoch:    "now-1h",
-		EndEpoch:      "now",
+		StartEpoch:    startEpoch,
+		EndEpoch:      endEpoch,
 		IndexName:     "traces",
 		QueryLanguage: "SQL",
 		From:          0,
@@ -42,7 +54,13 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
 	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
-	_ = json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
+	err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
+
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("Error parsing response body: %v", err)
+		return
+	}
 
 	serviceSet := make(map[string]bool)
 	for _, record := range pipeSearchResponseOuter.Hits.Hits {
@@ -61,7 +79,7 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 		Total:  len(distinctServices),
 		Limit:  0,
 		Offset: 0,
-		Errors: []string{},
+		Errors: nil,
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
@@ -70,11 +88,19 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
 func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 	serviceName := utils.ExtractParamAsString(ctx.UserValue("serviceName"))
+	startEpoch := string(ctx.QueryArgs().Peek("startEpoch"))
+	endEpoch := string(ctx.QueryArgs().Peek("endEpoch"))
 
+	if startEpoch == "" {
+		startEpoch = "now-24h"
+	}
+	if endEpoch == "" {
+		endEpoch = "now"
+	}
 	searchRequestBody := structs.SearchRequestBody{
 		SearchText:    "SELECT DISTINCT `name` FROM `traces`",
-		StartEpoch:    "now-1h",
-		EndEpoch:      "now",
+		StartEpoch:    startEpoch,
+		EndEpoch:      endEpoch,
 		IndexName:     "traces",
 		QueryLanguage: "SQL",
 		From:          0,
@@ -87,28 +113,33 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
 	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
-	_ = json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
+	err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		log.Errorf("Error parsing response body: %v", err)
+		return
+	}
 
-	serviceSet := make(map[string]bool)
+	nameSet := make(map[string]bool)
 	for _, record := range pipeSearchResponseOuter.Hits.Hits {
-		if service, exists := record["name"].(string); exists {
+		if name, exists := record["name"].(string); exists {
 			if sn, ok := record["service"].(string); ok && sn == serviceName {
-				serviceSet[service] = true
+				nameSet[name] = true
 			}
 		}
 	}
 
-	var distinctServicesName []string
-	for service := range serviceSet {
-		distinctServicesName = append(distinctServicesName, service)
+	var distinctNames []string
+	for name := range nameSet {
+		distinctNames = append(distinctNames, name)
 	}
 
 	finalResponse := ResponseBody{
-		Data:   distinctServicesName,
-		Total:  len(distinctServicesName),
+		Data:   distinctNames,
+		Total:  len(distinctNames),
 		Limit:  0,
 		Offset: 0,
-		Errors: []string{},
+		Errors: nil,
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
