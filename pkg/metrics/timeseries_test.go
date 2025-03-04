@@ -32,9 +32,9 @@ func Test_implementsSeries(t *testing.T) {
 
 func Test_lookupSeries(t *testing.T) {
 	series := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
+		values: []Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
 		},
 	}
 
@@ -46,17 +46,17 @@ func Test_lookupSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
 		}), series.Iterator())
 	})
 }
 
 func Test_generatedSeries(t *testing.T) {
 	series := &generatedSeries{
-		timestamps: []epoch{1, 2},
-		valueAt: func(timestamp epoch) float64 {
+		timestamps: []Epoch{1, 2},
+		valueAt: func(timestamp Epoch) float64 {
 			return float64(timestamp) + 100
 		},
 	}
@@ -69,17 +69,17 @@ func Test_generatedSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
 		}), series.Iterator())
 	})
 }
 
 func Test_generatedSeries_empty(t *testing.T) {
 	series := &generatedSeries{
-		timestamps: []epoch{},
-		valueAt: func(timestamp epoch) float64 {
+		timestamps: []Epoch{},
+		valueAt: func(timestamp Epoch) float64 {
 			return float64(timestamp) + 100
 		},
 	}
@@ -98,10 +98,10 @@ func Test_generatedSeries_empty(t *testing.T) {
 
 func Test_rangeSeries(t *testing.T) {
 	lookupSeries := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
-			{timestamp: 3, value: 103},
+		values: []Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
+			{Timestamp: 3, Value: 103},
 		},
 	}
 
@@ -118,24 +118,24 @@ func Test_rangeSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 2, value: 102},
-			{timestamp: 3, value: 103},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 2, Value: 102},
+			{Timestamp: 3, Value: 103},
 		}), lookupSeries.Range(1, 3, PromQl3Range).Iterator())
 
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 2, value: 102},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 2, Value: 102},
 		}), lookupSeries.Range(1, 3, PromQl3Range).Range(0, 2, PromQl3Range).Iterator())
 
-		assertEqualIterators(t, utils.NewIterator([]entry{}),
+		assertEqualIterators(t, utils.NewIterator([]Entry{}),
 			lookupSeries.Range(1, 1, PromQl3Range).Iterator(),
 		)
 
-		assertEqualIterators(t, utils.NewIterator([]entry{}),
+		assertEqualIterators(t, utils.NewIterator([]Entry{}),
 			lookupSeries.Range(5, 1, PromQl3Range).Iterator(),
 		)
 
-		assertEqualIterators(t, utils.NewIterator([]entry{}),
+		assertEqualIterators(t, utils.NewIterator([]Entry{}),
 			lookupSeries.Range(2, 3, PromQl3Range).Range(0, 1, PromQl3Range).Iterator(),
 		)
 	})
@@ -143,19 +143,19 @@ func Test_rangeSeries(t *testing.T) {
 
 func Test_aggSeries(t *testing.T) {
 	series1 := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
-			{timestamp: 4, value: 104},
+		values: []Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
+			{Timestamp: 4, Value: 104},
 		},
 	}
 
 	series2 := &lookupSeries{
-		values: []entry{
-			{timestamp: 2, value: 202},
-			{timestamp: 3, value: 203},
-			{timestamp: 4, value: 204},
-			{timestamp: 5, value: 205},
+		values: []Entry{
+			{Timestamp: 2, Value: 202},
+			{Timestamp: 3, Value: 203},
+			{Timestamp: 4, Value: 204},
+			{Timestamp: 5, Value: 205},
 		},
 	}
 
@@ -181,21 +181,21 @@ func Test_aggSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 304},
-			{timestamp: 3, value: 203},
-			{timestamp: 4, value: 308},
-			{timestamp: 5, value: 205},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 304},
+			{Timestamp: 3, Value: 203},
+			{Timestamp: 4, Value: 308},
+			{Timestamp: 5, Value: 205},
 		}), result.Iterator())
 	})
 }
 
 func Test_valueMappingSeries(t *testing.T) {
 	series := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 3},
-			{timestamp: 2, value: 4},
+		values: []Entry{
+			{Timestamp: 1, Value: 3},
+			{Timestamp: 2, Value: 4},
 		},
 	}
 
@@ -216,19 +216,19 @@ func Test_valueMappingSeries(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 1, value: 9},
-			{timestamp: 2, value: 16},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 1, Value: 9},
+			{Timestamp: 2, Value: 16},
 		}), mappedSeries.Iterator())
 	})
 }
 
 func Test_Downsample(t *testing.T) {
 	series := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
-			{timestamp: 30, value: 130},
+		values: []Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
+			{Timestamp: 30, Value: 130},
 		},
 	}
 
@@ -254,22 +254,22 @@ func Test_Downsample(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 0, value: 101.5},
-			{timestamp: 30, value: 130.0},
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 0, Value: 101.5},
+			{Timestamp: 30, Value: 130.0},
 		}), downsampled.Iterator())
 	})
 }
 
 func Test_WindowMappingSeries_SmallStep(t *testing.T) {
 	baseSeries := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
-			{timestamp: 3, value: 103},
-			{timestamp: 4, value: 104},
-			{timestamp: 5, value: 105},
-			{timestamp: 6, value: 106},
+		values: []Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
+			{Timestamp: 3, Value: 103},
+			{Timestamp: 4, Value: 104},
+			{Timestamp: 5, Value: 105},
+			{Timestamp: 6, Value: 106},
 		},
 	}
 
@@ -295,24 +295,24 @@ func Test_WindowMappingSeries_SmallStep(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 1, value: 101},   // (101 + 102) / 2
-			{timestamp: 3, value: 102.0}, // (101 + 102 + 103) / 3
-			{timestamp: 5, value: 104.0}, // (103 + 104 + 105) / 3
-			{timestamp: 7, value: 105.5}, // (105 + 106) / 2
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 1, Value: 101},   // (101 + 102) / 2
+			{Timestamp: 3, Value: 102.0}, // (101 + 102 + 103) / 3
+			{Timestamp: 5, Value: 104.0}, // (103 + 104 + 105) / 3
+			{Timestamp: 7, Value: 105.5}, // (105 + 106) / 2
 		}), series.Iterator())
 	})
 }
 
 func Test_WindowMappingSeries_LargeStep(t *testing.T) {
 	baseSeries := &lookupSeries{
-		values: []entry{
-			{timestamp: 1, value: 101},
-			{timestamp: 2, value: 102},
-			{timestamp: 3, value: 103},
-			{timestamp: 4, value: 104},
-			{timestamp: 5, value: 105},
-			{timestamp: 6, value: 106},
+		values: []Entry{
+			{Timestamp: 1, Value: 101},
+			{Timestamp: 2, Value: 102},
+			{Timestamp: 3, Value: 103},
+			{Timestamp: 4, Value: 104},
+			{Timestamp: 5, Value: 105},
+			{Timestamp: 6, Value: 106},
 		},
 	}
 
@@ -338,14 +338,14 @@ func Test_WindowMappingSeries_LargeStep(t *testing.T) {
 	})
 
 	t.Run("Iterator", func(t *testing.T) {
-		assertEqualIterators(t, utils.NewIterator([]entry{
-			{timestamp: 3, value: 102.0}, // (101 + 102 + 103) / 3
-			{timestamp: 7, value: 105.5}, // (105 + 106) / 2
+		assertEqualIterators(t, utils.NewIterator([]Entry{
+			{Timestamp: 3, Value: 102.0}, // (101 + 102 + 103) / 3
+			{Timestamp: 7, Value: 105.5}, // (105 + 106) / 2
 		}), series.Iterator())
 	})
 }
 
-func assertAtOrBefore(t *testing.T, series timeseries, timestamp epoch, expectedValue float64, expectedOk bool) {
+func assertAtOrBefore(t *testing.T, series timeseries, timestamp Epoch, expectedValue float64, expectedOk bool) {
 	t.Helper()
 
 	value, ok := series.AtOrBefore(timestamp)

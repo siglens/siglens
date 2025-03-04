@@ -29,6 +29,10 @@ type TaggedSeries struct {
 }
 
 func NewTaggedSeries(tags map[string]string, series timeseries) *TaggedSeries {
+	if tags == nil {
+		tags = make(map[string]string)
+	}
+
 	return &TaggedSeries{
 		tags:       tags,
 		timeseries: series,
