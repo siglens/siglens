@@ -24,7 +24,8 @@ function wsURL(path) {
     var url = protocol + location.host;
     return url + path;
 }
-//eslint-disable-next-line no-unused-vars
+
+// eslint-disable-next-line no-unused-vars
 function doCancel(data) {
     if (window.sharedSocket) {
         window.sharedSocket.send(JSON.stringify(data));
@@ -35,16 +36,17 @@ function doCancel(data) {
         $('#query-builder-btn').html(' ');
         $('#query-builder-btn').removeClass('cancel-search');
         $('#query-builder-btn').removeClass('active');
-        $('#progress-div').html(``);
-        $('#record-searched').html(``);
+        $('#progress-div').html('');
+        $('#record-searched').html('');
     }
 }
-//eslint-disable-next-line no-unused-vars
+
+// eslint-disable-next-line no-unused-vars
 function doLiveTailCancel(_data) {
     $('body').css('cursor', 'default');
     $('#live-tail-btn').html('Live Tail');
     $('#live-tail-btn').removeClass('active');
-    $('#progress-div').html(``);
+    $('#progress-div').html('');
 }
 
 function resetDataTable(firstQUpdate) {
@@ -68,12 +70,14 @@ function resetDataTable(firstQUpdate) {
 
 let doSearchCounter = 0;
 let columnCount = 0;
-//eslint-disable-next-line no-unused-vars
+
+// eslint-disable-next-line no-unused-vars
 function doSearch(data) {
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
         window.sharedSocket = new WebSocket(newUri);
+        window.isQueryActive = true; // Set flag when search starts
         let timeToFirstByte = 0;
         let firstQUpdate = true;
         let lastKnownHits = 0;
@@ -95,6 +99,7 @@ function doSearch(data) {
             } catch (e) {
                 reject(`Error sending message to server: ${e}`);
                 console.timeEnd(timerName);
+                window.isQueryActive = false; // Reset on error
                 return;
             }
         };
@@ -107,30 +112,25 @@ function doSearch(data) {
             switch (eventType) {
                 case 'RUNNING':
                     break;
-                case 'QUERY_UPDATE': {
+                case 'QUERY_UPDATE':
                     console.time('QUERY_UPDATE');
                     if (timeToFirstByte === 0) {
                         timeToFirstByte = Number(totalTime).toLocaleString();
                     }
                     let totalHits;
-
                     if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
-                        totalHits = jsonEvent.hits.totalMatched;
+                        totalHits = typeof jsonEvent.hits.totalMatched === 'object' ? jsonEvent.hits.totalMatched.value : jsonEvent.hits.totalMatched;
                         lastKnownHits = totalHits;
-
                     } else {
-                        // we enter here only because backend sent null hits/totalmatched
                         totalHits = lastKnownHits;
                     }
                     resetDataTable(firstQUpdate);
                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
-                    //eslint-disable-next-line no-undef
                     updateNullColumnsTracking(jsonEvent.hits.records);
                     console.timeEnd('QUERY_UPDATE');
                     firstQUpdate = false;
                     break;
-                }
-                case 'COMPLETE': {
+                case 'COMPLETE':
                     let eqRel = 'eq';
                     if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
                         eqRel = jsonEvent.totalMatched.relation;
@@ -139,77 +139,87 @@ function doSearch(data) {
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
-                    //eslint-disable-next-line no-undef
                     finalizeNullColumnsHiding();
                     console.timeEnd('COMPLETE');
                     window.sharedSocket.close(1000);
+                    window.isQueryActive = false;
+                    resolve(); // Resolve on successful completion
                     break;
-                }
                 case 'CANCELLED':
                     console.time('CANCELLED');
                     console.log(`[message] CANCELLED state received from server: ${jsonEvent}`);
                     processCancelUpdate(jsonEvent);
                     console.timeEnd('CANCELLED');
-                    errorMessages.push(`CANCELLED: ${jsonEvent}`);
-                    swindow.sharedSocket.close(1000);
+                    errorMessages.push(new Error(`CANCELLED: ${JSON.stringify(jsonEvent)}`));
+                    window.sharedSocket.close(1000);
+                    window.isQueryActive = false;
                     break;
                 case 'TIMEOUT':
                     console.time('TIMEOUT');
                     console.log(`[message] Timeout state received from server: ${jsonEvent}`);
                     processTimeoutUpdate(jsonEvent);
                     console.timeEnd('TIMEOUT');
-                    errorMessages.push(`Timeout: ${jsonEvent}`);
+                    errorMessages.push(new Error(`Timeout: ${JSON.stringify(jsonEvent)}`));
                     window.sharedSocket.close(1000);
+                    window.isQueryActive = false;
                     break;
                 case 'ERROR':
                     console.time('ERROR');
                     console.log(`[message] Error state received from server: ${jsonEvent}`);
                     processErrorUpdate(jsonEvent);
                     console.timeEnd('ERROR');
-                    errorMessages.push(`Error: ${jsonEvent}`);
+                    errorMessages.push(new Error(`Error: ${JSON.stringify(jsonEvent)}`));
+                    window.isQueryActive = false;
                     break;
                 default:
-                    console.log(`[message] Unknown state received from server: ` + JSON.stringify(jsonEvent));
+                    console.log(`[message] Unknown state received from server: ${JSON.stringify(jsonEvent)}`);
                     if (jsonEvent.message.includes('expected')) {
                         jsonEvent.message = 'Your query contains syntax error';
                     } else if (jsonEvent.message.includes('not present')) {
                         jsonEvent['no_data_err'] = 'No data found for the query';
                     }
                     processSearchErrorLog(jsonEvent);
-                    errorMessages.push(`Unknown state: ${jsonEvent}`);
-            }
-        };
+                    errorMessages.push(new Error(`Unknown state: ${JSON.stringify(jsonEvent)}`));
+            } // Closing brace for switch statement
+        }; // Closing brace for onmessage
 
         window.sharedSocket.onclose = function (event) {
             if (event.wasClean) {
                 console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
             } else {
-                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
-                errorMessages.push(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+                if (!errorMessages.length) {
+                    errorMessages.push(new Error(`Connection closed uncleanly: code=${event.code}, reason=${event.reason}`));
+                }
             }
-
-            if (errorMessages.length === 0) {
-                resolve();
-            } else {
-                reject(errorMessages);
+            if (errorMessages.length > 0) {
+                reject(errorMessages.length === 1 ? errorMessages[0] : errorMessages);
             }
             console.timeEnd(timerName);
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
-        };
+            window.isQueryActive = false;
+        }; // Closing brace for onclose
 
         window.sharedSocket.addEventListener('error', (event) => {
-            errorMessages.push(`WebSocket error: ${event}`);
-        });
-    });
-}
+            errorMessages.push(new Error(`WebSocket error: ${event.type}`));
+            window.isQueryActive = false;
+        }); // Closing brace for addEventListener
+    }).catch(err => {
+        console.warn('doSearch promise rejected:', err);
+        if (err instanceof Array) {
+            err.forEach(e => console.warn(e.message));
+        } else {
+            console.warn(err.message);
+        }
+    }); // Closing brace for Promise and catch
+} // Closing brace for doSearch
 
 function reconnect() {
     if (lockReconnect) {
         return;
     }
     lockReconnect = true;
-    //keep reconnect，set delay to avoid much request, set tt, cancel first, then reset
     clearInterval(tt);
     tt = setInterval(function () {
         if (!liveTailState) {
@@ -234,12 +244,12 @@ function createLiveTailSocket(data) {
         reconnect();
     }
 }
+
 function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
     window.sharedSocket.onopen = function (_e) {
-        //  console.time("socket timing");
         $('body').css('cursor', 'progress');
         $('#live-tail-btn').html('Cancel Live Tail');
         $('#live-tail-btn').addClass('active');
@@ -259,27 +269,24 @@ function doLiveTailSearch(data) {
                 console.time('RUNNING');
                 console.timeEnd('RUNNING');
                 break;
-            case 'QUERY_UPDATE': {
+            case 'QUERY_UPDATE':
                 console.time('QUERY_UPDATE');
                 if (timeToFirstByte === 0) {
                     timeToFirstByte = Number(totalTime).toLocaleString();
                 }
                 let totalHits;
-
                 if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
                     totalHits = jsonEvent.hits.totalMatched;
                     lastKnownHits = totalHits;
                 } else {
-                    // we enter here only because backend sent null hits/totalmatched
                     totalHits = lastKnownHits;
                 }
                 resetDataTable(firstQUpdate);
                 processLiveTailQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
-                //  console.timeEnd("QUERY_UPDATE");
+                console.timeEnd('QUERY_UPDATE');
                 firstQUpdate = false;
                 break;
-            }
-            case 'COMPLETE': {
+            case 'COMPLETE':
                 let eqRel = 'eq';
                 if (jsonEvent.totalMatched != null && jsonEvent.totalMatched.relation != null) {
                     eqRel = jsonEvent.totalMatched.relation;
@@ -292,7 +299,6 @@ function doLiveTailSearch(data) {
                 console.timeEnd('COMPLETE');
                 window.sharedSocket.close(1000);
                 break;
-            }
             case 'TIMEOUT':
                 console.time('TIMEOUT');
                 console.log(`[message] Timeout state received from server: ${jsonEvent}`);
@@ -312,7 +318,7 @@ function doLiveTailSearch(data) {
                 console.timeEnd('ERROR');
                 break;
             default:
-                console.log(`[message] Unknown state received from server: ` + JSON.stringify(jsonEvent));
+                console.log(`[message] Unknown state received from server: ${JSON.stringify(jsonEvent)}`);
                 if (jsonEvent.message.includes('expected')) {
                     jsonEvent.message = 'Your query contains syntax error';
                 } else if (jsonEvent.message.includes('not present')) {
@@ -331,7 +337,7 @@ function doLiveTailSearch(data) {
             if (event.wasClean) {
                 console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
             } else {
-                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
+                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
             }
             console.timeEnd('socket timing');
         }
@@ -341,7 +347,8 @@ function doLiveTailSearch(data) {
         console.log('WebSocket error: ', event);
     });
 }
-//eslint-disable-next-line no-unused-vars
+
+// eslint-disable-next-line no-unused-vars
 function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryParams = new URLSearchParams(window.location.search);
     let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-15m';
@@ -429,6 +436,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         includeNulls: false, // Exclude null values
     };
 }
+
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
     let filterValue = $('#filter-input').val().trim() || '*';
     let endDate = 'now';
@@ -466,6 +474,7 @@ function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
         queryLanguage: queryLanguage,
     };
 }
+
 let filterTextQB = '';
 /**
  * get real time search text
@@ -473,7 +482,6 @@ let filterTextQB = '';
  */
 function getQueryBuilderCode() {
     let filterValue = '';
-    //concat the first input box
     let index = 0;
     if (firstBoxSet && firstBoxSet.size > 0) {
         firstBoxSet.forEach((value, _i) => {
@@ -487,7 +495,6 @@ function getQueryBuilderCode() {
     index = 0;
     let bothRight = 0;
     let showError = false;
-    //concat the second input box
     if (secondBoxSet && secondBoxSet.size > 0) {
         bothRight++;
         filterValue += ' | stats';
@@ -500,7 +507,6 @@ function getQueryBuilderCode() {
     index = 0;
     if (thirdBoxSet && thirdBoxSet.size > 0) {
         if (bothRight == 0) showError = true;
-        //concat the third input box
         filterValue += ' BY';
         thirdBoxSet.forEach((value, _i) => {
             if (index != thirdBoxSet.size - 1) filterValue += ' ' + value + ',';
@@ -513,7 +519,8 @@ function getQueryBuilderCode() {
     else $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
-//eslint-disable-next-line no-unused-vars
+
+// eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
@@ -537,7 +544,6 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
     let filterValue = '';
     if (currentTab == 0) {
         queryLanguage = 'Splunk QL';
-        //concat the 3 input boxes
         filterValue = getQueryBuilderCode();
         isQueryBuilderSearch = true;
     } else {
@@ -569,7 +575,8 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         queryLanguage: queryLanguage,
     };
 }
-//eslint-disable-next-line no-unused-vars
+
+// eslint-disable-next-line no-unused-vars
 function getSearchFilterForSave(qname, qdesc) {
     let filterValue = filterTextQB.trim() || '*';
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
@@ -583,15 +590,14 @@ function getSearchFilterForSave(qname, qdesc) {
         queryLanguage: $('#query-language-options .query-language-option.active').html(),
     };
 }
+
 function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
         let columnOrder = [];
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = _.uniq(
                 _.concat(
-                    // make timestamp the first column
                     'timestamp',
-                    // make logs the second column
                     'logs',
                     res.columnsOrder
                 )
@@ -599,9 +605,7 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
         } else {
             columnOrder = _.uniq(
                 _.concat(
-                    // make timestamp the first column
                     'timestamp',
-                    // make logs the second column
                     'logs',
                     res.allColumns
                 )
@@ -619,9 +623,7 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = _.uniq(
                 _.concat(
-                    // make timestamp the first column
                     'timestamp',
-                    // make logs the second column
                     'logs',
                     res.columnsOrder
                 )
@@ -629,9 +631,7 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
         } else {
             columnOrder = _.uniq(
                 _.concat(
-                    // make timestamp the first column
                     'timestamp',
-                    // make logs the second column
                     'logs',
                     allLiveTailColumns
                 )
@@ -663,15 +663,14 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
     $('body').css('cursor', 'default');
 }
+
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
     let columnOrder = [];
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             columnOrder = _.uniq(
                 _.concat(
-                    // make timestamp the first column
                     'timestamp',
-                    // make logs the second column
                     'logs',
                     res.columnsOrder
                 )
@@ -679,9 +678,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         } else {
             columnOrder = _.uniq(
                 _.concat(
-                    // make timestamp the first column
                     'timestamp',
-                    // make logs the second column
                     'logs',
                     res.allColumns
                 )
@@ -787,6 +784,7 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         scrollFrom = 0;
     }
 }
+
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
@@ -854,10 +852,12 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} reached the timeout limit of ${res.timeoutSeconds} seconds`);
 }
+
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} was cancelled`);
     $('#show-record-intro-btn').hide();
 }
+
 function processErrorUpdate(res) {
     showError(`Message: ${res.message}`);
 }
@@ -895,73 +895,67 @@ function showErrorResponse(errorMsg, res) {
     $('#query-builder-btn').html(' ');
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
-
     wsState = 'query';
 }
 
 function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype, totalPossibleEvents, columnCount) {
-    //update chart title
     console.log(`rendering total hits: ${totalHits}. elapedTimeMS: ${elapedTimeMS}`);
     let startDate = displayStart;
     let endDate = displayEnd;
-    // Check if totalHits is undefined and set it to 0
     let totalHitsFormatted = Number(totalHits || 0).toLocaleString();
 
     if (eventType === 'QUERY_UPDATE') {
         if (totalHits > 0) {
             $('#hits-summary').html(`
-            <div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched</span> </div>
-            <div>First Byte Response Time: <b>${timeToFirstByte} ms</b></div>
-            <div>Elapsed Time: <b>${elapedTimeMS} ms</b></div>
-            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-        `);
-            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b> </span><span>of <b>${totalEventsSearched}</b> Records Matched (out of <b>${totalPossibleEvents}</b> Possible Records)</span> </div>`);
+                <div><span class="total-hits"><b>${totalHitsFormatted}</b></span><span>of <b>${totalEventsSearched}</b> Records Matched</span></div>
+                <div>First Byte Response Time: <b>${timeToFirstByte} ms</b></div>
+                <div>Elapsed Time: <b>${elapedTimeMS} ms</b></div>
+                <div>${dateFns.format(startDate, timestampDateFmt)} — ${dateFns.format(endDate, timestampDateFmt)}</div>
+            `);
+            $('#record-searched').html(`<div><span class="total-hits"><b>${totalHitsFormatted}</b></span><span>of <b>${totalEventsSearched}</b> Records Matched (out of <b>${totalPossibleEvents}</b> Possible Records)</span></div>`);
         } else {
-            $('#hits-summary').html(`<div><span> <b>${totalEventsSearched} </b>Records Searched</span> </div>
-
-            <div>First Byte Response Time:<b> ${timeToFirstByte} ms</b></div>
-            <div>Elapsed Time: <b>${elapedTimeMS} ms</b></div>
-            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-        `);
-            $('#record-searched').html(`<div><span><b>${totalEventsSearched}</b></span> of <span><b>${totalPossibleEvents}</b> Records Searched</span> </div>`);
+            $('#hits-summary').html(`
+                <div><span><b>${totalEventsSearched}</b> Records Searched</span></div>
+                <div>First Byte Response Time: <b>${timeToFirstByte} ms</b></div>
+                <div>Elapsed Time: <b>${elapedTimeMS} ms</b></div>
+                <div>${dateFns.format(startDate, timestampDateFmt)} — ${dateFns.format(endDate, timestampDateFmt)}</div>
+            `);
+            $('#record-searched').html(`<div><span><b>${totalEventsSearched}</b></span> of <span><b>${totalPossibleEvents}</b> Records Searched</span></div>`);
         }
         $('#progress-div').html(`
-            <progress id="percent-complete" value=${percentComplete} max="100">${percentComplete}</progress>
+            <progress id="percent-complete" value="${percentComplete}" max="100">${percentComplete}</progress>
             <div id="percent-value">${parseInt(percentComplete)}%</div>
         `);
     } else if (eventType === 'COMPLETE') {
-        let operatorSign = '';
-        if (eqRel === 'gte') {
-            operatorSign = '>=';
-        }
+        let operatorSign = eqRel === 'gte' ? '>=' : '';
         if (qtype == 'aggs-query' || qtype === 'segstats-query') {
             let bucketGrammer = totalHits == 1 ? 'bucket was' : 'buckets were';
             $('#hits-summary').html(`
-            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
-            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
-            <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
-            <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
-            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-        `);
+                <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+                <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
+                <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> ${bucketGrammer} created from <b>${totalEventsSearched}</b> records.</span></div>
+                <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
+                <div>${dateFns.format(startDate, timestampDateFmt)} — ${dateFns.format(endDate, timestampDateFmt)}</div>
+            `);
         } else if (totalHits > 0) {
             $('#hits-summary').html(`
-            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
-            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
-            <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
-            <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
-            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-        `);
+                <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+                <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
+                <div><span class="total-hits"><b>${operatorSign} ${totalHitsFormatted}</b></span><span> of <b>${totalEventsSearched}</b> Records Matched</span></div>
+                <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
+                <div>${dateFns.format(startDate, timestampDateFmt)} — ${dateFns.format(endDate, timestampDateFmt)}</div>
+            `);
         } else {
             $('#hits-summary').html(`
-            <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
-            <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
-            <div>Records Searched: <span><b> ${totalEventsSearched} </b></span></div>
-            <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
-            <div>${dateFns.format(startDate, timestampDateFmt)} &mdash; ${dateFns.format(endDate, timestampDateFmt)}</div>
-        `);
+                <div>First Result Response Time: <b>${timeToFirstByte} ms</b></div>
+                <div class="final-res-time">Final Result Response Time: <span></span><b> ms</b></div>
+                <div>Records Searched: <span><b> ${totalEventsSearched}</b></span></div>
+                <div class="column-count">Column Count: <span></span><b> ${columnCount}</b></div>
+                <div>${dateFns.format(startDate, timestampDateFmt)} — ${dateFns.format(endDate, timestampDateFmt)}</div>
+            `);
         }
-        $('#progress-div').html(``);
-        $('#record-searched').html(``);
+        $('#progress-div').html('');
+        $('#record-searched').html('');
     }
 }
 
@@ -1003,7 +997,6 @@ function parseInterval(interval) {
 }
 
 function timeChart(qtype) {
-    // Check if measureInfo is defined and contains at least one item
     qtype = qtype || lastQType;
     if (isTimechart || qtype === 'aggs-query') {
         $('#columnChart').show();
@@ -1018,17 +1011,14 @@ function timeChart(qtype) {
         return;
     }
 
-    // Ensure all items in measureInfo have GroupByValues property before proceeding
     const hasGroupByValues = measureInfo.every((item) => item.GroupByValues);
 
     if (!hasGroupByValues) {
         return;
     }
 
-    // Check if there are multiple group-by columns
     var multipleGroupBy = measureInfo[0].GroupByValues.length > 1;
 
-    // Determine the font size and rotation based on the number of data points
     var fontSize = measureInfo.length > 10 ? 10 : 12;
     var rotateLabels = measureInfo.length > 10 ? 45 : 0;
 
@@ -1044,7 +1034,6 @@ function timeChart(qtype) {
         };
     });
 
-    // ECharts configuration
     var option = {
         tooltip: {
             trigger: 'item',
@@ -1058,7 +1047,7 @@ function timeChart(qtype) {
                 fontSize: 12,
             },
             data: measureFunctions,
-            type: 'scroll', // Enable folding functionality
+            type: 'scroll',
             orient: 'vertical',
             right: 10,
             top: 'middle',
@@ -1089,16 +1078,11 @@ function timeChart(qtype) {
         series: seriesData,
     };
 
-    // Initialize ECharts
     let chart = echarts.init($('#columnChart')[0]);
-    chart.clear(); // Clear previous data
-    // Set the configuration to the chart
+    chart.clear();
     chart.setOption(option);
-
-    // Ensure the chart resizes properly
     chart.resize();
 
-    // Made the chart responsive
     $(window).on('resize', function () {
         chart.resize();
     });
@@ -1129,7 +1113,6 @@ function convertTimestamp(timestampString) {
 }
 
 function convertIfTimestamp(value) {
-    // Check if the value is a valid timestamp (e.g., length and date after 1970)
     const isTimestamp = !isNaN(value) && value.length === 13 && new Date(parseInt(value)).getTime() > 0;
     if (isTimestamp) {
         return convertTimestamp(value);
@@ -1160,9 +1143,7 @@ function codeToBuilderParsing(filterValue) {
         firstBoxSet.forEach((value, _i) => {
             let tag = document.createElement('li');
             tag.innerText = value;
-            // Add a delete button to the tag
             tag.innerHTML += '<button class="delete-button">×</button>';
-            // Append the tag to the tags list
             tags.appendChild(tag);
         });
     }
@@ -1174,9 +1155,7 @@ function codeToBuilderParsing(filterValue) {
         secondBoxSet.forEach((value, _i) => {
             let tag = document.createElement('li');
             tag.innerText = value;
-            // Add a delete button to the tag
             tag.innerHTML += '<button class="delete-button">×</button>';
-            // Append the tag to the tags list
             tags.appendChild(tag);
         });
     }
@@ -1188,10 +1167,7 @@ function codeToBuilderParsing(filterValue) {
         thirdBoxSet.forEach((value, _i) => {
             let tag = document.createElement('li');
             tag.innerText = value;
-            // Add a delete button to the tag
             tag.innerHTML += '<button class="delete-button">×</button>';
-            // Append the tag to the tags list
-
             tags.appendChild(tag);
         });
     }
@@ -1206,8 +1182,7 @@ function codeToBuilderParsing(filterValue) {
 function renderLogsGrid(columnOrder, hits) {
     if (gridDiv == null) {
         gridDiv = document.querySelector('#LogResultsGrid');
-        //eslint-disable-next-line no-undef
-        new agGrid.Grid(gridDiv, gridOptions);
+        new agGrid.Grid(gridDiv, gridOptions); // Removed no-undef as it's handled by the linter
     }
 
     let logview = getLogView();
@@ -1255,9 +1230,7 @@ function renderLogsGrid(columnOrder, hits) {
     }
 
     const logsColumnDefsMap = new Map(logsColumnDefs.map((logCol) => [logCol.field, logCol]));
-    // Use column def from logsColumnDefsMap if it exists, otherwise use the original column def from cols
     const combinedColumnDefs = cols.map((col) => logsColumnDefsMap.get(col.field) || col);
-    // Append any remaining column def from logsColumnDefs that were not in cols
     logsColumnDefs.forEach((logCol) => {
         if (!combinedColumnDefs.some((col) => col.field === logCol.field)) {
             combinedColumnDefs.push(logCol);
@@ -1285,6 +1258,7 @@ function renderLogsGrid(columnOrder, hits) {
             break;
     }
 }
+
 function getLogView() {
     let logview = Cookies.get('log-view') || 'table';
     return logview;

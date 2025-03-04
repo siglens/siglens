@@ -756,8 +756,6 @@ div.show-record-popup .ui-dialog-buttonpane button {
     margin-top: 10px;
     height: 0;
     position: relative;
-    display: inline-block;
-    z-index: 1000;
 }
 
 #toggle-btn {
@@ -773,7 +771,6 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 #histogram-container {
     display: none;
-    margin-top: 40px;
     background: white;
     padding: 5px;
     border-radius: 8px;
@@ -781,6 +778,11 @@ div.show-record-popup .ui-dialog-buttonpane button {
     position: absolute;
     width: 100%;
     box-sizing: border-box;
+    top: 0;
+}
+
+.histo-container.visible #histogram-container {
+    display: block; /* Show when visible */
 }
 
 .my-chart-container {
@@ -788,8 +790,8 @@ div.show-record-popup .ui-dialog-buttonpane button {
     padding: 5px;
     border: none;
     width: 100%;
-    height: 200px;
-    margin-top: 20px;
+    height: 100%;
+    margin-top: 0;
 }
 
 /* Remove the transform from show-table class since we'll control it with JavaScript */
@@ -799,7 +801,8 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 .bx-bar-chart-square {
-    display: none;
+    /* display: none; */
+    display: inline-block;
     cursor: pointer;
     transition: background 0.3s;
     margin-bottom: 10px;

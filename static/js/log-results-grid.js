@@ -117,17 +117,6 @@ const gridOptions = {
     animateRows: false,
     suppressColumnVirtualisation: false,
     suppressRowVirtualisation: false,
-    onRowDataUpdated: function (params) {
-        // When row data updates (e.g., from WebSocket), update the histogram
-        if (typeof window.updateHistogram === 'function') {
-            window.updateHistogram(logsRowData); // Pass the full logsRowData to update the histogram
-        }
-        // Optionally update timechart visualization if runTimechart is true
-        if (window.runTimechart && typeof window.updateTimechartVisualization === 'function' && window.timechartData) {
-            window.updateTimechartVisualization(window.timechartData);
-        }
-    },
-    overlayLoadingTemplate: '<div class="ag-overlay-loading-center"><div class="loading-icon"></div><div class="loading-text">Loading...</div></div>',
     onGridReady: function (_params) {
         const eGridDiv = document.querySelector('#LogResultsGrid');
         const style = document.createElement('style');
