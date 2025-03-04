@@ -1,4 +1,21 @@
-// Histogram Implementation for Log Visualization
+/*
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 $(document).ready(function () {
     let selectionStart = null;
     let selectionEnd = null;
@@ -8,13 +25,13 @@ $(document).ready(function () {
     let isInitialState = true;
     let initialStartEpoch = null;
     let initialEndEpoch = null;
-    let lastQueryTime = 0; // To debounce queries
+    let lastQueryTime = 0;
     let socket = window.sharedSocket; // Reference to shared socket
 
     function initializeHistogram() {
         if (!socket || socket.readyState === WebSocket.CLOSED) {
             console.warn('No active WebSocket or socket closed. Attempting to reinitialize.');
-            // Check if search.js has a socket and reuse it, or create a new one if necessary
+
             if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
                 socket = window.sharedSocket;
             } else {
@@ -126,7 +143,7 @@ $(document).ready(function () {
         }
     });
 
-    // Throttle utility for smooth dragging
+
     function throttle(func, limit) {
         let inThrottle;
         return function (...args) {
