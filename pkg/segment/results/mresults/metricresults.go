@@ -68,7 +68,7 @@ type MetricsResult struct {
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results map[string]map[uint32]float64
 
-	AllSeries map[string]*metrics.TaggedSeries
+	AllSeries map[uint64]*metrics.TaggedSeries
 
 	IsScalar    bool
 	ScalarValue float64
@@ -124,16 +124,38 @@ func (r *MetricsResult) GetNumSeries() uint64 {
 	return uint64(len(r.Results))
 }
 
+func (r *MetricsResult) ConvertInitialSeries() {
+	r.AllSeries = make(map[uint64]*metrics.TaggedSeries, len(r.AllInitialSeries))
+	for tsid, series := range r.AllInitialSeries {
+		// TODO: andrew - add the tags
+		tags := make(map[string]string)
+
+		// TODO: use metrics.Entry directly, so this conversion isn't needed.
+		entries := make([]metrics.Entry, 0, len(series.entries))
+		for _, entry := range series.entries {
+			entries = append(entries, metrics.Entry{
+				Timestamp: metrics.Epoch(entry.downsampledTime),
+				Value:     entry.dpVal,
+			})
+		}
+
+		r.AllSeries[tsid] = metrics.NewTaggedSeries(tags, metrics.NewLookupSeries(entries), series.grpID.String())
+	}
+
+	r.AllInitialSeries = nil
+}
+
 /*
 Downsample all series
 
 Insert into r.DsResults, mapping a groupid to all RunningDownsample Series entries
 This means that a single tsid will have unique timetamps, but those timestamps can exist for another tsid
 */
-func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism int) []error {
+func (r *MetricsResult) DownsampleResults(ds structs.Downsampler,
+	parallelism int) (map[string][]*metrics.TaggedSeries, []error) {
 
-	// maps a group id to the running downsampled series
-	allDSSeries := make(map[string]*DownsampleSeries, len(r.AllInitialSeries))
+	// maps a group id to the series in that group
+	groupToSeries := make(map[string][]*metrics.TaggedSeries, len(r.AllSeries))
 
 	var idx int
 	wg := &sync.WaitGroup{}
@@ -142,13 +164,15 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 	errorLock := &sync.Mutex{}
 	errors := make([]error, 0)
 
-	for _, series := range r.AllInitialSeries {
+	for _, series := range r.AllSeries {
 		wg.Add(1)
 
-		go func(s *Series) {
+		go func(s *metrics.TaggedSeries) {
 			defer wg.Done()
 
-			dsSeries, err := s.Downsample(ds)
+			interval := ds.GetIntervalTimeInSeconds()
+			aggregator := aggFunc(ds.Aggregator.AggregatorFunction)
+			err := series.Downsample(metrics.Epoch(interval), aggregator)
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -156,15 +180,16 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 				return
 			}
 
-			grp := s.grpID.String()
+			grp := s.GetGroupId()
 
 			dataLock.Lock()
-			allDS, ok := allDSSeries[grp]
+			seriesList, ok := groupToSeries[grp]
 			if !ok {
-				allDSSeries[grp] = dsSeries
-			} else {
-				allDS.Merge(dsSeries)
+				seriesList = make([]*metrics.TaggedSeries, 0)
 			}
+			seriesList = append(seriesList, s)
+			groupToSeries[grp] = seriesList
+
 			dataLock.Unlock()
 		}(series)
 		idx++
@@ -173,15 +198,13 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 		}
 	}
 	wg.Wait()
-	r.DsResults = allDSSeries
 	r.State = DOWNSAMPLING
-	r.AllInitialSeries = nil
 
 	if len(errors) > 0 {
-		return errors
+		return nil, errors
 	}
 
-	return nil
+	return groupToSeries, nil
 }
 
 /*

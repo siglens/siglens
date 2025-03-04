@@ -568,7 +568,7 @@ type downsampler struct {
 	interval   Epoch
 }
 
-func (d *downsampler) Evaluate() timeseries {
+func (d *downsampler) evaluate() timeseries {
 	iterator := d.timeseries.Iterator()
 
 	firstEntry, ok := iterator.Next()

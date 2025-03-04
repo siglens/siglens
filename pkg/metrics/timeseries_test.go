@@ -244,7 +244,7 @@ func Test_Downsample(t *testing.T) {
 		interval: 10,
 	}
 
-	downsampled := downsampler.Evaluate()
+	downsampled := downsampler.evaluate()
 	t.Run("AtOrBefore", func(t *testing.T) {
 		assertAtOrBefore(t, downsampled, 0, 101.5, true)
 		assertAtOrBefore(t, downsampled, 10, 101.5, true)

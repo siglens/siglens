@@ -25,18 +25,24 @@ import (
 
 type TaggedSeries struct {
 	timeseries
-	tags map[string]string
+	tags    map[string]string
+	groupId string
 }
 
-func NewTaggedSeries(tags map[string]string, series timeseries) *TaggedSeries {
+func NewTaggedSeries(tags map[string]string, series timeseries, groupId string) *TaggedSeries {
 	if tags == nil {
 		tags = make(map[string]string)
 	}
 
 	return &TaggedSeries{
-		tags:       tags,
 		timeseries: series,
+		tags:       tags,
+		groupId:    groupId,
 	}
+}
+
+func (t *TaggedSeries) GetGroupId() string {
+	return t.groupId
 }
 
 func (t *TaggedSeries) GetValue(key string) (string, bool) {
@@ -93,4 +99,23 @@ func (t *TaggedSeries) Id() string {
 	id.WriteString("}")
 
 	return id.String()
+}
+
+func (t *TaggedSeries) Downsample(interval Epoch, aggregator func([]float64) float64) error {
+	if interval <= 0 {
+		return fmt.Errorf("non-positive interval %v", interval)
+	}
+	if aggregator == nil {
+		return fmt.Errorf("nil aggregator")
+	}
+
+	downsampler := &downsampler{
+		timeseries: t.timeseries,
+		aggregator: aggregator,
+		interval:   interval,
+	}
+
+	t.timeseries = downsampler.evaluate()
+
+	return nil
 }

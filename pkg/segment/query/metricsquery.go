@@ -154,7 +154,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 	parallelism := int(config.GetParallelism()) * 2
-	errors := mRes.DownsampleResults(mQuery.Downsampler, parallelism)
+	mRes.ConvertInitialSeries()
+	_, errors := mRes.DownsampleResults(mQuery.Downsampler, parallelism)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)

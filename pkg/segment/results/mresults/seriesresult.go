@@ -859,6 +859,61 @@ func (dss *DownsampleSeries) sortEntries() {
 	dss.sorted = true
 }
 
+func aggFunc(aggName utils.AggregateFunctions) func([]float64) float64 {
+	switch aggName {
+	case utils.Sum:
+		return func(vals []float64) float64 {
+			var sum float64
+			for _, val := range vals {
+				sum += val
+			}
+			return sum
+		}
+	case utils.Min:
+		return func(vals []float64) float64 {
+			min := math.MaxFloat64
+			for _, val := range vals {
+				if val < min {
+					min = val
+				}
+			}
+			return min
+		}
+	case utils.Max:
+		return func(vals []float64) float64 {
+			max := -math.MaxFloat64
+			for _, val := range vals {
+				if val > max {
+					max = val
+				}
+			}
+			return max
+		}
+	case utils.Avg:
+		return func(vals []float64) float64 {
+			if len(vals) == 0 {
+				return 0
+			}
+
+			var sum float64
+			for _, val := range vals {
+				sum += val
+			}
+			return sum / float64(len(vals))
+		}
+	case utils.Count:
+		return func(vals []float64) float64 {
+			return float64(len(vals))
+		}
+	case utils.Quantile, utils.Stddev, utils.Stdvar:
+		// TODO andrew: implement quantile, stddev, and stdvar
+		return nil
+	default:
+		log.Errorf("aggFunc: unsupported AggregateFunction: %v", aggName)
+		return nil
+	}
+}
+
 func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant float64) (float64, error) {
 	var ret float64
 	switch fn {
