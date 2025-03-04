@@ -738,3 +738,18 @@ func collectDiagnosticsHandler() func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyIdQuery(diagnostics.CollectDiagnosticsAPI, ctx)
 	}
 }
+
+func getServicesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessGetServiceName, ctx)
+
+	}
+
+}
+
+func getOperationsHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+
+		serverutils.CallWithMyIdQuery(tracinghandler.ProcessGetOperations, ctx)
+	}
+}
