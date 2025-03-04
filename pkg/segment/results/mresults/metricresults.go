@@ -28,6 +28,7 @@ import (
 	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -403,7 +404,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 /*
 Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
@@ -415,9 +416,9 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function structs.Function) {
+		go func(grp string, ts map[uint32]float64, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) {
 			defer wg.Done()
-			grpID, grpVal, err := ApplyFunction(grp, ts, function)
+			grpID, grpVal, err := ApplyFunction(grp, ts, function, timeRange)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -427,7 +428,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 			lock.Lock()
 			results[grpID] = grpVal
 			lock.Unlock()
-		}(grpID, timeSeries, function)
+		}(grpID, timeSeries, function, timeRange)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -574,6 +575,39 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 		Data:   pqldata,
 	}, nil
 }
+
+func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueType, startTime, endTime uint32, step uint32) (*structs.MetricsQueryResponsePromQl, error) {
+	if pqlQueryType != parser.ValueTypeScalar {
+		return nil, fmt.Errorf("GetResultsPromQlForScalarType: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	var pqlData structs.Data
+	pqlData.ResultType = parser.ValueType("matrix")
+
+	scalarValue := r.ScalarValue
+
+	evalTime := startTime
+
+	pqlData.Result = make([]structs.Result, 1)
+
+	values := make([]interface{}, 0)
+
+	for evalTime <= endTime {
+		values = append(values, []interface{}{evalTime, fmt.Sprintf("%v", scalarValue)})
+		evalTime += step
+	}
+
+	pqlData.Result[0] = structs.Result{
+		Metric: map[string]string{},
+		Value:  values,
+	}
+
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqlData,
+	}, nil
+}
+
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
 		return nil, nil, fmt.Errorf("GetMetricTagsResultSet: results is not in Series Reading state, state: %v", res.State)

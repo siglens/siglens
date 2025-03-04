@@ -265,7 +265,9 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid int64
 	metricQueriesList := make([]*structs.MetricsQuery, 0)
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
-	for i := range metricQueryRequest {
+	for i, mQueryReq := range metricQueryRequest {
+		mQueryReq.MetricsQuery.Downsampler.Interval = int(step.Seconds())
+		mQueryReq.MetricsQuery.Downsampler.Unit = "s"
 		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
 		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
@@ -274,7 +276,13 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid int64
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
-	mQResponse, err := res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
+	var mQResponse *structs.MetricsQueryResponsePromQl
+
+	if res.IsScalar {
+		mQResponse, err = res.GetResultsPromQlForScalarType(pqlQuerytype, startTime, endTime, uint32(step.Seconds()))
+	} else {
+		mQResponse, err = res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
+	}
 	if err != nil {
 		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
 		return
