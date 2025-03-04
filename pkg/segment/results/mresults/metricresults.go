@@ -591,8 +591,6 @@ func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueT
 
 	values := make([]interface{}, 0)
 
-	fmt.Println("startTime: ", startTime, "endTime: ", endTime, "step: ", step, "endTime-startTime: ", endTime-startTime, "total: ", (endTime-startTime)/step)
-
 	for evalTime <= endTime {
 		values = append(values, []interface{}{evalTime, fmt.Sprintf("%v", scalarValue)})
 		evalTime += step
