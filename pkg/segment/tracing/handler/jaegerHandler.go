@@ -20,12 +20,6 @@ type ResponseBody struct {
 	Errors []string `json:"errors"`
 }
 
-type SearchResponse struct {
-	Hits struct {
-		Records []map[string]interface{} `json:"records"`
-	} `json:"hits"`
-}
-
 func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
 	startEpoch := string(ctx.QueryArgs().Peek("startEpoch"))
@@ -58,7 +52,7 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		log.Errorf("Error parsing response body: %v", err)
+		log.Errorf("Error parsing response body: %v, Response: %s", err, rawTraceCtx.Response.Body())
 		return
 	}
 
@@ -116,7 +110,7 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 	err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		log.Errorf("Error parsing response body: %v", err)
+		log.Errorf("Error parsing response body: %v, Response: %s", err, rawTraceCtx.Response.Body())
 		return
 	}
 
