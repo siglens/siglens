@@ -279,6 +279,7 @@ func Test_WindowMappingSeries_SmallStep(t *testing.T) {
 		windowSize: 3,
 		stepSize:   2,
 		endTime:    7,
+		mode:       PromQl3Range,
 	}
 
 	t.Run("AtOrBefore", func(t *testing.T) {
@@ -321,6 +322,7 @@ func Test_WindowMappingSeries_LargeStep(t *testing.T) {
 		windowSize: 3,
 		stepSize:   4,
 		endTime:    7,
+		mode:       PromQl3Range,
 	}
 
 	t.Run("AtOrBefore", func(t *testing.T) {

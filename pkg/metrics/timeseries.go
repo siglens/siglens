@@ -21,6 +21,7 @@ import (
 	"sort"
 
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 type epoch uint32
@@ -91,6 +92,7 @@ func (t *lookupSeries) rangeIterator(start epoch, end epoch, mode RangeMode) uti
 		return utils.NewIterator(t.values[startIndex:endIndex])
 	}
 
+	log.Errorf("lookupSeries.rangeIterator: unsupported mode %v", mode)
 	return utils.NewIterator([]entry{})
 }
 
@@ -152,7 +154,8 @@ func (g *generatedSeries) Range(start epoch, end epoch, mode RangeMode) timeseri
 		return &lookupSeries{values: values}
 	}
 
-	return nil
+	log.Errorf("generatedSeries.Range: unsupported mode %v", mode)
+	return &lookupSeries{}
 }
 
 // When getting the value at time T, and T is outside the range, no value is returned.
@@ -181,6 +184,7 @@ func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 		return r.series.AtOrBefore(timestamp)
 	}
 
+	log.Errorf("rangeSeries.AtOrBefore: unsupported mode %v", r.mode)
 	return 0, false
 }
 
@@ -205,7 +209,8 @@ func (r *rangeSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
 		}
 	}
 
-	return nil
+	log.Errorf("rangeSeries.Range: unsupported mode %v", r.mode)
+	return &lookupSeries{}
 }
 
 type aggSeries struct {
@@ -360,6 +365,7 @@ type windowMappingSeries struct {
 	windowSize epoch
 	stepSize   epoch // How far to slide the window each time
 	endTime    epoch // The final window ends here (inclusive)
+	mode       RangeMode
 
 	isEvaluated bool
 	result      timeseries
@@ -415,46 +421,52 @@ func (w *windowMappingSeries) evaluate() timeseries {
 
 	finalValues := make([]entry, 0)
 
-	startTimestamp := allValues[0].timestamp
-	breakNextIter := false
-	for windowEnd := w.endTime; windowEnd >= startTimestamp && !breakNextIter; windowEnd -= w.stepSize {
-		windowStart := windowEnd - w.windowSize
-		if w.windowSize > windowEnd {
-			// Handle underflow
-			windowStart = 0
-		}
-
-		if w.stepSize > windowEnd {
-			breakNextIter = true
-		}
-
-		subSeries := w.timeseries.Range(windowStart, windowEnd, PromQl3Range)
-		subIterator := subSeries.Iterator()
-		valuesInWindow := make([]float64, 0)
-		for {
-			point, ok := subIterator.Next()
-			if !ok {
-				break
+	switch w.mode {
+	case PromQl3Range:
+		startTimestamp := allValues[0].timestamp
+		breakNextIter := false
+		for windowEnd := w.endTime; windowEnd >= startTimestamp && !breakNextIter; windowEnd -= w.stepSize {
+			windowStart := windowEnd - w.windowSize
+			if w.windowSize > windowEnd {
+				// Handle underflow
+				windowStart = 0
 			}
 
-			valuesInWindow = append(valuesInWindow, point.value)
+			if w.stepSize > windowEnd {
+				breakNextIter = true
+			}
+
+			subSeries := w.timeseries.Range(windowStart, windowEnd, PromQl3Range)
+			subIterator := subSeries.Iterator()
+			valuesInWindow := make([]float64, 0)
+			for {
+				point, ok := subIterator.Next()
+				if !ok {
+					break
+				}
+
+				valuesInWindow = append(valuesInWindow, point.value)
+			}
+
+			if len(valuesInWindow) > 0 {
+				aggregatedValue := w.aggregator(valuesInWindow)
+				finalValues = append(finalValues, entry{
+					timestamp: windowEnd,
+					value:     aggregatedValue,
+				})
+			}
 		}
 
-		if len(valuesInWindow) > 0 {
-			aggregatedValue := w.aggregator(valuesInWindow)
-			finalValues = append(finalValues, entry{
-				timestamp: windowEnd,
-				value:     aggregatedValue,
-			})
+		for i := 0; i < len(finalValues)/2; i++ {
+			k := len(finalValues) - 1 - i
+			finalValues[i], finalValues[k] = finalValues[k], finalValues[i]
 		}
+
+		return &lookupSeries{values: finalValues}
 	}
 
-	for i := 0; i < len(finalValues)/2; i++ {
-		k := len(finalValues) - 1 - i
-		finalValues[i], finalValues[k] = finalValues[k], finalValues[i]
-	}
-
-	return &lookupSeries{values: finalValues}
+	log.Errorf("windowMappingSeries.evaluate: unsupported mode %v", w.mode)
+	return &lookupSeries{}
 }
 
 type downsampler struct {
