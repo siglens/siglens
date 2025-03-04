@@ -47,8 +47,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/lib/tippy.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
 
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -95,11 +94,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     </div>
 
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script>
         $(document).ready(function () {
             $('.theme-btn').on('click', themePickerHandler);

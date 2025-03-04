@@ -44,8 +44,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -70,9 +70,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div class="myOrg">
             <div class="myOrg-container">
-                <div class="ingestion-nav-tab">
-                    Logs Ingestion Methods
-                </div>
                     <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                         <ul class="tab-chart-list">
                             <li class="tab-li" id="option-1"><a href="#sample-data" class="custom-query-builder">Send Test Data</a>
@@ -130,17 +127,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         2024 &copy; SigLens
     </div>
     </div>
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/available-fields.js?cb=1_1_10"></script>
-    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
-    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/saved-query.js?cb=1_1_10"></script>
-    <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/test-data.js"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/test-data.js?cb={{ AppVersion }}"></script>
+    
     
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

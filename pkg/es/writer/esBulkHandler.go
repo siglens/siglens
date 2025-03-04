@@ -49,13 +49,17 @@ const (
 	DELETE
 )
 
-const INDEX_TOP_STR string = "index"
-const CREATE_TOP_STR string = "create"
-const UPDATE_TOP_STR string = "update"
-const INDEX_UNDER_STR string = "_index"
+const (
+	INDEX_TOP_STR   string = "index"
+	CREATE_TOP_STR  string = "create"
+	UPDATE_TOP_STR  string = "update"
+	INDEX_UNDER_STR string = "_index"
+)
 
-const MAX_INDEX_NAME_LEN = 256
-const RESP_ITEMS_INITIAL_LEN = 4000
+const (
+	MAX_INDEX_NAME_LEN     = 256
+	RESP_ITEMS_INITIAL_LEN = 4000
+)
 
 var resp_status_201 map[string]interface{}
 
@@ -106,7 +110,7 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid int64, useIngestHook bool
 		}
 	}
 
-	//request body empty
+	// request body empty
 	if processedCount == 0 {
 		PostBulkErrorResponse(ctx)
 	} else {
@@ -115,14 +119,14 @@ func ProcessBulkRequest(ctx *fasthttp.RequestCtx, myid int64, useIngestHook bool
 }
 
 func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid int64,
-	useIngestHook bool) (int, map[string]interface{}, error) {
-
+	useIngestHook bool,
+) (int, map[string]interface{}, error) {
 	response := make(map[string]interface{})
-	//to have a check if there are any errors in the request
+	// to have a check if there are any errors in the request
 	var overallError bool
-	//to check for status : 200 or 400
+	// to check for status : 200 or 400
 	var success bool
-	//to check if json is greater than MAX_RECORD_SIZE
+	// to check if json is greater than MAX_RECORD_SIZE
 	var maxRecordSizeExceeded bool
 	startTime := time.Now().UnixNano()
 	var inCount int = 0
@@ -179,7 +183,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 
 			numBytes := len(line)
 			bytesReceived += numBytes
-			//update only if body is less than MAX_RECORD_SIZE
+			// update only if body is less than MAX_RECORD_SIZE
 			if numBytes < segment.MAX_RECORD_SIZE {
 				processedCount++
 				success = true
@@ -189,7 +193,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 						idVal = uuid.New().String()
 					}
 					request := make(map[string]interface{})
-					var json = jsoniter.ConfigCompatibleWithStandardLibrary
+					json := jsoniter.ConfigCompatibleWithStandardLibrary
 					decoder := json.NewDecoder(bytes.NewReader(line))
 					decoder.UseNumber()
 					err := decoder.Decode(&request)
@@ -208,7 +212,7 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 				} else {
 					ple, err := writer.GetNewPLE(line, tsNow, indexName, &tsKey, jsParsingStackbuf[:])
 					if err != nil {
-						log.Errorf("HandleBulkBody: failed to get new PLE line: %v, err: %v", line, err)
+						log.Errorf("HandleBulkBody: failed to get new PLE line: %v, err: %v", strings.TrimSpace(string(line)), err)
 						success = false
 					} else {
 						allPLEs = append(allPLEs, ple)
@@ -281,7 +285,6 @@ func HandleBulkBody(postBody []byte, ctx *fasthttp.RequestCtx, rid uint64, myid 
 }
 
 func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
-
 	val, dType, _, err := jp.Get(rawJson, INDEX_TOP_STR)
 	if err == nil && dType == jp.Object {
 		idVal, err := jp.GetString(val, "_id")
@@ -327,7 +330,6 @@ func extractIndexAndValidateAction(rawJson []byte) (int, string, string) {
 }
 
 func AddAndGetRealIndexName(indexNameIn string, localIndexMap map[string]string, myid int64) string {
-
 	// first check localCopy of map, if it exists then avoid the lock inside vtables.
 	// note that this map gets reset on every bulk request
 	lVal, ok := localIndexMap[indexNameIn]
@@ -362,8 +364,8 @@ func GetNumOfBytesInPLEs(pleArray []*writer.ParsedLogEvent) uint64 {
 func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
 	localIndexMap map[string]string, myid int64, rid uint64,
 	idxToStreamIdCache map[string]string, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent) error {
-
+	jsParsingStackbuf []byte, pleArray []*writer.ParsedLogEvent,
+) error {
 	for _, ple := range pleArray {
 		if ple.GetIndexName() != indexNameIn {
 			return utils.TeeErrorf("ProcessIndexRequestPle: indexName mismatch; want %v, got %v",
@@ -411,7 +413,6 @@ func ProcessIndexRequestPle(tsNow uint64, indexNameIn string, flush bool,
 }
 
 func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid int64) {
-
 	r := string(ctx.PostBody())
 	indexName := ctx.UserValue("indexName").(string)
 
@@ -432,7 +433,6 @@ func ProcessPutIndex(ctx *fasthttp.RequestCtx, myid int64) {
 }
 
 func PostBulkErrorResponse(ctx *fasthttp.RequestCtx) {
-
 	ctx.SetStatusCode(fasthttp.StatusBadRequest)
 	responsebody := make(map[string]interface{})
 	error_response := utils.BulkErrorResponse{
