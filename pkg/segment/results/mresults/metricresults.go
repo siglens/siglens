@@ -547,7 +547,7 @@ func getPromQLSeriesFormat(seriesId string) *structs.Result {
 		if idx == 0 {
 			keyValue = strings.SplitN(removeMetricNameFromGroupID(val), ":", 2)
 		} else {
-			keyValue = strings.Split(val, ":")
+			keyValue = strings.SplitN(val, ":", 2)
 		}
 
 		if len(keyValue) > 1 {
