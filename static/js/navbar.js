@@ -1,7 +1,26 @@
+/*
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 let navbarComponent = `
     <div>
         <div class="nav-main-menu logo">
             <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg"></a>
+
         </div>
         <div class="menu nav-search">
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span class="nav-link-text">Logs</span></a>
@@ -186,7 +205,7 @@ const navigationStructure = {
         temporaryDisableHover: true,
         breadcrumbs: [
             { name: 'APM', noLink: true},
-            { name: 'Service Health' }
+            { name: 'Service Health (RED)' }
         ],
         upperNavTabs: 'tracingUpperNavTabs'
     },
