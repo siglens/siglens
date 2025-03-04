@@ -46,9 +46,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/tippy.css" />
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/metrics-explorer.css?cb={{ AppVersion }}" />
 
     <style>
         .metrics-graph-container{
@@ -82,6 +82,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="./js/lib/chartjs-plugin-annotation.min.js"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -367,21 +370,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     </div>
 
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/contacts.js?cb=1_1_10"></script>
-    <script src="./js/lib/chart.umd.min.js"></script>
-    <script src="./js/metrics-explorer.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/query-builder.js"></script>
-    <script src="./js/alert.js?cb=1_1_10"></script>
-    <script src="./js/dashboard-charts.js"></script>
-    <script src="./component/upper-navbar/upper-navbar.js"></script>
-    <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script src="./js/lib/chartjs-plugin-annotation.min.js"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./js/contacts.js?cb={{ AppVersion }}"></script>
+    <script src="./js/metrics-explorer.js?cb={{ AppVersion }}"></script>
+    <script src="./js/search.js?cb={{ AppVersion }}"></script>
+    <script src="./js/index.js?cb={{ AppVersion }}"></script>
+    <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
+    <script src="./js/alert.js?cb={{ AppVersion }}"></script>
+    <script src="./js/dashboard-charts.js?cb={{ AppVersion }}"></script>
+    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
