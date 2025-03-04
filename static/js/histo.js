@@ -308,7 +308,7 @@ $(document).ready(function () {
                 xMax: Math.max(start, end),
                 yMin: 0,
                 yMax: 'max',
-                backgroundColor: 'rgba(173, 216, 230, 0.3)',
+                backgroundColor: 'rgba(135, 188, 245, 0.68)',
                 borderColor: 'rgba(0, 123, 255, 0.8)',
                 borderWidth: 1
             }
