@@ -990,11 +990,11 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v1(t *testing.T) {
 		actualTagKeys = append(actualTagKeys, tag.TagKey)
 		if tag.TagKey == "job" {
 			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, false, tag.NotInitialGroup)
+			assert.Equal(t, true, tag.NotInitialGroup)
 		}
 		if tag.TagKey == "handler" {
 			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, false, tag.NotInitialGroup)
+			assert.Equal(t, true, tag.NotInitialGroup)
 		}
 		if tag.TagKey == "proc" {
 			assert.Equal(t, "*", tag.RawTagValue)
