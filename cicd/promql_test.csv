@@ -1,7 +1,7 @@
 # This file is a test set of metrics data. The fields below represent: query, start time, end time,step,expected result
 "testmetric0",now-1d,now,15,true
 "testmetric1{car_type=""Passenger car compact""}",now-1d,now,15,true
-"round(testmetric0, 1/2)",now-1d,now,15,true
+"round(testmetric0, 0.5)",now-1d,now,15,true
 "avg_over_time(testmetric0[24h])",now-1d,now,15,true
 "max_over_time(testmetric0[48h])",now-1d,now,15,true
 "changes(testmetric0[48h])",now-1d,now,15,true
@@ -10,7 +10,7 @@
 "ceil(testmetric1)",now-1d,now,15,true
 "floor(testmetric1)",now-1d,now,15,true
 "round(testmetric0)",now-1d,now,15,true
-"round(testmetric0, 1/2)",now-1d,now,15,true
+"round(testmetric0, 0.5)",now-1d,now,15,true
 "ln(testmetric1)",now-1d,now,15,true
 "log2(testmetric1)",now-1d,now,15,true
 "log10(testmetric1)",now-1d,now,15,true
@@ -50,5 +50,5 @@
 "ceil(testmetric1)",now-1d,now,15,true
 "floor(testmetric1)",now-1d,now,15,true
 "round(testmetric0)",now-1d,now,15,true
-"round(testmetric0, 1/2)",now-1d,now,15,true
+"round(testmetric0, 0.5)",now-1d,now,15,true
 "ln(testmetric1)",now-1m,now,15,true

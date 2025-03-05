@@ -28,11 +28,13 @@ import (
 	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -403,7 +405,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 /*
 Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
@@ -415,9 +417,9 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function structs.Function) {
+		go func(grp string, ts map[uint32]float64, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) {
 			defer wg.Done()
-			grpID, grpVal, err := ApplyFunction(grp, ts, function)
+			grpID, grpVal, err := ApplyFunction(grp, ts, function, timeRange)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -427,7 +429,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 			lock.Lock()
 			results[grpID] = grpVal
 			lock.Unlock()
-		}(grpID, timeSeries, function)
+		}(grpID, timeSeries, function, timeRange)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -534,6 +536,93 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	return retVal, nil
 }
 
+func getPromQLSeriesFormat(seriesId string) *structs.Result {
+	tagValues := strings.Split(removeTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+	var result structs.Result
+	var keyValue []string
+	result.Metric = make(map[string]string)
+	result.Metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
+	for idx, val := range tagValues {
+		if idx == 0 {
+			keyValue = strings.SplitN(removeMetricNameFromGroupID(val), ":", 2)
+		} else {
+			keyValue = strings.SplitN(val, ":", 2)
+		}
+
+		if len(keyValue) > 1 {
+			result.Metric[keyValue[0]] = keyValue[1]
+		}
+	}
+
+	return &result
+}
+
+func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueType, timestamp uint32) (*structs.MetricsQueryResponsePromQl, error) {
+	var pqlData structs.Data
+
+	switch pqlQueryType {
+	case parser.ValueTypeScalar:
+		pqlData.ResultType = pqlQueryType
+		pqlData.Result = make([]structs.Result, 1)
+		pqlData.Result[0] = structs.Result{
+			Metric: map[string]string{},
+			Value:  []interface{}{timestamp, fmt.Sprintf("%v", r.ScalarValue)},
+		}
+	case parser.ValueTypeString:
+		// TODO: Implement this
+		return nil, errors.New("GetResultsPromQlInstantQuery: ValueTypeString is not supported")
+	case parser.ValueTypeVector:
+		pqlData.ResultType = pqlQueryType
+		for seriesId, results := range r.Results {
+			if len(results) == 0 {
+				continue
+			}
+
+			result := getPromQLSeriesFormat(seriesId)
+
+			floatValue, ok := results[timestamp]
+			if ok {
+				result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+				pqlData.Result = append(pqlData.Result, *result)
+				continue
+			}
+
+			// TODO: Inspect on whether we should ensure that the timestamp is present in the results?
+
+			// In the case where the timestamp is not present in the results
+			if len(results) > 2 {
+				// If the results have more than 2 timestamps, this should not happen.
+				// As the startTime = timestamp - 1 and endTime = timestamp, and intervalSeconds = 1
+				// So, the results should have only 2 timestamps
+				log.Errorf("GetResultsPromQlInstantQuery: More than 2 timestamps found in the results for seriesId: %v", seriesId)
+				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
+			}
+
+			maxTimestamp := uint32(0)
+			floatValue = 0
+			for ts, val := range results {
+				if ts > maxTimestamp {
+					maxTimestamp = ts
+					floatValue = val
+				}
+			}
+
+			result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+			pqlData.Result = append(pqlData.Result, *result)
+		}
+	case parser.ValueTypeMatrix:
+		return nil, errors.New("ValueTypeMatrix is not supported for Instant Queries")
+	default:
+		return nil, fmt.Errorf("GetResultsPromQlInstantQuery: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqlData,
+	}, nil
+}
+
 func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
 	if r.State != AGGREGATED {
 		return nil, fmt.Errorf("GetResultsPromQl: results is not in aggregated state, state: %v", r.State)
@@ -542,29 +631,14 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 
 	switch pqlQuerytype {
 	case parser.ValueTypeVector, parser.ValueTypeMatrix:
-		pqldata.ResultType = parser.ValueType("vector")
-		for grpId, results := range r.Results {
+		pqldata.ResultType = parser.ValueType("matrix")
+		for seriesId, results := range r.Results {
+			result := getPromQLSeriesFormat(seriesId)
 
-			tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
-
-			var result structs.Result
-			var keyValue []string
-			result.Metric = make(map[string]string)
-			result.Metric["__name__"] = ExtractMetricNameFromGroupID(grpId)
-			for idx, val := range tagValues {
-				if idx == 0 {
-					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
-				} else {
-					keyValue = strings.Split(val, ":")
-				}
-				if len(keyValue) > 1 {
-					result.Metric[keyValue[0]] = keyValue[1]
-				}
-			}
 			for k, v := range results {
 				result.Value = append(result.Value, []interface{}{int64(k), fmt.Sprintf("%v", v)})
 			}
-			pqldata.Result = append(pqldata.Result, result)
+			pqldata.Result = append(pqldata.Result, *result)
 		}
 	default:
 		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type: %v", pqlQuerytype)
@@ -574,6 +648,39 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 		Data:   pqldata,
 	}, nil
 }
+
+func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueType, startTime, endTime uint32, step uint32) (*structs.MetricsQueryResponsePromQl, error) {
+	if pqlQueryType != parser.ValueTypeScalar {
+		return nil, fmt.Errorf("GetResultsPromQlForScalarType: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	var pqlData structs.Data
+	pqlData.ResultType = parser.ValueType("matrix")
+
+	scalarValue := r.ScalarValue
+
+	evalTime := startTime
+
+	pqlData.Result = make([]structs.Result, 1)
+
+	values := make([]interface{}, 0)
+
+	for evalTime <= endTime {
+		values = append(values, []interface{}{evalTime, fmt.Sprintf("%v", scalarValue)})
+		evalTime += step
+	}
+
+	pqlData.Result[0] = structs.Result{
+		Metric: map[string]string{},
+		Value:  values,
+	}
+
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqlData,
+	}, nil
+}
+
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
 		return nil, nil, fmt.Errorf("GetMetricTagsResultSet: results is not in Series Reading state, state: %v", res.State)
