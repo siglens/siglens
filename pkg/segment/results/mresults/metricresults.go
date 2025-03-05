@@ -290,9 +290,14 @@ func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) (
 	return groupKeyValuePairs, values
 }
 
-func GetSeriesIdWithoutFields(seriesId string, fieldsSet map[string]struct{}) string {
-	if len(fieldsSet) == 0 {
+func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
+	if len(fields) == 0 {
 		return seriesId
+	}
+
+	fieldsSet := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		fieldsSet[field] = struct{}{}
 	}
 
 	parts := strings.Split(seriesId, ",")
@@ -334,7 +339,7 @@ func getAggSeriesId(seriesId string, aggregation *structs.Aggregation) string {
 	}
 
 	if aggregation.Without {
-		return GetSeriesIdWithoutFields(seriesId, aggregation.GroupByFieldsSet)
+		return GetSeriesIdWithoutFields(seriesId, aggregation.GroupByFields)
 	}
 
 	metricName := ExtractMetricNameFromGroupID(seriesId)

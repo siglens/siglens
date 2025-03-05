@@ -349,12 +349,6 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	mQuery.FirstAggregator.Without = expr.Without
 
 	if expr.Without {
-		set := map[string]struct{}{}
-		for _, group := range expr.Grouping {
-			set[group] = struct{}{}
-		}
-
-		mQuery.FirstAggregator.GroupByFieldsSet = set
 		mQuery.SelectAllSeries = true
 		mQuery.GetAllLabels = true
 	}
