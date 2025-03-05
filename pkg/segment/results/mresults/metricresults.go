@@ -558,7 +558,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
-		tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+		tagValues := strings.Split(RemoveTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 		if len(tagKeys) != len(tagValues) {
 			err := fmt.Errorf("GetResults: the length of tag key and tag value pair must match. Tag Key: %v; Tag Value: %v", tagKeys, tagValues)
 			return nil, err
@@ -579,7 +579,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 }
 
 func getPromQLSeriesFormat(seriesId string) *structs.Result {
-	tagValues := strings.Split(removeTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+	tagValues := strings.Split(RemoveTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 
 	var result structs.Result
 	var keyValue []string
@@ -822,7 +822,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	return httpResp, nil
 }
 
-func removeTrailingComma(s string) string {
+func RemoveTrailingComma(s string) string {
 	return strings.TrimSuffix(s, ",")
 }
 
@@ -880,7 +880,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 
 	for grpId, results := range r.Results {
 		groupId := grpId
-		groupId = removeTrailingComma(groupId)
+		groupId = RemoveTrailingComma(groupId)
 		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 
