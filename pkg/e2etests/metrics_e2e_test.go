@@ -1551,7 +1551,6 @@ func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
 
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
 	assert.NotNil(t, res)
-	fmt.Println(res)
 	assert.Equal(t, 2, len(res.Results))
 
 	for seriesId, seriesDp := range res.Results {
