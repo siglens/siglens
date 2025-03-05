@@ -86,7 +86,7 @@ type Aggregation struct {
 	FuncConstant       float64
 	GroupByFields      []string            // group by fields will be sorted
 	Without            bool                // if set exclude the above group by fields
-	WithoutFieldsSet   map[string]struct{} // set of fields to exclude; only used when Without is set
+	GroupByFieldsSet   map[string]struct{} // same as GroupByFields, but it is a map; only used or set when Without is set
 }
 
 type MetricsFunctionType uint8

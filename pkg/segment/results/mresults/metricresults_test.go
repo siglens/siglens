@@ -78,7 +78,7 @@ func Test_getAggSeriesId_SeriesWithoutFlagSet(t *testing.T) {
 
 	aggregation := &structs.Aggregation{
 		Without: true,
-		WithoutFieldsSet: map[string]struct{}{
+		GroupByFieldsSet: map[string]struct{}{
 			"tk1": {},
 			"tk3": {},
 			"tk5": {},

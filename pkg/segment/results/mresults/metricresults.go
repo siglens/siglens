@@ -334,7 +334,7 @@ func getAggSeriesId(seriesId string, aggregation *structs.Aggregation) string {
 	}
 
 	if aggregation.Without {
-		return GetSeriesIdWithoutFields(seriesId, aggregation.WithoutFieldsSet)
+		return GetSeriesIdWithoutFields(seriesId, aggregation.GroupByFieldsSet)
 	}
 
 	metricName := ExtractMetricNameFromGroupID(seriesId)

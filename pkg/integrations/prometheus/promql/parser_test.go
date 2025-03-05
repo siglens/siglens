@@ -1267,7 +1267,7 @@ func Test_parsePromQLQuery_Without(t *testing.T) {
 	assert.Equal(t, 1, len(mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.GroupByFields))
 	assert.Equal(t, "instance", mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.GroupByFields[0])
 	assert.True(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.Without)
-	assert.Equal(t, map[string]struct{}{"instance": {}}, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.WithoutFieldsSet)
+	assert.Equal(t, map[string]struct{}{"instance": {}}, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.GroupByFieldsSet)
 
 	tagFilters := mQueryReqs[0].MetricsQuery.TagsFilters
 	assert.Equal(t, 1, len(tagFilters))
@@ -1307,7 +1307,7 @@ func Test_parsePromQLQuery_Without(t *testing.T) {
 	assert.Equal(t, 1, len(mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields))
 	assert.Equal(t, "instance", mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields[0])
 	assert.True(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.Without)
-	assert.Equal(t, map[string]struct{}{"instance": {}}, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.WithoutFieldsSet)
+	assert.Equal(t, map[string]struct{}{"instance": {}}, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFieldsSet)
 
 	tagFilters = mQueryReqs[0].MetricsQuery.TagsFilters
 	assert.Equal(t, 2, len(tagFilters))
