@@ -59,7 +59,7 @@ let navbarComponent = `
                 <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
             </ul>
         </div>
-        {{ if .ShowSLO }}        
+        {{ if .ShowSLO }}
         <div class="menu nav-slos">
             <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
@@ -102,7 +102,7 @@ let navbarComponent = `
             <ul class="ingestion-dropdown navbar-submenu">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
         </div>
     </div>
@@ -135,7 +135,7 @@ let navbarComponent = `
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
                 <div class="nav-twitter">
-                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
+                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ"
                     target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
@@ -308,42 +308,42 @@ const navigationStructure = {
 
 // Pages related to My Org section
 const orgPages = {
-    'cluster-stats.html': { 
+    'cluster-stats.html': {
         name: 'Cluster Stats',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Cluster Stats' }
         ]
-    }, 
-    'org-settings.html': { 
+    },
+    'org-settings.html': {
         name: 'Org Settings',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Org Settings' }
         ]
-    }, 
-    'application-version.html': { 
+    },
+    'application-version.html': {
         name: 'Version',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Version' }
         ]
-    }, 
-    'query-stats.html': { 
+    },
+    'query-stats.html': {
         name: 'Query Stats',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Query Stats' }
         ]
-    }, 
-    'pqs-settings.html': { 
+    },
+    'pqs-settings.html': {
         name: 'PQS Settings',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'PQS Settings' }
         ]
-    }, 
-    'diagnostics.html': { 
+    },
+    'diagnostics.html': {
         name: 'Diagnostics',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
@@ -356,13 +356,13 @@ const orgPages = {
 $(document).ready(function () {
     $('#app-side-nav').before(headerHTML);
     $('#app-side-nav').prepend(navbarComponent);
-    
+
     setupNavigationState();
-    
+
     initializeDropdowns();
-    
+
     setupHamburgerBehavior();
-    
+
     $('.navbar-submenu').hide();
     $('.help-options').hide();
 });
@@ -371,10 +371,10 @@ function setupNavigationState() {
     const currentUrl = window.location.href;
     let matchedConfig = null;
     let isOrgPage = false;
-    
+
     if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
         matchedConfig = navigationStructure['index.html'];
-    } 
+    }
     else{
         for (const [urlKey, config] of Object.entries(navigationStructure)) {
             if (currentUrl.includes(urlKey)) {
@@ -383,7 +383,7 @@ function setupNavigationState() {
             }
         }
     }
-    
+
     // Check for org pages if no exact match
     if (!matchedConfig) {
 
@@ -393,7 +393,7 @@ function setupNavigationState() {
                 orgPageConfig = orgPages[page];
                 break;
             }
-        }        
+        }
         if (isOrgPage) {
             matchedConfig = {
                 activeClass: 'nav-myorg',
@@ -402,7 +402,7 @@ function setupNavigationState() {
             };
         }
     }
-    
+
     if (!matchedConfig) {
         // Check each org page
         for (const [page, config] of Object.entries(orgPages)) {
@@ -412,7 +412,7 @@ function setupNavigationState() {
                 break;
             }
         }
-        
+
         if (isOrgPage) {
             matchedConfig = {
                 activeClass: 'nav-myorg',
@@ -423,16 +423,16 @@ function setupNavigationState() {
     }
     if (matchedConfig) {
         $(`.${matchedConfig.activeClass}`).addClass('active');
-        
+
         if (matchedConfig.temporaryDisableHover) {
             $(`.${matchedConfig.activeClass}`).addClass('disable-hover');
             setTimeout(function () {
                 $(`.${matchedConfig.activeClass}`).removeClass('disable-hover');
             }, 500);
         }
-        
+
         initializeBreadcrumbs(matchedConfig.breadcrumbs);
-        
+
         if (matchedConfig.upperNavTabs) {
             if (matchedConfig.upperNavTabs === 'tracingUpperNavTabs' && $('.subsection-navbar').length) {
                 $('.subsection-navbar').appendOrgNavTabs(tracingUpperNavTabs);
@@ -535,7 +535,7 @@ function initializeDropdowns() {
             }
         });
     });
-    
+
     // Check active menu items
     const menuItem = document.querySelectorAll('.metrics-dropdown a');
     menuItem.forEach((item) => {
@@ -589,18 +589,18 @@ function setupHamburgerBehavior() {
 function initializeBreadcrumbs(breadcrumbConfig) {
     const breadcrumb = $('#sl-breadcrumb');
     breadcrumb.empty();
-    
+
     if (breadcrumbConfig && breadcrumbConfig.length) {
         $.each(breadcrumbConfig, function(index, crumb) {
             const li = $('<li>');
             let a;
-            
+
             if ((index === breadcrumbConfig.length - 1) || crumb.noLink) {
                 // For the last item or explicitly non-clickable items, create a span instead of a link
                 a = $('<span>')
                     .addClass('breadcrumb-text')
                     .text(crumb.name);
-                
+
                 if (index === breadcrumbConfig.length - 1) {
                     a.addClass('active');
                 }
@@ -609,10 +609,10 @@ function initializeBreadcrumbs(breadcrumbConfig) {
                     .attr('href', crumb.url || '#')
                     .text(crumb.name);
             }
-            
+
             li.append(a);
             breadcrumb.append(li);
-            
+
             if (index < breadcrumbConfig.length - 1) {
                 const arrow = $('<span>').addClass('dashboard-arrow');
                 breadcrumb.append(arrow);
