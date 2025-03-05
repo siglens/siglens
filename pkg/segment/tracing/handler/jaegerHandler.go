@@ -2,14 +2,14 @@ package handler
 
 import (
 	"encoding/json"
-
-	log "github.com/sirupsen/logrus"
-
+	"fmt"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
+	"strconv"
 )
 
 type ResponseBody struct {
@@ -18,6 +18,44 @@ type ResponseBody struct {
 	Limit  int      `json:"limit"`
 	Offset int      `json:"offset"`
 	Errors []string `json:"errors"`
+}
+
+type TraceData struct {
+	TraceID string `json:"traceID"`
+	Spans   []Span `json:"spans"`
+}
+
+type Span struct {
+	TraceID       string      `json:"traceID"`
+	SpanID        string      `json:"spanID"`
+	OperationName string      `json:"operationName"`
+	References    []Reference `json:"references"`
+	StartTime     int64       `json:"startTime"`
+	Duration      int64       `json:"duration"`
+	Tags          []Tag       `json:"tags"`
+	Logs          []string    `json:"logs"`
+	ProcessID     string      `json:"processID"`
+	Warnings      []string    `json:"warnings"`
+}
+
+type Reference struct {
+	RefType string `json:"refType"`
+	TraceID string `json:"traceID"`
+	SpanID  string `json:"spanID"`
+}
+
+type Tag struct {
+	Key   string      `json:"key"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
+}
+
+type Response struct {
+	Data   []TraceData `json:"data"`
+	Total  int         `json:"total"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+	Errors []string    `json:"errors"`
 }
 
 func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
@@ -140,4 +178,234 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
 
+}
+
+func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
+
+	endTs := string(ctx.QueryArgs().Peek("endTs"))
+	lookback := string(ctx.QueryArgs().Peek("lookback"))
+
+	startEpoch, endEpoch, err := ComputeStartTime("", endTs, lookback)
+
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.WriteString(err.Error())
+		log.Errorf("Missing required parameter err : %v ", err)
+		return
+	}
+
+	searchRequestBody := structs.SearchRequestBody{
+		SearchText:    "*",
+		StartEpoch:    strconv.FormatInt(startEpoch, 10),
+		EndEpoch:      strconv.FormatInt(endEpoch, 10),
+		IndexName:     "service-dependency",
+		QueryLanguage: "Splunk QL",
+		From:          0,
+	}
+
+	modifiedData, _ := json.Marshal(searchRequestBody)
+
+	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.Header.SetMethod("POST")
+	rawTraceCtx.Request.SetBody(modifiedData)
+
+	ProcessAggregatedDependencyGraphs(rawTraceCtx, myid)
+	responseBody := rawTraceCtx.Response.Body()
+	processedData := make(map[string]interface{})
+
+	if err := json.Unmarshal(responseBody, &processedData); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.WriteString(err.Error())
+		log.Errorf("Error parsing response body: %v, err: %v", responseBody, err)
+		return
+	}
+
+	var responseData []map[string]string
+	for parent, children := range processedData {
+
+		if childMap, ok := children.(map[string]interface{}); ok {
+			for child, callCount := range childMap {
+				var callCountStr string
+				switch v := callCount.(type) {
+				case int:
+					callCountStr = strconv.Itoa(v)
+				case float64:
+					callCountStr = strconv.FormatFloat(v, 'f', -1, 64)
+				default:
+					callCountStr = fmt.Sprintf("%v", v)
+				}
+				responseData = append(responseData, map[string]string{
+					"parent":    parent,
+					"child":     child,
+					"callCount": callCountStr,
+				})
+			}
+		}
+	}
+
+	finalResponse := map[string]interface{}{
+		"data":   responseData,
+		"total":  len(responseData),
+		"limit":  0,
+		"offset": 0,
+		"errors": nil,
+	}
+
+	ctx.SetContentType("application/json; charset=utf-8")
+	utils.WriteJsonResponse(ctx, finalResponse)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
+
+	start := string(ctx.QueryArgs().Peek("start"))
+	end := string(ctx.QueryArgs().Peek("end"))
+	lookback := string(ctx.QueryArgs().Peek("lookback"))
+	startEpoch, endEpoch, err := ComputeStartTime(start, end, lookback)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.WriteString(err.Error())
+		log.Errorf("Missing required parameter err: %v ", err)
+		return
+	}
+	searchRequestBody := structs.SearchRequestBody{
+		SearchText: "*",
+		StartEpoch: strconv.FormatInt(startEpoch, 10),
+		EndEpoch:   strconv.FormatInt(endEpoch, 10),
+		From:       0,
+	}
+
+	modifiedData, _ := json.Marshal(searchRequestBody)
+	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.Header.SetMethod("POST")
+	rawTraceCtx.Request.SetBody(modifiedData)
+
+	ProcessSearchTracesRequest(rawTraceCtx, myid)
+	pipeSearchResponseOuter := &structs.TraceResult{}
+	responseBody := rawTraceCtx.Response.Body()
+
+	if err := json.Unmarshal(responseBody, &pipeSearchResponseOuter); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		ctx.WriteString(err.Error())
+		log.Errorf("Error parsing response body: %v, err: %v", responseBody, err)
+		return
+	}
+
+	var allTraceData []TraceData
+	for _, traces := range pipeSearchResponseOuter.Traces {
+		tracesId := traces.TraceId
+
+		searchGanttChartRequestBody := structs.SearchRequestBody{
+			SearchText: "trace_id=" + tracesId,
+			StartEpoch: "now-365d",
+			EndEpoch:   "now",
+			From:       0,
+		}
+
+		ganttChartModifiedData, _ := json.Marshal(searchGanttChartRequestBody)
+		rawGanttChartCtx := &fasthttp.RequestCtx{}
+		rawGanttChartCtx.Request.Header.SetMethod("POST")
+		rawGanttChartCtx.Request.SetBody(ganttChartModifiedData)
+		ganttChartSpanResponseOuter := &structs.GanttChartSpan{}
+		ProcessGanttChartRequest(rawGanttChartCtx, myid)
+		gCResponseBody := rawGanttChartCtx.Response.Body()
+
+		if err := json.Unmarshal(gCResponseBody, &ganttChartSpanResponseOuter); err != nil {
+			log.Errorf("Error parsing response body: %v, err: %v", gCResponseBody, err)
+		}
+		var spans []Span
+
+		processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans)
+		traceData := TraceData{
+			TraceID: tracesId,
+			Spans:   spans,
+		}
+		allTraceData = append(allTraceData, traceData)
+	}
+
+	response := Response{
+		Data:   allTraceData,
+		Total:  len(allTraceData),
+		Limit:  0,
+		Offset: 0,
+		Errors: nil,
+	}
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, response)
+
+}
+
+func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID string, spans *[]Span) {
+	if span == nil {
+		return
+	}
+
+	var spanTags []Tag
+	for k, v := range span.Tags {
+		spanTags = append(spanTags, Tag{
+			Key:   k,
+			Type:  fmt.Sprintf("%T", v),
+			Value: v,
+		})
+	}
+
+	var references []Reference
+	references = append(references, Reference{
+		RefType: "CHILD_OF",
+		TraceID: traceID,
+		SpanID:  parentSpanID,
+	})
+
+	spanEntry := Span{
+		TraceID:       traceID,
+		SpanID:        span.SpanID,
+		OperationName: span.OperationName,
+		References:    references,
+		StartTime:     int64(span.StartTime),
+		Duration:      int64(span.Duration),
+		Tags:          spanTags,
+		Logs:          nil,
+		ProcessID:     "",
+		Warnings:      nil,
+	}
+
+	*spans = append(*spans, spanEntry)
+
+	for _, child := range span.Children {
+		processSpan(child, traceID, span.SpanID, spans)
+	}
+}
+
+func ComputeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
+	if endTs == "" {
+		err := fmt.Errorf("failed to process response missing endTs")
+		return 0, 0, err
+	}
+
+	if lookBack == "" {
+		err := fmt.Errorf("failed to process response missing lookBack")
+		return 0, 0, err
+	}
+
+	endValue, err := strconv.ParseInt(endTs, 10, 64)
+	if err != nil {
+		log.Errorf("failed to parsing endTs  err : %v", err)
+		return 0, 0, err
+	}
+
+	if startTs != "" {
+		startTsValue, err := strconv.ParseInt(startTs, 10, 64)
+		if err == nil {
+			return startTsValue, endValue, nil
+		}
+	}
+
+	lookBackVal, err := strconv.ParseInt(lookBack, 10, 64)
+	if err != nil {
+		log.Errorf("failed to parsing lookBack err: %v", err)
+		return 0, 0, err
+	}
+	start := endValue - lookBackVal
+	return start, endValue, nil
 }
