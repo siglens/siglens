@@ -48,18 +48,19 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
 	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
-	err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
+	responseBody := rawTraceCtx.Response.Body()
+	err := json.Unmarshal(responseBody, &pipeSearchResponseOuter)
 
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		log.Errorf("Error parsing response body: %v, Response: %s", err, rawTraceCtx.Response.Body())
+		log.Errorf("Error parsing response body: %q, Response: %v", responseBody, err)
 		return
 	}
 
-	serviceSet := make(map[string]bool)
+	serviceSet := make(map[string]struct{}) // Use struct{} instead of bool
 	for _, record := range pipeSearchResponseOuter.Hits.Hits {
 		if service, exists := record["service"].(string); exists {
-			serviceSet[service] = true
+			serviceSet[service] = struct{}{} // Store an empty struct instead of `true`
 		}
 	}
 
@@ -107,18 +108,19 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 	rawTraceCtx.Request.SetBody(modifiedData)
 	pipesearch.ProcessPipeSearchRequest(rawTraceCtx, myid)
 	pipeSearchResponseOuter := segstructs.PipeSearchResponseOuter{}
-	err := json.Unmarshal(rawTraceCtx.Response.Body(), &pipeSearchResponseOuter)
+	responseBody := rawTraceCtx.Response.Body()
+	err := json.Unmarshal(responseBody, &pipeSearchResponseOuter)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		log.Errorf("Error parsing response body: %v, Response: %s", err, rawTraceCtx.Response.Body())
+		log.Errorf("Error parsing response body: %q, Response: %v", responseBody, err)
 		return
 	}
 
-	nameSet := make(map[string]bool)
+	nameSet := make(map[string]struct{})
 	for _, record := range pipeSearchResponseOuter.Hits.Hits {
 		if name, exists := record["name"].(string); exists {
 			if sn, ok := record["service"].(string); ok && sn == serviceName {
-				nameSet[name] = true
+				nameSet[name] = struct{}{}
 			}
 		}
 	}
