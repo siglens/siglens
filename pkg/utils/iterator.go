@@ -31,6 +31,11 @@ func NewIterator[T any](slice []T) *iterator[T] {
 }
 
 func (it *iterator[T]) Next() (T, bool) {
+	if it == nil || it.slice == nil {
+		var defaultValue T
+		return defaultValue, false
+	}
+
 	if it.index >= len(it.slice) {
 		var defaultValue T
 		return defaultValue, false
