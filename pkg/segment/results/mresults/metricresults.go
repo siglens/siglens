@@ -578,13 +578,12 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	return retVal, nil
 }
 
-func getPromQLSeriesFormat(seriesId string) *structs.Result {
+func getPromQLSeriesFormat(seriesId string) map[string]string {
 	tagValues := strings.Split(RemoveTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 
-	var result structs.Result
 	var keyValue []string
-	result.Metric = make(map[string]string)
-	result.Metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
+	metric := make(map[string]string)
+	metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
 	for idx, val := range tagValues {
 		if idx == 0 {
 			keyValue = strings.SplitN(removeMetricNameFromGroupID(val), ":", 2)
@@ -593,24 +592,20 @@ func getPromQLSeriesFormat(seriesId string) *structs.Result {
 		}
 
 		if len(keyValue) > 1 {
-			result.Metric[keyValue[0]] = keyValue[1]
+			metric[keyValue[0]] = keyValue[1]
 		}
 	}
 
-	return &result
+	return metric
 }
 
-func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueType, timestamp uint32) (*structs.MetricsQueryResponsePromQl, error) {
-	var pqlData structs.Data
+func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueType, timestamp uint32) (*structs.MetricsPromQLInstantQueryResponse, error) {
+	var pqlData structs.PromQLInstantData
 
 	switch pqlQueryType {
 	case parser.ValueTypeScalar:
 		pqlData.ResultType = pqlQueryType
-		pqlData.Result = make([]structs.Result, 1)
-		pqlData.Result[0] = structs.Result{
-			Metric: map[string]string{},
-			Value:  []interface{}{timestamp, fmt.Sprintf("%v", r.ScalarValue)},
-		}
+		pqlData.SliceResult = []interface{}{timestamp, fmt.Sprintf("%v", r.ScalarValue)}
 	case parser.ValueTypeString:
 		// TODO: Implement this
 		return nil, errors.New("GetResultsPromQlInstantQuery: ValueTypeString is not supported")
@@ -621,12 +616,16 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 				continue
 			}
 
-			result := getPromQLSeriesFormat(seriesId)
+			metricSeries := getPromQLSeriesFormat(seriesId)
+
+			result := structs.InstantVectorResult{
+				Metric: metricSeries,
+			}
 
 			floatValue, ok := results[timestamp]
 			if ok {
 				result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
-				pqlData.Result = append(pqlData.Result, *result)
+				pqlData.VectorResult = append(pqlData.VectorResult, result)
 				continue
 			}
 
@@ -651,7 +650,7 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 			}
 
 			result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
-			pqlData.Result = append(pqlData.Result, *result)
+			pqlData.VectorResult = append(pqlData.VectorResult, result)
 		}
 	case parser.ValueTypeMatrix:
 		return nil, errors.New("ValueTypeMatrix is not supported for Instant Queries")
@@ -659,34 +658,35 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 		return nil, fmt.Errorf("GetResultsPromQlInstantQuery: Unsupported PromQL query result type: %v", pqlQueryType)
 	}
 
-	return &structs.MetricsQueryResponsePromQl{
+	return &structs.MetricsPromQLInstantQueryResponse{
 		Status: "success",
-		Data:   pqlData,
+		Data:   &pqlData,
 	}, nil
 }
 
-func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
+func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsPromQLRangeQueryResponse, error) {
 	if r.State != AGGREGATED {
 		return nil, fmt.Errorf("GetResultsPromQl: results is not in aggregated state, state: %v", r.State)
 	}
-	var pqldata structs.Data
+	var pqldata structs.PromQLRangeData
 
 	switch pqlQuerytype {
 	case parser.ValueTypeVector, parser.ValueTypeMatrix:
 		pqldata.ResultType = parser.ValueType("matrix")
 		for seriesId, results := range r.Results {
-			result := getPromQLSeriesFormat(seriesId)
+			metricSeries := getPromQLSeriesFormat(seriesId)
 
-			result.Value = make([]interface{}, len(results))
-			index := 0
-
-			for k, v := range results {
-				result.Value[index] = []interface{}{int64(k), fmt.Sprintf("%v", v)}
-				index++
+			result := &structs.RangeVectorResult{
+				Metric: metricSeries,
+				Values: make([]interface{}, 0, len(results)),
 			}
 
-			sort.Slice(result.Value, func(i, j int) bool {
-				return result.Value[i].([]interface{})[0].(int64) < result.Value[j].([]interface{})[0].(int64)
+			for k, v := range results {
+				result.Values = append(result.Values, []interface{}{int64(k), fmt.Sprintf("%v", v)})
+			}
+
+			sort.Slice(result.Values, func(i, j int) bool {
+				return result.Values[i].([]interface{})[0].(int64) < result.Values[j].([]interface{})[0].(int64)
 			})
 
 			pqldata.Result = append(pqldata.Result, *result)
@@ -694,25 +694,25 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 	default:
 		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type: %v", pqlQuerytype)
 	}
-	return &structs.MetricsQueryResponsePromQl{
+	return &structs.MetricsPromQLRangeQueryResponse{
 		Status: "success",
-		Data:   pqldata,
+		Data:   &pqldata,
 	}, nil
 }
 
-func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueType, startTime, endTime uint32, step uint32) (*structs.MetricsQueryResponsePromQl, error) {
+func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueType, startTime, endTime uint32, step uint32) (*structs.MetricsPromQLRangeQueryResponse, error) {
 	if pqlQueryType != parser.ValueTypeScalar {
 		return nil, fmt.Errorf("GetResultsPromQlForScalarType: Unsupported PromQL query result type: %v", pqlQueryType)
 	}
 
-	var pqlData structs.Data
+	var pqlData structs.PromQLRangeData
 	pqlData.ResultType = parser.ValueType("matrix")
 
 	scalarValue := r.ScalarValue
 
 	evalTime := startTime
 
-	pqlData.Result = make([]structs.Result, 1)
+	pqlData.Result = make([]structs.RangeVectorResult, 1)
 
 	values := make([]interface{}, 0)
 
@@ -721,14 +721,14 @@ func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueT
 		evalTime += step
 	}
 
-	pqlData.Result[0] = structs.Result{
+	pqlData.Result[0] = structs.RangeVectorResult{
 		Metric: map[string]string{},
-		Value:  values,
+		Values: values,
 	}
 
-	return &structs.MetricsQueryResponsePromQl{
+	return &structs.MetricsPromQLRangeQueryResponse{
 		Status: "success",
-		Data:   pqlData,
+		Data:   &pqlData,
 	}, nil
 }
 
