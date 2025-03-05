@@ -18,6 +18,8 @@
 package structs
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path"
@@ -175,21 +177,46 @@ type Label struct {
 	Name, Value string
 }
 
-type Result struct {
-	Metric map[string]string `json:"metric"`
-	Value  []interface{}     `json:"values"`
+type RangeVectorResult struct {
+	Metric     map[string]string `json:"metric,omitempty"`
+	Values     []interface{}     `json:"values"`
+	Histograms []interface{}     `json:"histograms,omitempty"`
 }
 
-type Data struct {
-	ResultType parser.ValueType `json:"resultType"`
-	Result     []Result         `json:"result,omitempty"`
+type InstantVectorResult struct {
+	Metric    map[string]string `json:"metric,omitempty"`
+	Value     []interface{}     `json:"value"`
+	Histogram []interface{}     `json:"histogram,omitempty"`
 }
-type MetricsQueryResponsePromQl struct {
-	Status    string   `json:"status"` //success/error
-	Data      Data     `json:"data"`
-	ErrorType string   `json:"errorType"`
-	Error     string   `json:"error"`
-	Warnings  []string `json:"warnings"`
+
+type PromQLRangeData struct {
+	ResultType parser.ValueType    `json:"resultType"`
+	Result     []RangeVectorResult `json:"result,omitempty"`
+}
+
+type PromQLInstantData struct {
+	ResultType   parser.ValueType      `json:"resultType"`
+	Result       interface{}           `json:"result,omitempty"`
+	VectorResult []InstantVectorResult `json:"-"`
+	SliceResult  []interface{}         `json:"-"`
+}
+
+type MetricsQueryErrorPromQL struct {
+	ErrorType string   `json:"errorType,omitempty"`
+	Error     string   `json:"error,omitempty"`
+	Warnings  []string `json:"warnings,omitempty"`
+}
+
+type MetricsPromQLRangeQueryResponse struct {
+	Status string           `json:"status"` //success/error
+	Data   *PromQLRangeData `json:"data"`
+	MetricsQueryErrorPromQL
+}
+
+type MetricsPromQLInstantQueryResponse struct {
+	Status string             `json:"status"` //success/error
+	Data   *PromQLInstantData `json:"data"`
+	MetricsQueryErrorPromQL
 }
 
 /*
@@ -329,6 +356,27 @@ const (
 type TagValueIndex struct {
 	tagValueType TagValueType
 	index        int
+}
+
+func (d *PromQLInstantData) MarshalJSON() ([]byte, error) {
+	if d == nil {
+		return nil, nil
+	}
+
+	switch d.ResultType {
+	case parser.ValueTypeVector:
+		d.Result = d.VectorResult
+	case parser.ValueTypeScalar, parser.ValueTypeString:
+		d.Result = d.SliceResult
+	default:
+		return nil, fmt.Errorf("unsupported result type: %v", d.ResultType)
+	}
+
+	type Alias PromQLInstantData
+
+	aliasData := (*Alias)(d)
+
+	return json.Marshal(aliasData)
 }
 
 /*
