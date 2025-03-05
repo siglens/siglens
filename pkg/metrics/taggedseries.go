@@ -126,7 +126,7 @@ func (t *TaggedSeries) SetTagsFromId(id string) error {
 	tags["__name__"] = id[:idx]
 
 	// Parse tags.
-	id = id[idx+1 : len(id)]
+	id = id[idx+1:]
 	pairs := strings.Split(id, ",")
 	for _, pair := range pairs {
 		kv := strings.Split(pair, "=")
@@ -174,4 +174,33 @@ func Aggregate(inputSeries []*TaggedSeries, aggregator func([]float64) float64,
 	}
 
 	return NewTaggedSeries(nil, aggSeries, groupId), nil
+}
+
+func GroupBy(series []*TaggedSeries, keys []string) map[string][]*TaggedSeries {
+	sort.Strings(keys)
+	result := make(map[string][]*TaggedSeries)
+
+	for _, s := range series {
+		metricName := ""
+		groupId := make([]string, 0, len(keys))
+
+		for _, key := range keys {
+			value, ok := s.GetValue(key)
+			if !ok {
+				value = ""
+			}
+
+			if key == "__name__" {
+				metricName = value
+				continue
+			}
+
+			groupId = append(groupId, fmt.Sprintf(`%v="%v"`, key, value))
+		}
+
+		groupIdStr := fmt.Sprintf("%v{%v}", metricName, strings.Join(groupId, ","))
+		result[groupIdStr] = append(result[groupIdStr], s)
+	}
+
+	return result
 }

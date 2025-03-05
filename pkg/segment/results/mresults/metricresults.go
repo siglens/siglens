@@ -259,17 +259,15 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 
 	log.Errorf("andrew group by cols: %v", aggregation.GroupByFields)
 
-	groupToSeries := make(map[string][]*metrics.TaggedSeries, len(r.AllSeries))
-	if len(aggregation.GroupByFields) == 0 {
-		groupId := "{}"
-		allSeries := make([]*metrics.TaggedSeries, 0, len(r.AllSeries))
-		for _, series := range r.AllSeries {
-			allSeries = append(allSeries, series)
-		}
-		groupToSeries[groupId] = allSeries
-	} else {
-		// TODO
-		return []error{fmt.Errorf("GroupByFields not supported yet")}
+	allSeries := make([]*metrics.TaggedSeries, 0, len(r.AllSeries))
+	for _, series := range r.AllSeries {
+		allSeries = append(allSeries, series)
+	}
+
+	groupToSeries := metrics.GroupBy(allSeries, aggregation.GroupByFields)
+	log.Errorf("andrew groupToSeries: ...")
+	for k, v := range groupToSeries {
+		log.Errorf("andrew groupToSeries %v has %v series", k, len(v))
 	}
 
 	results := make(map[uint64]*metrics.TaggedSeries, len(groupToSeries))
@@ -682,9 +680,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	}
 
 	for grpId, results := range r.Results {
-		groupId := mQuery.MetricName + "{"
-		groupId += grpId
-		groupId += "}"
+		groupId := grpId
 		httpResp.AggStats[groupId] = make(map[string]interface{}, 1)
 		for ts, v := range results {
 			temp := time.Unix(int64(ts), 0)
@@ -781,8 +777,6 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 
 	for grpId, results := range r.Results {
 		groupId := grpId
-		groupId = removeTrailingComma(groupId)
-		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 
 		values := make([]*float64, len(httpResp.Timestamps))
