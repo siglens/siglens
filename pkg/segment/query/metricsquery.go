@@ -175,6 +175,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
+	mRes.ConvertSeriesToResults()
+
 	for mQuery.SubsequentAggs != nil {
 		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {
 			mQuery.Function = *mQuery.SubsequentAggs.FunctionBlock

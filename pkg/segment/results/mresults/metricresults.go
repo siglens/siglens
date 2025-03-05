@@ -146,6 +146,24 @@ func (r *MetricsResult) ConvertInitialSeries() {
 	r.AllInitialSeries = nil
 }
 
+func (r *MetricsResult) ConvertSeriesToResults() {
+	r.Results = make(map[string]map[uint32]float64, len(r.AllSeries))
+	for _, series := range r.AllSeries {
+		values := make(map[uint32]float64)
+		iter := series.Iterator()
+		for {
+			point, ok := iter.Next()
+			if !ok {
+				break
+			}
+
+			values[uint32(point.Timestamp)] = point.Value
+		}
+
+		r.Results[series.Id()] = values
+	}
+}
+
 /*
 Downsample all series
 
