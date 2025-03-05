@@ -807,7 +807,7 @@ func (r *MetricsResult) FetchScalarMetricsForUi(finalSearchText string, pqlQuerr
 	httpResp.IntervalSec = calculatedInterval
 
 	httpResp.Series = append(httpResp.Series, finalSearchText)
-	httpResp.Values = append(httpResp.Values, []*float64{&r.ScalarValue})
+	httpResp.Values = append(httpResp.Values, []*float64{sanitizeFloatValue(r.ScalarValue)})
 	httpResp.Timestamps = []uint32{uint32(endTime)}
 
 	return httpResp, nil
@@ -855,7 +855,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 		for i, ts := range httpResp.Timestamps {
 			// Check if there is a value for the current timestamp in results.
 			if v, ok := results[uint32(ts)]; ok {
-				values[i] = &v
+				values[i] = sanitizeFloatValue(v)
 			} else {
 				values[i] = nil
 			}
@@ -865,6 +865,13 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	}
 
 	return httpResp, nil
+}
+
+func sanitizeFloatValue(val float64) *float64 {
+	if math.IsInf(val, -1) || math.IsInf(val, 1) || math.IsNaN(val) {
+		return nil
+	}
+	return &val
 }
 
 func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
