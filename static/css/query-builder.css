@@ -753,9 +753,10 @@ div.show-record-popup .ui-dialog-buttonpane button {
 .histo-container {
     background: white;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 0px;
     height: 0;
     position: relative;
+    transition: height 0.3s ease; /* Smooth height transition */
 }
 
 #toggle-btn {
@@ -763,22 +764,24 @@ div.show-record-popup .ui-dialog-buttonpane button {
     border: none;
     display: flex;
     align-items: center;
+    padding: 5px;
 }
 
 .histo-container.visible {
-    height: 220px;
+    height: 180px;
 }
 
 #histogram-container {
     display: none;
     background: white;
-    padding: 5px;
+    padding: 2px;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     position: absolute;
     width: 100%;
     box-sizing: border-box;
     top: 0;
+    bottom: 0;
 }
 
 .histo-container.visible #histogram-container {
@@ -792,6 +795,14 @@ div.show-record-popup .ui-dialog-buttonpane button {
     width: 100%;
     height: 100%;
     margin-top: 0;
+    position: relative;
+    overflow: hidden; /* Prevent overflow issues */
+}
+
+.my-chart-container canvas {
+    cursor: crosshair !important;
+    width: 100% !important;
+    height: 100% !important; /* Ensure canvas fills container */
 }
 
 .show-table {
@@ -810,12 +821,9 @@ div.show-record-popup .ui-dialog-buttonpane button {
     color: var(--purple-1) !important;
 }
 
-.my-chart-container canvas {
-    cursor: crosshair !important;
-}
 
 .histo-container.visible + .show-table {
-    transform: translateY(210px);
+    transform: translateY(230px);
 }
 
 .tab-content-size {

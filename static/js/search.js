@@ -18,6 +18,10 @@
  */
 let lastQType = '';
 window.sharedSocket = null;
+window.reconnectAttempts = 0;
+// let startQueryTime = 0;
+// let canScrollMore = false;
+// let scrollFrom = 0;
 
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
@@ -37,6 +41,9 @@ function doCancel(data) {
         $('#query-builder-btn').removeClass('active');
         $('#progress-div').html(``);
         $('#record-searched').html(``);
+        window.sharedSocket.close(1000);
+        window.sharedSocket = null;
+        window.reconnectAttempts = 0;
     }
 }
 //eslint-disable-next-line no-unused-vars
@@ -45,6 +52,10 @@ function doLiveTailCancel(_data) {
     $('#live-tail-btn').html('Live Tail');
     $('#live-tail-btn').removeClass('active');
     $('#progress-div').html(``);
+    if (window.sharedSocket) {
+        window.sharedSocket.close(1000);
+        window.sharedSocket = null;
+    }
 }
 
 function resetDataTable(firstQUpdate) {
@@ -66,6 +77,7 @@ function resetDataTable(firstQUpdate) {
     }
 }
 
+
 let doSearchCounter = 0;
 let columnCount = 0;
 //eslint-disable-next-line no-unused-vars
@@ -73,7 +85,10 @@ function doSearch(data) {
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
-        window.sharedSocket = new WebSocket(newUri);
+        if (!window.sharedSocket || window.sharedSocket.readyState === WebSocket.CLOSED) {
+            window.sharedSocket = new WebSocket(newUri);
+            window.reconnectAttempts = 0;
+        }
         let timeToFirstByte = 0;
         let firstQUpdate = true;
         let lastKnownHits = 0;
@@ -83,12 +98,14 @@ function doSearch(data) {
         console.time(timerName);
 
         window.sharedSocket.onopen = function (_e) {
+            console.log('WebSocket opened for search:', data); // Debug log
             $('body').css('cursor', 'progress');
             $('#run-filter-btn').addClass('cancel-search');
             $('#run-filter-btn').addClass('active');
             $('#query-builder-btn').html('   ');
             $('#query-builder-btn').addClass('cancel-search');
             $('#query-builder-btn').addClass('active');
+            data.runTimechart = true;
 
             try {
                 window.sharedSocket.send(JSON.stringify(data));
@@ -101,6 +118,7 @@ function doSearch(data) {
 
         window.sharedSocket.onmessage = function (event) {
             let jsonEvent = JSON.parse(event.data);
+            console.log('WebSocket message received in search.js:', jsonEvent.state, JSON.stringify(jsonEvent, null, 2)); // Debug log
             let eventType = jsonEvent.state;
             let totalEventsSearched = jsonEvent.total_events_searched;
             let totalTime = new Date().getTime() - startQueryTime;
@@ -124,6 +142,15 @@ function doSearch(data) {
                     }
                     resetDataTable(firstQUpdate);
                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
+                    if (jsonEvent.timechartUpdate && Array.isArray(jsonEvent.timechartUpdate.measure)) {
+                        console.log('Timechart UPDATE received:', jsonEvent.timechartUpdate);
+                        // Notify histo.js of new data (optional, if integrated)
+                        if (window.histoUpdateCallback) {
+                            window.histoUpdateCallback(jsonEvent.timechartUpdate.measure);
+                        }
+                    } else {
+                        console.warn('Invalid or missing timechart update data', jsonEvent.timechartUpdate);
+                    }
                     console.timeEnd('QUERY_UPDATE');
                     firstQUpdate = false;
                     break;
@@ -137,6 +164,11 @@ function doSearch(data) {
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                    if (jsonEvent.timechartComplete && Array.isArray(jsonEvent.timechartComplete.measure)) {
+                        console.log('Timechart COMPLETE received:', jsonEvent.timechartComplete);
+                    } else {
+                        console.warn('Invalid or missing timechart complete data', jsonEvent.timechartComplete);
+                    }
                     console.timeEnd('COMPLETE');
                     window.sharedSocket.close(1000);
                     break;
@@ -147,7 +179,9 @@ function doSearch(data) {
                     processCancelUpdate(jsonEvent);
                     console.timeEnd('CANCELLED');
                     errorMessages.push(`CANCELLED: ${jsonEvent}`);
-                    swindow.sharedSocket.close(1000);
+                    window.sharedSocket.close(1000);
+                    window.sharedSocket = null;
+                    window.reconnectAttempts = 0;
                     break;
                 case 'TIMEOUT':
                     console.time('TIMEOUT');
@@ -156,6 +190,8 @@ function doSearch(data) {
                     console.timeEnd('TIMEOUT');
                     errorMessages.push(`Timeout: ${jsonEvent}`);
                     window.sharedSocket.close(1000);
+                    window.sharedSocket = null;
+                    window.reconnectAttempts = 0;
                     break;
                 case 'ERROR':
                     console.time('ERROR');
@@ -163,6 +199,9 @@ function doSearch(data) {
                     processErrorUpdate(jsonEvent);
                     console.timeEnd('ERROR');
                     errorMessages.push(`Error: ${jsonEvent}`);
+                    window.sharedSocket.close(1000);
+                    window.sharedSocket = null;
+                    window.reconnectAttempts = 0;
                     break;
                 default:
                     console.log(`[message] Unknown state received from server: ` + JSON.stringify(jsonEvent));
@@ -192,6 +231,13 @@ function doSearch(data) {
             console.timeEnd(timerName);
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
+            if (!isQueryComplete && window.reconnectAttempts < 20) { // Use global reconnectAttempts
+                window.reconnectAttempts++;
+                setTimeout(() => {
+                    console.log('Attempting to reconnect after close...');
+                    doSearch(data).then(resolve).catch(reject);
+                }, 2000);
+            }
         };
 
         window.sharedSocket.addEventListener('error', (event) => {
@@ -199,6 +245,53 @@ function doSearch(data) {
         });
     });
 }
+
+window.updateSearchRange = function (startEpoch, endEpoch) {
+    if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
+        const data = {
+            state: 'query',
+            searchText: "*",
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            runTimechart: true,
+            queryLanguage: "Splunk QL",
+        };
+        console.log('Updating search range:', data);
+        window.sharedSocket.send(JSON.stringify(data));
+        window.reconnectAttempts = 0; // Reset on successful send
+    } else {
+        console.warn('WebSocket not open, queuing range update');
+        const queuedData = { startEpoch, endEpoch };
+        const retryUpdate = () => {
+            if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
+                const data = {
+                    state: 'query',
+                    searchText: "*",
+                    startEpoch: queuedData.startEpoch,
+                    endEpoch: queuedData.endEpoch,
+                    runTimechart: true,
+                    queryLanguage: "Splunk QL",
+                };
+                console.log('Processing queued range update:', data);
+                window.sharedSocket.send(JSON.stringify(data));
+                window.reconnectAttempts = 0; // Reset on success
+            } else if (window.reconnectAttempts < 20) {
+                window.reconnectAttempts++;
+                console.log(`Retry attempt ${window.reconnectAttempts} for queued update`);
+                setTimeout(retryUpdate, 1000);
+            } else {
+                console.error('Max retry attempts reached for queued update. Please refresh the page.');
+            }
+        };
+        window.sharedSocket.onopen = retryUpdate; // Trigger on reopen
+        setTimeout(retryUpdate, 1000); // Initial retry
+    }
+};
+
+window.registerHistoCallbacks = function (updateCallback, completeCallback) {
+    window.histoUpdateCallback = updateCallback;
+    window.histoCompleteCallback = completeCallback;
+};
 
 function reconnect() {
     if (lockReconnect) {
