@@ -84,7 +84,9 @@ type MetricsQuery struct {
 type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
-	GroupByFields      []string // group by fields will be sorted
+	GroupByFields      []string            // group by fields will be sorted
+	Without            bool                // if set exclude the above group by fields
+	WithoutFieldsSet   map[string]struct{} // set of fields to exclude; only used when Without is set
 }
 
 type MetricsFunctionType uint8
@@ -163,6 +165,8 @@ type TagsFilter struct {
 	TagOperator     utils.TagOperator
 	LogicalOperator utils.LogicalOperator
 	NotInitialGroup bool
+	IgnoreTag       bool
+	IsGroupByKey    bool
 }
 
 type MetricsQueryResponse struct {
