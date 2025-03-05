@@ -938,6 +938,10 @@ func aggFunc(agg structs.Aggregation) func([]float64) float64 {
 		}
 	case utils.Stdvar:
 		return variance
+	case utils.Group:
+		return func(vals []float64) float64 {
+			return 1
+		}
 	default:
 		log.Errorf("aggFunc: unsupported AggregateFunction: %v", agg.AggregatorFunction)
 		return nil
