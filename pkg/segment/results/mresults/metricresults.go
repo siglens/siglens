@@ -290,18 +290,65 @@ func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) (
 	return groupKeyValuePairs, values
 }
 
+func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
+	if len(fields) == 0 {
+		return seriesId
+	}
+
+	fieldsSet := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		fieldsSet[field] = struct{}{}
+	}
+
+	parts := strings.Split(seriesId, ",")
+	var filteredParts []string
+	var metricName string
+
+	for i, part := range parts {
+		if i == 0 {
+			splitVals := strings.SplitN(part, "{", 2)
+			metricName = splitVals[0]
+
+			if len(splitVals) == 2 {
+				part = splitVals[1]
+			}
+		}
+
+		keyValue := strings.SplitN(part, ":", 2)
+		if len(keyValue) == 2 {
+			if _, exists := fieldsSet[keyValue[0]]; exists {
+				continue
+			}
+		}
+
+		filteredParts = append(filteredParts, part)
+	}
+
+	return metricName + "{" + strings.Join(filteredParts, ",")
+}
+
 // getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
 // The seriesId is in the format of "metricName{key1:value1,key2:value2,..."
 // If groupByFields is empty, it returns the "metricName{" as the group seriesId
 // If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
 // Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
 // The groupByFields are extracted from the seriesId
-func getAggSeriesId(seriesId string, groupByFields []string) string {
+func getAggSeriesId(seriesId string, aggregation *structs.Aggregation) string {
+	if aggregation == nil {
+		return seriesId
+	}
+
+	if aggregation.Without {
+		return GetSeriesIdWithoutFields(seriesId, aggregation.GroupByFields)
+	}
+
 	metricName := ExtractMetricNameFromGroupID(seriesId)
+	groupByFields := aggregation.GroupByFields
 
 	if len(groupByFields) == 0 {
 		return metricName + "{"
 	}
+
 	groupKeyValuePairs, _ := ExtractGroupByFieldsFromSeriesId(seriesId, groupByFields)
 	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
 	return seriesId
@@ -321,7 +368,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
 		for seriesId, timeSeries := range r.Results {
-			aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
+			aggSeriesId := getAggSeriesId(seriesId, &aggregation)
 			if _, ok := results[aggSeriesId]; !ok {
 				results[aggSeriesId] = make(map[uint32]float64, 0)
 				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -352,7 +399,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
 	for seriesId, timeSeries := range r.Results {
-		aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
+		aggSeriesId := getAggSeriesId(seriesId, &aggregation)
 		if _, ok := results[aggSeriesId]; !ok {
 			results[aggSeriesId] = make(map[uint32]float64, 0)
 			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -516,7 +563,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
-		tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+		tagValues := strings.Split(RemoveTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 		if len(tagKeys) != len(tagValues) {
 			err := fmt.Errorf("GetResults: the length of tag key and tag value pair must match. Tag Key: %v; Tag Value: %v", tagKeys, tagValues)
 			return nil, err
@@ -537,7 +584,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 }
 
 func getPromQLSeriesFormat(seriesId string) map[string]string {
-	tagValues := strings.Split(removeTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+	tagValues := strings.Split(RemoveTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 
 	var keyValue []string
 	metric := make(map[string]string)
@@ -789,7 +836,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	return httpResp, nil
 }
 
-func removeTrailingComma(s string) string {
+func RemoveTrailingComma(s string) string {
 	return strings.TrimSuffix(s, ",")
 }
 
@@ -847,7 +894,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 
 	for grpId, results := range r.Results {
 		groupId := grpId
-		groupId = removeTrailingComma(groupId)
+		groupId = RemoveTrailingComma(groupId)
 		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 
@@ -982,7 +1029,7 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 
 	if len(aggregation.GroupByFields) > 0 {
 		for grpID, timeSeries := range seriesEntriesMap {
-			seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
+			seriesId := getAggSeriesId(grpID, &aggregation)
 			if _, exists := seriesIdEntriesMap[seriesId]; !exists {
 				seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
 			}
