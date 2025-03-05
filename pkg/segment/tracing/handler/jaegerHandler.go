@@ -53,14 +53,14 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		log.Errorf("Error parsing response body: %q, Response: %v", responseBody, err)
+		log.Errorf("Error parsing response body: %v, err: %v", responseBody, err)
 		return
 	}
 
-	serviceSet := make(map[string]struct{}) // Use struct{} instead of bool
+	serviceSet := make(map[string]struct{})
 	for _, record := range pipeSearchResponseOuter.Hits.Hits {
 		if service, exists := record["service"].(string); exists {
-			serviceSet[service] = struct{}{} // Store an empty struct instead of `true`
+			serviceSet[service] = struct{}{}
 		}
 	}
 
@@ -112,7 +112,7 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 	err := json.Unmarshal(responseBody, &pipeSearchResponseOuter)
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		log.Errorf("Error parsing response body: %q, Response: %v", responseBody, err)
+		log.Errorf("Error parsing response body: %v, err: %v", responseBody, err)
 		return
 	}
 
