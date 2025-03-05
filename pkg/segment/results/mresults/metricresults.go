@@ -635,8 +635,12 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 		for seriesId, results := range r.Results {
 			result := getPromQLSeriesFormat(seriesId)
 
+			result.Value = make([]interface{}, len(results))
+			index := 0
+
 			for k, v := range results {
-				result.Value = append(result.Value, []interface{}{int64(k), fmt.Sprintf("%v", v)})
+				result.Value[index] = []interface{}{int64(k), fmt.Sprintf("%v", v)}
+				index++
 			}
 
 			sort.Slice(result.Value, func(i, j int) bool {
