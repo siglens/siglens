@@ -23,6 +23,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_TaggedSeriesImplementsTimeseries(t *testing.T) {
+	var _ timeseries = &TaggedSeries{}
+}
+
 func Test_TaggedMetric(t *testing.T) {
 	series := TaggedSeries{}
 
@@ -84,5 +88,81 @@ func Test_TaggedMetric(t *testing.T) {
 
 		// Check old tags are gone
 		assert.False(t, series.HasTag("key1"))
+	})
+
+	t.Run("SetTagsFromId", func(t *testing.T) {
+		err := series.SetTagsFromId("metric_name{key1=value1,key2=value2}")
+		assert.NoError(t, err)
+		assert.Equal(t, "metric_name{key1=value1,key2=value2}", series.Id())
+		value, ok := series.GetValue("key1")
+		assert.True(t, ok)
+		assert.Equal(t, "value1", value)
+		value, ok = series.GetValue("key2")
+		assert.True(t, ok)
+		assert.Equal(t, "value2", value)
+
+		err = series.SetTagsFromId("metric_name{")
+		assert.NoError(t, err)
+
+		err = series.SetTagsFromId("invalid")
+		assert.Error(t, err)
+	})
+}
+
+func Test_GroupBy(t *testing.T) {
+	series1 := &TaggedSeries{tags: map[string]string{"__name__": "metric_name", "key1": "value1", "key2": "value2"}}
+	series2 := &TaggedSeries{tags: map[string]string{"__name__": "metric_name", "key1": "value2", "key2": "value2"}}
+	series3 := &TaggedSeries{tags: map[string]string{"__name__": "other_metric", "key1": "value1"}}
+	allSeries := []*TaggedSeries{series1, series2, series3}
+
+	t.Run("NormalKeys", func(t *testing.T) {
+		keys := []string{"key2", "key1"} // Should get sorted to key1, key2
+		grouped := GroupBy(allSeries, keys)
+		assert.Len(t, grouped, 3)
+
+		values, ok := grouped[`{key1="value1",key2="value2"}`]
+		assert.True(t, ok)
+		assert.Len(t, values, 1)
+		assert.Contains(t, values, series1)
+
+		values, ok = grouped[`{key1="value2",key2="value2"}`]
+		assert.True(t, ok)
+		assert.Len(t, values, 1)
+		assert.Contains(t, values, series2)
+
+		values, ok = grouped[`{key1="value1",key2=""}`]
+		assert.True(t, ok)
+		assert.Len(t, values, 1)
+		assert.Contains(t, values, series3)
+	})
+
+	t.Run("MetricName", func(t *testing.T) {
+		keys := []string{"__name__"}
+		grouped := GroupBy(allSeries, keys)
+		assert.Len(t, grouped, 2)
+
+		values, ok := grouped[`metric_name{}`]
+		assert.True(t, ok)
+		assert.Len(t, values, 2)
+		assert.Contains(t, values, series1)
+		assert.Contains(t, values, series2)
+
+		values, ok = grouped[`other_metric{}`]
+		assert.True(t, ok)
+		assert.Len(t, values, 1)
+		assert.Contains(t, values, series3)
+	})
+
+	t.Run("NoKeys", func(t *testing.T) {
+		keys := []string{}
+		grouped := GroupBy(allSeries, keys)
+		assert.Len(t, grouped, 1)
+
+		values, ok := grouped["{}"]
+		assert.True(t, ok)
+		assert.Len(t, values, 3)
+		assert.Contains(t, values, series1)
+		assert.Contains(t, values, series2)
+		assert.Contains(t, values, series3)
 	})
 }

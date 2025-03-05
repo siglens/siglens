@@ -45,3 +45,10 @@ func Test_Iterator(t *testing.T) {
 	_, ok = iter.Next()
 	assert.False(t, ok)
 }
+
+func Test_Iterator_nil(t *testing.T) {
+	iter := NewIterator[int](nil)
+
+	_, ok := iter.Next()
+	assert.False(t, ok)
+}

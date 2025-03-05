@@ -25,14 +25,32 @@ import (
 
 type TaggedSeries struct {
 	timeseries
-	tags map[string]string
+	tags    map[string]string
+	groupId string
 }
 
-func NewTaggedSeries(tags map[string]string, series timeseries) *TaggedSeries {
-	return &TaggedSeries{
-		tags:       tags,
-		timeseries: series,
+func NewTaggedSeries(tags map[string]string, series timeseries, groupId string) *TaggedSeries {
+	if tags == nil {
+		tags = make(map[string]string)
 	}
+
+	result := &TaggedSeries{
+		timeseries: series,
+		tags:       tags,
+		groupId:    groupId,
+	}
+
+	err := result.SetTagsFromId(groupId)
+	if err != nil {
+		// TODO: andrew
+		return nil
+	}
+
+	return result
+}
+
+func (t *TaggedSeries) GetGroupId() string {
+	return t.groupId
 }
 
 func (t *TaggedSeries) GetValue(key string) (string, bool) {
@@ -89,4 +107,100 @@ func (t *TaggedSeries) Id() string {
 	id.WriteString("}")
 
 	return id.String()
+}
+
+func (t *TaggedSeries) SetTagsFromId(id string) error {
+	tags := make(map[string]string)
+
+	// Strip the final '}' if it exists.
+	if len(id) > 0 && id[len(id)-1] == '}' {
+		id = id[:len(id)-1]
+	}
+
+	// Parse metric name.
+	idx := strings.Index(id, "{")
+	if idx == -1 {
+		return fmt.Errorf("ID is missing '{': %v", id)
+	}
+
+	tags["__name__"] = id[:idx]
+
+	// Parse tags.
+	id = id[idx+1:]
+	pairs := strings.Split(id, ",")
+	for _, pair := range pairs {
+		kv := strings.Split(pair, "=")
+		if len(kv) != 2 {
+			continue
+		}
+		tags[kv[0]] = kv[1]
+	}
+
+	t.tags = tags
+	return nil
+}
+
+func (t *TaggedSeries) Downsample(interval Epoch, aggregator func([]float64) float64) error {
+	if interval <= 0 {
+		return fmt.Errorf("non-positive interval %v", interval)
+	}
+	if aggregator == nil {
+		return fmt.Errorf("nil aggregator")
+	}
+
+	downsampler := &downsampler{
+		timeseries: t.timeseries,
+		aggregator: aggregator,
+		interval:   interval,
+	}
+
+	t.timeseries = downsampler.evaluate()
+
+	return nil
+}
+
+// TODO: extract the groupId from the input series.
+func Aggregate(inputSeries []*TaggedSeries, aggregator func([]float64) float64,
+	groupId string) (*TaggedSeries, error) {
+
+	timeseries := make([]timeseries, 0, len(inputSeries))
+	for _, s := range inputSeries {
+		timeseries = append(timeseries, s.timeseries)
+	}
+
+	aggSeries, err := NewAggSeries(timeseries, aggregator)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewTaggedSeries(nil, aggSeries, groupId), nil
+}
+
+func GroupBy(series []*TaggedSeries, keys []string) map[string][]*TaggedSeries {
+	sort.Strings(keys)
+	result := make(map[string][]*TaggedSeries)
+
+	for _, s := range series {
+		metricName := ""
+		groupId := make([]string, 0, len(keys))
+
+		for _, key := range keys {
+			value, ok := s.GetValue(key)
+			if !ok {
+				value = ""
+			}
+
+			if key == "__name__" {
+				metricName = value
+				continue
+			}
+
+			groupId = append(groupId, fmt.Sprintf(`%v="%v"`, key, value))
+		}
+
+		groupIdStr := fmt.Sprintf("%v{%v}", metricName, strings.Join(groupId, ","))
+		result[groupIdStr] = append(result[groupIdStr], s)
+	}
+
+	return result
 }

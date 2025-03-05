@@ -865,6 +865,118 @@ func (dss *DownsampleSeries) sortEntries() {
 	dss.sorted = true
 }
 
+func aggFunc(agg structs.Aggregation) func([]float64) float64 {
+	switch agg.AggregatorFunction {
+	case utils.Sum:
+		return func(vals []float64) float64 {
+			var sum float64
+			for _, val := range vals {
+				sum += val
+			}
+			return sum
+		}
+	case utils.Min:
+		return func(vals []float64) float64 {
+			min := math.MaxFloat64
+			for _, val := range vals {
+				if val < min {
+					min = val
+				}
+			}
+			return min
+		}
+	case utils.Max:
+		return func(vals []float64) float64 {
+			max := -math.MaxFloat64
+			for _, val := range vals {
+				if val > max {
+					max = val
+				}
+			}
+			return max
+		}
+	case utils.Avg:
+		return func(vals []float64) float64 {
+			if len(vals) == 0 {
+				return 0
+			}
+
+			var sum float64
+			for _, val := range vals {
+				sum += val
+			}
+			return sum / float64(len(vals))
+		}
+	case utils.Count:
+		return func(vals []float64) float64 {
+			return float64(len(vals))
+		}
+	case utils.Quantile:
+		return func(vals []float64) float64 {
+			if len(vals) == 0 {
+				return 0
+			}
+
+			// Sort values for quantile calculation
+			sorted := make([]float64, len(vals))
+			copy(sorted, vals)
+			sort.Float64s(sorted)
+
+			// Calculate position based on quantile
+			index := agg.FuncConstant * float64(len(sorted)-1)
+
+			// Check if we need to interpolate
+			if index != float64(int(index)) && int(index)+1 < len(sorted) {
+				// Calculate the weight for interpolation
+				fraction := index - float64(int(index))
+
+				val1 := sorted[int(index)]
+				val2 := sorted[int(index)+1]
+
+				return val1 + fraction*(val2-val1)
+			}
+
+			return sorted[int(index)]
+		}
+	case utils.Stddev:
+		return func(vals []float64) float64 {
+			return math.Sqrt(variance(vals))
+		}
+	case utils.Stdvar:
+		return variance
+	case utils.Group:
+		return func(vals []float64) float64 {
+			return 1
+		}
+	default:
+		log.Errorf("aggFunc: unsupported AggregateFunction: %v", agg.AggregatorFunction)
+		return nil
+	}
+}
+
+func variance(vals []float64) float64 {
+	if len(vals) == 0 {
+		return 0
+	}
+
+	// Calculate mean
+	sum := 0.0
+	for _, val := range vals {
+		sum += val
+	}
+	mean := sum / float64(len(vals))
+
+	// Calculate sum of squared differences
+	sumSquaredDiff := 0.0
+	for _, val := range vals {
+		diff := val - mean
+		sumSquaredDiff += diff * diff
+	}
+
+	// Return variance
+	return sumSquaredDiff / float64(len(vals))
+}
+
 func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant float64) (float64, error) {
 	var ret float64
 	switch fn {

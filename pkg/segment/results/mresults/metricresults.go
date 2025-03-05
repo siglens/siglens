@@ -27,9 +27,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cespare/xxhash"
 	parser "github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
+	"github.com/siglens/siglens/pkg/metrics"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -61,12 +63,14 @@ Depending on the State the stored information is different:
 type MetricsResult struct {
 	MetricName string
 	// maps tsid to the raw read series (with downsampled timestamp)
-	AllSeries map[uint64]*Series
+	AllInitialSeries map[uint64]*Series
 
 	// maps groupid to all raw downsampled series. This downsampled series may have repeated timestamps from different tsids
 	DsResults map[string]*DownsampleSeries
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
 	Results map[string]map[uint32]float64
+
+	AllSeries map[uint64]*metrics.TaggedSeries
 
 	IsScalar    bool
 	ScalarValue float64
@@ -87,7 +91,7 @@ TODO: depending on metrics query, have different cases on how to resolve dps
 func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult {
 	return &MetricsResult{
 		MetricName:           mQuery.MetricName,
-		AllSeries:            make(map[uint64]*Series),
+		AllInitialSeries:     make(map[uint64]*Series),
 		rwLock:               &sync.RWMutex{},
 		ErrList:              make([]error, 0),
 		AllSeriesTagsOnlyMap: make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0),
@@ -100,10 +104,10 @@ Add a given series for the tsid and group information
 This does not protect againt concurrency. The caller is responsible for coordination
 */
 func (r *MetricsResult) AddSeries(series *Series, tsid uint64, tsGroupId *bytebufferpool.ByteBuffer) {
-	currSeries, ok := r.AllSeries[tsid]
+	currSeries, ok := r.AllInitialSeries[tsid]
 	if !ok {
 		currSeries = series
-		r.AllSeries[tsid] = series
+		r.AllInitialSeries[tsid] = series
 		return
 	}
 	currSeries.Merge(series)
@@ -122,16 +126,62 @@ func (r *MetricsResult) GetNumSeries() uint64 {
 	return uint64(len(r.Results))
 }
 
+func (r *MetricsResult) ConvertInitialSeries() {
+	r.AllSeries = make(map[uint64]*metrics.TaggedSeries, len(r.AllInitialSeries))
+	for tsid, series := range r.AllInitialSeries {
+		// TODO: andrew - add the tags
+		tags := make(map[string]string)
+
+		// TODO: use metrics.Entry directly, so this conversion isn't needed.
+		entries := make([]metrics.Entry, 0, len(series.entries))
+		for _, entry := range series.entries {
+			entries = append(entries, metrics.Entry{
+				Timestamp: metrics.Epoch(entry.downsampledTime),
+				Value:     entry.dpVal,
+			})
+		}
+
+		r.AllSeries[tsid] = metrics.NewTaggedSeries(tags, metrics.NewLookupSeries(entries), series.grpID.String())
+	}
+
+	r.AllInitialSeries = nil
+}
+
+func (r *MetricsResult) ConvertSeriesToResults() {
+	r.Results = make(map[string]map[uint32]float64, len(r.AllSeries))
+	for _, series := range r.AllSeries {
+		values := make(map[uint32]float64)
+		iter := series.Iterator()
+		for {
+			point, ok := iter.Next()
+			if !ok {
+				break
+			}
+
+			if point.Timestamp == 0 {
+				// TODO: andrew figure out why this is happening.
+				continue
+			}
+
+			values[uint32(point.Timestamp)] = point.Value
+		}
+
+		log.Errorf("andrew ConvertSeriesToResults: series id: %v, values: %v", series.Id(), values)
+		r.Results[series.Id()] = values
+	}
+}
+
 /*
 Downsample all series
 
 Insert into r.DsResults, mapping a groupid to all RunningDownsample Series entries
 This means that a single tsid will have unique timetamps, but those timestamps can exist for another tsid
 */
-func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism int) []error {
+func (r *MetricsResult) DownsampleResults(ds structs.Downsampler,
+	parallelism int) (map[string][]*metrics.TaggedSeries, []error) {
 
-	// maps a group id to the running downsampled series
-	allDSSeries := make(map[string]*DownsampleSeries, len(r.AllSeries))
+	// maps a group id to the series in that group
+	groupToSeries := make(map[string][]*metrics.TaggedSeries, len(r.AllSeries))
 
 	var idx int
 	wg := &sync.WaitGroup{}
@@ -143,10 +193,16 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 	for _, series := range r.AllSeries {
 		wg.Add(1)
 
-		go func(s *Series) {
+		go func(s *metrics.TaggedSeries) {
 			defer wg.Done()
 
-			dsSeries, err := s.Downsample(ds)
+			interval := ds.GetIntervalTimeInSeconds()
+			// aggregator := aggFunc(ds.Aggregator)
+			aggregator := aggFunc(structs.Aggregation{
+				// TODO: andrew - this is a hack to get the aggregator function
+				AggregatorFunction: segutils.Avg,
+			})
+			err := series.Downsample(metrics.Epoch(interval), aggregator)
 			if err != nil {
 				errorLock.Lock()
 				errors = append(errors, err)
@@ -154,15 +210,16 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 				return
 			}
 
-			grp := s.grpID.String()
+			grp := s.GetGroupId()
 
 			dataLock.Lock()
-			allDS, ok := allDSSeries[grp]
+			seriesList, ok := groupToSeries[grp]
 			if !ok {
-				allDSSeries[grp] = dsSeries
-			} else {
-				allDS.Merge(dsSeries)
+				seriesList = make([]*metrics.TaggedSeries, 0)
 			}
+			seriesList = append(seriesList, s)
+			groupToSeries[grp] = seriesList
+
 			dataLock.Unlock()
 		}(series)
 		idx++
@@ -171,15 +228,13 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler, parallelism in
 		}
 	}
 	wg.Wait()
-	r.DsResults = allDSSeries
 	r.State = DOWNSAMPLING
-	r.AllSeries = nil
 
 	if len(errors) > 0 {
-		return errors
+		return nil, errors
 	}
 
-	return nil
+	return groupToSeries, nil
 }
 
 /*
@@ -189,6 +244,7 @@ Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
 func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
+
 	if r.State != DOWNSAMPLING {
 		return []error{fmt.Errorf("AggregateResults: results is not in downsampling state, state: %v", r.State)}
 	}
@@ -196,59 +252,47 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	r.Results = make(map[string]map[uint32]float64)
 	errors := make([]error, 0)
 
-	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
-	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
-	if aggregation.IsAggregateFromAllTimeseries() {
-		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
-
-		for grpID, ds := range r.DsResults {
-			if ds == nil {
-				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
-				errors = append(errors, err)
-				return errors
-			}
-
-			if _, exists := seriesEntriesMap[grpID]; !exists {
-				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
-			}
-
-			for i := 0; i < ds.idx; i++ {
-				entry := ds.runningEntries[i]
-				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
-			}
-		}
-
-		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
-		if err != nil {
-			errors = append(errors, err)
-			return errors
-		}
-		return nil
-	}
-
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
 
 	errorLock := &sync.Mutex{}
 
+	log.Errorf("andrew group by cols: %v", aggregation.GroupByFields)
+
+	allSeries := make([]*metrics.TaggedSeries, 0, len(r.AllSeries))
+	for _, series := range r.AllSeries {
+		allSeries = append(allSeries, series)
+	}
+
+	groupToSeries := metrics.GroupBy(allSeries, aggregation.GroupByFields)
+	log.Errorf("andrew groupToSeries: ...")
+	for k, v := range groupToSeries {
+		log.Errorf("andrew groupToSeries %v has %v series", k, len(v))
+	}
+
+	results := make(map[uint64]*metrics.TaggedSeries, len(groupToSeries))
 	var idx int
-	for grpID, runningDS := range r.DsResults {
+	for groupId, seriesList := range groupToSeries {
 		wg.Add(1)
-		go func(grp string, ds *DownsampleSeries) {
+		go func(groupId string, seriesList []*metrics.TaggedSeries) {
 			defer wg.Done()
 
-			grpVal, err := ds.AggregateFromSingleTimeseries()
+			log.Errorf("andrew aggregating group %v", groupId)
+
+			aggregator := aggFunc(aggregation)
+			result, err := metrics.Aggregate(seriesList, aggregator, groupId)
 			if err != nil {
 				errorLock.Lock()
+				err := fmt.Errorf("AggregateResults: Group %v has error: %v", groupId, err)
 				errors = append(errors, err)
 				errorLock.Unlock()
 				return
 			}
 
 			lock.Lock()
-			r.Results[grp] = grpVal
+			results[xxhash.Sum64String(groupId)] = result
 			lock.Unlock()
-		}(grpID, runningDS)
+		}(groupId, seriesList)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -262,6 +306,8 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	if len(errors) > 0 {
 		return errors
 	}
+
+	r.AllSeries = results
 
 	return nil
 }
@@ -466,11 +512,11 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 	r.rwLock.Lock()
 	defer r.rwLock.Unlock()
 	r.ErrList = append(r.ErrList, localRes.ErrList...)
-	for tsid, series := range localRes.AllSeries {
-		currSeries, ok := r.AllSeries[tsid]
+	for tsid, series := range localRes.AllInitialSeries {
+		currSeries, ok := r.AllInitialSeries[tsid]
 		if !ok {
 			currSeries = series
-			r.AllSeries[tsid] = series
+			r.AllInitialSeries[tsid] = series
 			continue
 		}
 		currSeries.Merge(series)
@@ -748,9 +794,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	}
 
 	for grpId, results := range r.Results {
-		groupId := mQuery.MetricName + "{"
-		groupId += grpId
-		groupId += "}"
+		groupId := grpId
 		httpResp.AggStats[groupId] = make(map[string]interface{}, 1)
 		for ts, v := range results {
 			temp := time.Unix(int64(ts), 0)
@@ -847,8 +891,6 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 
 	for grpId, results := range r.Results {
 		groupId := grpId
-		groupId = removeTrailingComma(groupId)
-		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 
 		values := make([]*float64, len(httpResp.Timestamps))

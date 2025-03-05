@@ -18,22 +18,23 @@
 package metrics
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
-type epoch uint32
+type Epoch uint32
 
 type timeseries interface {
-	AtOrBefore(timestamp epoch) (float64, bool)
-	Iterator() utils.Iterator[entry]
-	Range(start epoch, end epoch, mode RangeMode) timeseries
+	AtOrBefore(timestamp Epoch) (float64, bool)
+	Iterator() utils.Iterator[Entry]
+	Range(start Epoch, end Epoch, mode RangeMode) timeseries
 }
 
 type rangeIterable interface {
-	rangeIterator(start epoch, end epoch, mode RangeMode) utils.Iterator[entry]
+	rangeIterator(start Epoch, end Epoch, mode RangeMode) utils.Iterator[Entry]
 }
 
 type rangeIterableSeries interface {
@@ -41,32 +42,36 @@ type rangeIterableSeries interface {
 	timeseries
 }
 
-type entry struct {
-	timestamp epoch
-	value     float64
+type Entry struct {
+	Timestamp Epoch
+	Value     float64
 }
 
 type lookupSeries struct {
-	values []entry
+	values []Entry
 }
 
-func (t *lookupSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+func NewLookupSeries(values []Entry) timeseries {
+	return &lookupSeries{values: values}
+}
+
+func (t *lookupSeries) AtOrBefore(timestamp Epoch) (float64, bool) {
 	i := sort.Search(len(t.values), func(k int) bool {
-		return t.values[k].timestamp > timestamp
+		return t.values[k].Timestamp > timestamp
 	})
 
 	if i > 0 {
-		return t.values[i-1].value, true
+		return t.values[i-1].Value, true
 	}
 
 	return 0, false
 }
 
-func (t *lookupSeries) Iterator() utils.Iterator[entry] {
+func (t *lookupSeries) Iterator() utils.Iterator[Entry] {
 	return utils.NewIterator(t.values)
 }
 
-func (t *lookupSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (t *lookupSeries) Range(start Epoch, end Epoch, mode RangeMode) timeseries {
 	return &rangeSeries{
 		series: t,
 		start:  start,
@@ -75,33 +80,44 @@ func (t *lookupSeries) Range(start epoch, end epoch, mode RangeMode) timeseries 
 	}
 }
 
-func (t *lookupSeries) rangeIterator(start epoch, end epoch, mode RangeMode) utils.Iterator[entry] {
+func (t *lookupSeries) rangeIterator(start Epoch, end Epoch, mode RangeMode) utils.Iterator[Entry] {
 	switch mode {
 	case PromQl3Range:
 		startIndex := sort.Search(len(t.values), func(i int) bool {
-			return t.values[i].timestamp > start
+			return t.values[i].Timestamp > start
 		})
 		endIndex := sort.Search(len(t.values), func(i int) bool {
-			return t.values[i].timestamp > end
+			return t.values[i].Timestamp > end
 		})
 
 		if startIndex >= endIndex {
-			return utils.NewIterator([]entry{})
+			return utils.NewIterator([]Entry{})
 		}
 
 		return utils.NewIterator(t.values[startIndex:endIndex])
 	}
 
 	log.Errorf("lookupSeries.rangeIterator: unsupported mode %v", mode)
-	return utils.NewIterator([]entry{})
+	return utils.NewIterator([]Entry{})
 }
 
 type generatedSeries struct {
-	timestamps []epoch
-	valueAt    func(epoch) float64
+	timestamps []Epoch
+	valueAt    func(Epoch) float64
 }
 
-func (g *generatedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+func NewGeneratedSeries(timestamps []Epoch, valueAt func(Epoch) float64) (timeseries, error) {
+	if valueAt == nil {
+		return nil, fmt.Errorf("nil valueAt function")
+	}
+
+	return &generatedSeries{
+		timestamps: timestamps,
+		valueAt:    valueAt,
+	}, nil
+}
+
+func (g *generatedSeries) AtOrBefore(timestamp Epoch) (float64, bool) {
 	if len(g.timestamps) == 0 || timestamp < g.timestamps[0] {
 		return 0, false
 	}
@@ -109,7 +125,7 @@ func (g *generatedSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return g.valueAt(timestamp), true
 }
 
-func (g *generatedSeries) Iterator() utils.Iterator[entry] {
+func (g *generatedSeries) Iterator() utils.Iterator[Entry] {
 	return &generatedIterator{
 		series: g,
 		index:  0,
@@ -121,14 +137,14 @@ type generatedIterator struct {
 	index  int
 }
 
-func (gi *generatedIterator) Next() (entry, bool) {
+func (gi *generatedIterator) Next() (Entry, bool) {
 	if gi.index >= len(gi.series.timestamps) {
-		return entry{}, false
+		return Entry{}, false
 	}
 
-	value := entry{
-		timestamp: gi.series.timestamps[gi.index],
-		value:     gi.series.valueAt(gi.series.timestamps[gi.index]),
+	value := Entry{
+		Timestamp: gi.series.timestamps[gi.index],
+		Value:     gi.series.valueAt(gi.series.timestamps[gi.index]),
 	}
 
 	gi.index++
@@ -136,7 +152,7 @@ func (gi *generatedIterator) Next() (entry, bool) {
 	return value, true
 }
 
-func (g *generatedSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (g *generatedSeries) Range(start Epoch, end Epoch, mode RangeMode) timeseries {
 	switch mode {
 	case PromQl3Range:
 		startIndex := sort.Search(len(g.timestamps), func(i int) bool {
@@ -146,9 +162,9 @@ func (g *generatedSeries) Range(start epoch, end epoch, mode RangeMode) timeseri
 			return g.timestamps[i] > end
 		})
 
-		values := make([]entry, 0)
+		values := make([]Entry, 0)
 		for i := startIndex; i < endIndex; i++ {
-			values = append(values, entry{timestamp: g.timestamps[i], value: g.valueAt(g.timestamps[i])})
+			values = append(values, Entry{Timestamp: g.timestamps[i], Value: g.valueAt(g.timestamps[i])})
 		}
 
 		return &lookupSeries{values: values}
@@ -161,8 +177,8 @@ func (g *generatedSeries) Range(start epoch, end epoch, mode RangeMode) timeseri
 // When getting the value at time T, and T is outside the range, no value is returned.
 type rangeSeries struct {
 	series rangeIterableSeries
-	start  epoch
-	end    epoch
+	start  Epoch
+	end    Epoch
 	mode   RangeMode
 }
 
@@ -174,7 +190,35 @@ const (
 	PromQl3Range RangeMode = iota + 1
 )
 
-func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+func isValidRangeMode(mode RangeMode) bool {
+	switch mode {
+	case PromQl3Range:
+		return true
+	}
+
+	return false
+}
+
+func NewRangeSeries(series rangeIterableSeries, start Epoch, end Epoch,
+	mode RangeMode) (timeseries, error) {
+
+	if start > end {
+		return nil, fmt.Errorf("start %v is after end %v", start, end)
+	}
+
+	if !isValidRangeMode(mode) {
+		return nil, fmt.Errorf("invalid range mode %v", mode)
+	}
+
+	return &rangeSeries{
+		series: series,
+		start:  start,
+		end:    end,
+		mode:   mode,
+	}, nil
+}
+
+func (r *rangeSeries) AtOrBefore(timestamp Epoch) (float64, bool) {
 	switch r.mode {
 	case PromQl3Range:
 		if timestamp <= r.start || timestamp > r.end {
@@ -188,11 +232,11 @@ func (r *rangeSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return 0, false
 }
 
-func (r *rangeSeries) Iterator() utils.Iterator[entry] {
+func (r *rangeSeries) Iterator() utils.Iterator[Entry] {
 	return r.series.rangeIterator(r.start, r.end, r.mode)
 }
 
-func (r *rangeSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (r *rangeSeries) Range(start Epoch, end Epoch, mode RangeMode) timeseries {
 	if mode != r.mode {
 		return nil
 	}
@@ -221,7 +265,18 @@ type aggSeries struct {
 	result      timeseries
 }
 
-func (a *aggSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+func NewAggSeries(allSeries []timeseries, aggregator func([]float64) float64) (timeseries, error) {
+	if aggregator == nil {
+		return nil, fmt.Errorf("nil aggregator")
+	}
+
+	return &aggSeries{
+		allSeries:  allSeries,
+		aggregator: aggregator,
+	}, nil
+}
+
+func (a *aggSeries) AtOrBefore(timestamp Epoch) (float64, bool) {
 	if !a.isEvaluated {
 		a.result = a.evaluate()
 		a.isEvaluated = true
@@ -230,7 +285,7 @@ func (a *aggSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return a.result.AtOrBefore(timestamp)
 }
 
-func (a *aggSeries) Iterator() utils.Iterator[entry] {
+func (a *aggSeries) Iterator() utils.Iterator[Entry] {
 	if !a.isEvaluated {
 		a.result = a.evaluate()
 		a.isEvaluated = true
@@ -239,7 +294,7 @@ func (a *aggSeries) Iterator() utils.Iterator[entry] {
 	return a.result.Iterator()
 }
 
-func (a *aggSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (a *aggSeries) Range(start Epoch, end Epoch, mode RangeMode) timeseries {
 	if !a.isEvaluated {
 		a.result = a.evaluate()
 		a.isEvaluated = true
@@ -250,16 +305,16 @@ func (a *aggSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
 
 func (a *aggSeries) evaluate() timeseries {
 	if len(a.allSeries) == 0 {
-		return &lookupSeries{values: []entry{}}
+		return &lookupSeries{values: []Entry{}}
 	}
 
-	allIters := make([]utils.Iterator[entry], 0, len(a.allSeries))
+	allIters := make([]utils.Iterator[Entry], 0, len(a.allSeries))
 	for _, series := range a.allSeries {
 		allIters = append(allIters, series.Iterator())
 	}
 
 	// Keep track of the current value for each iterator
-	currentValues := make([]entry, len(allIters))
+	currentValues := make([]Entry, len(allIters))
 	hasValue := make([]bool, len(allIters))
 
 	// Initialize values from all iterators
@@ -270,16 +325,16 @@ func (a *aggSeries) evaluate() timeseries {
 		}
 	}
 
-	result := make([]entry, 0)
+	result := make([]Entry, 0)
 
 	for {
 		// Find the earliest timestamp among all current values
-		var minTimestamp epoch
+		var minTimestamp Epoch
 		minFound := false
 
 		for i, has := range hasValue {
-			if has && (!minFound || currentValues[i].timestamp < minTimestamp) {
-				minTimestamp = currentValues[i].timestamp
+			if has && (!minFound || currentValues[i].Timestamp < minTimestamp) {
+				minTimestamp = currentValues[i].Timestamp
 				minFound = true
 			}
 		}
@@ -293,8 +348,8 @@ func (a *aggSeries) evaluate() timeseries {
 		valuesToAggregate := make([]float64, 0, len(allIters))
 
 		for i, has := range hasValue {
-			if has && currentValues[i].timestamp == minTimestamp {
-				valuesToAggregate = append(valuesToAggregate, currentValues[i].value)
+			if has && currentValues[i].Timestamp == minTimestamp {
+				valuesToAggregate = append(valuesToAggregate, currentValues[i].Value)
 
 				// Advance this iterator since we've used its value
 				if value, ok := allIters[i].Next(); ok {
@@ -308,7 +363,7 @@ func (a *aggSeries) evaluate() timeseries {
 		// Aggregate and add to result
 		if len(valuesToAggregate) > 0 {
 			aggregatedValue := a.aggregator(valuesToAggregate)
-			result = append(result, entry{timestamp: minTimestamp, value: aggregatedValue})
+			result = append(result, Entry{Timestamp: minTimestamp, Value: aggregatedValue})
 		}
 	}
 
@@ -320,7 +375,18 @@ type valueMappingSeries struct {
 	mapping func(float64) float64
 }
 
-func (v *valueMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+func NewValueMappingSeries(series timeseries, mapping func(float64) float64) (timeseries, error) {
+	if mapping == nil {
+		return nil, fmt.Errorf("nil mapping function")
+	}
+
+	return &valueMappingSeries{
+		series:  series,
+		mapping: mapping,
+	}, nil
+}
+
+func (v *valueMappingSeries) AtOrBefore(timestamp Epoch) (float64, bool) {
 	value, ok := v.series.AtOrBefore(timestamp)
 	if !ok {
 		return 0, false
@@ -329,7 +395,7 @@ func (v *valueMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return v.mapping(value), true
 }
 
-func (v *valueMappingSeries) Iterator() utils.Iterator[entry] {
+func (v *valueMappingSeries) Iterator() utils.Iterator[Entry] {
 	return &valueMappingIterator{
 		series: v.series.Iterator(),
 		mapper: v.mapping,
@@ -337,20 +403,20 @@ func (v *valueMappingSeries) Iterator() utils.Iterator[entry] {
 }
 
 type valueMappingIterator struct {
-	series utils.Iterator[entry]
+	series utils.Iterator[Entry]
 	mapper func(float64) float64
 }
 
-func (v *valueMappingIterator) Next() (entry, bool) {
+func (v *valueMappingIterator) Next() (Entry, bool) {
 	value, ok := v.series.Next()
 	if !ok {
-		return entry{}, false
+		return Entry{}, false
 	}
 
-	return entry{timestamp: value.timestamp, value: v.mapper(value.value)}, true
+	return Entry{Timestamp: value.Timestamp, Value: v.mapper(value.Value)}, true
 }
 
-func (v *valueMappingSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (v *valueMappingSeries) Range(start Epoch, end Epoch, mode RangeMode) timeseries {
 	return &valueMappingSeries{
 		series:  v.series.Range(start, end, mode),
 		mapping: v.mapping,
@@ -362,16 +428,42 @@ func (v *valueMappingSeries) Range(start epoch, end epoch, mode RangeMode) times
 type windowMappingSeries struct {
 	timeseries timeseries
 	aggregator func([]float64) float64
-	windowSize epoch
-	stepSize   epoch // How far to slide the window each time
-	endTime    epoch // The final window ends here (inclusive)
+	windowSize Epoch
+	stepSize   Epoch // How far to slide the window each time
+	endTime    Epoch // The final window ends here (inclusive)
 	mode       RangeMode
 
 	isEvaluated bool
 	result      timeseries
 }
 
-func (w *windowMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
+func NewWindowMappingSeries(timeseries timeseries, aggregator func([]float64) float64,
+	windowSize Epoch, stepSize Epoch, endTime Epoch, mode RangeMode) (timeseries, error) {
+
+	if aggregator == nil {
+		return nil, fmt.Errorf("nil aggregator")
+	}
+	if windowSize <= 0 {
+		return nil, fmt.Errorf("non-positive window size %v", windowSize)
+	}
+	if stepSize <= 0 {
+		return nil, fmt.Errorf("non-positive step size %v", stepSize)
+	}
+	if !isValidRangeMode(mode) {
+		return nil, fmt.Errorf("invalid mode %v", mode)
+	}
+
+	return &windowMappingSeries{
+		timeseries: timeseries,
+		aggregator: aggregator,
+		windowSize: windowSize,
+		stepSize:   stepSize,
+		endTime:    endTime,
+		mode:       mode,
+	}, nil
+}
+
+func (w *windowMappingSeries) AtOrBefore(timestamp Epoch) (float64, bool) {
 	if !w.isEvaluated {
 		w.result = w.evaluate()
 		w.isEvaluated = true
@@ -380,7 +472,7 @@ func (w *windowMappingSeries) AtOrBefore(timestamp epoch) (float64, bool) {
 	return w.result.AtOrBefore(timestamp)
 }
 
-func (w *windowMappingSeries) Iterator() utils.Iterator[entry] {
+func (w *windowMappingSeries) Iterator() utils.Iterator[Entry] {
 	if !w.isEvaluated {
 		w.result = w.evaluate()
 		w.isEvaluated = true
@@ -389,7 +481,7 @@ func (w *windowMappingSeries) Iterator() utils.Iterator[entry] {
 	return w.result.Iterator()
 }
 
-func (w *windowMappingSeries) Range(start epoch, end epoch, mode RangeMode) timeseries {
+func (w *windowMappingSeries) Range(start Epoch, end Epoch, mode RangeMode) timeseries {
 	if !w.isEvaluated {
 		w.result = w.evaluate()
 		w.isEvaluated = true
@@ -405,7 +497,7 @@ func (w *windowMappingSeries) evaluate() timeseries {
 
 	// Get all values from the input series
 	iterator := w.timeseries.Iterator()
-	allValues := make([]entry, 0)
+	allValues := make([]Entry, 0)
 
 	for {
 		e, ok := iterator.Next()
@@ -419,11 +511,11 @@ func (w *windowMappingSeries) evaluate() timeseries {
 		return &lookupSeries{}
 	}
 
-	finalValues := make([]entry, 0)
+	finalValues := make([]Entry, 0)
 
 	switch w.mode {
 	case PromQl3Range:
-		startTimestamp := allValues[0].timestamp
+		startTimestamp := allValues[0].Timestamp
 		breakNextIter := false
 		for windowEnd := w.endTime; windowEnd >= startTimestamp && !breakNextIter; windowEnd -= w.stepSize {
 			windowStart := windowEnd - w.windowSize
@@ -445,14 +537,14 @@ func (w *windowMappingSeries) evaluate() timeseries {
 					break
 				}
 
-				valuesInWindow = append(valuesInWindow, point.value)
+				valuesInWindow = append(valuesInWindow, point.Value)
 			}
 
 			if len(valuesInWindow) > 0 {
 				aggregatedValue := w.aggregator(valuesInWindow)
-				finalValues = append(finalValues, entry{
-					timestamp: windowEnd,
-					value:     aggregatedValue,
+				finalValues = append(finalValues, Entry{
+					Timestamp: windowEnd,
+					Value:     aggregatedValue,
 				})
 			}
 		}
@@ -473,10 +565,10 @@ func (w *windowMappingSeries) evaluate() timeseries {
 type downsampler struct {
 	timeseries timeseries
 	aggregator func([]float64) float64
-	interval   epoch
+	interval   Epoch
 }
 
-func (d *downsampler) Evaluate() timeseries {
+func (d *downsampler) evaluate() timeseries {
 	iterator := d.timeseries.Iterator()
 
 	firstEntry, ok := iterator.Next()
@@ -484,10 +576,10 @@ func (d *downsampler) Evaluate() timeseries {
 		return &lookupSeries{}
 	}
 
-	currentBucket := d.snapToInterval(firstEntry.timestamp)
-	currentValues := []float64{firstEntry.value}
+	currentBucket := d.snapToInterval(firstEntry.Timestamp)
+	currentValues := []float64{firstEntry.Value}
 
-	finalEntries := make([]entry, 0)
+	finalEntries := make([]Entry, 0)
 
 	for {
 		firstEntry, ok = iterator.Next()
@@ -495,31 +587,31 @@ func (d *downsampler) Evaluate() timeseries {
 			break
 		}
 
-		thisBucket := d.snapToInterval(firstEntry.timestamp)
+		thisBucket := d.snapToInterval(firstEntry.Timestamp)
 		if thisBucket == currentBucket {
-			currentValues = append(currentValues, firstEntry.value)
+			currentValues = append(currentValues, firstEntry.Value)
 			continue
 		}
 
 		// Close the current bucket.
 		if len(currentValues) > 0 {
 			value := d.aggregator(currentValues)
-			finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+			finalEntries = append(finalEntries, Entry{Timestamp: currentBucket, Value: value})
 		}
 
-		currentBucket = d.snapToInterval(firstEntry.timestamp)
-		currentValues = []float64{firstEntry.value}
+		currentBucket = d.snapToInterval(firstEntry.Timestamp)
+		currentValues = []float64{firstEntry.Value}
 	}
 
 	// Close the last bucket.
 	if len(currentValues) > 0 {
 		value := d.aggregator(currentValues)
-		finalEntries = append(finalEntries, entry{timestamp: currentBucket, value: value})
+		finalEntries = append(finalEntries, Entry{Timestamp: currentBucket, Value: value})
 	}
 
 	return &lookupSeries{values: finalEntries}
 }
 
-func (d *downsampler) snapToInterval(timestamp epoch) epoch {
+func (d *downsampler) snapToInterval(timestamp Epoch) Epoch {
 	return timestamp - timestamp%d.interval
 }
