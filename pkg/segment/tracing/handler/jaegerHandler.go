@@ -14,11 +14,11 @@ import (
 )
 
 type ResponseBody struct {
-	Data   []string `json:"data"`
-	Total  int      `json:"total"`
-	Limit  int      `json:"limit"`
-	Offset int      `json:"offset"`
-	Errors []string `json:"errors"`
+	Data   interface{} `json:"data"`
+	Total  int         `json:"total"`
+	Limit  int         `json:"limit"`
+	Offset int         `json:"offset"`
+	Errors []string    `json:"errors"`
 }
 
 type TraceData struct {
@@ -51,13 +51,7 @@ type Tag struct {
 	Value interface{} `json:"value"`
 }
 
-type Response struct {
-	Data   []TraceData `json:"data"`
-	Total  int         `json:"total"`
-	Limit  int         `json:"limit"`
-	Offset int         `json:"offset"`
-	Errors []string    `json:"errors"`
-}
+const NoDependencyGraphsMessage = "no dependencies graphs have been generated"
 
 func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
@@ -183,15 +177,25 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 
 func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 
+	response := ResponseBody{
+		Data:   []interface{}{},
+		Total:  0,
+		Limit:  0,
+		Offset: 0,
+		Errors: nil,
+	}
+
 	endTs := string(ctx.QueryArgs().Peek("endTs"))
 	lookback := string(ctx.QueryArgs().Peek("lookback"))
 
 	startEpoch, endEpoch, err := ComputeStartTime("", endTs, lookback)
 
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.WriteString(err.Error())
-		log.Errorf("Missing required parameter err : %v ", err)
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		errors := []string{fmt.Sprintf("Missing required parameter err: %v", err)}
+		response.Errors = errors
+		utils.WriteJsonResponse(ctx, response)
+		log.Errorf("ProcessGetDependencies  : Missing required parameter err : %v ", err)
 		return
 	}
 
@@ -214,14 +218,24 @@ func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 	responseBody := rawTraceCtx.Response.Body()
 	processedData := make(map[string]interface{})
 
-	if err := json.Unmarshal(responseBody, &processedData); err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.WriteString(err.Error())
-		log.Errorf("Error parsing response body: %v, err: %v", responseBody, err)
+	var responseData []map[string]string
+
+	if string(responseBody) == NoDependencyGraphsMessage {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		response.Errors = []string{NoDependencyGraphsMessage}
+		log.Errorf("ProcessGetDependencies : %v", NoDependencyGraphsMessage)
+		utils.WriteJsonResponse(ctx, response)
 		return
 	}
 
-	var responseData []map[string]string
+	if err := json.Unmarshal(responseBody, &processedData); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		response.Errors = []string{string(responseBody)}
+		log.Errorf("ProcessGetDependencies : Error parsing response body: %v, err: %v", string(responseBody), err)
+		utils.WriteJsonResponse(ctx, response)
+		return
+	}
+
 	for parent, children := range processedData {
 
 		if childMap, ok := children.(map[string]interface{}); ok {
@@ -244,31 +258,41 @@ func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	finalResponse := map[string]interface{}{
-		"data":   responseData,
-		"total":  len(responseData),
-		"limit":  0,
-		"offset": 0,
-		"errors": nil,
+	if responseData != nil {
+		response.Data = responseData
 	}
+	response.Total = len(responseData)
 
 	ctx.SetContentType("application/json; charset=utf-8")
-	utils.WriteJsonResponse(ctx, finalResponse)
+	utils.WriteJsonResponse(ctx, response)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
 func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 
+	response := ResponseBody{
+		Data:   []interface{}{},
+		Total:  0,
+		Limit:  0,
+		Offset: 0,
+		Errors: nil,
+	}
+
 	start := string(ctx.QueryArgs().Peek("start"))
 	end := string(ctx.QueryArgs().Peek("end"))
 	lookback := string(ctx.QueryArgs().Peek("lookback"))
+	service := string(ctx.QueryArgs().Peek("service"))
+
 	startEpoch, endEpoch, err := ComputeStartTime(start, end, lookback)
 	if err != nil {
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
-		ctx.WriteString(err.Error())
-		log.Errorf("Missing required parameter err: %v ", err)
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		errors := []string{fmt.Sprintf("Missing required parameter err: %v", err)}
+		response.Errors = errors
+		utils.WriteJsonResponse(ctx, response)
+		log.Errorf("ProcessGetTracesSearch  : Missing required parameter err : %v ", err)
 		return
 	}
+
 	searchRequestBody := structs.SearchRequestBody{
 		SearchText: "*",
 		StartEpoch: strconv.FormatInt(startEpoch, 10),
@@ -286,51 +310,50 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 	responseBody := rawTraceCtx.Response.Body()
 
 	if err := json.Unmarshal(responseBody, &pipeSearchResponseOuter); err != nil {
-		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-		ctx.WriteString(err.Error())
-		log.Errorf("Error parsing response body: %v, err: %v", responseBody, err)
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		response.Errors = []string{string(responseBody)}
+		log.Errorf("ProcessGetTracesSearch : Error parsing response body: %v, err: %v", string(responseBody), err)
+		utils.WriteJsonResponse(ctx, response)
 		return
 	}
 
 	var allTraceData []TraceData
 	for _, traces := range pipeSearchResponseOuter.Traces {
 		tracesId := traces.TraceId
+		if traces.ServiceName == service {
+			searchGanttChartRequestBody := structs.SearchRequestBody{
+				SearchText: "trace_id=" + tracesId,
+				StartEpoch: "now-365d",
+				EndEpoch:   "now",
+				From:       0,
+			}
 
-		searchGanttChartRequestBody := structs.SearchRequestBody{
-			SearchText: "trace_id=" + tracesId,
-			StartEpoch: "now-365d",
-			EndEpoch:   "now",
-			From:       0,
+			ganttChartModifiedData, _ := json.Marshal(searchGanttChartRequestBody)
+			rawGanttChartCtx := &fasthttp.RequestCtx{}
+			rawGanttChartCtx.Request.Header.SetMethod("POST")
+			rawGanttChartCtx.Request.SetBody(ganttChartModifiedData)
+			ganttChartSpanResponseOuter := &structs.GanttChartSpan{}
+			ProcessGanttChartRequest(rawGanttChartCtx, myid)
+			gCResponseBody := rawGanttChartCtx.Response.Body()
+
+			if err := json.Unmarshal(gCResponseBody, &ganttChartSpanResponseOuter); err != nil {
+				log.Errorf("ProcessGetTracesSearch : Error parsing response body: %v, err: %v", string(gCResponseBody), err)
+			}
+			var spans []Span
+
+			processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans)
+			traceData := TraceData{
+				TraceID: tracesId,
+				Spans:   spans,
+			}
+			allTraceData = append(allTraceData, traceData)
+
 		}
-
-		ganttChartModifiedData, _ := json.Marshal(searchGanttChartRequestBody)
-		rawGanttChartCtx := &fasthttp.RequestCtx{}
-		rawGanttChartCtx.Request.Header.SetMethod("POST")
-		rawGanttChartCtx.Request.SetBody(ganttChartModifiedData)
-		ganttChartSpanResponseOuter := &structs.GanttChartSpan{}
-		ProcessGanttChartRequest(rawGanttChartCtx, myid)
-		gCResponseBody := rawGanttChartCtx.Response.Body()
-
-		if err := json.Unmarshal(gCResponseBody, &ganttChartSpanResponseOuter); err != nil {
-			log.Errorf("Error parsing response body: %v, err: %v", gCResponseBody, err)
-		}
-		var spans []Span
-
-		processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans)
-		traceData := TraceData{
-			TraceID: tracesId,
-			Spans:   spans,
-		}
-		allTraceData = append(allTraceData, traceData)
 	}
-
-	response := Response{
-		Data:   allTraceData,
-		Total:  len(allTraceData),
-		Limit:  0,
-		Offset: 0,
-		Errors: nil,
+	if allTraceData != nil {
+		response.Data = allTraceData
 	}
+	response.Total = len(allTraceData)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, response)
@@ -380,18 +403,18 @@ func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID stri
 
 func ComputeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
 	if endTs == "" {
-		err := fmt.Errorf("failed to process response missing endTs")
+		err := fmt.Errorf("ComputeStartTime : failed to process response missing endTs")
 		return 0, 0, err
 	}
 
 	if lookBack == "" {
-		err := fmt.Errorf("failed to process response missing lookBack")
+		err := fmt.Errorf("ComputeStartTime : failed to process response missing lookBack")
 		return 0, 0, err
 	}
 
 	endValue, err := strconv.ParseInt(endTs, 10, 64)
 	if err != nil {
-		log.Errorf("failed to parsing endTs  err : %v", err)
+		log.Errorf("ComputeStartTime : failed to parsing endTs  err : %v", err)
 		return 0, 0, err
 	}
 
@@ -404,7 +427,7 @@ func ComputeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
 
 	lookBackVal, err := strconv.ParseInt(lookBack, 10, 64)
 	if err != nil {
-		log.Errorf("failed to parsing lookBack err: %v", err)
+		log.Errorf("ComputeStartTime : failed to parsing lookBack err: %v", err)
 		return 0, 0, err
 	}
 	start := endValue - lookBackVal
