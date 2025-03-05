@@ -268,7 +268,7 @@ install_docker_compose() {
             post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
             print_error_and_exit "apt-get update failed."
         }
-        $apt_cmd install docker-compose || {
+        $apt_cmd install docker-compose-plugin || {
             post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
             print_error_and_exit "Docker Compose installation failed."
         }
@@ -291,7 +291,7 @@ install_docker_compose() {
         echo "---------Docker Compose must be installed manually to proceed---------"
         print_error_and_exit "Docker Compose Not installed"
     fi
-    docker_compose_version=$(docker-compose --version) || {
+    docker_compose_version=$(docker compose --version) || {
         post_event "install_failed" "install_docker_compose: Docker Compose post-installation check failed during Docker Compose setup"
         print_error_and_exit "Docker Compose is not working correctly."
     }
@@ -643,7 +643,7 @@ if [[ $CONTAINER_TOOL == "docker" ]]; then
         fi
     fi
 
-    if ! is_command_present docker-compose; then
+    if ! is_command_present docker compose; then
         if [[ $package_manager == "apt-get" || $package_manager == "yum" ]]; then
             request_sudo
             install_docker_compose

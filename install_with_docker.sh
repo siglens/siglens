@@ -51,6 +51,9 @@ case "$(uname -sr)" in
    Linux*amzn2*)
      os="amazon linux"
      package_manager="yum" ;;
+   Fedora*)
+     os="linux"
+     package_manager="yum" ;;
    Linux*)
      os="linux"
      package_manager="apt-get" ;;
@@ -196,7 +199,7 @@ install_docker_compose() {
             post_event "install_failed" "install_docker_compose: apt-get update failed during Docker Compose setup"
             print_error_and_exit "apt-get update failed."
         }
-        $apt_cmd install docker-compose || {
+        $apt_cmd install docker-compose-plugin || {
             post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
             print_error_and_exit "Docker Compose installation failed."
         }
@@ -219,7 +222,7 @@ install_docker_compose() {
         echo "---------Docker Compose must be installed manually to proceed---------"
         print_error_and_exit "Docker Compose Not installed"
     fi
-    docker_compose_version=$(docker-compose --version) || {
+    docker_compose_version=$(docker compose --version) || {
         post_event "install_failed" "install_docker_compose: Docker Compose post-installation check failed during Docker Compose setup"
         print_error_and_exit "Docker Compose is not working correctly."
     }
@@ -396,11 +399,11 @@ elif [ "$SERVERNAME" = "playground" ]; then
 fi
 
 print_success_message "\n Starting Siglens with image: ${DOCKER_IMAGE_NAME}"
-CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose -f $DOCKER_COMPOSE_FILE up -d || {
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker compose -f $DOCKER_COMPOSE_FILE up -d || {
     post_event "install_failed" "Failed to start Docker Compose on $os with $DOCKER_COMPOSE_FILE"
     print_error_and_exit "Failed to start Docker Compose"
 }
-CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker-compose logs -t --tail 20 >> dclogs.txt
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${DOCKER_IMAGE_NAME} docker compose logs -t --tail 20 >> dclogs.txt
 sample_log_dataset_status=$(curl -s -o /dev/null -I -X HEAD -w "%{http_code}" http://localhost:5122/elastic/sample-log-dataset)
 
 if [ "$sample_log_dataset_status" -eq 200 ]; then
