@@ -829,7 +829,6 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     width: 122px !important;
 }
 
@@ -843,11 +842,6 @@ body {
 }
 
 #app-side-nav .nav-main-menu {
-    min-height: 38px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-    margin-bottom: 2px;
     margin-right: 8px;
 }
 
@@ -862,7 +856,6 @@ body {
 #app-side-nav .nav-main-menu.logo {
     display: flex;
     justify-content: center;
-    padding: 12px;
 }
 
 #app-side-nav.active .nav-main-menu.logo {
@@ -1283,14 +1276,13 @@ body {
 #app-side-nav {
     position: fixed;
     left: -250px;
-    top: 40px;
-    height: calc(100vh - 40px);
+    top: 0px;
+    height: 100vh;
     width: 250px;
     transition: all 0.3s ease-in-out;
     overflow-y: auto;
     z-index: 1000;
     box-shadow: 3px 0 5px rgba(0, 0, 0, 0.1);
-    padding-top: 10px;
 }
 
 body.nav-expanded #app-side-nav {
@@ -4406,14 +4398,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     right: 30px;
 }
 
-#login-error-message {
-    background-color: rgba(224, 104, 124, 0.5);
-    border-top: 4px solid rgb(224 104 125 / 1);
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 20px;
+.error-container {
+    background-color: rgba(127, 29, 29, 0.4);
+    border: 1px solid rgb(185, 28, 28);
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 20px;
     display: none;
     font-weight: 600;
+    color: rgb(254, 202, 202);
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.error-container.show {
+    display: flex;
 }
 
 #login-form {
@@ -4426,23 +4426,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .form-box {
-    width: 500px;
+    width: 470px;
     background: var(--black-1);
-    border-radius: 5px;
-    padding: 30px 40px;
+    border-radius: 10px;
+    padding: 38px;
     color: var(--white-0);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
 }
 
 .form-box .sslogo {
-    width: 200px;
+    width: 240px;
+    height: auto;
+    margin-bottom: 10px;
 }
 
 .form-box .tag-line {
     color: #B4A6E6;
-    font-size: 20px;
+    font-size: 28px;
     font-weight: 600;
     margin-top: 10px;
     margin-bottom: 20px;
@@ -4456,10 +4459,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .signup-fields a {
-    background: #262038;
-    border-radius: 5px;
+    background: #352f48;
+    border-radius: 8px;
     text-decoration: none;
-    height: 36px;
+    height: 40px;
     width: 100%;
     margin-bottom: 15px;
     font-size: 14px;
@@ -4474,7 +4477,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .signup-fields a:hover,
 .signup-fields a:focus {
     /* border: 1px solid var(--purple-1); */
-    background: #352f48;
+    background: #262038;
+
 }
 
 .signup-fields a span img {
@@ -6595,7 +6599,7 @@ input.form-control {
 }
 
 .kubernetes-card {
-    background-color: var(--black1-to-white0);
+    background-color: var(--drop-down-btn-bg-regular);
     border: 1px solid var(--search-input-border);
     border-radius: 4px;
     padding: 16px;
@@ -7235,6 +7239,23 @@ input.form-control {
 
 .sl-hamburger svg {
     height: 14px;
+}
+
+#app-side-nav .sl-hamburger {
+    background-color: var(--side-nav-bg-color);
+}
+
+#app-side-nav .sl-hamburger {
+    color: var(--white-0);
+    background-color: var(--side-nav-bg-color-selected);
+}
+
+.nav-header {
+    padding: 8px 0px 8px 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--side-nav-bg-color-selected);
+    display: flex;
+    margin-bottom: 10px;
 }
 
 /* Breadcrumb Styles */

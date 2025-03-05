@@ -396,7 +396,7 @@ func startQueryServer(serverAddr string) {
 					emptyHtmlContent := "This feature is available in Enterprise version"
 					return emptyHtmlContent
 				},
-				"CSSVersion": func() string {
+				"AppVersion": func() string {
 					return config.SigLensVersion
 				},
 			})
