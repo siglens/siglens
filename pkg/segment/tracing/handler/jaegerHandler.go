@@ -3,13 +3,14 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
-	"strconv"
 )
 
 type ResponseBody struct {
