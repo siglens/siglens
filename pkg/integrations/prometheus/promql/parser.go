@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -858,5 +859,6 @@ func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.
 }
 
 func getStepValueFromTimeRange(timeRange *dtu.MetricsTimeRange) float64 {
-	return float64(timeRange.EndEpochSec-timeRange.StartEpochSec) / structs.MAX_POINTS_TO_EVALUATE
+	step := float64(timeRange.EndEpochSec-timeRange.StartEpochSec) / structs.MAX_POINTS_TO_EVALUATE
+	return math.Max(step, 1)
 }
