@@ -34,6 +34,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -535,6 +536,93 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	return retVal, nil
 }
 
+func getPromQLSeriesFormat(seriesId string) *structs.Result {
+	tagValues := strings.Split(removeTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+	var result structs.Result
+	var keyValue []string
+	result.Metric = make(map[string]string)
+	result.Metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
+	for idx, val := range tagValues {
+		if idx == 0 {
+			keyValue = strings.SplitN(removeMetricNameFromGroupID(val), ":", 2)
+		} else {
+			keyValue = strings.SplitN(val, ":", 2)
+		}
+
+		if len(keyValue) > 1 {
+			result.Metric[keyValue[0]] = keyValue[1]
+		}
+	}
+
+	return &result
+}
+
+func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueType, timestamp uint32) (*structs.MetricsQueryResponsePromQl, error) {
+	var pqlData structs.Data
+
+	switch pqlQueryType {
+	case parser.ValueTypeScalar:
+		pqlData.ResultType = pqlQueryType
+		pqlData.Result = make([]structs.Result, 1)
+		pqlData.Result[0] = structs.Result{
+			Metric: map[string]string{},
+			Value:  []interface{}{timestamp, fmt.Sprintf("%v", r.ScalarValue)},
+		}
+	case parser.ValueTypeString:
+		// TODO: Implement this
+		return nil, errors.New("GetResultsPromQlInstantQuery: ValueTypeString is not supported")
+	case parser.ValueTypeVector:
+		pqlData.ResultType = pqlQueryType
+		for seriesId, results := range r.Results {
+			if len(results) == 0 {
+				continue
+			}
+
+			result := getPromQLSeriesFormat(seriesId)
+
+			floatValue, ok := results[timestamp]
+			if ok {
+				result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+				pqlData.Result = append(pqlData.Result, *result)
+				continue
+			}
+
+			// TODO: Inspect on whether we should ensure that the timestamp is present in the results?
+
+			// In the case where the timestamp is not present in the results
+			if len(results) > 2 {
+				// If the results have more than 2 timestamps, this should not happen.
+				// As the startTime = timestamp - 1 and endTime = timestamp, and intervalSeconds = 1
+				// So, the results should have only 2 timestamps
+				log.Errorf("GetResultsPromQlInstantQuery: More than 2 timestamps found in the results for seriesId: %v", seriesId)
+				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
+			}
+
+			maxTimestamp := uint32(0)
+			floatValue = 0
+			for ts, val := range results {
+				if ts > maxTimestamp {
+					maxTimestamp = ts
+					floatValue = val
+				}
+			}
+
+			result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+			pqlData.Result = append(pqlData.Result, *result)
+		}
+	case parser.ValueTypeMatrix:
+		return nil, errors.New("ValueTypeMatrix is not supported for Instant Queries")
+	default:
+		return nil, fmt.Errorf("GetResultsPromQlInstantQuery: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	return &structs.MetricsQueryResponsePromQl{
+		Status: "success",
+		Data:   pqlData,
+	}, nil
+}
+
 func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
 	if r.State != AGGREGATED {
 		return nil, fmt.Errorf("GetResultsPromQl: results is not in aggregated state, state: %v", r.State)
@@ -543,29 +631,14 @@ func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQueryt
 
 	switch pqlQuerytype {
 	case parser.ValueTypeVector, parser.ValueTypeMatrix:
-		pqldata.ResultType = parser.ValueType("vector")
-		for grpId, results := range r.Results {
+		pqldata.ResultType = parser.ValueType("matrix")
+		for seriesId, results := range r.Results {
+			result := getPromQLSeriesFormat(seriesId)
 
-			tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
-
-			var result structs.Result
-			var keyValue []string
-			result.Metric = make(map[string]string)
-			result.Metric["__name__"] = ExtractMetricNameFromGroupID(grpId)
-			for idx, val := range tagValues {
-				if idx == 0 {
-					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
-				} else {
-					keyValue = strings.Split(val, ":")
-				}
-				if len(keyValue) > 1 {
-					result.Metric[keyValue[0]] = keyValue[1]
-				}
-			}
 			for k, v := range results {
 				result.Value = append(result.Value, []interface{}{int64(k), fmt.Sprintf("%v", v)})
 			}
-			pqldata.Result = append(pqldata.Result, result)
+			pqldata.Result = append(pqldata.Result, *result)
 		}
 	default:
 		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type: %v", pqlQuerytype)
