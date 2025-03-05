@@ -34,11 +34,19 @@ func NewTaggedSeries(tags map[string]string, series timeseries, groupId string) 
 		tags = make(map[string]string)
 	}
 
-	return &TaggedSeries{
+	result := &TaggedSeries{
 		timeseries: series,
 		tags:       tags,
 		groupId:    groupId,
 	}
+
+	err := result.SetTagsFromId(groupId)
+	if err != nil {
+		// TODO: andrew
+		return nil
+	}
+
+	return result
 }
 
 func (t *TaggedSeries) GetGroupId() string {
@@ -104,6 +112,11 @@ func (t *TaggedSeries) Id() string {
 func (t *TaggedSeries) SetTagsFromId(id string) error {
 	tags := make(map[string]string)
 
+	// Strip the final '}' if it exists.
+	if len(id) > 0 && id[len(id)-1] == '}' {
+		id = id[:len(id)-1]
+	}
+
 	// Parse metric name.
 	idx := strings.Index(id, "{")
 	if idx == -1 {
@@ -113,7 +126,7 @@ func (t *TaggedSeries) SetTagsFromId(id string) error {
 	tags["__name__"] = id[:idx]
 
 	// Parse tags.
-	id = id[idx+1 : len(id)-1]
+	id = id[idx+1 : len(id)]
 	pairs := strings.Split(id, ",")
 	for _, pair := range pairs {
 		kv := strings.Split(pair, "=")

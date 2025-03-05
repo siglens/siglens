@@ -36,6 +36,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -157,9 +158,15 @@ func (r *MetricsResult) ConvertSeriesToResults() {
 				break
 			}
 
+			if point.Timestamp == 0 {
+				// TODO: andrew figure out why this is happening.
+				continue
+			}
+
 			values[uint32(point.Timestamp)] = point.Value
 		}
 
+		log.Errorf("andrew ConvertSeriesToResults: series id: %v, values: %v", series.Id(), values)
 		r.Results[series.Id()] = values
 	}
 }
@@ -190,7 +197,11 @@ func (r *MetricsResult) DownsampleResults(ds structs.Downsampler,
 			defer wg.Done()
 
 			interval := ds.GetIntervalTimeInSeconds()
-			aggregator := aggFunc(ds.Aggregator.AggregatorFunction)
+			// aggregator := aggFunc(ds.Aggregator)
+			aggregator := aggFunc(structs.Aggregation{
+				// TODO: andrew - this is a hack to get the aggregator function
+				AggregatorFunction: segutils.Avg,
+			})
 			err := series.Downsample(metrics.Epoch(interval), aggregator)
 			if err != nil {
 				errorLock.Lock()
@@ -232,8 +243,7 @@ Aggregate results for series sharing a groupid
 Internally, this will store the final aggregated results
 e.g. will store avg instead of running sum&count
 */
-func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation,
-	groupToSeries map[string][]*metrics.TaggedSeries) []error {
+func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Aggregation) []error {
 
 	if r.State != DOWNSAMPLING {
 		return []error{fmt.Errorf("AggregateResults: results is not in downsampling state, state: %v", r.State)}
@@ -247,14 +257,31 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 
 	errorLock := &sync.Mutex{}
 
+	log.Errorf("andrew group by cols: %v", aggregation.GroupByFields)
+
+	groupToSeries := make(map[string][]*metrics.TaggedSeries, len(r.AllSeries))
+	if len(aggregation.GroupByFields) == 0 {
+		groupId := "{}"
+		allSeries := make([]*metrics.TaggedSeries, 0, len(r.AllSeries))
+		for _, series := range r.AllSeries {
+			allSeries = append(allSeries, series)
+		}
+		groupToSeries[groupId] = allSeries
+	} else {
+		// TODO
+		return []error{fmt.Errorf("GroupByFields not supported yet")}
+	}
+
 	results := make(map[uint64]*metrics.TaggedSeries, len(groupToSeries))
 	var idx int
 	for groupId, seriesList := range groupToSeries {
 		wg.Add(1)
-		go func(grp string, seriesList []*metrics.TaggedSeries) {
+		go func(groupId string, seriesList []*metrics.TaggedSeries) {
 			defer wg.Done()
 
-			aggregator := aggFunc(aggregation.AggregatorFunction)
+			log.Errorf("andrew aggregating group %v", groupId)
+
+			aggregator := aggFunc(aggregation)
 			result, err := metrics.Aggregate(seriesList, aggregator, groupId)
 			if err != nil {
 				errorLock.Lock()

@@ -147,6 +147,13 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
+	mQuery.GetAllLabels = true // TODO: remove this field and always treat it as true
+
+	log.Errorf("andrew (allSeries, allLabels) = (%v, %v)", mQuery.SelectAllSeries, mQuery.GetAllLabels)
+
+	log.Errorf("andrew downsampler agg is %v", mQuery.Downsampler.Aggregator.AggregatorFunction)
+	log.Errorf("andrew first agg is %v", mQuery.FirstAggregator.AggregatorFunction)
+
 	// iterate through all metrics segments, applying search as needed
 	// use finalTimeRange to get the series and data points including the lookback time
 	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, finalTimeRange, qid, querySummary)
@@ -154,8 +161,10 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 	parallelism := int(config.GetParallelism()) * 2
+	log.Errorf("andrew there's %v series before conversion", len(mRes.AllInitialSeries))
 	mRes.ConvertInitialSeries()
-	groupToSeries, errors := mRes.DownsampleResults(mQuery.Downsampler, parallelism)
+	log.Errorf("andrew there's %v series after conversion", len(mRes.AllSeries))
+	_, errors := mRes.DownsampleResults(mQuery.Downsampler, parallelism)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)
@@ -163,10 +172,12 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 		return mRes
 	}
+
+	log.Errorf("andrew there's %v series after downsampling", len(mRes.AllSeries))
 
 	mRes.MetricName = mQuery.MetricName
 
-	errors = mRes.AggregateResults(parallelism, mQuery.FirstAggregator, groupToSeries)
+	errors = mRes.AggregateResults(parallelism, mQuery.FirstAggregator)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)
@@ -175,7 +186,11 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
+	log.Errorf("andrew there's %v series after aggregation", len(mRes.AllSeries))
+
 	mRes.ConvertSeriesToResults()
+
+	log.Errorf("andrew there's %v series after conversion", len(mRes.Results))
 
 	for mQuery.SubsequentAggs != nil {
 		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {

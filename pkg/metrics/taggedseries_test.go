@@ -101,6 +101,9 @@ func Test_TaggedMetric(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, "value2", value)
 
+		err = series.SetTagsFromId("metric_name{")
+		assert.NoError(t, err)
+
 		err = series.SetTagsFromId("invalid")
 		assert.Error(t, err)
 	})
