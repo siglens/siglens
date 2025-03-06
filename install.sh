@@ -269,7 +269,7 @@ install_docker_compose() {
             print_error_and_exit "apt-get update failed."
         }
         $apt_cmd install docker-compose-plugin || {
-            post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
+            post_event "install_failed" "install_docker_compose: apt-get install docker-compose-plugin failed during Docker Compose setup"
             print_error_and_exit "Docker Compose installation failed."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
@@ -813,11 +813,11 @@ elif [ "$SERVERNAME" = "playground" ]; then
 fi
 
 print_success_message "\n Starting Siglens with image: ${IMAGE_NAME}"
-CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} ${CONTAINER_TOOL}-compose -f $COMPOSE_FILE up -d || {
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} ${CONTAINER_TOOL} compose -f $COMPOSE_FILE up -d || {
     post_event "install_failed" "Failed to start $CONTAINER_TOOL Compose on $os with $COMPOSE_FILE"
     print_error_and_exit "Failed to start $CONTAINER_TOOL Compose"
 }
-CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL-compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
+CSI=${csi} UI_PORT=${UI_PORT} CONFIG_FILE=${CFILE} WORK_DIR="$(pwd)" IMAGE_NAME=${IMAGE_NAME} $CONTAINER_TOOL compose logs -t --tail 20 >> ${CONTAINER_TOOL}_logs.txt
 
 # Create .env file for docker-compose down
 if [[ $CONTAINER_TOOL == "docker" ]]; then

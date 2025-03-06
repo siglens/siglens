@@ -200,7 +200,7 @@ install_docker_compose() {
             print_error_and_exit "apt-get update failed."
         }
         $apt_cmd install docker-compose-plugin || {
-            post_event "install_failed" "install_docker_compose: apt-get install docker-compose failed during Docker Compose setup"
+            post_event "install_failed" "install_docker_compose: apt-get install docker-compose-plugin failed during Docker Compose setup"
             print_error_and_exit "Docker Compose installation failed."
         }
     elif [[ $package_manager == yum && $os == 'amazon linux' ]]; then
