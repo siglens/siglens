@@ -411,7 +411,7 @@ func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID stri
 		Duration:      int64(span.Duration),
 		Tags:          spanTags,
 		Logs:          []string{},
-		ProcessID:     "p1",
+		ProcessID:     "",
 		Warnings:      []string{},
 	}
 
