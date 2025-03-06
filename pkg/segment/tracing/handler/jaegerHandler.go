@@ -14,12 +14,26 @@ import (
 )
 
 type ResponseBody struct {
-	Data   interface{} `json:"data"`
-	Total  int         `json:"total"`
-	Limit  int         `json:"limit"`
-	Offset int         `json:"offset"`
-	Errors []string    `json:"errors"`
+	Total  int      `json:"total"`
+	Limit  int      `json:"limit"`
+	Offset int      `json:"offset"`
+	Errors []string `json:"errors"`
 }
+
+type ServiceOperationsResponse struct {
+	ResponseBody
+	Data []string `json:"data"`
+}
+type DependenciesResponse struct {
+	ResponseBody
+	Data []map[string]string `json:"data"`
+}
+
+type TracesResponse struct {
+	ResponseBody
+	Data []TraceData `json:"data"`
+}
+
 type Process struct {
 	ServiceName string `json:"serviceName"`
 }
@@ -55,8 +69,6 @@ type Tag struct {
 	Type  string      `json:"type"`
 	Value interface{} `json:"value"`
 }
-
-const NoDependencyGraphsMessage = "no dependencies graphs have been generated"
 
 func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 
@@ -107,12 +119,14 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 		distinctServices = append(distinctServices, service)
 	}
 
-	finalResponse := ResponseBody{
-		Data:   distinctServices,
-		Total:  len(distinctServices),
-		Limit:  0,
-		Offset: 0,
-		Errors: nil,
+	finalResponse := ServiceOperationsResponse{
+		Data: distinctServices,
+		ResponseBody: ResponseBody{
+			Total:  len(distinctServices),
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
@@ -168,12 +182,14 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 		distinctNames = append(distinctNames, name)
 	}
 
-	finalResponse := ResponseBody{
-		Data:   distinctNames,
-		Total:  len(distinctNames),
-		Limit:  0,
-		Offset: 0,
-		Errors: nil,
+	finalResponse := ServiceOperationsResponse{
+		Data: distinctNames,
+		ResponseBody: ResponseBody{
+			Total:  len(distinctNames),
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
@@ -182,12 +198,14 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 
 func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 
-	response := ResponseBody{
-		Data:   []interface{}{},
-		Total:  0,
-		Limit:  0,
-		Offset: 0,
-		Errors: nil,
+	response := DependenciesResponse{
+		Data: []map[string]string{},
+		ResponseBody: ResponseBody{
+			Total:  0,
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
 	}
 
 	endTs := string(ctx.QueryArgs().Peek("endTs"))
@@ -228,10 +246,10 @@ func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 
 	var responseData []map[string]string
 
-	if string(responseBody) == NoDependencyGraphsMessage {
+	if string(responseBody) == utils.ErrNoDependencyGraphs {
 		ctx.SetStatusCode(fasthttp.StatusOK)
-		response.Errors = []string{NoDependencyGraphsMessage}
-		log.Errorf("ProcessGetDependencies : %v", NoDependencyGraphsMessage)
+		response.Errors = []string{utils.ErrNoDependencyGraphs}
+		log.Errorf("ProcessGetDependencies : %v", utils.ErrNoDependencyGraphs)
 		utils.WriteJsonResponse(ctx, response)
 		return
 	}
@@ -278,12 +296,14 @@ func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 
 func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 
-	response := ResponseBody{
-		Data:   []interface{}{},
-		Total:  0,
-		Limit:  0,
-		Offset: 0,
-		Errors: []string{},
+	response := TracesResponse{
+		Data: []TraceData{},
+		ResponseBody: ResponseBody{
+			Total:  0,
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
 	}
 
 	start := string(ctx.QueryArgs().Peek("start"))
@@ -340,8 +360,8 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 		tracesId := traces.TraceId
 		searchGanttChartRequestBody := structs.SearchRequestBody{
 			SearchText: "trace_id=" + tracesId,
-			StartEpoch: "now-365d",
-			EndEpoch:   "now",
+			StartEpoch: strconv.FormatInt(startEpoch, 10),
+			EndEpoch:   strconv.FormatInt(endEpoch, 10),
 			From:       0,
 		}
 
@@ -478,6 +498,7 @@ func convertEpochToMilliseconds(epoch int64) int64 {
 	case epoch >= 1e15 && epoch < 1e16:
 		return epoch / 1000
 	default:
+		log.Errorf("convertEpochToMilliseconds : Unexpected epoch value: %d", epoch)
 		return 0
 	}
 }
