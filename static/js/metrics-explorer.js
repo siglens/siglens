@@ -836,7 +836,6 @@ function setupQueryElementEventListeners(queryElement) {
         }
     });
 
-    // Modify the raw-query-btn click handler in the setupQueryElementEventListeners function
     queryElement.find('.raw-query-btn').on('click', function () {
         var queryName = queryElement.find('.query-name').text();
         var queryDetails = queries[queryName];
@@ -854,7 +853,6 @@ function setupQueryElementEventListeners(queryElement) {
                 queryDetails.rawQueryInput = queryString;
                 queryElement.find('.raw-query-input').val(queryString);
             } else {
-                // Ensure the input field shows the current raw query
                 queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
             }
         } else {
@@ -864,7 +862,6 @@ function setupQueryElementEventListeners(queryElement) {
             // If the raw query was executed and builder is not empty, update builder UI to reflect changes
             if (queryDetails.rawQueryExecuted && queryDetails.metrics) {
                 // Parse the raw query to update builder UI
-                // This is where you need to enhance the code to parse and update the builder UI
                 getQueryDetails(queryName, queryDetails);
             }
         }
@@ -911,11 +908,9 @@ async function addQueryElement() {
             queryElement = createQueryElementTemplate(nextQueryName);
             $('#metrics-queries').append(queryElement);
 
-            // Get metric names for the new query
             const metricNames = await getMetricNames();
             metricNames.metricNames.sort();
 
-            // Create query details with default builder state
             var newQueryDetails = {
                 metrics: metricNames.metricNames[0],
                 everywhere: [],
@@ -926,11 +921,11 @@ async function addQueryElement() {
                 rawQueryInput: '',
                 rawQueryExecuted: false,
             };
-            queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
-            // Initialize with new query details
+            queryElement.find('.metrics').val(metricNames.metricNames[0]);
+
             await initializeAutocomplete(queryElement, newQueryDetails);
         } else {
-            // If previous query was in builder mode, clone it (existing behavior)
+            // If previous query was in builder mode, clone it
             queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
             queryElement.find('.query-name').text(nextQueryName);
             queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
@@ -938,7 +933,6 @@ async function addQueryElement() {
             queryElement.find('.raw-query').hide();
             $('#metrics-queries').append(queryElement);
 
-            // Initialize autocomplete with previous builder query details
             await initializeAutocomplete(queryElement, previousQueryDetails);
         }
         if (isAlertScreen) {
@@ -1673,18 +1667,15 @@ function updateChartThresholds() {
     }
 }
 
-// Step 1: Create or get the container first
 function getOrCreateVisualizationContainer(queryName, queryString) {
-    // For dashboard page, we don't need to create a new container
     if (isDashboardScreen) {
-        return null; // Dashboard handles containers differently
+        return null;
     }
 
     // For metrics explorer page
     var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
 
     if (existingContainer.length === 0) {
-        // Create new container
         var visualizationContainer = $(`
         <div class="metrics-graph" data-query="${queryName}">
             <div class="query-string">${queryString}</div>
@@ -1714,24 +1705,21 @@ function getOrCreateVisualizationContainer(queryName, queryString) {
 
         return visualizationContainer;
     } else {
-        // Update existing container
         existingContainer.find('.query-string').text(queryString);
-        existingContainer.find('.graph-canvas').empty(); // Clear previous content
+        existingContainer.find('.graph-canvas').empty();
         return existingContainer;
     }
 }
 
-// Step 2: Use the container to add visualization
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     if (isDashboardScreen) {
         // For dashboard page
         prepareChartData(seriesData, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
     } else {
-        // For metrics explorer page - get or create container first
+        // For metrics explorer page
         var container = getOrCreateVisualizationContainer(queryName, queryString);
 
-        // Add canvas and initialize chart
         var canvas = $('<canvas></canvas>');
         container.find('.graph-canvas').append(canvas);
 
@@ -2355,20 +2343,16 @@ function displayErrorMessage(container, message) {
         // Handle metrics screen errors
         const mergedContainer = $('#merged-graph-container');
 
-        // Clean up existing error messages in the container
         const graphCanvas = container.find('.graph-canvas');
         graphCanvas.find('.error-message').remove();
 
-        // Add new error message to graph canvas
         const errorSpan = $('<span></span>').addClass('error-message').text(message);
         graphCanvas.append(errorSpan);
 
-        // Clean up and add error message to merged graph
         const mergedGraph = mergedContainer.find('.merged-graph');
         mergedGraph.find('.error-message').remove();
         mergedGraph.empty();
 
-        // Create and append error message to merged graph
         const mergedErrorSpan = $('<span></span>').addClass('error-message').text(message);
         mergedGraph.append(mergedErrorSpan);
     } else if (isAlertScreen) {
@@ -2614,29 +2598,24 @@ function getTagKeyValue(metricName) {
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
     const queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
-    // Create container early so we have a place to show errors
+
     if (!isAlertScreen && !isDashboardScreen) {
         getOrCreateVisualizationContainer(queryName, queryString);
     }
     try {
-        // Determine the query string based on state
         const queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
 
-        // Fetch data and convert for visualization
         await getMetricsData(queryName, queryString, queryDetails.state);
         const chartData = await convertDataForChart(rawTimeSeriesData);
 
-        // Add visualization based on screen type
         if (isAlertScreen) {
             addVisualizationContainerToAlerts(queryName, chartData, queryString);
         } else {
             addVisualizationContainer(queryName, chartData, queryString);
         }
     } catch (error) {
-        // Clean up resources on error
         let container, mergedContainer, panelEditContainer;
 
-        // Determine the appropriate container based on screen type
         if (isAlertScreen) {
             container = $('#metrics-graphs').find('.metrics-graph .graph-canvas');
         } else if (isDashboardScreen) {
@@ -2646,13 +2625,10 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
             container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"]`);
         }
 
-        // Get the merged container which is common for all screen types
         mergedContainer = $('#merged-graph-container').find('.merged-graph');
 
-        // Clean up resources and get error message
         const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
 
-        // Determine where to display the error message
         let errorContainer;
         if (isAlertScreen) {
             errorContainer = $('#metrics-graphs').find('.metrics-graph');
@@ -2662,7 +2638,6 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
             errorContainer = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"]`);
         }
 
-        // Display the error message
         displayErrorMessage(errorContainer, errorMessage);
     }
 }
