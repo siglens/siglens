@@ -315,7 +315,9 @@ function createFormulaElementTemplate(uniqueId, initialValue = '') {
         <div class="formula-box" data-id="${uniqueId}">
         <div style="display: flex;flex-direction: row;">
             <div style="position: relative;" class="d-flex">
-                <div class="formula-arrow">↓</div>
+                <div class="formula-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </div>
                 <input class="formula" placeholder="Formula, eg. 2*a" value="${initialValue}">
                 <div class="formula-error-message" style="display: none;">
                     <div class="d-flex justify-content-center align-items-center"><i class="fas fa-exclamation"></i></div>
@@ -341,16 +343,26 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function () {
         if (isAlertScreen) {
             var formulaBtn = $('#add-formula');
+
+            if (formulaBtn[0] && formulaBtn[0]._tippy) {
+                formulaBtn[0]._tippy.destroy();
+            }
+
+            formulaBtn.css('cursor', 'pointer');
+
             formulas = {};
             formulaElement.remove();
             formulaBtn.prop('disabled', false);
             activateFirstQuery();
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+            disableQueryRemoval();
         } else {
             delete formulas[uniqueId];
             formulaElement.remove();
             removeVisualizationContainer(uniqueId);
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+
+            updateMetricsQueryParamsInUrl();
         }
     });
 
@@ -464,12 +476,22 @@ async function addAlertsFormulaElement(formulaInput) {
     }
     appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     updateTooltipForFormulaFunctions(uniqueId, validationResult);
+    disableQueryRemoval();
     funcApplied = false;
     getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
+
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
+
     if (formulaElements.length > 0) {
-        formulaBtn.prop('disabled', true);
+        formulaBtn.css('cursor', 'not-allowed');
+
+        if (!formulaBtn[0]._tippy) {
+            tippy(formulaBtn[0], {
+                content: 'Only one formula is supported for this type of alert.',
+            });
+        }
+
         $('#metrics-queries .metrics-query .query-name').removeClass('active');
     }
     initializeFormulaFunction(formulaElement, uniqueId);
@@ -517,7 +539,10 @@ function onFormulaErased(uniqueId) {
     delete formulas[uniqueId];
     removeVisualizationContainer(uniqueId);
     updateCloseIconVisibility();
+    // Update the URL when a formula is erased
+    updateMetricsQueryParamsInUrl();
 }
+
 function validateFormula(formula, uniqueId) {
     // Regular expression to include numbers and query names
     let pattern = /^(\s*\w+\s*|\s*\d+\s*)(\s*[-+*/]\s*(\s*\w+\s*|\s*\d+\s*))*$/;
@@ -566,7 +591,7 @@ function validateFormula(formula, uniqueId) {
 function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
     const formulaElement = $(`.formula-box[data-id="${uniqueId}"]`);
     const formulaButton = formulaElement.find('.show-functions-formula');
-    const allSelectedFunctions = $('.all-selected-functions-formula');
+    const allSelectedFunctions = formulaElement.find('.all-selected-functions-formula');
 
     if (validationResult.isNumeric) {
         formulaButton.addClass('disabled');
@@ -611,13 +636,13 @@ function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
             }
         });
 
-        if (formulaButton[0]._tippy) {
+        if (formulaButton.length > 0 && formulaButton[0]._tippy) {
             formulaButton[0]._tippy.destroy();
         }
 
         allSelectedFunctions.removeClass('error');
 
-        if (allSelectedFunctions[0]._tippy) {
+        if (allSelectedFunctions.length > 0 && allSelectedFunctions[0]._tippy) {
             allSelectedFunctions[0]._tippy.destroy();
         }
     }
@@ -627,6 +652,7 @@ function disableQueryRemoval() {
     $('.metrics-query').each(function () {
         var queryName = $(this).find('.query-name').text();
         var removeButton = $(this).find('.remove-query');
+
         var queryNameExistsInFormula = $('.formula')
             .toArray()
             .some(function (formulaInput) {
@@ -635,9 +661,24 @@ function disableQueryRemoval() {
 
         // If query name exists in any formula, disable the remove button
         if (queryNameExistsInFormula) {
-            removeButton.addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
+            removeButton.addClass('disabled').css('cursor', 'not-allowed');
+
+            // Destroy existing tippy if present
+            if (removeButton[0]._tippy) {
+                removeButton[0]._tippy.destroy();
+            }
+
+            // Create new tippy
+            tippy(removeButton[0], {
+                content: 'Query used in other formulas',
+            });
         } else {
-            removeButton.removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+            removeButton.removeClass('disabled').css('cursor', 'pointer');
+
+            // Destroy tippy if present
+            if (removeButton[0]._tippy) {
+                removeButton[0]._tippy.destroy();
+            }
         }
     });
 }
@@ -674,9 +715,10 @@ function createQueryElementTemplate(queryName) {
             </div>
         </div>
         <div>
-            <div class="raw-query-btn">&lt;/&gt;</div>
+            <div class="raw-query-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code-xml"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>            </div>
             <div class="alias-box">
-                <div class="as-btn">as...</div>
+                <div class="as-btn d-none">as...</div>
                 <div class="alias-filling-box" style="display: none;">
                     <div>as</div>
                     <input type="text" placeholder="alias">
@@ -701,7 +743,16 @@ function setupQueryElementEventListeners(queryElement) {
 
         // If query name exists in any formula, prevent removal of the query element
         if (queryNameExistsInFormula) {
-            $(this).addClass('disabled').css('cursor', 'not-allowed').attr('title', 'Query used in other formulas.');
+            $(this).addClass('disabled').css('cursor', 'not-allowed');
+
+            // Destroy existing tippy if present
+            if (this._tippy) {
+                this._tippy.destroy();
+            }
+
+            tippy(this, {
+                content: 'Query used in other formulas',
+            });
         } else {
             delete queries[queryName];
             queryElement.remove();
@@ -709,6 +760,9 @@ function setupQueryElementEventListeners(queryElement) {
 
             // Show or hide the close icon based on the number of queries
             updateCloseIconVisibility();
+
+            // Update the URL when a query is removed
+            updateMetricsQueryParamsInUrl();
 
             // For Alerts Screen
             if (isAlertScreen) {
@@ -782,25 +836,34 @@ function setupQueryElementEventListeners(queryElement) {
         }
     });
 
-    // Display Raw Query
     queryElement.find('.raw-query-btn').on('click', function () {
-        queryElement.find('.query-builder').toggle();
-        queryElement.find('.raw-query').toggle();
         var queryName = queryElement.find('.query-name').text();
         var queryDetails = queries[queryName];
+
+        queryElement.find('.query-builder').toggle();
+        queryElement.find('.raw-query').toggle();
 
         if (queryDetails.state === 'builder') {
             // Switch to raw mode
             queryDetails.state = 'raw';
             const queryString = createQueryString(queryDetails);
+
+            // Only set the raw query input if it hasn't been executed yet
             if (!queryDetails.rawQueryExecuted) {
                 queryDetails.rawQueryInput = queryString;
                 queryElement.find('.raw-query-input').val(queryString);
+            } else {
+                queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
             }
         } else {
             // Switch to builder mode
             queryDetails.state = 'builder';
-            getQueryDetails(queryName, queryDetails);
+
+            // If the raw query was executed and builder is not empty, update builder UI to reflect changes
+            if (queryDetails.rawQueryExecuted && queryDetails.metrics) {
+                // Parse the raw query to update builder UI
+                getQueryDetails(queryName, queryDetails);
+            }
         }
     });
 
@@ -809,8 +872,11 @@ function setupQueryElementEventListeners(queryElement) {
         var queryName = queryElement.find('.query-name').text();
         var queryDetails = queries[queryName];
         var rawQuery = queryElement.find('.raw-query-input').val();
+
+        // Update the raw query input
         queryDetails.rawQueryInput = rawQuery;
         queryDetails.rawQueryExecuted = true; // Set the flag to indicate that raw query has been executed
+
         // Perform the search with the raw query
         await getQueryDetails(queryName, queryDetails);
     });
@@ -822,6 +888,7 @@ async function addQueryElement() {
     if (queryIndex === 0) {
         queryElement = createQueryElementTemplate(String.fromCharCode(97 + queryIndex));
         $('#metrics-queries').append(queryElement);
+
         const metricNames = await getMetricNames();
         metricNames.metricNames.sort();
         queryElement.find('.metrics').val(metricNames.metricNames[0]); // Initialize first query element with first metric name
@@ -833,16 +900,41 @@ async function addQueryElement() {
         var lastQueryName = $('#metrics-queries').find('.metrics-query:last .query-name').text();
         // Determine the next query name based on the last query name
         var nextQueryName = String.fromCharCode(lastQueryName.charCodeAt(0) + 1);
+        // Check if previous query was in raw mode
+        const previousQueryDetails = queries[lastQueryName];
 
-        queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
-        queryElement.find('.query-name').text(nextQueryName);
-        queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
-        queryElement.find('.query-builder').show();
-        queryElement.find('.raw-query').hide();
-        $('#metrics-queries').append(queryElement);
-        // Initialize autocomplete with the details of the previous query if it exists
-        await initializeAutocomplete(queryElement, queries[lastQueryName]);
+        if (previousQueryDetails && previousQueryDetails.state === 'raw') {
+            // If previous query was in raw mode, create a new builder-mode query
+            queryElement = createQueryElementTemplate(nextQueryName);
+            $('#metrics-queries').append(queryElement);
 
+            const metricNames = await getMetricNames();
+            metricNames.metricNames.sort();
+
+            var newQueryDetails = {
+                metrics: metricNames.metricNames[0],
+                everywhere: [],
+                everything: [],
+                aggFunction: 'avg by',
+                functions: [],
+                state: 'builder',
+                rawQueryInput: '',
+                rawQueryExecuted: false,
+            };
+            queryElement.find('.metrics').val(metricNames.metricNames[0]);
+
+            await initializeAutocomplete(queryElement, newQueryDetails);
+        } else {
+            // If previous query was in builder mode, clone it
+            queryElement = $('#metrics-queries').find('.metrics-query').last().clone();
+            queryElement.find('.query-name').text(nextQueryName);
+            queryElement.find('.remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+            queryElement.find('.query-builder').show();
+            queryElement.find('.raw-query').hide();
+            $('#metrics-queries').append(queryElement);
+
+            await initializeAutocomplete(queryElement, previousQueryDetails);
+        }
         if (isAlertScreen) {
             let formulaInput;
             let queryNames = Object.keys(queries);
@@ -1575,57 +1667,69 @@ function updateChartThresholds() {
     }
 }
 
+function getOrCreateVisualizationContainer(queryName, queryString) {
+    if (isDashboardScreen) {
+        return null;
+    }
+
+    // For metrics explorer page
+    var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
+
+    if (existingContainer.length === 0) {
+        var visualizationContainer = $(`
+        <div class="metrics-graph" data-query="${queryName}">
+            <div class="query-string">${queryString}</div>
+            <div class="graph-canvas"></div>
+        </div>`);
+
+        // Determine where to insert the new container
+        if (queryName.startsWith('formula')) {
+            // Insert after all formula queries
+            var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
+            if (lastFormula.length) {
+                lastFormula.after(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        } else {
+            // Insert before the first formula query
+            var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
+            if (firstFormula.length) {
+                firstFormula.before(visualizationContainer);
+            } else {
+                // If no formula queries exist, append to the end
+                $('#metrics-graphs').append(visualizationContainer);
+            }
+        }
+
+        return visualizationContainer;
+    } else {
+        existingContainer.find('.query-string').text(queryString);
+        existingContainer.find('.graph-canvas').empty();
+        return existingContainer;
+    }
+}
+
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
-    var canvas;
     if (isDashboardScreen) {
         // For dashboard page
         prepareChartData(seriesData, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
     } else {
         // For metrics explorer page
-        var existingContainer = $(`.metrics-graph[data-query="${queryName}"]`);
-        if (existingContainer.length === 0) {
-            var visualizationContainer = $(`
-            <div class="metrics-graph" data-query="${queryName}">
-                <div class="query-string">${queryString}</div>
-                <div class="graph-canvas"></div>
-            </div>`);
+        var container = getOrCreateVisualizationContainer(queryName, queryString);
 
-            // Determine where to insert the new container
-            if (queryName.startsWith('formula')) {
-                // Insert after all formula queries
-                var lastFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:last');
-                if (lastFormula.length) {
-                    lastFormula.after(visualizationContainer);
-                } else {
-                    // If no formula queries exist, append to the end
-                    $('#metrics-graphs').append(visualizationContainer);
-                }
-            } else {
-                // Insert before the first formula query
-                var firstFormula = $('#metrics-graphs .metrics-graph[data-query^="formula"]:first');
-                if (firstFormula.length) {
-                    firstFormula.before(visualizationContainer);
-                } else {
-                    // If no formula queries exist, append to the end
-                    $('#metrics-graphs').append(visualizationContainer);
-                }
-            }
-
-            canvas = $('<canvas></canvas>');
-            visualizationContainer.find('.graph-canvas').append(canvas);
-        } else {
-            existingContainer.find('.query-string').text(queryString);
-            canvas = $('<canvas></canvas>');
-            existingContainer.find('.graph-canvas').empty().append(canvas);
-        }
+        var canvas = $('<canvas></canvas>');
+        container.find('.graph-canvas').append(canvas);
 
         var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-
         lineCharts[queryName] = lineChart;
+
         updateGraphWidth();
         mergeGraphs(chartType);
     }
+
     addOrUpdateFormulaCache(queryName, queryString);
 }
 
@@ -2199,67 +2303,77 @@ function determineTimeUnit(timeRange) {
 }
 
 async function getMetricNames() {
-    const data = {
-        start: filterStartDate,
-        end: filterEndDate,
-    };
-    const res = await $.ajax({
-        method: 'post',
-        url: 'metrics-explorer/api/v1/metric_names',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data),
-    });
+    try {
+        $('body').css('cursor', 'wait');
 
-    if (res) {
-        availableMetrics = res.metricNames;
+        const data = {
+            start: filterStartDate,
+            end: filterEndDate,
+        };
+        const res = await $.ajax({
+            method: 'post',
+            url: 'metrics-explorer/api/v1/metric_names',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(data),
+        });
+
+        if (res) {
+            availableMetrics = res.metricNames;
+        }
+
+        return res;
+    } finally {
+        $('body').css('cursor', 'default');
     }
-
-    return res;
 }
 
 function displayErrorMessage(container, message) {
-    var graphCanvas, errorSpan;
+    // Early return if container is missing
+    if (!container || !container.length) {
+        console.error('Error: No container provided to display error message');
+        return;
+    }
     //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
-        const mergedContainer = document.querySelector('#merged-graph-container');
-        graphCanvas = container.find('.graph-canvas');
-        graphCanvas.find('.error-message').each(function () {
-            $(this).remove();
-        });
-        var mergedGraph = mergedContainer.querySelector('.merged-graph');
-        mergedGraph.querySelectorAll('.error-message').forEach((errorSpan) => errorSpan.remove());
-        var mergedSpan = document.createElement('span');
-        errorSpan = $('<span></span>').addClass('error-message').text(message);
+        // Handle metrics screen errors
+        const mergedContainer = $('#merged-graph-container');
+
+        const graphCanvas = container.find('.graph-canvas');
+        graphCanvas.find('.error-message').remove();
+
+        const errorSpan = $('<span></span>').addClass('error-message').text(message);
         graphCanvas.append(errorSpan);
-        mergedGraph.innerHTML = '';
-        mergedGraph.appendChild(mergedSpan);
-        mergedSpan.classList.add('error-message');
-        mergedSpan.textContent = message;
-    }
-    if (isAlertScreen) {
-        graphCanvas = container.find('.graph-canvas');
-        graphCanvas.find('.error-message').each(function () {
-            $(this).remove();
-        });
-        errorSpan = $('<span></span>').addClass('error-message').text(message);
+
+        const mergedGraph = mergedContainer.find('.merged-graph');
+        mergedGraph.find('.error-message').remove();
+        mergedGraph.empty();
+
+        const mergedErrorSpan = $('<span></span>').addClass('error-message').text(message);
+        mergedGraph.append(mergedErrorSpan);
+    } else if (isAlertScreen) {
+        // Handle alert screen errors
+        const graphCanvas = container.find('.graph-canvas');
+        graphCanvas.find('.error-message').remove();
+
+        const errorSpan = $('<span></span>').addClass('error-message').text(message);
         graphCanvas.append(errorSpan);
-    }
-    if (isDashboardScreen) {
-        container = container.find('.panEdit-panel');
-        container.find('error-message').each(function () {
-            $(this).remove();
-        });
-        errorSpan = $('<span></span>').addClass('error-message').text(message);
-        container.append(errorSpan);
+    } else if (isDashboardScreen) {
+        // Handle dashboard screen errors
+        const panelContainer = container.find('.panEdit-panel');
+        panelContainer.find('.error-message').remove();
+
+        const errorSpan = $('<span></span>').addClass('error-message').text(message);
+        panelContainer.append(errorSpan);
     }
 }
+
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
-    const errorMessage = (error.responseJSON && error.responseJSON.error) || (error.responseText && JSON.parse(error.responseText).error) || 'An unknown error occurred';
+    const errorMessage = error;
     let errorCanvas;
     if (isAlertScreen) {
         errorCanvas = $(`.metrics-graph .graph-canvas canvas`);
@@ -2293,8 +2407,10 @@ function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, q
 }
 
 async function getMetricsData(queryName, metricName, state) {
-    var container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
-    var mergedContainer = $('#merged-graph-container').find('.merged-graph');
+    // Show loading indicators
+    const container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
+    const mergedContainer = $('#merged-graph-container').find('.merged-graph');
+
     mergedContainer.append('<div id="panel-loading"></div>');
     container.append('<div id="panel-loading"></div>');
 
@@ -2304,30 +2420,25 @@ async function getMetricsData(queryName, metricName, state) {
         panelEditContainer.append('<div id="panel-loading"></div>');
     }
 
-    const query = { name: queryName, query: `(${metricName})`, qlType: 'promql', state: state };
-    const queries = [query];
-    const formula = { formula: queryName };
-    const formulas = [formula];
-    const data = { start: filterStartDate, end: filterEndDate, queries: queries, formulas: formulas };
+    // Prepare data for the API call
+    const query = { name: queryName, query: `${metricName}`, qlType: 'promql', state };
+    const data = {
+        start: filterStartDate,
+        end: filterEndDate,
+        queries: [query],
+        formulas: [{ formula: queryName }],
+    };
 
-    try {
-        const res = await fetchTimeSeriesData(data);
-        if (res) {
-            rawTimeSeriesData = res;
-            updateDownloadButtons();
-            updateMetricsQueryParamsInUrl();
-            metricsQueryParams = data; // For alerts page
-        }
-    } catch (error) {
-        if (isAlertScreen) {
-            container = $('#metrics-graphs').find(`.metrics-graph .graph-canvas`);
-        }
-        if (isDashboardScreen) {
-            container = $('.panelDisplay');
-        }
-        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
-        throw new Error(errorMessage);
-    }
+    // Return the result to be handled by the caller
+    const result = await fetchTimeSeriesData(data);
+
+    // Update global state if successful
+    rawTimeSeriesData = result;
+    updateDownloadButtons();
+    updateMetricsQueryParamsInUrl();
+    metricsQueryParams = data; // For alerts page
+
+    return result;
 }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
@@ -2416,79 +2527,118 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 }
 
 async function fetchTimeSeriesData(data) {
-    return await $.ajax({
-        method: 'post',
-        url: 'metrics-explorer/api/v1/timeseries',
-        headers: { 'Content-Type': 'application/json; charset=utf-8', Accept: '*/*' },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data),
-    });
+    try {
+        // Show loading cursor
+        $('body').css('cursor', 'wait');
+
+        const response = await fetch('metrics-explorer/api/v1/timeseries', {
+            method: 'post',
+            headers: { 'Content-Type': 'application/json', Accept: '*/*' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch time series data');
+        }
+
+        return await response.json();
+    } finally {
+        // Reset cursor to default
+        $('body').css('cursor', 'default');
+    }
 }
 
 function getTagKeyValue(metricName) {
     return new Promise((resolve, reject) => {
-        let param = {
-            start: filterStartDate,
-            end: filterEndDate,
-            metric_name: metricName,
-        };
-        startQueryTime = new Date().getTime();
+        try {
+            $('body').css('cursor', 'wait');
 
-        $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/all_tags',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(param),
-            success: function (res) {
-                const availableEverywhere = [];
-                const availableEverything = [];
-                if (res && res.tagKeyValueSet) {
-                    availableEverything.push(res.uniqueTagKeys);
-                    for (let i = 0; i < res.tagKeyValueSet.length; i++) {
-                        let cur = res.tagKeyValueSet[i];
-                        availableEverywhere.push(cur);
+            let param = {
+                start: filterStartDate,
+                end: filterEndDate,
+                metric_name: metricName,
+            };
+            startQueryTime = new Date().getTime();
+
+            $.ajax({
+                method: 'post',
+                url: 'metrics-explorer/api/v1/all_tags',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    Accept: '*/*',
+                },
+                crossDomain: true,
+                dataType: 'json',
+                data: JSON.stringify(param),
+                success: function (res) {
+                    const availableEverywhere = [];
+                    const availableEverything = [];
+                    if (res && res.tagKeyValueSet) {
+                        availableEverything.push(res.uniqueTagKeys);
+                        for (let i = 0; i < res.tagKeyValueSet.length; i++) {
+                            let cur = res.tagKeyValueSet[i];
+                            availableEverywhere.push(cur);
+                        }
                     }
-                }
-                resolve({ availableEverywhere, availableEverything });
-            },
-            error: function (xhr, status, error) {
-                reject(error);
-            },
-        });
+                    $('body').css('cursor', 'default');
+                    resolve({ availableEverywhere, availableEverything });
+                },
+                error: function (xhr, status, error) {
+                    $('body').css('cursor', 'default');
+                    reject(error);
+                },
+            });
+        } catch (error) {
+            $('body').css('cursor', 'default');
+            reject(error);
+        }
     });
 }
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
-    let queryString;
-    let state = queryDetails.state;
+    const queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
 
+    if (!isAlertScreen && !isDashboardScreen) {
+        getOrCreateVisualizationContainer(queryName, queryString);
+    }
     try {
-        if (state === 'builder') {
-            queryString = createQueryString(queryDetails);
-        } else {
-            queryString = queryDetails.rawQueryInput;
-        }
-        await getMetricsData(queryName, queryString, state);
+        const queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
+
+        await getMetricsData(queryName, queryString, queryDetails.state);
         const chartData = await convertDataForChart(rawTimeSeriesData);
+
         if (isAlertScreen) {
             addVisualizationContainerToAlerts(queryName, chartData, queryString);
         } else {
             addVisualizationContainer(queryName, chartData, queryString);
         }
-    } catch (errorMessage) {
+    } catch (error) {
+        let container, mergedContainer, panelEditContainer;
+
         if (isAlertScreen) {
-            displayErrorMessage($('#metrics-graphs').find('.metrics-graph'), errorMessage);
+            container = $('#metrics-graphs').find('.metrics-graph .graph-canvas');
         } else if (isDashboardScreen) {
-            displayErrorMessage($(`.panelDisplay`), errorMessage);
+            container = $('.panelDisplay');
+            panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
         } else {
-            displayErrorMessage($('#metrics-graphs').find('.metrics-graph[data-query="' + queryName + '"]'), errorMessage);
+            container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"]`);
         }
+
+        mergedContainer = $('#merged-graph-container').find('.merged-graph');
+
+        const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
+
+        let errorContainer;
+        if (isAlertScreen) {
+            errorContainer = $('#metrics-graphs').find('.metrics-graph');
+        } else if (isDashboardScreen) {
+            errorContainer = $('.panelDisplay');
+        } else {
+            errorContainer = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"]`);
+        }
+
+        displayErrorMessage(errorContainer, errorMessage);
     }
 }
 
@@ -2573,18 +2723,19 @@ async function refreshMetricsGraphs() {
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
 
-    if (queries[firstKey].metrics) {
+    if (queries[firstKey].metrics || queries[firstKey].state === 'raw') {
         // only if the first query is not empty
         // Update graph for each query
         for (const queryName of Object.keys(queries)) {
             const queryDetails = queries[queryName];
-
-            const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
-            availableEverywhere = tagsAndValue.availableEverywhere.sort();
-            availableEverything = tagsAndValue.availableEverything[0].sort();
-            const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
-            queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
-            queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+            if (queryDetails.metrics) {
+                const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
+                availableEverywhere = tagsAndValue.availableEverywhere.sort();
+                availableEverything = tagsAndValue.availableEverything[0].sort();
+                const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+                queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+                queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+            }
 
             await handleQueryAndVisualize(queryName, queryDetails);
         }
@@ -2665,14 +2816,15 @@ function parsePromQL(queryDetails) {
         everything: [],
         aggFunction: 'avg by',
         functions: [],
-        state: queryDetails.state,
+        state: queryDetails.state || 'builder',
         rawQueryInput: queryDetails.query,
-        rawQueryExecuted: false,
+        rawQueryExecuted: queryDetails.state === 'raw',
     };
     let query = queryDetails.query;
 
-    if (queryDetails.state === 'raw') {
-        parseObject.rawQueryExecuted = true;
+    // If in raw state - no need to parse the query
+    if (parseObject.state === 'raw') {
+        return parseObject;
     }
 
     // Step 1: Extract the functions
@@ -2891,7 +3043,7 @@ $('#alert-from-metrics-btn').click(function () {
             } else {
                 queryString = queryDetails.rawQueryInput;
             }
-            const tquery = { name: queryName, query: `(${queryString})`, qlType: 'promql' };
+            const tquery = { name: queryName, query: `${queryString}`, qlType: 'promql' };
             mqueries.push(tquery);
         });
     }
@@ -2952,17 +3104,25 @@ async function populateMetricsQueryElement(metricsQueryParams) {
     for (const query of queries) {
         const parsedQueryObject = parsePromQL(query);
         await addQueryElementForAlertAndPanel(query.name, parsedQueryObject);
-    }
-    let formulasInUrl = 0;
-    while (isMetricsURL && formulasInUrl < formulas.length) {
-        await addMetricsFormulaElement(formulas[formulasInUrl].formula, formulas[formulasInUrl].formula);
-        formulasInUrl++;
-    }
-    if (!isMetricsURL) {
-        if (queries.length >= 1) {
-            await addAlertsFormulaElement(formulas[0].formula);
+
+        if (parsedQueryObject.state === 'raw') {
+            const queryElement = $(`.metrics-query .query-name:contains('${query.name}')`).closest('.metrics-query');
+            queryElement.find('.query-builder').hide();
+            queryElement.find('.raw-query').show();
+            queryElement.find('.raw-query-input').val(parsedQueryObject.rawQueryInput);
         }
     }
+
+    if (isMetricsURL && formulas.length > 0) {
+        for (let i = 0; i < formulas.length; i++) {
+            const uniqueId = generateUniqueId();
+            await addMetricsFormulaElement(uniqueId, formulas[i].formula);
+        }
+    } else if (!isMetricsURL && queries.length >= 1 && formulas.length > 0) {
+        await addAlertsFormulaElement(formulas[0].formula);
+    }
+
+    disableQueryRemoval();
 }
 function generateEmptyChartLabels(timeUnit, startTime, endTime) {
     const labels = [];

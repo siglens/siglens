@@ -442,7 +442,6 @@
   left: 50%;
   transform: translate(-50%, -50%);
   border-radius: 8px;
-  overflow-y: scroll;
 }
 
 /* PANEL EDIT NAV BAR */

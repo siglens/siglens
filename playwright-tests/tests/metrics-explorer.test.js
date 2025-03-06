@@ -145,10 +145,6 @@ test.describe('Metrics Explorer Tests', () => {
         await expect(page.locator('.raw-query')).toBeVisible();
     });
 
-    test('should show alias div', async ({ page }) => {
-        await page.click('.as-btn');
-        await expect(page.locator('.alias-filling-box')).toBeVisible();
-    });
 
     test('test add query', async ({ page }) => {
         await page.click('#add-query');
