@@ -840,7 +840,6 @@ body {
 /* Reset .menu.active to avoid broad application */
 #app-side-nav .menu.active {
     border-left: none !important; /* Prevent default active styling */
-    border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -5592,30 +5591,25 @@ p#versionInfo {
 #app-side-nav .menu.active .link-lookups,
 #app-side-nav .menu.active .link-infrastructure,
 #app-side-nav .menu.active .link-ingest {
-    border-left: 5px solid var(--side-nav-selected-border-color) !important; /* Orange bar for active menu */
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
 }
 
 /* Specific styling for Metrics dropdown */
+
 #app-side-nav .nav-metrics .menu-header {
     display: flex;
     align-items: center;
     width: 100%;
     min-height: 28px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
 }
 
-/* Apply active styling only to the menu-header with higher specificity */
+
 #app-side-nav .nav-metrics.active .menu-header {
-    border-left: 5px solid var(--side-nav-selected-border-color) !important; /* Orange bar for Metrics */
-    border-right: 5px solid var(--side-nav-bg-color-selected) !important;
-    background-color: var(--side-nav-bg-color-selected) !important;
+    color: white !important;
 }
 
-/* Hover state for menu-header */
 #app-side-nav .nav-metrics .menu-header:hover {
-    border-left: 5px solid var(--side-nav-selected-border-color);
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
@@ -5625,12 +5619,14 @@ p#versionInfo {
 /* Prevent .nav-metrics.active from affecting the entire section */
 #app-side-nav .nav-metrics.active {
     border-left: none !important;
+    border-right: none !important;
     background-color: transparent !important;
 }
 
 /* Ensure submenu container doesn't inherit active styling */
 #app-side-nav .nav-metrics.active .metrics-dropdown {
     border-left: none !important;
+    border-right: none !important;
     background-color: var(--side-nav-bg-color-regular) !important;
 }
 
@@ -5651,22 +5647,22 @@ p#versionInfo {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
+    padding-left: 20px;
 }
 
 .metrics-dropdown li {
+    margin-bottom: 2px;
     margin-bottom: 2px;
     font-weight: 600;
     height: 28px;
     display: flex;
     align-items: center;
-    padding-left: 30px;
+    padding-left: 20px;
     border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
 }
 
 .metrics-dropdown li:hover {
-    border-left: 5px solid transparent;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
@@ -5674,16 +5670,14 @@ p#versionInfo {
 
 /* Active state for submenu items */
 .metrics-dropdown li.active {
-    border-left: 2px solid #ff9500 !important; /* Orange bar for submenu */
     color: white !important;
+    border-left: 5px solid var(--side-nav-selected-border-color) !important; /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
-    border-right: 5px solid var(--side-nav-bg-color-selected) !important;
     border-radius: 0 5px 5px 0 !important;
 }
 
 .nav-dropdown-icon {
-    margin-left: auto;
-    padding-right: 8px;
+    padding: 2px;
     transition: transform 0.3s ease;
 }
 
