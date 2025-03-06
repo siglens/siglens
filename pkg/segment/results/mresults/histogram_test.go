@@ -62,4 +62,15 @@ func Test_histogramQuantile(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, math.IsNaN(value), "expected NaN; got %f", value)
 	})
+
+	t.Run("monotonicIncreasing", func(t *testing.T) {
+		bins := []histogramBin{{upperBound: 1, count: 4}, {upperBound: math.Inf(1), count: 3}}
+		_, err := histogramQuantile(0.5, bins)
+		assert.Error(t, err)
+
+		// There should be a little room for floating point errors.
+		bins = []histogramBin{{upperBound: 1, count: 2e12}, {upperBound: math.Inf(1), count: 2e12 - 1}}
+		_, err = histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+	})
 }

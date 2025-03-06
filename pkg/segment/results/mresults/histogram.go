@@ -18,6 +18,7 @@
 package mresults
 
 import (
+	"fmt"
 	"math"
 	"sort"
 )
@@ -27,6 +28,9 @@ type histogramBin struct {
 	count      float64
 }
 
+// This mimics PromQL's histogram_quantile function for classic histograms.
+// See https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile
+// for details.
 func histogramQuantile(quantile float64, bins []histogramBin) (float64, error) {
 	if quantile < 0 {
 		return math.Inf(-1), nil
@@ -48,6 +52,21 @@ func histogramQuantile(quantile float64, bins []histogramBin) (float64, error) {
 	lastBin := bins[len(bins)-1]
 	if !math.IsInf(lastBin.upperBound, 0) || lastBin.count == 0 {
 		return math.NaN(), nil
+	}
+
+	// Verify monotonically increasing counts.
+	prevCount := bins[0].count
+	for i := 1; i < len(bins); i++ {
+		if bins[i].count < prevCount {
+			sum := bins[i].count + prevCount
+			diff := prevCount - bins[i].count
+
+			if diff > sum*1e-12 {
+				return 0, fmt.Errorf("histogram counts are not monotonically increasing")
+			}
+		}
+
+		prevCount = bins[i].count
 	}
 
 	return 0, nil // TODO
