@@ -2,9 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/fasthttp"
-	"testing"
 )
 
 func TestProcessGetDependencies(t *testing.T) {
