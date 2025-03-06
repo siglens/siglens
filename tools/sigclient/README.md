@@ -11,60 +11,92 @@ Options:
 ```
   -b, --batchSize int        Batch size (default 100)
   -d, --dest string          Destination URL. Client will append /_bulk
-  -g, --generator string     type of generator to use. Options=[static,dynamic-user,file,benchmark]. If file is selected, -x/--filePath must be specified (default "static")
+  -g, --generator string     Type of generator to use. Options=[static,dynamic-user,file,benchmark,k8s]. If file is selected, -x/--filePath must be specified (default "static")
+  --ksm                      Generate only Kubernetes (kube-state-metrics) metrics (default false)
+  --node                     Generate only node-exporter metrics (default false)
+  --both                     Generate both Kubernetes and node-exporter metrics (default false)
   
-  -x, --filePath string      path to json file containing loglines to send to server
-  -h, --help                 help for ingest
+  -x, --filePath string      Path to JSON file containing log lines to send to server
+  -h, --help                 Help for ingest
   -i, --indexPrefix string   Index prefix to ingest (default "ind")
   -r, --bearerToken string   Bearer token of your org to ingest (default "")
-  -n, --numIndices int       number of indices to ingest to (default 1)
-  -p, --processCount int     Number of parallel process to ingest data from. (default 1)
+  -n, --numIndices int       Number of indices to ingest to (default 1)
+  -p, --processCount int     Number of parallel processes to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -s, --timestamp            If set, adds "timestamp" to the static/dynamic generators
   -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
 
   -c  continuous             If true, ignores -t and will continuously send docs to the destination
-  -o  --outputFile           filepath to output the query response Time results in csv format.
-  -t  --runResponseTime      If true, then the queries will be run and the response time will be recorded in the given/default outputFile in CSV Format.
-      --enableVariableNumColumns bool  Set this to true to generate variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns
-      --maxColumns  int      Maximum number of Columns to generate. By Default this value is set to 100.
-      --minColumns int       Minimum number of Columns to generate. Default value is 0. If 0, it will be set to maxColumns value.
+  -o  --outputFile           Filepath to output the query response time results in CSV format.
+  -t  --runResponseTime      If true, then the queries will be run and the response time will be recorded in the given/default outputFile in CSV format.
+      --enableVariableNumColumns bool  Set this to true to generate a variable number of columns per record. Each record will have a random number of columns between minColumns and maxColumns
+      --maxColumns  int      Maximum number of columns to generate. By default, this value is set to 100.
+      --minColumns int       Minimum number of columns to generate. Default value is 0. If 0, it will be set to maxColumns value.
 ```
 
-Different Types of Readers:
+### Kubernetes Metrics Generator (k8s)
+The k8s generator simulates Kubernetes and node-exporter metrics. Use the following flags to control the type of metrics generated:
 
-1. Static: Sends the same payload over and over
-2. Dynamic User: Randomly Generates user events. These random events are generated using [gofakeit](github.com/brianvoe/gofakeit/v6).
-3. File: Reads a file line by line. Expects each line is a new json. Will loop over file if necessary
+- `--ksm`: Generate only Kubernetes (kube-state-metrics) metrics.
+- `--node`: Generate only node-exporter metrics.
+- `--both`: Generate both Kubernetes and node-exporter metrics.
 
-To Ingest 200 columns per record:
+Example commands:
+```bash
+# Generate only Kubernetes metrics
+go run main.go ingest esbulk -g k8s --ksm -d http://localhost:8081/elastic -t 1000
 
+# Generate only node-exporter metrics
+go run main.go ingest esbulk -g k8s --node -d http://localhost:8081/elastic -t 1000
+
+# Generate both Kubernetes and node-exporter metrics
+go run main.go ingest esbulk -g k8s --both -d http://localhost:8081/elastic -t 1000
+```
+
+### Different Types of Readers
+- **Static**: Sends the same payload over and over.
+- **Dynamic User**: Randomly generates user events using [gofakeit](github.com/brianvoe/gofakeit/v6).
+- **File**: Reads a file line by line. Expects each line is a new JSON. Will loop over the file if necessary.
+- **Kubernetes (k8s)**: Generates Kubernetes (kube-state-metrics) and node-exporter metrics.
+
+Examples:
+To ingest 200 columns per record:
 ```bash
 go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 1000 -p 1 --enableVariableNumColumns true --maxColumns 200
 ```
 
-To Ingest variable number of Columns between 50 to 200. Each record will have columns count between 50 and 200.
-
+To ingest a variable number of columns between 50 and 200:
 ```bash
 go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 1000 -p 1 --enableVariableNumColumns true --maxColumns 200 --minColumns 50
 ```
 
-
-### OTSDB
+## OTSDB
 To send ingestion traffic to a server using OTSDB:
 ```bash
 go run main.go ingest metrics -d http://localhost:8081/otsdb -t 10_000  -m 5 -p 1
 ```
 Options:
 ```
-  -m, --metrics int   Number of different metric names to send (default 1000)
+  -m, --metrics int          Number of different metric names to send (default 1000)
   -r, --bearerToken string   Bearer token of your org to ingest (default "")
   -b, --batchSize int        Batch size (default 100)
   -d, --dest string          Server URL.
-  -p, --processCount int     Number of parallel process to ingest data from. (default 1)
+  -p, --processCount int     Number of parallel processes to ingest data from. (default 1)
   -t, --totalEvents int      Total number of events to send (default 1000000)
   -u, --uniqueness int       Cardinality (uniqueness) of the data (default 2000000)
   -e, --eventsPerDay uint    Number of events to ingest per day. If set, the ingestion mode will be assumed to be continuous.
+```
+
+Example commands:
+```bash
+# Generate only Kubernetes metrics
+go run main.go ingest metrics -g k8s --ksm -d http://localhost:8081/otsdb -t 1000
+
+# Generate only node-exporter metrics
+go run main.go ingest metrics -g k8s --node -d http://localhost:8081/otsdb -t 1000
+
+# Generate both Kubernetes and node-exporter metrics
+go run main.go ingest metrics -g k8s --both -d http://localhost:8081/otsdb -t 1000
 ```
 
 ## Query
