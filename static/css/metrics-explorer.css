@@ -97,7 +97,6 @@ input:checked+.slider:before {
 }
 
 #metrics-explorer .btn {
-    border: 1px solid var(--border-btn-color);
     margin-right: 8px;
 }
 
@@ -173,15 +172,12 @@ input:checked+.slider:before {
 
 .formula-arrow {
     cursor: pointer;
-    border-radius: 5px 5px 0px 0px;
+    border-radius: 5px 0px 0px 5px;
     background-color: var(--purple-2);
     color: var(--white);
-    border: none !important;
-    font-weight: bolder;
     height: 26px;
     width: 26px;
     padding: 3px 6px;
-    transform: rotate(270deg);
 }
 
 .metrics-query input:focus,
@@ -247,7 +243,7 @@ input:checked+.slider:before {
 }
 
 .metrics-query .query-name.active {
-    padding: 12px;
+    padding: 10px;
     border-radius: 5px 0 0 5px;
     background-color: var(--purple-2);
     color: var(--white);
@@ -360,6 +356,9 @@ input:checked+.slider:before {
     font-weight: 600;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px 5px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #visualization-options div {
@@ -378,6 +377,10 @@ input:checked+.slider:before {
 
 .alias-box {
     margin-right: 10px;
+}
+
+.raw-query-btn svg {
+    width: 15px;
 }
 
 .alias-box .as-btn,
@@ -593,7 +596,7 @@ input:checked+.slider:before {
     position: absolute;
     top: 100%;
     left: 0;
-    min-width: 270px;
+    min-width: 238px;
     padding: 0 !important;
     border: none !important;
     z-index: 999;

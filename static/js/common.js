@@ -1115,7 +1115,7 @@ function getMetricsQData() {
 
         const query = {
             name: queryName,
-            query: `(${queryString})`,
+            query: `${queryString}`,
             qlType: 'promql',
             state: queryDetails.state,
         };
@@ -1144,7 +1144,7 @@ function getMetricsQData() {
 
                 return {
                     name: name,
-                    query: `(${queryString})`,
+                    query: `${queryString}`,
                     qlType: 'promql',
                 };
             });
