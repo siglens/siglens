@@ -305,8 +305,13 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 	startEpoch = convertEpochToMilliseconds(startEpoch)
 	endEpoch = convertEpochToMilliseconds(endEpoch)
 
+	if service == "" {
+		service = "*"
+	} else {
+		service = "service=" + service
+	}
 	searchRequestBody := structs.SearchRequestBody{
-		SearchText: "service=" + service,
+		SearchText: service,
 		StartEpoch: strconv.FormatInt(startEpoch, 10),
 		EndEpoch:   strconv.FormatInt(endEpoch, 10),
 		From:       0,
@@ -358,14 +363,7 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 			Spans:   spans,
 		}
 
-		processes := map[string]Process{
-			"p1": {ServiceName: "frontend"},
-			"p2": {ServiceName: "route"},
-			"p3": {ServiceName: "redis-manual"},
-			"p4": {ServiceName: "driver"},
-			"p5": {ServiceName: "customer"},
-			"p6": {ServiceName: "mysql"},
-		}
+		processes := make(map[string]Process)
 		traceData.Processes = processes
 
 		allTraceData = append(allTraceData, traceData)
