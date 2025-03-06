@@ -343,11 +343,19 @@ function formulaRemoveHandler(formulaElement, uniqueId) {
     formulaElement.find('.remove-query').on('click', function () {
         if (isAlertScreen) {
             var formulaBtn = $('#add-formula');
+
+            if (formulaBtn[0] && formulaBtn[0]._tippy) {
+                formulaBtn[0]._tippy.destroy();
+            }
+
+            formulaBtn.css('cursor', 'pointer');
+
             formulas = {};
             formulaElement.remove();
             formulaBtn.prop('disabled', false);
             activateFirstQuery();
             $('.metrics-query .remove-query').removeClass('disabled').css('cursor', 'pointer').removeAttr('title');
+            disableQueryRemoval();
         } else {
             delete formulas[uniqueId];
             formulaElement.remove();
@@ -468,12 +476,22 @@ async function addAlertsFormulaElement(formulaInput) {
     }
     appendFormulaFunctionAlertDiv(formulaElement, formulas[uniqueId].functions || []);
     updateTooltipForFormulaFunctions(uniqueId, validationResult);
+    disableQueryRemoval();
     funcApplied = false;
     getMetricsDataForFormula(uniqueId, formulaDetailsMap[uniqueId]);
+
     let formulaElements = $('.formula-arrow');
     let formulaBtn = $('#add-formula');
+
     if (formulaElements.length > 0) {
-        formulaBtn.prop('disabled', true);
+        formulaBtn.css('cursor', 'not-allowed');
+
+        if (!formulaBtn[0]._tippy) {
+            tippy(formulaBtn[0], {
+                content: 'Only one formula is supported for this type of alert.',
+            });
+        }
+
         $('#metrics-queries .metrics-query .query-name').removeClass('active');
     }
     initializeFormulaFunction(formulaElement, uniqueId);
@@ -618,13 +636,13 @@ function updateTooltipForFormulaFunctions(uniqueId, validationResult) {
             }
         });
 
-        if (formulaButton[0]._tippy) {
+        if (formulaButton.length > 0 && formulaButton[0]._tippy) {
             formulaButton[0]._tippy.destroy();
         }
 
         allSelectedFunctions.removeClass('error');
 
-        if (allSelectedFunctions[0] && allSelectedFunctions[0]._tippy) {
+        if (allSelectedFunctions.length > 0 && allSelectedFunctions[0]._tippy) {
             allSelectedFunctions[0]._tippy.destroy();
         }
     }
