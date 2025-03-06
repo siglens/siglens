@@ -342,6 +342,18 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	// And this group by Aggregation should not be done on the initial Aggregation.
 	hasAggExpr := hasNestedAggregateExpr(expr.Expr)
 
+	if len(expr.Grouping) > 0 {
+		mQuery.Groupby = true
+	}
+
+	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
+	mQuery.FirstAggregator.Without = expr.Without
+
+	if expr.Without {
+		mQuery.SelectAllSeries = true
+		mQuery.GetAllLabels = true
+	}
+
 	// Handle grouping
 	for _, group := range expr.Grouping {
 		if group == "__name__" {
@@ -355,14 +367,11 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 			TagOperator:     segutils.TagOperator(segutils.Equal),
 			LogicalOperator: segutils.And,
 			NotInitialGroup: hasAggExpr,
+			IgnoreTag:       expr.Without,
+			IsGroupByKey:    true,
 		}
 		mQuery.TagsFilters = append(mQuery.TagsFilters, &tagFilter)
 	}
-	if len(expr.Grouping) > 0 {
-		mQuery.Groupby = true
-	}
-
-	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
@@ -451,7 +460,17 @@ func handleCallExprMatrixSelectorNode(expr *parser.Call, mQueryReq *structs.Metr
 
 	mQuery := &mQueryReq.MetricsQuery
 
-	if mQuery.TagsFilters != nil {
+	if len(mQuery.TagsFilters) > 0 {
+		if mQuery.Groupby {
+			// If group by is already set, then the tagFilters that are added because of the group by should not be initial group
+			// As this grouping affects this range function group by
+			for _, tag := range mQuery.TagsFilters {
+				if tag.IsGroupByKey {
+					tag.NotInitialGroup = true
+				}
+			}
+		}
+
 		mQuery.Groupby = true
 	}
 
