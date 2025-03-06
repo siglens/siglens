@@ -372,7 +372,7 @@ $(document).ready(function () {
     $('.navbar-submenu').hide();
     $('.help-options').hide();
 
-     // Improve the metrics dropdown toggling
+
      $('.nav-metrics .menu-header').on('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -390,18 +390,17 @@ $(document).ready(function () {
         $menu.toggleClass('active', !isVisible);
         $arrow.toggleClass('rotated', !isVisible);
 
-        // Store only the dropdown state
+
         localStorage.setItem('metricsDropdownOpen', !isVisible ? 'true' : 'false');
     };
 
     // Check current URL to activate submenu items
     function highlightActiveSubmenu() {
-        // First, remove any existing active classes
+
         $('.metrics-dropdown li').removeClass('active');
 
         const currentPath = window.location.pathname.split('/').pop();
 
-        // Only highlight submenu items if their URL matches the current page
         $('.metrics-dropdown a').each(function() {
             const href = $(this).attr('href');
             const hrefPath = href.split('/').pop();
@@ -410,19 +409,19 @@ $(document).ready(function () {
                 const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                 $li.addClass('active');
 
-                // Ensure dropdown is open when a submenu page is active
+
                 const $menu = $li.closest('.nav-metrics');
                 $menu.addClass('active');
                 $menu.find('.metrics-dropdown').show();
                 $menu.find('.nav-dropdown-icon').addClass('rotated');
 
-                // Store that the dropdown should be open
+
                 localStorage.setItem('metricsDropdownOpen', 'true');
             }
         });
     }
 
-    // Restore dropdown state (open/closed) on page load
+    // Restore dropdown state on page reload
     function restoreDropdownState() {
         const isOpen = localStorage.getItem('metricsDropdownOpen') === 'true';
         const $metricsMenu = $('.nav-metrics');
@@ -438,13 +437,10 @@ $(document).ready(function () {
         }
     }
 
-    // Prevent dropdown from closing when clicking submenu items
     $('.metrics-dropdown a').on('click', function(e) {
         e.stopPropagation();
-        // No need to add highlighting here as it will be handled on page load
     });
 
-    // Run initialization functions
     restoreDropdownState();
     highlightActiveSubmenu();
 });
@@ -604,16 +600,6 @@ function initializeDropdowns() {
         });
     });
 
-    // Check active menu items for Metrics
-    // const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    // menuItem.forEach((item) => {
-    //     if (item.href === window.location.href || item.href === window.location.pathname) {
-    //         console.log("Activating submenu item:", item.href, "Current URL:", window.location.href);
-    //         item.parentElement.classList.add('active');
-    //         $(item).closest('.metrics-dropdown').show();
-    //         $(item).closest('.nav-metrics').addClass('active');
-    //     }
-    // });
 }
 
 function setupHamburgerBehavior() {
