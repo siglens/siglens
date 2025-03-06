@@ -17,10 +17,13 @@
 
 package mresults
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 type histogramBin struct {
-	upperBound uint64 // inclusive
+	upperBound float64 // inclusive
 	count      float64
 }
 
@@ -32,6 +35,18 @@ func histogramQuantile(quantile float64, bins []histogramBin) (float64, error) {
 		return math.Inf(1), nil
 	}
 	if math.IsNaN(quantile) {
+		return math.NaN(), nil
+	}
+	if len(bins) < 2 {
+		return math.NaN(), nil
+	}
+
+	sort.Slice(bins, func(i, j int) bool {
+		return bins[i].upperBound < bins[j].upperBound
+	})
+
+	lastBin := bins[len(bins)-1]
+	if !math.IsInf(lastBin.upperBound, 0) || lastBin.count == 0 {
 		return math.NaN(), nil
 	}
 

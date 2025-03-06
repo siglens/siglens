@@ -38,4 +38,28 @@ func Test_histogramQuantile(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, math.IsNaN(value), "expected NaN; got %f", value)
 	})
+
+	t.Run("insufficientData", func(t *testing.T) {
+		bins := []histogramBin{}
+		value, err := histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+		assert.True(t, math.IsNaN(value), "expected NaN; got %f", value)
+
+		bins = []histogramBin{{upperBound: 1, count: 1}}
+		value, err = histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+		assert.True(t, math.IsNaN(value), "expected NaN; got %f", value)
+
+		bins = []histogramBin{{upperBound: 1, count: 0}, {upperBound: math.Inf(1), count: 0}}
+		value, err = histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+		assert.True(t, math.IsNaN(value), "expected NaN; got %f", value)
+	})
+
+	t.Run("badHighestBin", func(t *testing.T) {
+		bins := []histogramBin{{upperBound: 1, count: 1}, {upperBound: 10, count: 1}}
+		value, err := histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+		assert.True(t, math.IsNaN(value), "expected NaN; got %f", value)
+	})
 }
