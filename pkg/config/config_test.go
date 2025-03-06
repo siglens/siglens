@@ -99,7 +99,8 @@ func Test_ExtractConfigData(t *testing.T) {
  tls:
    mtlsEnabled: true
    clientCaPath: "/path/to/ca.pem"
- `),
+ pauseMode: true
+`),
 			common.Configuration{
 				IngestListenIP:              "[::]",
 				QueryListenIP:               "[::]",
@@ -156,6 +157,8 @@ func Test_ExtractConfigData(t *testing.T) {
 					MtlsEnabled:  utils.DefaultValue(false).Set(true),
 					ClientCaPath: "/path/to/ca.pem",
 				},
+				PauseMode:          "true",
+				PauseModeConverted: true,
 			},
 		},
 		{ // case 2 - For wrong input type, show error message
@@ -205,6 +208,7 @@ func Test_ExtractConfigData(t *testing.T) {
  tls:
    mtlsEnabled: bad string
    clientCaPath: ""
+ pauseMode: bad string
  `),
 
 			common.Configuration{
@@ -263,6 +267,8 @@ func Test_ExtractConfigData(t *testing.T) {
 					MtlsEnabled:  utils.DefaultValue(false),
 					ClientCaPath: "",
 				},
+				PauseMode:          "false",
+				PauseModeConverted: false,
 			},
 		},
 		{ // case 3 - Error out on bad yaml
@@ -321,6 +327,8 @@ invalid input, we should error out
 					MtlsEnabled:  utils.DefaultValue(false),
 					ClientCaPath: "",
 				},
+				PauseMode:          "false",
+				PauseModeConverted: false,
 			},
 		},
 		{ // case 4 - For no input, pick defaults
@@ -382,6 +390,8 @@ a: b
 					MtlsEnabled:  utils.DefaultValue(false),
 					ClientCaPath: "",
 				},
+				PauseMode:          "false",
+				PauseModeConverted: false,
 			},
 		},
 	}
