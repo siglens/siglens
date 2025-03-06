@@ -230,6 +230,8 @@ export default [
                 updatePaginationDisplay: true,
                 refreshColumnVisibility: true,
                 initializeBreadcrumbs: true,
+                lucide: true,
+                tippy: true,
             },
         },
         rules: {
