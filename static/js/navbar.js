@@ -18,12 +18,21 @@
  */
 
 let navbarComponent = `
-    <div>
-        <div class="nav-main-menu logo">
-            <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
-            </a>
+<div class="nav-header">
+    <div class="sl-hamburger" id="navbar-toggle">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"></line>
+            <line x1="4" x2="20" y1="6" y2="6"></line>
+            <line x1="4" x2="20" y1="18" y2="18"></line>
+        </svg>
         </div>
-     
+    <div class="nav-main-menu logo">
+        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
+        </a>
+    </div>
+</div>
+<div class="d-flex justify-content-between h-100 flex-column">
+    <div>
         <div class="menu nav-search">
             <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
@@ -141,6 +150,24 @@ let navbarComponent = `
     </div>
 `;
 
+const headerHTML = `
+<div class="sl-header">
+    <div class="sl-hamburger" id="navbar-toggle">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"></line>
+            <line x1="4" x2="20" y1="6" y2="6"></line>
+            <line x1="4" x2="20" y1="18" y2="18"></line>
+        </svg>
+    </div>
+    <div class="nav-main-menu logo">
+        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
+        </a>
+    </div>
+    <div class="sl-breadcrumb-container">
+        <ul class="sl-breadcrumb" id="sl-breadcrumb"></ul>
+    </div>
+</div>`;
+
 let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
@@ -162,61 +189,266 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
+const navigationStructure = {
+    'index.html': {
+        activeClass: 'nav-search',
+        breadcrumbs: [{ name: 'Logs'}]
+    },
+    'metrics-explorer.html': {
+        activeClass: 'nav-metrics',
+        temporaryDisableHover: true,
+        breadcrumbs: [{ name: 'Metrics Explorer'}]
+    },
+    'metric-summary.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics Summary'}
+        ]
+    },
+    'metric-cardinality.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics Cardinality' }
+        ]
+    },
+    'service-health.html': {
+        activeClass: 'nav-traces',
+        temporaryDisableHover: true,
+        breadcrumbs: [
+            { name: 'APM', noLink: true},
+            { name: 'Service Health (RED)' }
+        ],
+        upperNavTabs: 'tracingUpperNavTabs'
+    },
+    'service-health-overview.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [
+            { name: 'APM', noLink: true},
+            { name: 'Service Health' }
+        ],
+    },
+    'search-traces.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [
+            { name: 'APM', url: './service-health.html', noLink: true },
+            { name: 'Search Traces'}
+        ],
+        upperNavTabs: 'tracingUpperNavTabs'
+    },
+    'dependency-graph.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [
+            { name: 'APM', noLink: true},
+            { name: 'Dependency Graph', url: './dependency-graph.html' }
+        ],
+        upperNavTabs: 'tracingUpperNavTabs'
+    },
+    'all-alerts.html': {
+        activeClass: 'nav-alerts',
+        breadcrumbs: [{ name: 'Alerting', url: './all-alerts.html' },
+                      { name: 'Alert Rules'}],
+        upperNavTabs: 'alertsUpperNavTabs'
+    },
+    'contacts.html': {
+        activeClass: 'nav-alerts',
+        breadcrumbs: [
+            { name: 'Alerting', url: './all-alerts.html' },
+            { name: 'Contact Points'}
+        ],
+        upperNavTabs: 'alertsUpperNavTabs'
+    },
+    'alert.html': {
+        activeClass: 'nav-alerts',
+    },
+    'alert-details.html': {
+        activeClass: 'nav-alerts',
+    },
+    'all-slos.html': {
+        activeClass: 'nav-slos',
+        breadcrumbs: [{ name: 'SLOs'}],
+        upperNavTabs: 'sloTabs'
+    },
+    'dashboards-home.html': {
+        activeClass: 'nav-ldb',
+        breadcrumbs: [{ name: 'Dashboards'}]
+    },
+    'dashboard.html': {
+        activeClass: 'nav-ldb',
+    },
+    'saved-queries.html': {
+        activeClass: 'nav-usq',
+        breadcrumbs: [{ name: 'Saved Queries'}]
+    },
+    'minion-searches.html': {
+        activeClass: 'nav-minion',
+        breadcrumbs: [{ name: 'Minion Searches'}]
+    },
+    'lookups.html': {
+        activeClass: 'nav-lookups',
+        breadcrumbs: [{ name: 'Lookups'}]
+    },
+    'infrastructure.html': {
+        activeClass: 'nav-infrastructure',
+        breadcrumbs: [{ name: 'Infrastructure'}]
+    },
+    'test-data.html': {
+        activeClass: 'nav-ingest',
+        temporaryDisableHover: true,
+        breadcrumbs: [{ name: 'Log Ingestion Methods'}]
+    },
+    'metrics-ingestion.html': {
+        activeClass: 'nav-ingest',
+        breadcrumbs: [{ name: 'Metrics Ingestion Methods'}]
+    },
+    'traces-ingestion.html': {
+        activeClass: 'nav-ingest',
+        breadcrumbs: [{ name: 'Traces Ingestion Methods'}]
+    }
+};
+
+// Pages related to My Org section
+const orgPages = {
+    'cluster-stats.html': { 
+        name: 'Cluster Stats',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Cluster Stats' }
+        ]
+    }, 
+    'org-settings.html': { 
+        name: 'Org Settings',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Org Settings' }
+        ]
+    }, 
+    'application-version.html': { 
+        name: 'Version',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Version' }
+        ]
+    }, 
+    'query-stats.html': { 
+        name: 'Query Stats',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Query Stats' }
+        ]
+    }, 
+    'pqs-settings.html': { 
+        name: 'PQS Settings',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'PQS Settings' }
+        ]
+    }, 
+    'diagnostics.html': { 
+        name: 'Diagnostics',
+        breadcrumbs: [
+            { name: 'My Org', noLink: true},
+            { name: 'Diagnostics' }
+        ]
+    },
+    {{ .OrgUpperNavUrls }}
+};
+
 $(document).ready(function () {
+    $('#app-side-nav').before(headerHTML);
     $('#app-side-nav').prepend(navbarComponent);
+    
+    setupNavigationState();
+    
+    initializeDropdowns();
+    
+    setupHamburgerBehavior();
+    
+    $('.navbar-submenu').hide();
+    $('.help-options').hide();
+});
+
+function setupNavigationState() {
     const currentUrl = window.location.href;
-
-
-    if (currentUrl.includes('index.html')) {
-        $('.nav-search').addClass('active');
-    } else if (currentUrl.includes('metrics-explorer.html')) {
-        $('.nav-metrics').addClass('active');
-        $('.nav-metrics').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-metrics').removeClass('disable-hover');
-        }, 500);
-    } else if (currentUrl.includes('metric-summary.html')) {
-        $('.nav-metrics').addClass('active');
-    } else if (currentUrl.includes('metric-cardinality.html')) {
-        $('.nav-metrics').addClass('active');
-    } else if (currentUrl.includes('dashboards-home.html') || currentUrl.includes('dashboard.html')) {
-        $('.nav-ldb').addClass('active');
-    } else if (currentUrl.includes('saved-queries.html')) {
-        $('.nav-usq').addClass('active');
-    } else if (currentUrl.includes('alerts.html') || currentUrl.includes('alert.html') || currentUrl.includes('alert-details.html') || currentUrl.includes('contacts.html')) {
-        $('.nav-alerts').addClass('active');
-        $('.alerts-nav-tab').appendOrgNavTabs('Alerting', alertsUpperNavTabs);
-    } else if (currentUrl.includes('all-slos.html')) {
-        $('.nav-slos').addClass('active');
-        $('.alerts-nav-tab').appendOrgNavTabs('SLOs', []);
-    } else if (currentUrl.includes('cluster-stats.html') || currentUrl.includes('org-settings.html') || currentUrl.includes('application-version.html')|| currentUrl.includes('query-stats.html')  || currentUrl.includes('pqs-settings.html') {{ .OrgUpperNavUrls }}
-    ||  currentUrl.includes('diagnostics.html')) {
-        $('.nav-myorg').addClass('active');
-        $('.org-nav-tab').appendOrgNavTabs('My Org', orgUpperNavTabs);
-    } else if (currentUrl.includes('minion-searches.html')) {
-        $('.nav-minion').addClass('active');
-    } else if (currentUrl.includes('live-tail.html')) {
-        $('.nav-live').addClass('active');
-    } else if (currentUrl.includes('service-health.html') || currentUrl.includes('service-health-overview.html') || currentUrl.includes('dependency-graph.html') || currentUrl.includes('search-traces.html')) {
-        $('.nav-traces').addClass('active');
-        $('.nav-traces').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-traces').removeClass('disable-hover');
-        }, 500);
-        if ($('.subsection-navbar').length) {
-            $('.subsection-navbar').appendOrgNavTabs('APM', tracingUpperNavTabs);
-        }
-    } else if (currentUrl.includes('test-data.html') || currentUrl.includes('metrics-ingestion.html') || currentUrl.includes('traces-ingestion.html')) {
-        $('.nav-ingest').addClass('active');
-        $('.nav-ingest').addClass('disable-hover');
-        setTimeout(function () {
-            $('.nav-ingest').removeClass('disable-hover');
-        }, 500);
-    } else if (currentUrl.includes('lookups.html')) {
-        $('.nav-lookups').addClass('active');
+    let matchedConfig = null;
+    let isOrgPage = false;
+    
+    if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
+        matchedConfig = navigationStructure['index.html'];
     } 
+    else{
+        for (const [urlKey, config] of Object.entries(navigationStructure)) {
+            if (currentUrl.includes(urlKey)) {
+                matchedConfig = config;
+                break;
+            }
+        }
+    }
+    
+    // Check for org pages if no exact match
+    if (!matchedConfig) {
 
-    // Hover event handlers updated to respect disable-hover class
+        for (const page of Object.keys(orgPages)) {
+            if (currentUrl.includes(page)) {
+                isOrgPage = true;
+                orgPageConfig = orgPages[page];
+                break;
+            }
+        }        
+        if (isOrgPage) {
+            matchedConfig = {
+                activeClass: 'nav-myorg',
+                breadcrumbs: orgPageConfig.breadcrumbs,
+                upperNavTabs: 'orgUpperNavTabs'
+            };
+        }
+    }
+    
+    if (!matchedConfig) {
+        // Check each org page
+        for (const [page, config] of Object.entries(orgPages)) {
+            if (currentUrl.includes(page)) {
+                isOrgPage = true;
+                orgPageConfig = config;
+                break;
+            }
+        }
+        
+        if (isOrgPage) {
+            matchedConfig = {
+                activeClass: 'nav-myorg',
+                breadcrumbs: orgPageConfig.breadcrumbs,
+                upperNavTabs: 'orgUpperNavTabs'
+            };
+        }
+    }
+    if (matchedConfig) {
+        $(`.${matchedConfig.activeClass}`).addClass('active');
+        
+        if (matchedConfig.temporaryDisableHover) {
+            $(`.${matchedConfig.activeClass}`).addClass('disable-hover');
+            setTimeout(function () {
+                $(`.${matchedConfig.activeClass}`).removeClass('disable-hover');
+            }, 500);
+        }
+        
+        initializeBreadcrumbs(matchedConfig.breadcrumbs);
+        
+        if (matchedConfig.upperNavTabs) {
+            if (matchedConfig.upperNavTabs === 'tracingUpperNavTabs' && $('.subsection-navbar').length) {
+                $('.subsection-navbar').appendOrgNavTabs(tracingUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'alertsUpperNavTabs') {
+                $('.alerts-nav-tab').appendOrgNavTabs(alertsUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'orgUpperNavTabs') {
+                $('.org-nav-tab').appendOrgNavTabs(orgUpperNavTabs);
+            } else if (matchedConfig.upperNavTabs === 'sloTabs') {
+                $('.alerts-nav-tab').appendOrgNavTabs([]);
+            }
+        }
+    }
+}
+
+function initializeDropdowns() {
+    // Metrics dropdown behavior
     $('.metrics-dropdown-toggle').hover(
         function () {
             if (!$(this).closest('.menu').hasClass('disable-hover')) {
@@ -230,6 +462,7 @@ $(document).ready(function () {
         }
     );
 
+    // Tracing dropdown behavior
     $('.tracing-dropdown-toggle').hover(
         function () {
             if (!$(this).closest('.menu').hasClass('disable-hover')) {
@@ -243,6 +476,7 @@ $(document).ready(function () {
         }
     );
 
+    // Ingestion dropdown behavior
     $('.ingestion-dropdown-toggle').hover(
         function () {
             if (!$(this).closest('.menu').hasClass('disable-hover')) {
@@ -256,6 +490,7 @@ $(document).ready(function () {
         }
     );
 
+    // Help dropdown behavior
     $('.nav-help').hover(
         function (event) {
             event.stopPropagation();
@@ -267,51 +502,121 @@ $(document).ready(function () {
             event.preventDefault();
             $('.help-options').stop(true, true).slideUp(30);
         }
-    );
-
-    // Prevent the default click action for Help & Support
-    $('.nav-help').on('click', function (event) {
+    ).on('click', function (event) {
         event.preventDefault();
     });
 
-    // Handle the hover event for the help-options to keep it visible
+    // Help options hover behavior
     $('.help-options').hover(
         function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $('.help-options').stop(true, true).slideDown(0);
+            $(this).stop(true, true).slideDown(0);
         },
         function (event) {
             event.stopPropagation();
             event.preventDefault();
-            $('.help-options').stop(true, true).slideUp(30);
+            $(this).stop(true, true).slideUp(30);
         }
     );
 
+    // Close dropdowns when clicking elsewhere
     $(document).on('click', function (event) {
-        var helpOptions = $('.help-options');
-        var metricsDropdown = $('.metrics-dropdown');
-        var tracesDropdown = $('.traces-dropdown');
-        var ingestionDropdown = $('.ingestion-dropdown');
+        const dropdowns = [
+            { selector: '.metrics-dropdown', condition: $('.metrics-dropdown').is(event.target) || $('.metrics-dropdown').has(event.target).length > 0 },
+            { selector: '.traces-dropdown', condition: $('.traces-dropdown').is(event.target) || $('.traces-dropdown').has(event.target).length > 0 },
+            { selector: '.ingestion-dropdown', condition: $('.ingestion-dropdown').is(event.target) || $('.ingestion-dropdown').has(event.target).length > 0 },
+            { selector: '.help-options', condition: $('.help-options').is(event.target) || $('.help-options').has(event.target).length > 0 }
+        ];
 
-        if (!metricsDropdown.is(event.target) && metricsDropdown.has(event.target).length === 0) {
-            metricsDropdown.hide();
-        }
-        if (!tracesDropdown.is(event.target) && tracesDropdown.has(event.target).length === 0) {
-            tracesDropdown.hide();
-        }
-        if (!ingestionDropdown.is(event.target) && ingestionDropdown.has(event.target).length === 0) {
-            ingestionDropdown.hide();
-        }
-        if (!helpOptions.is(event.target) && helpOptions.has(event.target).length === 0) {
-            helpOptions.slideUp(0);
-        }
+        dropdowns.forEach(dropdown => {
+            if (!dropdown.condition) {
+                $(dropdown.selector).hide();
+            }
+        });
     });
-
+    
+    // Check active menu items
     const menuItem = document.querySelectorAll('.metrics-dropdown a');
     menuItem.forEach((item) => {
-        if (item.href === currentUrl) {
+        if (item.href === window.location.href) {
             item.classList.add('active');
         }
     });
-});
+}
+
+function setupHamburgerBehavior() {
+    const navbarToggle = $('#navbar-toggle');
+    const appSideNav = $('#app-side-nav');
+    let navTimeout;
+
+    navbarToggle.on('mouseenter', function () {
+        clearTimeout(navTimeout);
+        $('body').addClass('nav-expanded');
+    });
+
+    appSideNav.on('mouseenter', function () {
+        clearTimeout(navTimeout);
+    });
+
+    appSideNav.on('mouseleave', function () {
+        navTimeout = setTimeout(function () {
+            $('body').removeClass('nav-expanded');
+        }, 300);
+    });
+
+    navbarToggle.on('mouseleave', function (e) {
+        if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
+            navTimeout = setTimeout(function () {
+                $('body').removeClass('nav-expanded');
+            }, 300);
+        }
+    });
+
+    navbarToggle.on('click', function (e) {
+        e.stopPropagation();
+        $('body').toggleClass('nav-expanded');
+    });
+
+    $(document).on('click', function (e) {
+        if (!appSideNav.is(e.target) && !appSideNav.has(e.target).length &&
+            !navbarToggle.is(e.target) && !navbarToggle.has(e.target).length) {
+            $('body').removeClass('nav-expanded');
+        }
+    });
+}
+
+function initializeBreadcrumbs(breadcrumbConfig) {
+    const breadcrumb = $('#sl-breadcrumb');
+    breadcrumb.empty();
+    
+    if (breadcrumbConfig && breadcrumbConfig.length) {
+        $.each(breadcrumbConfig, function(index, crumb) {
+            const li = $('<li>');
+            let a;
+            
+            if ((index === breadcrumbConfig.length - 1) || crumb.noLink) {
+                // For the last item or explicitly non-clickable items, create a span instead of a link
+                a = $('<span>')
+                    .addClass('breadcrumb-text')
+                    .text(crumb.name);
+                
+                if (index === breadcrumbConfig.length - 1) {
+                    a.addClass('active');
+                }
+            } else {
+                a = $('<a>')
+                    .attr('href', crumb.url || '#')
+                    .text(crumb.name);
+            }
+            
+            li.append(a);
+            breadcrumb.append(li);
+            
+            if (index < breadcrumbConfig.length - 1) {
+                const arrow = $('<span>').addClass('dashboard-arrow');
+                breadcrumb.append(arrow);
+            }
+        });
+    }
+}

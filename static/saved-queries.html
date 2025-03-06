@@ -42,7 +42,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -64,11 +64,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <div id="app-container">
         <div id="app-side-nav">
         </div>
-        <div id="dashboard" class="p-3">
+        <div id="dashboard" class="p-4">
             <div id="sq-search-container">
-                <div>
-                    <h1 class="myOrg-heading">Saved Queries</h1>
-                </div>
                 <div>
                     <input type="text" class="form-control" id="sq-filter-input" placeholder="Search for saved queries"
                         title="Search your saved queries">
@@ -94,15 +91,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
     </div>
 
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/available-fields.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/saved-query.js?cb=1_1_10"></script>
-    <script src="./js/saved-queries.js?cb=1_1_10"></script>
-    <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/navbar.js?cb=1_1_10"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/saved-query.js?cb={{ AppVersion }}"></script>
+    <script src="./js/saved-queries.js?cb={{ AppVersion }}"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

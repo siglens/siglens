@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nethruster/go-fraction"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -91,7 +92,7 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	if downsampleAggFn == utils.Avg {
 		convertedDownsampleAggFn = utils.Sum
 	}
-	aggregationConstant := mQuery.Aggregator.FuncConstant
+	aggregationConstant := mQuery.FirstAggregator.FuncConstant
 
 	retVal := make([]Entry, initial_len, extend_capacity)
 	return &Series{
@@ -245,9 +246,9 @@ func ApplyAggregationFromSingleTimeseries(entries []RunningEntry, aggregation st
 	return reduceRunningEntries(entries, aggregation.AggregatorFunction, aggregation.FuncConstant)
 }
 
-func ApplyFunction(seriesId string, ts map[uint32]float64, function structs.Function) (string, map[uint32]float64, error) {
+func ApplyFunction(seriesId string, ts map[uint32]float64, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) (string, map[uint32]float64, error) {
 	if function.RangeFunction > 0 {
-		ts, err := ApplyRangeFunction(ts, function)
+		ts, err := ApplyRangeFunction(ts, function, timeRange)
 		return seriesId, ts, err
 	}
 
@@ -461,7 +462,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	return ts, nil
 }
 
-func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[uint32]float64, error) {
+func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) (map[uint32]float64, error) {
 
 	if len(ts) == 0 {
 		return ts, nil
@@ -475,6 +476,9 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			dpVal:           value,
 		}
 		sortedTimeSeries = append(sortedTimeSeries, entry)
+
+		// delete the entry so that only the values added after processing the range function are left
+		delete(ts, time)
 	}
 
 	sort.Slice(sortedTimeSeries, func(i int, k int) bool {
@@ -662,92 +666,8 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_Time:
-		prefixSum := make([]float64, len(sortedTimeSeries)+1)
-		prefixSum[1] = sortedTimeSeries[0].dpVal
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
-		}
-
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			if i <= preIndex { // Can not find the second point within the time window
-				continue
-			}
-
-			ts[sortedTimeSeries[i].downsampledTime] = (prefixSum[i+1] - prefixSum[preIndex]) / float64(i-preIndex+1)
-		}
-		return ts, nil
-	case segutils.Min_Over_Time:
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			min := math.MaxFloat64
-			for j := preIndex; j <= i; j++ {
-				min = math.Min(min, sortedTimeSeries[j].dpVal)
-			}
-
-			ts[sortedTimeSeries[i].downsampledTime] = min
-		}
-		return ts, nil
-	case segutils.Max_Over_Time:
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			max := -1.7976931348623157e+308
-			for j := preIndex; j <= i; j++ {
-				max = math.Max(max, sortedTimeSeries[j].dpVal)
-			}
-
-			ts[sortedTimeSeries[i].downsampledTime] = max
-		}
-		return ts, nil
-	case segutils.Sum_Over_Time:
-		prefixSum := make([]float64, len(sortedTimeSeries)+1)
-		prefixSum[1] = sortedTimeSeries[0].dpVal
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
-		}
-
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			if i <= preIndex { // Can not find the second point within the time window
-				continue
-			}
-
-			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i+1] - prefixSum[preIndex]
-		}
-		return ts, nil
-	case segutils.Count_Over_Time:
-		ts[sortedTimeSeries[0].downsampledTime] = 1
-		for i := 1; i < len(sortedTimeSeries); i++ {
-			timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-			preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-				return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-			})
-
-			if i <= preIndex { // Can not find the second point within the time window
-				ts[sortedTimeSeries[i].downsampledTime] = 1
-				continue
-			}
-
-			ts[sortedTimeSeries[i].downsampledTime] = float64(i - preIndex + 1)
-		}
-		return ts, nil
+	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time:
+		return evaluateAggregationOverTime(sortedTimeSeries, ts, function, timeRange)
 	case segutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
 	case segutils.Stddev_Over_Time:
@@ -790,6 +710,12 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 			p := quantile * float64(i-preIndex)
 			index1 := int(math.Floor(float64(preIndex) + p))
 			index2 := int(math.Ceil(float64(preIndex) + p))
+
+			if index2 >= len(sortedTimeSeries) || index1 >= len(sortedTimeSeries) || index1 < 0 || index2 < 0 {
+				log.Errorf("ApplyRangeFunction: index out of range: index1=%v, index2=%v, preIndex=%v, i=%v. len(sortedTimeSeries)=%v", index1, index2, preIndex, i, len(sortedTimeSeries))
+				continue
+			}
+
 			val := sortedTimeSeries[index1].dpVal + (p-math.Floor(p))*(sortedTimeSeries[index2].dpVal-sortedTimeSeries[index1].dpVal)
 			ts[sortedTimeSeries[i].downsampledTime] = val
 		}
@@ -797,6 +723,75 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function) (map[u
 	default:
 		return ts, fmt.Errorf("ApplyRangeFunction: Unknown function type: %v", function.RangeFunction)
 	}
+}
+
+func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64, function structs.Function,
+	timeRange *dtypeutils.MetricsTimeRange) (map[uint32]float64, error) {
+
+	if len(sortedTimeSeries) == 0 {
+		return ts, nil
+	}
+
+	timeWindow := uint32(function.TimeWindow)
+	step := uint32(function.Step)
+	nextEvaluationTime := timeRange.StartEpochSec
+
+	var prefixSum []float64
+
+	if function.RangeFunction == segutils.Sum_Over_Time || function.RangeFunction == segutils.Avg_Over_Time {
+		prefixSum = make([]float64, len(sortedTimeSeries)+1)
+		prefixSum[1] = sortedTimeSeries[0].dpVal
+		for i := 1; i < len(sortedTimeSeries); i++ {
+			prefixSum[i+1] = (prefixSum[i] + sortedTimeSeries[i].dpVal)
+		}
+	}
+
+	for nextEvaluationTime <= timeRange.EndEpochSec {
+		timeWindowStartTime := nextEvaluationTime - timeWindow
+
+		// Find index of the first point within the time window using binary search (Inclusive)
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+		})
+
+		// Find index of the last point within the time window using binary search (Exclusive)
+		lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
+		}) - 1
+
+		if lastIndex < preIndex {
+			ts[nextEvaluationTime] = 0
+			nextEvaluationTime += step
+			continue
+		}
+
+		switch function.RangeFunction {
+		case segutils.Count_Over_Time:
+			ts[nextEvaluationTime] = float64(lastIndex - preIndex + 1)
+		case segutils.Sum_Over_Time:
+			ts[nextEvaluationTime] = prefixSum[lastIndex+1] - prefixSum[preIndex]
+		case segutils.Avg_Over_Time:
+			ts[nextEvaluationTime] = (prefixSum[lastIndex+1] - prefixSum[preIndex]) / float64(lastIndex-preIndex+1)
+		case segutils.Min_Over_Time:
+			min := math.MaxFloat64
+			for j := preIndex; j <= lastIndex; j++ {
+				min = math.Min(min, sortedTimeSeries[j].dpVal)
+			}
+			ts[nextEvaluationTime] = min
+		case segutils.Max_Over_Time:
+			max := -math.MaxFloat64
+			for j := preIndex; j <= lastIndex; j++ {
+				max = math.Max(max, sortedTimeSeries[j].dpVal)
+			}
+			ts[nextEvaluationTime] = max
+		default:
+			return ts, fmt.Errorf("evaluateAggregationOverTime: unsupported function type %v", function.RangeFunction)
+		}
+
+		nextEvaluationTime += step
+	}
+
+	return ts, nil
 }
 
 /*
@@ -976,7 +971,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 
 		index := fnConstant * float64(len(entriesCopy)-1)
 		// Check for special cases when quantile position doesn't fall on an exact index
-		if index != float64(int(index)) && int(index)+1 < len(entriesCopy) {
+		if index >= 0 && index != float64(int(index)) && int(index)+1 < len(entriesCopy) {
 			// Calculate the weight for interpolation
 			fraction := index - float64(int(index))
 
@@ -984,8 +979,10 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			dpVal2 := entriesCopy[int(index)+1].runningVal
 
 			ret = dpVal1 + fraction*(dpVal2-dpVal1)
-		} else {
+		} else if index >= 0 && int(index) < len(entriesCopy) {
 			ret = entriesCopy[int(index)].runningVal
+		} else {
+			log.Errorf("reduceRunningEntries: invalid index: %v, len(entriesCopy): %v", index, len(entriesCopy))
 		}
 	case utils.Group:
 		ret = 1

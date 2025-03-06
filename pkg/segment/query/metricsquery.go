@@ -90,9 +90,20 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	// init metrics results structs
 	mRes := mresults.InitMetricResults(mQuery, qid)
 
-	mSegments, err := getAllRequestsWithinTimeRange(timeRange, mQuery.OrgId, querySummary)
+	finalTimeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: timeRange.StartEpochSec,
+		EndEpochSec:   timeRange.EndEpochSec,
+	}
+
+	// If LookBackToInclude is set, then we need to adjust the StartEpochSec
+	// to include the lookback time.
+	if mQuery.LookBackToInclude > 0 {
+		finalTimeRange.StartEpochSec = timeRange.StartEpochSec - uint32(mQuery.LookBackToInclude)
+	}
+
+	mSegments, err := getAllRequestsWithinTimeRange(finalTimeRange, mQuery.OrgId, querySummary)
 	if err != nil {
-		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", timeRange, err)
+		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", finalTimeRange, err)
 		return &mresults.MetricsResult{
 			ErrList: []error{err},
 		}
@@ -109,9 +120,18 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	if mQuery.SelectAllSeries {
+		filteredTags := make([]*structs.TagsFilter, 0, len(allTagKeys))
 		for _, v := range mQuery.TagsFilters {
 			delete(allTagKeys, v.TagKey)
+			if v.IgnoreTag && !v.NotInitialGroup {
+				continue
+			}
+
+			filteredTags = append(filteredTags, v)
 		}
+
+		mQuery.TagsFilters = filteredTags
+
 		for tkey, present := range allTagKeys {
 			if present {
 				mQuery.TagsFilters = append(mQuery.TagsFilters, &structs.TagsFilter{
@@ -126,9 +146,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 	mQuery.ReorderTagFilters()
 
-	if mQuery.MQueryAggs != nil {
-		mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
-		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+	if mQuery.SubsequentAggs != nil {
+		mQuery.FirstAggregator = *mQuery.SubsequentAggs.AggregatorBlock // The first Aggregation in the MQueryAggs is always a AggregatorBlock
+		mQuery.SubsequentAggs = mQuery.SubsequentAggs.Next
 	}
 
 	if mQuery.TagValueSearchOnly {
@@ -137,7 +157,8 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	// iterate through all metrics segments, applying search as needed
-	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+	// use finalTimeRange to get the series and data points including the lookback time
+	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, finalTimeRange, qid, querySummary)
 	if mQuery.ExitAfterTagsSearch {
 		return mRes
 	}
@@ -153,7 +174,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 	mRes.MetricName = mQuery.MetricName
 
-	errors = mRes.AggregateResults(parallelism, mQuery.Aggregator)
+	errors = mRes.AggregateResults(parallelism, mQuery.FirstAggregator)
 	if errors != nil {
 		for _, err := range errors {
 			mRes.AddError(err)
@@ -162,10 +183,10 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
-	for mQuery.MQueryAggs != nil {
-		if mQuery.MQueryAggs.AggBlockType == structs.FunctionBlock {
-			mQuery.Function = *mQuery.MQueryAggs.FunctionBlock
-			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function)
+	for mQuery.SubsequentAggs != nil {
+		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {
+			mQuery.Function = *mQuery.SubsequentAggs.FunctionBlock
+			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function, timeRange)
 			if errors != nil {
 				for _, err := range errors {
 					mRes.AddError(err)
@@ -173,9 +194,9 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 				return mRes
 			}
-		} else if mQuery.MQueryAggs.AggBlockType == structs.AggregatorBlock {
-			mQuery.Aggregator = *mQuery.MQueryAggs.AggregatorBlock
-			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.Aggregator)
+		} else if mQuery.SubsequentAggs.AggBlockType == structs.AggregatorBlock {
+			mQuery.FirstAggregator = *mQuery.SubsequentAggs.AggregatorBlock
+			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.FirstAggregator)
 			if errors != nil {
 				for _, err := range errors {
 					mRes.AddError(err)
@@ -184,12 +205,12 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 				return mRes
 			}
 		} else {
-			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType)
-			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.MQueryAggs.AggBlockType))
+			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType)
+			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType))
 			return mRes
 		}
 
-		mQuery.MQueryAggs = mQuery.MQueryAggs.Next
+		mQuery.SubsequentAggs = mQuery.SubsequentAggs.Next
 	}
 
 	return mRes

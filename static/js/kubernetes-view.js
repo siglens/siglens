@@ -45,7 +45,7 @@ class KubernetesView {
         $('.kubernetes-view-page').hide();
         $('.configuration-page').show();
 
-        this.initBreadcrumb('config-breadcrumb');
+        this.initBreadcrumb();
         const header = new DashboardHeader('config-header', {
             title: 'Configuration',
             showTimeRange: false,
@@ -61,7 +61,7 @@ class KubernetesView {
         $('.kubernetes-view-page').show();
         $('.configuration-page, .main-filter-container').hide();
 
-        this.initBreadcrumb('kubernetes-breadcrumb');
+        this.initBreadcrumb();
         this.initEventsHeader();
         this.initGrid();
         this.loadEventsData();
@@ -144,7 +144,7 @@ class KubernetesView {
         $('.kubernetes-view-page').show();
         $('.configuration-page').hide();
 
-        this.initBreadcrumb('kubernetes-breadcrumb');
+        this.initBreadcrumb();
         this.initHeader();
         this.initFilters();
         this.initGrid();
@@ -211,14 +211,13 @@ class KubernetesView {
         });
     }
 
-    initBreadcrumb(containerId) {
+    initBreadcrumb() {
         const capitalizedType = this.type.charAt(0).toUpperCase() + this.type.slice(1);
-        const breadcrumb = new Breadcrumb(containerId);
 
-        breadcrumb.render([
-            { label: 'Infrastructure', url: 'infrastructure', className: 'all-dashboards' },
-            { label: 'Kubernetes', url: 'kubernetes-overview', className: 'all-dashboards' },
-            { label: capitalizedType, url: this.type, className: 'myOrg-heading' },
+        initializeBreadcrumbs([
+            { name: 'Infrastructure', url: 'infrastructure.html' },
+            { name: 'Kubernetes', url: 'kubernetes-overview.html' },
+            { name: capitalizedType, url: this.type },
         ]);
     }
 

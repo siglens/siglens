@@ -97,12 +97,12 @@ func ParseRequest(startStr string, endStr string, m string, myid int64) (*struct
 
 	metricQueryRequest := &structs.MetricsQueryRequest{
 		MetricsQuery: structs.MetricsQuery{
-			MetricName:  metricName,
-			HashedMName: hashedMName,
-			TagsFilters: tags,
-			Aggregator:  structs.Aggregation{AggregatorFunction: aggregator},
-			Downsampler: downsampler,
-			OrgId:       myid,
+			MetricName:      metricName,
+			HashedMName:     hashedMName,
+			TagsFilters:     tags,
+			FirstAggregator: structs.Aggregation{AggregatorFunction: aggregator},
+			Downsampler:     downsampler,
+			OrgId:           myid,
 		},
 		TimeRange: dtu.MetricsTimeRange{
 			StartEpochSec: start,

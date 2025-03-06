@@ -1514,6 +1514,69 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	}
 }
 
+func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
+	defer cleanUp(t)
+	go query.PullQueriesToRun()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
+	assert.Nil(t, err)
+	assert.Greater(t, len(mSegs), 0)
+
+	err = initializeMetricsMetaData()
+	assert.Nil(t, err)
+
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(startTimestamp),
+		EndEpochSec:   uint32(startTimestamp + 4600),
+	}
+
+	query := `sum without (shape, radius) (testmetric0)`
+	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(metricQueryRequest))
+
+	expectedResults := map[string][]float64{
+		"testmetric0{color:red,size:small,type:solid": {10, 50, 60, 70},
+		"testmetric0{color:red,type:solid":            {40},
+	}
+
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	assert.NotNil(t, res)
+	assert.Equal(t, 2, len(res.Results))
+
+	for seriesId, seriesDp := range res.Results {
+		seriesId := mresults.RemoveTrailingComma(seriesId)
+		expectedSeriesDpValues, ok := expectedResults[seriesId]
+		assert.True(t, ok, "SeriesId: ", seriesId)
+
+		seriesDpStructSlice := make([]*seriesDataPoint, 0)
+		for ts, dp := range seriesDp {
+			seriesDpStructSlice = append(seriesDpStructSlice, &seriesDataPoint{ts: ts, val: dp})
+		}
+
+		sort.Slice(seriesDpStructSlice, func(i, j int) bool {
+			return seriesDpStructSlice[i].ts < seriesDpStructSlice[j].ts
+		})
+
+		seriesDpValues := make([]float64, 0)
+		for _, dp := range seriesDpStructSlice {
+			seriesDpValues = append(seriesDpValues, dp.val)
+		}
+
+		assert.EqualValues(t, expectedSeriesDpValues, seriesDpValues)
+	}
+
+}
+
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
 	testDir := t.TempDir()
 	dataDir := filepath.Join(testDir, "data")
