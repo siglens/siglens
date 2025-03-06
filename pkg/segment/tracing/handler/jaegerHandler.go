@@ -284,6 +284,9 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 	service := string(ctx.QueryArgs().Peek("service"))
 
 	startEpoch, endEpoch, err := ComputeStartTime(start, end, lookback)
+	startEpoch = startEpoch/1000
+	endEpoch = endEpoch/1000
+
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		errors := []string{fmt.Sprintf("Missing required parameter err: %v", err)}
