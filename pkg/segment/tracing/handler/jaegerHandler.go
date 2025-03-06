@@ -335,6 +335,7 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	var allTraceData []TraceData
+	serviceProcesses := make(map[string]string)
 	for _, traces := range pipeSearchResponseOuter.Traces {
 		tracesId := traces.TraceId
 		searchGanttChartRequestBody := structs.SearchRequestBody{
@@ -357,13 +358,17 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 		var spans []Span
 
-		processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans)
+		processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans, serviceProcesses)
 		traceData := TraceData{
 			TraceID: tracesId,
 			Spans:   spans,
 		}
 
 		processes := make(map[string]Process)
+		for serviceName, processKey := range serviceProcesses {
+			processes[processKey] = Process{ServiceName: serviceName}
+		}
+
 		traceData.Processes = processes
 
 		allTraceData = append(allTraceData, traceData)
@@ -381,7 +386,7 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 
 }
 
-func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID string, spans *[]Span) {
+func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID string, spans *[]Span, serviceProcesses map[string]string) {
 	if span == nil {
 		return
 	}
@@ -402,6 +407,15 @@ func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID stri
 		SpanID:  parentSpanID,
 	})
 
+	var processName string
+	if process, exists := serviceProcesses[span.ServiceName]; exists {
+		processName = process
+	} else {
+		newProcess := fmt.Sprintf("p%d", len(serviceProcesses)+1)
+		serviceProcesses[span.ServiceName] = newProcess
+		processName = newProcess
+	}
+
 	spanEntry := Span{
 		TraceID:       traceID,
 		SpanID:        span.SpanID,
@@ -411,14 +425,14 @@ func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID stri
 		Duration:      int64(span.Duration),
 		Tags:          spanTags,
 		Logs:          []string{},
-		ProcessID:     "",
+		ProcessID:     processName,
 		Warnings:      []string{},
 	}
 
 	*spans = append(*spans, spanEntry)
 
 	for _, child := range span.Children {
-		processSpan(child, traceID, span.SpanID, spans)
+		processSpan(child, traceID, span.SpanID, spans, serviceProcesses)
 	}
 }
 
