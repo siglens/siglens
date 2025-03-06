@@ -126,4 +126,17 @@ func Test_histogramQuantile(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 30.0, value) // Upper bound of last non-infinite bucket.
 	})
+
+	t.Run("sortBins", func(t *testing.T) {
+		bins := []histogramBin{
+			{upperBound: 10, count: 25},
+			{upperBound: math.Inf(1), count: 100},
+			{upperBound: 30, count: 75},
+			{upperBound: 20, count: 50},
+		}
+
+		value, err := histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+		assert.Equal(t, 20.0, value)
+	})
 }
