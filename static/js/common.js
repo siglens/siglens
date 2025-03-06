@@ -584,6 +584,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         let dataType = currentPanel.dataType;
         let rawTimeSeriesData;
         for (const queryData of data.queriesData) {
+            $('metrics-queries').empty();
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
             const parsedQueryObject = parsePromQL(queryData.queries[0]);
             await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
