@@ -6022,13 +6022,13 @@ p#versionInfo {
     opacity: 0.9;
 }
 
-.big-number {
+.cluster-content .big-number {
     font-size: 48px;
     font-weight: bold;
     color: white;
 }
 
-.big-number.error {
+.cluster-content .big-number.error {
     font-size: 40px;
     white-space: nowrap;
 }

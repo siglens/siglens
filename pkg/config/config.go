@@ -47,32 +47,42 @@ type ValuesRangeConfig struct {
 	Default int
 }
 
-const MINUTES_REREAD_CONFIG = 2
-const RunModFilePath = "data/common/runmod.cfg"
+const (
+	MINUTES_REREAD_CONFIG = 2
+	RunModFilePath        = "data/common/runmod.cfg"
+)
 
 const SIZE_8GB_IN_MB = uint64(8192)
 
 // How memory is split for rotated info. These should sum to 100.
-const DEFAULT_ROTATED_CMI_MEM_PERCENT = 48
-const DEFAULT_METADATA_MEM_PERCENT = 20
-const DEFAULT_SEG_SEARCH_MEM_PERCENT = 30 // minimum percent allocated for segsearch
-const DEFAULT_METRICS_MEM_PERCENT = 2
-const DEFAULT_BYTES_PER_QUERY = 200 * 1024 * 1024 // 200MB
+const (
+	DEFAULT_ROTATED_CMI_MEM_PERCENT = 48
+	DEFAULT_METADATA_MEM_PERCENT    = 20
+	DEFAULT_SEG_SEARCH_MEM_PERCENT  = 30 // minimum percent allocated for segsearch
+	DEFAULT_METRICS_MEM_PERCENT     = 2
+	DEFAULT_BYTES_PER_QUERY         = 200 * 1024 * 1024 // 200MB
+)
 
 const DEFAULT_MAX_ALLOWED_COLUMNS = 20_000 // Max concurrent unrotated columns across all indexes
 
 var configFileLastModified uint64
 
-var runningConfig common.Configuration
-var configFilePath string
+var (
+	runningConfig  common.Configuration
+	configFilePath string
+)
 
 var parallelism int64
 
-const cgroupV1MaxMemoryPath = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
-const cgroupV2MaxMemoryPath = "/sys/fs/cgroup/memory.max"
+const (
+	cgroupV1MaxMemoryPath = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+	cgroupV2MaxMemoryPath = "/sys/fs/cgroup/memory.max"
+)
 
-const cgroupV1UsageMemoryPath = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
-const cgroupV2UsageMemoryPath = "/sys/fs/cgroup/memory.current"
+const (
+	cgroupV1UsageMemoryPath = "/sys/fs/cgroup/memory/memory.usage_in_bytes"
+	cgroupV2UsageMemoryPath = "/sys/fs/cgroup/memory.current"
+)
 
 type memoryValueType uint8
 
@@ -96,8 +106,10 @@ var memoryFilePaths struct {
 	UsagePaths []string
 }
 
-var idleWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
-var maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
+var (
+	idleWipFlushRange    = ValuesRangeConfig{Min: 5, Max: 60, Default: 5}
+	maxWaitWipFlushRange = ValuesRangeConfig{Min: 5, Max: 60, Default: 30}
+)
 
 var tracingEnabled bool // flag to enable/disable tracing; Set to true if TracingConfig.Endpoint != ""
 
@@ -583,6 +595,10 @@ func IsSafeMode() bool {
 	return runningConfig.SafeServerStart
 }
 
+func IsPauseModeEnabled() bool {
+	return runningConfig.PauseModeConverted
+}
+
 func GetRunningConfigAsJsonStr() (string, error) {
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
@@ -610,9 +626,11 @@ func GetS3IngestQueueName() string {
 func GetS3IngestQueueRegion() string {
 	return runningConfig.S3IngestQueueRegion
 }
+
 func GetS3IngestBufferSize() uint64 {
 	return runningConfig.S3IngestBufferSize
 }
+
 func GetMaxParallelS3IngestBuffers() uint64 {
 	return runningConfig.MaxParallelS3IngestBuffers
 }
@@ -723,6 +741,7 @@ func SetDataDiskThresholdPercent(percent uint64) {
 func SetMaxParallelS3IngestBuffers(maxBuf uint64) {
 	runningConfig.MaxParallelS3IngestBuffers = maxBuf
 }
+
 func SetPQSEnabled(enabled bool) {
 	runningConfig.PQSEnabledConverted = enabled
 	runningConfig.PQSEnabled = strconv.FormatBool(enabled)
@@ -873,7 +892,9 @@ func GetTestConfig(dataPath string) common.Configuration {
 			MetricsPercent:  DEFAULT_METRICS_MEM_PERCENT,
 			BytesPerQuery:   DEFAULT_BYTES_PER_QUERY,
 		},
-		MaxAllowedColumns: DEFAULT_MAX_ALLOWED_COLUMNS,
+		MaxAllowedColumns:  DEFAULT_MAX_ALLOWED_COLUMNS,
+		PauseMode:          "false",
+		PauseModeConverted: false,
 	}
 
 	return testConfig
@@ -1110,7 +1131,6 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		if config.S3.BucketPrefix[len(config.S3.BucketPrefix)-1:] != "/" {
 			config.S3.BucketPrefix = config.S3.BucketPrefix + "/"
 		}
-
 	}
 
 	if config.RetentionHours == 0 || config.RetentionHours > 15*24 {
@@ -1285,6 +1305,18 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		log.Info("ExtractConfigData: Setting Query timeout to 30 minutes")
 		config.QueryTimeoutSecs = MAX_QUERY_TIMEOUT_SECONDS
 	}
+
+	if len(config.PauseMode) <= 0 {
+		config.PauseMode = "false"
+	}
+	pauseMode, err := strconv.ParseBool(config.PauseMode)
+	if err != nil {
+		log.Errorf("PauseMode: failed to parse PauseMode flag. Defaulting to false. Error: %v", err)
+		pauseMode = false
+		config.PauseMode = "false"
+	}
+	config.PauseModeConverted = pauseMode
+
 	return config, nil
 }
 

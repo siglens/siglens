@@ -710,6 +710,12 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			p := quantile * float64(i-preIndex)
 			index1 := int(math.Floor(float64(preIndex) + p))
 			index2 := int(math.Ceil(float64(preIndex) + p))
+
+			if index2 >= len(sortedTimeSeries) || index1 >= len(sortedTimeSeries) || index1 < 0 || index2 < 0 {
+				log.Errorf("ApplyRangeFunction: index out of range: index1=%v, index2=%v, preIndex=%v, i=%v. len(sortedTimeSeries)=%v", index1, index2, preIndex, i, len(sortedTimeSeries))
+				continue
+			}
+
 			val := sortedTimeSeries[index1].dpVal + (p-math.Floor(p))*(sortedTimeSeries[index2].dpVal-sortedTimeSeries[index1].dpVal)
 			ts[sortedTimeSeries[i].downsampledTime] = val
 		}
@@ -965,7 +971,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 
 		index := fnConstant * float64(len(entriesCopy)-1)
 		// Check for special cases when quantile position doesn't fall on an exact index
-		if index != float64(int(index)) && int(index)+1 < len(entriesCopy) {
+		if index >= 0 && index != float64(int(index)) && int(index)+1 < len(entriesCopy) {
 			// Calculate the weight for interpolation
 			fraction := index - float64(int(index))
 
@@ -973,8 +979,10 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 			dpVal2 := entriesCopy[int(index)+1].runningVal
 
 			ret = dpVal1 + fraction*(dpVal2-dpVal1)
-		} else {
+		} else if index >= 0 && int(index) < len(entriesCopy) {
 			ret = entriesCopy[int(index)].runningVal
+		} else {
+			log.Errorf("reduceRunningEntries: invalid index: %v, len(entriesCopy): %v", index, len(entriesCopy))
 		}
 	case utils.Group:
 		ret = 1
