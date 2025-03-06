@@ -603,7 +603,7 @@ input:checked+.slider:before {
 }
 
 .raw-query {
-    width: 90%;
+    width: 100%;
 }
 
 #metrics-container .refresh-btn {
