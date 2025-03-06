@@ -2326,7 +2326,7 @@ function displayErrorMessage(container, message) {
         console.error('Error: No container provided to display error message');
         return;
     }
-
+    //eslint-disable-next-line no-undef
     if (isMetricsScreen) {
         // Handle metrics screen errors
         const mergedContainer = $('#merged-graph-container');

@@ -618,6 +618,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 let uniqueId = generateUniqueId();
                 addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
+            disableQueryRemoval();
         } else {
             // for panels on the dashboard page
             for (const queryData of data.queriesData) {
