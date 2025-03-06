@@ -60,6 +60,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+const pauseModeSleepDuration = 2 // In minutes
 var StdOutLogger *log.Logger
 
 func init() {
@@ -139,7 +140,7 @@ func Main() {
 			Filename:   logOut,
 			MaxSize:    serverCfg.Log.LogFileRotationSizeMB,
 			MaxBackups: 50,
-			MaxAge:     1, //days
+			MaxAge:     1, // days
 			Compress:   serverCfg.Log.CompressLogFile,
 		})
 	}
@@ -150,6 +151,15 @@ func Main() {
 	}
 	log.Infof("----- Siglens server type %s starting up.... ----- \n", nodeType.String())
 	log.Infof("----- Siglens server logging to %s ----- \n", logOut)
+
+	if config.IsPauseModeEnabled() {
+		for {
+			msg := fmt.Sprintf("pauseMode has been enabled. Going to sleep for %v minutes...", pauseModeSleepDuration)
+			log.Info(msg)
+			fmt.Println(msg)
+			time.Sleep(pauseModeSleepDuration * time.Minute)
+		}
+	}
 
 	if hook := hooks.GlobalHooks.CheckLicenseHook; hook != nil {
 		hook()
@@ -319,7 +329,6 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 }
 
 func ShutdownSiglensServer() {
-
 	if hook := hooks.GlobalHooks.ShutdownSiglensPreHook; hook != nil {
 		hook()
 	}
