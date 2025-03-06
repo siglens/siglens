@@ -75,10 +75,20 @@ func histogramQuantile(quantile float64, bins []histogramBin) (float64, error) {
 		return bins[i].count >= target
 	})
 
+	// If the answer is in the first bin and that bin has a negative upper
+	// bound, we don't know the lower bound (and can't assume it's 0), so we
+	// can't interpolate.
 	if i == 0 && bins[i].upperBound <= 0 {
 		return bins[i].upperBound, nil
 	}
 
+	// If the answer is in the last bin, return the upper bound of the previous
+	// bin, since the last bin goes to infinity.
+	if i >= len(bins)-1 {
+		return bins[len(bins)-2].upperBound, nil
+	}
+
+	// Check if it's on a bin boundary.
 	if bins[i].count == target {
 		return bins[i].upperBound, nil
 	}
@@ -95,5 +105,4 @@ func histogramQuantile(quantile float64, bins []histogramBin) (float64, error) {
 
 	// Linear interpolation
 	return lowerBound + bucketFraction*(bins[i].upperBound-lowerBound), nil
-
 }

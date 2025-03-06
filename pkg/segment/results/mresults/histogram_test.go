@@ -24,6 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Most of these tests are based off the documentation at
+// https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile
 func Test_histogramQuantile(t *testing.T) {
 	t.Run("badQuantile", func(t *testing.T) {
 		value, err := histogramQuantile(-0.1, []histogramBin{})
@@ -111,5 +113,17 @@ func Test_histogramQuantile(t *testing.T) {
 		value, err = histogramQuantile(0.1, bins)
 		assert.NoError(t, err)
 		assert.Equal(t, 2.0, value) // Linear interpolation between 0 and 5.
+	})
+
+	t.Run("quantileInLastBucket", func(t *testing.T) {
+		bins := []histogramBin{
+			{upperBound: 10, count: 25},
+			{upperBound: 20, count: 50},
+			{upperBound: 30, count: 75},
+			{upperBound: math.Inf(1), count: 100},
+		}
+		value, err := histogramQuantile(0.9, bins)
+		assert.NoError(t, err)
+		assert.Equal(t, 30.0, value) // Upper bound of last non-infinite bucket.
 	})
 }
