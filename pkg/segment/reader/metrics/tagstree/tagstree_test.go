@@ -277,12 +277,13 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 	tagsHolder.Insert(tagKey, []byte("server1"), jsonparser.String)
 
 	firstFlushChan := make(chan struct{})
+	numIters := 1000
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
 
-		for i := 0; i < 100; i++ {
+		for i := 0; i < numIters; i++ {
 			metric := []byte(fmt.Sprintf("metric%d", i))
 			tsid, err := tagsHolder.GetTSID(metric)
 			assert.NoError(t, err)
@@ -310,7 +311,7 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 		<-firstFlushChan
 
 		numMetrics := 0
-		for i := 0; i < 100; i++ {
+		for i := 0; i < numIters; i++ {
 			// Read from disk
 			reader, err := InitAllTagsTreeReader(baseDir)
 			assert.NoError(t, err)
@@ -349,7 +350,7 @@ func Test_ConcurrentReadWrite(t *testing.T) {
 
 	metrics, err := reader.GetHashedMetricNames()
 	assert.NoError(t, err)
-	assert.Len(t, metrics, 100)
+	assert.Len(t, metrics, numIters)
 }
 
 func initTestConfig(t *testing.T) {
