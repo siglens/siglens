@@ -90,4 +90,26 @@ func Test_histogramQuantile(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 24.0, value) // 50th is 20; 75th is 30; so 60th is (20 + (2/5) * 10) = 24
 	})
+
+	t.Run("quantileInFirstBucket", func(t *testing.T) {
+		bins := []histogramBin{
+			{upperBound: -10, count: 25},
+			{upperBound: -5, count: 50},
+			{upperBound: 10, count: 75},
+			{upperBound: math.Inf(1), count: 100},
+		}
+		value, err := histogramQuantile(0.1, bins)
+		assert.NoError(t, err)
+		assert.Equal(t, -10.0, value) // Upper bound of first bucket, since it's negative.
+
+		bins = []histogramBin{
+			{upperBound: 5, count: 25},
+			{upperBound: 10, count: 50},
+			{upperBound: 20, count: 75},
+			{upperBound: math.Inf(1), count: 100},
+		}
+		value, err = histogramQuantile(0.1, bins)
+		assert.NoError(t, err)
+		assert.Equal(t, 2.0, value) // Linear interpolation between 0 and 5.
+	})
 }
