@@ -20,10 +20,15 @@ type ResponseBody struct {
 	Offset int         `json:"offset"`
 	Errors []string    `json:"errors"`
 }
+type Process struct {
+	ServiceName string `json:"serviceName"`
+}
 
 type TraceData struct {
-	TraceID string `json:"traceID"`
-	Spans   []Span `json:"spans"`
+	TraceID   string             `json:"traceID"`
+	Spans     []Span             `json:"spans"`
+	Processes map[string]Process `json:"processes"`
+	Warnings  []string           `json:"warnings"`
 }
 
 type Span struct {
@@ -188,7 +193,7 @@ func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 	endTs := string(ctx.QueryArgs().Peek("endTs"))
 	lookback := string(ctx.QueryArgs().Peek("lookback"))
 
-	startEpoch, endEpoch, err := ComputeStartTime("", endTs, lookback)
+	startEpoch, endEpoch, err := computeStartTime("", endTs, lookback)
 
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusOK)
@@ -198,6 +203,9 @@ func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
 		log.Errorf("ProcessGetDependencies  : Missing required parameter err : %v ", err)
 		return
 	}
+
+	startEpoch = convertEpochToMilliseconds(startEpoch)
+	endEpoch = convertEpochToMilliseconds(endEpoch)
 
 	searchRequestBody := structs.SearchRequestBody{
 		SearchText:    "*",
@@ -275,7 +283,7 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 		Total:  0,
 		Limit:  0,
 		Offset: 0,
-		Errors: nil,
+		Errors: []string{},
 	}
 
 	start := string(ctx.QueryArgs().Peek("start"))
@@ -283,7 +291,8 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 	lookback := string(ctx.QueryArgs().Peek("lookback"))
 	service := string(ctx.QueryArgs().Peek("service"))
 
-	startEpoch, endEpoch, err := ComputeStartTime(start, end, lookback)
+	startEpoch, endEpoch, err := computeStartTime(start, end, lookback)
+
 	if err != nil {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		errors := []string{fmt.Sprintf("Missing required parameter err: %v", err)}
@@ -293,8 +302,11 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
+	startEpoch = convertEpochToMilliseconds(startEpoch)
+	endEpoch = convertEpochToMilliseconds(endEpoch)
+
 	searchRequestBody := structs.SearchRequestBody{
-		SearchText: "*",
+		SearchText: "service=" + service,
 		StartEpoch: strconv.FormatInt(startEpoch, 10),
 		EndEpoch:   strconv.FormatInt(endEpoch, 10),
 		From:       0,
@@ -320,39 +332,50 @@ func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
 	var allTraceData []TraceData
 	for _, traces := range pipeSearchResponseOuter.Traces {
 		tracesId := traces.TraceId
-		if traces.ServiceName == service {
-			searchGanttChartRequestBody := structs.SearchRequestBody{
-				SearchText: "trace_id=" + tracesId,
-				StartEpoch: "now-365d",
-				EndEpoch:   "now",
-				From:       0,
-			}
-
-			ganttChartModifiedData, _ := json.Marshal(searchGanttChartRequestBody)
-			rawGanttChartCtx := &fasthttp.RequestCtx{}
-			rawGanttChartCtx.Request.Header.SetMethod("POST")
-			rawGanttChartCtx.Request.SetBody(ganttChartModifiedData)
-			ganttChartSpanResponseOuter := &structs.GanttChartSpan{}
-			ProcessGanttChartRequest(rawGanttChartCtx, myid)
-			gCResponseBody := rawGanttChartCtx.Response.Body()
-
-			if err := json.Unmarshal(gCResponseBody, &ganttChartSpanResponseOuter); err != nil {
-				log.Errorf("ProcessGetTracesSearch : Error parsing response body: %v, err: %v", string(gCResponseBody), err)
-			}
-			var spans []Span
-
-			processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans)
-			traceData := TraceData{
-				TraceID: tracesId,
-				Spans:   spans,
-			}
-			allTraceData = append(allTraceData, traceData)
-
+		searchGanttChartRequestBody := structs.SearchRequestBody{
+			SearchText: "trace_id=" + tracesId,
+			StartEpoch: "now-365d",
+			EndEpoch:   "now",
+			From:       0,
 		}
+
+		ganttChartModifiedData, _ := json.Marshal(searchGanttChartRequestBody)
+		rawGanttChartCtx := &fasthttp.RequestCtx{}
+		rawGanttChartCtx.Request.Header.SetMethod("POST")
+		rawGanttChartCtx.Request.SetBody(ganttChartModifiedData)
+		ganttChartSpanResponseOuter := &structs.GanttChartSpan{}
+		ProcessGanttChartRequest(rawGanttChartCtx, myid)
+		gCResponseBody := rawGanttChartCtx.Response.Body()
+
+		if err := json.Unmarshal(gCResponseBody, &ganttChartSpanResponseOuter); err != nil {
+			log.Errorf("ProcessGetTracesSearch : Error parsing response body: %v, err: %v", string(gCResponseBody), err)
+		}
+		var spans []Span
+
+		processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans)
+		traceData := TraceData{
+			TraceID: tracesId,
+			Spans:   spans,
+		}
+
+		processes := map[string]Process{
+			"p1": {ServiceName: "frontend"},
+			"p2": {ServiceName: "route"},
+			"p3": {ServiceName: "redis-manual"},
+			"p4": {ServiceName: "driver"},
+			"p5": {ServiceName: "customer"},
+			"p6": {ServiceName: "mysql"},
+		}
+		traceData.Processes = processes
+
+		allTraceData = append(allTraceData, traceData)
+
 	}
+
 	if allTraceData != nil {
 		response.Data = allTraceData
 	}
+
 	response.Total = len(allTraceData)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -386,12 +409,12 @@ func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID stri
 		SpanID:        span.SpanID,
 		OperationName: span.OperationName,
 		References:    references,
-		StartTime:     int64(span.StartTime),
+		StartTime:     int64(span.ActualStartTime),
 		Duration:      int64(span.Duration),
 		Tags:          spanTags,
-		Logs:          nil,
-		ProcessID:     "",
-		Warnings:      nil,
+		Logs:          []string{},
+		ProcessID:     "p1",
+		Warnings:      []string{},
 	}
 
 	*spans = append(*spans, spanEntry)
@@ -401,7 +424,7 @@ func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID stri
 	}
 }
 
-func ComputeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
+func computeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
 	if endTs == "" {
 		err := fmt.Errorf("ComputeStartTime : failed to process response missing endTs")
 		return 0, 0, err
@@ -432,4 +455,17 @@ func ComputeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
 	}
 	start := endValue - lookBackVal
 	return start, endValue, nil
+}
+
+func convertEpochToMilliseconds(epoch int64) int64 {
+	switch {
+	case epoch >= 1e9 && epoch < 1e10:
+		return epoch * 1000
+	case epoch >= 1e12 && epoch < 1e13:
+		return epoch
+	case epoch >= 1e15 && epoch < 1e16:
+		return epoch / 1000
+	default:
+		return 0
+	}
 }
