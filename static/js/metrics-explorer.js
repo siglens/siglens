@@ -2315,27 +2315,33 @@ function determineTimeUnit(timeRange) {
 }
 
 async function getMetricNames() {
-    const data = {
-        start: filterStartDate,
-        end: filterEndDate,
-    };
-    const res = await $.ajax({
-        method: 'post',
-        url: 'metrics-explorer/api/v1/metric_names',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data),
-    });
+    try {
+        $('body').css('cursor', 'wait');
 
-    if (res) {
-        availableMetrics = res.metricNames;
+        const data = {
+            start: filterStartDate,
+            end: filterEndDate,
+        };
+        const res = await $.ajax({
+            method: 'post',
+            url: 'metrics-explorer/api/v1/metric_names',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(data),
+        });
+
+        if (res) {
+            availableMetrics = res.metricNames;
+        }
+
+        return res;
+    } finally {
+        $('body').css('cursor', 'default');
     }
-
-    return res;
 }
 
 function displayErrorMessage(container, message) {
@@ -2537,55 +2543,72 @@ async function getMetricsDataForFormula(formulaId, formulaDetails) {
 }
 
 async function fetchTimeSeriesData(data) {
-    const response = await fetch('metrics-explorer/api/v1/timeseries', {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json', Accept: '*/*' },
-        body: JSON.stringify(data),
-    });
+    try {
+        // Show loading cursor
+        $('body').css('cursor', 'wait');
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch time series data');
+        const response = await fetch('metrics-explorer/api/v1/timeseries', {
+            method: 'post',
+            headers: { 'Content-Type': 'application/json', Accept: '*/*' },
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch time series data');
+        }
+
+        return await response.json();
+    } finally {
+        // Reset cursor to default
+        $('body').css('cursor', 'default');
     }
-
-    return response.json();
 }
 
 function getTagKeyValue(metricName) {
     return new Promise((resolve, reject) => {
-        let param = {
-            start: filterStartDate,
-            end: filterEndDate,
-            metric_name: metricName,
-        };
-        startQueryTime = new Date().getTime();
+        try {
+            $('body').css('cursor', 'wait');
 
-        $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/all_tags',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(param),
-            success: function (res) {
-                const availableEverywhere = [];
-                const availableEverything = [];
-                if (res && res.tagKeyValueSet) {
-                    availableEverything.push(res.uniqueTagKeys);
-                    for (let i = 0; i < res.tagKeyValueSet.length; i++) {
-                        let cur = res.tagKeyValueSet[i];
-                        availableEverywhere.push(cur);
+            let param = {
+                start: filterStartDate,
+                end: filterEndDate,
+                metric_name: metricName,
+            };
+            startQueryTime = new Date().getTime();
+
+            $.ajax({
+                method: 'post',
+                url: 'metrics-explorer/api/v1/all_tags',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    Accept: '*/*',
+                },
+                crossDomain: true,
+                dataType: 'json',
+                data: JSON.stringify(param),
+                success: function (res) {
+                    const availableEverywhere = [];
+                    const availableEverything = [];
+                    if (res && res.tagKeyValueSet) {
+                        availableEverything.push(res.uniqueTagKeys);
+                        for (let i = 0; i < res.tagKeyValueSet.length; i++) {
+                            let cur = res.tagKeyValueSet[i];
+                            availableEverywhere.push(cur);
+                        }
                     }
-                }
-                resolve({ availableEverywhere, availableEverything });
-            },
-            error: function (xhr, status, error) {
-                reject(error);
-            },
-        });
+                    $('body').css('cursor', 'default');
+                    resolve({ availableEverywhere, availableEverything });
+                },
+                error: function (xhr, status, error) {
+                    $('body').css('cursor', 'default');
+                    reject(error);
+                },
+            });
+        } catch (error) {
+            $('body').css('cursor', 'default');
+            reject(error);
+        }
     });
 }
 
