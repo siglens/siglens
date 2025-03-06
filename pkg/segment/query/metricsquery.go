@@ -120,9 +120,18 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	if mQuery.SelectAllSeries {
+		filteredTags := make([]*structs.TagsFilter, 0, len(allTagKeys))
 		for _, v := range mQuery.TagsFilters {
 			delete(allTagKeys, v.TagKey)
+			if v.IgnoreTag && !v.NotInitialGroup {
+				continue
+			}
+
+			filteredTags = append(filteredTags, v)
 		}
+
+		mQuery.TagsFilters = filteredTags
+
 		for tkey, present := range allTagKeys {
 			if present {
 				mQuery.TagsFilters = append(mQuery.TagsFilters, &structs.TagsFilter{

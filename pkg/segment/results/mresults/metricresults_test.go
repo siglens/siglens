@@ -30,12 +30,16 @@ func Test_getAggSeriesId_SeriesWithGroupBy(t *testing.T) {
 	seriesId := "test{tk1:v1,tk2:v2"
 	groupByFields := []string{"tk1", "tk2"}
 
-	aggSeriesId := getAggSeriesId(seriesId, groupByFields)
+	aggregation := &structs.Aggregation{
+		GroupByFields: groupByFields,
+	}
+
+	aggSeriesId := getAggSeriesId(seriesId, aggregation)
 	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
 
 	// trailing comma
 	seriesId = "test{tk1:v1,tk2:v2,"
-	aggSeriesId = getAggSeriesId(seriesId, groupByFields)
+	aggSeriesId = getAggSeriesId(seriesId, aggregation)
 	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
 }
 
@@ -50,15 +54,44 @@ func Test_getAggSeriesId_SeriesWithGroupByAndNoGroupByFields(t *testing.T) {
 	seriesId := "test{tk1:v1,tk2:v2"
 	groupByFields := make([]string, 0)
 
-	aggSeriesId := getAggSeriesId(seriesId, groupByFields)
+	aggregation := &structs.Aggregation{
+		GroupByFields: groupByFields,
+	}
+
+	aggSeriesId := getAggSeriesId(seriesId, aggregation)
 	assert.Equal(t, "test{", aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutGroupByAndEmptyGroupByFields(t *testing.T) {
 	seriesId := "test{"
 
-	aggSeriesId := getAggSeriesId(seriesId, make([]string, 0))
+	aggregation := &structs.Aggregation{
+		GroupByFields: []string{},
+	}
+
+	aggSeriesId := getAggSeriesId(seriesId, aggregation)
 	assert.Equal(t, "test{", aggSeriesId)
+}
+
+func Test_getAggSeriesId_SeriesWithoutFlagSet(t *testing.T) {
+	seriesId := "test{tk1:v1,tk2:v2,tk3:v3,tk4:v4,tk5:v5"
+
+	aggregation := &structs.Aggregation{
+		Without: true,
+		GroupByFields: []string{
+			"tk1",
+			"tk3",
+			"tk5",
+		},
+	}
+
+	aggSeriesId := getAggSeriesId(seriesId, aggregation)
+	assert.Equal(t, "test{tk2:v2,tk4:v4", aggSeriesId)
+
+	// value has `:` in it
+	seriesId = "test{tk1:v1:1,tk2:v2,tk3:v3:3,tk4:v4,tk5:v5:5"
+	aggSeriesId = getAggSeriesId(seriesId, aggregation)
+	assert.Equal(t, "test{tk2:v2,tk4:v4", aggSeriesId)
 }
 
 func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
