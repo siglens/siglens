@@ -69,5 +69,30 @@ func histogramQuantile(quantile float64, bins []histogramBin) (float64, error) {
 		prevCount = bins[i].count
 	}
 
-	return 0, nil // TODO
+	// Actually compute the quantile.
+	target := quantile * lastBin.count
+	i := sort.Search(len(bins), func(i int) bool {
+		return bins[i].count >= target
+	})
+
+	if i == 0 {
+		return bins[0].upperBound, nil
+	}
+
+	if bins[i].count == target {
+		return bins[i].upperBound, nil
+	}
+
+	// Linear interpolation between buckets
+	lowerBound := 0.0
+	if i > 0 {
+		lowerBound = bins[i-1].upperBound
+	}
+
+	// Calculate the fraction of the way between the two bucket boundaries
+	bucketFraction := (target - bins[i-1].count) / (bins[i].count - bins[i-1].count)
+
+	// Linear interpolation
+	return lowerBound + bucketFraction*(bins[i].upperBound-lowerBound), nil
+
 }

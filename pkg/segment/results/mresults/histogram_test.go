@@ -73,4 +73,21 @@ func Test_histogramQuantile(t *testing.T) {
 		_, err = histogramQuantile(0.5, bins)
 		assert.NoError(t, err)
 	})
+
+	t.Run("quantileInMiddle", func(t *testing.T) {
+		bins := []histogramBin{
+			{upperBound: 10, count: 250},
+			{upperBound: 20, count: 500},
+			{upperBound: 30, count: 750},
+			{upperBound: math.Inf(1), count: 1000},
+		}
+
+		value, err := histogramQuantile(0.5, bins)
+		assert.NoError(t, err)
+		assert.Equal(t, 20.0, value)
+
+		value, err = histogramQuantile(0.6, bins)
+		assert.NoError(t, err)
+		assert.Equal(t, 24.0, value) // 50th is 20; 75th is 30; so 60th is (20 + (2/5) * 10) = 24
+	})
 }
