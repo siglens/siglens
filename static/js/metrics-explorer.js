@@ -2232,8 +2232,21 @@ async function convertDataForChart(data) {
     let seriesArray = [];
 
     if (data.series && data.timestamps && data.values) {
-        let chartStartTime = data.startTime;
-        let chartEndTime = Math.floor(Date.now() / 1000);
+        let chartStartTime, chartEndTime;
+
+        // If using custom date range
+        if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
+            chartStartTime = Math.floor(filterStartDate / 1000);
+            chartEndTime = Math.floor(filterEndDate / 1000);
+        } else {
+            chartStartTime = data.startTime;
+            chartEndTime = Math.floor(Date.now() / 1000); // now
+
+            if (data.timestamps && data.timestamps.length > 0) {
+                chartEndTime = Math.max(chartEndTime, data.timestamps[data.timestamps.length - 1]);
+            }
+        }
+
         const timeRange = chartEndTime - chartStartTime;
 
         // Determine the best time unit based on the time range
@@ -2276,7 +2289,18 @@ async function convertDataForChart(data) {
     }
 
     if (seriesArray.length === 0) {
-        const labels = generateEmptyChartLabels(timeUnit, data.startTime, Math.floor(Date.now() / 1000));
+        let startTime, endTime;
+
+        // For custom time range
+        if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
+            startTime = Math.floor(filterStartDate / 1000);
+            endTime = Math.floor(filterEndDate / 1000);
+        } else {
+            startTime = data.startTime;
+            endTime = Math.floor(Date.now() / 1000);
+        }
+
+        const labels = generateEmptyChartLabels(timeUnit, startTime, endTime);
         seriesArray.push({
             seriesName: 'No Data',
             values: labels.reduce((acc, label) => {
