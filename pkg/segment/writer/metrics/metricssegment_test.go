@@ -160,28 +160,22 @@ func Test_ReadWriteTsoTsgFiles(t *testing.T) {
 	series_2 := writeToTimeSeries(mb, 1)
 
 	err = mb.FlushTSOAndTSGFiles("data/mock_0")
-	if err != nil {
-		log.Errorf("Test_ReadWriteTsoTsgFiles: Error writing mock metrics block %v", err)
-	}
+	assert.NoError(t, err)
 
 	tssr, err := series.InitTimeSeriesReader("data/mock")
-	if err != nil {
-		log.Errorf("Test_ReadWriteTsoTsgFiles: Error initialising a time series reader. Err %v", err)
-	}
+	assert.NoError(t, err)
+
 	queryMetrics := &structs.MetricsQueryProcessingMetrics{
 		UpdateLock: &sync.Mutex{},
 	}
 	tssr_block, err := tssr.InitReaderForBlock(uint16(0), queryMetrics)
-	if err != nil {
-		log.Errorf("Test_ReadWriteTsoTsgFiles: Error initialising a time series reader for block. Err %v", err)
-	}
+	assert.NoError(t, err)
 
 	// verify series 1
 	ts_itr, exists, err := tssr_block.GetTimeSeriesIterator(tsid_1)
-	if err != nil {
-		log.Errorf("Test_ReadWriteTsoTsgFiles: Error initialising a time series iterator for tsid %v", tsid_1)
-	}
+	assert.NoError(t, err)
 	assert.True(t, exists)
+
 	count_1 := 0
 	for ts_itr.Next() {
 		ts, val := ts_itr.At()
@@ -192,10 +186,8 @@ func Test_ReadWriteTsoTsgFiles(t *testing.T) {
 
 	// verify series 2
 	ts_itr, exists, err = tssr_block.GetTimeSeriesIterator(tsid_2)
-	if err != nil {
-		assert.NoError(t, err)
-		log.Errorf("Test_ReadWriteTsoTsgFiles: Error initialising a time series iterator for tsid %v", tsid_2)
-	}
+	assert.NoError(t, err)
+
 	assert.True(t, exists)
 	count_2 := 0
 	for ts_itr.Next() {
