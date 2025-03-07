@@ -49,6 +49,8 @@ Struct to access data within a single block.
 Exposes functions that will return a TimeSeriesIterator for the given tsids
 */
 type TimeSeriesBlockReader struct {
+	tsoVersion byte
+
 	rawTSO   []byte // raw read TSO file
 	rawTSG   []byte // raw read TSG file
 	numTSIDs uint64
@@ -138,7 +140,7 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 	// load tso/tsg file as need
 	tsoFName := fmt.Sprintf("%s_%d.tso", tssr.mKey, blkNum)
 	sTime := time.Now()
-	readTSO, nTSIDs, err := tssr.loadTSOFile(tsoFName)
+	tsoVersion, readTSO, nTSIDs, err := tssr.loadTSOFile(tsoFName)
 	if err != nil {
 		log.Errorf("InitReaderForBlock: failed to init reader for block %v! Err:%+v", blkNum, err)
 		return nil, err
@@ -160,12 +162,13 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 	queryMetrics.IncrementNumTSGFilesLoaded(1)
 
 	return &TimeSeriesBlockReader{
-		rawTSO:    readTSO,
-		rawTSG:    readTSG,
-		numTSIDs:  nTSIDs,
-		first:     true,
-		lastTSidx: 0,
-		lastTSID:  0,
+		tsoVersion: tsoVersion,
+		rawTSO:     readTSO,
+		rawTSG:     readTSG,
+		numTSIDs:   nTSIDs,
+		first:      true,
+		lastTSidx:  0,
+		lastTSID:   0,
 	}, nil
 }
 
@@ -187,12 +190,12 @@ func (tsbr *TimeSeriesBlockReader) GetTimeSeriesIterator(tsid uint64) (*compress
 	var tsIDX uint32
 	if !tsbr.first {
 		if tsid < tsbr.lastTSID {
-			found, tsIDX, offset = getOffsetFromTsoFile(0, tsbr.lastTSidx, uint32(tsbr.numTSIDs), tsid, tsbr.rawTSO)
+			found, tsIDX, offset = getOffsetFromTsoFile(tsbr.tsoVersion, 0, tsbr.lastTSidx, uint32(tsbr.numTSIDs), tsid, tsbr.rawTSO)
 		} else if tsid > tsbr.lastTSID {
-			found, tsIDX, offset = getOffsetFromTsoFile(tsbr.lastTSidx, uint32(tsbr.numTSIDs-1), uint32(tsbr.numTSIDs), tsid, tsbr.rawTSO)
+			found, tsIDX, offset = getOffsetFromTsoFile(tsbr.tsoVersion, tsbr.lastTSidx, uint32(tsbr.numTSIDs-1), uint32(tsbr.numTSIDs), tsid, tsbr.rawTSO)
 		}
 	} else {
-		found, tsIDX, offset = getOffsetFromTsoFile(0, uint32(tsbr.numTSIDs-1), uint32(tsbr.numTSIDs), tsid, tsbr.rawTSO)
+		found, tsIDX, offset = getOffsetFromTsoFile(tsbr.tsoVersion, 0, uint32(tsbr.numTSIDs-1), uint32(tsbr.numTSIDs), tsid, tsbr.rawTSO)
 	}
 
 	if !found {
@@ -215,12 +218,23 @@ func (tsbr *TimeSeriesBlockReader) GetTimeSeriesIterator(tsid uint64) (*compress
 }
 
 // returns bool if found. If true, returns the tsidx and offset in the TSG file
-func getOffsetFromTsoFile(low uint32, high uint32, nTsids uint32, tsid uint64, tsoBuf []byte) (bool, uint32, uint32) {
+func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint32, tsid uint64,
+	tsoBuf []byte) (bool, uint32, uint32) {
+
+	switch tsoVersion {
+	case segutils.VERSION_TSOFILE_V1[0]:
+		tsoBuf = tsoBuf[3:] // strip the version and number of entries
+	case segutils.VERSION_TSOFILE_V2[0]:
+		tsoBuf = tsoBuf[9:] // strip the version and number of entries
+	default:
+		log.Errorf("getOffsetFromTsoFile: invalid TSO version: %v", tsoVersion)
+		return false, 0, 0
+	}
+
 	for low <= high {
 		mid := (high + low) / 2
-		// adding 3 because the first byte for version and the next two bytes are for number of entries
 		// multiplying 'mid' by 12 because every tsid info takes 8 bytes for tsid and 4 bytes for tsid offset
-		offsetMid := 3 + mid*12
+		offsetMid := mid * 12
 		// tsid takes 8 bytes in the tso buffer
 		tempBuffer := tsoBuf[offsetMid : offsetMid+8]
 		midTsid := utils.BytesToUint64LittleEndian(tempBuffer)
@@ -290,26 +304,25 @@ func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
 	return nil
 }
 
-func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint64, error) {
+func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte, uint64, error) {
 	err := loadFileIntoPoolBuffer(fileName, &tssr.tsoBuf)
 	if err != nil {
 		log.Errorf("loadTSOFile: Error loading TSO file: %v", err)
-		return nil, 0, err
+		return 0, nil, 0, err
 	}
 
-	versionTsoFile := make([]byte, 1)
+	tsoVersion := tssr.tsoBuf[0]
 	nEntries := uint64(0)
-	copy(versionTsoFile, tssr.tsoBuf[:1])
-	switch versionTsoFile[0] {
+	switch tsoVersion {
 	case segutils.VERSION_TSOFILE_V1[0]:
 		nEntries = uint64(utils.BytesToUint16LittleEndian(tssr.tsoBuf[1:3]))
 	case segutils.VERSION_TSOFILE_V2[0]:
-		nEntries = utils.BytesToUint64LittleEndian(tssr.tsoBuf[1:11])
+		nEntries = utils.BytesToUint64LittleEndian(tssr.tsoBuf[1:9])
 	default:
-		return nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: invalid TSO version: %+v", versionTsoFile[0])
+		return 0, nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: invalid TSO version: %+v", tsoVersion)
 	}
 
-	return tssr.tsoBuf, nEntries, nil
+	return tsoVersion, tssr.tsoBuf, nEntries, nil
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
