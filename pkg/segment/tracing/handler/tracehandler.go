@@ -707,7 +707,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	if val, ok := readJSON["startEpoch"]; ok {
 		searchRequestBody.StartEpoch = convertEpochToString(val)
 		if searchRequestBody.StartEpoch == "" {
-			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for startEpoch")
+			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for startEpoch : %v", val)
 			return
 		}
 	} else {
@@ -718,7 +718,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	if val, ok := readJSON["endEpoch"]; ok {
 		searchRequestBody.EndEpoch = convertEpochToString(val)
 		if searchRequestBody.EndEpoch == "" {
-			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for endEpoch")
+			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for endEpoch : %v", val)
 			return
 		}
 	} else {
@@ -798,7 +798,7 @@ func convertEpochToString(value interface{}) string {
 	case float32, float64:
 		return fmt.Sprintf("%f", v)
 	default:
-		log.Errorf("convertEpochToString: Unsupported data type: %T", v)
+		log.Errorf("convertEpochToString: Unsupported data type: %T, Value: %v", v, v)
 		return ""
 	}
 }
