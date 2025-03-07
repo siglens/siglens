@@ -976,6 +976,7 @@ func ProcessGetMetricSeriesCardinalityRequest(ctx *fasthttp.RequestCtx, myid int
 	WriteJsonResponse(ctx, &output)
 }
 
+// TODO: do we need to return exact numbers or is HLL fine here
 func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	type inputStruct struct {
 		StartEpoch utils.Epoch `json:"startEpoch"`
@@ -1022,7 +1023,7 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 	for tagKey := range tagKeys {
 		tsidsForKey := make(map[uint64]struct{})
 		for _, segmentTagTreeReader := range tagsTreeReaders {
-			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey, nil)
 			if err != nil {
 				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
 				return

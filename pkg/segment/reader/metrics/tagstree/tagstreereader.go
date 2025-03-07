@@ -306,7 +306,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 				return nil, err
 			}
 		} else {
-			_, _, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator)
+			_, _, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
 			if err != nil {
 				log.Infof("FindTSIDS: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 				return nil, err
@@ -343,7 +343,8 @@ Returns:
 - error, any errors encountered
 */
 func (attr *AllTagTreeReaders) GetMatchingTSIDs(mName uint64, tagKey string, tagValue uint64,
-	tagOperator segutils.TagOperator) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+	tagOperator segutils.TagOperator,
+	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
 
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
@@ -351,15 +352,18 @@ func (attr *AllTagTreeReaders) GetMatchingTSIDs(mName uint64, tagKey string, tag
 		if err != nil {
 			return false, false, nil, 0, fmt.Errorf("GetMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
-			return ttr.GetMatchingTSIDs(mName, tagValue, tagOperator)
+			return ttr.GetMatchingTSIDs(mName, tagValue, tagOperator, tsidCard)
 		}
 	}
-	return ttr.GetMatchingTSIDs(mName, tagValue, tagOperator)
+	return ttr.GetMatchingTSIDs(mName, tagValue, tagOperator, tsidCard)
 }
 
 // See encodeTagsTree() for how the file for a TagTree is laid out.
 // The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, tagHashValue, error)
-func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOperator segutils.TagOperator) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64,
+	tagOperator segutils.TagOperator,
+	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+
 	if tagOperator != segutils.Equal && tagOperator != segutils.NotEqual {
 		log.Errorf("TagTreeReader.GetMatchingTSIDs: tagOperator %v is not supported; only Equal and NotEqual are currently implemented", tagOperator)
 		return false, false, nil, tagValue, fmt.Errorf("TagTreeReader.GetMatchingTSIDs: tagOperator not supported")
@@ -430,7 +434,11 @@ func (ttr *TagTreeReader) GetMatchingTSIDs(mName uint64, tagValue uint64, tagOpe
 
 				for i := uint32(0); i < tsidCount; i++ {
 					tsid := utils.BytesToUint64LittleEndian(tagTreeBuf[treeOffset : treeOffset+8])
-					rawTagValueToTSIDs[valueAsStr][tsid] = struct{}{}
+					if tsidCard != nil {
+						tsidCard.AddRaw(tsid)
+					} else {
+						rawTagValueToTSIDs[valueAsStr][tsid] = struct{}{}
+					}
 
 					treeOffset += 8
 				}
@@ -476,7 +484,9 @@ func (attr *AllTagTreeReaders) GetAllTagPairs() (map[string]map[string]struct{},
 	return tagPairs, nil
 }
 
-func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string) (map[uint64]struct{}, error) {
+func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string,
+	tsidCard *utils.GobbableHll) (map[uint64]struct{}, error) {
+
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
 		return nil, nil
@@ -498,13 +508,16 @@ func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string) (map[uint64]struct{
 	}
 
 	for value := range valuesForKey {
-		tsids, err := ttr.GetTSIDsForTagValue(value)
+		tsids, err := ttr.GetTSIDsForTagValue(value, tsidCard)
 		if err != nil {
 			log.Errorf("AllTagTreeReaders.GetTSIDsForKey: failed to get TSIDs for tag key %v, tag value %v. Error: %v", tagKey, value, err)
 			return nil, err
 		}
 
-		allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+		// if we don't want to accumulate cardinalities only then we should return actual tsids
+		if tsidCard == nil {
+			allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+		}
 	}
 
 	return allTSIDs, nil
@@ -516,10 +529,12 @@ func (attr *AllTagTreeReaders) GetTSIDsForTagPair(tagKey string, tagValue string
 		return nil, fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
 	}
 
-	return ttr.GetTSIDsForTagValue(tagValue)
+	return ttr.GetTSIDsForTagValue(tagValue, nil)
 }
 
-func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string) (map[uint64]struct{}, error) {
+func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string,
+	tsidCard *utils.GobbableHll) (map[uint64]struct{}, error) {
+
 	hashedMetricNames, err := ttr.getHashedMetricNames()
 	if err != nil {
 		log.Errorf("TagTreeReader.GetTSIDsForTagValue: failed to get hashed metric names. Error: %v", err)
@@ -530,23 +545,27 @@ func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string) (map[uint64]struc
 	hashedTagValue := xxhash.Sum64String(tagValue) // The hash function that TagTree.AddTagValue uses.
 
 	for hashedMetricName := range hashedMetricNames {
-		_, _, rawTagValueToTSIDs, _, err := ttr.GetMatchingTSIDs(hashedMetricName, hashedTagValue, segutils.Equal)
+		_, _, rawTagValueToTSIDs, _, err := ttr.GetMatchingTSIDs(hashedMetricName, hashedTagValue,
+			segutils.Equal, tsidCard)
 		if err != nil {
 			log.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: failed to get matching TSIDs for tag value %v, metric hash %v. Error: %v",
 				tagValue, hashedMetricName, err)
 			return nil, err
 		}
 
-		// There should be 0 or 1 matching tag values, since we're looking for
-		// a specific tag value.
-		if len(rawTagValueToTSIDs) > 1 {
-			err := fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: expected 0 or 1 tag value to match, got %v", len(rawTagValueToTSIDs))
-			log.Errorf(err.Error())
-			return nil, err
-		}
+		// if cardinality was not asked only then do these things
+		if tsidCard == nil {
+			// There should be 0 or 1 matching tag values, since we're looking for
+			// a specific tag value.
+			if len(rawTagValueToTSIDs) > 1 {
+				err := fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagValue: expected 0 or 1 tag value to match, got %v", len(rawTagValueToTSIDs))
+				log.Errorf(err.Error())
+				return nil, err
+			}
 
-		for _, tsids := range rawTagValueToTSIDs {
-			allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+			for _, tsids := range rawTagValueToTSIDs {
+				allTSIDs = utils.MergeMaps(allTSIDs, tsids)
+			}
 		}
 	}
 
@@ -561,7 +580,7 @@ func (attr *AllTagTreeReaders) GetValueIteratorForMetric(mName uint64, tagKey st
 	if !ok {
 		ttr, err := attr.InitTagsTreeReader(tagKey)
 		if err != nil {
-			return nil, false, fmt.Errorf("GetMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
+			return nil, false, fmt.Errorf("GetValueIteratorForMetric: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
 			return ttr.GetValueIteratorForMetric(mName)
 		}
