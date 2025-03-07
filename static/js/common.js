@@ -280,9 +280,14 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $('body').css('cursor', 'default');
         }
     }
+    
     canScrollMore = res.can_scroll_more;
-    scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) {
+    scrollFrom = scrollFrom + res.hits.totalMatched.value;
+
+    // Only show empty results error if this is the first request (not a scroll request)
+    // or if there's no existing data in panelLogsRowData
+    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) && 
+        (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
         panelProcessEmptyQueryResults('', panelId);
     }
 
