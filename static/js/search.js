@@ -17,6 +17,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 let lastQType = '';
+window.sharedSocket = null;
+window.reconnectAttempts = 0;
+// let startQueryTime = 0;
+// let canScrollMore = false;
+// let scrollFrom = 0;
+
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -24,16 +30,21 @@ function wsURL(path) {
 }
 //eslint-disable-next-line no-unused-vars
 function doCancel(data) {
-    socket.send(JSON.stringify(data));
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
-    $('#progress-div').html(``);
-    $('#record-searched').html(``);
+    if (window.sharedSocket) {
+        window.sharedSocket.send(JSON.stringify(data));
+        $('body').css('cursor', 'default');
+        $('#run-filter-btn').html(' ');
+        $('#run-filter-btn').removeClass('cancel-search');
+        $('#run-filter-btn').removeClass('active');
+        $('#query-builder-btn').html(' ');
+        $('#query-builder-btn').removeClass('cancel-search');
+        $('#query-builder-btn').removeClass('active');
+        $('#progress-div').html(``);
+        $('#record-searched').html(``);
+        window.sharedSocket.close(1000);
+        window.sharedSocket = null;
+        window.reconnectAttempts = 0;
+    }
 }
 //eslint-disable-next-line no-unused-vars
 function doLiveTailCancel(_data) {
@@ -41,6 +52,10 @@ function doLiveTailCancel(_data) {
     $('#live-tail-btn').html('Live Tail');
     $('#live-tail-btn').removeClass('active');
     $('#progress-div').html(``);
+    if (window.sharedSocket) {
+        window.sharedSocket.close(1000);
+        window.sharedSocket = null;
+    }
 }
 
 function resetDataTable(firstQUpdate) {
@@ -62,6 +77,7 @@ function resetDataTable(firstQUpdate) {
     }
 }
 
+
 let doSearchCounter = 0;
 let columnCount = 0;
 //eslint-disable-next-line no-unused-vars
@@ -69,7 +85,10 @@ function doSearch(data) {
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
-        socket = new WebSocket(newUri);
+        if (!window.sharedSocket || window.sharedSocket.readyState === WebSocket.CLOSED) {
+            window.sharedSocket = new WebSocket(newUri);
+            window.reconnectAttempts = 0;
+        }
         let timeToFirstByte = 0;
         let firstQUpdate = true;
         let lastKnownHits = 0;
@@ -78,16 +97,18 @@ function doSearch(data) {
         doSearchCounter++;
         console.time(timerName);
 
-        socket.onopen = function (_e) {
+        window.sharedSocket.onopen = function (_e) {
+            console.log('WebSocket opened for search:', data); // Debug log
             $('body').css('cursor', 'progress');
             $('#run-filter-btn').addClass('cancel-search');
             $('#run-filter-btn').addClass('active');
             $('#query-builder-btn').html('   ');
             $('#query-builder-btn').addClass('cancel-search');
             $('#query-builder-btn').addClass('active');
+            data.runTimechart = true;
 
             try {
-                socket.send(JSON.stringify(data));
+                window.sharedSocket.send(JSON.stringify(data));
             } catch (e) {
                 reject(`Error sending message to server: ${e}`);
                 console.timeEnd(timerName);
@@ -95,8 +116,9 @@ function doSearch(data) {
             }
         };
 
-        socket.onmessage = function (event) {
+        window.sharedSocket.onmessage = function (event) {
             let jsonEvent = JSON.parse(event.data);
+            console.log('WebSocket message received in search.js:', jsonEvent.state, JSON.stringify(jsonEvent, null, 2)); // Debug log
             let eventType = jsonEvent.state;
             let totalEventsSearched = jsonEvent.total_events_searched;
             let totalTime = new Date().getTime() - startQueryTime;
@@ -113,12 +135,22 @@ function doSearch(data) {
                     if (jsonEvent && jsonEvent.hits && jsonEvent.hits.totalMatched) {
                         totalHits = jsonEvent.hits.totalMatched;
                         lastKnownHits = totalHits;
+
                     } else {
                         // we enter here only because backend sent null hits/totalmatched
                         totalHits = lastKnownHits;
                     }
                     resetDataTable(firstQUpdate);
                     processQueryUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, totalHits);
+                    if (jsonEvent.timechartUpdate && Array.isArray(jsonEvent.timechartUpdate.measure)) {
+                        console.log('Timechart UPDATE received:', jsonEvent.timechartUpdate);
+                        // Notify histo.js of new data (optional, if integrated)
+                        if (window.histoUpdateCallback) {
+                            window.histoUpdateCallback(jsonEvent.timechartUpdate.measure);
+                        }
+                    } else {
+                        console.warn('Invalid or missing timechart update data', jsonEvent.timechartUpdate);
+                    }
                     console.timeEnd('QUERY_UPDATE');
                     firstQUpdate = false;
                     break;
@@ -132,8 +164,13 @@ function doSearch(data) {
                     canScrollMore = jsonEvent.can_scroll_more;
                     scrollFrom = jsonEvent.total_rrc_count;
                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
+                    if (jsonEvent.timechartComplete && Array.isArray(jsonEvent.timechartComplete.measure)) {
+                        console.log('Timechart COMPLETE received:', jsonEvent.timechartComplete);
+                    } else {
+                        console.warn('Invalid or missing timechart complete data', jsonEvent.timechartComplete);
+                    }
                     console.timeEnd('COMPLETE');
-                    socket.close(1000);
+                    window.sharedSocket.close(1000);
                     break;
                 }
                 case 'CANCELLED':
@@ -142,7 +179,9 @@ function doSearch(data) {
                     processCancelUpdate(jsonEvent);
                     console.timeEnd('CANCELLED');
                     errorMessages.push(`CANCELLED: ${jsonEvent}`);
-                    socket.close(1000);
+                    window.sharedSocket.close(1000);
+                    window.sharedSocket = null;
+                    window.reconnectAttempts = 0;
                     break;
                 case 'TIMEOUT':
                     console.time('TIMEOUT');
@@ -150,7 +189,9 @@ function doSearch(data) {
                     processTimeoutUpdate(jsonEvent);
                     console.timeEnd('TIMEOUT');
                     errorMessages.push(`Timeout: ${jsonEvent}`);
-                    socket.close(1000);
+                    window.sharedSocket.close(1000);
+                    window.sharedSocket = null;
+                    window.reconnectAttempts = 0;
                     break;
                 case 'ERROR':
                     console.time('ERROR');
@@ -158,6 +199,9 @@ function doSearch(data) {
                     processErrorUpdate(jsonEvent);
                     console.timeEnd('ERROR');
                     errorMessages.push(`Error: ${jsonEvent}`);
+                    window.sharedSocket.close(1000);
+                    window.sharedSocket = null;
+                    window.reconnectAttempts = 0;
                     break;
                 default:
                     console.log(`[message] Unknown state received from server: ` + JSON.stringify(jsonEvent));
@@ -171,7 +215,7 @@ function doSearch(data) {
             }
         };
 
-        socket.onclose = function (event) {
+        window.sharedSocket.onclose = function (event) {
             if (event.wasClean) {
                 console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
             } else {
@@ -187,13 +231,67 @@ function doSearch(data) {
             console.timeEnd(timerName);
             const finalResultResponseTime = (new Date().getTime() - startQueryTime).toLocaleString();
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
+            if (!isQueryComplete && window.reconnectAttempts < 20) { // Use global reconnectAttempts
+                window.reconnectAttempts++;
+                setTimeout(() => {
+                    console.log('Attempting to reconnect after close...');
+                    doSearch(data).then(resolve).catch(reject);
+                }, 2000);
+            }
         };
 
-        socket.addEventListener('error', (event) => {
+        window.sharedSocket.addEventListener('error', (event) => {
             errorMessages.push(`WebSocket error: ${event}`);
         });
     });
 }
+
+window.updateSearchRange = function (startEpoch, endEpoch) {
+    if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
+        const data = {
+            state: 'query',
+            searchText: "*",
+            startEpoch: startEpoch,
+            endEpoch: endEpoch,
+            runTimechart: true,
+            queryLanguage: "Splunk QL",
+        };
+        console.log('Updating search range:', data);
+        window.sharedSocket.send(JSON.stringify(data));
+        window.reconnectAttempts = 0; // Reset on successful send
+    } else {
+        console.warn('WebSocket not open, queuing range update');
+        const queuedData = { startEpoch, endEpoch };
+        const retryUpdate = () => {
+            if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
+                const data = {
+                    state: 'query',
+                    searchText: "*",
+                    startEpoch: queuedData.startEpoch,
+                    endEpoch: queuedData.endEpoch,
+                    runTimechart: true,
+                    queryLanguage: "Splunk QL",
+                };
+                console.log('Processing queued range update:', data);
+                window.sharedSocket.send(JSON.stringify(data));
+                window.reconnectAttempts = 0; // Reset on success
+            } else if (window.reconnectAttempts < 20) {
+                window.reconnectAttempts++;
+                console.log(`Retry attempt ${window.reconnectAttempts} for queued update`);
+                setTimeout(retryUpdate, 1000);
+            } else {
+                console.error('Max retry attempts reached for queued update. Please refresh the page.');
+            }
+        };
+        window.sharedSocket.onopen = retryUpdate; // Trigger on reopen
+        setTimeout(retryUpdate, 1000); // Initial retry
+    }
+};
+
+window.registerHistoCallbacks = function (updateCallback, completeCallback) {
+    window.histoUpdateCallback = updateCallback;
+    window.histoCompleteCallback = completeCallback;
+};
 
 function reconnect() {
     if (lockReconnect) {
@@ -218,7 +316,7 @@ function createLiveTailSocket(data) {
         if (!liveTailState) return;
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/live_tail');
-        socket = new WebSocket(newUri);
+        window.sharedSocket = new WebSocket(newUri);
         doLiveTailSearch(data);
     } catch (e) {
         console.log('live tail connect websocket catch: ' + e);
@@ -229,15 +327,15 @@ function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
-    socket.onopen = function (_e) {
+    window.sharedSocket.onopen = function (_e) {
         //  console.time("socket timing");
         $('body').css('cursor', 'progress');
         $('#live-tail-btn').html('Cancel Live Tail');
         $('#live-tail-btn').addClass('active');
-        socket.send(JSON.stringify(data));
+        window.sharedSocket.send(JSON.stringify(data));
     };
 
-    socket.onmessage = function (event) {
+    window.sharedSocket.onmessage = function (event) {
         let jsonEvent = JSON.parse(event.data);
         let eventType = jsonEvent.state;
         if (jsonEvent && jsonEvent.total_events_searched && jsonEvent.total_events_searched != 0) {
@@ -281,7 +379,7 @@ function doLiveTailSearch(data) {
                 scrollFrom = jsonEvent.total_rrc_count;
                 processLiveTailCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
                 console.timeEnd('COMPLETE');
-                socket.close(1000);
+                window.sharedSocket.close(1000);
                 break;
             }
             case 'TIMEOUT':
@@ -313,7 +411,7 @@ function doLiveTailSearch(data) {
         }
     };
 
-    socket.onclose = function (event) {
+    window.sharedSocket.onclose = function (event) {
         if (liveTailState) {
             reconnect();
             console.log('live tail reconnect websocket');
@@ -328,7 +426,7 @@ function doLiveTailSearch(data) {
         }
     };
 
-    socket.addEventListener('error', (event) => {
+    window.sharedSocket.addEventListener('error', (event) => {
         console.log('WebSocket error: ', event);
     });
 }
