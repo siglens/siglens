@@ -115,8 +115,6 @@ Returns a bool indicating if this tsid is new
 Internally, will use the internal bloom to check if the tsid has already been added or not
 */
 func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid uint64) error {
-	rawTSID := utils.Uint64ToBytesLittleEndian(tsid)
-
 	tth.rwLock.Lock()
 	defer tth.rwLock.Unlock()
 
@@ -125,8 +123,6 @@ func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid u
 		log.Errorf("TagsTreeHolder.AddTagsForTSID: failed to add tags to tree. mName: %v, tsid: %v, tags holder: %+v; err=%v", mName, tsid, tags, err)
 		return err
 	}
-
-	tth.tagBloom.Add(rawTSID)
 
 	return nil
 }
