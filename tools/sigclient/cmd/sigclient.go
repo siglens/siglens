@@ -1,17 +1,17 @@
 // Copyright (c) 2021-2024 SigScalr, Inc.
-// 
+//
 // This file is part of SigLens Observability Solution
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -76,17 +76,23 @@ var esBulkCmd = &cobra.Command{
 			log.Fatalf("You can only use one of --ksm, --node, or --both at a time.")
 		}
 
-		// Default to generating both metrics if no flag is specified
-		if !ksmOnly && !nodeOnly && !bothMetrics {
-			bothMetrics = true
-		}
-
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
 				log.Fatalf("You cannot use totalEvents and eventsPerDay together; you must choose one.")
 				return
 			}
 			continuous = true
+		}
+
+		// Determine metric type
+		var metricType ingest.MetricGeneratorType
+		switch {
+		case ksmOnly:
+			metricType = ingest.GenerateKSMOnly
+		case nodeOnly:
+			metricType = ingest.GenerateNodeExporterOnly
+		default:
+			metricType = ingest.GenerateBothMetrics
 		}
 
 		var dataGeneratorConfig *utils.GeneratorDataConfig
@@ -118,7 +124,7 @@ var esBulkCmd = &cobra.Command{
 			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
 		}
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, ksmOnly, nodeOnly, bothMetrics)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, metricType)
 
 	},
 }
@@ -153,6 +159,9 @@ var functionalTestCmd = &cobra.Command{
 		maxVariableCols := 20
 		sleepDuration := 15 * time.Second
 
+		// Determine metric type as both
+		var metricType ingest.MetricGeneratorType = ingest.GenerateBothMetrics
+
 		if longer {
 			totalEvents = 20_000_000
 			batchSize = 100
@@ -165,7 +174,7 @@ var functionalTestCmd = &cobra.Command{
 
 			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
-			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig, false, false, true)
+			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig, metricType)
 
 			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
 			if err != nil {
@@ -216,7 +225,7 @@ var performanceTestCmd = &cobra.Command{
 			defer cancel()
 			// addTs should be false for performance testing
 
-			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig, false, false, true)
+			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix, indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig, ingest.GenerateBothMetrics)
 		}(cancel)
 
 		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
@@ -295,9 +304,15 @@ var metricsIngestCmd = &cobra.Command{
 			log.Fatalf("You can only use one of --ksm, --node, or --both at a time.")
 		}
 
-		// Default to generating both metrics if no flag is specified
-		if !ksmOnly && !nodeOnly && !bothMetrics {
-			bothMetrics = true
+		// Determine metric type
+		var metricType ingest.MetricGeneratorType
+		switch {
+		case ksmOnly:
+			metricType = ingest.GenerateKSMOnly
+		case nodeOnly:
+			metricType = ingest.GenerateNodeExporterOnly
+		default:
+			metricType = ingest.GenerateBothMetrics
 		}
 
 		if eventsPerDay > 0 {
@@ -322,7 +337,7 @@ var metricsIngestCmd = &cobra.Command{
 
 		// Pass the configuration to StartIngestion
 
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, ksmOnly, nodeOnly, bothMetrics)
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, metricType)
 	},
 }
 

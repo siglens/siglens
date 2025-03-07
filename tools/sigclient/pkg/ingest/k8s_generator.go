@@ -2,9 +2,9 @@ package ingest
 
 import (
 	"encoding/json"
-	"strings"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v6"
@@ -17,9 +17,10 @@ type K8sGenerator struct {
 	namespaces    []string
 	pods          []podInfo
 	seed          int64
-	ksmOnly       bool
-	nodeOnly      bool
-	bothMetrics   bool
+	// ksmOnly       bool
+	// nodeOnly      bool
+	// bothMetrics   bool
+	metricType MetricGeneratorType
 }
 
 type podInfo struct {
@@ -30,40 +31,42 @@ type podInfo struct {
 	conditions map[string]bool
 }
 
+func InitK8sGenerator(seed int64, metricType MetricGeneratorType) *K8sGenerator {
+	g := &K8sGenerator{
+		seed: seed,
+		// ksmOnly:     ksmOnly,
+		// nodeOnly:    nodeOnly,
+		// bothMetrics: bothMetrics,
+		metricType: metricType,
 
+		namespaces: []string{
+			"default", "kube-system", "monitoring",
+			"prod-backend", "prod-database",
+		},
+	}
 
-func InitK8sGenerator(seed int64, ksmOnly, nodeOnly, bothMetrics bool) *K8sGenerator {
-    g := &K8sGenerator{
-        seed:        seed,
-        ksmOnly:     ksmOnly,
-        nodeOnly:    nodeOnly,
-        bothMetrics: bothMetrics,
-        namespaces: []string{
-            "default", "kube-system", "monitoring",
-            "prod-backend", "prod-database",
-        },
-    }
+	// Initialize random and faker first
+	rand.Seed(seed)
+	g.faker = gofakeit.NewUnlocked(seed)
 
-    // Initialize random and faker first
-    rand.Seed(seed)
-    g.faker = gofakeit.NewUnlocked(seed)
+	// Initialize nodes based on flags
+	// if nodeOnly || bothMetrics {
+	if metricType == GenerateNodeExporterOnly || metricType == GenerateBothMetrics {
 
-    // Initialize nodes based on flags
-    if nodeOnly || bothMetrics {
-        // Generate 20 dynamic nodes using proper faker methods
-        g.nodes = make([]string, 20)
-        for i := 0; i < 20; i++ {
-            // Example using first name prefix
-            prefix := strings.ToLower(g.faker.FirstName())
-            g.nodes[i] = fmt.Sprintf("node-%s-%02d", prefix, i+1)
-        }
-    } else {
-        // Default 3 nodes for KSM cases
-        g.nodes = []string{"node-01", "node-02", "node-03"}
-    }
+		// Generate 20 dynamic nodes using proper faker methods
+		g.nodes = make([]string, 20)
+		for i := 0; i < 20; i++ {
+			// Example using first name prefix
+			prefix := strings.ToLower(g.faker.FirstName())
+			g.nodes[i] = fmt.Sprintf("node-%s-%02d", prefix, i+1)
+		}
+	} else {
+		// Default 3 nodes for KSM cases
+		g.nodes = []string{"node-01", "node-02", "node-03"}
+	}
 
-    g.initializeClusterState()
-    return g
+	g.initializeClusterState()
+	return g
 }
 func (g *K8sGenerator) initializeClusterState() {
 	// Generate realistic cluster state
@@ -104,21 +107,44 @@ func (g *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 
 	var metrics []map[string]interface{}
 
-	if g.bothMetrics {
+	// if g.bothMetrics {
+	// 	// Generate both KSM and node-exporter metrics
+	// 	metrics = append(metrics, g.generateKSMMetric(baseTs))
+	// 	metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
+	// } else if g.ksmOnly {
+	// 	metrics = append(metrics, g.generateKSMMetric(baseTs))
+	// } else if g.nodeOnly {
+	// 	metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
+	// } else {
+	// 	// Default alternating behavior
+	// 	if g.metricCounter%2 == 0 {
+	// 		metrics = append(metrics, g.generateKSMMetric(baseTs))
+	// 	} else {
+	// 		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
+	// 	}
+	// }
+
+	switch g.metricType {
+	case GenerateBothMetrics:
 		// Generate both KSM and node-exporter metrics
 		metrics = append(metrics, g.generateKSMMetric(baseTs))
 		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
-	} else if g.ksmOnly {
+	case GenerateKSMOnly:
+		// Generate KSM only
 		metrics = append(metrics, g.generateKSMMetric(baseTs))
-	} else if g.nodeOnly {
+
+	case GenerateNodeExporterOnly:
+		// Generate node-exporter only
 		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
-	} else {
+		
+	default:
 		// Default alternating behavior
 		if g.metricCounter%2 == 0 {
 			metrics = append(metrics, g.generateKSMMetric(baseTs))
 		} else {
 			metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
 		}
+
 	}
 
 	// Return first metric to preserve existing interface
@@ -127,7 +153,6 @@ func (g *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 	}
 	return nil, fmt.Errorf("no metrics generated")
 }
-
 
 func (g *K8sGenerator) generateKSMMetric(timestamp int64) map[string]interface{} {
 	metricType := rand.Intn(5)
@@ -168,49 +193,50 @@ func (g *K8sGenerator) generateKSMMetric(timestamp int64) map[string]interface{}
 }
 
 func (g *K8sGenerator) generateNodeExporterMetric(timestamp int64) map[string]interface{} {
-    metricType := rand.Intn(5)
-    node := g.nodes[rand.Intn(len(g.nodes))]
+	metricType := rand.Intn(5)
+	node := g.nodes[rand.Intn(len(g.nodes))]
 
-    tags := make(map[string]interface{})
-    // Common tags for all node metrics
-    tags["instance"] = fmt.Sprintf("%s:9100", node)
-    tags["region"] = g.faker.State()
-    tags["zone"] = fmt.Sprintf("%s-%d", g.faker.TimeZone(), rand.Intn(3)+1)
-    
-    switch metricType {
-    case 0: // node_cpu_seconds_total
-        tags["node"] = node
-        tags["cpu"] = fmt.Sprintf("%d", rand.Intn(32)) // 0-31
-        tags["mode"] = []string{"user", "system", "iowait"}[rand.Intn(3)]
-        
-    case 1: // node_memory_MemFree_bytes
-        tags["node"] = node
-        tags["memory_type"] = []string{"dram", "cache", "swap"}[rand.Intn(3)]
-        
-    case 2: // node_filesystem_avail_bytes
-        tags["node"] = node
-        tags["device"] = []string{"/dev/sda1", "/dev/nvme0n1p1"}[rand.Intn(2)]
-        tags["fstype"] = "ext4"
-        tags["mountpoint"] = []string{"/", "/var/lib", "/home"}[rand.Intn(3)]
-        
-    case 3: // node_network_up
-        tags["node"] = node
-        tags["device"] = "eth0"
-        tags["speed"] = []string{"1Gbps", "10Gbps", "25Gbps"}[rand.Intn(3)]
-        
-    default: // node_disk_io_time_seconds_total
-        tags["node"] = node
-        tags["device"] = []string{"sda", "nvme0n1"}[rand.Intn(2)]
-        tags["disk_type"] = []string{"ssd", "hdd", "nvme"}[rand.Intn(3)]
-    }
+	tags := make(map[string]interface{})
+	// Common tags for all node metrics
+	tags["instance"] = fmt.Sprintf("%s:9100", node)
+	tags["region"] = g.faker.State()
+	tags["zone"] = fmt.Sprintf("%s-%d", g.faker.TimeZone(), rand.Intn(3)+1)
 
-    return map[string]interface{}{
-        "metric":    g.getNodeExporterMetricName(metricType),
-        "value":     g.getNodeExporterMetricValue(metricType),
-        "tags":      tags,
-        "timestamp": timestamp,
-    }
+	switch metricType {
+	case 0: // node_cpu_seconds_total
+		tags["node"] = node
+		tags["cpu"] = fmt.Sprintf("%d", rand.Intn(32)) // 0-31
+		tags["mode"] = []string{"user", "system", "iowait"}[rand.Intn(3)]
+
+	case 1: // node_memory_MemFree_bytes
+		tags["node"] = node
+		tags["memory_type"] = []string{"dram", "cache", "swap"}[rand.Intn(3)]
+
+	case 2: // node_filesystem_avail_bytes
+		tags["node"] = node
+		tags["device"] = []string{"/dev/sda1", "/dev/nvme0n1p1"}[rand.Intn(2)]
+		tags["fstype"] = "ext4"
+		tags["mountpoint"] = []string{"/", "/var/lib", "/home"}[rand.Intn(3)]
+
+	case 3: // node_network_up
+		tags["node"] = node
+		tags["device"] = "eth0"
+		tags["speed"] = []string{"1Gbps", "10Gbps", "25Gbps"}[rand.Intn(3)]
+
+	default: // node_disk_io_time_seconds_total
+		tags["node"] = node
+		tags["device"] = []string{"sda", "nvme0n1"}[rand.Intn(2)]
+		tags["disk_type"] = []string{"ssd", "hdd", "nvme"}[rand.Intn(3)]
+	}
+
+	return map[string]interface{}{
+		"metric":    g.getNodeExporterMetricName(metricType),
+		"value":     g.getNodeExporterMetricValue(metricType),
+		"tags":      tags,
+		"timestamp": timestamp,
+	}
 }
+
 // helper function to simplify metrics genration
 func (g *K8sGenerator) getKSMMetricName(metricType int) string {
 	switch metricType {

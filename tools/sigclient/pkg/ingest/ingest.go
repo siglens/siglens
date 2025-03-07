@@ -55,6 +55,15 @@ func (q IngestType) String() string {
 	}
 }
 
+
+type MetricGeneratorType int
+
+const (
+    GenerateBothMetrics MetricGeneratorType = iota
+    GenerateKSMOnly
+    GenerateNodeExporterOnly
+)
+
 const PRINT_FREQ = 100_000
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
@@ -211,7 +220,7 @@ func generateUniquePayload(rdr utils.Generator) (map[string]interface{}, error) 
 }
 
 // Pre-generate unique series for OpenTSDB metrics.
-func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string, ksmOnly, nodeOnly, bothMetrics bool) error {
+func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string,   metricType MetricGeneratorType) error {
 	preGeneratedSeries = make([]map[string]interface{}, cardinality)
 
 	var rdr utils.Generator
@@ -219,7 +228,7 @@ func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string, 
 
 	if gentype == "k8s" {
 		seed := int64(1001) // Use a fixed seed for reproducibility
-		rdr = InitK8sGenerator(seed, ksmOnly, nodeOnly, bothMetrics)
+		rdr = InitK8sGenerator(seed, metricType)
 	} else {
 		rdr, err = utils.InitMetricsGenerator(nMetrics, gentype)
 		if err != nil {
@@ -375,7 +384,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 }
 
 // Get the appropriate reader based on the generator type.
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int, ksmOnly, nodeOnly, bothMetrics bool) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int,  metricType MetricGeneratorType) (utils.Generator, error) {
 	if iType == OpenTSDB {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
 		if err != nil {
@@ -415,14 +424,14 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	case "k8s":
 		log.Infof("Initializing k8s reader")
 		seed := int64(1001 + processIndex)
-		rdr = InitK8sGenerator(seed, ksmOnly, nodeOnly, bothMetrics) // Pass flags to K8sGenerator
+		rdr = InitK8sGenerator(seed, metricType) // Pass flags to K8sGenerator
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic-user,file,benchmark]", gentype)
 	}
 	if err != nil {
 		return rdr, err
 	}
-	// err = rdr.Init(str)
+	err = rdr.Init(str)
 	return rdr, err
 }
 
@@ -435,10 +444,10 @@ func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int,
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
 	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{},
-	ksmOnly, nodeOnly, bothMetrics bool) {
+	metricType MetricGeneratorType) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
-		err := generatePredefinedSeries(nMetrics, cardinality, generatorType, ksmOnly, nodeOnly, bothMetrics)
+		err := generatePredefinedSeries(nMetrics, cardinality, generatorType, metricType)
 		if err != nil {
 			log.Errorf("Failed to pre-generate series: %v", err)
 			return
@@ -464,7 +473,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 
 	readers := make([]utils.Generator, processCount)
 	for i := 0; i < processCount; i++ {
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig, i, ksmOnly, nodeOnly, bothMetrics)
+		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig, i, metricType)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
