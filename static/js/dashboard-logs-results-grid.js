@@ -190,7 +190,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
 
     if (panelId == -1 && panelGridDiv == null) {
         // for panel on the editPanelScreen page
-        panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');        
+        panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
         panelGridOptions = createPanelGridOptions(currentPanel);
 
         //eslint-disable-next-line no-undef
@@ -453,7 +453,7 @@ function scrollingErrorPopup() {
     });
 }
 
-
+//eslint-disable-next-line no-unused-vars
 function resetPanelLogsColumnDefs() {
     panelLogsColumnDefs = [
         {
@@ -482,6 +482,6 @@ function resetPanelLogsColumnDefs() {
             },
         },
     ];
-    
+
     panelLogsRowData = [];
 }
