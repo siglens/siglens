@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"encoding/json"
+	"strings"
 	"fmt"
 	"math/rand"
 	"time"
@@ -29,25 +30,41 @@ type podInfo struct {
 	conditions map[string]bool
 }
 
+
+
 func InitK8sGenerator(seed int64, ksmOnly, nodeOnly, bothMetrics bool) *K8sGenerator {
-	g := &K8sGenerator{
-		seed:        seed,
-		ksmOnly:     ksmOnly,
-		nodeOnly:    nodeOnly,
-		bothMetrics: bothMetrics,
-		nodes:       []string{"node-01", "node-02", "node-03"},
-		namespaces: []string{
-			"default", "kube-system", "monitoring",
-			"prod-backend", "prod-database",
-		},
-	}
+    g := &K8sGenerator{
+        seed:        seed,
+        ksmOnly:     ksmOnly,
+        nodeOnly:    nodeOnly,
+        bothMetrics: bothMetrics,
+        namespaces: []string{
+            "default", "kube-system", "monitoring",
+            "prod-backend", "prod-database",
+        },
+    }
 
-	rand.Seed(seed)
-	g.faker = gofakeit.NewUnlocked(seed)
-	g.initializeClusterState()
-	return g
+    // Initialize random and faker first
+    rand.Seed(seed)
+    g.faker = gofakeit.NewUnlocked(seed)
+
+    // Initialize nodes based on flags
+    if nodeOnly || bothMetrics {
+        // Generate 20 dynamic nodes using proper faker methods
+        g.nodes = make([]string, 20)
+        for i := 0; i < 20; i++ {
+            // Example using first name prefix
+            prefix := strings.ToLower(g.faker.FirstName())
+            g.nodes[i] = fmt.Sprintf("node-%s-%02d", prefix, i+1)
+        }
+    } else {
+        // Default 3 nodes for KSM cases
+        g.nodes = []string{"node-01", "node-02", "node-03"}
+    }
+
+    g.initializeClusterState()
+    return g
 }
-
 func (g *K8sGenerator) initializeClusterState() {
 	// Generate realistic cluster state
 	g.pods = make([]podInfo, 0)
@@ -66,6 +83,11 @@ func (g *K8sGenerator) initializeClusterState() {
 	}
 }
 
+func (g *K8sGenerator) Init(args ...string) error {
+	// No initialization needed for K8sGenerator
+	return nil
+}
+
 func (g *K8sGenerator) GetLogLine() ([]byte, error) {
 	raw, err := g.GetRawLog()
 	if err != nil {
@@ -77,163 +99,174 @@ func (g *K8sGenerator) GetLogLine() ([]byte, error) {
 func (g *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 	g.metricCounter++
 
+	// Generate base timestamp
+	baseTs := time.Now().Unix()
+
+	var metrics []map[string]interface{}
+
 	if g.bothMetrics {
 		// Generate both KSM and node-exporter metrics
-		ksmMetric := g.generateKSMMetric()
-		nodeMetric := g.generateNodeExporterMetric()
-		return map[string]interface{}{
-			"ksm_metric":  ksmMetric,
-			"node_metric": nodeMetric,
-		}, nil
+		metrics = append(metrics, g.generateKSMMetric(baseTs))
+		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
+	} else if g.ksmOnly {
+		metrics = append(metrics, g.generateKSMMetric(baseTs))
+	} else if g.nodeOnly {
+		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
+	} else {
+		// Default alternating behavior
+		if g.metricCounter%2 == 0 {
+			metrics = append(metrics, g.generateKSMMetric(baseTs))
+		} else {
+			metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
+		}
 	}
 
-	if g.ksmOnly {
-		return g.generateKSMMetric(), nil
+	// Return first metric to preserve existing interface
+	if len(metrics) > 0 {
+		return metrics[0], nil
 	}
-
-	if g.nodeOnly {
-		return g.generateNodeExporterMetric(), nil
-	}
-
-	// Default to alternating behavior if no flags are set
-	if g.metricCounter%2 == 0 {
-		return g.generateKSMMetric(), nil
-	}
-	return g.generateNodeExporterMetric(), nil
+	return nil, fmt.Errorf("no metrics generated")
 }
 
-func (g *K8sGenerator) Init(...string) error { return nil }
 
-func (g *K8sGenerator) generateKSMMetric() map[string]interface{} {
+func (g *K8sGenerator) generateKSMMetric(timestamp int64) map[string]interface{} {
 	metricType := rand.Intn(5)
 	pod := g.pods[rand.Intn(len(g.pods))]
 
+	tags := make(map[string]interface{}) // Ensure tags is map[string]interface{}
 	switch metricType {
 	case 0: // kube_pod_info
-		return map[string]interface{}{
-			"metric": "kube_pod_info",
-			"value":  1,
-			"tags": map[string]string{
-				"pod":             pod.name,
-				"namespace":       pod.namespace,
-				"node":            pod.node,
-				"phase":           pod.phase,
-				"created_by_kind": "Deployment",
-				"created_by_name": fmt.Sprintf("%s-deployment", g.faker.AppName()),
-			},
-			"timestamp": time.Now().Unix(),
-		}
-
+		tags["pod"] = pod.name
+		tags["namespace"] = pod.namespace
+		tags["node"] = pod.node
+		tags["phase"] = pod.phase
+		tags["created_by_kind"] = "Deployment"
+		tags["created_by_name"] = fmt.Sprintf("%s-deployment", g.faker.AppName())
 	case 1: // kube_node_status_condition
 		node := g.nodes[rand.Intn(len(g.nodes))]
-		return map[string]interface{}{
-			"metric": "kube_node_status_condition",
-			"value":  boolFloat(rand.Float32() < 0.95),
-			"tags": map[string]string{
-				"node":      node,
-				"condition": "Ready",
-				"status":    "true",
-			},
-			"timestamp": time.Now().Unix(),
-		}
-
+		tags["node"] = node
+		tags["condition"] = "Ready"
+		tags["status"] = "true"
 	case 2: // kube_deployment_status_replicas
-		return map[string]interface{}{
-			"metric": "kube_deployment_status_replicas",
-			"value":  float64(rand.Intn(10) + 1),
-			"tags": map[string]string{
-				"namespace":  g.namespaces[rand.Intn(len(g.namespaces))],
-				"deployment": fmt.Sprintf("%s-deployment", g.faker.AppName()),
-			},
-			"timestamp": time.Now().Unix(),
-		}
-
+		tags["namespace"] = g.namespaces[rand.Intn(len(g.namespaces))]
+		tags["deployment"] = fmt.Sprintf("%s-deployment", g.faker.AppName())
 	case 3: // kube_service_info
-		return map[string]interface{}{
-			"metric": "kube_service_info",
-			"value":  1,
-			"tags": map[string]string{
-				"namespace":  g.namespaces[rand.Intn(len(g.namespaces))],
-				"service":    fmt.Sprintf("%s-service", g.faker.AppName()),
-				"cluster_ip": g.faker.IPv4Address(),
-			},
-			"timestamp": time.Now().Unix(),
-		}
-
+		tags["namespace"] = g.namespaces[rand.Intn(len(g.namespaces))]
+		tags["service"] = fmt.Sprintf("%s-service", g.faker.AppName())
+		tags["cluster_ip"] = g.faker.IPv4Address()
 	default: // kube_namespace_labels
-		return map[string]interface{}{
-			"metric": "kube_namespace_labels",
-			"value":  1,
-			"tags": map[string]string{
-				"namespace": g.namespaces[rand.Intn(len(g.namespaces))],
-				"label_env": []string{"prod", "staging", "dev"}[rand.Intn(3)],
-			},
-			"timestamp": time.Now().Unix(),
-		}
+		tags["namespace"] = g.namespaces[rand.Intn(len(g.namespaces))]
+		tags["label_env"] = []string{"prod", "staging", "dev"}[rand.Intn(3)]
+	}
+
+	return map[string]interface{}{
+		"metric":    g.getKSMMetricName(metricType),
+		"value":     g.getKSMMetricValue(metricType),
+		"tags":      tags,
+		"timestamp": timestamp,
 	}
 }
 
-func (g *K8sGenerator) generateNodeExporterMetric() map[string]interface{} {
-	metricType := rand.Intn(5)
-	node := g.nodes[rand.Intn(len(g.nodes))]
+func (g *K8sGenerator) generateNodeExporterMetric(timestamp int64) map[string]interface{} {
+    metricType := rand.Intn(5)
+    node := g.nodes[rand.Intn(len(g.nodes))]
 
+    tags := make(map[string]interface{})
+    // Common tags for all node metrics
+    tags["instance"] = fmt.Sprintf("%s:9100", node)
+    tags["region"] = g.faker.State()
+    tags["zone"] = fmt.Sprintf("%s-%d", g.faker.TimeZone(), rand.Intn(3)+1)
+    
+    switch metricType {
+    case 0: // node_cpu_seconds_total
+        tags["node"] = node
+        tags["cpu"] = fmt.Sprintf("%d", rand.Intn(32)) // 0-31
+        tags["mode"] = []string{"user", "system", "iowait"}[rand.Intn(3)]
+        
+    case 1: // node_memory_MemFree_bytes
+        tags["node"] = node
+        tags["memory_type"] = []string{"dram", "cache", "swap"}[rand.Intn(3)]
+        
+    case 2: // node_filesystem_avail_bytes
+        tags["node"] = node
+        tags["device"] = []string{"/dev/sda1", "/dev/nvme0n1p1"}[rand.Intn(2)]
+        tags["fstype"] = "ext4"
+        tags["mountpoint"] = []string{"/", "/var/lib", "/home"}[rand.Intn(3)]
+        
+    case 3: // node_network_up
+        tags["node"] = node
+        tags["device"] = "eth0"
+        tags["speed"] = []string{"1Gbps", "10Gbps", "25Gbps"}[rand.Intn(3)]
+        
+    default: // node_disk_io_time_seconds_total
+        tags["node"] = node
+        tags["device"] = []string{"sda", "nvme0n1"}[rand.Intn(2)]
+        tags["disk_type"] = []string{"ssd", "hdd", "nvme"}[rand.Intn(3)]
+    }
+
+    return map[string]interface{}{
+        "metric":    g.getNodeExporterMetricName(metricType),
+        "value":     g.getNodeExporterMetricValue(metricType),
+        "tags":      tags,
+        "timestamp": timestamp,
+    }
+}
+// helper function to simplify metrics genration
+func (g *K8sGenerator) getKSMMetricName(metricType int) string {
 	switch metricType {
-	case 0: // node_cpu_seconds_total
-		return map[string]interface{}{
-			"metric": "node_cpu_seconds_total",
-			"value":  g.faker.Float64Range(1000, 100000),
-			"tags": map[string]string{
-				"node": node,
-				"cpu":  fmt.Sprintf("%d", rand.Intn(8)),
-				"mode": []string{"user", "system", "iowait"}[rand.Intn(3)],
-			},
-			"timestamp": time.Now().Unix(),
-		}
+	case 0:
+		return "kube_pod_info"
+	case 1:
+		return "kube_node_status_condition"
+	case 2:
+		return "kube_deployment_status_replicas"
+	case 3:
+		return "kube_service_info"
+	default:
+		return "kube_namespace_labels"
+	}
+}
 
-	case 1: // node_memory_MemFree_bytes
-		return map[string]interface{}{
-			"metric": "node_memory_MemFree_bytes",
-			"value":  g.faker.Float64Range(1e9, 16e9),
-			"tags": map[string]string{
-				"node": node,
-			},
-			"timestamp": time.Now().Unix(),
-		}
+func (g *K8sGenerator) getKSMMetricValue(metricType int) interface{} {
+	switch metricType {
+	case 0, 3:
+		return 1
+	case 1:
+		return boolFloat(rand.Float32() < 0.95)
+	case 2:
+		return float64(rand.Intn(10) + 1)
+	default:
+		return 1
+	}
+}
 
-	case 2: // node_filesystem_avail_bytes
-		return map[string]interface{}{
-			"metric": "node_filesystem_avail_bytes",
-			"value":  g.faker.Float64Range(100e9, 500e9),
-			"tags": map[string]string{
-				"node":   node,
-				"device": []string{"/dev/sda1", "/dev/nvme0n1p1"}[rand.Intn(2)],
-				"fstype": "ext4",
-			},
-			"timestamp": time.Now().Unix(),
-		}
+func (g *K8sGenerator) getNodeExporterMetricName(metricType int) string {
+	switch metricType {
+	case 0:
+		return "node_cpu_seconds_total"
+	case 1:
+		return "node_memory_MemFree_bytes"
+	case 2:
+		return "node_filesystem_avail_bytes"
+	case 3:
+		return "node_network_up"
+	default:
+		return "node_disk_io_time_seconds_total"
+	}
+}
 
-	case 3: // node_network_up
-		return map[string]interface{}{
-			"metric": "node_network_up",
-			"value":  boolFloat(rand.Float32() < 0.99),
-			"tags": map[string]string{
-				"node":     node,
-				"device":   "eth0",
-				"instance": fmt.Sprintf("%s:9100", node),
-			},
-			"timestamp": time.Now().Unix(),
-		}
-
-	default: // node_disk_io_time_seconds_total
-		return map[string]interface{}{
-			"metric": "node_disk_io_time_seconds_total",
-			"value":  g.faker.Float64Range(1000, 50000),
-			"tags": map[string]string{
-				"node":   node,
-				"device": []string{"sda", "nvme0n1"}[rand.Intn(2)],
-			},
-			"timestamp": time.Now().Unix(),
-		}
+func (g *K8sGenerator) getNodeExporterMetricValue(metricType int) interface{} {
+	switch metricType {
+	case 0:
+		return g.faker.Float64Range(1000, 100000)
+	case 1:
+		return g.faker.Float64Range(1e9, 16e9)
+	case 2:
+		return g.faker.Float64Range(100e9, 500e9)
+	case 3:
+		return boolFloat(rand.Float32() < 0.99)
+	default:
+		return g.faker.Float64Range(1000, 50000)
 	}
 }
 
