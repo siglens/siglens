@@ -429,7 +429,6 @@ $(document).ready(function () {
             });
         }
 
-
         highlightActiveSubmenu();
     });
 
@@ -447,7 +446,6 @@ $(document).ready(function () {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
-
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
@@ -457,7 +455,6 @@ $(document).ready(function () {
 
     function restoreDropdownState() {
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
-
         dropdownConfigs.forEach(config => {
             const $menu = $(`.${config.menuClass}`);
             const isOpen = dropdownStates[config.name] === true;
@@ -473,7 +470,6 @@ $(document).ready(function () {
             }
         });
     }
-
 
     restoreDropdownState();
 });

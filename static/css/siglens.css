@@ -736,7 +736,7 @@ body {
 
 /* Theme Button  */
 .theme-btn-group {
-    width: 50px;
+    width: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5280,7 +5280,7 @@ p#versionInfo {
     z-index: 1;
     transition: opacity 0.3s ease-in-out;
     bottom: 0px;
-    left: 124px;
+    left: 170px;
     border: 1px solid var(--border-btn-color);
     border-radius: 5px;
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
@@ -5635,7 +5635,7 @@ p#versionInfo {
 #app-side-nav .nav-metrics .menu-header:hover,
 #app-side-nav .nav-ingest .menu-header:hover {
     color: var(--navbar-link-text) !important;
-    border-right: 5px solid var(--side-nav-bg-color-selected);
+    /* border-right: 5px solid var(--side-nav-bg-color-selected); */
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
     cursor: pointer;
@@ -5718,7 +5718,7 @@ p#versionInfo {
 }
 
 .nav-dropdown-icon {
-    padding: 2px;
+    padding: 0;
     transition: transform 0.3s ease;
 }
 
