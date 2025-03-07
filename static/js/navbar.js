@@ -31,82 +31,99 @@ let navbarComponent = `
         </a>
     </div>
 </div>
-<div class="d-flex justify-content-between h-100 flex-column">
+ <div class="d-flex justify-content-between h-100 flex-column">
+    <div class="nav-menu-container">
     <div>
         <div class="menu nav-search">
-            <a href="./index.html" class="nav-links"><span class="icon-search"></span><span
+            <a href="./index.html" class="nav-links link-search"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
         </div>
-        <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links" href="./service-health.html">
-                <span class="icon-traces"></span>
-                <span class="nav-link-text">APM</span>
-            </a>
-            <ul class="traces-dropdown navbar-submenu">
+        <div class="menu nav-traces tracing-dropdown-toggle" >
+            <div class="menu-header">
+                <a class="nav-links" href="./service-health.html">
+                    <span class="icon-traces"></span>
+                    <span class="nav-link-text-drpdwn">APM</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                        src="assets/arrow-btn.svg"
+                        alt="Dropdown Arrow">
+            </div>
+            <ul class="traces-dropdown">
                 <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
             </ul>
          </div>
-        <div class="menu nav-metrics metrics-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links" href="./metrics-explorer.html">
-                <span class="icon-metrics"></span>
-                <span class="nav-link-text">Metrics</span>
-            </a>
-            <ul class="metrics-dropdown navbar-submenu">
+        <div class="menu nav-metrics metrics-dropdown-toggle"  >
+            <div class="menu-header">
+                <a class="nav-links" href="./metrics-explorer.html">
+                    <span class="icon-metrics"></span>
+                    <span class="nav-link-text-drpdwn">Metrics</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                     src="assets/arrow-btn.svg"
+                     alt="Dropdown Arrow">
+            </div>
+            <ul class="metrics-dropdown">
                 <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
                 <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
                 <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
             </ul>
         </div>
-        {{ if .ShowSLO }}        
+        {{ if .ShowSLO }}
         <div class="menu nav-slos">
-            <a href="./all-slos.html" class="nav-links"><span class="icon-live"></span><span
+            <a href="./all-slos.html" class="nav-links link-slos"><span class="icon-live"></span><span
                     class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
         <div class="menu nav-alerts">
-            <a href="./all-alerts.html" class="nav-links"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+            <a href="./all-alerts.html" class="nav-links link-alerts"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
         </div>
         <div class="menu nav-ldb">
-            <a href="../dashboards-home.html" class="nav-links">
+            <a href="../dashboards-home.html" class="nav-links link-ldb">
                 <span class="icon-launchdb"></span><span class="nav-link-text">Dashboards</span></a>
         </div>
         {{ if not .EnterpriseEnabled }}
         <div class="menu nav-minion">
-            <a href="./minion-searches.html" class="nav-links"><span class="icon-minion"></span><span
+            <a href="./minion-searches.html" class="nav-links link-minion"><span class="icon-minion"></span><span
                     class="nav-link-text">Minion</span></a>
         </div>
         {{ end }}
         <div class="menu nav-usq">
-            <a href="./saved-queries.html" class="nav-links"><span class="icon-usq"></span><span
+            <a href="./saved-queries.html" class="nav-links link-usq"><span class="icon-usq"></span><span
                     class="nav-link-text">Saved Queries</span></a>
         </div>
         <div class="menu nav-myorg">
-            <a href="./cluster-stats.html" class="nav-links"><span class="icon-myorg"></span><span
+            <a href="./cluster-stats.html" class="nav-links link-myorg"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
         <div class="menu nav-lookups">
-            <a href="./lookups.html" class="nav-links"><span class="icon-search"></span><span
+            <a href="./lookups.html" class="nav-links link-lookups"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
         </div>
         <div class="menu nav-infrastructure">
-            <a href="./infrastructure.html" class="nav-links"><span class="icon-infrastructure"></span><span
+            <a href="./infrastructure.html" class="nav-links link-infrastructure"><span class="icon-infrastructure"></span><span
                     class="nav-link-text">Infrastructure</span></a>
         </div>
-        <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links" href="./test-data.html">
-                <span class="icon-ingest"></span>
-                <span class="nav-link-text">Ingestion</span>
-            </a>
-            <ul class="ingestion-dropdown navbar-submenu">
+        <div class="menu nav-ingest ingestion-dropdown-toggle" >
+            <div class="menu-header">
+                <a class="nav-links" href="./test-data.html">
+                    <span class="icon-ingest"></span>
+                    <span class="nav-link-text-drpdwn">Ingestion</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                            src="assets/arrow-btn.svg"
+                            alt="Dropdown Arrow">
+            </div>
+            <ul class="ingestion-dropdown ">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
-                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>                
+                <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
         </div>
     </div>
-    <div>
+    </div>
+    <div class="nav-footer">
         <div>
             <div class="theme-btn-group">
                 <button class="btn theme-btn dark-theme" id="theme-btn">
@@ -135,7 +152,7 @@ let navbarComponent = `
                     <a href="https://www.linkedin.com/sharing/share-offsite/?url=https://siglens.com" target="_blank" class="help-links"><span class="icon-linkedin"></span><span class="nav-link-text">Share on LinkedIn</span></a>
                 </div>
                 <div class="nav-twitter">
-                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ" 
+                    <a href="https://twitter.com/intent/post?text=Checkout%20SigLens%2C%20industry%27s%20fastest%20observability%20solution%2C%201025x%20faster%20than%20ElasticSearch%2C%2054x%20faster%20than%20ClickHouse%20and%20it%20is%20open%20source.%20https%3A%2F%2Fsiglens.com%20%2C%20%23opensource%2C%20%23observability%20%23logmanagement%20via%20%40siglensHQ"
                     target="_blank" class="help-links"><span class="icon-twitter"></span><span class="nav-link-text">Share on Twitter</span></a>
                 </div>
                 <hr>
@@ -308,42 +325,42 @@ const navigationStructure = {
 
 // Pages related to My Org section
 const orgPages = {
-    'cluster-stats.html': { 
+    'cluster-stats.html': {
         name: 'Cluster Stats',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Cluster Stats' }
         ]
-    }, 
-    'org-settings.html': { 
+    },
+    'org-settings.html': {
         name: 'Org Settings',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Org Settings' }
         ]
-    }, 
-    'application-version.html': { 
+    },
+    'application-version.html': {
         name: 'Version',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Version' }
         ]
-    }, 
-    'query-stats.html': { 
+    },
+    'query-stats.html': {
         name: 'Query Stats',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'Query Stats' }
         ]
-    }, 
-    'pqs-settings.html': { 
+    },
+    'pqs-settings.html': {
         name: 'PQS Settings',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
             { name: 'PQS Settings' }
         ]
-    }, 
-    'diagnostics.html': { 
+    },
+    'diagnostics.html': {
         name: 'Diagnostics',
         breadcrumbs: [
             { name: 'My Org', noLink: true},
@@ -356,25 +373,124 @@ const orgPages = {
 $(document).ready(function () {
     $('#app-side-nav').before(headerHTML);
     $('#app-side-nav').prepend(navbarComponent);
-    
+
     setupNavigationState();
-    
+
     initializeDropdowns();
-    
+
     setupHamburgerBehavior();
-    
+
     $('.navbar-submenu').hide();
     $('.help-options').hide();
+
+    const dropdownConfigs = [
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' }
+    ];
+
+    dropdownConfigs.forEach(config => {
+        $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+        });
+
+        $(`.${config.menuClass} .nav-dropdown-icon`).on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+        });
+
+        $(`.${config.dropdownClass} a`).on('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+
+    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
+        const $menu = $(menuElement);
+        const $dropdown = $menu.find(`.${dropdownClass}`);
+        const $arrow = $menu.find('.nav-dropdown-icon');
+        const isVisible = $dropdown.is(':visible');
+
+        $dropdown.stop(true, true).slideToggle(200);
+
+        $menu.toggleClass('dropdown-open', !isVisible);
+
+        if ($arrow.length) {
+            $arrow.toggleClass('rotated', !isVisible);
+        }
+
+        let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+        dropdownStates[dropdownName] = !isVisible;
+        localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+    };
+
+    function restoreDropdownState() {
+        const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+
+        dropdownConfigs.forEach(config => {
+            const $menu = $(`.${config.menuClass}`);
+            const isOpen = dropdownStates[config.name] === true;
+
+            if (isOpen) {
+                $menu.addClass('dropdown-open');
+                $menu.find(`.${config.dropdownClass}`).show();
+                $menu.find('.nav-dropdown-icon').addClass('rotated');
+            } else {
+                $menu.removeClass('dropdown-open');
+                $menu.find(`.${config.dropdownClass}`).hide();
+                $menu.find('.nav-dropdown-icon').removeClass('rotated');
+            }
+        });
+    }
+
+    function updateActiveHighlighting() {
+        dropdownConfigs.forEach(config => {
+            $(`.${config.menuClass}`).removeClass('active');
+            $(`.${config.iconClass}`).removeClass('active');
+            $(`.${config.dropdownClass} li`).removeClass('active');
+        });
+
+        const currentPath = window.location.pathname.split('/').pop();
+
+        dropdownConfigs.forEach(config => {
+            $(`.${config.dropdownClass} a`).each(function() {
+                const href = $(this).attr('href');
+                const hrefPath = href.split('/').pop();
+
+                if (currentPath === hrefPath) {
+                    const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
+                    $li.addClass('active');
+
+                    const $menu = $li.closest(`.${config.menuClass}`);
+                    const $icon = $menu.find(`.${config.iconClass}`);
+
+                    $menu.addClass('active');
+                    $icon.addClass('active');
+                }
+            });
+        });
+    }
+
+
+    restoreDropdownState();
+    updateActiveHighlighting();
+
+    $(document).on('click', 'a', function() {
+        setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
+    });
+
 });
 
 function setupNavigationState() {
     const currentUrl = window.location.href;
     let matchedConfig = null;
     let isOrgPage = false;
-    
+
     if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
         matchedConfig = navigationStructure['index.html'];
-    } 
+    }
     else{
         for (const [urlKey, config] of Object.entries(navigationStructure)) {
             if (currentUrl.includes(urlKey)) {
@@ -383,7 +499,7 @@ function setupNavigationState() {
             }
         }
     }
-    
+
     // Check for org pages if no exact match
     if (!matchedConfig) {
 
@@ -393,7 +509,7 @@ function setupNavigationState() {
                 orgPageConfig = orgPages[page];
                 break;
             }
-        }        
+        }
         if (isOrgPage) {
             matchedConfig = {
                 activeClass: 'nav-myorg',
@@ -402,7 +518,7 @@ function setupNavigationState() {
             };
         }
     }
-    
+
     if (!matchedConfig) {
         // Check each org page
         for (const [page, config] of Object.entries(orgPages)) {
@@ -412,7 +528,7 @@ function setupNavigationState() {
                 break;
             }
         }
-        
+
         if (isOrgPage) {
             matchedConfig = {
                 activeClass: 'nav-myorg',
@@ -423,16 +539,16 @@ function setupNavigationState() {
     }
     if (matchedConfig) {
         $(`.${matchedConfig.activeClass}`).addClass('active');
-        
+
         if (matchedConfig.temporaryDisableHover) {
             $(`.${matchedConfig.activeClass}`).addClass('disable-hover');
             setTimeout(function () {
                 $(`.${matchedConfig.activeClass}`).removeClass('disable-hover');
             }, 500);
         }
-        
+
         initializeBreadcrumbs(matchedConfig.breadcrumbs);
-        
+
         if (matchedConfig.upperNavTabs) {
             if (matchedConfig.upperNavTabs === 'tracingUpperNavTabs' && $('.subsection-navbar').length) {
                 $('.subsection-navbar').appendOrgNavTabs(tracingUpperNavTabs);
@@ -448,47 +564,6 @@ function setupNavigationState() {
 }
 
 function initializeDropdowns() {
-    // Metrics dropdown behavior
-    $('.metrics-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.metrics-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
-
-    // Tracing dropdown behavior
-    $('.tracing-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.traces-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.traces-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
-
-    // Ingestion dropdown behavior
-    $('.ingestion-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.ingestion-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.ingestion-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
 
     // Help dropdown behavior
     $('.nav-help').hover(
@@ -519,30 +594,6 @@ function initializeDropdowns() {
             $(this).stop(true, true).slideUp(30);
         }
     );
-
-    // Close dropdowns when clicking elsewhere
-    $(document).on('click', function (event) {
-        const dropdowns = [
-            { selector: '.metrics-dropdown', condition: $('.metrics-dropdown').is(event.target) || $('.metrics-dropdown').has(event.target).length > 0 },
-            { selector: '.traces-dropdown', condition: $('.traces-dropdown').is(event.target) || $('.traces-dropdown').has(event.target).length > 0 },
-            { selector: '.ingestion-dropdown', condition: $('.ingestion-dropdown').is(event.target) || $('.ingestion-dropdown').has(event.target).length > 0 },
-            { selector: '.help-options', condition: $('.help-options').is(event.target) || $('.help-options').has(event.target).length > 0 }
-        ];
-
-        dropdowns.forEach(dropdown => {
-            if (!dropdown.condition) {
-                $(dropdown.selector).hide();
-            }
-        });
-    });
-    
-    // Check active menu items
-    const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    menuItem.forEach((item) => {
-        if (item.href === window.location.href) {
-            item.classList.add('active');
-        }
-    });
 }
 
 function setupHamburgerBehavior() {
@@ -589,18 +640,18 @@ function setupHamburgerBehavior() {
 function initializeBreadcrumbs(breadcrumbConfig) {
     const breadcrumb = $('#sl-breadcrumb');
     breadcrumb.empty();
-    
+
     if (breadcrumbConfig && breadcrumbConfig.length) {
         $.each(breadcrumbConfig, function(index, crumb) {
             const li = $('<li>');
             let a;
-            
+
             if ((index === breadcrumbConfig.length - 1) || crumb.noLink) {
                 // For the last item or explicitly non-clickable items, create a span instead of a link
                 a = $('<span>')
                     .addClass('breadcrumb-text')
                     .text(crumb.name);
-                
+
                 if (index === breadcrumbConfig.length - 1) {
                     a.addClass('active');
                 }
@@ -609,10 +660,10 @@ function initializeBreadcrumbs(breadcrumbConfig) {
                     .attr('href', crumb.url || '#')
                     .text(crumb.name);
             }
-            
+
             li.append(a);
             breadcrumb.append(li);
-            
+
             if (index < breadcrumbConfig.length - 1) {
                 const arrow = $('<span>').addClass('dashboard-arrow');
                 breadcrumb.append(arrow);
