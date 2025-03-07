@@ -17,10 +17,7 @@ type K8sGenerator struct {
 	namespaces    []string
 	pods          []podInfo
 	seed          int64
-	// ksmOnly       bool
-	// nodeOnly      bool
-	// bothMetrics   bool
-	metricType MetricGeneratorType
+	metricType    MetricGeneratorType
 }
 
 type podInfo struct {
@@ -33,10 +30,7 @@ type podInfo struct {
 
 func InitK8sGenerator(seed int64, metricType MetricGeneratorType) *K8sGenerator {
 	g := &K8sGenerator{
-		seed: seed,
-		// ksmOnly:     ksmOnly,
-		// nodeOnly:    nodeOnly,
-		// bothMetrics: bothMetrics,
+		seed:       seed,
 		metricType: metricType,
 
 		namespaces: []string{
@@ -50,7 +44,6 @@ func InitK8sGenerator(seed int64, metricType MetricGeneratorType) *K8sGenerator 
 	g.faker = gofakeit.NewUnlocked(seed)
 
 	// Initialize nodes based on flags
-	// if nodeOnly || bothMetrics {
 	if metricType == GenerateNodeExporterOnly || metricType == GenerateBothMetrics {
 
 		// Generate 20 dynamic nodes using proper faker methods
@@ -106,23 +99,6 @@ func (g *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 	baseTs := time.Now().Unix()
 
 	var metrics []map[string]interface{}
-
-	// if g.bothMetrics {
-	// 	// Generate both KSM and node-exporter metrics
-	// 	metrics = append(metrics, g.generateKSMMetric(baseTs))
-	// 	metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
-	// } else if g.ksmOnly {
-	// 	metrics = append(metrics, g.generateKSMMetric(baseTs))
-	// } else if g.nodeOnly {
-	// 	metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
-	// } else {
-	// 	// Default alternating behavior
-	// 	if g.metricCounter%2 == 0 {
-	// 		metrics = append(metrics, g.generateKSMMetric(baseTs))
-	// 	} else {
-	// 		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
-	// 	}
-	// }
 
 	switch g.metricType {
 	case GenerateBothMetrics:
