@@ -136,7 +136,7 @@ func (g *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
 	case GenerateNodeExporterOnly:
 		// Generate node-exporter only
 		metrics = append(metrics, g.generateNodeExporterMetric(baseTs))
-		
+
 	default:
 		// Default alternating behavior
 		if g.metricCounter%2 == 0 {

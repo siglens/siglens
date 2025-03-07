@@ -55,13 +55,12 @@ func (q IngestType) String() string {
 	}
 }
 
-
 type MetricGeneratorType int
 
 const (
-    GenerateBothMetrics MetricGeneratorType = iota
-    GenerateKSMOnly
-    GenerateNodeExporterOnly
+	GenerateBothMetrics MetricGeneratorType = iota
+	GenerateKSMOnly
+	GenerateNodeExporterOnly
 )
 
 const PRINT_FREQ = 100_000
@@ -170,57 +169,57 @@ var seriesId uint64
 
 // Generate a unique payload for OpenTSDB metrics.
 func generateUniquePayload(rdr utils.Generator) (map[string]interface{}, error) {
-    if rdr == nil {
-        return nil, fmt.Errorf("reader is nil")
-    }
+	if rdr == nil {
+		return nil, fmt.Errorf("reader is nil")
+	}
 
-    const maxRetries = 1000
-    var retryCount int
+	const maxRetries = 1000
+	var retryCount int
 
-    for retryCount = 0; retryCount < maxRetries; retryCount++ {
-        currPayload, err := rdr.GetRawLog()
-        if err != nil {
-            log.Errorf("generateUniquePayload: failed to get raw log: %+v", err)
-            continue // Retry on errors
-        }
+	for retryCount = 0; retryCount < maxRetries; retryCount++ {
+		currPayload, err := rdr.GetRawLog()
+		if err != nil {
+			log.Errorf("generateUniquePayload: failed to get raw log: %+v", err)
+			continue // Retry on errors
+		}
 
-        // Ensure tags is a map[string]interface{}
-        tags, ok := currPayload["tags"].(map[string]interface{})
-        if !ok {
-            if stringTags, ok := currPayload["tags"].(map[string]string); ok {
-                convertedTags := make(map[string]interface{})
-                for k, v := range stringTags {
-                    convertedTags[k] = v
-                }
-                currPayload["tags"] = convertedTags
-                tags = convertedTags
-            } else {
-                log.Warnf("Skipping invalid tags type: %T", currPayload["tags"])
-                continue
-            }
-        }
+		// Ensure tags is a map[string]interface{}
+		tags, ok := currPayload["tags"].(map[string]interface{})
+		if !ok {
+			if stringTags, ok := currPayload["tags"].(map[string]string); ok {
+				convertedTags := make(map[string]interface{})
+				for k, v := range stringTags {
+					convertedTags[k] = v
+				}
+				currPayload["tags"] = convertedTags
+				tags = convertedTags
+			} else {
+				log.Warnf("Skipping invalid tags type: %T", currPayload["tags"])
+				continue
+			}
+		}
 
-        // Generate composite ID
-        var idBuilder strings.Builder
-        idBuilder.WriteString(currPayload["metric"].(string))
-        for k, v := range tags {
-            idBuilder.WriteString(k)
-            idBuilder.WriteString(fmt.Sprintf("%v", v))
-        }
-        id := idBuilder.String()
+		// Generate composite ID
+		var idBuilder strings.Builder
+		idBuilder.WriteString(currPayload["metric"].(string))
+		for k, v := range tags {
+			idBuilder.WriteString(k)
+			idBuilder.WriteString(fmt.Sprintf("%v", v))
+		}
+		id := idBuilder.String()
 
-        if _, exists := uniqueSeriesMap[id]; !exists {
-            uniqueSeriesMap[id] = struct{}{}
-            return currPayload, nil
-        }
-    }
+		if _, exists := uniqueSeriesMap[id]; !exists {
+			uniqueSeriesMap[id] = struct{}{}
+			return currPayload, nil
+		}
+	}
 
-    log.Errorf("Failed to generate unique payload after %d attempts", maxRetries)
-    return nil, fmt.Errorf("maximum uniqueness retries exceeded")
+	log.Errorf("Failed to generate unique payload after %d attempts", maxRetries)
+	return nil, fmt.Errorf("maximum uniqueness retries exceeded")
 }
 
 // Pre-generate unique series for OpenTSDB metrics.
-func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string,   metricType MetricGeneratorType) error {
+func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string, metricType MetricGeneratorType) error {
 	preGeneratedSeries = make([]map[string]interface{}, cardinality)
 
 	var rdr utils.Generator
@@ -240,9 +239,9 @@ func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string, 
 	for i := uint64(0); i < cardinality; i++ {
 		currPayload, err := generateUniquePayload(rdr)
 		if err != nil {
-            log.Warnf("Skipping duplicate series after retries (total generated: %d)", i)
-            continue
-        }
+			log.Warnf("Skipping duplicate series after retries (total generated: %d)", i)
+			continue
+		}
 		preGeneratedSeries[i] = currPayload
 	}
 	elapsed := time.Since(start)
@@ -252,107 +251,107 @@ func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string, 
 
 // Generate the body from pre-defined series for OpenTSDB.
 func generateBodyFromPredefinedSeries(recs int) ([]byte, error) {
-    finalPayLoad := make([]interface{}, recs)
-    for i := 0; i < recs; i++ {
-        // Use modulo to cycle through predefined series
-        finalPayLoad[i] = preGeneratedSeries[(atomic.AddUint64(&seriesId, 1)-1)%uint64(len(preGeneratedSeries))]
-    }
-    return json.Marshal(finalPayLoad)
+	finalPayLoad := make([]interface{}, recs)
+	for i := 0; i < recs; i++ {
+		// Use modulo to cycle through predefined series
+		finalPayLoad[i] = preGeneratedSeries[(atomic.AddUint64(&seriesId, 1)-1)%uint64(len(preGeneratedSeries))]
+	}
+	return json.Marshal(finalPayLoad)
 }
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
-    batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
-    eventsPerDayPerProcess int, totalBytes *uint64) {
-    defer wg.Done()
-    eventCounter := 0
-    t := http.DefaultTransport.(*http.Transport).Clone()
-    t.MaxIdleConns = 500
-    t.MaxConnsPerHost = 100
-    t.MaxIdleConnsPerHost = 100
-    client := &http.Client{
-        Timeout:   100 * time.Second,
-        Transport: t,
-    }
+	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
+	eventsPerDayPerProcess int, totalBytes *uint64) {
+	defer wg.Done()
+	eventCounter := 0
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = 500
+	t.MaxConnsPerHost = 100
+	t.MaxIdleConnsPerHost = 100
+	client := &http.Client{
+		Timeout:   100 * time.Second,
+		Transport: t,
+	}
 
-    var actLines []string
-    if iType == ESBulk {
-        actLines = populateActionLines(indexPrefix, indexName, numIndices)
-    }
+	var actLines []string
+	if iType == ESBulk {
+		actLines = populateActionLines(indexPrefix, indexName, numIndices)
+	}
 
-    i := 0
-    var bb *bytebufferpool.ByteBuffer
-    var payload []byte
-    var err error
-    maxDuration := 2 * time.Hour
-    estimatedMilliSecsPerBatch := 0
-    if eventsPerDayPerProcess > 0 {
-        estimatedMilliSecsPerBatch = (batchSize * 24 * 60 * 60 * 1000) / eventsPerDayPerProcess
-    }
+	i := 0
+	var bb *bytebufferpool.ByteBuffer
+	var payload []byte
+	var err error
+	maxDuration := 2 * time.Hour
+	estimatedMilliSecsPerBatch := 0
+	if eventsPerDayPerProcess > 0 {
+		estimatedMilliSecsPerBatch = (batchSize * 24 * 60 * 60 * 1000) / eventsPerDayPerProcess
+	}
 
-    for continuous || eventCounter < totalEvents {
-        recsInBatch := batchSize
-        if !continuous && eventCounter+batchSize > totalEvents {
-            recsInBatch = totalEvents - eventCounter
-        }
-        i++
-        if iType == ESBulk {
-            bb = bytebufferpool.Get()
-        }
-        if iType == OpenTSDB {
-            payload, err = generateBodyFromPredefinedSeries(recsInBatch) // Updated call
-            seriesId += uint64(recsInBatch)
-        } else {
-            payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
-        }
-        if err != nil {
-            log.Errorf("Error generating bulk body!: %v", err)
-            if iType == ESBulk {
-                bytebufferpool.Put(bb)
-            }
-            return
-        }
-        startTime := time.Now()
-        var reqErr error
-        retryCounter := 1
-        for {
-            reqErr = sendRequest(iType, client, payload, url, bearerToken)
-            if reqErr == nil {
-                break
-            }
-            elapsed := time.Since(startTime)
-            if elapsed >= maxDuration {
-                log.Infof("Error sending request. Exceeded maximum retry duration of %v hr. Exiting.", int(maxDuration.Hours()))
-                break
-            }
-            sleepTime := time.Second * time.Duration(5*(retryCounter))
-            log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v s before retrying.", retryCounter, sleepTime.String())
-            retryCounter++
-            time.Sleep(sleepTime)
-        }
+	for continuous || eventCounter < totalEvents {
+		recsInBatch := batchSize
+		if !continuous && eventCounter+batchSize > totalEvents {
+			recsInBatch = totalEvents - eventCounter
+		}
+		i++
+		if iType == ESBulk {
+			bb = bytebufferpool.Get()
+		}
+		if iType == OpenTSDB {
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch) // Updated call
+			seriesId += uint64(recsInBatch)
+		} else {
+			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
+		}
+		if err != nil {
+			log.Errorf("Error generating bulk body!: %v", err)
+			if iType == ESBulk {
+				bytebufferpool.Put(bb)
+			}
+			return
+		}
+		startTime := time.Now()
+		var reqErr error
+		retryCounter := 1
+		for {
+			reqErr = sendRequest(iType, client, payload, url, bearerToken)
+			if reqErr == nil {
+				break
+			}
+			elapsed := time.Since(startTime)
+			if elapsed >= maxDuration {
+				log.Infof("Error sending request. Exceeded maximum retry duration of %v hr. Exiting.", int(maxDuration.Hours()))
+				break
+			}
+			sleepTime := time.Second * time.Duration(5*(retryCounter))
+			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v s before retrying.", retryCounter, sleepTime.String())
+			retryCounter++
+			time.Sleep(sleepTime)
+		}
 
-        SendPerformanceData(rdr)
+		SendPerformanceData(rdr)
 
-        if iType == ESBulk {
-            bytebufferpool.Put(bb)
-        }
-        if reqErr != nil {
-            log.Fatalf("Error sending request after %v hr ! %v", int(maxDuration.Hours()), reqErr)
-            return
-        }
-        eventCounter += recsInBatch
-        atomic.AddUint64(ctr, uint64(recsInBatch))
-        atomic.AddUint64(totalBytes, uint64(len(payload)))
-        if estimatedMilliSecsPerBatch > 0 {
-            timeTaken := int(time.Since(startTime).Milliseconds())
-            if timeTaken < estimatedMilliSecsPerBatch {
-                napTime := estimatedMilliSecsPerBatch - timeTaken
-                log.Debugf("ProcessId: %v finished early in %v ms. Sleeping for %+v ms before next batch", processNo, timeTaken, napTime)
-                time.Sleep(time.Duration(napTime) * time.Millisecond)
-            } else {
-                log.Debugf("ProcessId: %v finished late, took %v ms. Expected %v ms", processNo, timeTaken, estimatedMilliSecsPerBatch)
-            }
-        }
-    }
+		if iType == ESBulk {
+			bytebufferpool.Put(bb)
+		}
+		if reqErr != nil {
+			log.Fatalf("Error sending request after %v hr ! %v", int(maxDuration.Hours()), reqErr)
+			return
+		}
+		eventCounter += recsInBatch
+		atomic.AddUint64(ctr, uint64(recsInBatch))
+		atomic.AddUint64(totalBytes, uint64(len(payload)))
+		if estimatedMilliSecsPerBatch > 0 {
+			timeTaken := int(time.Since(startTime).Milliseconds())
+			if timeTaken < estimatedMilliSecsPerBatch {
+				napTime := estimatedMilliSecsPerBatch - timeTaken
+				log.Debugf("ProcessId: %v finished early in %v ms. Sleeping for %+v ms before next batch", processNo, timeTaken, napTime)
+				time.Sleep(time.Duration(napTime) * time.Millisecond)
+			} else {
+				log.Debugf("ProcessId: %v finished late, took %v ms. Expected %v ms", processNo, timeTaken, estimatedMilliSecsPerBatch)
+			}
+		}
+	}
 }
 
 // Send performance data if the generator supports it.
@@ -384,7 +383,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 }
 
 // Get the appropriate reader based on the generator type.
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int,  metricType MetricGeneratorType) (utils.Generator, error) {
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int, metricType MetricGeneratorType) (utils.Generator, error) {
 	if iType == OpenTSDB {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
 		if err != nil {
