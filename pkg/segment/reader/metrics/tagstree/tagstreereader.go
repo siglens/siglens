@@ -523,13 +523,20 @@ func (attr *AllTagTreeReaders) GetTSIDsForKey(tagKey string,
 	return allTSIDs, nil
 }
 
-func (attr *AllTagTreeReaders) GetTSIDsForTagPair(tagKey string, tagValue string) (map[uint64]struct{}, error) {
+func (attr *AllTagTreeReaders) GetTSIDCountForTagPair(tagKey string,
+	tagValue string) (uint64, error) {
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
-		return nil, fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
+		return 0, fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
 	}
 
-	return ttr.GetTSIDsForTagValue(tagValue, nil)
+	tsidCard := structs.CreateNewHll()
+	_, err := ttr.GetTSIDsForTagValue(tagValue, tsidCard)
+	if err != nil {
+		return 0, err
+	}
+
+	return tsidCard.Cardinality(), nil
 }
 
 func (ttr *TagTreeReader) GetTSIDsForTagValue(tagValue string,
