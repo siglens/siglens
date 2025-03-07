@@ -833,6 +833,19 @@ body {
     overflow: visible;
 }
 
+.nav-menu-container {
+    margin-top: 20px;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 40px - 72px);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#app-side-nav::-webkit-scrollbar {
+    display: none;
+}
+
 /* Reset .menu.active to avoid broad application */
 #app-side-nav .menu.active {
     border-left: none !important; /* Prevent default active styling */
@@ -5718,10 +5731,8 @@ p#versionInfo {
     transition: transform 0.3s ease;
 }
 
-#app-side-nav .nav-traces.active .nav-dropdown-icon,
-#app-side-nav .nav-metrics.active .nav-dropdown-icon,
-#app-side-nav .nav-ingest.active .nav-dropdown-icon {
-    transform: rotate(180deg);
+.nav-dropdown-icon.rotated {
+    transform: rotate(180deg) !important;
 }
 
 .navbar-submenu {
@@ -6983,7 +6994,22 @@ p#versionInfo {
     height: 40px;
     border-bottom: 1px solid var(--side-nav-bg-color-selected);
     display: flex;
-    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+    background: var(--side-nav-bg-color-regular);
+    z-index: 10; /* Ensure it stays above other content */
+}
+
+.nav-footer {
+    padding: 8px 0px 8px 16px;
+    border-top: 1px solid var(--side-nav-bg-color-selected);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    bottom: 0;
+    background: var(--side-nav-bg-color-regular);
+    z-index: 10; /* Ensure it stays above other content */
+    height: 72px; /* Adjusted height to accommodate theme button and help options */
 }
 
 /* Breadcrumb Styles */

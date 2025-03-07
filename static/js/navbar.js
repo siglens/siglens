@@ -31,7 +31,8 @@ let navbarComponent = `
         </a>
     </div>
 </div>
-<div class="d-flex justify-content-between h-100 flex-column">
+ <div class="d-flex justify-content-between h-100 flex-column">
+    <div class="nav-menu-container">
     <div>
         <div class="menu nav-search">
             <a href="./index.html" class="nav-links link-search"><span class="icon-search"></span><span
@@ -121,7 +122,8 @@ let navbarComponent = `
             </ul>
         </div>
     </div>
-    <div>
+    </div>
+    <div class="nav-footer">
         <div>
             <div class="theme-btn-group">
                 <button class="btn theme-btn dark-theme" id="theme-btn">
@@ -388,27 +390,23 @@ $(document).ready(function () {
     ];
 
     dropdownConfigs.forEach(config => {
-        // Attach click event to menu header and links for dropdown toggle
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
         });
 
-        // Attach separate click handler for the arrow specifically
         $(`.${config.menuClass} .nav-dropdown-icon`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
         });
 
-        // Prevent dropdown items from closing dropdown
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
         });
     });
 
-    // Toggle dropdown open/close state (renamed from toggleSubmenuDropdown)
     window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
@@ -417,21 +415,17 @@ $(document).ready(function () {
 
         $dropdown.stop(true, true).slideToggle(200);
 
-        // Toggle dropdown-open class for the menu (not active)
         $menu.toggleClass('dropdown-open', !isVisible);
 
-        // Toggle rotated class for the arrow
         if ($arrow.length) {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
-        // Save dropdown state to localStorage
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
     };
 
-    // Restore dropdown open/close states from localStorage
     function restoreDropdownState() {
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
 
@@ -451,47 +445,38 @@ $(document).ready(function () {
         });
     }
 
-    // Separate function to update active highlighting based on current page
     function updateActiveHighlighting() {
-        // First, clear all active classes (but not dropdown-open classes)
         dropdownConfigs.forEach(config => {
             $(`.${config.menuClass}`).removeClass('active');
             $(`.${config.iconClass}`).removeClass('active');
             $(`.${config.dropdownClass} li`).removeClass('active');
         });
 
-        // Get current page path
         const currentPath = window.location.pathname.split('/').pop();
 
-        // Find the menu containing the current page and highlight it
         dropdownConfigs.forEach(config => {
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
 
                 if (currentPath === hrefPath) {
-                    // Add active class to the submenu item
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
 
-                    // Add active class to the parent menu and its icon ONLY
                     const $menu = $li.closest(`.${config.menuClass}`);
                     const $icon = $menu.find(`.${config.iconClass}`);
 
                     $menu.addClass('active');
                     $icon.addClass('active');
-
-                    // Don't modify dropdown visibility here - that's managed by toggleDropdown
                 }
             });
         });
     }
 
-    // Initialize both states
+
     restoreDropdownState();
     updateActiveHighlighting();
 
-    // Handle page navigation highlighting
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
     });
