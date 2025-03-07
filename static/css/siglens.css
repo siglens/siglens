@@ -5614,7 +5614,7 @@ p#versionInfo {
     background-color: var(--side-nav-bg-color-selected);
 }
 
-/* Specific styling for Metrics dropdown */
+/* Specific styling for Submenu dropdown */
 #app-side-nav .nav-traces .menu-header,
 #app-side-nav .nav-metrics .menu-header,
 #app-side-nav .nav-ingest .menu-header {
@@ -5641,7 +5641,7 @@ p#versionInfo {
     cursor: pointer;
 }
 
-/* Prevent .nav-metrics.active from affecting the entire section */
+
 #app-side-nav .nav-traces.active,
 #app-side-nav .nav-metrics.active,
 #app-side-nav .nav-ingest.active {
@@ -5650,7 +5650,7 @@ p#versionInfo {
     background-color: transparent !important;
 }
 
-/* Ensure submenu container doesn't inherit active styling */
+
 #app-side-nav .nav-traces.active .traces-dropdown,
 #app-side-nav .nav-metrics.active .metrics-dropdown,
 #app-side-nav .nav-ingest.active .ingestion-dropdown {

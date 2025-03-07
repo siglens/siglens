@@ -391,21 +391,19 @@ $(document).ready(function () {
         { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion' }
     ];
 
-    // Set up click handlers, state restoration, and submenu highlighting for all dropdowns
     dropdownConfigs.forEach(config => {
-        // Make dropdown header clickable to toggle
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleSubmenuDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
         });
 
-        // Prevent dropdown from closing when clicking submenu items
+
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
         });
 
-        // Highlight active submenu items and ensure dropdown is open
+
         function highlightActiveSubmenu() {
             $(`.${config.dropdownClass} li`).removeClass('active');
             const currentPath = window.location.pathname.split('/').pop();
@@ -417,10 +415,6 @@ $(document).ready(function () {
                 if (currentPath === hrefPath) {
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
-                    // $li.css({
-                    //     "color": "white",
-                    //     "border-left": "5px solid #ff9500"
-                    // });
 
                     const $menu = $li.closest(`.${config.menuClass}`);
                     $menu.addClass('active');
@@ -435,12 +429,12 @@ $(document).ready(function () {
             });
         }
 
-        // Call highlight function for this dropdown
+
         highlightActiveSubmenu();
     });
 
 
-    // Generic function to toggle any dropdown
+
     window.toggleSubmenuDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
@@ -453,14 +447,14 @@ $(document).ready(function () {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
-        // Update localStorage with the new state
+
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
     };
 
 
-    // Restore dropdown state for all dropdowns on page reload
+
     function restoreDropdownState() {
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
 
@@ -480,7 +474,7 @@ $(document).ready(function () {
         });
     }
 
-    // Call restoration function
+
     restoreDropdownState();
 });
 
@@ -566,34 +560,6 @@ function setupNavigationState() {
 
 function initializeDropdowns() {
 
-    // Tracing dropdown behavior
-    // $('.tracing-dropdown-toggle').hover(
-    //     function () {
-    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
-    //             $('.traces-dropdown').stop(true, true).slideDown(0);
-    //         }
-    //     },
-    //     function () {
-    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
-    //             $('.traces-dropdown').stop(true, true).slideUp(30);
-    //         }
-    //     }
-    // );
-
-    // Ingestion dropdown behavior
-    // $('.ingestion-dropdown-toggle').hover(
-    //     function () {
-    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
-    //             $('.ingestion-dropdown').stop(true, true).slideDown(0);
-    //         }
-    //     },
-    //     function () {
-    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
-    //             $('.ingestion-dropdown').stop(true, true).slideUp(30);
-    //         }
-    //     }
-    // );
-
     // Help dropdown behavior
     $('.nav-help').hover(
         function (event) {
@@ -623,32 +589,6 @@ function initializeDropdowns() {
             $(this).stop(true, true).slideUp(30);
         }
     );
-
-    // Close dropdowns when clicking elsewhere
-    // $(document).on('click', function (event) {
-    //     const dropdowns = [
-    //         { selector: '.traces-dropdown', condition: $('.traces-dropdown').is(event.target) || $('.traces-dropdown').has(event.target).length > 0 },
-    //         { selector: '.ingestion-dropdown', condition: $('.ingestion-dropdown').is(event.target) || $('.ingestion-dropdown').has(event.target).length > 0 },
-    //         { selector: '.help-options', condition: $('.help-options').is(event.target) || $('.help-options').has(event.target).length > 0 }
-    //     ];
-
-    //     dropdowns.forEach(dropdown => {
-    //         if (!dropdown.condition) {
-    //             $(dropdown.selector).hide();
-    //         }
-    //     });
-    // });
-
-    // Check active menu items for Metrics
-    // const menuItem = document.querySelectorAll('.metrics-dropdown a');
-    // menuItem.forEach((item) => {
-    //     if (item.href === window.location.href || item.href === window.location.pathname) {
-    //         console.log("Activating submenu item:", item.href, "Current URL:", window.location.href);
-    //         item.parentElement.classList.add('active');
-    //         $(item).closest('.metrics-dropdown').show();
-    //         $(item).closest('.nav-metrics').addClass('active');
-    //     }
-    // });
 }
 
 function setupHamburgerBehavior() {
