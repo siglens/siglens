@@ -51,7 +51,7 @@ Exposes functions that will return a TimeSeriesIterator for the given tsids
 type TimeSeriesBlockReader struct {
 	rawTSO   []byte // raw read TSO file
 	rawTSG   []byte // raw read TSG file
-	numTSIDs uint16
+	numTSIDs uint64
 
 	lastTSID  uint64
 	lastTSidx uint32 // index of the last tsid in the tso file
@@ -290,7 +290,7 @@ func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
 	return nil
 }
 
-func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint16, error) {
+func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint64, error) {
 	err := loadFileIntoPoolBuffer(fileName, &tssr.tsoBuf)
 	if err != nil {
 		log.Errorf("loadTSOFile: Error loading TSO file: %v", err)
@@ -298,11 +298,17 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) ([]byte, uint1
 	}
 
 	versionTsoFile := make([]byte, 1)
+	nEntries := uint64(0)
 	copy(versionTsoFile, tssr.tsoBuf[:1])
-	if versionTsoFile[0] != segutils.VERSION_TSOFILE[0] {
-		return nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: the file version doesn't match; expected=%+v, got=%+v", segutils.VERSION_TSOFILE[0], versionTsoFile[0])
+	switch versionTsoFile[0] {
+	case segutils.VERSION_TSOFILE_V1[0]:
+		nEntries = uint64(utils.BytesToUint16LittleEndian(tssr.tsoBuf[1:3]))
+	case segutils.VERSION_TSOFILE_V2[0]:
+		nEntries = utils.BytesToUint64LittleEndian(tssr.tsoBuf[1:11])
+	default:
+		return nil, 0, fmt.Errorf("loadFileIntoPoolBuffer: invalid TSO version: %+v", versionTsoFile[0])
 	}
-	nEntries := utils.BytesToUint16LittleEndian(tssr.tsoBuf[1:3])
+
 	return tssr.tsoBuf, nEntries, nil
 }
 
