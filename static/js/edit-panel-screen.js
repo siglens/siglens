@@ -1266,8 +1266,12 @@ async function runQueryBtnHandler() {
         data = currentPanel.queryData;
         runMetricsQuery(data, -1, currentPanel);
     } else if (currentPanel.queryType == 'logs') {
+        //eslint-disable-next-line no-undef
+        resetPanelLogsColumnDefs();
+
         data = getQueryParamsData();
         currentPanel.queryData = data;
+
         $('.panelDisplay .panEdit-panel').hide();
         //eslint-disable-next-line no-undef
         initialSearchDashboardData = data;
