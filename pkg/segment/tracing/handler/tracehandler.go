@@ -703,8 +703,21 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody.QueryLanguage = "Splunk QL"
 	searchRequestBody.IndexName = "service-dependency"
 	searchRequestBody.SearchText = "*"
-	searchRequestBody.StartEpoch = readJSON["startEpoch"].(string)
-	searchRequestBody.EndEpoch = readJSON["endEpoch"].(string)
+
+	if val, ok := readJSON["startEpoch"]; ok {
+		searchRequestBody.StartEpoch = val.(string)
+	} else {
+		log.Errorf("ProcessAggregatedDependencyGraphs : startEpoch is missing")
+		return
+	}
+
+	if val, ok := readJSON["endEpoch"]; ok {
+		searchRequestBody.EndEpoch = val.(string)
+	} else {
+		log.Errorf("ProcessAggregatedDependencyGraphs : endEpoch is missing")
+		return
+	}
+
 	dependencyResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
 		log.Errorf("ProcessAggregatedDependencyGraphs: processSearchRequest: Error=%v", err)
@@ -713,7 +726,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	processedData := make(map[string]interface{})
 	if dependencyResponseOuter.Hits.Hits == nil || len(dependencyResponseOuter.Hits.Hits) == 0 {
 		ctx.SetStatusCode(fasthttp.StatusOK)
-		_, writeErr := ctx.WriteString("no dependencies graphs have been generated")
+		_, writeErr := ctx.WriteString(putils.ErrNoDependencyGraphs)
 		if writeErr != nil {
 			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
