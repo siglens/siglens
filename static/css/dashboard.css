@@ -442,7 +442,6 @@
   left: 50%;
   transform: translate(-50%, -50%);
   border-radius: 8px;
-  overflow-y: scroll;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -938,7 +937,6 @@
   border-right: none;
   border-radius: 1px 0;
   cursor: pointer;
-  z-index: 99;
 }
 
 #panel-desc-info{

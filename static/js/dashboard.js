@@ -823,6 +823,7 @@ async function displayPanels() {
     }
     // Remove the Add Panel Widgets from the default dashboards
     if (!isDefaultDashboard) {
+        $('.default-item').remove();
         addDefaultPanel();
     }
     // Show the Add Panel Widget if there is no panel

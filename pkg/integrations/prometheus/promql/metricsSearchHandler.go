@@ -276,7 +276,7 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid int64
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
-	var mQResponse *structs.MetricsQueryResponsePromQl
+	var mQResponse *structs.MetricsPromQLRangeQueryResponse
 
 	if res.IsScalar {
 		mQResponse, err = res.GetResultsPromQlForScalarType(pqlQuerytype, startTime, endTime, uint32(step.Seconds()))

@@ -3168,7 +3168,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--hits-summary-regular-text-color);
     border-radius: 1px 1px 0px 0px;
     position: relative;
-    font-size: 14px;
+    font-size: 12px;
     justify-content: space-between;
     height: 30px;
     border-bottom: 1px solid var(--border-color-regular);
@@ -6192,13 +6192,13 @@ p#versionInfo {
     opacity: 0.9;
 }
 
-.big-number {
+.cluster-content .big-number {
     font-size: 48px;
     font-weight: bold;
     color: white;
 }
 
-.big-number.error {
+.cluster-content .big-number.error {
     font-size: 40px;
     white-space: nowrap;
 }
