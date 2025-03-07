@@ -31,6 +31,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -199,6 +200,58 @@ func Test_ReadWriteTsoTsgFiles(t *testing.T) {
 
 	assert.Equal(t, count_1, 5000)
 	assert.Equal(t, count_2, 5000)
+}
+
+func Test_ReadOldTso(t *testing.T) {
+	dir := "data/"
+	err := os.MkdirAll(dir, os.FileMode(0755))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	// A version 1 TSO file
+	tsoData := make([]byte, 1+2+12)
+	tsoData[0] = utils.VERSION_TSOFILE_V1[0]
+	copy(tsoData[1:], toputils.Uint16ToBytesLittleEndian(uint16(1)))
+	tsid := uint64(42)
+	copy(tsoData[3:], toputils.Uint64ToBytesLittleEndian(tsid))
+	offset := uint32(0)
+	copy(tsoData[11:], toputils.Uint32ToBytesLittleEndian(offset))
+	err = os.WriteFile("data/mock_0.tso", tsoData, 0644)
+	assert.NoError(t, err)
+
+	// This test is for a TSO file, but we need to make a fake TSG file as well
+	// because the reader will try to read it.
+	//
+	// Here, the first 13 bytes are important, but the last part can be
+	// garbage, so we'll keep it set to 0. I'm not certain, but I think the
+	// only requirement is that it's at least 32 bytes (for the gorilla
+	// encoding header).
+	tsgData := make([]byte, 1+12+100)
+	copy(tsgData[0:], utils.VERSION_TSGFILE)
+	copy(tsgData[1:], toputils.Uint64ToBytesLittleEndian(tsid))
+	copy(tsgData[9:], toputils.Uint32ToBytesLittleEndian(uint32(100)))
+	err = os.WriteFile("data/mock_0.tsg", tsgData, 0644)
+	assert.NoError(t, err)
+
+	tssr, err := series.InitTimeSeriesReader("data/mock")
+	assert.NoError(t, err)
+
+	queryMetrics := &structs.MetricsQueryProcessingMetrics{
+		UpdateLock: &sync.Mutex{},
+	}
+	tssr_block, err := tssr.InitReaderForBlock(uint16(0), queryMetrics)
+	assert.NoError(t, err)
+
+	_, exists, err := tssr_block.GetTimeSeriesIterator(tsid)
+	assert.NoError(t, err)
+	assert.True(t, exists)
+
+	badTsid := tsid + 1
+	_, exists, err = tssr_block.GetTimeSeriesIterator(badTsid)
+	assert.NoError(t, err)
+	assert.False(t, exists)
 }
 
 func initFakeMetricsBlock() *MetricsBlock {
