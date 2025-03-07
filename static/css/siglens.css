@@ -6997,11 +6997,10 @@ p#versionInfo {
     position: sticky;
     top: 0;
     background: var(--side-nav-bg-color-regular);
-    z-index: 10; /* Ensure it stays above other content */
+    z-index: 10; 
 }
 
 .nav-footer {
-    /* padding: 8px 0px 8px 16px; */
     padding: 5px;
     border-top: 1px solid var(--side-nav-bg-color-selected);
     display: flex;
@@ -7009,8 +7008,8 @@ p#versionInfo {
     position: sticky;
     bottom: 0;
     background: var(--side-nav-bg-color-regular);
-    z-index: 10; /* Ensure it stays above other content */
-    height: 72px; /* Adjusted height to accommodate theme button and help options */
+    z-index: 10;
+    height: 72px;
 }
 
 /* Breadcrumb Styles */
