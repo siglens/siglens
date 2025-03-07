@@ -5625,23 +5625,6 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-#app-side-nav .nav-traces.active .menu-header,
-#app-side-nav .nav-metrics.active .menu-header,
-#app-side-nav .nav-ingest.active .menu-header {
-    color: var(--navbar-link-text) !important;
-}
-
-#app-side-nav .nav-traces .menu-header:hover,
-#app-side-nav .nav-metrics .menu-header:hover,
-#app-side-nav .nav-ingest .menu-header:hover {
-    color: var(--navbar-link-text) !important;
-    /* border-right: 5px solid var(--side-nav-bg-color-selected); */
-    background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-    cursor: pointer;
-}
-
-
 #app-side-nav .nav-traces.active,
 #app-side-nav .nav-metrics.active,
 #app-side-nav .nav-ingest.active {
@@ -5650,6 +5633,19 @@ p#versionInfo {
     background-color: transparent !important;
 }
 
+#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
+#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
+#app-side-nav .nav-ingest.active .nav-link-text-drpdwn {
+    color: white !important;
+}
+
+#app-side-nav .nav-traces .menu-header:hover,
+#app-side-nav .nav-metrics .menu-header:hover,
+#app-side-nav .nav-ingest .menu-header:hover {
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
 
 #app-side-nav .nav-traces.active .traces-dropdown,
 #app-side-nav .nav-metrics.active .metrics-dropdown,

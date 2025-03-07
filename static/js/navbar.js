@@ -45,7 +45,6 @@ let navbarComponent = `
                 </a>
                 <img class="nav-dropdown-icon orange"
                         src="assets/arrow-btn.svg"
-                        onclick="toggleSubmenuDropdown(this.closest('.menu')); event.stopPropagation();"
                         alt="Dropdown Arrow">
             </div>
             <ul class="traces-dropdown">
@@ -62,7 +61,6 @@ let navbarComponent = `
                 </a>
                 <img class="nav-dropdown-icon orange"
                      src="assets/arrow-btn.svg"
-                     onclick="toggleSubmenuDropdown(this.closest('.menu')); event.stopPropagation();"
                      alt="Dropdown Arrow">
             </div>
             <ul class="metrics-dropdown">
@@ -114,7 +112,6 @@ let navbarComponent = `
                 </a>
                 <img class="nav-dropdown-icon orange"
                             src="assets/arrow-btn.svg"
-                            onclick="toggleSubmenuDropdown(this.closest('.menu')); event.stopPropagation();"
                             alt="Dropdown Arrow">
             </div>
             <ul class="ingestion-dropdown ">
@@ -384,94 +381,121 @@ $(document).ready(function () {
     $('.navbar-submenu').hide();
     $('.help-options').hide();
 
-    // Define dropdown configurations
     const dropdownConfigs = [
-        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics' },
-        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM' },
-        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion' }
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' }
     ];
 
     dropdownConfigs.forEach(config => {
+        // Attach click event to menu header and links for dropdown toggle
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleSubmenuDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
         });
 
+        // Attach separate click handler for the arrow specifically
+        $(`.${config.menuClass} .nav-dropdown-icon`).on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+        });
 
+        // Prevent dropdown items from closing dropdown
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
         });
-
-
-        function highlightActiveSubmenu() {
-            $(`.${config.dropdownClass} li`).removeClass('active');
-            const currentPath = window.location.pathname.split('/').pop();
-
-            $(`.${config.dropdownClass} a`).each(function() {
-                const href = $(this).attr('href');
-                const hrefPath = href.split('/').pop();
-
-                if (currentPath === hrefPath) {
-                    const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
-                    $li.addClass('active');
-
-                    const $menu = $li.closest(`.${config.menuClass}`);
-                    $menu.addClass('active');
-                    $menu.find(`.${config.dropdownClass}`).show();
-                    $menu.find('.nav-dropdown-icon').addClass('rotated');
-
-                    // Update localStorage to reflect the open state
-                    let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
-                    dropdownStates[config.name] = true;
-                    localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
-                }
-            });
-        }
-
-        highlightActiveSubmenu();
     });
 
-
-
-    window.toggleSubmenuDropdown = function(menuElement, dropdownName, dropdownClass) {
+    // Toggle dropdown open/close state (renamed from toggleSubmenuDropdown)
+    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
         const $arrow = $menu.find('.nav-dropdown-icon');
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
-        $menu.toggleClass('active', !isVisible);
+
+        // Toggle dropdown-open class for the menu (not active)
+        $menu.toggleClass('dropdown-open', !isVisible);
+
+        // Toggle rotated class for the arrow
         if ($arrow.length) {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
+        // Save dropdown state to localStorage
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
     };
 
-
-
+    // Restore dropdown open/close states from localStorage
     function restoreDropdownState() {
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+
         dropdownConfigs.forEach(config => {
             const $menu = $(`.${config.menuClass}`);
             const isOpen = dropdownStates[config.name] === true;
 
             if (isOpen) {
-                $menu.addClass('active');
+                $menu.addClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).show();
                 $menu.find('.nav-dropdown-icon').addClass('rotated');
             } else {
-                $menu.removeClass('active');
+                $menu.removeClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).hide();
                 $menu.find('.nav-dropdown-icon').removeClass('rotated');
             }
         });
     }
 
+    // Separate function to update active highlighting based on current page
+    function updateActiveHighlighting() {
+        // First, clear all active classes (but not dropdown-open classes)
+        dropdownConfigs.forEach(config => {
+            $(`.${config.menuClass}`).removeClass('active');
+            $(`.${config.iconClass}`).removeClass('active');
+            $(`.${config.dropdownClass} li`).removeClass('active');
+        });
+
+        // Get current page path
+        const currentPath = window.location.pathname.split('/').pop();
+
+        // Find the menu containing the current page and highlight it
+        dropdownConfigs.forEach(config => {
+            $(`.${config.dropdownClass} a`).each(function() {
+                const href = $(this).attr('href');
+                const hrefPath = href.split('/').pop();
+
+                if (currentPath === hrefPath) {
+                    // Add active class to the submenu item
+                    const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
+                    $li.addClass('active');
+
+                    // Add active class to the parent menu and its icon ONLY
+                    const $menu = $li.closest(`.${config.menuClass}`);
+                    const $icon = $menu.find(`.${config.iconClass}`);
+
+                    $menu.addClass('active');
+                    $icon.addClass('active');
+
+                    // Don't modify dropdown visibility here - that's managed by toggleDropdown
+                }
+            });
+        });
+    }
+
+    // Initialize both states
     restoreDropdownState();
+    updateActiveHighlighting();
+
+    // Handle page navigation highlighting
+    $(document).on('click', 'a', function() {
+        setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
+    });
+
 });
 
 function setupNavigationState() {
