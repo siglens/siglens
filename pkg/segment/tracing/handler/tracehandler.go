@@ -705,14 +705,22 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody.SearchText = "*"
 
 	if val, ok := readJSON["startEpoch"]; ok {
-		searchRequestBody.StartEpoch = val.(string)
+		searchRequestBody.StartEpoch = convertEpochToString(val)
+		if searchRequestBody.StartEpoch == "" {
+			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for startEpoch")
+			return
+		}
 	} else {
 		log.Errorf("ProcessAggregatedDependencyGraphs : startEpoch is missing")
 		return
 	}
 
 	if val, ok := readJSON["endEpoch"]; ok {
-		searchRequestBody.EndEpoch = val.(string)
+		searchRequestBody.EndEpoch = convertEpochToString(val)
+		if searchRequestBody.EndEpoch == "" {
+			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for endEpoch")
+			return
+		}
 	} else {
 		log.Errorf("ProcessAggregatedDependencyGraphs : endEpoch is missing")
 		return
@@ -779,6 +787,20 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func convertEpochToString(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case int, int8, int16, int32, int64:
+		return fmt.Sprintf("%d", v)
+	case float32, float64:
+		return fmt.Sprintf("%f", v)
+	default:
+		log.Errorf("convertEpochToString: Unsupported data type: %T", v)
+		return ""
+	}
 }
 
 // ProcessGeneratedDepGraph handles the /generate-dep-graph endpoint.
