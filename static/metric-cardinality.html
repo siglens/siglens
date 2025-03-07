@@ -33,9 +33,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/all.min.css" />
     <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/tracing.css">
-    <link rel="stylesheet" href="./css/metrics-explorer.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/metrics-explorer.css?cb={{ AppVersion }}" />
     <style>
         #tagKeysGrid,
         #tagPairsGrid,
@@ -68,10 +67,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div id="dashboard">
             <div id="metrics-container" style="margin-bottom: 20px;">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h1 class="myOrg-heading">Metrics Cardinality</h1>
-                    </div>
+                <div class="d-flex justify-content-end">
                     <div class="d-flex">
                         <div class="dropdown">
                             <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
@@ -148,11 +144,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         2024 &copy; SigLens
     </div>
 
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/metrics-cardinality.js"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./js/metrics-cardinality.js?cb={{ AppVersion }}"></script>
+    
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

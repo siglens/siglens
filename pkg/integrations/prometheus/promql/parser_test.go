@@ -410,7 +410,7 @@ func Test_parsePromQLQuery_NestedQueries_v1(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -445,7 +445,7 @@ func Test_parsePromQLQuery_NestedQueries_v1(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "cpu_usage_user", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys = []string{}
@@ -496,7 +496,7 @@ func Test_parsePromQLQuery_NestedQueries_v2(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_request_duration_seconds_bucket", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -586,7 +586,7 @@ func Test_parsePromQLQuery_NestedQueries_v3(t *testing.T) {
 	assert.Equal(t, "node_cpu_seconds_total", mQueryReqs[1].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedMName2, mQueryReqs[1].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.False(t, mQueryReqs[1].MetricsQuery.Groupby)
@@ -665,7 +665,7 @@ func Test_parsePromQLQuery_NestedQueries_v4(t *testing.T) {
 	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedName2, mQueryReqs[1].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedMName3, mQueryReqs[2].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[2].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
@@ -774,7 +774,7 @@ func Test_parsePromQLQuery_NestedQueries_v5(t *testing.T) {
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.AggBlockType)
 	assert.Equal(t, segutils.Avg_Over_Time, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, float64(0), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
+	assert.Equal(t, getStepValueFromTimeRange(&timeRange), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
 
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[1].MetricsQuery.SubsequentAggs.AggBlockType)
 	assert.Equal(t, segutils.Avg, mQueryReqs[1].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
@@ -874,7 +874,7 @@ func Test_parsePromQLQuery_NestedQueries_v7(t *testing.T) {
 	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.AggBlockType)
 	assert.Equal(t, segutils.Max_Over_Time, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.RangeFunction)
 	assert.Equal(t, float64(600), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.TimeWindow)
-	assert.Equal(t, float64(0), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
+	assert.Equal(t, getStepValueFromTimeRange(&timeRange), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.Next.FunctionBlock.Step)
 }
 
 func Test_parsePromQLQuery_NestedQueries_v8(t *testing.T) {
@@ -982,7 +982,7 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v1(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -990,11 +990,11 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v1(t *testing.T) {
 		actualTagKeys = append(actualTagKeys, tag.TagKey)
 		if tag.TagKey == "job" {
 			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, false, tag.NotInitialGroup)
+			assert.Equal(t, true, tag.NotInitialGroup)
 		}
 		if tag.TagKey == "handler" {
 			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, false, tag.NotInitialGroup)
+			assert.Equal(t, true, tag.NotInitialGroup)
 		}
 		if tag.TagKey == "proc" {
 			assert.Equal(t, "*", tag.RawTagValue)
@@ -1237,6 +1237,90 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	}
 
 	assert.Equal(t, tagKeys, actualTagKeys)
+}
+
+func Test_parsePromQLQuery_Without(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := int64(0)
+
+	query := `sum without (instance) (demo_api_http_requests_in_progress)`
+
+	metricName := "demo_api_http_requests_in_progress"
+	mHashedMName := xxhash.Sum64String(metricName)
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mQueryReqs))
+	assert.Equal(t, 0, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, metricName, mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
+	assert.True(t, mQueryReqs[0].MetricsQuery.GetAllLabels)
+
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
+	assert.Equal(t, segutils.Sum, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 1, len(mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.GroupByFields))
+	assert.Equal(t, "instance", mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.GroupByFields[0])
+	assert.True(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.Without)
+
+	tagFilters := mQueryReqs[0].MetricsQuery.TagsFilters
+	assert.Equal(t, 1, len(tagFilters))
+	assert.Equal(t, "instance", tagFilters[0].TagKey)
+	assert.Equal(t, "*", tagFilters[0].RawTagValue)
+	assert.True(t, tagFilters[0].IgnoreTag)
+	assert.True(t, tagFilters[0].IsGroupByKey)
+	assert.False(t, tagFilters[0].NotInitialGroup)
+
+	query = `sum  without(instance) (avg_over_time(demo_api_http_requests_in_progress{job='node'}[3h:30m]))`
+
+	metricName = "demo_api_http_requests_in_progress"
+	mHashedMName = xxhash.Sum64String(metricName)
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err = ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mQueryReqs))
+	assert.Equal(t, 0, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, metricName, mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
+	assert.True(t, mQueryReqs[0].MetricsQuery.GetAllLabels)
+	assert.Equal(t, mQueryReqs[0].MetricsQuery.LookBackToInclude, float64(3*60*60))
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
+	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggBlockType)
+	assert.Equal(t, segutils.Avg_Over_Time, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, float64(10800), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.TimeWindow)
+	assert.Equal(t, float64(1800), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.Step)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggBlockType)
+	assert.Equal(t, segutils.Sum, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 1, len(mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields))
+	assert.Equal(t, "instance", mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields[0])
+	assert.True(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.Without)
+
+	tagFilters = mQueryReqs[0].MetricsQuery.TagsFilters
+	assert.Equal(t, 2, len(tagFilters))
+
+	assert.Equal(t, "job", tagFilters[0].TagKey)
+	assert.Equal(t, "node", tagFilters[0].RawTagValue)
+	assert.False(t, tagFilters[0].IgnoreTag)
+	assert.False(t, tagFilters[0].IsGroupByKey)
+	assert.False(t, tagFilters[0].NotInitialGroup)
+
+	assert.Equal(t, "instance", tagFilters[1].TagKey)
+	assert.Equal(t, "*", tagFilters[1].RawTagValue)
+	assert.True(t, tagFilters[1].IgnoreTag)
+	assert.True(t, tagFilters[1].IsGroupByKey)
+	assert.True(t, tagFilters[1].NotInitialGroup)
 }
 
 func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {

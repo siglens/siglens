@@ -6,9 +6,6 @@ test.describe('Minion Searches Page Tests', () => {
         // Navigate to the minion searches page
         await page.goto('http://localhost:5122/minion-searches.html');
 
-        // Check if the main heading is present
-        await expect(page.locator('.main-heading')).toHaveText('Minion Searches');
-
         // Check if all log level buttons are present
         const logLevels = ['Error', 'Warning', 'Debug', 'Info'];
         for (const level of logLevels) {

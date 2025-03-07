@@ -442,7 +442,6 @@
   left: 50%;
   transform: translate(-50%, -50%);
   border-radius: 8px;
-  overflow-y: scroll;
 }
 
 /* PANEL EDIT NAV BAR */
@@ -553,13 +552,6 @@
   background-color: var(--black-1) !important;
   color: var(--white-3) !important;
   border-bottom: 1px solid var(--white-4) !important;
-}
-
-/* SIDENAV */
-#app-container #app-side-nav {
-  height: 100vh;
-  position: fixed;
-  z-index: 2;
 }
 
 /* BIG NUMBER */
@@ -1145,8 +1137,8 @@
     width: 20%;
     padding: 10px 10px;
     position: absolute;
-    right: 20px;
-    top: 50px;
+    right: 10px;
+    top: 90px;
     cursor: default;
     box-shadow: var(--box-shadow);
     z-index: 0;

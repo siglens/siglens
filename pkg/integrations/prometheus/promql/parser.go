@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -232,7 +233,7 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 			updateMetricQueryWithAggs(mQuery, mQueryAgg)
 		}
 	case *parser.Call:
-		mQueryAgg, err = handleCallExpr(node, mQuery)
+		mQueryAgg, err = handleCallExpr(node, mQueryReqs[0])
 		if err == nil {
 			updateMetricQueryWithAggs(mQuery, mQueryAgg)
 		}
@@ -298,7 +299,6 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
-		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
@@ -342,6 +342,18 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	// And this group by Aggregation should not be done on the initial Aggregation.
 	hasAggExpr := hasNestedAggregateExpr(expr.Expr)
 
+	if len(expr.Grouping) > 0 {
+		mQuery.Groupby = true
+	}
+
+	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
+	mQuery.FirstAggregator.Without = expr.Without
+
+	if expr.Without {
+		mQuery.SelectAllSeries = true
+		mQuery.GetAllLabels = true
+	}
+
 	// Handle grouping
 	for _, group := range expr.Grouping {
 		if group == "__name__" {
@@ -355,14 +367,11 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 			TagOperator:     segutils.TagOperator(segutils.Equal),
 			LogicalOperator: segutils.And,
 			NotInitialGroup: hasAggExpr,
+			IgnoreTag:       expr.Without,
+			IsGroupByKey:    true,
 		}
 		mQuery.TagsFilters = append(mQuery.TagsFilters, &tagFilter)
 	}
-	if len(expr.Grouping) > 0 {
-		mQuery.Groupby = true
-	}
-
-	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
@@ -372,20 +381,22 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	return mQueryAgg, nil
 }
 
-func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
+func handleCallExpr(call *parser.Call, mQueryReq *structs.MetricsQueryRequest) (*structs.MetricQueryAgg, error) {
 	var err error
 	defaultCase := false
+
+	mQuery := &mQueryReq.MetricsQuery
 
 	for _, arg := range call.Args {
 		switch arg := arg.(type) {
 		case *parser.MatrixSelector:
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		case *parser.VectorSelector:
 			err = handleCallExprVectorSelectorNode(call, mQuery)
 		case *parser.ParenExpr:
-			err = handleCallExprParenExprNode(call, arg, mQuery)
+			err = handleCallExprParenExprNode(call, arg, mQueryReq)
 		case *parser.SubqueryExpr:
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		default:
 			defaultCase = true
 		}
@@ -406,7 +417,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 		// So, we need to check for both the cases.
 		err = handleCallExprVectorSelectorNode(call, mQuery)
 		if err != nil {
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		}
 	}
 
@@ -422,22 +433,24 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 	return mQueryAgg, nil
 }
 
-func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQuery *structs.MetricsQuery) error {
+func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQueryReq *structs.MetricsQueryRequest) error {
 	var err error
+
+	mQuery := &mQueryReq.MetricsQuery
 
 	switch expr.Expr.(type) {
 	case *parser.MatrixSelector:
-		err = handleCallExprMatrixSelectorNode(call, mQuery)
+		err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 	case *parser.VectorSelector:
 		err = handleCallExprVectorSelectorNode(call, mQuery)
 	case *parser.ParenExpr:
-		err = handleCallExprParenExprNode(call, expr.Expr.(*parser.ParenExpr), mQuery)
+		err = handleCallExprParenExprNode(call, expr.Expr.(*parser.ParenExpr), mQueryReq)
 	}
 
 	return err
 }
 
-func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.MetricsQuery) error {
+func handleCallExprMatrixSelectorNode(expr *parser.Call, mQueryReq *structs.MetricsQueryRequest) error {
 	function := expr.Func.Name
 
 	timeWindow, step, err := extractTimeWindow(expr.Args)
@@ -445,8 +458,24 @@ func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		return fmt.Errorf("handleCallExprMatrixSelectorNode: cannot extract time window: %v", err)
 	}
 
-	if mQuery.TagsFilters != nil {
+	mQuery := &mQueryReq.MetricsQuery
+
+	if len(mQuery.TagsFilters) > 0 {
+		if mQuery.Groupby {
+			// If group by is already set, then the tagFilters that are added because of the group by should not be initial group
+			// As this grouping affects this range function group by
+			for _, tag := range mQuery.TagsFilters {
+				if tag.IsGroupByKey {
+					tag.NotInitialGroup = true
+				}
+			}
+		}
+
 		mQuery.Groupby = true
+	}
+
+	if step == 0 {
+		step = getStepValueFromTimeRange(&mQueryReq.TimeRange)
 	}
 
 	return handlePromQLRangeFunctionNode(function, timeWindow, step, expr, mQuery)
@@ -503,6 +532,10 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	default:
 		return fmt.Errorf("handlePromQLRangeFunctionNode: unsupported function type %v", functionName)
 	}
+
+	mQuery.LookBackToInclude = timeWindow
+	mQuery.SelectAllSeries = true
+	mQuery.GetAllLabels = true
 
 	return nil
 }
@@ -673,7 +706,6 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSeconds uint32) ([]*structs.MetricsQueryRequest, error) {
 	mQuery := &mQueryReqs[0].MetricsQuery
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
-	mQuery.SelectAllSeries = true
 
 	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
@@ -685,9 +717,7 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
-	if len(mQuery.TagsFilters) > 0 {
-		mQuery.SelectAllSeries = false
-	} else {
+	if len(mQuery.TagsFilters) == 0 {
 		mQuery.SelectAllSeries = true
 	}
 
@@ -826,4 +856,9 @@ func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.
 	// Reset the Function And Aggregator fields to handle the next function call correctly
 	mQuery.Function = structs.Function{}
 	mQuery.FirstAggregator = structs.Aggregation{}
+}
+
+func getStepValueFromTimeRange(timeRange *dtu.MetricsTimeRange) float64 {
+	step := float64(timeRange.EndEpochSec-timeRange.StartEpochSec) / structs.MAX_POINTS_TO_EVALUATE
+	return math.Max(step, 1)
 }

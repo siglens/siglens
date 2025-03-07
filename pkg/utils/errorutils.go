@@ -33,6 +33,9 @@ var qidToBatchErrorMapLock *sync.RWMutex
 const NIL_VALUE_ERR = "NIL_VALUE_ERR"
 const CONVERSION_ERR = "CONVERSION_ERR"
 
+// Error shown when no dependency graphs are available for a particular time frame
+const ErrNoDependencyGraphs = "no dependencies graphs have been generated"
+
 // BatchErrorData holds error information for a specific error key
 type BatchErrorData struct {
 	errors  []error

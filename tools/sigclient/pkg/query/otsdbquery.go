@@ -202,6 +202,7 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 		log.Fatalf("Error reading file header: %v, err: %v", filepath, err)
 		return
 	}
+	valuesPerRow := 8
 
 	for {
 		rec, err := csvReader.Read()
@@ -213,8 +214,8 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 			return
 		}
 
-		if len(rec) != 7 {
-			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected 7", rec)
+		if len(rec) != valuesPerRow {
+			log.Fatalf("RunQueryFromFile: Invalid number of columns in query file: [%v]. Expected %v", rec, valuesPerRow)
 			return
 		}
 
@@ -225,6 +226,12 @@ func RunMetricQueryFromFile(apiURL string, filepath string) {
 		relation := rec[4]
 		metricNames := rec[5]
 		tagFilters := rec[6]
+		skipQuery := rec[7]
+
+		if skipQuery == "true" {
+			log.Infof("Skipping query: %v", query)
+			continue
+		}
 
 		expectedValuesStrs := strings.Split(expectedValuesStr, ",")
 

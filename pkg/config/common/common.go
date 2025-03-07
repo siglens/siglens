@@ -47,7 +47,7 @@ type EmailConfig struct {
 
 type LogConfig struct {
 	LogPrefix             string `yaml:"logPrefix"`             // Prefix of log file. Can be a directory. if empty will log to stdout
-	LogFileRotationSizeMB int    `yaml:"logFileRotationSizeMB"` //Max size of log file in megabytes
+	LogFileRotationSizeMB int    `yaml:"logFileRotationSizeMB"` // Max size of log file in megabytes
 	CompressLogFile       bool   `yaml:"compressLogFile"`
 }
 
@@ -110,8 +110,8 @@ type Configuration struct {
 	QueryListenIP               string `yaml:"queryListenIP"`               // Listen IP used for query server
 	IngestPort                  uint64 `yaml:"ingestPort"`                  // Port for ingestion server
 	QueryPort                   uint64 `yaml:"queryPort"`                   // Port used for query server
-	QueryNode                   string `yaml:"queryNode"`                   //Node to enable/disable all query endpoints
-	IngestNode                  string `yaml:"ingestNode"`                  //Node to enable/disable all ingest endpoints
+	QueryNode                   string `yaml:"queryNode"`                   // Node to enable/disable all query endpoints
+	IngestNode                  string `yaml:"ingestNode"`                  // Node to enable/disable all ingest endpoints
 	IdleWipFlushIntervalSecs    int    `yaml:"idleWipFlushIntervalSecs"`    // Time interval after which to write to segfile, given no new data
 	MaxWaitWipFlushIntervalSecs int    `yaml:"maxWaitWipFlushIntervalSecs"` // Max time to wait for wip flush, regardless of data
 	DataPath                    string `yaml:"dataPath"`
@@ -153,6 +153,8 @@ type Configuration struct {
 	UseNewPipelineConverted     bool
 	UseNewQueryPipeline         string `yaml:"isNewQueryPipelineEnabled"`
 	QueryTimeoutSecs            int    `yaml:"queryTimeoutSecs"`
+	PauseMode                   string `yaml:"pauseMode"`
+	PauseModeConverted          bool   // converted bool value of PauseMode
 }
 
 type RunModConfig struct {

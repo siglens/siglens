@@ -627,7 +627,6 @@
     width: fit-content;
     align-items: center;
     padding: 4px;
-    margin-top: 10px;
     background: var(--hits-summary-bg-regular);
     font-size: 12px;
     gap: 6px;
@@ -776,9 +775,10 @@ body {
 
 /* Main Containers */
 #app-container {
-    display: flex;
     height: 100vh;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 #cstats-app-container {
@@ -791,6 +791,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    height: 100%;
 }
 
 #app-content-area {
@@ -802,7 +803,6 @@ body {
 .icon-cstats,
 .icon-search,
 .icon-usq,
-.sslogo,
 .icon-launchdb,
 .icon-metrics,
 .icon-alerts,
@@ -829,7 +829,6 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     width: 122px !important;
 }
 
@@ -843,11 +842,6 @@ body {
 }
 
 #app-side-nav .nav-main-menu {
-    min-height: 38px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-    margin-bottom: 2px;
     margin-right: 8px;
 }
 
@@ -862,16 +856,16 @@ body {
 #app-side-nav .nav-main-menu.logo {
     display: flex;
     justify-content: center;
-    padding: 12px;
 }
 
 #app-side-nav.active .nav-main-menu.logo {
     padding: 20px 0 20px 0px;
 }
 
-#app-side-nav .nav-main-menu.logo .sslogo {
+.sslogo {
     height: 44px;
-    width: 37px;
+    width: 25px;
+    margin-right: 16px;
 }
 
 .icon-search {
@@ -1067,6 +1061,30 @@ body {
     background-image: url("../assets/search-icon-active.svg");
     height: 19px;
     width: 19px;
+}
+
+#app-side-nav {
+    position: fixed;
+    left: -250px;
+    top: 0px;
+    height: 100vh;
+    width: 250px;
+    transition: all 0.3s ease-in-out;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 3px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+body.nav-expanded #app-side-nav {
+    left: 0;
+}
+
+#dashboard,
+#alerting,
+#cstats-app-container,
+.myOrg {
+    margin-top: 40px;
+    transition: margin-left 0.3s;
 }
 
 /* Footer */
@@ -1527,7 +1545,7 @@ progress.hidden {
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    padding: 16px;
+    padding: 20px;
 }
 
 #cluster-stats-theme {
@@ -1981,7 +1999,6 @@ table.dataTable thead td {
     cursor: pointer;
     background-color: transparent;
     border-width: 0;
-    margin-left: 15px;
     background-size: contain;
 }
 
@@ -3020,15 +3037,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-.dashboard-name {
-    padding-left: 15px;
-    color: var(--dashboard-title-color);
-    cursor: pointer;
-    font-size: 18px;
-    text-decoration-line: underline;
-}
-
-
 .dashboard-grid .db-button {
     display: flex;
     flex-direction: row;
@@ -3039,15 +3047,13 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #new-dashboard {
     overflow-x: hidden;
     color: var(--cstats-header-text-color);
-    font-weight: var(--fw-500) !important;
-    font-family: "DINpro", Arial, sans-serif;
-    font-style: normal;
-    padding: 20px;
     margin-left: 0;
     display: flex;
     flex-direction: column;
     width: 100%;
     transition: all 0.3s linear;
+    height: 100%;
+    margin-top: 40px;
 }
 
 .header-container {
@@ -3084,7 +3090,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .name-dashboard {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     cursor: pointer;
     margin-bottom: 0;
 }
@@ -3628,11 +3634,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     flex-direction: column;
     height: 100%;
     overflow-y: scroll;
-    padding: 16px;
+    padding: 20px;
 }
 
 .myOrg-inner-container {
-    height: 100%;
+    margin-bottom: 20px;
 }
 
 .copy-link-container {
@@ -3714,7 +3720,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .users-data-table {
-    height: 100%;
+    height: calc(100% - 30px);
     width: 100%;
 }
 
@@ -4084,14 +4090,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     right: 30px;
 }
 
-#login-error-message {
-    background-color: rgba(224, 104, 124, 0.5);
-    border-top: 4px solid rgb(224 104 125 / 1);
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 20px;
+.error-container {
+    background-color: rgba(127, 29, 29, 0.4);
+    border: 1px solid rgb(185, 28, 28);
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 20px;
     display: none;
     font-weight: 600;
+    color: rgb(254, 202, 202);
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.error-container.show {
+    display: flex;
 }
 
 #login-form {
@@ -4104,23 +4118,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .form-box {
-    width: 500px;
+    width: 470px;
     background: var(--black-1);
-    border-radius: 5px;
-    padding: 30px 40px;
+    border-radius: 10px;
+    padding: 38px;
     color: var(--white-0);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
 }
 
 .form-box .sslogo {
-    width: 200px;
+    width: 240px;
+    height: auto;
+    margin-bottom: 10px;
 }
 
 .form-box .tag-line {
     color: #B4A6E6;
-    font-size: 20px;
+    font-size: 28px;
     font-weight: 600;
     margin-top: 10px;
     margin-bottom: 20px;
@@ -4134,10 +4151,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .signup-fields a {
-    background: #262038;
-    border-radius: 5px;
+    background: #352f48;
+    border-radius: 8px;
     text-decoration: none;
-    height: 36px;
+    height: 40px;
     width: 100%;
     margin-bottom: 15px;
     font-size: 14px;
@@ -4152,7 +4169,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .signup-fields a:hover,
 .signup-fields a:focus {
     /* border: 1px solid var(--purple-1); */
-    background: #352f48;
+    background: #262038;
+
 }
 
 .signup-fields a span img {
@@ -4251,16 +4269,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 
 
-.org-nav-tab,
-.ingestion-nav-tab {
+.org-nav-tab {
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
-}
-
-.ingestion-nav-tab {
-    font-size: 14px;
-    font-weight: bold;
 }
 
 .usage-stats {
@@ -4296,7 +4308,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--alert-background);
     display: flex;
     flex-direction: column;
-    max-height: 100vh;
+    height: calc(100% - 40px);
 }
 
 .all-alert-page {
@@ -4333,7 +4345,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #alerting-form-container {
-    margin-top: 10px;
+    margin-top: 20px;
 }
 
 #alerting .section-buttons {
@@ -4972,12 +4984,6 @@ p#versionInfo {
     outline: none !important;
 }
 
-.alert-rule-ctn {
-    font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 0px;
-}
-
 .label-equal {
     padding: 0px 10px;
 }
@@ -5006,7 +5012,7 @@ p#versionInfo {
 }
 
 #alert-form .btn-container {
-    margin-top: -57px;
+    margin-top: -47px;
 }
 
 #alerting #ag-grid,
@@ -5249,7 +5255,7 @@ p#versionInfo {
 
 .help-options {
     display: none;
-    position: absolute;
+    position: fixed;
     background-color: var(--side-nav-bg-color);
     padding: 6px;
     z-index: 1;
@@ -5403,15 +5409,6 @@ p#versionInfo {
     padding: 8px;
 }
 
-#all-slos {
-    padding: 16px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    max-height: 100%;
-    font-size: 14px;
-}
-
 .index-box {
     display: flex;
     align-items: center;
@@ -5563,30 +5560,25 @@ p#versionInfo {
 }
 
 .navbar-submenu {
-    list-style-type: none;
     padding: 6px !important;
     margin: 0;
     background-color: var(--side-nav-bg-color-regular);
-    position: absolute;
-    top: 0;
-    left: 105%;
+    position: fixed;
+    top: auto;
     width: 150px;
     z-index: 1;
     font-size: 11px;
-}
-
-.navbar-submenu {
     display: none;
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     list-style-type: none;
     padding: 0;
-    margin: 0;
-    left: 118px;
+    left: 122px;
     border-radius: 5px;
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
     border: 1px solid var(--border-btn-color);
 }
+
 
 .navbar-submenu a {
     color: var(--navbar-link-text) !important;
@@ -5685,17 +5677,6 @@ p#versionInfo {
 
 #alerting #select-metric-input {
     position: relative;
-}
-
-.metric-summary-searchcontainer {
-    display: flex !important;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
-}
-
-.metric-summary-search {
-    width: 100%;
 }
 
 .metric-container {
@@ -6041,13 +6022,13 @@ p#versionInfo {
     opacity: 0.9;
 }
 
-.big-number {
+.cluster-content .big-number {
     font-size: 48px;
     font-weight: bold;
     color: white;
 }
 
-.big-number.error {
+.cluster-content .big-number.error {
     font-size: 40px;
     white-space: nowrap;
 }
@@ -6073,6 +6054,7 @@ p#versionInfo {
     position: absolute;
     right: 6px;
     top: 24px;
+    z-index: 1;
 }
 
 .dropdown.active .dropdown-content {
@@ -6187,7 +6169,7 @@ p#versionInfo {
 }
 
 .kubernetes-card {
-    background-color: var(--black1-to-white0);
+    background-color: var(--drop-down-btn-bg-regular);
     border: 1px solid var(--search-input-border);
     border-radius: 4px;
     padding: 16px;
@@ -6792,4 +6774,94 @@ p#versionInfo {
 .field-action-remove {
     color: var(--error);
     background-color: var(--black1-to-white0);
+}
+
+.sl-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    box-shadow: 0 2px 5px rgba(111, 107, 123, 0.16);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    border-bottom: 1px solid var(--alerting-table-line-color);
+}
+
+/* Hamburger Icon */
+.sl-hamburger {
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    height: 24px;
+    margin-right: 16px;
+    z-index: 1011;
+    border-radius: 4px;
+    background-color: var(--drop-down-btn-bg-regular);
+}
+
+.sl-hamburger:hover {
+    background-color: var(--drop-down-btn-bg-hover);
+}
+
+.sl-hamburger svg {
+    height: 14px;
+}
+
+#app-side-nav .sl-hamburger {
+    background-color: var(--side-nav-bg-color);
+}
+
+#app-side-nav .sl-hamburger {
+    color: var(--white-0);
+    background-color: var(--side-nav-bg-color-selected);
+}
+
+.nav-header {
+    padding: 8px 0px 8px 16px;
+    height: 40px;
+    border-bottom: 1px solid var(--side-nav-bg-color-selected);
+    display: flex;
+    margin-bottom: 10px;
+}
+
+/* Breadcrumb Styles */
+.sl-breadcrumb-container {
+    flex-grow: 1;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sl-breadcrumb {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.sl-breadcrumb li {
+    display: flex;
+    align-items: center;
+}
+
+.sl-breadcrumb a,
+.sl-breadcrumb span {
+    text-decoration: none;
+    color: #6F6B7B;
+}
+
+.sl-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.sl-breadcrumb li:last-child span.active {
+    text-decoration: none;
+    color: var(--text-color);
+    cursor: text;
+    font-weight: bold;
 }

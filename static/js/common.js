@@ -584,6 +584,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         let dataType = currentPanel.dataType;
         let rawTimeSeriesData;
         for (const queryData of data.queriesData) {
+            $('metrics-queries').empty();
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
             const parsedQueryObject = parsePromQL(queryData.queries[0]);
             await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
@@ -618,6 +619,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 let uniqueId = generateUniqueId();
                 addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
+            disableQueryRemoval();
         } else {
             // for panels on the dashboard page
             for (const queryData of data.queriesData) {
@@ -903,7 +905,6 @@ function findColumnIndex(columnsMap, columnName) {
 }
 //eslint-disable-next-line no-unused-vars
 function setIndexDisplayValue(selectedSearchIndex) {
-    console.log("selectedIndex: " + selectedSearchIndex)
     if (selectedSearchIndex) {
         // Remove all existing selected indexes
         $('.index-container .selected-index').remove();
@@ -1116,7 +1117,7 @@ function getMetricsQData() {
 
         const query = {
             name: queryName,
-            query: `(${queryString})`,
+            query: `${queryString}`,
             qlType: 'promql',
             state: queryDetails.state,
         };
@@ -1145,7 +1146,7 @@ function getMetricsQData() {
 
                 return {
                     name: name,
-                    query: `(${queryString})`,
+                    query: `${queryString}`,
                     qlType: 'promql',
                 };
             });

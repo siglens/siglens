@@ -1,6 +1,11 @@
 const { expect } = require('@playwright/test');
 
 async function testThemeToggle(page) {
+    const navbarHamburger = page.locator('#navbar-toggle').first();
+    await navbarHamburger.hover();
+
+    await page.waitForTimeout(300);
+    
     const themeBtn = page.locator('#theme-btn');
     const html = page.locator('html');
     const initialTheme = await html.getAttribute('data-theme');

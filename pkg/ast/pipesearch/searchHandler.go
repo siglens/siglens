@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,8 +123,12 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case uint64:
 			startEpoch = uint64(val)
 		case string:
-			defValue := nowTs - (15 * 60 * 1000)
-			startEpoch = utils.ParseAlphaNumTime(nowTs, string(val), defValue)
+			var err error
+			startEpoch, err = strconv.ParseUint(val, 10, 64)
+			if err != nil {
+				defValue := nowTs - (15 * 60 * 1000)
+				startEpoch = utils.ParseAlphaNumTime(nowTs, string(val), defValue)
+			}
 		default:
 			startEpoch = nowTs - (15 * 60 * 1000)
 		}
@@ -144,7 +149,11 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 		case uint64:
 			endEpoch = uint64(val)
 		case string:
-			endEpoch = utils.ParseAlphaNumTime(nowTs, string(val), nowTs)
+			var err error
+			endEpoch, err = strconv.ParseUint(val, 10, 64)
+			if err != nil {
+				endEpoch = utils.ParseAlphaNumTime(nowTs, string(val), nowTs)
+			}
 		default:
 			endEpoch = nowTs
 		}
@@ -293,8 +302,8 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 
 	ti := structs.InitTableInfo(indexNameIn, myid, false)
-	log.Infof("qid=%v, ParseAndExecutePipeRequest: index=[%s], searchString=[%v] ",
-		qid, ti.String(), searchText)
+	log.Infof("qid=%v, ParseAndExecutePipeRequest: index=[%s], searchString=[%v] , startEpoch: %v, endEpoch: %v",
+		qid, ti.String(), searchText, startEpoch, endEpoch)
 
 	queryLanguageType := readJSON["queryLanguage"]
 	var simpleNode *structs.ASTNode

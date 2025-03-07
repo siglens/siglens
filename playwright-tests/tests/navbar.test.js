@@ -5,37 +5,6 @@ test('Navigation Menu Functionality Tests', async ({ page }) => {
     await page.goto('http://localhost:5122/index.html');
     await expect(page.locator('.nav-search')).toHaveClass(/active/);
 
-    // Test all dropdown menus
-    const dropdowns = [
-        { toggle: '.metrics-dropdown-toggle', dropdown: '.metrics-dropdown' },
-        { toggle: '.tracing-dropdown-toggle', dropdown: '.traces-dropdown' },
-        { toggle: '.ingestion-dropdown-toggle', dropdown: '.ingestion-dropdown' },
-    ];
-
-    for (const { toggle, dropdown } of dropdowns) {
-        await page.hover(toggle);
-        await expect(page.locator(dropdown)).toBeVisible();
-
-        // Check all links in the dropdown
-        const links = await page.locator(`${dropdown} a`).all();
-        for (const link of links) {
-            await expect(link).toBeVisible();
-        }
-
-        await page.click('body');
-        await expect(page.locator(dropdown)).toBeHidden();
-    }
-
-    // Test help options
-    await page.hover('.nav-help');
-    await expect(page.locator('.help-options')).toBeVisible();
-
-    const helpLinks = ['.nav-docs', '.nav-slack', '.nav-linkedin', '.nav-twitter', '.nav-feedback'];
-    for (const link of helpLinks) {
-        await expect(page.locator(link)).toBeVisible();
-    }
-    await page.click('body');
-    await expect(page.locator('.help-options')).toBeHidden();
 
     // Test all main navigation items
     const navItems = [
@@ -52,6 +21,10 @@ test('Navigation Menu Functionality Tests', async ({ page }) => {
     ];
 
     for (const { selector, url } of navItems) {
+        const navbarHamburger = page.locator('#navbar-toggle').first();
+        await navbarHamburger.hover();
+        await page.waitForTimeout(500);
+
         await page.click(`${selector} a`);
         expect(page.url()).toContain(url);
         await expect(page.locator(selector)).toBeVisible({ timeout: 10000 });
