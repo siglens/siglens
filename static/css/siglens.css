@@ -829,26 +829,20 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
-    width: 122px !important;
+    width: 170px !important;
     overflow: visible;
-}
-
-#app-side-nav .menu.active {
-    border-right: 5px solid var(--side-nav-bg-color-selected);
 }
 
 /* Reset .menu.active to avoid broad application */
 #app-side-nav .menu.active {
     border-left: none !important; /* Prevent default active styling */
-    background-color: var(--side-nav-bg-color-selected);
 }
 
 #app-side-nav .menu {
     min-height: 28px;
-    border-right: 5px solid transparent;
     border-radius: 0 5px 5px 0;
     margin-bottom: 2px;
-    padding-right: 8px;
+    padding-right: 15px;
     position: relative;
 }
 
@@ -857,8 +851,6 @@ body {
 }
 
 #app-side-nav .menu:hover {
-    border-right: 5px solid var(--side-nav-bg-color-selected);
-    background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
     cursor: pointer;
 }
@@ -3465,7 +3457,16 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-top: 5px;
 }
 
+
+
 .nav-link-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--navbar-link-text);
+    white-space: nowrap;
+}
+
+.nav-link-text-drpdwn {
     font-size: 11px;
     font-weight: 600;
     color: var(--navbar-link-text);
@@ -3482,11 +3483,19 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     text-decoration-line: underline;
 }
 
-
 #app-side-nav .menu.active .nav-link-text,
 #app-side-nav .menu:hover .nav-link-text,
 .nav-link-text:hover,
 .help-links:hover .nav-link-text {
+    color: var(--navbar-link-text-active);
+}
+
+#app-side-nav .menu.active .nav-link-text-drpdwn{
+    color: var(--navbar-link-text);
+}
+
+#app-side-nav .menu:hover .nav-link-text-drpdwn,
+.nav-link-text-drpdwn:hover {
     color: var(--navbar-link-text-active);
 }
 
@@ -5580,8 +5589,19 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
+#app-side-nav .menu:hover .link-search,
+#app-side-nav .menu:hover .link-slos,
+#app-side-nav .menu:hover .link-alerts,
+#app-side-nav .menu:hover .link-minion,
+#app-side-nav .menu:hover .link-usq,
+#app-side-nav .menu:hover .link-myorg,
+#app-side-nav .menu:hover .link-ldb,
+#app-side-nav .menu:hover .link-lookups,
+#app-side-nav .menu:hover .link-infrastructure {
+    background-color: var(--side-nav-bg-color-selected);
+}
+
 #app-side-nav .menu.active .link-search,
-#app-side-nav .menu.active .link-traces,
 #app-side-nav .menu.active .link-slos,
 #app-side-nav .menu.active .link-alerts,
 #app-side-nav .menu.active .link-minion,
@@ -5589,14 +5609,15 @@ p#versionInfo {
 #app-side-nav .menu.active .link-myorg,
 #app-side-nav .menu.active .link-ldb,
 #app-side-nav .menu.active .link-lookups,
-#app-side-nav .menu.active .link-infrastructure,
-#app-side-nav .menu.active .link-ingest {
+#app-side-nav .menu.active .link-infrastructure {
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    background-color: var(--side-nav-bg-color-selected);
 }
 
 /* Specific styling for Metrics dropdown */
-
-#app-side-nav .nav-metrics .menu-header {
+#app-side-nav .nav-traces .menu-header,
+#app-side-nav .nav-metrics .menu-header,
+#app-side-nav .nav-ingest .menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -5604,12 +5625,16 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-
-#app-side-nav .nav-metrics.active .menu-header {
-    color: white !important;
+#app-side-nav .nav-traces.active .menu-header,
+#app-side-nav .nav-metrics.active .menu-header,
+#app-side-nav .nav-ingest.active .menu-header {
+    color: var(--navbar-link-text) !important;
 }
 
-#app-side-nav .nav-metrics .menu-header:hover {
+#app-side-nav .nav-traces .menu-header:hover,
+#app-side-nav .nav-metrics .menu-header:hover,
+#app-side-nav .nav-ingest .menu-header:hover {
+    color: var(--navbar-link-text) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
@@ -5617,20 +5642,26 @@ p#versionInfo {
 }
 
 /* Prevent .nav-metrics.active from affecting the entire section */
-#app-side-nav .nav-metrics.active {
+#app-side-nav .nav-traces.active,
+#app-side-nav .nav-metrics.active,
+#app-side-nav .nav-ingest.active {
     border-left: none !important;
     border-right: none !important;
     background-color: transparent !important;
 }
 
 /* Ensure submenu container doesn't inherit active styling */
-#app-side-nav .nav-metrics.active .metrics-dropdown {
+#app-side-nav .nav-traces.active .traces-dropdown,
+#app-side-nav .nav-metrics.active .metrics-dropdown,
+#app-side-nav .nav-ingest.active .ingestion-dropdown {
     border-left: none !important;
     border-right: none !important;
     background-color: var(--side-nav-bg-color-regular) !important;
 }
 
-.metrics-dropdown {
+.traces-dropdown,
+.metrics-dropdown,
+.ingestion-dropdown {
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -5641,16 +5672,21 @@ p#versionInfo {
     border-radius: 0 0 5px 5px;
     position: static;
     width: 100%;
+    cursor: pointer;
 }
 
-.metrics-dropdown a {
+.traces-dropdown a,
+.metrics-dropdown a,
+.ingestion-dropdown a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
     padding-left: 20px;
 }
 
-.metrics-dropdown li {
+.traces-dropdown li,
+.metrics-dropdown li,
+.ingestion-dropdown li {
     margin-bottom: 2px;
     margin-bottom: 2px;
     font-weight: 600;
@@ -5662,14 +5698,19 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-.metrics-dropdown li:hover {
+.traces-dropdown li:hover,
+.metrics-dropdown li:hover,
+.ingestion-dropdown li:hover{
+    color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
 /* Active state for submenu items */
-.metrics-dropdown li.active {
+.traces-dropdown li.active,
+.metrics-dropdown li.active,
+.ingestion-dropdown li.active {
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important; /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
@@ -5681,7 +5722,9 @@ p#versionInfo {
     transition: transform 0.3s ease;
 }
 
-#app-side-nav .nav-metrics.active .nav-dropdown-icon {
+#app-side-nav .nav-traces.active .nav-dropdown-icon,
+#app-side-nav .nav-metrics.active .nav-dropdown-icon,
+#app-side-nav .nav-ingest.active .nav-dropdown-icon {
     transform: rotate(180deg);
 }
 
@@ -5710,11 +5753,6 @@ p#versionInfo {
     text-decoration: none;
 }
 
-.metrics-dropdown-toggle,
-.ingestion-dropdown-toggle,
-.traces-dropdown-toggle {
-    cursor: pointer;
-}
 
 .navbar-submenu li:hover,
 .help-options .help-links:hover {
@@ -5731,14 +5769,6 @@ p#versionInfo {
     display: flex;
     align-items: center;
     padding-left: 10px;
-}
-
-/* Apply this only to other dropdowns (e.g., traces, ingestion) if needed */
-.traces-dropdown,
-.ingestion-dropdown {
-    /* Keep these as separate dropdowns if they should still appear to the right */
-    position: fixed;
-    left: 122px;
 }
 
 .metric-summary {

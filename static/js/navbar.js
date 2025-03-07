@@ -37,12 +37,18 @@ let navbarComponent = `
             <a href="./index.html" class="nav-links link-search"><span class="icon-search"></span><span
                     class="nav-link-text">Logs</span></a>
         </div>
-        <div class="menu nav-traces tracing-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links link-traces" href="./service-health.html">
-                <span class="icon-traces"></span>
-                <span class="nav-link-text">APM</span>
-            </a>
-            <ul class="traces-dropdown navbar-submenu">
+        <div class="menu nav-traces tracing-dropdown-toggle" >
+            <div class="menu-header">
+                <a class="nav-links" href="./service-health.html">
+                    <span class="icon-traces"></span>
+                    <span class="nav-link-text-drpdwn">APM</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                        src="assets/arrow-btn.svg"
+                        onclick="toggleSubmenuDropdown(this.closest('.menu')); event.stopPropagation();"
+                        alt="Dropdown Arrow">
+            </div>
+            <ul class="traces-dropdown">
                 <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
                 <a href="./search-traces.html"><li class="traces-link">Search Traces</li></a>
                 <a href="./dependency-graph.html"><li class="traces-link">Dependency Graph</li></a>
@@ -52,11 +58,11 @@ let navbarComponent = `
             <div class="menu-header">
                 <a class="nav-links" href="./metrics-explorer.html">
                     <span class="icon-metrics"></span>
-                    <span class="nav-link-text">Metrics</span>
+                    <span class="nav-link-text-drpdwn">Metrics</span>
                 </a>
                 <img class="nav-dropdown-icon orange"
                      src="assets/arrow-btn.svg"
-                     onclick="toggleMetricsDropdown(this.closest('.menu')); event.stopPropagation();"
+                     onclick="toggleSubmenuDropdown(this.closest('.menu')); event.stopPropagation();"
                      alt="Dropdown Arrow">
             </div>
             <ul class="metrics-dropdown">
@@ -100,12 +106,18 @@ let navbarComponent = `
             <a href="./infrastructure.html" class="nav-links link-infrastructure"><span class="icon-infrastructure"></span><span
                     class="nav-link-text">Infrastructure</span></a>
         </div>
-        <div class="menu nav-ingest ingestion-dropdown-toggle"  style="display:flex;flex-direction:row">
-            <a class="nav-links link-ingest" href="./test-data.html">
-                <span class="icon-ingest"></span>
-                <span class="nav-link-text">Ingestion</span>
-            </a>
-            <ul class="ingestion-dropdown navbar-submenu">
+        <div class="menu nav-ingest ingestion-dropdown-toggle" >
+            <div class="menu-header">
+                <a class="nav-links" href="./test-data.html">
+                    <span class="icon-ingest"></span>
+                    <span class="nav-link-text-drpdwn">Ingestion</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                            src="assets/arrow-btn.svg"
+                            onclick="toggleSubmenuDropdown(this.closest('.menu')); event.stopPropagation();"
+                            alt="Dropdown Arrow">
+            </div>
+            <ul class="ingestion-dropdown ">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
                 <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
@@ -372,81 +384,104 @@ $(document).ready(function () {
     $('.navbar-submenu').hide();
     $('.help-options').hide();
 
-     // Improve the metrics dropdown toggling
-     $('.nav-metrics .menu-header').on('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleMetricsDropdown($(this).closest('.menu'));
+    // Define dropdown configurations
+    const dropdownConfigs = [
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion' }
+    ];
+
+    // Set up click handlers, state restoration, and submenu highlighting for all dropdowns
+    dropdownConfigs.forEach(config => {
+        // Make dropdown header clickable to toggle
+        $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleSubmenuDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+        });
+
+        // Prevent dropdown from closing when clicking submenu items
+        $(`.${config.dropdownClass} a`).on('click', function(e) {
+            e.stopPropagation();
+        });
+
+        // Highlight active submenu items and ensure dropdown is open
+        function highlightActiveSubmenu() {
+            $(`.${config.dropdownClass} li`).removeClass('active');
+            const currentPath = window.location.pathname.split('/').pop();
+
+            $(`.${config.dropdownClass} a`).each(function() {
+                const href = $(this).attr('href');
+                const hrefPath = href.split('/').pop();
+
+                if (currentPath === hrefPath) {
+                    const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
+                    $li.addClass('active');
+                    // $li.css({
+                    //     "color": "white",
+                    //     "border-left": "5px solid #ff9500"
+                    // });
+
+                    const $menu = $li.closest(`.${config.menuClass}`);
+                    $menu.addClass('active');
+                    $menu.find(`.${config.dropdownClass}`).show();
+                    $menu.find('.nav-dropdown-icon').addClass('rotated');
+
+                    // Update localStorage to reflect the open state
+                    let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+                    dropdownStates[config.name] = true;
+                    localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+                }
+            });
+        }
+
+        // Call highlight function for this dropdown
+        highlightActiveSubmenu();
     });
 
-    // Toggle Metrics dropdown and store state
-    window.toggleMetricsDropdown = function(menuElement) {
+
+    // Generic function to toggle any dropdown
+    window.toggleSubmenuDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
-        const $dropdown = $menu.find('.metrics-dropdown');
+        const $dropdown = $menu.find(`.${dropdownClass}`);
         const $arrow = $menu.find('.nav-dropdown-icon');
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
         $menu.toggleClass('active', !isVisible);
-        $arrow.toggleClass('rotated', !isVisible);
+        if ($arrow.length) {
+            $arrow.toggleClass('rotated', !isVisible);
+        }
 
-        // Store only the dropdown state
-        localStorage.setItem('metricsDropdownOpen', !isVisible ? 'true' : 'false');
+        // Update localStorage with the new state
+        let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+        dropdownStates[dropdownName] = !isVisible;
+        localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
     };
 
-    // Check current URL to activate submenu items
-    function highlightActiveSubmenu() {
-        // First, remove any existing active classes
-        $('.metrics-dropdown li').removeClass('active');
 
-        const currentPath = window.location.pathname.split('/').pop();
+    // Restore dropdown state for all dropdowns on page reload
+    function restoreDropdownState() {
+        const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
 
-        // Only highlight submenu items if their URL matches the current page
-        $('.metrics-dropdown a').each(function() {
-            const href = $(this).attr('href');
-            const hrefPath = href.split('/').pop();
+        dropdownConfigs.forEach(config => {
+            const $menu = $(`.${config.menuClass}`);
+            const isOpen = dropdownStates[config.name] === true;
 
-            if (currentPath === hrefPath) {
-                const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
-                $li.addClass('active');
-
-                // Ensure dropdown is open when a submenu page is active
-                const $menu = $li.closest('.nav-metrics');
+            if (isOpen) {
                 $menu.addClass('active');
-                $menu.find('.metrics-dropdown').show();
+                $menu.find(`.${config.dropdownClass}`).show();
                 $menu.find('.nav-dropdown-icon').addClass('rotated');
-
-                // Store that the dropdown should be open
-                localStorage.setItem('metricsDropdownOpen', 'true');
+            } else {
+                $menu.removeClass('active');
+                $menu.find(`.${config.dropdownClass}`).hide();
+                $menu.find('.nav-dropdown-icon').removeClass('rotated');
             }
         });
     }
 
-    // Restore dropdown state (open/closed) on page load
-    function restoreDropdownState() {
-        const isOpen = localStorage.getItem('metricsDropdownOpen') === 'true';
-        const $metricsMenu = $('.nav-metrics');
-
-        if (isOpen) {
-            $metricsMenu.addClass('active');
-            $metricsMenu.find('.metrics-dropdown').show();
-            $metricsMenu.find('.nav-dropdown-icon').addClass('rotated');
-        } else {
-            $metricsMenu.removeClass('active');
-            $metricsMenu.find('.metrics-dropdown').hide();
-            $metricsMenu.find('.nav-dropdown-icon').removeClass('rotated');
-        }
-    }
-
-    // Prevent dropdown from closing when clicking submenu items
-    $('.metrics-dropdown a').on('click', function(e) {
-        e.stopPropagation();
-        // No need to add highlighting here as it will be handled on page load
-    });
-
-    // Run initialization functions
+    // Call restoration function
     restoreDropdownState();
-    highlightActiveSubmenu();
 });
 
 function setupNavigationState() {
@@ -532,32 +567,32 @@ function setupNavigationState() {
 function initializeDropdowns() {
 
     // Tracing dropdown behavior
-    $('.tracing-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.traces-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.traces-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
+    // $('.tracing-dropdown-toggle').hover(
+    //     function () {
+    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
+    //             $('.traces-dropdown').stop(true, true).slideDown(0);
+    //         }
+    //     },
+    //     function () {
+    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
+    //             $('.traces-dropdown').stop(true, true).slideUp(30);
+    //         }
+    //     }
+    // );
 
     // Ingestion dropdown behavior
-    $('.ingestion-dropdown-toggle').hover(
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.ingestion-dropdown').stop(true, true).slideDown(0);
-            }
-        },
-        function () {
-            if (!$(this).closest('.menu').hasClass('disable-hover')) {
-                $('.ingestion-dropdown').stop(true, true).slideUp(30);
-            }
-        }
-    );
+    // $('.ingestion-dropdown-toggle').hover(
+    //     function () {
+    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
+    //             $('.ingestion-dropdown').stop(true, true).slideDown(0);
+    //         }
+    //     },
+    //     function () {
+    //         if (!$(this).closest('.menu').hasClass('disable-hover')) {
+    //             $('.ingestion-dropdown').stop(true, true).slideUp(30);
+    //         }
+    //     }
+    // );
 
     // Help dropdown behavior
     $('.nav-help').hover(
@@ -590,19 +625,19 @@ function initializeDropdowns() {
     );
 
     // Close dropdowns when clicking elsewhere
-    $(document).on('click', function (event) {
-        const dropdowns = [
-            { selector: '.traces-dropdown', condition: $('.traces-dropdown').is(event.target) || $('.traces-dropdown').has(event.target).length > 0 },
-            { selector: '.ingestion-dropdown', condition: $('.ingestion-dropdown').is(event.target) || $('.ingestion-dropdown').has(event.target).length > 0 },
-            { selector: '.help-options', condition: $('.help-options').is(event.target) || $('.help-options').has(event.target).length > 0 }
-        ];
+    // $(document).on('click', function (event) {
+    //     const dropdowns = [
+    //         { selector: '.traces-dropdown', condition: $('.traces-dropdown').is(event.target) || $('.traces-dropdown').has(event.target).length > 0 },
+    //         { selector: '.ingestion-dropdown', condition: $('.ingestion-dropdown').is(event.target) || $('.ingestion-dropdown').has(event.target).length > 0 },
+    //         { selector: '.help-options', condition: $('.help-options').is(event.target) || $('.help-options').has(event.target).length > 0 }
+    //     ];
 
-        dropdowns.forEach(dropdown => {
-            if (!dropdown.condition) {
-                $(dropdown.selector).hide();
-            }
-        });
-    });
+    //     dropdowns.forEach(dropdown => {
+    //         if (!dropdown.condition) {
+    //             $(dropdown.selector).hide();
+    //         }
+    //     });
+    // });
 
     // Check active menu items for Metrics
     // const menuItem = document.querySelectorAll('.metrics-dropdown a');
