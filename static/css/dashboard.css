@@ -937,7 +937,6 @@
   border-right: none;
   border-radius: 1px 0;
   cursor: pointer;
-  z-index: 99;
 }
 
 #panel-desc-info{

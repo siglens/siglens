@@ -3153,7 +3153,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--hits-summary-regular-text-color);
     border-radius: 1px 1px 0px 0px;
     position: relative;
-    font-size: 14px;
+    font-size: 12px;
     justify-content: space-between;
     height: 30px;
     border-bottom: 1px solid var(--border-color-regular);
