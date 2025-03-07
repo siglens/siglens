@@ -7001,7 +7001,8 @@ p#versionInfo {
 }
 
 .nav-footer {
-    padding: 8px 0px 8px 16px;
+    /* padding: 8px 0px 8px 16px; */
+    padding: 5px;
     border-top: 1px solid var(--side-nav-bg-color-selected);
     display: flex;
     flex-direction: column;
