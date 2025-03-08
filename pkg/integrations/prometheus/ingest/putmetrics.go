@@ -58,7 +58,7 @@ func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
 		if alreadyHandled {
 			return
 		}
