@@ -1,34 +1,36 @@
 #!/bin/bash
 
+#The script assumes 
+#1. yum is the package manager for target machine
+#2. current user has sudo privileges
+#3. python 3 is already installed and is on path
 
+
+#Current directory should be on a disk with around 600GB of free space
 CWD=`/usr/bin/pwd`
-GO_INSTALL_URL="https://go.dev/dl/go1.23.5.linux-amd64.tar.gz"
-SRC="~/src"
+
+#Set SRC to a directory on a disk that has atleast 70GB free space
+SRC="/data1/src"
 SIGLENS_SRC="$SRC/siglens"
 
 
 
 ###### Set up Siglens
 
-# Get git
-sudo apt install git-all
-
-
-# Follow 'Go Install' instructions: https://go.dev/doc/install
-wget GO_INSTALL_URL
-sudo rm -rf /usr/local/go && tar -C /usr/local -xzf go1.23.5.linux-amd64.tar.gz
-
+# Get git and go
+sudo yum install git -y
+sudo yum install golang -y
 
 # Get SigLens 
-mkdir $SRC
-cd $SRC
-git clone https://github.com/siglens/siglens.git
+mkdir -p "$SRC"
+cd "$SRC"
+git clone https://github.com/siglens/siglens.git --branch 1.0.25
 
 
 # Build and launch SigLens
-cd $SIGLENS_SRC
-/usr/local/go/bin/go mod tidy
-/usr/local/go/bin/go  build -o siglens cmd/siglens/main.go
+cd "$SIGLENS_SRC"
+/usr/bin/go mod tidy
+/usr/bin/go  build -o siglens cmd/siglens/main.go
 ./siglens &> siglens.out &
 
 
@@ -36,27 +38,20 @@ cd $SIGLENS_SRC
 ###### Data loading 
 
 # Download and unzip dataset
-cd $CWD
+cd "$CWD"
 wget https://datasets.clickhouse.com/hits_compatible/hits.json.gz
 gzip -d hits.json.gz
-
-
-# Install python3
-sudo apt install python3
-
 
 ## Add the _index line and fix the UserID from string to num
 python3 fix_hits.py
 
-## split into 10 files to increase parallelism, since the client in single threaded
+## split into 10 files to increase parallelism
 rm hits.json
 split -l 20000000 sighits.json  splithits_
 rm sighits.json
 
-# command to load data into SigLens - process can take hours
-time for file in splithits_*; do python3 send_data.py ${file}&; done
-
-
+# command to load data into SigLens - process can take a few hours
+time python3 send_data.py 
 
 ######  Run the queries
 ./run.sh
