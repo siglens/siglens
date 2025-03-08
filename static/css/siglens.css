@@ -2983,7 +2983,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     transition: transform 0.3s ease;
 }
 
-.expand-avg-button svg rect:first-child {
+.expand-svg-button svg rect:first-child {
     fill: var(--icon-bg-color, black);
 }
 
