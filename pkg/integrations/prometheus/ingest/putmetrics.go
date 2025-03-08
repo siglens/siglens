@@ -149,7 +149,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
 			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", modifiedData, err)
+				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", string(modifiedData), err)
 				failedCount++
 			} else {
 				successCount++
