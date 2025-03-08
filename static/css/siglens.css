@@ -2949,6 +2949,16 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     outline: none;
 }
 
+.expand-icon-container {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+}
+
+.expand-icon-container.before-tabs {
+    margin-right: 10px;
+}
+
 #LogResultsGrid .ag-cell-wrapper {
     margin-left: -10px !important;
 }
@@ -6595,6 +6605,15 @@ p#versionInfo {
     overflow: hidden;
 }
 
+.custom-chart-container.full-width {
+    display: flex;
+    flex-direction: column; /* Stack elements vertically when sidebar is hidden */
+}
+
+.custom-chart-tab.expanded {
+    flex: 100%;
+}
+
 .json-popup {
     width: 0;
     background-color: var(--black1-to-white0);
@@ -6859,6 +6878,11 @@ p#versionInfo {
     border-radius: 4px;
 }
 
+.fields-sidebar.hidden {
+    width: 0;
+    display: none;
+}
+
 .fields-section {
     border-bottom: 1px solid #f0f0f0;
 }
@@ -6997,7 +7021,7 @@ p#versionInfo {
     position: sticky;
     top: 0;
     background: var(--side-nav-bg-color-regular);
-    z-index: 10; 
+    z-index: 10;
 }
 
 .nav-footer {

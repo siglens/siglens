@@ -66,6 +66,7 @@ let isQueryBuilderSearch = false;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
 let isMetricsScreen = false;
+let fieldssidebarRenderer;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -280,13 +281,13 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $('body').css('cursor', 'default');
         }
     }
-    
+
     canScrollMore = res.can_scroll_more;
     scrollFrom = scrollFrom + res.hits.totalMatched.value;
 
     // Only show empty results error if this is the first request (not a scroll request)
     // or if there's no existing data in panelLogsRowData
-    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) && 
+    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) &&
         (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
         panelProcessEmptyQueryResults('', panelId);
     }
@@ -519,7 +520,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
 
             if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
                 if (res.qtype === 'segstats-query') {
-                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);  
+                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
                 } else {
                     panelProcessEmptyQueryResults('', panelId);
                 }
@@ -824,7 +825,7 @@ function addZero(i) {
 function showToast(msg, type = 'error') {
     let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
     let toast = `
-        <div class="${toastTypeClass}" id="message-toast"> 
+        <div class="${toastTypeClass}" id="message-toast">
             <button type="button" aria-label="Close" class="toast-close">×</button>
             ${msg}
             <div class="toast-buttons">
@@ -1234,14 +1235,14 @@ function handleRelatedTraces(traceId, timestamp, newTab) {
 
 function handleRelatedLogs(id, traceStartTime, type = 'trace') {
     const traceStartEpoch = Math.floor(Number(traceStartTime) / 1000000);
-    
+
     const fifteenMinutesMs = 15 * 60 * 1000;
-    
+
     const startEpoch = traceStartEpoch - fifteenMinutesMs;
     const endEpoch = traceStartEpoch + fifteenMinutesMs;
 
-    const searchQuery = type === 'span' 
-        ? `span_id="${id}"` 
+    const searchQuery = type === 'span'
+        ? `span_id="${id}"`
         : `trace_id="${id}"`;
 
     const searchParams = new URLSearchParams({
@@ -1282,7 +1283,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             this.eGui.style.display = 'flex';
             this.isExpanded = false;
 
-            const displayValue = type === 'logs' && params.column.colId === 'timestamp' 
+            const displayValue = type === 'logs' && params.column.colId === 'timestamp'
                 ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
                 : params.value;
 
@@ -1376,7 +1377,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
                     const row = document.createElement('tr');
                     const keyCell = document.createElement('td');
                     const valueCell = document.createElement('td');
-                    
+
                     keyCell.textContent = key;
                     valueCell.textContent = formattedValue;
                     [keyCell, valueCell].forEach(cell => {
@@ -1463,3 +1464,146 @@ function ExpandableJsonCellRenderer(type = 'events') {
         }
     }
 }
+
+
+//Hiding and showing Fields Sidebar
+function ExpandableFieldsSidebarRenderer() {
+    // Singleton-like instance
+    let instance = null;
+
+    return class {
+        constructor() {
+            if (!instance) {
+                instance = this;
+            }
+            return instance;
+        }
+
+        init() {
+            if (this.eGui) {
+                this.applyFieldsSidebarState();
+                return;
+            }
+
+            this.eGui = document.createElement('div');
+            this.eGui.className = 'expand-icon-container';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            this.isFieldsSidebarHidden = urlParams.get('fieldsSidebarHidden') === 'true';
+
+            this.eGui.innerHTML = `
+                <span class="expand-icon-box">
+                    <button class="expand-icon-button">
+                        <i class="fa-solid ${this.isFieldsSidebarHidden ? 'fa-down-left-and-up-right-to-center' : 'fa-up-right-and-down-left-from-center'}"></i>
+                    </button>
+                </span>
+            `;
+
+            this.expandBtn = this.eGui.querySelector('.expand-icon-button');
+            this.expandIcon = this.eGui.querySelector('.expand-icon-button i');
+            this.expandBtn.addEventListener('click', this.toggleFieldsSidebar.bind(this));
+
+            //initially,inserting expand button above "Selected Fields"
+            const selectedFieldsHeader = document.getElementById('selected-fields-header');
+            selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
+
+            // Apply initial state based on URL
+            this.applyFieldsSidebarState();
+        }
+
+        toggleFieldsSidebar(event) {
+            event.stopPropagation();
+            const fieldsSidebar = document.querySelector('.fields-sidebar');
+            const customChartTab = document.querySelector('.custom-chart-tab');
+            const container = document.querySelector('.custom-chart-container');
+
+            this.isFieldsSidebarHidden = !this.isFieldsSidebarHidden;
+
+            if (this.isFieldsSidebarHidden) {
+                fieldsSidebar.classList.add('hidden');
+                customChartTab.classList.add('expanded');
+                container.classList.add('full-width');
+
+                const tabList = document.querySelector('.tab-chart-list');
+                tabList.parentNode.insertBefore(this.eGui, tabList);
+                this.eGui.classList.add('before-tabs');
+
+                this.expandIcon.classList.remove('fa-up-right-and-down-left-from-center');
+                this.expandIcon.classList.add('fa-down-left-and-up-right-to-center');
+            } else {
+                fieldsSidebar.classList.remove('hidden');
+                customChartTab.classList.remove('expanded');
+                container.classList.remove('full-width');
+
+                const selectedFieldsHeader = document.getElementById('selected-fields-header');
+                selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
+                this.eGui.classList.remove('before-tabs');
+
+                this.expandIcon.classList.remove('fa-down-left-and-up-right-to-center');
+                this.expandIcon.classList.add('fa-up-right-and-down-left-from-center');
+            }
+
+            this.updateUrlState();
+        }
+
+        applyFieldsSidebarState() {
+            const fieldsSidebar = document.querySelector('.fields-sidebar');
+            const customChartTab = document.querySelector('.custom-chart-tab');
+            const container = document.querySelector('.custom-chart-container');
+
+            if (this.isFieldsSidebarHidden) {
+                fieldsSidebar.classList.add('hidden');
+                customChartTab.classList.add('expanded');
+                container.classList.add('full-width');
+
+                const tabList = document.querySelector('.tab-chart-list');
+                tabList.parentNode.insertBefore(this.eGui, tabList);
+                this.eGui.classList.add('before-tabs');
+
+                this.expandIcon.classList.remove('fa-up-right-and-down-left-from-center');
+                this.expandIcon.classList.add('fa-down-left-and-up-right-to-center');
+            } else {
+                fieldsSidebar.classList.remove('hidden');
+                customChartTab.classList.remove('expanded');
+                container.classList.remove('full-width');
+
+                const selectedFieldsHeader = document.getElementById('selected-fields-header');
+                selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
+                this.eGui.classList.remove('before-tabs');
+
+                this.expandIcon.classList.remove('fa-down-left-and-up-right-to-center');
+                this.expandIcon.classList.add('fa-up-right-and-down-left-from-center');
+            }
+        }
+
+        updateUrlState() {
+            const url = new URL(window.location);
+            url.searchParams.set('fieldsSidebarHidden', this.isFieldsSidebarHidden);
+            window.history.pushState({}, document.title, url);
+        }
+
+        getGui() {
+            return this.eGui;
+        }
+
+        //update state from URL
+        updateFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            this.isFieldsSidebarHidden = urlParams.get('fieldsSidebarHidden') === 'true';
+            this.applyFieldsSidebarState();
+        }
+    };
+}
+
+//// Initialize fields renderer when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    fieldssidebarRenderer = new (ExpandableFieldsSidebarRenderer())();
+    fieldssidebarRenderer.init();
+});
+
+// Event Handling for browser back/forward button to reflect state changes
+window.addEventListener('popstate', () => {
+    if (fieldssidebarRenderer) {
+        fieldssidebarRenderer.updateFromUrl();// Update the existing instance
+    }
+});
