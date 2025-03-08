@@ -918,51 +918,56 @@ func CreateMeasResultsFromAggResults(limit int,
 				break
 			}
 
-			if newQueryPipeline {
-				bucketKeySlice, ok := aggVal.BucketKey.([]interface{})
-				if !ok {
-					batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("expected []interface{} got bucket Key Type as %T", aggVal.BucketKey))
-					continue
-				}
-				for _, bk := range bucketKeySlice {
-					cValue := utils.CValueEnclosure{}
-					err := cValue.ConvertValue(bk)
-					if err != nil {
-						batchErr.AddError("CreateMeasResultsFromAggResults:CONVERT_BUCKET_KEY_ERR", err)
-						cValue = utils.CValueEnclosure{
-							Dtype: utils.SS_DT_STRING,
-							CVal:  fmt.Sprintf("%+v", bk),
-						}
-					}
-					iGroupByValues = append(iGroupByValues, cValue)
-				}
-			}
+			bucketKeySlice, ok := aggVal.BucketKey.([]interface{})
+			if len(bucketKeySlice) > 0 {
+				if newQueryPipeline {
 
-			switch bKey := aggVal.BucketKey.(type) {
-			case float64, uint64, int64:
-				bKeyConv := fmt.Sprintf("%+v", bKey)
-				groupByValues = append(groupByValues, bKeyConv)
-				added++
-			case []string:
-				groupByValues = append(groupByValues, aggVal.BucketKey.([]string)...)
-				added++
-			case string:
-				groupByValues = append(groupByValues, bKey)
-				added++
-			case []interface{}:
-				for _, bk := range aggVal.BucketKey.([]interface{}) {
-					groupByValues = append(groupByValues, fmt.Sprintf("%+v", bk))
+					if !ok {
+						batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("expected []interface{} got bucket Key Type as %T", aggVal.BucketKey))
+						continue
+					}
+					for _, bk := range bucketKeySlice {
+						cValue := utils.CValueEnclosure{}
+						err := cValue.ConvertValue(bk)
+						if err != nil {
+							batchErr.AddError("CreateMeasResultsFromAggResults:CONVERT_BUCKET_KEY_ERR", err)
+							cValue = utils.CValueEnclosure{
+								Dtype: utils.SS_DT_STRING,
+								CVal:  fmt.Sprintf("%+v", bk),
+							}
+						}
+						iGroupByValues = append(iGroupByValues, cValue)
+					}
 				}
-				added++
-			default:
-				batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("got bucket Key Type as %T", bKey))
+
+				switch bKey := aggVal.BucketKey.(type) {
+				case float64, uint64, int64:
+					bKeyConv := fmt.Sprintf("%+v", bKey)
+					groupByValues = append(groupByValues, bKeyConv)
+					added++
+				case []string:
+					groupByValues = append(groupByValues, aggVal.BucketKey.([]string)...)
+					added++
+				case string:
+					groupByValues = append(groupByValues, bKey)
+					added++
+				case []interface{}:
+					for _, bk := range aggVal.BucketKey.([]interface{}) {
+						groupByValues = append(groupByValues, fmt.Sprintf("%+v", bk))
+					}
+					added++
+				default:
+					batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("got bucket Key Type as %T", bKey))
+				}
+				bucketHolder := &structs.BucketHolder{
+					IGroupByValues: iGroupByValues,
+					GroupByValues:  groupByValues,
+					MeasureVal:     measureVal,
+				}
+				bucketHolderArr = append(bucketHolderArr, bucketHolder)
+			} else {
+				log.Errorf("CreateMeasResultsFromAggResults : bucketKeySlice is empty : %+v", bucketKeySlice)
 			}
-			bucketHolder := &structs.BucketHolder{
-				IGroupByValues: iGroupByValues,
-				GroupByValues:  groupByValues,
-				MeasureVal:     measureVal,
-			}
-			bucketHolderArr = append(bucketHolderArr, bucketHolder)
 		}
 	}
 
