@@ -2949,18 +2949,63 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     outline: none;
 }
 
-.expand-icon-container {
+.expand-svg-container {
     display: flex;
     align-items: center;
     padding: 5px;
 }
 
-.expand-icon-container.before-tabs {
+.expand-svg-container.before-tabs {
     margin-right: 10px;
 }
 
-#LogResultsGrid .ag-cell-wrapper {
-    margin-left: -10px !important;
+.expand-svg-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expand-svg-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+}
+
+.expand-svg-button svg {
+    width: 24px;
+    height: 24px;
+    stroke-width: 1.5;
+    transition: transform 0.3s ease;
+}
+
+.expand-avg-button svg rect:first-child {
+    fill: var(--icon-bg-color, black);
+}
+
+.expand-svg-button svg rect:nth-child(2) {
+    fill: var(--icon-inner-bg-color, white);
+}
+
+.expand-svg-button svg path {
+    stroke: var(--icon-arrow-color, black);
+    stroke-width: 8;
+}
+
+.expand-svg-button:hover svg rect:first-child {
+    fill: var(--icon-bg-hover, var(--purple-2));
+}
+
+.expand-svg-button:hover svg rect:nth-child(2) {
+    fill: var(--icon-inner-bg-hover, #f0f0f0);
+}
+
+.expand-svg-button:hover svg path {
+    stroke: var(--icon-arrow-hover, var(--purple-2));
 }
 
 .odd-popup-textarea {
@@ -6605,9 +6650,9 @@ p#versionInfo {
     overflow: hidden;
 }
 
-.custom-chart-container.full-width {
+ .custom-chart-container.full-width {
     display: flex;
-    flex-direction: column; /* Stack elements vertically when sidebar is hidden */
+    /* flex-direction: column; */
 }
 
 .custom-chart-tab.expanded {

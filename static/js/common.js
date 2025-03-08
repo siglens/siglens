@@ -1486,21 +1486,21 @@ function ExpandableFieldsSidebarRenderer() {
             }
 
             this.eGui = document.createElement('div');
-            this.eGui.className = 'expand-icon-container';
+            this.eGui.className = 'expand-svg-container';
 
             const urlParams = new URLSearchParams(window.location.search);
             this.isFieldsSidebarHidden = urlParams.get('fieldsSidebarHidden') === 'true';
 
             this.eGui.innerHTML = `
-                <span class="expand-icon-box">
-                    <button class="expand-icon-button">
-                        <i class="fa-solid ${this.isFieldsSidebarHidden ? 'fa-down-left-and-up-right-to-center' : 'fa-up-right-and-down-left-from-center'}"></i>
+                <span class="expand-svg-box">
+                    <button class="expand-svg-button">
+                    ${this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg()}
                     </button>
                 </span>
             `;
 
-            this.expandBtn = this.eGui.querySelector('.expand-icon-button');
-            this.expandIcon = this.eGui.querySelector('.expand-icon-button i');
+            this.expandBtn = this.eGui.querySelector('.expand-svg-button');
+            this.expandIcon = this.eGui.querySelector('svg');
             this.expandBtn.addEventListener('click', this.toggleFieldsSidebar.bind(this));
 
             //initially,inserting expand button above "Selected Fields"
@@ -1511,6 +1511,27 @@ function ExpandableFieldsSidebarRenderer() {
             this.applyFieldsSidebarState();
         }
 
+        getExpandSvg() {
+            return `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
+                    <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
+                    <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+            `;
+        }
+
+        getCollapseSvg() {
+            return `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
+                    <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
+                    <path d="M45 50 L68 50 M68 50 L56 38 M68 50 L56 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+
+            `;
+        }
+
         toggleFieldsSidebar(event) {
             event.stopPropagation();
             const fieldsSidebar = document.querySelector('.fields-sidebar');
@@ -1518,6 +1539,9 @@ function ExpandableFieldsSidebarRenderer() {
             const container = document.querySelector('.custom-chart-container');
 
             this.isFieldsSidebarHidden = !this.isFieldsSidebarHidden;
+
+            this.expandIcon.outerHTML = this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg();
+            this.expandIcon = this.eGui.querySelector('svg'); // Reassign after replacement
 
             if (this.isFieldsSidebarHidden) {
                 fieldsSidebar.classList.add('hidden');
@@ -1527,9 +1551,6 @@ function ExpandableFieldsSidebarRenderer() {
                 const tabList = document.querySelector('.tab-chart-list');
                 tabList.parentNode.insertBefore(this.eGui, tabList);
                 this.eGui.classList.add('before-tabs');
-
-                this.expandIcon.classList.remove('fa-up-right-and-down-left-from-center');
-                this.expandIcon.classList.add('fa-down-left-and-up-right-to-center');
             } else {
                 fieldsSidebar.classList.remove('hidden');
                 customChartTab.classList.remove('expanded');
@@ -1538,9 +1559,6 @@ function ExpandableFieldsSidebarRenderer() {
                 const selectedFieldsHeader = document.getElementById('selected-fields-header');
                 selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
                 this.eGui.classList.remove('before-tabs');
-
-                this.expandIcon.classList.remove('fa-down-left-and-up-right-to-center');
-                this.expandIcon.classList.add('fa-up-right-and-down-left-from-center');
             }
 
             this.updateUrlState();
@@ -1551,6 +1569,9 @@ function ExpandableFieldsSidebarRenderer() {
             const customChartTab = document.querySelector('.custom-chart-tab');
             const container = document.querySelector('.custom-chart-container');
 
+            this.expandIcon.outerHTML = this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg();
+            this.expandIcon = this.eGui.querySelector('svg');
+
             if (this.isFieldsSidebarHidden) {
                 fieldsSidebar.classList.add('hidden');
                 customChartTab.classList.add('expanded');
@@ -1559,9 +1580,6 @@ function ExpandableFieldsSidebarRenderer() {
                 const tabList = document.querySelector('.tab-chart-list');
                 tabList.parentNode.insertBefore(this.eGui, tabList);
                 this.eGui.classList.add('before-tabs');
-
-                this.expandIcon.classList.remove('fa-up-right-and-down-left-from-center');
-                this.expandIcon.classList.add('fa-down-left-and-up-right-to-center');
             } else {
                 fieldsSidebar.classList.remove('hidden');
                 customChartTab.classList.remove('expanded');
@@ -1570,9 +1588,6 @@ function ExpandableFieldsSidebarRenderer() {
                 const selectedFieldsHeader = document.getElementById('selected-fields-header');
                 selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
                 this.eGui.classList.remove('before-tabs');
-
-                this.expandIcon.classList.remove('fa-down-left-and-up-right-to-center');
-                this.expandIcon.classList.add('fa-up-right-and-down-left-from-center');
             }
         }
 
