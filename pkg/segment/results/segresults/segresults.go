@@ -926,7 +926,7 @@ func CreateMeasResultsFromAggResults(limit int,
 				}
 
 				if len(bucketKeySlice) == 0 {
-					log.Errorf("CreateMeasResultsFromAggResults : bucketKeySlice is empty : %+v", bucketKeySlice)
+					log.Errorf("CreateMeasResultsFromAggResults : bucketKeySlice is empty")
 					continue
 				}
 
