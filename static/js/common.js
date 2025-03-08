@@ -1493,7 +1493,7 @@ function ExpandableFieldsSidebarRenderer() {
 
             this.eGui.innerHTML = `
                 <span class="expand-svg-box">
-                    <button class="expand-svg-button">
+                    <button id="expand-toggle-svg" class="expand-svg-button">
                     ${this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg()}
                     </button>
                 </span>
@@ -1502,6 +1502,8 @@ function ExpandableFieldsSidebarRenderer() {
             this.expandBtn = this.eGui.querySelector('.expand-svg-button');
             this.expandIcon = this.eGui.querySelector('svg');
             this.expandBtn.addEventListener('click', this.toggleFieldsSidebar.bind(this));
+
+            createTooltip('#expand-toggle-svg', this.isFieldsSidebarHidden ? 'Show Filters' : 'Hide Filters');
 
             //initially,inserting expand button above "Selected Fields"
             const selectedFieldsHeader = document.getElementById('selected-fields-header');
@@ -1543,6 +1545,8 @@ function ExpandableFieldsSidebarRenderer() {
             this.expandIcon.outerHTML = this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg();
             this.expandIcon = this.eGui.querySelector('svg'); // Reassign after replacement
 
+            createTooltip('#expand-toggle-svg', this.isFieldsSidebarHidden ? 'Show Filters' : 'Hide Filters');
+
             if (this.isFieldsSidebarHidden) {
                 fieldsSidebar.classList.add('hidden');
                 customChartTab.classList.add('expanded');
@@ -1571,6 +1575,8 @@ function ExpandableFieldsSidebarRenderer() {
 
             this.expandIcon.outerHTML = this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg();
             this.expandIcon = this.eGui.querySelector('svg');
+
+            createTooltip('#expand-toggle-svg', this.isFieldsSidebarHidden ? 'Show Filters' : 'Hide Filters');
 
             if (this.isFieldsSidebarHidden) {
                 fieldsSidebar.classList.add('hidden');
