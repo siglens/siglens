@@ -53,6 +53,11 @@ var colorPalette = {
     Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
+let cachedMetrics = [];
+let isLoadingMore = false;
+const ITEMS_PER_PAGE = 20;
+let currentSearchTerm = '';
+
 // Function to check if CSV can be downloaded
 function canDownloadCSV() {
     for (let key in chartDataCollection) {
@@ -114,6 +119,7 @@ $(document).ready(async function () {
 
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
+
     allFunctions = await getFunctions();
     functionsArray = allFunctions.map(function (item) {
         return item.fn;
@@ -149,6 +155,7 @@ $(document).ready(async function () {
 
 function getUrlParameter(name) {
     //eslint-disable-next-line no-useless-escape
+
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
     let results = regex.exec(location.search);
@@ -1017,31 +1024,72 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     queryElement
         .find('.metrics')
         .autocomplete({
-            source: availableMetrics.sort(),
+            delay: 300,
             minLength: 0,
+            classes: {
+                'ui-autocomplete': 'metrics-ui-widget',
+            },
+            source: function (request, response) {
+                const input = $(this);
+                const searchTerm = request.term.toLowerCase();
+                currentSearchTerm = request.term.toLowerCase();
+
+                input.data('current-filter', currentSearchTerm);
+
+                setTimeout(function () {
+                    const matches = cachedMetrics.filter((item) => item.toLowerCase().indexOf(searchTerm) >= 0).slice(0, ITEMS_PER_PAGE);
+                    response(matches);
+                }, 0);
+            },
             select: async function (event, ui) {
                 queryDetails.metrics = ui.item.value;
                 getQueryDetails(queryName, queryDetails);
+
                 const tagsAndValue = await getTagKeyValue(ui.item.value);
                 availableEverything = tagsAndValue.availableEverything[0];
                 availableEverywhere = tagsAndValue.availableEverywhere;
                 queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+
                 $(this).blur();
-                adjustInputWidth(this);
+                setTimeout(() => {
+                    adjustInputWidth(this);
+                }, 10);
             },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
+            open: function () {
+                const menu = $(this).autocomplete('widget');
+                const input = $(this);
+
+                menu.css({
+                    'max-height': '300px',
+                    'overflow-y': 'auto',
+                    'overflow-x': 'hidden',
+                });
+
+                menu.off('scroll.metrics').on('scroll.metrics', function () {
+                    if (isLoadingMore) return;
+
+                    const scrollBottom = $(this).scrollTop() + $(this).innerHeight();
+                    const scrollHeight = this.scrollHeight;
+                    if (scrollBottom >= scrollHeight - 50) {
+                        loadMoreItems(menu, input);
+                    }
+                });
             },
         })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
+        .on('click', function (e) {
+            e.stopPropagation();
+            const $this = $(this);
+
+            if ($this.autocomplete('widget').is(':visible')) {
+                $this.autocomplete('close');
             } else {
-                $(this).autocomplete('search', '');
+                $this.autocomplete('search', '');
+                currentSearchTerm = '';
+                $this.focus();
             }
         })
-        .on('click', function () {
+        .on('focus', function () {
             $(this).select();
         })
         .on('close', function (_event) {
@@ -1368,6 +1416,89 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
     queries[queryElement.find('.query-name').text()] = queryDetails;
     previousQuery = queryDetails;
+}
+
+async function getMetricNames() {
+    try {
+        $('body').css('cursor', 'wait');
+
+        const data = {
+            start: filterStartDate,
+            end: filterEndDate,
+        };
+
+        const res = await $.ajax({
+            method: 'post',
+            url: 'http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/metric_names',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(data),
+        });
+
+        if (res) {
+            // Store the full list of metrics
+            availableMetrics = res.metricNames.sort();
+            cachedMetrics = res.metricNames.slice();
+
+            // Reset loading state
+            isLoadingMore = false;
+        }
+
+        return res;
+    } finally {
+        $('body').css('cursor', 'default');
+    }
+}
+
+// Fix for the loadMoreItems function
+function loadMoreItems(menu, input) {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+
+    const currentCount = menu.find('li').length;
+    const term = currentSearchTerm || '';
+    const nextBatch = cachedMetrics.filter((item) => item.toLowerCase().indexOf(term) >= 0).slice(currentCount, currentCount + ITEMS_PER_PAGE);
+
+    if (nextBatch.length > 0) {
+        const fragment = document.createDocumentFragment();
+
+        nextBatch.forEach((item) => {
+            const li = document.createElement('li');
+            li.className = 'ui-menu-item';
+
+            const div = document.createElement('div');
+            div.className = 'ui-menu-item-wrapper';
+            div.textContent = item;
+
+            li.appendChild(div);
+            fragment.appendChild(li);
+
+            $(li).data('ui-autocomplete-item', {
+                label: item,
+                value: item,
+            });
+        });
+
+        menu.append(fragment);
+
+        menu.off('mousedown.loadmore').on('mousedown.loadmore', '.ui-menu-item-wrapper', function (e) {
+            const value = $(this).text();
+
+            input.val(value);
+            input.autocomplete('instance')._trigger('select', 'autocompleteselect', {
+                item: { label: value, value: value },
+            });
+
+            input.autocomplete('close');
+            return false;
+        });
+    }
+
+    isLoadingMore = false;
 }
 
 function updateCloseIconVisibility() {
@@ -2334,9 +2465,10 @@ async function getMetricNames() {
             start: filterStartDate,
             end: filterEndDate,
         };
+
         const res = await $.ajax({
             method: 'post',
-            url: 'metrics-explorer/api/v1/metric_names',
+            url: 'http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/metric_names',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
@@ -2347,7 +2479,11 @@ async function getMetricNames() {
         });
 
         if (res) {
-            availableMetrics = res.metricNames;
+            // Store the full list of metrics
+            availableMetrics = res.metricNames.sort();
+            cachedMetrics = res.metricNames.slice();
+
+            isLoadingMore = false;
         }
 
         return res;
@@ -2556,6 +2692,7 @@ async function fetchTimeSeriesData(data) {
         $('body').css('cursor', 'wait');
 
         const response = await fetch('metrics-explorer/api/v1/timeseries', {
+            // const response = await fetch('http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/timeseries', {
             method: 'post',
             headers: { 'Content-Type': 'application/json', Accept: '*/*' },
             body: JSON.stringify(data),
@@ -2588,6 +2725,7 @@ function getTagKeyValue(metricName) {
             $.ajax({
                 method: 'post',
                 url: 'metrics-explorer/api/v1/all_tags',
+                // url: 'http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/all_tags',
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
                     Accept: '*/*',
@@ -2743,6 +2881,8 @@ async function refreshMetricsGraphs() {
     dayCnt2 = 0;
     const newMetricNames = await getMetricNames();
     newMetricNames.metricNames.sort();
+
+    isLoadingMore = false;
 
     $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
