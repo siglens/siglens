@@ -1418,43 +1418,6 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     previousQuery = queryDetails;
 }
 
-async function getMetricNames() {
-    try {
-        $('body').css('cursor', 'wait');
-
-        const data = {
-            start: filterStartDate,
-            end: filterEndDate,
-        };
-
-        const res = await $.ajax({
-            method: 'post',
-            url: 'http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/metric_names',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
-            },
-            crossDomain: true,
-            dataType: 'json',
-            data: JSON.stringify(data),
-        });
-
-        if (res) {
-            // Store the full list of metrics
-            availableMetrics = res.metricNames.sort();
-            cachedMetrics = res.metricNames.slice();
-
-            // Reset loading state
-            isLoadingMore = false;
-        }
-
-        return res;
-    } finally {
-        $('body').css('cursor', 'default');
-    }
-}
-
-// Fix for the loadMoreItems function
 function loadMoreItems(menu, input) {
     if (isLoadingMore) return;
     isLoadingMore = true;
@@ -2468,7 +2431,7 @@ async function getMetricNames() {
 
         const res = await $.ajax({
             method: 'post',
-            url: 'http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/metric_names',
+            url: 'metrics-explorer/api/v1/metric_names',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
@@ -2479,7 +2442,6 @@ async function getMetricNames() {
         });
 
         if (res) {
-            // Store the full list of metrics
             availableMetrics = res.metricNames.sort();
             cachedMetrics = res.metricNames.slice();
 
@@ -2692,7 +2654,6 @@ async function fetchTimeSeriesData(data) {
         $('body').css('cursor', 'wait');
 
         const response = await fetch('metrics-explorer/api/v1/timeseries', {
-            // const response = await fetch('http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/timeseries', {
             method: 'post',
             headers: { 'Content-Type': 'application/json', Accept: '*/*' },
             body: JSON.stringify(data),
@@ -2725,7 +2686,6 @@ function getTagKeyValue(metricName) {
             $.ajax({
                 method: 'post',
                 url: 'metrics-explorer/api/v1/all_tags',
-                // url: 'http://sandbox2.siglens.com:5122/metrics-explorer/api/v1/all_tags',
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
                     Accept: '*/*',
