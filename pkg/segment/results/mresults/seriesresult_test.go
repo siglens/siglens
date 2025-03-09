@@ -24,7 +24,6 @@ import (
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -32,52 +31,64 @@ import (
 
 func Test_applyRangeFunctionRate(t *testing.T) {
 	timeSeries := map[uint32]float64{
+		980:  0.0,
+		990:  1.0,
 		1000: 2.0,
 		1003: 3.0,
 		1008: 4.0,
 		1012: 18.0,
 		1020: 2.5,
 		1025: 6.5,
+		1030: 8.5,
+		1035: 10.5,
 	}
 
 	timeRange := &dtypeutils.MetricsTimeRange{
 		StartEpochSec: uint32(1000),
-		EndEpochSec:   uint32(1025),
+		EndEpochSec:   uint32(1035),
 	}
 
-	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10}, timeRange)
+	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10, Step: 5}, timeRange)
 	assert.Nil(t, err)
 
-	// There's six timestamps in the series, but we need two points to calculate
-	// the rate, so we can't calculate it on the first point. So we should have
-	// 5 elements in the result.
-	assert.Len(t, res, 5)
+	// map[1000:0.1 1005:0.21666666666666665 1010:0.25 1015:2.85 1020:0.3125 1025:0.65 1030:0.6 1035:0.4]
+
+	assert.Len(t, res, 8)
 
 	var val float64
 	var ok bool
 
-	val, ok = res[1003]
+	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (3.0-2.0)/(3-0)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.1))
 
-	val, ok = res[1008]
+	val, ok = res[1005]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (4.0-2.0)/(8-0)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.21666666666666665))
 
-	val, ok = res[1012]
+	val, ok = res[1010]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (18.0-3.0)/(12-3)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.25))
+
+	val, ok = res[1015]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.85))
 
 	val, ok = res[1020]
 	assert.True(t, ok)
-	// Since the value here is smaller than at the last timestamp, the value was
-	// reset since the last timestamp. So the increase is just this value, not
-	// this value minus the previous value.
-	assert.True(t, dtypeutils.AlmostEquals(val, (2.5)/(20-12)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.3125))
 
 	val, ok = res[1025]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, (6.5-2.5)/(25-20)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.65))
+
+	val, ok = res[1030]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.6))
+
+	val, ok = res[1035]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.4))
 }
 
 func Test_applyRangeFunctionIRate(t *testing.T) {
@@ -180,43 +191,65 @@ func Test_applyRangeFunctionPredict_Linear(t *testing.T) {
 
 func Test_applyRangeFunctionIncrease(t *testing.T) {
 	timeSeries := map[uint32]float64{
-		1000: 0.0,
-		1008: 8.0,
-		1010: 14.0,
-		1012: 10.0,
-		1020: 18.0,
+		980:  0.0,
+		990:  1.0,
+		1000: 2.0,
+		1003: 3.0,
+		1008: 4.0,
+		1012: 18.0,
+		1020: 2.5,
+		1025: 6.5,
+		1030: 8.5,
+		1035: 10.5,
 	}
 
 	timeRange := &dtypeutils.MetricsTimeRange{
 		StartEpochSec: uint32(1000),
-		EndEpochSec:   uint32(1020),
+		EndEpochSec:   uint32(1035),
 	}
 
 	timeWindow := float64(10)
-	increase, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow}, timeRange)
+	increase, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow, Step: 5}, timeRange)
 	assert.Nil(t, err)
 
-	assert.Len(t, increase, 4)
+	// map[1000:1 1005:2.1666666666666665 1010:2.5 1015:28.5 1020:3.125 1025:6.5 1030:6 1035:4]
+
+	assert.Len(t, increase, 8)
 
 	var val float64
 	var ok bool
 
-	val, ok = increase[1008]
+	val, ok = increase[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(8.0-0.0)/(8-0)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 1))
+
+	val, ok = increase[1005]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.1666666666666665))
 
 	val, ok = increase[1010]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(14.0-0.0)/(10-0)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.5))
 
-	// Reset val
-	val, ok = increase[1012]
+	val, ok = increase[1015]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(10.0)/(12-10)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 28.5))
 
 	val, ok = increase[1020]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, timeWindow*(18.0-10.0)/(20-12)))
+	assert.True(t, dtypeutils.AlmostEquals(val, 3.125))
+
+	val, ok = increase[1025]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 6.5))
+
+	val, ok = increase[1030]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 6))
+
+	val, ok = increase[1035]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 4))
 }
 
 func Test_applyRangeFunctionDelta(t *testing.T) {
@@ -1559,12 +1592,12 @@ func Test_applyTrigonometricFunctionAcosh(t *testing.T) {
 	runTrigonometricFunctionTest(t, math.Acosh, segutils.Acosh, true)
 }
 
-func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFunction utils.MathFunctions, testError bool) {
+func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFunction segutils.MathFunctions, testError bool) {
 	result := make(map[string]map[uint32]float64)
 	ts := make(map[uint32]float64)
 
 	// Define initial values based on whether we're testing an error case
-	if mathFunction == utils.Acosh {
+	if mathFunction == segutils.Acosh {
 		ts[1] = 1.255
 		ts[2] = 6
 		ts[3] = 2.465
@@ -1612,7 +1645,7 @@ func runTrigonometricFunctionTest(t *testing.T, mathFunc float64Func, mathFuncti
 		assert.NotNil(t, err)
 	} else {
 		// Add specific test for acosh case where valid input should be > 1
-		if mathFunction == utils.Acosh {
+		if mathFunction == segutils.Acosh {
 			ts[3] = 0.2465
 			err = metricsResults.ApplyFunctionsToResults(8, function, nil)
 			assert.NotNil(t, err)
@@ -1771,7 +1804,7 @@ func Test_applyMathFunctionTimestamp(t *testing.T) {
 		}
 	}
 }
-func runTimeFunctionTest(t *testing.T, timeFunction utils.TimeFunctions, expectedCalculation func(time.Time) float64) {
+func runTimeFunctionTest(t *testing.T, timeFunction segutils.TimeFunctions, expectedCalculation func(time.Time) float64) {
 	allMetricsData := make(map[string]map[uint32]float64)
 	allDPs := make(map[uint32]float64)
 
@@ -1900,7 +1933,7 @@ func Test_applyLabelReplace(t *testing.T) {
 	initSeriesId := `process_runtime_go_goroutines{job:product-catalog,`
 
 	labelFunctionExpr := &structs.LabelFunctionExpr{
-		FunctionType:     utils.LabelReplace,
+		FunctionType:     segutils.LabelReplace,
 		DestinationLabel: "newLabel",
 		SourceLabel:      "job",
 		Replacement: &structs.LabelReplacementKey{
