@@ -497,7 +497,7 @@ func (segstore *SegStore) AddEntry(streamid string, indexName string, flush bool
 		}
 
 		for _, cwip := range segstore.wipBlock.colWips {
-			segstore.wipBlock.maxIdx = MaxUint32(segstore.wipBlock.maxIdx, cwip.cbufidx)
+			segstore.wipBlock.maxIdx = max(segstore.wipBlock.maxIdx, cwip.cbufidx)
 		}
 
 		segstore.wipBlock.blockSummary.RecCount += 1
@@ -543,6 +543,17 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		ingestedCount, errors := metrics.ExtractInfluxPayloadAndInsertDp(rawJson, tagsHolder, orgid)
 		if ingestedCount == 0 {
 			return fmt.Errorf("influx entry rejected because of errors: %v", errors)
+		}
+
+	case SIGNAL_METRICS_OTLP:
+		tagsHolder := metrics.GetTagsHolder()
+		mName, dp, ts, err := metrics.ExtractOTLPPayload(rawJson, tagsHolder)
+		if err != nil {
+			return err
+		}
+		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid)
+		if err != nil {
+			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}
 
 	default:

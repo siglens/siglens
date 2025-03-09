@@ -51,8 +51,6 @@ $(document).ready(async function () {
 
     initializeFilterInputEvents();
 
-    $('#new-dashboard').css('transform', 'translate(122px)');
-    $('#new-dashboard').css('width', 'calc(100% - 122px)');
 
     $('#dbSet-edit-json').on('click', enableJsonEditing);
     $('#dbSet-save-json').on('click', saveJsonChanges);
@@ -119,10 +117,6 @@ $(document).ready(async function () {
             $('.add-icon').removeClass('rotate-icon');
             $('#add-panel-btn').removeClass('active');
         }
-    });
-
-    $('.all-dashboards').click(function () {
-        window.location.href = '../dashboards-home.html';
     });
 
     $('#theme-btn').click(() => displayPanels());
@@ -829,6 +823,7 @@ async function displayPanels() {
     }
     // Remove the Add Panel Widgets from the default dashboards
     if (!isDefaultDashboard) {
+        $('.default-item').remove();
         addDefaultPanel();
     }
     // Show the Add Panel Widget if there is no panel

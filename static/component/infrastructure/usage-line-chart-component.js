@@ -152,18 +152,22 @@ class ClusterUsageChart {
         });
     }
 
+    getQuery() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const clusterFilter = urlParams.get('cluster') || 'all';
+        const clusterMatch = clusterFilter === 'all' ? '.+' : clusterFilter;
+
+        return this.query.replace(/cluster=~".+"/g, `cluster=~"${clusterMatch}"`);
+    }
+
     async fetchData() {
         this.showLoading();
 
         const urlParams = new URLSearchParams(window.location.search);
         const startTime = urlParams.get('startEpoch') || 'now-1h';
         const endTime = urlParams.get('endEpoch') || 'now';
-        const clusterFilter = urlParams.get('cluster') || 'all';
 
-        const clusterMatch = clusterFilter === 'all' ? '.+' : clusterFilter;
-
-        // Replace cluster filter in query
-        const finalQuery = this.query.replace(/cluster=~".+"/g, `cluster=~"${clusterMatch}"`);
+        const finalQuery = this.getQuery();
         const requestData = {
             start: startTime,
             end: endTime,
@@ -281,6 +285,7 @@ class ClusterUsageChart {
     setupEventHandlers() {
         const dropdown = this.container.find('.dropdown');
         const menuButton = dropdown.find('.menu-button');
+        const exploreOption = this.container.find('.explore-option');
 
         menuButton.on('click', (e) => {
             e.stopPropagation();
@@ -291,6 +296,12 @@ class ClusterUsageChart {
 
         $(document).on('click', () => {
             $('.dropdown').removeClass('active');
+        });
+
+        exploreOption.on('click', (e) => {
+            e.stopPropagation();
+            const query = this.getQuery();
+            MetricsUtils.navigateToMetricsExplorer(query, dropdown);
         });
     }
 

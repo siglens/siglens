@@ -924,6 +924,12 @@ func CreateMeasResultsFromAggResults(limit int,
 					batchErr.AddError("CreateMeasResultsFromAggResults:UNKNOWN_BUCKET_KEY_TYPE", fmt.Errorf("expected []interface{} got bucket Key Type as %T", aggVal.BucketKey))
 					continue
 				}
+
+				if len(bucketKeySlice) == 0 {
+					log.Errorf("CreateMeasResultsFromAggResults : bucketKeySlice is empty")
+					continue
+				}
+
 				for _, bk := range bucketKeySlice {
 					cValue := utils.CValueEnclosure{}
 					err := cValue.ConvertValue(bk)

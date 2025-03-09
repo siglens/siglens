@@ -47,8 +47,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/lib/tippy.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
-    <link rel="stylesheet" href="./css/query-builder.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
 
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -61,6 +61,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
+    <script src="./js/lib/echarts.min.js"></script>
+
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -267,6 +269,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
             <div class="custom-chart-container">
+                <div class="fields-sidebar" style="display: none;">
+                    <div id="selected-fields-header" class="fields-header">
+                        <i class="fa fa-chevron-down"></i>
+                      <span>Selected Fields</span>
+                      <span class="field-count">0</span>
+                    </div>
+                    <div id="selected-fields-list" class="fields-list"></div>
+                    
+                    <div id="available-fields-header" class="fields-header">
+                        <i class="fa fa-chevron-down"></i>
+                      <span>Available Fields</span>
+                      <span class="field-count">0</span>
+                    </div>
+                    <div id="available-fields-list" class="fields-list"></div>
+                </div>
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                     <div class="d-flex align-items-center">
                         <ul class="tab-chart-list">
@@ -295,9 +312,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                         </div>
                         <div id="views-container">
-                            <label id="hide-null-column-box">
-                                <input type="checkbox" id="hide-null-columns-checkbox" checked="" class="active checkbox">Hide Null Columns
-                            </label>
                             <div class="btn-group" role="group" id="log-view">
                                 <button class="btn log-opt-single-btn" id="log-opt-single-btn">
                                     <span class="single-line-icon" ></span>
@@ -308,23 +322,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <button class="btn log-opt-table-btn" id="log-opt-table-btn">
                                     <span class="table-view-icon" ></span>
                                 </button>
-                            </div>
-                            <div class="dropdown">
-                                <button class="btn btn-grey dropdown-toggle avail-fields-btn"  type="button"
-                                    id="avail-fields-btn" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                    data-bs-toggle="dropdown">
-                                    <i class="fa-solid fa-list-check"></i>&nbsp;
-                                    Available Fields
-                                    <i class="dropdown-arrow"></i>
-                                </button>
-                                <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
-                                    <div class="select-unselect-header" id="select-unselect-header">
-                                        Select/Unselect All
-                                        <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
-                                    </div>
-                                    <div class="column-count-header">Column Count: <span class="column-count"></span></div>
-                                    <div class="fields"></div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -414,7 +411,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div class="existing-dashboard">
                 <p for="" class="mt-3 mb-3"><small>Select in which dashboard the panel will be created.</small></p>
-                <div class="dropdown">
+                <div class="dropdown w-100">
                     <button class="btn dropdown-toggle btn-grey w-100" type="button" id="selected-dashboard" data-toggle="dropdown"
                         aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
                         <span>Choose Dashboard</span>
@@ -460,22 +457,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     </div>
 
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/available-fields.js?cb=1_1_10"></script>
-    <script src="./js/log-results-grid.js?cb=1_1_10"></script>
-    <script src="./js/ag-grid-seg-stats.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/saved-query.js?cb=1_1_10"></script>
-    <script src="./js/download-logs.js?cb=1_1_10"></script>
-    <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/log-search.js?cb=1_1_10"></script>
-    <script src="./js/dashboard-from-logs-metrics.js?cb=1_1_10"></script>
-    <script src="./js/query-builder.js"></script>
-    <script src="./js/pagination.js"></script>
-    <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/available-fields.js?cb={{ AppVersion }}"></script>
+    <script src="./js/log-results-grid.js?cb={{ AppVersion }}"></script>
+    <script src="./js/ag-grid-seg-stats.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./js/search.js?cb={{ AppVersion }}"></script>
+    <script src="./js/saved-query.js?cb={{ AppVersion }}"></script>
+    <script src="./js/download-logs.js?cb={{ AppVersion }}"></script>
+    <script src="./js/index.js?cb={{ AppVersion }}"></script>
+    <script src="./js/log-search.js?cb={{ AppVersion }}"></script>
+    <script src="./js/dashboard-from-logs-metrics.js?cb={{ AppVersion }}"></script>
+    <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
+    <script src="./js/pagination.js?cb={{ AppVersion }}"></script>    
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

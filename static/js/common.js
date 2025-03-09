@@ -65,9 +65,6 @@ let isTimechart = false;
 let isQueryBuilderSearch = false;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
-let columnsWithNonNullValues = new Set();
-let columnsWithNullValues = new Set();
-let allColumns = new Set();
 let isMetricsScreen = false;
 
 let aggGridOptions = {
@@ -103,10 +100,10 @@ function showError(errorMsg) {
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
         $('#save-query-div').children().show();
-        $('#views-container').show();
+        $('#views-container, .fields-sidebar').show();
     } else {
         $('#save-query-div').children().hide();
-        $('#views-container').show();
+        $('#views-container, .fields-sidebar').show();
     }
     $('#custom-chart-tab').show().css({ height: '100%' });
     $('#corner-popup .corner-text').html(errorMsg);
@@ -168,12 +165,14 @@ function decodeJwt(token) {
 //eslint-disable-next-line no-unused-vars
 function resetDashboard() {
     resetAvailableFields();
+
+    // Clear Selected Fields if index changes
+    if (initialSearchData && initialSearchData.indexName !== selectedSearchIndex) {
+        selectedFieldsList = [];
+    }
+
     $('#LogResultsGrid').html('');
     $('#measureAggGrid').html('');
-    columnsWithNonNullValues.clear();
-    columnsWithNullValues.clear();
-    allColumns.clear();
-    $('#hide-null-column-box').hide();
     columnCount = 0;
     gridDiv = null;
     eGridDiv = null;
@@ -281,9 +280,14 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $('body').css('cursor', 'default');
         }
     }
+    
     canScrollMore = res.can_scroll_more;
-    scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) {
+    scrollFrom = scrollFrom + res.hits.totalMatched.value;
+
+    // Only show empty results error if this is the first request (not a scroll request)
+    // or if there's no existing data in panelLogsRowData
+    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) && 
+        (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
         panelProcessEmptyQueryResults('', panelId);
     }
 
@@ -585,6 +589,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         let dataType = currentPanel.dataType;
         let rawTimeSeriesData;
         for (const queryData of data.queriesData) {
+            $('metrics-queries').empty();
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
             const parsedQueryObject = parsePromQL(queryData.queries[0]);
             await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
@@ -619,6 +624,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 let uniqueId = generateUniqueId();
                 addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
+            disableQueryRemoval();
         } else {
             // for panels on the dashboard page
             for (const queryData of data.queriesData) {
@@ -1116,7 +1122,7 @@ function getMetricsQData() {
 
         const query = {
             name: queryName,
-            query: `(${queryString})`,
+            query: `${queryString}`,
             qlType: 'promql',
             state: queryDetails.state,
         };
@@ -1145,7 +1151,7 @@ function getMetricsQData() {
 
                 return {
                     name: name,
-                    query: `(${queryString})`,
+                    query: `${queryString}`,
                     qlType: 'promql',
                 };
             });

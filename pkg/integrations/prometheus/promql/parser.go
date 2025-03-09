@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -97,7 +98,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 
 	pqlQuerytype := expr.Type()
 	var mQuery structs.MetricsQuery
-	mQuery.Aggregator = structs.Aggregation{}
+	mQuery.FirstAggregator = structs.Aggregation{}
 	selectors := extractSelectors(expr)
 	//go through labels
 	for _, labelEntry := range selectors {
@@ -189,20 +190,23 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		tags[idx].HashTagValue = hashedTagVal
 	}
 
-	if mQuery.MQueryAggs == nil {
-		mQuery.MQueryAggs = &structs.MetricQueryAgg{
+	if mQuery.SubsequentAggs == nil {
+		mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 			AggBlockType:    structs.AggregatorBlock,
 			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+		}
+		if len(mQuery.TagsFilters) == 0 {
+			mQuery.GetAllLabels = true
 		}
 		mQueryReqs[0].MetricsQuery = mQuery
 	} else {
 		// If the first Block in the MQueryAggs is not an aggregator block, then add an default aggregator block with avg function
 
-		if mQuery.MQueryAggs.AggBlockType != structs.AggregatorBlock {
-			mQuery.MQueryAggs = &structs.MetricQueryAgg{
+		if mQuery.SubsequentAggs.AggBlockType != structs.AggregatorBlock {
+			mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 				AggBlockType:    structs.AggregatorBlock,
 				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
-				Next:            mQuery.MQueryAggs,
+				Next:            mQuery.SubsequentAggs,
 			}
 			mQueryReqs[0].MetricsQuery = mQuery
 		}
@@ -229,7 +233,7 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 			updateMetricQueryWithAggs(mQuery, mQueryAgg)
 		}
 	case *parser.Call:
-		mQueryAgg, err = handleCallExpr(node, mQuery)
+		mQueryAgg, err = handleCallExpr(node, mQueryReqs[0])
 		if err == nil {
 			updateMetricQueryWithAggs(mQuery, mQueryAgg)
 		}
@@ -240,12 +244,12 @@ func parsePromQLExprNode(node parser.Node, mQueryReqs []*structs.MetricsQueryReq
 		exit = true
 	case *parser.MatrixSelector:
 		// Process only if the MQueryAggs is nil. Otherwise, it will be handled in the handleCallExpr
-		if mQuery.MQueryAggs == nil {
+		if mQuery.SubsequentAggs == nil {
 			mQueryReqs[0].TimeRange.StartEpochSec = mQueryReqs[0].TimeRange.EndEpochSec - uint32(node.Range.Seconds())
 		}
 	case *parser.SubqueryExpr:
 		// Process only if the MQueryAggs is nil. Otherwise, it will be handled in the handleCallExpr
-		if mQuery.MQueryAggs == nil {
+		if mQuery.SubsequentAggs == nil {
 			mQueryReqs, queryArithmetic, exit, err = parsePromQLExprNode(node.Expr, mQueryReqs, queryArithmetic, intervalSeconds)
 		}
 	case *parser.ParenExpr:
@@ -286,51 +290,50 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	// Handle parameters if necessary
 	if aggFunc == "quantile" && expr.Param != nil {
 		if param, ok := expr.Param.(*parser.NumberLiteral); ok {
-			mQuery.Aggregator.FuncConstant = param.Val
+			mQuery.FirstAggregator.FuncConstant = param.Val
 		}
 	}
 
 	switch aggFunc {
 	case "avg":
-		mQuery.Aggregator.AggregatorFunction = segutils.Avg
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
-		mQuery.Aggregator.AggregatorFunction = segutils.Count
-		mQuery.GetAllLabels = true
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
 	case "sum":
-		mQuery.Aggregator.AggregatorFunction = segutils.Sum
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
-		mQuery.Aggregator.AggregatorFunction = segutils.Max
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Max
 	case "min":
-		mQuery.Aggregator.AggregatorFunction = segutils.Min
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Min
 	case "quantile":
-		mQuery.Aggregator.AggregatorFunction = segutils.Quantile
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Quantile
 	case "topk":
 		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
 		if !ok {
 			return nil, fmt.Errorf("handleAggregateExpr: topk contains invalid param: %v", expr.Param)
 		}
-		mQuery.Aggregator.AggregatorFunction = segutils.TopK
-		mQuery.Aggregator.FuncConstant = numberLiteral.Val
+		mQuery.FirstAggregator.AggregatorFunction = segutils.TopK
+		mQuery.FirstAggregator.FuncConstant = numberLiteral.Val
 		mQuery.GetAllLabels = true
 	case "bottomk":
 		numberLiteral, ok := expr.Param.(*parser.NumberLiteral)
 		if !ok {
 			return nil, fmt.Errorf("handleAggregateExpr: bottomk contains invalid param: %v", expr.Param)
 		}
-		mQuery.Aggregator.AggregatorFunction = segutils.BottomK
-		mQuery.Aggregator.FuncConstant = numberLiteral.Val
+		mQuery.FirstAggregator.AggregatorFunction = segutils.BottomK
+		mQuery.FirstAggregator.FuncConstant = numberLiteral.Val
 		mQuery.GetAllLabels = true
 	case "stddev":
-		mQuery.Aggregator.AggregatorFunction = segutils.Stddev
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Stddev
 		mQuery.GetAllLabels = true
 	case "stdvar":
-		mQuery.Aggregator.AggregatorFunction = segutils.Stdvar
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Stdvar
 		mQuery.GetAllLabels = true
 	case "group":
-		mQuery.Aggregator.AggregatorFunction = segutils.Group
+		mQuery.FirstAggregator.AggregatorFunction = segutils.Group
 	case "":
 		log.Infof("handleAggregateExpr: using avg aggregator by default for AggregateExpr (got empty string)")
-		mQuery.Aggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
+		mQuery.FirstAggregator = structs.Aggregation{AggregatorFunction: segutils.Avg}
 	default:
 		return nil, fmt.Errorf("handleAggregateExpr: unsupported aggregation function %v", aggFunc)
 	}
@@ -338,6 +341,18 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 	// if True, it implies that there is a nested AggregateExpr in the current Expr
 	// And this group by Aggregation should not be done on the initial Aggregation.
 	hasAggExpr := hasNestedAggregateExpr(expr.Expr)
+
+	if len(expr.Grouping) > 0 {
+		mQuery.Groupby = true
+	}
+
+	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
+	mQuery.FirstAggregator.Without = expr.Without
+
+	if expr.Without {
+		mQuery.SelectAllSeries = true
+		mQuery.GetAllLabels = true
+	}
 
 	// Handle grouping
 	for _, group := range expr.Grouping {
@@ -352,37 +367,36 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 			TagOperator:     segutils.TagOperator(segutils.Equal),
 			LogicalOperator: segutils.And,
 			NotInitialGroup: hasAggExpr,
+			IgnoreTag:       expr.Without,
+			IsGroupByKey:    true,
 		}
 		mQuery.TagsFilters = append(mQuery.TagsFilters, &tagFilter)
 	}
-	if len(expr.Grouping) > 0 {
-		mQuery.Groupby = true
-	}
-
-	mQuery.Aggregator.GroupByFields = sort.StringSlice(expr.Grouping)
 
 	mQueryAgg := &structs.MetricQueryAgg{
 		AggBlockType:    structs.AggregatorBlock,
-		AggregatorBlock: mQuery.Aggregator.ShallowClone(),
+		AggregatorBlock: mQuery.FirstAggregator.ShallowClone(),
 	}
 
 	return mQueryAgg, nil
 }
 
-func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.MetricQueryAgg, error) {
+func handleCallExpr(call *parser.Call, mQueryReq *structs.MetricsQueryRequest) (*structs.MetricQueryAgg, error) {
 	var err error
 	defaultCase := false
+
+	mQuery := &mQueryReq.MetricsQuery
 
 	for _, arg := range call.Args {
 		switch arg := arg.(type) {
 		case *parser.MatrixSelector:
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		case *parser.VectorSelector:
 			err = handleCallExprVectorSelectorNode(call, mQuery)
 		case *parser.ParenExpr:
-			err = handleCallExprParenExprNode(call, arg, mQuery)
+			err = handleCallExprParenExprNode(call, arg, mQueryReq)
 		case *parser.SubqueryExpr:
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		default:
 			defaultCase = true
 		}
@@ -403,7 +417,7 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 		// So, we need to check for both the cases.
 		err = handleCallExprVectorSelectorNode(call, mQuery)
 		if err != nil {
-			err = handleCallExprMatrixSelectorNode(call, mQuery)
+			err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 		}
 	}
 
@@ -419,22 +433,24 @@ func handleCallExpr(call *parser.Call, mQuery *structs.MetricsQuery) (*structs.M
 	return mQueryAgg, nil
 }
 
-func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQuery *structs.MetricsQuery) error {
+func handleCallExprParenExprNode(call *parser.Call, expr *parser.ParenExpr, mQueryReq *structs.MetricsQueryRequest) error {
 	var err error
+
+	mQuery := &mQueryReq.MetricsQuery
 
 	switch expr.Expr.(type) {
 	case *parser.MatrixSelector:
-		err = handleCallExprMatrixSelectorNode(call, mQuery)
+		err = handleCallExprMatrixSelectorNode(call, mQueryReq)
 	case *parser.VectorSelector:
 		err = handleCallExprVectorSelectorNode(call, mQuery)
 	case *parser.ParenExpr:
-		err = handleCallExprParenExprNode(call, expr.Expr.(*parser.ParenExpr), mQuery)
+		err = handleCallExprParenExprNode(call, expr.Expr.(*parser.ParenExpr), mQueryReq)
 	}
 
 	return err
 }
 
-func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.MetricsQuery) error {
+func handleCallExprMatrixSelectorNode(expr *parser.Call, mQueryReq *structs.MetricsQueryRequest) error {
 	function := expr.Func.Name
 
 	timeWindow, step, err := extractTimeWindow(expr.Args)
@@ -442,8 +458,24 @@ func handleCallExprMatrixSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 		return fmt.Errorf("handleCallExprMatrixSelectorNode: cannot extract time window: %v", err)
 	}
 
-	if mQuery.TagsFilters != nil {
+	mQuery := &mQueryReq.MetricsQuery
+
+	if len(mQuery.TagsFilters) > 0 {
+		if mQuery.Groupby {
+			// If group by is already set, then the tagFilters that are added because of the group by should not be initial group
+			// As this grouping affects this range function group by
+			for _, tag := range mQuery.TagsFilters {
+				if tag.IsGroupByKey {
+					tag.NotInitialGroup = true
+				}
+			}
+		}
+
 		mQuery.Groupby = true
+	}
+
+	if step == 0 {
+		step = getStepValueFromTimeRange(&mQueryReq.TimeRange)
 	}
 
 	return handlePromQLRangeFunctionNode(function, timeWindow, step, expr, mQuery)
@@ -500,6 +532,10 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	default:
 		return fmt.Errorf("handlePromQLRangeFunctionNode: unsupported function type %v", functionName)
 	}
+
+	mQuery.LookBackToInclude = timeWindow
+	mQuery.SelectAllSeries = true
+	mQuery.GetAllLabels = true
 
 	return nil
 }
@@ -670,21 +706,18 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSeconds uint32) ([]*structs.MetricsQueryRequest, error) {
 	mQuery := &mQueryReqs[0].MetricsQuery
 	mQuery.HashedMName = xxhash.Sum64String(mQuery.MetricName)
-	mQuery.SelectAllSeries = true
 
 	// Use the innermost aggregator of the query as the aggregator for the downsampler
 	agg := structs.Aggregation{AggregatorFunction: segutils.Avg}
-	if mQuery.MQueryAggs != nil && mQuery.MQueryAggs.AggregatorBlock != nil {
-		agg.AggregatorFunction = mQuery.MQueryAggs.AggregatorBlock.AggregatorFunction
-		agg.FuncConstant = mQuery.MQueryAggs.AggregatorBlock.FuncConstant
-		agg.GroupByFields = mQuery.MQueryAggs.AggregatorBlock.GroupByFields
+	if mQuery.SubsequentAggs != nil && mQuery.SubsequentAggs.AggregatorBlock != nil {
+		agg.AggregatorFunction = mQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction
+		agg.FuncConstant = mQuery.SubsequentAggs.AggregatorBlock.FuncConstant
+		agg.GroupByFields = mQuery.SubsequentAggs.AggregatorBlock.GroupByFields
 	}
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
-	if len(mQuery.TagsFilters) > 0 {
-		mQuery.SelectAllSeries = false
-	} else {
+	if len(mQuery.TagsFilters) == 0 {
 		mQuery.SelectAllSeries = true
 	}
 
@@ -750,7 +783,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	arithmeticOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
 
-	if mQueryReqs[0].MetricsQuery.MQueryAggs == nil {
+	if mQueryReqs[0].MetricsQuery.SubsequentAggs == nil {
 		mQueryReqs = lhsRequest
 	} else if mQueryReqs[0].MetricsQuery.HashedMName == uint64(0) {
 		// This means there is a common group by on multiple metrics separated by operators.
@@ -795,11 +828,11 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 
 func appendMetricAggsToTheMQuery(mQueryReqs []*structs.MetricsQueryRequest, mQuery *structs.MetricsQuery) []*structs.MetricsQueryRequest {
 	for _, mQueryReq := range mQueryReqs {
-		currentAggs := mQueryReq.MetricsQuery.MQueryAggs
+		currentAggs := mQueryReq.MetricsQuery.SubsequentAggs
 		for currentAggs.Next != nil {
 			currentAggs = currentAggs.Next
 		}
-		currentAggs.Next = mQuery.MQueryAggs
+		currentAggs.Next = mQuery.SubsequentAggs
 
 		mQueryReq.MetricsQuery.Groupby = mQuery.Groupby
 		mQueryReq.MetricsQuery.SelectAllSeries = mQuery.SelectAllSeries
@@ -811,16 +844,21 @@ func appendMetricAggsToTheMQuery(mQueryReqs []*structs.MetricsQueryRequest, mQue
 func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.MetricQueryAgg) {
 
 	// If MQueryAggs is nil, set it to the new MetricQueryAgg
-	if mQuery.MQueryAggs == nil {
-		mQuery.MQueryAggs = mQueryAgg
+	if mQuery.SubsequentAggs == nil {
+		mQuery.SubsequentAggs = mQueryAgg
 	} else {
 		// Otherwise, set the new MetricQueryAgg to the head of the chain
 		// and set the current head as the next of the new MetricQueryAgg
-		mQueryAgg.Next = mQuery.MQueryAggs
-		mQuery.MQueryAggs = mQueryAgg
+		mQueryAgg.Next = mQuery.SubsequentAggs
+		mQuery.SubsequentAggs = mQueryAgg
 	}
 
 	// Reset the Function And Aggregator fields to handle the next function call correctly
 	mQuery.Function = structs.Function{}
-	mQuery.Aggregator = structs.Aggregation{}
+	mQuery.FirstAggregator = structs.Aggregation{}
+}
+
+func getStepValueFromTimeRange(timeRange *dtu.MetricsTimeRange) float64 {
+	step := float64(timeRange.EndEpochSec-timeRange.StartEpochSec) / structs.MAX_POINTS_TO_EVALUATE
+	return math.Max(step, 1)
 }

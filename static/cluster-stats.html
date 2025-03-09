@@ -44,7 +44,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery.dataTables.min.css" />
     <link rel="stylesheet" href="./css/lib/scroller.dataTables.min.css" />
-    <link rel="stylesheet" href="./css/siglens.css?v={{ CSSVersion }}" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
 
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
@@ -56,6 +56,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/jquery.dataTables.min.js"></script>
     <script src="./js/lib/dataTables.scroller.min.js"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
+
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -73,45 +75,45 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <div class="org-nav-tab subsection-navbar align-items-end justify-content-between">
                     <div class="d-flex flex-column justify-content-between align-items-end">
                         {{ .Button1 | safeHTML }}
+                    </div>
+                </div>
+                <div class="myOrg-inner-container" >
+                    <div class="align-items-end justify-content-between d-flex">
+                        <p class="caption">Track progress and performance </p>
                         <div class="dropdown mt-1" id="cstats-time-picker">
-                        <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                            data-bs-toggle="dropdown" title="Pick the time window">
-                            <span>Time Picker</span>
-                            <i class="dropdown-arrow"></i>
-                        </button>
-                        <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
-                            id="daterangepicker ">
-                            <p class="dt-header">Ingestion Stats for the last</p>
-                            <div class="ranges">
-                                <div class="inner-range">
-                                    <div id="now-1h" class="range-item">1 Hr</div>
-                                    <div id="now-7d" class="range-item active">7 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-3h" class="range-item">3 Hrs</div>
-                                    <div id="now-30d" class="range-item">30 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-6h" class="range-item">6 Hrs</div>
-                                    <div id="now-90d" class="range-item">90 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-12h" class="range-item">12 Hrs</div>
-                                    <div id="now-180d" class="range-item">180 Days</div>
-                                </div>
-                                <div class="inner-range">
-                                    <div id="now-24h" class="range-item">24 Hrs</div>
-                                    <div id="now-365d" class="range-item">1 Year</div>
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown" title="Pick the time window">
+                                <span>Time Picker</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                id="daterangepicker ">
+                                <p class="dt-header">Ingestion Stats for the last</p>
+                                <div class="ranges">
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="range-item">1 Hr</div>
+                                        <div id="now-7d" class="range-item active">7 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-3h" class="range-item">3 Hrs</div>
+                                        <div id="now-30d" class="range-item">30 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-6h" class="range-item">6 Hrs</div>
+                                        <div id="now-90d" class="range-item">90 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-12h" class="range-item">12 Hrs</div>
+                                        <div id="now-180d" class="range-item">180 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-24h" class="range-item">24 Hrs</div>
+                                        <div id="now-365d" class="range-item">1 Year</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        </div>
-                    </div>
-            </div>
-                <div class="myOrg-inner-container" >
-                    <div>
-                        <p class="caption">Track progress and performance </p>
+                            </div>
                     </div>
                     <p class="index-stats-header">Logs Stats</p>
                     <div class="chart-container">
@@ -249,17 +251,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     </div>
 
-    <script src="./js/navbar.js?cb=1_1_10"></script>
-    <script src="./js/cluster-stats.js"></script>
-    <script src="./js/event-handlers.js?cb=1_1_10"></script>
-    <script src="./js/common.js?cb=1_1_10"></script>
-    <script src="./js/available-fields.js?cb=1_1_10"></script>
-    <script src="./js/date-picker.js?cb=1_1_10"></script>
-    <script src="./js/search.js?cb=1_1_10"></script>
-    <script src="./js/saved-query.js?cb=1_1_10"></script>
-    <script src="./js/index.js?cb=1_1_10"></script>
-    <script src="./js/lib/chart.umd.min.js"></script>
-    <script src="./component/upper-navbar/upper-navbar.js"></script>
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/cluster-stats.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>    
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

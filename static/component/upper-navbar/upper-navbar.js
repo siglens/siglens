@@ -48,10 +48,9 @@
         return (new URL(url).pathname.match(/[^/]+\/?$/)[0] || '').replace(/\..+$/, '');
     }
 
-    $.fn.appendOrgNavTabs = function (header,buttonArray) {
+    $.fn.appendOrgNavTabs = function (buttonArray) {
         var htmlBlock = `
             <div>
-                <h1 class="myOrg-heading">${header}</h1>
                 <div class="section-buttons">
         `;
 

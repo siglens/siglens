@@ -28,11 +28,13 @@ import (
 	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
+	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	putils "github.com/siglens/siglens/pkg/integrations/prometheus/utils"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 )
 
@@ -288,18 +290,65 @@ func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) (
 	return groupKeyValuePairs, values
 }
 
+func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
+	if len(fields) == 0 {
+		return seriesId
+	}
+
+	fieldsSet := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		fieldsSet[field] = struct{}{}
+	}
+
+	parts := strings.Split(seriesId, ",")
+	var filteredParts []string
+	var metricName string
+
+	for i, part := range parts {
+		if i == 0 {
+			splitVals := strings.SplitN(part, "{", 2)
+			metricName = splitVals[0]
+
+			if len(splitVals) == 2 {
+				part = splitVals[1]
+			}
+		}
+
+		keyValue := strings.SplitN(part, ":", 2)
+		if len(keyValue) == 2 {
+			if _, exists := fieldsSet[keyValue[0]]; exists {
+				continue
+			}
+		}
+
+		filteredParts = append(filteredParts, part)
+	}
+
+	return metricName + "{" + strings.Join(filteredParts, ",")
+}
+
 // getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
 // The seriesId is in the format of "metricName{key1:value1,key2:value2,..."
 // If groupByFields is empty, it returns the "metricName{" as the group seriesId
 // If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
 // Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
 // The groupByFields are extracted from the seriesId
-func getAggSeriesId(seriesId string, groupByFields []string) string {
+func getAggSeriesId(seriesId string, aggregation *structs.Aggregation) string {
+	if aggregation == nil {
+		return seriesId
+	}
+
+	if aggregation.Without {
+		return GetSeriesIdWithoutFields(seriesId, aggregation.GroupByFields)
+	}
+
 	metricName := ExtractMetricNameFromGroupID(seriesId)
+	groupByFields := aggregation.GroupByFields
 
 	if len(groupByFields) == 0 {
 		return metricName + "{"
 	}
+
 	groupKeyValuePairs, _ := ExtractGroupByFieldsFromSeriesId(seriesId, groupByFields)
 	seriesId = metricName + "{" + strings.Join(groupKeyValuePairs, ",")
 	return seriesId
@@ -319,7 +368,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
 		for seriesId, timeSeries := range r.Results {
-			aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
+			aggSeriesId := getAggSeriesId(seriesId, &aggregation)
 			if _, ok := results[aggSeriesId]; !ok {
 				results[aggSeriesId] = make(map[uint32]float64, 0)
 				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -350,7 +399,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
 	for seriesId, timeSeries := range r.Results {
-		aggSeriesId := getAggSeriesId(seriesId, aggregation.GroupByFields)
+		aggSeriesId := getAggSeriesId(seriesId, &aggregation)
 		if _, ok := results[aggSeriesId]; !ok {
 			results[aggSeriesId] = make(map[uint32]float64, 0)
 			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -403,7 +452,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 /*
 Apply function to results for series sharing a groupid.
 */
-func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function) []error {
+func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) []error {
 
 	lock := &sync.Mutex{}
 	wg := &sync.WaitGroup{}
@@ -415,9 +464,9 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	var idx int
 	for grpID, timeSeries := range r.Results {
 		wg.Add(1)
-		go func(grp string, ts map[uint32]float64, function structs.Function) {
+		go func(grp string, ts map[uint32]float64, function structs.Function, timeRange *dtypeutils.MetricsTimeRange) {
 			defer wg.Done()
-			grpID, grpVal, err := ApplyFunction(grp, ts, function)
+			grpID, grpVal, err := ApplyFunction(grp, ts, function, timeRange)
 			if err != nil {
 				lock.Lock()
 				errList = append(errList, err)
@@ -427,7 +476,7 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 			lock.Lock()
 			results[grpID] = grpVal
 			lock.Unlock()
-		}(grpID, timeSeries, function)
+		}(grpID, timeSeries, function, timeRange)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -514,7 +563,7 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 	for grpId, results := range r.Results {
 		tags := make(map[string]string)
-		tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+		tagValues := strings.Split(RemoveTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
 		if len(tagKeys) != len(tagValues) {
 			err := fmt.Errorf("GetResults: the length of tag key and tag value pair must match. Tag Key: %v; Tag Value: %v", tagKeys, tagValues)
 			return nil, err
@@ -534,46 +583,160 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 	return retVal, nil
 }
 
-func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsQueryResponsePromQl, error) {
+func getPromQLSeriesFormat(seriesId string) map[string]string {
+	tagValues := strings.Split(RemoveTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
+
+	var keyValue []string
+	metric := make(map[string]string)
+	metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
+	for idx, val := range tagValues {
+		if idx == 0 {
+			keyValue = strings.SplitN(removeMetricNameFromGroupID(val), ":", 2)
+		} else {
+			keyValue = strings.SplitN(val, ":", 2)
+		}
+
+		if len(keyValue) > 1 {
+			metric[keyValue[0]] = keyValue[1]
+		}
+	}
+
+	return metric
+}
+
+func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueType, timestamp uint32) (*structs.MetricsPromQLInstantQueryResponse, error) {
+	var pqlData structs.PromQLInstantData
+
+	switch pqlQueryType {
+	case parser.ValueTypeScalar:
+		pqlData.ResultType = pqlQueryType
+		pqlData.SliceResult = []interface{}{timestamp, fmt.Sprintf("%v", r.ScalarValue)}
+	case parser.ValueTypeString:
+		// TODO: Implement this
+		return nil, errors.New("GetResultsPromQlInstantQuery: ValueTypeString is not supported")
+	case parser.ValueTypeVector:
+		pqlData.ResultType = pqlQueryType
+		for seriesId, results := range r.Results {
+			if len(results) == 0 {
+				continue
+			}
+
+			metricSeries := getPromQLSeriesFormat(seriesId)
+
+			result := structs.InstantVectorResult{
+				Metric: metricSeries,
+			}
+
+			floatValue, ok := results[timestamp]
+			if ok {
+				result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+				pqlData.VectorResult = append(pqlData.VectorResult, result)
+				continue
+			}
+
+			// TODO: Inspect on whether we should ensure that the timestamp is present in the results?
+
+			// In the case where the timestamp is not present in the results
+			if len(results) > 2 {
+				// If the results have more than 2 timestamps, this should not happen.
+				// As the startTime = timestamp - 1 and endTime = timestamp, and intervalSeconds = 1
+				// So, the results should have only 2 timestamps
+				log.Errorf("GetResultsPromQlInstantQuery: More than 2 timestamps found in the results for seriesId: %v", seriesId)
+				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
+			}
+
+			maxTimestamp := uint32(0)
+			floatValue = 0
+			for ts, val := range results {
+				if ts > maxTimestamp {
+					maxTimestamp = ts
+					floatValue = val
+				}
+			}
+
+			result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+			pqlData.VectorResult = append(pqlData.VectorResult, result)
+		}
+	case parser.ValueTypeMatrix:
+		return nil, errors.New("ValueTypeMatrix is not supported for Instant Queries")
+	default:
+		return nil, fmt.Errorf("GetResultsPromQlInstantQuery: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	return &structs.MetricsPromQLInstantQueryResponse{
+		Status: "success",
+		Data:   &pqlData,
+	}, nil
+}
+
+func (r *MetricsResult) GetResultsPromQl(mQuery *structs.MetricsQuery, pqlQuerytype parser.ValueType) (*structs.MetricsPromQLRangeQueryResponse, error) {
 	if r.State != AGGREGATED {
 		return nil, fmt.Errorf("GetResultsPromQl: results is not in aggregated state, state: %v", r.State)
 	}
-	var pqldata structs.Data
+	var pqldata structs.PromQLRangeData
 
 	switch pqlQuerytype {
 	case parser.ValueTypeVector, parser.ValueTypeMatrix:
-		pqldata.ResultType = parser.ValueType("vector")
-		for grpId, results := range r.Results {
+		pqldata.ResultType = parser.ValueType("matrix")
+		for seriesId, results := range r.Results {
+			metricSeries := getPromQLSeriesFormat(seriesId)
 
-			tagValues := strings.Split(removeTrailingComma(grpId), tsidtracker.TAG_VALUE_DELIMITER_STR)
-
-			var result structs.Result
-			var keyValue []string
-			result.Metric = make(map[string]string)
-			result.Metric["__name__"] = ExtractMetricNameFromGroupID(grpId)
-			for idx, val := range tagValues {
-				if idx == 0 {
-					keyValue = strings.Split(removeMetricNameFromGroupID(val), ":")
-				} else {
-					keyValue = strings.Split(val, ":")
-				}
-				if len(keyValue) > 1 {
-					result.Metric[keyValue[0]] = keyValue[1]
-				}
+			result := &structs.RangeVectorResult{
+				Metric: metricSeries,
+				Values: make([]interface{}, 0, len(results)),
 			}
+
 			for k, v := range results {
-				result.Value = append(result.Value, []interface{}{int64(k), fmt.Sprintf("%v", v)})
+				result.Values = append(result.Values, []interface{}{int64(k), fmt.Sprintf("%v", v)})
 			}
-			pqldata.Result = append(pqldata.Result, result)
+
+			sort.Slice(result.Values, func(i, j int) bool {
+				return result.Values[i].([]interface{})[0].(int64) < result.Values[j].([]interface{})[0].(int64)
+			})
+
+			pqldata.Result = append(pqldata.Result, *result)
 		}
 	default:
 		return nil, fmt.Errorf("GetResultsPromQl: Unsupported PromQL query result type: %v", pqlQuerytype)
 	}
-	return &structs.MetricsQueryResponsePromQl{
+	return &structs.MetricsPromQLRangeQueryResponse{
 		Status: "success",
-		Data:   pqldata,
+		Data:   &pqldata,
 	}, nil
 }
+
+func (r *MetricsResult) GetResultsPromQlForScalarType(pqlQueryType parser.ValueType, startTime, endTime uint32, step uint32) (*structs.MetricsPromQLRangeQueryResponse, error) {
+	if pqlQueryType != parser.ValueTypeScalar {
+		return nil, fmt.Errorf("GetResultsPromQlForScalarType: Unsupported PromQL query result type: %v", pqlQueryType)
+	}
+
+	var pqlData structs.PromQLRangeData
+	pqlData.ResultType = parser.ValueType("matrix")
+
+	scalarValue := r.ScalarValue
+
+	evalTime := startTime
+
+	pqlData.Result = make([]structs.RangeVectorResult, 1)
+
+	values := make([]interface{}, 0)
+
+	for evalTime <= endTime {
+		values = append(values, []interface{}{evalTime, fmt.Sprintf("%v", scalarValue)})
+		evalTime += step
+	}
+
+	pqlData.Result[0] = structs.RangeVectorResult{
+		Metric: map[string]string{},
+		Values: values,
+	}
+
+	return &structs.MetricsPromQLRangeQueryResponse{
+		Status: "success",
+		Data:   &pqlData,
+	}, nil
+}
+
 func (res *MetricsResult) GetMetricTagsResultSet(mQuery *structs.MetricsQuery) ([]string, []string, error) {
 	if res.State != SERIES_READING {
 		return nil, nil, fmt.Errorf("GetMetricTagsResultSet: results is not in Series Reading state, state: %v", res.State)
@@ -673,7 +836,7 @@ func (r *MetricsResult) GetResultsPromQlForUi(mQuery *structs.MetricsQuery, pqlQ
 	return httpResp, nil
 }
 
-func removeTrailingComma(s string) string {
+func RemoveTrailingComma(s string) string {
 	return strings.TrimSuffix(s, ",")
 }
 
@@ -691,7 +854,7 @@ func (r *MetricsResult) FetchScalarMetricsForUi(finalSearchText string, pqlQuerr
 	httpResp.IntervalSec = calculatedInterval
 
 	httpResp.Series = append(httpResp.Series, finalSearchText)
-	httpResp.Values = append(httpResp.Values, []*float64{&r.ScalarValue})
+	httpResp.Values = append(httpResp.Values, []*float64{sanitizeFloatValue(r.ScalarValue)})
 	httpResp.Timestamps = []uint32{uint32(endTime)}
 
 	return httpResp, nil
@@ -731,7 +894,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 
 	for grpId, results := range r.Results {
 		groupId := grpId
-		groupId = removeTrailingComma(groupId)
+		groupId = RemoveTrailingComma(groupId)
 		groupId += "}"
 		httpResp.Series = append(httpResp.Series, groupId)
 
@@ -739,7 +902,7 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 		for i, ts := range httpResp.Timestamps {
 			// Check if there is a value for the current timestamp in results.
 			if v, ok := results[uint32(ts)]; ok {
-				values[i] = &v
+				values[i] = sanitizeFloatValue(v)
 			} else {
 				values[i] = nil
 			}
@@ -749,6 +912,13 @@ func (r *MetricsResult) FetchPromqlMetricsForUi(mQuery *structs.MetricsQuery, pq
 	}
 
 	return httpResp, nil
+}
+
+func sanitizeFloatValue(val float64) *float64 {
+	if math.IsInf(val, -1) || math.IsInf(val, 1) || math.IsNaN(val) {
+		return nil
+	}
+	return &val
 }
 
 func CalculateInterval(timerangeSeconds uint32) (uint32, error) {
@@ -866,7 +1036,7 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 
 	if len(aggregation.GroupByFields) > 0 {
 		for grpID, timeSeries := range seriesEntriesMap {
-			seriesId := getAggSeriesId(grpID, aggregation.GroupByFields)
+			seriesId := getAggSeriesId(grpID, &aggregation)
 			if _, exists := seriesIdEntriesMap[seriesId]; !exists {
 				seriesIdEntriesMap[seriesId] = make(map[uint32]map[string]struct{})
 			}

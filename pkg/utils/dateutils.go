@@ -189,7 +189,10 @@ func ParseTimeForPromQL(timeParam string) (uint32, error) {
 	// Try to parse as float (Unix timestamp)
 	parsedFloat, err := strconv.ParseFloat(timeParam, 64)
 	if err == nil {
-		return uint32(math.Round(parsedFloat)), nil
+		// If the value is a float, we will floor it to the nearest integer
+		// This is because our timestamps are in seconds. So during ingestion, even if the timestamp
+		// for example is given 1741106611.65, we would store it as 1741106611
+		return uint32(math.Floor(parsedFloat)), nil
 	}
 
 	// Try to parse as RFC3339 timestamp

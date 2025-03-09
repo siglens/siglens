@@ -18,6 +18,8 @@
 package structs
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path"
@@ -32,6 +34,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// https://github.com/prometheus/prometheus/blob/e483cff61ff1b68e8925db1059393c4d36af9df5/web/ui/react-app/src/pages/graph/Panel.tsx#L114
+const MAX_POINTS_TO_EVALUATE float64 = 250
+
 /*
 Struct to represent a single metrics query request.
 */
@@ -41,32 +46,48 @@ type MetricsQuery struct {
 	MetricNameRegexPattern string            // regex pattern to apply on metric name
 	QueryHash              uint64            // hash of the query
 	HashedMName            uint64
-	PqlQueryType           parser.ValueType // promql query type
-	Aggregator             Aggregation
-	Function               Function
-	Downsampler            Downsampler
-	TagsFilters            []*TagsFilter    // all tags filters to apply
-	TagIndicesToKeep       map[int]struct{} // indices of tags to keep in the result
-	SelectAllSeries        bool             //flag to select all series - for promQl
+	// Some queries include lookback time and for those queries, this field will be set.
+	// Example: sum_over_time(metrics[1m]) - in this case, the LookBackToInclude will be the 1m
+	LookBackToInclude float64
+	PqlQueryType      parser.ValueType // promql query type
+	Downsampler       Downsampler
+	TagsFilters       []*TagsFilter    // all tags filters to apply
+	TagIndicesToKeep  map[int]struct{} // indices of tags to keep in the result
+	reordered         bool             // if the tags filters have been reordered
+	numStarFilters    int              // index such that TagsFilters[:numStarFilters] are all star filters
+	numValueFilters   uint32           // number of value filters
 
-	MQueryAggs *MetricQueryAgg
+	// TODO: remove this. It's currently used only temporarily, to copy the
+	// value into SubsequentAggs, and then SubsequentAggs.FunctionBlock is
+	// used.
+	Function Function
 
-	reordered       bool   // if the tags filters have been reordered
-	numStarFilters  int    // index such that TagsFilters[:numStarFilters] are all star filters
-	numValueFilters uint32 // number of value filters
-	OrgId           int64  // organization id
+	// If set, the query needs to get all series for the matched metrics to
+	// compute the result, but the result may be an aggregation, so fewer
+	// series may be returned
+	SelectAllSeries bool
+
+	FirstAggregator Aggregation
+	SubsequentAggs  *MetricQueryAgg
+
+	OrgId int64 // organization id
 
 	ExitAfterTagsSearch bool // flag to exit after raw tags search
 	TagValueSearchOnly  bool // flag to search only tag values
-	GetAllLabels        bool // flag to get all label sets for each time series
+	GetAllLabels        bool // If set, the query should return all series for the matched metrics
 	Groupby             bool // flag to group by tags
 	GroupByMetricName   bool // flag to group by metric name
 }
 
+// This is used to aggregate multiple things into fewer things. Currently, two
+// use cases:
+// 1. Aggregate multiple series into fewer series (e.g., sum with an optional group by).
+// 2. Aggregate points in a series into fewer points (e.g., when used by a downsampler).
 type Aggregation struct {
 	AggregatorFunction utils.AggregateFunctions //aggregator function
 	FuncConstant       float64
 	GroupByFields      []string // group by fields will be sorted
+	Without            bool     // if set exclude the above group by fields
 }
 
 type MetricsFunctionType uint8
@@ -99,6 +120,9 @@ type LabelFunctionExpr struct {
 	GobRegexp        *toputils.GobbableRegex
 }
 
+// This works on a per-series basis. Generally, it changes the values in a
+// series or changes the series itself (e.g., changes a label), but doesn't
+// aggregate multiple series together.
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
@@ -142,6 +166,8 @@ type TagsFilter struct {
 	TagOperator     utils.TagOperator
 	LogicalOperator utils.LogicalOperator
 	NotInitialGroup bool
+	IgnoreTag       bool
+	IsGroupByKey    bool
 }
 
 type MetricsQueryResponse struct {
@@ -154,21 +180,46 @@ type Label struct {
 	Name, Value string
 }
 
-type Result struct {
-	Metric map[string]string `json:"metric"`
-	Value  []interface{}     `json:"values"`
+type RangeVectorResult struct {
+	Metric     map[string]string `json:"metric,omitempty"`
+	Values     []interface{}     `json:"values"`
+	Histograms []interface{}     `json:"histograms,omitempty"`
 }
 
-type Data struct {
-	ResultType parser.ValueType `json:"resultType"`
-	Result     []Result         `json:"result,omitempty"`
+type InstantVectorResult struct {
+	Metric    map[string]string `json:"metric,omitempty"`
+	Value     []interface{}     `json:"value"`
+	Histogram []interface{}     `json:"histogram,omitempty"`
 }
-type MetricsQueryResponsePromQl struct {
-	Status    string   `json:"status"` //success/error
-	Data      Data     `json:"data"`
-	ErrorType string   `json:"errorType"`
-	Error     string   `json:"error"`
-	Warnings  []string `json:"warnings"`
+
+type PromQLRangeData struct {
+	ResultType parser.ValueType    `json:"resultType"`
+	Result     []RangeVectorResult `json:"result,omitempty"`
+}
+
+type PromQLInstantData struct {
+	ResultType   parser.ValueType      `json:"resultType"`
+	Result       interface{}           `json:"result,omitempty"`
+	VectorResult []InstantVectorResult `json:"-"`
+	SliceResult  []interface{}         `json:"-"`
+}
+
+type MetricsQueryErrorPromQL struct {
+	ErrorType string   `json:"errorType,omitempty"`
+	Error     string   `json:"error,omitempty"`
+	Warnings  []string `json:"warnings,omitempty"`
+}
+
+type MetricsPromQLRangeQueryResponse struct {
+	Status string           `json:"status"` //success/error
+	Data   *PromQLRangeData `json:"data"`
+	MetricsQueryErrorPromQL
+}
+
+type MetricsPromQLInstantQueryResponse struct {
+	Status string             `json:"status"` //success/error
+	Data   *PromQLInstantData `json:"data"`
+	MetricsQueryErrorPromQL
 }
 
 /*
@@ -308,6 +359,27 @@ const (
 type TagValueIndex struct {
 	tagValueType TagValueType
 	index        int
+}
+
+func (d *PromQLInstantData) MarshalJSON() ([]byte, error) {
+	if d == nil {
+		return nil, nil
+	}
+
+	switch d.ResultType {
+	case parser.ValueTypeVector:
+		d.Result = d.VectorResult
+	case parser.ValueTypeScalar, parser.ValueTypeString:
+		d.Result = d.SliceResult
+	default:
+		return nil, fmt.Errorf("unsupported result type: %v", d.ResultType)
+	}
+
+	type Alias PromQLInstantData
+
+	aliasData := (*Alias)(d)
+
+	return json.Marshal(aliasData)
 }
 
 /*

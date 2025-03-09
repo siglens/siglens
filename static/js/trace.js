@@ -153,6 +153,8 @@ function getTraceInformation(traceId, timestampNano) {
     //eslint-disable-next-line no-unused-vars
     const windowEnd = timestampMS + windowMs;
 
+    $('#timeline-container').empty();
+
     $.ajax({
         method: 'POST',
         url: 'api/traces/ganttchart',
@@ -169,10 +171,25 @@ function getTraceInformation(traceId, timestampNano) {
         }),
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        traceDetails(res);
-        displayTimeline(res);
-    });
+    })
+        .then(function (res) {
+            traceDetails(res);
+            displayTimeline(res);
+        })
+        .fail(function (jqXHR) {
+            let errorMessage;
+
+            if (jqXHR.status === 504) {
+                errorMessage = 'Request timed out. The server took too long to respond. Please try again.';
+            } else {
+                errorMessage = `${jqXHR.responseText}`;
+            }
+            $('#timeline-container').html(`
+                <div id="empty-response">
+                    Error fetching trace: ${errorMessage}
+                </div>
+            `);
+        });
 }
 
 $('.back-to-search-traces').on('click', function () {

@@ -50,3 +50,6 @@ queryTimeoutSecs: 300  # 5 minutes default
 # memoryLimits:
 #   lowMemoryMode: true  # Set to true to enable low memory mode
 #   maxUsagePercent: 80  # Percent of available RAM that siglens will occupy
+
+## Pause SigLens from starting up. 
+#pauseMode: true
