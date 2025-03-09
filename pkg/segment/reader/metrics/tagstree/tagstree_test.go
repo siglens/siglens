@@ -28,6 +28,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/config"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
@@ -112,7 +113,7 @@ func generateOrQueryMockMetrics(t *testing.T, numSeries uint64, generate bool,
 	tvPrefix := tvPrefixConst + "0-"
 	tvPrefIter := 1
 	tvArrIter := 0
-
+	verifyCount := uint64(0)
 	for serCount := uint64(0); serCount < numSeries; serCount++ {
 
 		mname := fmt.Sprintf("%v%v", mPrefix, mCnt)
@@ -129,6 +130,11 @@ func generateOrQueryMockMetrics(t *testing.T, numSeries uint64, generate bool,
 			tags[tkName] = fmt.Sprintf("%v%v", tvPrefix, tvCnt[i]%numTagValues)
 			if !generate {
 				verifyMetric(t, attr, mname, tkName, tags[tkName].(string))
+				verifyCount++
+				if verifyCount%2000 == 0 {
+					log.Infof("Verified: 2k queries, serCount: %v, totalVerified: %v",
+						humanize.Comma(int64(serCount)), humanize.Comma(int64(verifyCount)))
+				}
 			}
 		}
 
