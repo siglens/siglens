@@ -29,8 +29,8 @@ git clone https://github.com/siglens/siglens.git --branch 1.0.25
 
 # Build and launch SigLens
 cd "$SIGLENS_SRC"
-/usr/bin/go mod tidy
-/usr/bin/go  build -o siglens cmd/siglens/main.go
+go mod tidy
+go  build -o siglens cmd/siglens/main.go
 ./siglens &> siglens.out &
 
 
