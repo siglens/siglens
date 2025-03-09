@@ -2879,12 +2879,10 @@ async function getFunctions() {
 async function refreshMetricsGraphs() {
     dayCnt7 = 0;
     dayCnt2 = 0;
-    const newMetricNames = await getMetricNames();
-    newMetricNames.metricNames.sort();
+    await getMetricNames();
 
     isLoadingMore = false;
 
-    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
     const firstKey = Object.keys(queries)[0];
 
     if (queries[firstKey].metrics || queries[firstKey].state === 'raw') {
