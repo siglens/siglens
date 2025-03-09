@@ -155,7 +155,6 @@ $(document).ready(async function () {
 
 function getUrlParameter(name) {
     //eslint-disable-next-line no-useless-escape
-
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
     let results = regex.exec(location.search);
@@ -1448,7 +1447,7 @@ function loadMoreItems(menu, input) {
 
         menu.append(fragment);
 
-        menu.off('mousedown.loadmore').on('mousedown.loadmore', '.ui-menu-item-wrapper', function (e) {
+        menu.off('mousedown.loadmore').on('mousedown.loadmore', '.ui-menu-item-wrapper', function () {
             const value = $(this).text();
 
             input.val(value);
