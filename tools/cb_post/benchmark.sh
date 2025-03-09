@@ -9,7 +9,7 @@
 #Current directory should be on a disk with around 600GB of free space
 CWD=`/usr/bin/pwd`
 
-#Set SRC to a directory on a disk that has atleast 70GB free space
+#Set SRC to a directory on a disk that has atleast 50GB free space
 SRC="/data1/src"
 SIGLENS_SRC="$SRC/siglens"
 
