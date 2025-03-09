@@ -108,7 +108,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 ## Code of Conduct
 Please review our [code of conduct](https://github.com/siglens/siglens?tab=coc-ov-file#siglens-code-of-conduct) before contributing.
 
-## Thanks to all contributors for their efforts
+## Thanks to all contributors for their efforts abc
 
 <a href="https://github.com/siglens/siglens/graphs/contributors" target="_blank">
   <img src="https://contrib.rocks/image?repo=siglens/siglens" />
