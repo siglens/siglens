@@ -58,7 +58,7 @@ func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 
 func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
-		alreadyHandled := hook(ctx, 0 /* TODO */, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
+		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_PROMETHEUS_METRICS, false)
 		if alreadyHandled {
 			return
 		}
@@ -149,7 +149,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
 			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", modifiedData, err)
+				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", string(modifiedData), err)
 				failedCount++
 			} else {
 				successCount++
