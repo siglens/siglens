@@ -53,6 +53,11 @@ var colorPalette = {
     Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
+let cachedMetrics = [];
+let isLoadingMore = false;
+const ITEMS_PER_PAGE = 20;
+let currentSearchTerm = '';
+
 // Function to check if CSV can be downloaded
 function canDownloadCSV() {
     for (let key in chartDataCollection) {
@@ -114,6 +119,7 @@ $(document).ready(async function () {
 
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
+
     allFunctions = await getFunctions();
     functionsArray = allFunctions.map(function (item) {
         return item.fn;
@@ -145,6 +151,10 @@ $(document).ready(async function () {
     createTooltip('#run-filter-btn', 'Run query');
     createTooltip('.download-all-logs-btn', 'Download');
     createTooltip('.refresh-btn', 'Refresh');
+
+    $(document).on('input', '.raw-query-input', function () {
+        autoResizeTextarea(this);
+    });
 });
 
 function getUrlParameter(name) {
@@ -711,7 +721,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
+                <textarea class="raw-query-input" placeholder="Enter your query here"></textarea><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
         <div>
@@ -852,6 +862,10 @@ function setupQueryElementEventListeners(queryElement) {
             if (!queryDetails.rawQueryExecuted) {
                 queryDetails.rawQueryInput = queryString;
                 queryElement.find('.raw-query-input').val(queryString);
+
+                setTimeout(function () {
+                    autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+                }, 10);
             } else {
                 queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
             }
@@ -1017,31 +1031,72 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     queryElement
         .find('.metrics')
         .autocomplete({
-            source: availableMetrics.sort(),
+            delay: 300,
             minLength: 0,
+            classes: {
+                'ui-autocomplete': 'metrics-ui-widget',
+            },
+            source: function (request, response) {
+                const input = $(this);
+                const searchTerm = request.term.toLowerCase();
+                currentSearchTerm = request.term.toLowerCase();
+
+                input.data('current-filter', currentSearchTerm);
+
+                setTimeout(function () {
+                    const matches = cachedMetrics.filter((item) => item.toLowerCase().indexOf(searchTerm) >= 0).slice(0, ITEMS_PER_PAGE);
+                    response(matches);
+                }, 0);
+            },
             select: async function (event, ui) {
                 queryDetails.metrics = ui.item.value;
                 getQueryDetails(queryName, queryDetails);
+
                 const tagsAndValue = await getTagKeyValue(ui.item.value);
                 availableEverything = tagsAndValue.availableEverything[0];
                 availableEverywhere = tagsAndValue.availableEverywhere;
                 queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+
                 $(this).blur();
-                adjustInputWidth(this);
+                setTimeout(() => {
+                    adjustInputWidth(this);
+                }, 10);
             },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
+            open: function () {
+                const menu = $(this).autocomplete('widget');
+                const input = $(this);
+
+                menu.css({
+                    'max-height': '300px',
+                    'overflow-y': 'auto',
+                    'overflow-x': 'hidden',
+                });
+
+                menu.off('scroll.metrics').on('scroll.metrics', function () {
+                    if (isLoadingMore) return;
+
+                    const scrollBottom = $(this).scrollTop() + $(this).innerHeight();
+                    const scrollHeight = this.scrollHeight;
+                    if (scrollBottom >= scrollHeight - 50) {
+                        loadMoreItems(menu, input);
+                    }
+                });
             },
         })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
+        .on('click', function (e) {
+            e.stopPropagation();
+            const $this = $(this);
+
+            if ($this.autocomplete('widget').is(':visible')) {
+                $this.autocomplete('close');
             } else {
-                $(this).autocomplete('search', '');
+                $this.autocomplete('search', '');
+                currentSearchTerm = '';
+                $this.focus();
             }
         })
-        .on('click', function () {
+        .on('focus', function () {
             $(this).select();
         })
         .on('close', function (_event) {
@@ -1368,6 +1423,52 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
 
     queries[queryElement.find('.query-name').text()] = queryDetails;
     previousQuery = queryDetails;
+}
+
+function loadMoreItems(menu, input) {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+
+    const currentCount = menu.find('li').length;
+    const term = currentSearchTerm || '';
+    const nextBatch = cachedMetrics.filter((item) => item.toLowerCase().indexOf(term) >= 0).slice(currentCount, currentCount + ITEMS_PER_PAGE);
+
+    if (nextBatch.length > 0) {
+        const fragment = document.createDocumentFragment();
+
+        nextBatch.forEach((item) => {
+            const li = document.createElement('li');
+            li.className = 'ui-menu-item';
+
+            const div = document.createElement('div');
+            div.className = 'ui-menu-item-wrapper';
+            div.textContent = item;
+
+            li.appendChild(div);
+            fragment.appendChild(li);
+
+            $(li).data('ui-autocomplete-item', {
+                label: item,
+                value: item,
+            });
+        });
+
+        menu.append(fragment);
+
+        menu.off('mousedown.loadmore').on('mousedown.loadmore', '.ui-menu-item-wrapper', function () {
+            const value = $(this).text();
+
+            input.val(value);
+            input.autocomplete('instance')._trigger('select', 'autocompleteselect', {
+                item: { label: value, value: value },
+            });
+
+            input.autocomplete('close');
+            return false;
+        });
+    }
+
+    isLoadingMore = false;
 }
 
 function updateCloseIconVisibility() {
@@ -2334,6 +2435,7 @@ async function getMetricNames() {
             start: filterStartDate,
             end: filterEndDate,
         };
+
         const res = await $.ajax({
             method: 'post',
             url: 'metrics-explorer/api/v1/metric_names',
@@ -2347,7 +2449,10 @@ async function getMetricNames() {
         });
 
         if (res) {
-            availableMetrics = res.metricNames;
+            availableMetrics = res.metricNames.sort();
+            cachedMetrics = res.metricNames.slice();
+
+            isLoadingMore = false;
         }
 
         return res;
@@ -2741,10 +2846,10 @@ async function getFunctions() {
 async function refreshMetricsGraphs() {
     dayCnt7 = 0;
     dayCnt2 = 0;
-    const newMetricNames = await getMetricNames();
-    newMetricNames.metricNames.sort();
+    await getMetricNames();
 
-    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
+    isLoadingMore = false;
+
     const firstKey = Object.keys(queries)[0];
 
     if (queries[firstKey].metrics || queries[firstKey].state === 'raw') {
@@ -2937,6 +3042,10 @@ async function populateQueryElement(queryElement, queryDetails) {
         queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
+
+        setTimeout(function () {
+            autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+        }, 10);
     } else {
         // Set the metric
         queryElement.find('.metrics').val(queryDetails.metrics);
@@ -3252,3 +3361,19 @@ function getMetricsDataForSave(qname, qdesc) {
         metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
+
+function autoResizeTextarea(textarea) {
+    textarea.style.height = '26px';
+
+    if (textarea.scrollHeight > 26) {
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+}
+
+function resizeAllTextareas() {
+    const textareas = document.querySelectorAll('.raw-query-input');
+    textareas.forEach(autoResizeTextarea);
+}
+
+window.addEventListener('resize', resizeAllTextareas);
+document.addEventListener('DOMContentLoaded', resizeAllTextareas);

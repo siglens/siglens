@@ -541,9 +541,7 @@
   align-items: center;
   font-size: 24px;
   font-weight: 700;
-  height: 100%;
   width: 100%;
-  background-color: var(--datatable-bg-color);
   border-radius: 5px;
 }
 
