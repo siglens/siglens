@@ -18,7 +18,7 @@
  */
 
 
- :root {
+:root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -846,9 +846,8 @@ body {
     display: none;
 }
 
-/* Reset .menu.active to avoid broad application */
 #app-side-nav .menu.active {
-    border-left: none !important; /* Prevent default active styling */
+    border-left: none !important;
 }
 
 #app-side-nav .menu {
@@ -3503,7 +3502,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--navbar-link-text-active);
 }
 
-#app-side-nav .menu.active .nav-link-text-drpdwn{
+#app-side-nav .menu.active .nav-link-text-drpdwn {
     color: var(--navbar-link-text);
 }
 
@@ -5686,7 +5685,7 @@ p#versionInfo {
 
 .traces-dropdown a,
 .metrics-dropdown a,
-.ingestion-dropdown a{
+.ingestion-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -5709,7 +5708,7 @@ p#versionInfo {
 
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
-.ingestion-dropdown li:hover{
+.ingestion-dropdown li:hover {
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
@@ -5721,7 +5720,8 @@ p#versionInfo {
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active {
     color: white !important;
-    border-left: 5px solid var(--side-nav-selected-border-color) !important; /* Orange bar for submenu */
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
     border-radius: 0 5px 5px 0 !important;
 }
@@ -6731,18 +6731,10 @@ p#versionInfo {
     background-color: var(--bg-color);
 }
 
-.copy-json-button {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    color: #666;
-    margin-left: auto;
-    padding: 5px;
-}
-
-.copy-json-button:hover {
-    color: #000;
+.json-content-type-box .copy-icon {
+    position: relative;
+    top: 0;
+    right: 0;
 }
 
 .json-popup-header-buttons>div:last-child {
@@ -6997,7 +6989,7 @@ p#versionInfo {
     position: sticky;
     top: 0;
     background: var(--side-nav-bg-color-regular);
-    z-index: 10; 
+    z-index: 10;
 }
 
 .nav-footer {
