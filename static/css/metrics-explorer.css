@@ -613,3 +613,8 @@ input:checked+.slider:before {
     margin-right: 10px;
     border-radius: 5px !important;
 }
+
+.panelDisplay .panEdit-panel .merged-graph {
+    height: calc(30vh - 65px);
+    padding: 0;
+}

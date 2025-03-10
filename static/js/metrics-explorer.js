@@ -2154,6 +2154,7 @@ $('#json-block').on('click', function () {
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     var colorIndex = 0;
+    var mergedCanvas, legendContainer;
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
@@ -2163,19 +2164,23 @@ function mergeGraphs(chartType, panelId = -1) {
         var panelChartEl;
         if (panelId === -1) {
             panelChartEl = $(`.panelDisplay .panEdit-panel`);
+            panelChartEl.empty(); // Clear any existing content
+
+            var mergedGraphDiv = $('<div class="merged-graph"></div>');
+            panelChartEl.append(mergedGraphDiv);
+
+            mergedCanvas = $('<canvas></canvas>');
+            legendContainer = $('<div class="legend-container"></div>');
+            mergedGraphDiv.append(mergedCanvas);
+            mergedGraphDiv.append(legendContainer);
         } else {
             panelChartEl = $(`#panel${panelId} .panEdit-panel`);
             panelChartEl.css('width', '100%').css('height', '100%');
+
+            panelChartEl.empty(); // Clear any existing content
+            mergedCanvas = $('<canvas></canvas>');
+            panelChartEl.append(mergedCanvas);
         }
-
-        panelChartEl.empty(); // Clear any existing content
-
-        var mergedCanvas = $('<canvas></canvas>');
-        var legendContainer = $('<div class="legend-container"></div>');
-
-        panelChartEl.append(mergedCanvas);
-        panelChartEl.append(legendContainer);
-
         mergedCtx = mergedCanvas[0].getContext('2d');
     } else {
         // For metrics explorer page
@@ -2185,8 +2190,8 @@ function mergeGraphs(chartType, panelId = -1) {
 
         $('#merged-graph-container').empty().append(visualizationContainer);
 
-        var mergedCanvas = $('<canvas></canvas>');
-        var legendContainer = $('<div class="legend-container"></div>');
+        mergedCanvas = $('<canvas></canvas>');
+        legendContainer = $('<div class="legend-container"></div>');
 
         $('.merged-graph').empty().append(mergedCanvas).append(legendContainer);
         mergedCtx = mergedCanvas[0].getContext('2d');
@@ -2306,19 +2311,15 @@ function mergeGraphs(chartType, panelId = -1) {
         },
     });
 
-    var legendContainerEl = isDashboardScreen ? (panelId === -1 ? $(`.panelDisplay .panEdit-panel .legend-container`) : $(`#panel${panelId} .panEdit-panel .legend-container`)) : $('.merged-graph .legend-container');
-    generateCustomLegend(mergedLineChart, legendContainerEl[0]);
+    // Only generate and display legend for panelId == -1 or metrics explorer
+    if (!isDashboardScreen || panelId === -1) {
+        var legendContainerEl = isDashboardScreen ? $(`.panelDisplay .panEdit-panel .merged-graph .legend-container`) : $('.merged-graph .legend-container');
+        generateCustomLegend(mergedLineChart, legendContainerEl[0]);
+    }
 
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
-const shouldShowLegend = (panelId, datasets) => {
-    if ($('#overview-button').hasClass('active')) {
-        return true; // Show legends for panel overview
-    } else {
-        return panelId === -1 || datasets.length < 5; // Hide legends for panel with more than 5 legends
-    }
-};
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
@@ -2491,6 +2492,7 @@ function displayErrorMessage(container, message) {
         const errorSpan = $('<span></span>').addClass('error-message').text(message);
         panelContainer.append(errorSpan);
     }
+    $('.legend-container').hide();
 }
 
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
