@@ -151,6 +151,10 @@ $(document).ready(async function () {
     createTooltip('#run-filter-btn', 'Run query');
     createTooltip('.download-all-logs-btn', 'Download');
     createTooltip('.refresh-btn', 'Refresh');
+
+    $(document).on('input', '.raw-query-input', function () {
+        autoResizeTextarea(this);
+    });
 });
 
 function getUrlParameter(name) {
@@ -717,7 +721,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
+                <textarea class="raw-query-input" placeholder="Enter your query here"></textarea><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
         <div>
@@ -858,6 +862,10 @@ function setupQueryElementEventListeners(queryElement) {
             if (!queryDetails.rawQueryExecuted) {
                 queryDetails.rawQueryInput = queryString;
                 queryElement.find('.raw-query-input').val(queryString);
+
+                setTimeout(function () {
+                    autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+                }, 10);
             } else {
                 queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
             }
@@ -3034,6 +3042,10 @@ async function populateQueryElement(queryElement, queryDetails) {
         queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
+
+        setTimeout(function () {
+            autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+        }, 10);
     } else {
         // Set the metric
         queryElement.find('.metrics').val(queryDetails.metrics);
@@ -3349,3 +3361,19 @@ function getMetricsDataForSave(qname, qdesc) {
         metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
+
+function autoResizeTextarea(textarea) {
+    textarea.style.height = '26px';
+
+    if (textarea.scrollHeight > 26) {
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+}
+
+function resizeAllTextareas() {
+    const textareas = document.querySelectorAll('.raw-query-input');
+    textareas.forEach(autoResizeTextarea);
+}
+
+window.addEventListener('resize', resizeAllTextareas);
+document.addEventListener('DOMContentLoaded', resizeAllTextareas);
