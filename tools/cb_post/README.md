@@ -21,6 +21,7 @@ This document outlines the process for running a benchmark on SigLens 1.0.25, a 
 *   The `benchmark.sh` script downloads and decompresses the dataset.
 *   The script `fix_hits.py` adds an index string to the dataset JSON file and preprocesses the dataset for loading stage. 
 *   The `benchmark.sh` and the `send_data.py` script loads the split files into SigLens using the SigLens Bulk API. 
+*   Each of the steps described above are long-running tasks and their progress can be monitored through the intermediate output produced by the scripts. 
 
 **Running the benchmark:** 
 *   The `benchmark.sh` script is run by running the `benchmark.sh` in bash shell.
@@ -34,8 +35,9 @@ This document outlines the process for running a benchmark on SigLens 1.0.25, a 
     *   executes `run.sh` to run the queries and produce results automatically
 
 **Note about queries:**
-*   SigLens supports Splunk Query Language. 
+*   SigLens does not support SQL but supports Splunk Query Language. 
 *   The SQL queries used by the benchmark have been translated into the splunk query languages. 
+*   To ensure the accuracy of the translated Splunk Query Language queries, each SQL query was executed against the same dataset in ClickHouse. The responses from SigLens and ClickHouse were compared, and all results were identical.
 *   Three of the original queries are not supported and benchmark does not run those. These 3 queries and corresponding results have been recorded as null in the `queries.spl` and `results.csv` respectively.
 
 **Time to run the benchmark:**
