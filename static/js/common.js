@@ -1337,7 +1337,13 @@ function ExpandableJsonCellRenderer(type = 'events') {
             window.copyJsonToClipboard = function() {
                 const jsonContent = document.querySelector('#json-tab div').innerText;
                 navigator.clipboard.writeText(jsonContent)
-                    .then(() => alert('Copied to clipboard!'))
+                    .then(() => {
+                        const copyIcon = $('.copy-icon');
+                        copyIcon.addClass('success');
+                        setTimeout(function () {
+                            copyIcon.removeClass('success');
+                        }, 1000);
+                    })
                     .catch(err => console.error('Failed to copy: ', err));
             };
 
@@ -1415,11 +1421,11 @@ function ExpandableJsonCellRenderer(type = 'events') {
                     </div>
                 </div>
                 <div class="json-content-type-box">
-                    <button class="tab-button active" onclick="switchTab('json')">JSON</button>
-                    <button class="tab-button" onclick="switchTab('table')">Table</button>
-                    <button class="copy-json-button" onclick="copyJsonToClipboard()">
-                        <i class="fa fa-clipboard"></i>
-                    </button>
+                    <div>
+                        <button class="tab-button active" onclick="switchTab('json')">JSON</button>
+                        <button class="tab-button" onclick="switchTab('table')">Table</button>
+                    </div>
+                    <span class="copy-icon" onclick="copyJsonToClipboard()"></span>
                 </div>
                 <div class="json-popup-content">
                     <div id="json-tab" class="tab-content active">
