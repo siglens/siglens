@@ -166,6 +166,8 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	//jaeger
 	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/services", hs.Recovery(getServicesHandler()))
 	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/services/{serviceName}/operations", hs.Recovery(getOperationsHandler()))
+	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/dependencies", hs.Recovery(getDependenciesHandler()))
+	hs.Router.GET(server_utils.JAEGER_PREFIX+"/api/traces", hs.Recovery(getTracesHandler()))
 
 	//OTSDB query endpoint
 	hs.Router.GET(server_utils.OTSDB_PREFIX+"/api/query", hs.Recovery(otsdbMetricQueryHandler()))

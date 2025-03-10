@@ -451,20 +451,16 @@ func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int
 		tagKeys = toputils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
 	}
 
-	allTsids := structs.CreateNewHll()
+	tsidCard := structs.CreateNewHll()
 	for _, segmentTagTreeReader := range tagsTreeReaders {
 		for tagKey := range tagKeys {
-			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			_, err := segmentTagTreeReader.GetTSIDsForKey(tagKey, tsidCard)
 			if err != nil {
 				log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get tsids for key %v; err=%v", tagKey, err)
 				return 0, err
 			}
-
-			for tsid := range tsids {
-				allTsids.AddRaw(tsid)
-			}
 		}
 	}
 
-	return allTsids.Cardinality(), nil
+	return tsidCard.Cardinality(), nil
 }

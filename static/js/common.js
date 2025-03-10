@@ -280,9 +280,14 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $('body').css('cursor', 'default');
         }
     }
+    
     canScrollMore = res.can_scroll_more;
-    scrollFrom = res.total_rrc_count;
-    if (res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) {
+    scrollFrom = scrollFrom + res.hits.totalMatched.value;
+
+    // Only show empty results error if this is the first request (not a scroll request)
+    // or if there's no existing data in panelLogsRowData
+    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) && 
+        (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
         panelProcessEmptyQueryResults('', panelId);
     }
 
@@ -584,6 +589,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         let dataType = currentPanel.dataType;
         let rawTimeSeriesData;
         for (const queryData of data.queriesData) {
+            $('metrics-queries').empty();
             rawTimeSeriesData = await fetchTimeSeriesData(queryData);
             const parsedQueryObject = parsePromQL(queryData.queries[0]);
             await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
@@ -618,6 +624,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
                 let uniqueId = generateUniqueId();
                 addMetricsFormulaElement(uniqueId, formulaData.formulas[0].formula);
             }
+            disableQueryRemoval();
         } else {
             // for panels on the dashboard page
             for (const queryData of data.queriesData) {
@@ -1115,7 +1122,7 @@ function getMetricsQData() {
 
         const query = {
             name: queryName,
-            query: `(${queryString})`,
+            query: `${queryString}`,
             qlType: 'promql',
             state: queryDetails.state,
         };
@@ -1144,7 +1151,7 @@ function getMetricsQData() {
 
                 return {
                     name: name,
-                    query: `(${queryString})`,
+                    query: `${queryString}`,
                     qlType: 'promql',
                 };
             });

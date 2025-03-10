@@ -1087,8 +1087,13 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 
 /*
 Format of TSO file:
+Version 1
 [version - 1 byte][number of tsids - 2 bytes][tsid - 8bytes][offset - 4 bytes][tsid - 8bytes]...
-Formar of TSG file:
+
+Version 2: 8 bytes for number of tsids
+[version - 1 byte][number of tsids - 8 bytes][tsid - 8bytes][offset - 4 bytes][tsid - 8bytes]...
+
+Format of TSG file:
 [version - 1 byte][tsid - 8bytes][len - 4 bytes][raw series - n bytes][tsid - 8 bytes]...
 */
 func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
@@ -1102,7 +1107,7 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 		return mb.sortedTsids[i] < mb.sortedTsids[j]
 	})
 
-	_, err := tsoBuffer.Write(utils.VERSION_TSOFILE)
+	_, err := tsoBuffer.Write(utils.VERSION_TSOFILE_V2)
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write version byte to file %v. Err %v", tsoFileName, err)
 		return err
@@ -1115,7 +1120,7 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 	}
 
 	size := uint32(0)
-	_, err = tsoBuffer.Write(toputils.Uint16ToBytesLittleEndian(uint16(length)))
+	_, err = tsoBuffer.Write(toputils.Uint64ToBytesLittleEndian(uint64(length)))
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write tsid to file %v. Err %v", tsoFileName, err)
 		return err

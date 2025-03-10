@@ -64,11 +64,7 @@ const MetricsUtils = {
                     state: 'raw',
                 },
             ],
-            formulas: [
-                {
-                    formula: 'a',
-                },
-            ],
+            formulas: [],
         };
 
         const transformedMetricsQueryParams = JSON.stringify(metricsQueryParamsData);

@@ -134,7 +134,8 @@ var VALTYPE_DICT_ARRAY = []byte{0x14}
 var VALTYPE_RAW_JSON = []byte{0x15}
 
 var VERSION_TAGSTREE = []byte{0x01}
-var VERSION_TSOFILE = []byte{0x01}
+var VERSION_TSOFILE_V1 = []byte{0x01}
+var VERSION_TSOFILE_V2 = []byte{0x02} // Current version
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
 
