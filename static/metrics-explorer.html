@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -80,6 +80,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@1.2.0/dist/chartjs-plugin-crosshair.min.js"></script>
     <script src="./js/lib/lucide.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
@@ -187,7 +188,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <button class="btn add-metrics-to-db-btn below-btn-img" id="add-metrics-to-db-btn" class="mx-3"></button>
                     <button class="btn alert-from-metrics-btn below-btn-img" id="alert-from-metrics-btn"></button>
 
-                    <div class="dropdown download-btn">                       
+                    <div class="dropdown download-btn">
                         <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
                         </button>
@@ -212,13 +213,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
                 <div id="metrics-graphs" class="metrics-graph-container mt-4">
-    
+
                 </div>
                 <div id="merged-graph-container" style="display: none;" class="mt-4"></div>
             </div>
         </div>
 
-    
+
     <div class="popupOverlay"></div>
         <div class="popupContent" id="create-db-popup">
             <h3 class="header mb-2">Add panel to dashboard</h3>

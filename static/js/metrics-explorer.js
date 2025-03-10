@@ -1410,6 +1410,47 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
     return chartData;
 }
+
+function drawCrosshair(chart, args, options) {
+    if (!chart.tooltip._active || chart.tooltip._active.length === 0) return;
+
+    const activePoint = chart.tooltip._active[0];
+    const ctx = chart.ctx;
+    const x = activePoint.element.x;
+    const y = activePoint.element.y;
+    const topY = chart.scales.y.top;
+    const bottomY = chart.scales.y.bottom;
+    const leftX = chart.scales.x.left;
+    const rightX = chart.scales.x.right;
+
+    // Save the state
+    ctx.save();
+
+    // Draw vertical line
+    ctx.beginPath();
+    ctx.moveTo(x, topY);
+    ctx.lineTo(x, bottomY);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+
+    // Draw horizontal line
+    ctx.beginPath();
+    ctx.moveTo(leftX, y);
+    ctx.lineTo(rightX, y);
+    ctx.stroke();
+
+    // Optional: Draw circle at intersection point
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = activePoint.element.options.borderColor;
+    ctx.fill();
+
+    // Restore the state
+    ctx.restore();
+}
+
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
@@ -1515,6 +1556,25 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     },
                 },
                 ...annotationConfig,
+                // Add crosshair plugin configuration
+                crosshair: {
+                    line: {
+                        color: 'rgba(255, 255, 255, 0.5)',  // Crosshair line color
+                        width: 1,                           // Crosshair line width
+                        dashPattern: [5, 5]                 // Optional dashed line pattern
+                    },
+                    sync: {
+                        enabled: true,                      // Enable syncing crosshairs between charts
+                    },
+                    zoom: {
+                        enabled: false,                     // Disable zoom on drag (optional)
+                    },
+                    callbacks: {
+                        beforeZoom: function() {
+                            return false;                   // Prevent zoom (optional)
+                        }
+                    }
+                },
             },
             scales: {
                 x: {
@@ -1584,6 +1644,12 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             },
             spanGaps: true,
         },
+    });
+
+    // Register the crosshair plugin
+    Chart.register({
+        id: 'crosshairPlugin',
+        beforeDraw: drawCrosshair
     });
 
     // Update threshold line if threshold value or condition is changed
@@ -2162,6 +2228,25 @@ function mergeGraphs(chartType, panelId = -1) {
                         },
                     },
                 },
+                // Add crosshair plugin configuration
+                crosshair: {
+                    line: {
+                        color: 'rgba(255, 255, 255, 0.5)',  // Crosshair line color
+                        width: 1,                           // Crosshair line width
+                        dashPattern: [5, 5]                 // Optional dashed line pattern
+                    },
+                    sync: {
+                        enabled: true,                      // Enable syncing crosshairs between charts
+                    },
+                    zoom: {
+                        enabled: false,                     // Disable zoom on drag (optional)
+                    },
+                    callbacks: {
+                        beforeZoom: function() {
+                            return false;                   // Prevent zoom (optional)
+                        }
+                    }
+                },
             },
             scales: {
                 x: {
@@ -2215,6 +2300,13 @@ function mergeGraphs(chartType, panelId = -1) {
             spanGaps: true,
         },
     });
+
+    // Register the crosshair plugin
+    Chart.register({
+        id: 'crosshairPlugin',
+        beforeDraw: drawCrosshair
+    });
+    
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
