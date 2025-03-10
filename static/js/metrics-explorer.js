@@ -1579,6 +1579,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         };
     }
 
+    var legendContainer = $('<div class="legend-container"></div>');
+    canvas.parent().append(legendContainer);
+
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
@@ -1587,13 +1590,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
+                    display: false,
                 },
                 tooltip: {
                     callbacks: {
@@ -1702,6 +1699,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             dataset.fill = false;
         });
     }
+
+    generateCustomLegend(lineChart, legendContainer[0]);
 
     lineChart.update();
     return lineChart;
@@ -2152,7 +2151,6 @@ $('#json-block').on('click', function () {
     }
 });
 
-// Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     var colorIndex = 0;
@@ -2171,10 +2169,14 @@ function mergeGraphs(chartType, panelId = -1) {
         }
 
         panelChartEl.empty(); // Clear any existing content
-        var mergedCanvas = $('<canvas></canvas>');
-        panelChartEl.append(mergedCanvas);
 
-        mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
+        var mergedCanvas = $('<canvas></canvas>');
+        var legendContainer = $('<div class="legend-container"></div>');
+
+        panelChartEl.append(mergedCanvas);
+        panelChartEl.append(legendContainer);
+
+        mergedCtx = mergedCanvas[0].getContext('2d');
     } else {
         // For metrics explorer page
         var visualizationContainer = $(`
@@ -2183,9 +2185,10 @@ function mergeGraphs(chartType, panelId = -1) {
 
         $('#merged-graph-container').empty().append(visualizationContainer);
 
-        mergedCanvas = $('<canvas></canvas>');
+        var mergedCanvas = $('<canvas></canvas>');
+        var legendContainer = $('<div class="legend-container"></div>');
 
-        $('.merged-graph').empty().append(mergedCanvas);
+        $('.merged-graph').empty().append(mergedCanvas).append(legendContainer);
         mergedCtx = mergedCanvas[0].getContext('2d');
     }
 
@@ -2224,6 +2227,7 @@ function mergeGraphs(chartType, panelId = -1) {
     }
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
+
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: mergedData,
@@ -2232,14 +2236,7 @@ function mergeGraphs(chartType, panelId = -1) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: shouldShowLegend(panelId, mergedData.datasets),
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
+                    display: false,
                 },
                 tooltip: {
                     callbacks: {
@@ -2308,10 +2305,13 @@ function mergeGraphs(chartType, panelId = -1) {
             spanGaps: true,
         },
     });
+
+    var legendContainerEl = isDashboardScreen ? (panelId === -1 ? $(`.panelDisplay .panEdit-panel .legend-container`) : $(`#panel${panelId} .panEdit-panel .legend-container`)) : $('.merged-graph .legend-container');
+    generateCustomLegend(mergedLineChart, legendContainerEl[0]);
+
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
-
 const shouldShowLegend = (panelId, datasets) => {
     if ($('#overview-button').hasClass('active')) {
         return true; // Show legends for panel overview
@@ -3348,4 +3348,78 @@ function getMetricsDataForSave(qname, qdesc) {
         endTime: filterEndDate,
         metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
+}
+
+function generateCustomLegend(chart, legendContainer) {
+    $(legendContainer).empty();
+
+    const ul = $('<ul></ul>').css({
+        'list-style-type': 'none',
+        padding: 0,
+        margin: 0,
+        display: 'flex',
+        'flex-wrap': 'wrap',
+    });
+
+    chart.data.datasets.forEach((dataset, index) => {
+        const li = $('<li></li>').css({
+            display: 'flex',
+            'align-items': 'center',
+            'margin-right': '10px',
+            'margin-bottom': '5px',
+            cursor: 'pointer',
+            'font-size': '12px',
+            'white-space': 'nowrap',
+        });
+
+        const colorBox = $('<span></span>').css({
+            display: 'inline-block',
+            width: '14px',
+            height: '4px',
+            'background-color': dataset.borderColor,
+            'margin-right': '8px',
+        });
+
+        const text = $('<span></span>').text(dataset.label);
+
+        li.append(colorBox).append(text);
+
+        li.on('click', function (e) {
+            if (e.shiftKey) {
+                const meta = chart.getDatasetMeta(index);
+                meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                chart.update();
+
+                if (meta.hidden) {
+                    $(this).css('opacity', 0.4);
+                } else {
+                    $(this).css('opacity', 1);
+                }
+            } else {
+                const isOnlyVisibleDataset = chart.data.datasets.every((dataset, i) => (i === index ? chart.isDatasetVisible(i) : !chart.isDatasetVisible(i)));
+
+                if (isOnlyVisibleDataset) {
+                    chart.data.datasets.forEach((_, i) => {
+                        chart.setDatasetVisibility(i, true);
+                        $(ul.find('li')[i]).css('opacity', 1);
+                    });
+                } else {
+                    chart.data.datasets.forEach((_, i) => {
+                        if (i === index) {
+                            chart.setDatasetVisibility(i, true);
+                            $(ul.find('li')[i]).css('opacity', 1);
+                        } else {
+                            chart.setDatasetVisibility(i, false);
+                            $(ul.find('li')[i]).css('opacity', 0.4);
+                        }
+                    });
+                }
+                chart.update();
+            }
+        });
+
+        ul.append(li);
+    });
+
+    $(legendContainer).append(ul);
 }
