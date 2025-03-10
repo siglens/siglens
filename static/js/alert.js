@@ -453,12 +453,13 @@ async function fillAlertForm(res) {
 
     if (isEditMode && !isFromMetrics) {
         alertData.alert_id = res.alert_id;
-        initializeBreadcrumbs([
-            { name: 'Alerting', url: './all-alerts.html' },
-            { name: res.alert_name ? res.alert_name : 'New Alert', url: '#' },
-        ]);
         $('#alert-name').empty().text(res.alert_name);
     }
+
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './all-alerts.html' },
+        { name: res.alert_name ? res.alert_name : 'New Alert', url: '#' },
+    ]);
 
     $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
 

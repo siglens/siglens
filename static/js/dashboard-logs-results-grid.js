@@ -42,7 +42,7 @@ let panelLogsColumnDefs = [
             _.forEach(params.data, (value, key) => {
                 let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
 
-                logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}${key}=` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
+                logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key}</b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
                 counter++;
             });
             return logString;
@@ -187,10 +187,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     panelID = panelId;
     $(`.panelDisplay .big-number-display-container`).hide();
     let logLinesViewType = currentPanel.logLinesViewType;
-    // Check if this is a new search
-    if (panelGridDiv === null) {
-        panelLogsColumnDefs = [];
-    }
+
     if (panelId == -1 && panelGridDiv == null) {
         // for panel on the editPanelScreen page
         panelGridDiv = document.querySelector('.panelDisplay #panelLogResultsGrid');
@@ -202,8 +199,7 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
     if (panelId != -1) {
         panelGridDiv = document.querySelector(`#panel${panelId} #panelLogResultsGrid`);
         panelGridOptions = createPanelGridOptions(currentPanel);
-        panelLogsRowData = [];
-        panelLogsColumnDefs = [];
+
         //eslint-disable-next-line no-undef
         new agGrid.Grid(panelGridDiv, panelGridOptions);
     }
@@ -235,32 +231,9 @@ function renderPanelLogsGrid(columnOrder, hits, panelId, currentPanel) {
             },
         };
     });
+    panelLogsRowData = _.concat(panelLogsRowData, hits);
+    panelLogsColumnDefs = _.chain(panelLogsColumnDefs).concat(cols).uniqBy('field').value();
 
-    if (hits.length !== 0) {
-        const mappedHits = hits.map((hit) => {
-            const reorderedHit = {};
-            columnOrder.forEach((column) => {
-                if (Object.prototype.hasOwnProperty.call(hit, column)) {
-                    reorderedHit[column] = hit[column];
-                }
-            });
-            return reorderedHit;
-        });
-        panelLogsRowData = [...panelLogsRowData, ...mappedHits];
-    }
-
-    // Use the same column merging logic as logs implementation
-    const panelLogsColumnDefsMap = new Map(panelLogsColumnDefs.map((logCol) => [logCol.field, logCol]));
-    const combinedColumnDefs = cols.map((col) => panelLogsColumnDefsMap.get(col.field) || col);
-
-    // Only add old columns that aren't in the new set
-    panelLogsColumnDefs.forEach((logCol) => {
-        if (!combinedColumnDefs.some((col) => col.field === logCol.field)) {
-            combinedColumnDefs.push(logCol);
-        }
-    });
-    panelLogsColumnDefs = combinedColumnDefs;
-    panelGridOptions.api.setColumnDefs(panelLogsColumnDefs);
     const allColumnIds = [];
     panelGridOptions.columnApi.getColumns().forEach((column) => {
         allColumnIds.push(column.getId());
@@ -472,10 +445,43 @@ function toggleAllAvailableFieldsHandler(_evt) {
 }
 function scrollingErrorPopup() {
     $('.mypopupOverlay').addClass('active');
-    $('#error-popup.mypopupContent').addClass('active');
+    $('#error-popup.popupContent').addClass('active');
 
     $('#okay-button').on('click', function () {
         $('.mypopupOverlay').removeClass('active');
-        $('#error-popup.mypopupContent').removeClass('active');
+        $('#error-popup.popupContent').removeClass('active');
     });
+}
+
+//eslint-disable-next-line no-unused-vars
+function resetPanelLogsColumnDefs() {
+    panelLogsColumnDefs = [
+        {
+            field: 'timestamp',
+            headerName: 'timestamp',
+            cellRenderer: (params) => {
+                return moment(params.value).format(timestampDateFmt);
+            },
+            maxWidth: 250,
+            minWidth: 250,
+        },
+        {
+            field: 'logs',
+            headerName: 'logs',
+            cellRenderer: (params) => {
+                let logString = '';
+                let counter = 0;
+
+                _.forEach(params.data, (value, key) => {
+                    let colSep = counter > 0 ? '<span class="col-sep"> | </span>' : '';
+
+                    logString += `<span class="cname-hide-${string2Hex(key)}">${colSep}<b>${key} </b>` + JSON.stringify(JSON.unflatten(value), null, 2) + `</span>`;
+                    counter++;
+                });
+                return logString;
+            },
+        },
+    ];
+
+    panelLogsRowData = [];
 }

@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then((response) => response.json())
             .then((data) => {
-                totalUniqueSeries.textContent = data.seriesCardinality;
+                totalUniqueSeries.textContent = data.seriesCardinality.toLocaleString('en-US');
             });
 
         // Fetch tag keys with most series

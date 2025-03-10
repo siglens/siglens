@@ -61,7 +61,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             height: 310px;
         }
         .graph-canvas{
-            padding: 0px 10px 50px 10px;
+            height: calc(310px - 85px);
+            padding: 10px;
         }
         #metrics-explorer, #metrics-graphs{
             display: none;
@@ -82,9 +83,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
     <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="./js/lib/chartjs-plugin-annotation.min.js"></script>
-    <script src="./js/lib/chart.umd.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);

@@ -1020,20 +1020,19 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 
 	seriesCounts := make([]tagKeySeriesCount, 0, len(tagKeys))
 	for tagKey := range tagKeys {
-		tsidsForKey := make(map[uint64]struct{})
+		tsidCard := structs.CreateNewHll()
 		for _, segmentTagTreeReader := range tagsTreeReaders {
-			tsids, err := segmentTagTreeReader.GetTSIDsForKey(tagKey)
+			_, err := segmentTagTreeReader.GetTSIDsForKey(tagKey, tsidCard)
 			if err != nil {
 				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
-				return
+				// continue, since we would want to still the rest of tagkeys
+				continue
 			}
-
-			tsidsForKey = utils.MergeMaps(tsidsForKey, tsids)
 		}
 
 		keyAndCount := tagKeySeriesCount{
 			Key:       tagKey,
-			NumSeries: uint64(len(tsidsForKey)),
+			NumSeries: tsidCard.Cardinality(),
 		}
 		seriesCounts = append(seriesCounts, keyAndCount)
 	}
@@ -1112,7 +1111,7 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int6
 	for key, valueSet := range tagPairs {
 		for value := range valueSet {
 			for _, segmentTagTreeReader := range tagsTreeReaders {
-				tsids, err := segmentTagTreeReader.GetTSIDsForTagPair(key, value)
+				tsidCount, err := segmentTagTreeReader.GetTSIDCountForTagPair(key, value)
 				if err != nil {
 					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", key, value), err)
 					return
@@ -1121,7 +1120,7 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int6
 				keyAndCount := tagPairSeriesCount{
 					Key:       key,
 					Value:     value,
-					NumSeries: uint64(len(tsids)),
+					NumSeries: tsidCount,
 				}
 				seriesCounts = append(seriesCounts, keyAndCount)
 			}

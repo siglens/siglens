@@ -21,7 +21,7 @@ test('Navigation Menu Functionality Tests', async ({ page }) => {
     ];
 
     for (const { selector, url } of navItems) {
-        const navbarHamburger = page.locator('.sl-hamburger');
+        const navbarHamburger = page.locator('#navbar-toggle').first();
         await navbarHamburger.hover();
         await page.waitForTimeout(500);
 
