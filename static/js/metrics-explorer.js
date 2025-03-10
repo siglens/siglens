@@ -1491,6 +1491,40 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         };
     }
 
+    // Create crosshair plugin
+    const crosshairPlugin = {
+        id: 'crosshair',
+        beforeDraw: (chart) => {
+            if (!chart.crosshair) return;
+
+            const { ctx, chartArea: {top, bottom, left, right} } = chart;
+            const { x, y } = chart.crosshair;
+
+            if (x >= left && x <= right && y >= top && y <= bottom) {
+
+                ctx.save();
+
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(102, 102, 102, 0.8)';
+                ctx.moveTo(x, top);
+                ctx.lineTo(x, bottom);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(102, 102, 102, 0.9)';
+                ctx.moveTo(left, y);
+                ctx.lineTo(right, y);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+    };
+
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
@@ -1498,40 +1532,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                crosshair: {
-                    line: {
-                        color: 'rgba(200, 200, 200, 0.8)',
-                        width: 1,
-                        dashPattern: [5, 5],
-                    },
-                    x: {
-                        enabled: true,
-                        line: {
-                            color: 'rgba(200, 200, 200, 0.8)',
-                            width: 1,
-                            dashPattern: [5, 5],
-                        },
-                    },
-                    y: {
-                        enabled: true,
-                        line: {
-                            color: 'rgba(200, 200, 200, 0.8)',
-                            width: 1,
-                            dashPattern: [5, 5],
-                        },
-                    },
-                    sync: {
-                        enabled: true,
-                        group: 1,
-                        suppressTooltips: false,
-                    },
-                    snap: {
-                        enabled: true
-                    },
-                    zoom: {
-                        enabled: false,
-                    },
-                },
                 legend: {
                     position: 'bottom',
                     align: 'start',
@@ -1558,7 +1558,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     },
                 },
                 ...annotationConfig,
-
+                crosshair: {}
             },
             scales: {
                 x: {
@@ -1627,16 +1627,31 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 },
             },
             spanGaps: true,
-            // These options improve crosshair interaction
+            // Enable interaction mode for better tooltip experience
             interaction: {
                 mode: 'index',
                 intersect: false,
             },
-            hover: {
-                mode: 'index',
-                intersect: false,
-            },
+            onHover: (event, _, chart) => {
+                if (!event) return;
+
+                // Store mouse position for crosshair
+                chart.crosshair = {
+                    x: event.x,
+                    y: event.y
+                };
+
+                // Force redraw to show crosshair
+                chart.draw();
+            }
         },
+        plugins: [crosshairPlugin]
+    });
+
+    // Add mouseout event listener to clear crosshair
+    canvas[0].addEventListener('mouseout', () => {
+        lineChart.crosshair = null;
+        lineChart.draw();
     });
 
     // Update threshold line if threshold value or condition is changed
@@ -2185,6 +2200,7 @@ function mergeGraphs(chartType, panelId = -1) {
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
 
+
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: mergedData,
@@ -2192,41 +2208,6 @@ function mergeGraphs(chartType, panelId = -1) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                // Crosshair plugin configuration
-                crosshair: {
-                    line: {
-                        color: 'rgba(200, 200, 200, 0.8)',
-                        width: 1,
-                        dashPattern: [5, 5],
-                    },
-                    x: {
-                        enabled: true,
-                        line: {
-                            color: 'rgba(200, 200, 200, 0.8)',
-                            width: 1,
-                            dashPattern: [5, 5],
-                        },
-                    },
-                    y: {
-                        enabled: true,
-                        line: {
-                            color: 'rgba(200, 200, 200, 0.8)',
-                            width: 1,
-                            dashPattern: [5, 5],
-                        },
-                    },
-                    sync: {
-                        enabled: true,
-                        group: 1,
-                        suppressTooltips: false
-                    },
-                    snap: {
-                        enabled: true
-                    },
-                    zoom: {
-                        enabled: false
-                    },
-                },
                 legend: {
                     display: shouldShowLegend(panelId, mergedData.datasets),
                     position: 'bottom',
@@ -2322,9 +2303,6 @@ function mergeGraphs(chartType, panelId = -1) {
     updateDownloadButtons();
 }
 
-// function setupChartsAndPlugins() {
-//     initChartPlugins();
-// }
 
 const shouldShowLegend = (panelId, datasets) => {
     if ($('#overview-button').hasClass('active')) {
