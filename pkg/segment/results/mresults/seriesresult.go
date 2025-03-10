@@ -543,7 +543,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	case segutils.Rate:
-		return evaluateRate(sortedTimeSeries, ts, timeRange, function), nil
+		return evaluateRate(sortedTimeSeries, ts, timeRange, function)
 	case segutils.IRate:
 		// Calculate the instant rate (per-second rate) for each timestamp, based on the last two data points within the timewindow
 		// If the previous point is outside the time window, we still need to use it to calculate the current point's rate, unless its value is greater than the value of the current point
@@ -575,7 +575,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		return ts, nil
 	case segutils.Increase:
 		// Increase is extrapolated to cover the full time range as specified in the range vector selector. (increse = avg rate * timewindow)
-		return evaluateRate(sortedTimeSeries, ts, timeRange, function), nil
+		return evaluateRate(sortedTimeSeries, ts, timeRange, function)
 	case segutils.Delta:
 		// Calculates the difference between the first and last value of each time series element within the timewindow
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -1147,9 +1147,20 @@ func convertStrToFloat64(toNearestStr string) (float64, error) {
 // adapting the extrapolation logic to ensure Prometheus compatibility.
 // Source: https://github.com/prometheus/prometheus/blob/main/promql/functions.go#L72
 // Explanation about the extrapolation logic: https://promlabs.com/blog/2021/01/29/how-exactly-does-promql-calculate-rates/
-func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeRange *dtypeutils.MetricsTimeRange, function structs.Function) map[uint32]float64 {
+func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeRange *dtypeutils.MetricsTimeRange, function structs.Function) (map[uint32]float64, error) {
 	if len(sortedTimeSeries) == 0 {
-		return ts
+		return ts, nil
+	}
+
+	var isRate bool
+
+	switch function.RangeFunction {
+	case segutils.Rate:
+		isRate = true
+	case segutils.Increase:
+		isRate = false
+	default:
+		return ts, fmt.Errorf("evaluateRate: unsupported function type %v", function.RangeFunction)
 	}
 
 	var dx float64
@@ -1226,7 +1237,7 @@ func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeRange *dt
 
 		// Calculate the extrapolated rate
 		finalDx := dx * (totalExtrapolatedDuration / totalSampleDuration)
-		if function.RangeFunction == segutils.Rate {
+		if isRate {
 			finalDx /= float64(timeWindow)
 		}
 
@@ -1234,7 +1245,7 @@ func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeRange *dt
 		nextEvaluationTime += step
 	}
 
-	return ts
+	return ts, nil
 }
 
 func evaluateClamp(ts map[uint32]float64, minVal float64, maxVal float64) {

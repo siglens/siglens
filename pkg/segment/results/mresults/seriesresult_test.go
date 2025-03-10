@@ -37,7 +37,7 @@ func Test_applyRangeFunctionRate(t *testing.T) {
 		1003: 3.0,
 		1008: 4.0,
 		1012: 18.0,
-		1020: 2.5,
+		1020: 2.5, // Counter reset
 		1025: 6.5,
 		1030: 8.5,
 		1035: 10.5,
@@ -45,15 +45,66 @@ func Test_applyRangeFunctionRate(t *testing.T) {
 
 	timeRange := &dtypeutils.MetricsTimeRange{
 		StartEpochSec: uint32(1000),
-		EndEpochSec:   uint32(1035),
+		EndEpochSec:   uint32(1050),
 	}
 
 	res, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Rate, TimeWindow: 10, Step: 5}, timeRange)
 	assert.Nil(t, err)
 
-	// map[1000:0.1 1005:0.21666666666666665 1010:0.25 1015:2.85 1020:0.3125 1025:0.65 1030:0.6 1035:0.4]
+	/**
+	  There windows for the evluation would be
+		1. 990 - 1000 => Since both start and end data points exist, there will not extrapolation and no counter resets
+				   => (2.0 - 1.0) / 10s = 0.1
+		2. 995 - 1005 => Since the end and start time, does not exist, extrapolation for these points will be done.
+		3. 1000 - 1010 => The end data point will be extrapolated
+		4. 1005 - 1015 => Both data points will be extrapolated
+		5. 1010 - 1020 => 1015 data point will be extrapolated and the counter reset at 1020 will be handled
+		6. 1015 - 1025 => The start data point will be extrapolated and the counter reset at 1020 will be handled
+		7. 1020 - 1030 => Same as 1st window
+		8. 1025 - 1035 => Same as 1st window
+		9. 1030 - 1040 => The last data point will be extrapolated
+		10. 1035 - 1045 => Since there is only one data point, no rate will be calculated
+		11. 1040 - 1050 => Since there are no data points, no rate will be calculated
 
-	assert.Len(t, res, 8)
+		**** Handling of counter resets:
+		for the window 1010 - 1020, the counter reset at 1020 will be handled by the following calculation
+		initial dx = 2.5 - 18.0 = -15.5 (without extrapolation)
+		And then from the first value of the sample window, the values will be checked and if the value is less than the previous value,
+		the dx now will be adjusted by adding the previous value.
+			=> prev value = 18.0
+			=> current value = 2.5
+			current value < prev value => dx = -15.5 + 18.0 = 2.5
+
+
+		**** And then for extrapolation, the limit will be 1.1 * average duration of the sample window
+		=> totalSampleDuartion = 1020 - 1012 = 8
+		=> averageDurationBetweenSamples = totalSampleDuartion / totalSamplesMinusOne = 8 / 1 = 8
+		=> extrapolationLimit =  1.1 * averageDurationBetweenSamples = 1.1 * 8 = 8.8
+
+		=> durationToStart = The time difference between the first sample and the start of the window = 1012 - 1010 = 2
+		=> durationToEnd = The time difference between the end of the window and the last sample = 1020 - 1020 = 0
+
+		**	if durationToStart >= extrapolationLimit, then the durationToStart will become (average duration of the sample window / 2).
+			We do this way, because Prometheus assumes that the series does not cover the whole range and they still extrapolate but not all the way to boundaries,
+			but only half way. Which is their guess for where the series might have started or ended.
+		** 	The same logic applies for durationToEnd.
+		** If not, these durationToStart and durationToEnd will remain the same.
+
+		And also to not extrapolate too much into the past where the series does not even exist, we estimate the time to zero or start value.
+		=> estimatedZeroTime = totalSampleDuartion * (firstSample / dx) = 8 * (18.0 / 2.5) = 57.6
+		=> Since estimatedZeroTime > durationToStart, the durationToStart will remain the same. Otherwise, it will be set to estimatedZeroTime.
+
+
+		Since durationToStart < extrapolationLimit and durationToEnd < extrapolationLimit, the durationToStart and durationToEnd will remain the same.
+
+		=> extrapolationDuration = totalSampleDuartion + durationToStart + durationToEnd = 8 + 2 + 0 = 10
+		=> extrapolatedRate = (dx * (extrapolationDuration / totalSampleDuration)) / timewindow = (2.5 * (10 / 8)) / 10 = 0.3125
+
+		If we apply similar logic for all other windows, we will get the following results:
+		map[1000:0.1 1005:0.21666666666666665 1010:0.25 1015:2.85 1020:0.3125 1025:0.65 1030:0.6 1035:0.4]
+	*/
+
+	assert.Len(t, res, 9)
 
 	var val float64
 	var ok bool
@@ -87,6 +138,10 @@ func Test_applyRangeFunctionRate(t *testing.T) {
 	assert.True(t, dtypeutils.AlmostEquals(val, 0.6))
 
 	val, ok = res[1035]
+	assert.True(t, ok)
+	assert.True(t, dtypeutils.AlmostEquals(val, 0.4))
+
+	val, ok = res[1040]
 	assert.True(t, ok)
 	assert.True(t, dtypeutils.AlmostEquals(val, 0.4))
 }
@@ -212,6 +267,8 @@ func Test_applyRangeFunctionIncrease(t *testing.T) {
 	increase, err := ApplyRangeFunction(timeSeries, structs.Function{RangeFunction: segutils.Increase, TimeWindow: timeWindow, Step: 5}, timeRange)
 	assert.Nil(t, err)
 
+	// Check the rate function Test for the explanation of the results
+	// For increase, the result will not be divided by the time window.
 	// map[1000:1 1005:2.1666666666666665 1010:2.5 1015:28.5 1020:3.125 1025:6.5 1030:6 1035:4]
 
 	assert.Len(t, increase, 8)
