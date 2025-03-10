@@ -424,14 +424,14 @@ input:checked+.slider:before {
 .graph-canvas,
 .merged-graph {
     position: relative;
-    height: 100%;
-    padding: 20px 10px 50px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+    height: calc(400px - 85px);
+    padding: 16px;
 }
 
+.legend-container {
+    overflow: scroll;
+    height: 50px;
+}
 
 .metrics-query .query-box .tag-container:focus-within,
 .everywhere:focus,
@@ -614,6 +614,11 @@ input:checked+.slider:before {
     border: 1px solid var(--border-color-regular);
     margin-right: 10px;
     border-radius: 5px !important;
+}
+
+.panelDisplay .panEdit-panel .merged-graph {
+    height: calc(30vh - 65px);
+    padding: 0;
 }
 
 .raw-query-input {
