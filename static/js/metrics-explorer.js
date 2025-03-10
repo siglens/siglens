@@ -53,6 +53,11 @@ var colorPalette = {
     Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
+let cachedMetrics = [];
+let isLoadingMore = false;
+const ITEMS_PER_PAGE = 20;
+let currentSearchTerm = '';
+
 // Function to check if CSV can be downloaded
 function canDownloadCSV() {
     for (let key in chartDataCollection) {
@@ -115,6 +120,7 @@ $(document).ready(async function () {
 
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', updateChartColorsBasedOnTheme);
+
     allFunctions = await getFunctions();
     functionsArray = allFunctions.map(function (item) {
         return item.fn;
@@ -147,7 +153,10 @@ $(document).ready(async function () {
     createTooltip('.download-all-logs-btn', 'Download');
     createTooltip('.refresh-btn', 'Refresh');
 
-    // setupChartsAndPlugins();
+    $(document).on('input', '.raw-query-input', function () {
+        autoResizeTextarea(this);
+    });
+
 });
 
 function getUrlParameter(name) {
@@ -714,7 +723,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
+                <textarea class="raw-query-input" placeholder="Enter your query here"></textarea><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
         <div>
@@ -855,6 +864,10 @@ function setupQueryElementEventListeners(queryElement) {
             if (!queryDetails.rawQueryExecuted) {
                 queryDetails.rawQueryInput = queryString;
                 queryElement.find('.raw-query-input').val(queryString);
+
+                setTimeout(function () {
+                    autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+                }, 10);
             } else {
                 queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
             }
@@ -1020,31 +1033,72 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     queryElement
         .find('.metrics')
         .autocomplete({
-            source: availableMetrics.sort(),
+            delay: 300,
             minLength: 0,
+            classes: {
+                'ui-autocomplete': 'metrics-ui-widget',
+            },
+            source: function (request, response) {
+                const input = $(this);
+                const searchTerm = request.term.toLowerCase();
+                currentSearchTerm = request.term.toLowerCase();
+
+                input.data('current-filter', currentSearchTerm);
+
+                setTimeout(function () {
+                    const matches = cachedMetrics.filter((item) => item.toLowerCase().indexOf(searchTerm) >= 0).slice(0, ITEMS_PER_PAGE);
+                    response(matches);
+                }, 0);
+            },
             select: async function (event, ui) {
                 queryDetails.metrics = ui.item.value;
                 getQueryDetails(queryName, queryDetails);
+
                 const tagsAndValue = await getTagKeyValue(ui.item.value);
                 availableEverything = tagsAndValue.availableEverything[0];
                 availableEverywhere = tagsAndValue.availableEverywhere;
                 queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
                 queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+
                 $(this).blur();
-                adjustInputWidth(this);
+                setTimeout(() => {
+                    adjustInputWidth(this);
+                }, 10);
             },
-            classes: {
-                'ui-autocomplete': 'metrics-ui-widget',
+            open: function () {
+                const menu = $(this).autocomplete('widget');
+                const input = $(this);
+
+                menu.css({
+                    'max-height': '300px',
+                    'overflow-y': 'auto',
+                    'overflow-x': 'hidden',
+                });
+
+                menu.off('scroll.metrics').on('scroll.metrics', function () {
+                    if (isLoadingMore) return;
+
+                    const scrollBottom = $(this).scrollTop() + $(this).innerHeight();
+                    const scrollHeight = this.scrollHeight;
+                    if (scrollBottom >= scrollHeight - 50) {
+                        loadMoreItems(menu, input);
+                    }
+                });
             },
         })
-        .on('click', function () {
-            if ($(this).autocomplete('widget').is(':visible')) {
-                $(this).autocomplete('close');
+        .on('click', function (e) {
+            e.stopPropagation();
+            const $this = $(this);
+
+            if ($this.autocomplete('widget').is(':visible')) {
+                $this.autocomplete('close');
             } else {
-                $(this).autocomplete('search', '');
+                $this.autocomplete('search', '');
+                currentSearchTerm = '';
+                $this.focus();
             }
         })
-        .on('click', function () {
+        .on('focus', function () {
             $(this).select();
         })
         .on('close', function (_event) {
@@ -1373,6 +1427,52 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     previousQuery = queryDetails;
 }
 
+function loadMoreItems(menu, input) {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+
+    const currentCount = menu.find('li').length;
+    const term = currentSearchTerm || '';
+    const nextBatch = cachedMetrics.filter((item) => item.toLowerCase().indexOf(term) >= 0).slice(currentCount, currentCount + ITEMS_PER_PAGE);
+
+    if (nextBatch.length > 0) {
+        const fragment = document.createDocumentFragment();
+
+        nextBatch.forEach((item) => {
+            const li = document.createElement('li');
+            li.className = 'ui-menu-item';
+
+            const div = document.createElement('div');
+            div.className = 'ui-menu-item-wrapper';
+            div.textContent = item;
+
+            li.appendChild(div);
+            fragment.appendChild(li);
+
+            $(li).data('ui-autocomplete-item', {
+                label: item,
+                value: item,
+            });
+        });
+
+        menu.append(fragment);
+
+        menu.off('mousedown.loadmore').on('mousedown.loadmore', '.ui-menu-item-wrapper', function () {
+            const value = $(this).text();
+
+            input.val(value);
+            input.autocomplete('instance')._trigger('select', 'autocompleteselect', {
+                item: { label: value, value: value },
+            });
+
+            input.autocomplete('close');
+            return false;
+        });
+    }
+
+    isLoadingMore = false;
+}
+
 function updateCloseIconVisibility() {
     var numQueries = $('#metrics-queries').children('.metrics-query').length;
     $('.metrics-query .remove-query').toggle(numQueries > 1);
@@ -1491,6 +1591,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         };
     }
 
+ var legendContainer = $('<div class="legend-container"></div>');
+    canvas.parent().append(legendContainer);
+
     // Create crosshair plugin
     const crosshairPlugin = {
         id: 'crosshair',
@@ -1524,7 +1627,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             }
         }
     };
-
+   
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
@@ -1533,13 +1636,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
+                    display: false,
                 },
                 tooltip: {
                     enabled: true,
@@ -1677,6 +1774,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             dataset.fill = false;
         });
     }
+
+    generateCustomLegend(lineChart, legendContainer[0]);
 
     lineChart.update();
     return lineChart;
@@ -2127,10 +2226,10 @@ $('#json-block').on('click', function () {
     }
 });
 
-// Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     var colorIndex = 0;
+    var mergedCanvas, legendContainer;
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
@@ -2140,16 +2239,24 @@ function mergeGraphs(chartType, panelId = -1) {
         var panelChartEl;
         if (panelId === -1) {
             panelChartEl = $(`.panelDisplay .panEdit-panel`);
+            panelChartEl.empty(); // Clear any existing content
+
+            var mergedGraphDiv = $('<div class="merged-graph"></div>');
+            panelChartEl.append(mergedGraphDiv);
+
+            mergedCanvas = $('<canvas></canvas>');
+            legendContainer = $('<div class="legend-container"></div>');
+            mergedGraphDiv.append(mergedCanvas);
+            mergedGraphDiv.append(legendContainer);
         } else {
             panelChartEl = $(`#panel${panelId} .panEdit-panel`);
             panelChartEl.css('width', '100%').css('height', '100%');
+
+            panelChartEl.empty(); // Clear any existing content
+            mergedCanvas = $('<canvas></canvas>');
+            panelChartEl.append(mergedCanvas);
         }
-
-        panelChartEl.empty(); // Clear any existing content
-        var mergedCanvas = $('<canvas></canvas>');
-        panelChartEl.append(mergedCanvas);
-
-        mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
+        mergedCtx = mergedCanvas[0].getContext('2d');
     } else {
         // For metrics explorer page
         var visualizationContainer = $(`
@@ -2159,8 +2266,9 @@ function mergeGraphs(chartType, panelId = -1) {
         $('#merged-graph-container').empty().append(visualizationContainer);
 
         mergedCanvas = $('<canvas></canvas>');
+        legendContainer = $('<div class="legend-container"></div>');
 
-        $('.merged-graph').empty().append(mergedCanvas);
+        $('.merged-graph').empty().append(mergedCanvas).append(legendContainer);
         mergedCtx = mergedCanvas[0].getContext('2d');
     }
 
@@ -2199,8 +2307,7 @@ function mergeGraphs(chartType, panelId = -1) {
     }
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
-
-
+  
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: mergedData,
@@ -2209,14 +2316,7 @@ function mergeGraphs(chartType, panelId = -1) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: shouldShowLegend(panelId, mergedData.datasets),
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
+                    display: false,
                 },
                 tooltip: {
                     enabled: true,
@@ -2299,18 +2399,15 @@ function mergeGraphs(chartType, panelId = -1) {
         },
     });
 
+    // Only generate and display legend for panelId == -1 or metrics explorer
+    if (!isDashboardScreen || panelId === -1) {
+        var legendContainerEl = isDashboardScreen ? $(`.panelDisplay .panEdit-panel .merged-graph .legend-container`) : $('.merged-graph .legend-container');
+        generateCustomLegend(mergedLineChart, legendContainerEl[0]);
+    }
+
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
-
-
-const shouldShowLegend = (panelId, datasets) => {
-    if ($('#overview-button').hasClass('active')) {
-        return true; // Show legends for panel overview
-    } else {
-        return panelId === -1 || datasets.length < 5; // Hide legends for panel with more than 5 legends
-    }
-};
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
@@ -2419,6 +2516,7 @@ async function getMetricNames() {
             start: filterStartDate,
             end: filterEndDate,
         };
+
         const res = await $.ajax({
             method: 'post',
             url: 'metrics-explorer/api/v1/metric_names',
@@ -2432,7 +2530,10 @@ async function getMetricNames() {
         });
 
         if (res) {
-            availableMetrics = res.metricNames;
+            availableMetrics = res.metricNames.sort();
+            cachedMetrics = res.metricNames.slice();
+
+            isLoadingMore = false;
         }
 
         return res;
@@ -2479,6 +2580,7 @@ function displayErrorMessage(container, message) {
         const errorSpan = $('<span></span>').addClass('error-message').text(message);
         panelContainer.append(errorSpan);
     }
+    $('.legend-container').hide();
 }
 
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
@@ -2826,10 +2928,10 @@ async function getFunctions() {
 async function refreshMetricsGraphs() {
     dayCnt7 = 0;
     dayCnt2 = 0;
-    const newMetricNames = await getMetricNames();
-    newMetricNames.metricNames.sort();
+    await getMetricNames();
 
-    $('.metrics').autocomplete('option', 'source', newMetricNames.metricNames);
+    isLoadingMore = false;
+
     const firstKey = Object.keys(queries)[0];
 
     if (queries[firstKey].metrics || queries[firstKey].state === 'raw') {
@@ -3022,6 +3124,10 @@ async function populateQueryElement(queryElement, queryDetails) {
         queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
+
+        setTimeout(function () {
+            autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+        }, 10);
     } else {
         // Set the metric
         queryElement.find('.metrics').val(queryDetails.metrics);
@@ -3337,3 +3443,93 @@ function getMetricsDataForSave(qname, qdesc) {
         metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
+
+function generateCustomLegend(chart, legendContainer) {
+    $(legendContainer).empty();
+
+    const ul = $('<ul></ul>').css({
+        'list-style-type': 'none',
+        padding: 0,
+        margin: 0,
+        display: 'flex',
+        'flex-wrap': 'wrap',
+    });
+
+    chart.data.datasets.forEach((dataset, index) => {
+        const li = $('<li></li>').css({
+            display: 'flex',
+            'align-items': 'center',
+            'margin-right': '10px',
+            'margin-bottom': '5px',
+            cursor: 'pointer',
+            'font-size': '12px',
+            'white-space': 'nowrap',
+        });
+
+        const colorBox = $('<span></span>').css({
+            display: 'inline-block',
+            width: '14px',
+            height: '4px',
+            'background-color': dataset.borderColor,
+            'margin-right': '8px',
+        });
+
+        const text = $('<span></span>').text(dataset.label);
+
+        li.append(colorBox).append(text);
+
+        li.on('click', function (e) {
+            if (e.shiftKey) {
+                const meta = chart.getDatasetMeta(index);
+                meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                chart.update();
+
+                if (meta.hidden) {
+                    $(this).css('opacity', 0.4);
+                } else {
+                    $(this).css('opacity', 1);
+                }
+            } else {
+                const isOnlyVisibleDataset = chart.data.datasets.every((dataset, i) => (i === index ? chart.isDatasetVisible(i) : !chart.isDatasetVisible(i)));
+
+                if (isOnlyVisibleDataset) {
+                    chart.data.datasets.forEach((_, i) => {
+                        chart.setDatasetVisibility(i, true);
+                        $(ul.find('li')[i]).css('opacity', 1);
+                    });
+                } else {
+                    chart.data.datasets.forEach((_, i) => {
+                        if (i === index) {
+                            chart.setDatasetVisibility(i, true);
+                            $(ul.find('li')[i]).css('opacity', 1);
+                        } else {
+                            chart.setDatasetVisibility(i, false);
+                            $(ul.find('li')[i]).css('opacity', 0.4);
+                        }
+                    });
+                }
+                chart.update();
+            }
+        });
+
+        ul.append(li);
+    });
+
+    $(legendContainer).append(ul);
+}
+
+function autoResizeTextarea(textarea) {
+    textarea.style.height = '26px';
+
+    if (textarea.scrollHeight > 26) {
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+}
+
+function resizeAllTextareas() {
+    const textareas = document.querySelectorAll('.raw-query-input');
+    textareas.forEach(autoResizeTextarea);
+}
+
+window.addEventListener('resize', resizeAllTextareas);
+document.addEventListener('DOMContentLoaded', resizeAllTextareas);
