@@ -696,6 +696,22 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 	case "label_join":
 		// TODO: Implement label_join function
 		return fmt.Errorf("handleCallExprVectorSelectorNode: label_join function is not supported")
+	case "histogram_quantile":
+		if len(expr.Args) != 2 {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters: %v for the histogram_quantile function", expr.Args.String())
+		}
+
+		quantileLiteral, ok := expr.Args[0].(*parser.NumberLiteral)
+		if !ok {
+			return fmt.Errorf("handleCallExprVectorSelectorNode: incorrect parameters:%v. Expected the quantile to be a number", expr.Args.String())
+		}
+
+		mQuery.Function = structs.Function{
+			FunctionType: structs.HistogramFunction,
+			HistogramBlock: &structs.HistogramBlock{
+				Quantile: quantileLiteral.Val,
+			},
+		}
 	default:
 		return fmt.Errorf("handleCallExprVectorSelectorNode: unsupported function type %v", function)
 	}

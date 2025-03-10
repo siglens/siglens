@@ -495,6 +495,24 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	return nil
 }
 
+func (r *MetricsResult) ApplyHistogramToResults(parallelism int, agg *structs.HistogramAgg) error {
+	if agg == nil {
+		log.Errorf("ApplyHistogramToResults: HistogramAgg is nil")
+		return fmt.Errorf("nil histogram agg")
+	}
+
+	seriesIds := make([]string, 0, len(r.Results))
+	for seriesId := range r.Results {
+		seriesIds = append(seriesIds, seriesId)
+	}
+
+	switch agg.Function {
+
+	}
+
+	return nil
+}
+
 func (r *MetricsResult) AddError(err error) {
 	r.rwLock.Lock()
 	r.ErrList = append(r.ErrList, err)

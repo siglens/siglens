@@ -204,6 +204,12 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 				return mRes
 			}
+		} else if mQuery.SubsequentAggs.AggBlockType == structs.HistogramBlock {
+			err := mRes.ApplyHistogramToResults(parallelism, mQuery.SubsequentAggs.HistogramBlock)
+			if err != nil {
+				mRes.AddError(err)
+				return mRes
+			}
 		} else {
 			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType)
 			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType))

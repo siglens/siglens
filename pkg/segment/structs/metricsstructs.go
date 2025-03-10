@@ -97,6 +97,7 @@ const (
 	RangeFunction
 	TimeFunction
 	LabelFunction
+	HistogramFunction
 )
 
 type LabelReplacementKeyType uint8
@@ -135,6 +136,11 @@ type Function struct {
 	LabelFunction *LabelFunctionExpr
 }
 
+type HistogramAgg struct {
+	Function utils.HistogramFunctions
+	Quantile float64
+}
+
 type Downsampler struct {
 	Interval   int
 	Unit       string
@@ -147,12 +153,14 @@ type MetricQueryAggBlockType int
 const (
 	AggregatorBlock MetricQueryAggBlockType = iota + 1
 	FunctionBlock
+	HistogramBlock
 )
 
 type MetricQueryAgg struct {
 	AggBlockType    MetricQueryAggBlockType
 	AggregatorBlock *Aggregation
 	FunctionBlock   *Function
+	HistogramBlock  *HistogramAgg
 	Next            *MetricQueryAgg
 }
 
