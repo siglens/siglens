@@ -604,6 +604,8 @@ input:checked+.slider:before {
 
 .raw-query {
     width: 100%;
+    height: auto !important;
+    align-items: flex-start !important;
 }
 
 #metrics-container .refresh-btn {
@@ -617,4 +619,18 @@ input:checked+.slider:before {
 .panelDisplay .panEdit-panel .merged-graph {
     height: calc(30vh - 65px);
     padding: 0;
+}
+
+.raw-query-input {
+    width: 100%;
+    min-height: 26px;
+    resize: none;
+    padding: 4px 8px;
+    font-family: monospace;
+    line-height: 18px;
+    border: 1px solid var(--search-input-border);    
+    box-sizing: border-box;
+    overflow: hidden;
+    outline: none;
+    font-size: 11px;
 }
