@@ -289,11 +289,6 @@ func writeUsageStats() {
 				if err != nil {
 					log.Errorf("WriteUsageStats failed:%v\n", err)
 				}
-				errC := flushCompressedStatsToFile(0)
-				if errC != nil {
-					log.Errorf("WriteUsageStats failed:%v\n", errC)
-				}
-
 			}()
 
 			if hook := hooks.GlobalHooks.WriteUsageStatsElseExtraLogicHook; hook != nil {
