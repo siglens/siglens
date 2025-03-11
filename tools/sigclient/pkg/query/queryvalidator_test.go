@@ -29,29 +29,172 @@ func Test_FilterQueryValidator(t *testing.T) {
 		{"city": "Boston", "timestamp": uint64(2), "age": 36},
 		{"city": "New York", "timestamp": uint64(3), "age": 22},
 		{"city": "Boston", "timestamp": uint64(4), "age": 22},
-		{"city": "Boston", "timestamp": uint64(5)},
+		{"city": "Boston", "timestamp": uint64(5), "latency": 100},
 	}
+	expectedJsonMatchingFirstTwo := []byte(`{
+		"hits": {
+			"totalMatched": {
+				"value": 2,
+				"relation": "eq"
+			},
+			"records": [
+				{"city": "Boston", "timestamp": 2, "age": 36},
+				{"city": "Boston", "timestamp": 1, "age": 30}
+			]
+		},
+		"allColumns": ["city", "timestamp", "age"]
+	}`)
 
 	t.Run("FewerThanHeadMatch", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:2])
+		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
+	})
 
-		expectedJson := []byte(`{
-        	"hits": {
-        		"totalMatched": {
-        			"value": 2,
-        			"relation": "eq"
-        		},
-        		"records": [
-        			{"city": "Boston", "timestamp": 2, "age": 36},
-        			{"city": "Boston", "timestamp": 1, "age": 30}
-        		]
-        	},
-        	"allColumns": ["city", "timestamp", "age"]
-        }`)
-		assert.NoError(t, validator.MatchesResult(expectedJson))
+	t.Run("FilterByValue", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs[:3]) // The third log has a different city, so it should be ignored.
+		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
+	})
+
+	t.Run("FilterByTime", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(1), uint64(2)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
+	})
+
+	t.Run("MissingColumns", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs[3:])
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 2,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
+	})
+
+	t.Run("MoreThanHeadMatch", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
+	})
+
+	t.Run("BadResponse", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs[:1])
+
+		// For reference, this is a correct response.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 1,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["age", "city", "timestamp"]
+		}`)))
+
+		// Missing the "age" column.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 1,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp"]
+		}`)))
+
+		// Extra column "latency".
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 1,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["age", "city", "timestamp", "latency"]
+		}`)))
+
+		// Incorrect totalMatched.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 2,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["age", "city", "timestamp"]
+		}`)))
+
+		// Incorrect record.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 1,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 150}
+				]
+			},
+			"allColumns": ["age", "city", "timestamp"]
+		}`)))
+
+		// Bad JSON.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 1,
+					"relation": "eq"
+		`)))
 	})
 }
 

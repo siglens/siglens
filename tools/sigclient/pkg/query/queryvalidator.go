@@ -150,15 +150,6 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	slices.Reverse(expectedLogs)
 	for i, record := range response.Hits.Records {
 		if !utils.EqualMaps(record, expectedLogs[i]) {
-			log.Errorf("andrew actual log:")
-			for k, v := range record {
-				log.Errorf("key=%v, value=(%T, %v)", k, v, v)
-			}
-
-			log.Errorf("andrew expected log:")
-			for k, v := range expectedLogs[i] {
-				log.Errorf("key=%v, value=(%T, %v)", k, v, v)
-			}
 			return fmt.Errorf("FQV.MatchesResult: expected %+v, got %+v for iter %v",
 				expectedLogs[i], record, i)
 		}
