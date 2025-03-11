@@ -395,7 +395,9 @@ func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int,
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
-	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {
+	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{},
+	callback func(logs []map[string]interface{})) {
+
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)

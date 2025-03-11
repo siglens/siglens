@@ -103,7 +103,7 @@ var esBulkCmd = &cobra.Command{
 			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
 		}
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, nil)
 	},
 }
 
@@ -150,7 +150,7 @@ var functionalTestCmd = &cobra.Command{
 			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
 			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig, nil)
 
 			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
 			if err != nil {
@@ -201,7 +201,7 @@ var performanceTestCmd = &cobra.Command{
 			defer cancel()
 			// addTs should be false for performance testing
 			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
-				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig, nil)
 		}(cancel)
 
 		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
@@ -290,7 +290,7 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("cardinality : %+v.\n", cardinality)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
 
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
+		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, nil)
 	},
 }
 
@@ -541,7 +541,10 @@ var longevityCmd = &cobra.Command{
 		uniqueCols := 0
 		dataGeneratorConfig := utils.InitGeneratorDataConfig(maxCols, true, minCols, uniqueCols)
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, addTs, numMetrics, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile,
+			totalEvents, continuous, batchSize, dest, indexPrefix, indexName,
+			numIndices, processCount, addTs, numMetrics, bearerToken, 0,
+			eventsPerDay, dataGeneratorConfig, nil)
 	},
 }
 
