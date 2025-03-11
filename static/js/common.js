@@ -1446,6 +1446,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             `;
 
             jsonPopup.classList.add('active');
+            $('.json-popup').show();
 
             const closeBtn = jsonPopup.querySelector('.json-popup-close');
             closeBtn.onclick = () => {

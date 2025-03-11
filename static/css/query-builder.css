@@ -740,8 +740,8 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #tabs-chart,
 #showTable {
     display: none;
-    margin: 6px 0 0 0;
-    height: calc(100% - 30px);
+    margin: 8px 0 0 0;
+    height: calc(100% - 32px);
 }
 
 #showTable {
