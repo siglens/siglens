@@ -24,6 +24,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_implmentsQueryValidator(t *testing.T) {
+	var _ queryValidator = &filterQueryValidator{}
+}
+
 func Test_FilterQueryValidator(t *testing.T) {
 	logs := []map[string]interface{}{
 		{"city": "Boston", "timestamp": uint64(1), "age": 30},

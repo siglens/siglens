@@ -33,6 +33,7 @@ type queryValidator interface {
 	HandleLog(map[string]interface{}) error
 	GetQuery() (string, uint64, uint64) // Query, start epoch, end epoch.
 	MatchesResult([]byte) error
+	PastEndTime(timestamp uint64) bool
 }
 
 type basicValidator struct {
@@ -51,6 +52,10 @@ func (b *basicValidator) GetQuery() (string, uint64, uint64) {
 
 func (b *basicValidator) MatchesResult(result []byte) error {
 	return fmt.Errorf("basicValidator.MatchesResult: not implemented")
+}
+
+func (b *basicValidator) PastEndTime(timestamp uint64) bool {
+	return timestamp > b.endEpoch
 }
 
 type filterQueryValidator struct {
