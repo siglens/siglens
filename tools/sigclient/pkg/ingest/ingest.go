@@ -106,11 +106,13 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 }
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
-	actLines []string, bb *bytebufferpool.ByteBuffer) ([]byte, error) {
+	actLines []string, bb *bytebufferpool.ByteBuffer,
+	callback func([]map[string]interface{})) ([]byte, error) {
+
 	switch iType {
 	case ESBulk:
 		actionLine := actLines[i%len(actLines)]
-		return generateESBody(recs, actionLine, rdr, bb)
+		return generateESBody(recs, actionLine, rdr, bb, callback)
 	case OpenTSDB:
 		return generateOpenTSDBBody(recs, rdr)
 	default:
@@ -120,17 +122,27 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 }
 
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
-	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
+	bb *bytebufferpool.ByteBuffer, callback func([]map[string]interface{})) ([]byte, error) {
 
+	allLogs := make([]map[string]interface{}, 0, recs)
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
-		logline, err := rdr.GetLogLine()
+		rawLog, err := rdr.GetRawLog()
+		if err != nil {
+			return nil, err
+		}
+		allLogs = append(allLogs, rawLog)
+
+		logline, err := json.Marshal(rawLog)
 		if err != nil {
 			return nil, err
 		}
 		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
+
+	go callback(allLogs)
+
 	payLoad := bb.Bytes()
 	return payLoad, nil
 }
@@ -218,7 +230,8 @@ func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64)
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
 	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
-	eventsPerDayPerProcess int, totalBytes *uint64) {
+	eventsPerDayPerProcess int, totalBytes *uint64, callback func([]map[string]interface{})) {
+
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -258,7 +271,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			payload, err = generateBodyFromPredefinedSeries(recsInBatch, uint64(len(preGeneratedSeries)))
 			seriesId += uint64(recsInBatch)
 		} else {
-			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
+			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb, callback)
 		}
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
@@ -436,7 +449,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		go runIngestion(iType, readers[i], &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
-			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes)
+			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes, callback)
 	}
 
 	go func() {
