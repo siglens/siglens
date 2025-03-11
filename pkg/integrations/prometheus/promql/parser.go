@@ -708,7 +708,8 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 
 		mQuery.Function = structs.Function{
 			FunctionType: structs.HistogramFunction,
-			HistogramBlock: &structs.HistogramBlock{
+			HistogramFunction: &structs.HistogramAgg{
+				Function: segutils.HistogramQuantile,
 				Quantile: quantileLiteral.Val,
 			},
 		}

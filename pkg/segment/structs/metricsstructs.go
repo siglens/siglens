@@ -127,13 +127,14 @@ type LabelFunctionExpr struct {
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
-	MathFunction  utils.MathFunctions
-	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
-	ValueList     []string
-	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
-	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
-	TimeFunction  utils.TimeFunctions
-	LabelFunction *LabelFunctionExpr
+	MathFunction      utils.MathFunctions
+	RangeFunction     utils.RangeFunctions //range function to apply, only one of these will be non nil
+	ValueList         []string
+	TimeWindow        float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
+	Step              float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
+	TimeFunction      utils.TimeFunctions
+	LabelFunction     *LabelFunctionExpr
+	HistogramFunction *HistogramAgg
 }
 
 type HistogramAgg struct {
@@ -153,14 +154,12 @@ type MetricQueryAggBlockType int
 const (
 	AggregatorBlock MetricQueryAggBlockType = iota + 1
 	FunctionBlock
-	HistogramBlock
 )
 
 type MetricQueryAgg struct {
 	AggBlockType    MetricQueryAggBlockType
 	AggregatorBlock *Aggregation
 	FunctionBlock   *Function
-	HistogramBlock  *HistogramAgg
 	Next            *MetricQueryAgg
 }
 
