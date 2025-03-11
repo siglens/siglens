@@ -16,3 +16,50 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 package query
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_FilterQueryValidator(t *testing.T) {
+	logs := []map[string]interface{}{
+		{"city": "Boston", "timestamp": uint64(1), "age": 30},
+		{"city": "Boston", "timestamp": uint64(2), "age": 36},
+		{"city": "New York", "timestamp": uint64(3), "age": 22},
+		{"city": "Boston", "timestamp": uint64(4), "age": 22},
+		{"city": "Boston", "timestamp": uint64(5)},
+	}
+
+	t.Run("FewerThanHeadMatch", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs[:2])
+
+		expectedJson := []byte(`{
+        	"hits": {
+        		"totalMatched": {
+        			"value": 2,
+        			"relation": "eq"
+        		},
+        		"records": [
+        			{"city": "Boston", "timestamp": 2, "age": 36},
+        			{"city": "Boston", "timestamp": 1, "age": 30}
+        		]
+        	},
+        	"allColumns": ["city", "timestamp", "age"]
+        }`)
+		assert.NoError(t, validator.MatchesResult(expectedJson))
+	})
+}
+
+func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
+	t.Helper()
+
+	for _, log := range logs {
+		err := validator.HandleLog(log)
+		assert.NoError(t, err)
+	}
+}

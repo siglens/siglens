@@ -61,7 +61,15 @@ type filterQueryValidator struct {
 }
 
 func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
-	endEpoch uint64) queryValidator {
+	endEpoch uint64) (queryValidator, error) {
+
+	if head < 1 || head > 99 {
+		// The 99 limit is to simplify the expected results. If siglens returns
+		// 100+ records, it will say "gte 100" records returned, but below that
+		// it will say "eq N" records returned. So by limiting to 99, we can
+		// always expect "eq N" records returned.
+		return nil, fmt.Errorf("NewFilterQueryValidator: head must be between 1 and 99 inclusive")
+	}
 
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
@@ -73,9 +81,10 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		value:           value,
 		head:            head,
 		reversedResults: make([]map[string]interface{}, 0),
-	}
+	}, nil
 }
 
+// Note: this assumes successive calls to this are for logs with increasing timestamps.
 func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	if !withinTimeRange(log, f.startEpoch, f.endEpoch) {
 		return nil
@@ -96,9 +105,13 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 }
 
 type logsResponse struct {
+	Hits       hits     `json:"hits"`
+	AllColumns []string `json:"allColumns"`
+}
+
+type hits struct {
 	TotalMatched totalMatched             `json:"totalMatched"`
 	Records      []map[string]interface{} `json:"records"`
-	AllColumns   []string                 `json:"allColumns"`
 }
 
 type totalMatched struct {
@@ -112,20 +125,42 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
 	}
 
-	if response.TotalMatched.Value != len(f.reversedResults) {
-		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d", len(f.reversedResults), response.TotalMatched.Value)
+	if response.Hits.TotalMatched.Value != len(f.reversedResults) {
+		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
+			len(f.reversedResults), response.Hits.TotalMatched.Value)
 	}
 
-	if response.TotalMatched.Relation != "eq" {
-		return fmt.Errorf("FQV.MatchesResult: expected relation to be eq, got %s", response.TotalMatched.Relation)
+	if response.Hits.TotalMatched.Relation != "eq" {
+		return fmt.Errorf("FQV.MatchesResult: expected relation to be eq, got %s",
+			response.Hits.TotalMatched.Relation)
+	}
+
+	if len(response.Hits.Records) != len(f.reversedResults) {
+		return fmt.Errorf("FQV.MatchesResult: expected %d actual records, got %d",
+			len(f.reversedResults), len(response.Hits.Records))
+	}
+
+	// Parsing json treats all numbers as float64, so we need to convert the logs.
+	for i := range f.reversedResults {
+		f.reversedResults[i] = copyLogWithFloats(f.reversedResults[i])
 	}
 
 	// Compare the logs.
 	expectedLogs := f.reversedResults
 	slices.Reverse(expectedLogs)
-	for i, log := range response.Records {
-		if !utils.EqualMaps(log, expectedLogs[i]) {
-			return fmt.Errorf("FQV.MatchesResult: expected %+v, got %+v", expectedLogs[i], log)
+	for i, record := range response.Hits.Records {
+		if !utils.EqualMaps(record, expectedLogs[i]) {
+			log.Errorf("andrew actual log:")
+			for k, v := range record {
+				log.Errorf("key=%v, value=(%T, %v)", k, v, v)
+			}
+
+			log.Errorf("andrew expected log:")
+			for k, v := range expectedLogs[i] {
+				log.Errorf("key=%v, value=(%T, %v)", k, v, v)
+			}
+			return fmt.Errorf("FQV.MatchesResult: expected %+v, got %+v for iter %v",
+				expectedLogs[i], record, i)
 		}
 	}
 
@@ -164,4 +199,38 @@ func withinTimeRange(record map[string]interface{}, startEpoch uint64, endEpoch 
 	log.Errorf("withinTimeRange: invalid timestamp type %T", timestamp)
 
 	return false
+}
+
+func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
+	newLog := make(map[string]interface{})
+	for k, v := range log {
+		switch val := v.(type) {
+		case uint:
+			newLog[k] = float64(val)
+		case int:
+			newLog[k] = float64(val)
+		case uint8:
+			newLog[k] = float64(val)
+		case int8:
+			newLog[k] = float64(val)
+		case uint16:
+			newLog[k] = float64(val)
+		case int16:
+			newLog[k] = float64(val)
+		case uint32:
+			newLog[k] = float64(val)
+		case int32:
+			newLog[k] = float64(val)
+		case uint64:
+			newLog[k] = float64(val)
+		case int64:
+			newLog[k] = float64(val)
+		case float32:
+			newLog[k] = float64(val)
+		default:
+			newLog[k] = v
+		}
+	}
+
+	return newLog
 }
