@@ -40,7 +40,6 @@ import (
 const KEY_TRACE_RELATED_LOGS_INDEX = "trace-related-logs"
 
 func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp.RequestCtx) {
-
 	qid := rutils.GetNextQid()
 	event, err := readInitialEvent(qid, conn)
 	defer fileutils.DeferableAddAccessLogEntry(
@@ -97,7 +96,7 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 		return
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, orgid, false)
+	ti := structs.InitTableInfo(indexNameIn, orgid, false, ctx)
 	log.Infof("qid=%v, ProcessPipeSearchWebsocket: index=[%v] searchString=[%v] scrollFrom=[%v]",
 		qid, ti.String(), searchText, scrollFrom)
 
@@ -156,12 +155,12 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 
 	// This is for SPL queries where the index name is parsed from the query
 	if len(parsedIndexNames) > 0 {
-		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), orgid, false)
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), orgid, false, ctx)
 	}
 
 	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
 		indexNameIn = aggs.TableName
-		ti = structs.InitTableInfo(indexNameIn, orgid, false) // Re-initialize ti with the updated indexNameIn
+		ti = structs.InitTableInfo(indexNameIn, orgid, false, ctx) // Re-initialize ti with the updated indexNameIn
 	}
 
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
@@ -224,7 +223,8 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 
 func RunAsyncQueryForNewPipeline(conn *websocket.Conn, qid uint64, simpleNode *structs.ASTNode, aggs *structs.QueryAggregators,
 	timechartSimpleNode *structs.ASTNode, timechartAggs *structs.QueryAggregators,
-	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int) {
+	qc *structs.QueryContext, sizeLimit uint64, scrollFrom int,
+) {
 	websocketR := make(chan map[string]interface{})
 
 	go listenToConnection(qid, websocketR, conn)
@@ -318,7 +318,6 @@ func processCancelQuery(conn *websocket.Conn, qid uint64) {
 }
 
 func processQueryStateUpdate(conn *websocket.Conn, qid uint64, queryState query.QueryState) {
-
 	e := map[string]interface{}{
 		"state": queryState.String(),
 		"qid":   qid,
@@ -330,7 +329,8 @@ func processQueryStateUpdate(conn *websocket.Conn, qid uint64, queryState query.
 }
 
 func processQueryUpdate(conn *websocket.Conn, qid uint64, sizeLimit uint64, scrollFrom int, qscd *query.QueryStateChanData,
-	aggs *structs.QueryAggregators, includeNulls bool) {
+	aggs *structs.QueryAggregators, includeNulls bool,
+) {
 	searchPercent := qscd.PercentComplete
 
 	totalEventsSearched, totalPossibleEvents, err := query.GetTotalSearchedAndPossibleEventsForQid(qid)
@@ -386,7 +386,7 @@ func processCompleteUpdate(conn *websocket.Conn, sizeLimit, qid uint64, aggs *st
 		log.Errorf("qid=%d, processCompleteUpdate: failed to get query start time for qid! Error: %v", qid, err)
 	}
 
-	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) //aggs.BucketLimit
+	aggMeasureRes, aggMeasureFunctions, aggGroupByCols, columnsOrder, bucketCount := query.GetMeasureResultsForQid(qid, true, 0, aggs.BucketLimit) // aggs.BucketLimit
 	log.Infof("qid=%d, Finished execution in %+v", qid, time.Since(startTime))
 
 	var canScrollMore bool
@@ -472,8 +472,8 @@ func UpdateWSResp(wsResponse *structs.PipeSearchWSUpdateResponse, qType structs.
 }
 
 func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrollFrom int,
-	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64, includeNulls bool) (*structs.PipeSearchWSUpdateResponse, error) {
-
+	totalEventsSearched uint64, qUpdate *query.QueryUpdate, aggs *structs.QueryAggregators, totalPossibleEvents uint64, includeNulls bool,
+) (*structs.PipeSearchWSUpdateResponse, error) {
 	qType := query.GetQueryType(qid)
 	wsResponse := &structs.PipeSearchWSUpdateResponse{
 		Completion:               searchPercent,
@@ -567,7 +567,8 @@ func createRecsWsResp(qid uint64, sizeLimit uint64, searchPercent float64, scrol
 }
 
 func getRawLogsAndColumns(inrrcs []*segutils.RecordResultContainer, skEnc uint32, anySegKey bool, sizeLimit uint64,
-	segencmap map[uint32]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
+	segencmap map[uint32]string, aggs *structs.QueryAggregators, qid uint64, allColsInAggs map[string]struct{}, includeNulls bool,
+) ([]map[string]interface{}, []string, error) {
 	found := uint64(0)
 	rrcs := make([]*segutils.RecordResultContainer, len(inrrcs))
 	for i := 0; i < len(inrrcs); i++ {

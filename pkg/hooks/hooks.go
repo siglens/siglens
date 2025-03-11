@@ -135,8 +135,11 @@ type Hooks struct {
 	RotateSegment             func(segstore interface{}, streamId string, forceRotate bool) (bool, error)
 	AfterSegmentRotation      func(segmeta interface{}) error
 
-	//Version
+	// Version
 	ProcessVersionInfoHook func(ctx *fasthttp.RequestCtx)
+
+	// RBAC
+	IsAccessAllowedToIndex func(indexName string, ctx *fasthttp.RequestCtx) bool
 }
 
 type HtmlSnippets struct {

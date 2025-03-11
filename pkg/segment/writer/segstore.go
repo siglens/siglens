@@ -57,8 +57,10 @@ import (
 
 // For Last wip we do not know how many nodes this wip will add, hence we
 // leave a room for one wip's worth of recs.
-const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
-const MaxAgileTreeNodeCount = 8_000_000
+const (
+	MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
+	MaxAgileTreeNodeCount         = 8_000_000
+)
 
 const BS_INITIAL_SIZE = uint32(1000)
 
@@ -106,8 +108,8 @@ type PQTracker struct {
 }
 
 func InitSegStore(segmentKey string, segbaseDir string, suffix uint64, virtualTableName string,
-	skipDe bool, orgId int64, highTs uint64, lowTs uint64) *SegStore {
-
+	skipDe bool, orgId int64, highTs uint64, lowTs uint64,
+) *SegStore {
 	segStore := NewSegStore(orgId)
 	segStore.SegmentKey = segmentKey
 	segStore.segbaseDir = segbaseDir
@@ -173,7 +175,6 @@ func (segStore *SegStore) LogAndFlushErrors() {
 }
 
 func (segstore *SegStore) initWipBlock() {
-
 	segstore.wipBlock = WipBlock{
 		columnBlooms:       make(map[string]*BloomIndex),
 		columnRangeIndexes: make(map[string]*RangeIndex),
@@ -557,7 +558,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			}
 		}
 
-		//readjust workBufComp size based on num of columns in this wip
+		// readjust workBufComp size based on num of columns in this wip
 		flushParallelism := runtime.GOMAXPROCS(0) * 2
 		if config.IsLowMemoryModeEnabled() {
 			flushParallelism = 1
@@ -667,11 +668,13 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 		allColsSizes := segstore.getAllColsSizes()
 
-		var segmeta = structs.SegMeta{SegmentKey: segstore.SegmentKey, EarliestEpochMS: segstore.earliest_millis,
+		segmeta := structs.SegMeta{
+			SegmentKey: segstore.SegmentKey, EarliestEpochMS: segstore.earliest_millis,
 			LatestEpochMS: segstore.latest_millis, VirtualTableName: segstore.VirtualTableName,
 			RecordCount: segstore.RecordCount, SegbaseDir: segstore.segbaseDir,
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
-			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
+			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId,
+		}
 
 		WriteRunningSegMeta(segstore.SegmentKey, &segmeta)
 
@@ -702,7 +705,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
-
 	pqFname := filepath.Join(segKey, "pqmr", pqid+".pqmr")
 	err := os.Remove(pqFname)
 	if err != nil {
@@ -802,11 +804,13 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			allPqids[pqid] = true
 		}
 
-		var segmeta = structs.SegMeta{SegmentKey: segstore.SegmentKey, EarliestEpochMS: segstore.earliest_millis,
+		segmeta := structs.SegMeta{
+			SegmentKey: segstore.SegmentKey, EarliestEpochMS: segstore.earliest_millis,
 			LatestEpochMS: segstore.latest_millis, VirtualTableName: segstore.VirtualTableName,
 			RecordCount: segstore.RecordCount, SegbaseDir: segstore.segbaseDir,
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
-			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
+			ColumnNames: allColsSizes, AllPQIDs: allPqids, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId,
+		}
 
 		addSegmeta(segmeta)
 		if hook := hooks.GlobalHooks.AfterSegmentRotation; hook != nil {
@@ -871,7 +875,6 @@ func CleanupUnrotatedSegment(segstore *SegStore, streamId string, removeDir bool
 }
 
 func (segstore *SegStore) getColsAboveCardLimit() map[string]uint64 {
-
 	colsToDrop := make(map[string]uint64)
 
 	for _, cname := range segstore.stbHolder.stbPtr.GetGroupByKeys() {
@@ -892,7 +895,6 @@ func (segstore *SegStore) getColsAboveCardLimit() map[string]uint64 {
 }
 
 func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
-
 	gcols, inMesCols := querytracker.GetTopPersistentAggs(segstore.VirtualTableName)
 	sortedGrpCols := make([]string, 0)
 	grpColsCardinality := make(map[string]uint32) // use it to sort based on cardinality
@@ -945,7 +947,6 @@ func (segstore *SegStore) initStarTreeCols() ([]string, []string) {
 }
 
 func (segstore *SegStore) computeStarTree() {
-
 	if segstore.numBlocks == 0 {
 		sortedGrpCols, mCols := segstore.initStarTreeCols()
 		if len(sortedGrpCols) == 0 || len(mCols) == 0 {
@@ -1005,7 +1006,6 @@ func (segstore *SegStore) computeStarTree() {
 	}
 
 	err := segstore.stbHolder.stbPtr.ComputeStarTree(&segstore.wipBlock)
-
 	if err != nil {
 		log.Errorf("computeStarTree: Release STB, Failed to compute star tree: %v", err)
 		segstore.stbHolder.ReleaseSTB()
@@ -1015,7 +1015,6 @@ func (segstore *SegStore) computeStarTree() {
 }
 
 func (segstore *SegStore) flushStarTree() uint32 {
-
 	if !config.IsAggregationsEnabled() {
 		return 0
 	}
@@ -1033,7 +1032,6 @@ func (segstore *SegStore) flushStarTree() uint32 {
 }
 
 func (segstore *SegStore) adjustEarliestLatestTimes(ts_millis uint64) {
-
 	if segstore.earliest_millis == 0 {
 		segstore.earliest_millis = ts_millis
 	} else {
@@ -1052,7 +1050,6 @@ func (segstore *SegStore) adjustEarliestLatestTimes(ts_millis uint64) {
 }
 
 func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
-
 	if wipBlock.blockSummary.LowTs == 0 {
 		wipBlock.blockSummary.LowTs = ts_millis
 	} else {
@@ -1068,13 +1065,12 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 			wipBlock.blockSummary.HighTs = ts_millis
 		}
 	}
-
 }
 
 func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
-	jsParsingStackbuf []byte) error {
-
+	jsParsingStackbuf []byte,
+) error {
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
@@ -1106,7 +1102,6 @@ func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
 
 // flushes bloom index and returns number of bytes written
 func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
-
 	if bi == nil {
 		log.Errorf("flushBloomIndex: bi was nill for segkey=%v", ss.SegmentKey)
 		return 0
@@ -1170,18 +1165,16 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	if len(bi.HistoricalCount) == 0 {
 		bi.HistoricalCount = make([]uint32, 0)
 	}
-	//adding to block history list
+	// adding to block history list
 	bi.HistoricalCount = append(bi.HistoricalCount, bi.uniqueWordCount)
 	if streamIdHistory := len(bi.HistoricalCount); streamIdHistory > utils.BLOOM_SIZE_HISTORY {
 		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-utils.BLOOM_SIZE_HISTORY:]
-
 	}
 	return uint64(bytesWritten)
 }
 
 // returns the number of bytes written
 func (segstore *SegStore) flushBlockSummary(bmh *structs.BlockMetadataHolder, blkNum uint16) uint64 {
-
 	fname := structs.GetBsuFnameFromSegKey(segstore.SegmentKey)
 
 	fd, err := os.OpenFile(fname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -1207,7 +1200,6 @@ func (segstore *SegStore) flushBlockSummary(bmh *structs.BlockMetadataHolder, bl
 }
 
 func (segstore *SegStore) flushBlockRangeIndex(cname string, ri *RangeIndex) uint64 {
-
 	if ri == nil {
 		log.Errorf("flushBlockRangeIndex: ri was nill for segkey=%v", segstore.SegmentKey)
 		return 0
@@ -1275,7 +1267,6 @@ func (segStore *SegStore) clearPQMatchInfo() {
 }
 
 func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
-
 	encType := utils.TIMESTAMP_TOPDIFF_VARENC
 
 	tsWip := wipBlock.colWips[config.GetTimeStampKey()]
@@ -1346,7 +1337,6 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 */
 
 func (ss *SegStore) writeWipTsRollups(cname string) error {
-
 	// todo move this dir creation to initSegStore
 	dirName := fmt.Sprintf("%v/rups/", path.Dir(ss.SegmentKey))
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
@@ -1456,7 +1446,6 @@ Encoding Scheme for all columns single file
 [Version 1B] [CnameLen 2B] [Cname xB] [ColSegEncodingLen 4B] [ColSegEncoding xB]....
 */
 func (ss *SegStore) FlushSegStats() error {
-
 	if len(ss.AllSst) <= 0 {
 		found := 0
 		tsKey := config.GetTimeStampKey()
@@ -1549,7 +1538,6 @@ OR
 NonNumeric [DType 1B] [Min_Size 2B] [Min_Data xB] [Max_Size 2B] [Max_Data xB]
 */
 func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
-
 	idx := uint32(0)
 
 	// version
@@ -1667,7 +1655,6 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 }
 
 func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
-
 	allColsSizes := make(map[string]*structs.ColSizeInfo)
 
 	for cname, colValueLen := range ss.AllSeenColumnSizes {

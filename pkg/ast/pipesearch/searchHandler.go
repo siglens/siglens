@@ -262,9 +262,7 @@ func ParseSearchBody(jsonSource map[string]interface{}, nowTs uint64) (string, u
 }
 
 // ProcessAlertsPipeSearchRequest processes the logs search request for alert queries.
-func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
-	orgid int64) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
-
+func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams, orgid int64, ctx *fasthttp.RequestCtx) (*structs.PipeSearchResponseOuter, *dtypeutils.TimeRange, error) {
 	dbPanelId := "-1"
 	queryStart := time.Now()
 
@@ -279,7 +277,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	readJSON["endEpoch"] = queryParams.EndTime
 	readJSON["state"] = "query"
 
-	httpRespOuter, isScrollMax, timeRange, err := ParseAndExecutePipeRequest(readJSON, qid, orgid, queryStart, dbPanelId)
+	httpRespOuter, isScrollMax, timeRange, err := ParseAndExecutePipeRequest(readJSON, qid, orgid, queryStart, dbPanelId, ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -291,7 +289,7 @@ func ProcessAlertsPipeSearchRequest(queryParams alertutils.QueryParams,
 	return httpRespOuter, timeRange, nil
 }
 
-func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid int64, queryStart time.Time, dbPanelId string) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
+func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myid int64, queryStart time.Time, dbPanelId string, ctx *fasthttp.RequestCtx) (*structs.PipeSearchResponseOuter, bool, *dtypeutils.TimeRange, error) {
 	var err error
 
 	nowTs := utils.GetCurrentTimeInMs()
@@ -301,7 +299,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 		return nil, true, nil, nil
 	}
 
-	ti := structs.InitTableInfo(indexNameIn, myid, false)
+	ti := structs.InitTableInfo(indexNameIn, myid, false, ctx)
 	log.Infof("qid=%v, ParseAndExecutePipeRequest: index=[%s], searchString=[%v] , startEpoch: %v, endEpoch: %v",
 		qid, ti.String(), searchText, startEpoch, endEpoch)
 
@@ -335,7 +333,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 	// This is for SPL queries where the index name is parsed from the query
 	if len(parsedIndexNames) > 0 {
-		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), myid, false)
+		ti = structs.InitTableInfo(strings.Join(parsedIndexNames, ","), myid, false, ctx)
 	}
 
 	sizeLimit = GetFinalSizelimit(aggs, sizeLimit)
@@ -347,7 +345,7 @@ func ParseAndExecutePipeRequest(readJSON map[string]interface{}, qid uint64, myi
 	}
 	if queryLanguageType == "SQL" && aggs != nil && aggs.TableName != "*" {
 		indexNameIn = aggs.TableName
-		ti = structs.InitTableInfo(indexNameIn, myid, false) // Re-initialize ti with the updated indexNameIn
+		ti = structs.InitTableInfo(indexNameIn, myid, false, ctx) // Re-initialize ti with the updated indexNameIn
 	}
 
 	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, scrollFrom, myid, false)
@@ -405,7 +403,7 @@ func ProcessPipeSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		log.Errorf("qid=%v, ProcessPipeSearchRequest: failed to decode search request body! err: %+v", qid, err)
 	}
 
-	httpRespOuter, isScrollMax, _, err := ParseAndExecutePipeRequest(readJSON, qid, myid, queryStart, dbPanelId)
+	httpRespOuter, isScrollMax, _, err := ParseAndExecutePipeRequest(readJSON, qid, myid, queryStart, dbPanelId, ctx)
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Error processing search request: %v", err), "", err)
 		return
@@ -490,8 +488,8 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 // returns converted json, all columns, or any errors
 func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
 	qid uint64, segencmap map[uint32]string, aggs *structs.QueryAggregators,
-	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
-
+	allColsInAggs map[string]struct{}, includeNulls bool,
+) ([]map[string]interface{}, []string, error) {
 	hits := make([]map[string]interface{}, 0)
 	// if sizeLimit is 0, return empty hits
 	// And Even if len(rrcs) is 0, we will still proceed to the json records
@@ -556,7 +554,6 @@ func convertBucketToAggregationResponse(buckets map[string]*structs.AggregationR
 }
 
 func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
-
 	var resp utils.AutoCompleteDataInfo
 	allVirtualTableNames, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
@@ -577,7 +574,6 @@ func GetAutoCompleteData(ctx *fasthttp.RequestCtx, myid int64) {
 			log.Errorf("GetAutoCompleteData: skipping an empty index name indexName: %v", indexName)
 			continue
 		}
-
 	}
 
 	resp.ColumnNames = segmetadata.GetAllColNames(sortedIndices)
@@ -594,13 +590,12 @@ func processMaxScrollCount(ctx *fasthttp.RequestCtx, qid uint64) {
 	resp.Qtype = qType.String()
 	utils.WriteJsonResponse(ctx, resp)
 	ctx.SetStatusCode(fasthttp.StatusOK)
-
 }
 
 func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTNode, aggs *structs.QueryAggregators,
 	timechartRoot *structs.ASTNode, timechartAggs *structs.QueryAggregators,
-	qc *structs.QueryContext) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
-
+	qc *structs.QueryContext,
+) (*structs.PipeSearchResponseOuter, bool, *dtu.TimeRange, error) {
 	isAsync := conn != nil
 
 	runTimechartQuery := (timechartRoot != nil && timechartAggs != nil)

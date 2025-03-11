@@ -72,7 +72,7 @@ func Test_SortResultsArossMultipleFiles(t *testing.T) {
 		},
 	}
 	sizeLimit := uint64(100)
-	qc := structs.InitQueryContext(indexName, sizeLimit, 0, 0, false)
+	qc := structs.InitQueryContext(indexName, sizeLimit, 0, 0, false, nil)
 	result := ExecuteQuery(simpleNode, descendingSort, 1010, qc)
 	log.Infof("%d result %+v %+v", 1010, result, result.TotalResults)
 	descendingResults := make([]float64, 0)
