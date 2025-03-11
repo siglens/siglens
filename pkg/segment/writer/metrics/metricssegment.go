@@ -48,6 +48,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
+	"github.com/siglens/siglens/pkg/usageStats"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -69,6 +70,8 @@ var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
+
+const METRICS_INSTRUMENTATION_FLUSH_DURATION = 60 // 60 seconds
 
 var dateTimeLayouts = []string{
 	time.RFC3339,
@@ -187,6 +190,7 @@ func InitMetricsSegStore() {
 	go timeBasedMetricsFlush()
 	go timeBasedRotate()
 	go timeBasedTagsTreeFlush()
+	go timeBasedInstruFlush()
 }
 
 func initOrgMetrics(orgid int64) error {
@@ -321,6 +325,24 @@ func timeBasedTagsTreeFlush() {
 				}
 			}
 		}
+	}
+}
+
+func timeBasedInstruFlush() {
+	for {
+		time.Sleep(METRICS_INSTRUMENTATION_FLUSH_DURATION * time.Second)
+
+		orgMetricsAndTagsLock.RLock()
+		for orgid, msegAndTags := range OrgMetricsAndTags {
+			activeSeriesCount := uint64(0)
+			for _, tth := range msegAndTags.TagHolders {
+				tth.rwLock.RLock()
+				activeSeriesCount += uint64(len(tth.tsidLookup))
+				tth.rwLock.RUnlock()
+				usageStats.UpdateActiveSeriesCount(orgid, activeSeriesCount)
+			}
+		}
+		orgMetricsAndTagsLock.RUnlock()
 	}
 }
 
@@ -1066,6 +1088,7 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		}
 	}
 
+	// todo bug here, if the last block was less the max_block_size, then we are not rotating it
 	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	if totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
