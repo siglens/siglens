@@ -1499,7 +1499,7 @@ const ExpandableFieldsSidebarRenderer = () => {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="theme-svg">
         <rect x="5" y="5" width="90" height="90" rx="15" ry="15" class="svg-outer-rect"/>
         <rect x="30" y="13" width="57" height="74" rx="10" ry="10" class="svg-inner-rect"/>
-        <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" class="svg-path" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
     `;
 
