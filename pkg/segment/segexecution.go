@@ -49,6 +49,9 @@ func manageStateForMetricsQuery(rQuery *query.RunningQueryState, mQuery *structs
 			return
 		case query.ERROR, query.COMPLETE:
 			return
+		default:
+			// do nothing
+			continue
 		}
 	}
 }
