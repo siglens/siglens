@@ -55,13 +55,19 @@ func (q IngestType) String() string {
 	}
 }
 
+type MetricGeneratorType int
+
+const (
+	GenerateBothMetrics MetricGeneratorType = iota
+	GenerateKSMOnly
+	GenerateNodeExporterOnly
+)
+
 const PRINT_FREQ = 100_000
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
-
 	bearerToken = "Bearer " + strings.TrimSpace(bearerToken)
-
 	buf := bytes.NewBuffer(lines)
 
 	var requestStr string
@@ -70,7 +76,6 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
 		requestStr = url + "/api/put"
-
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
 		return fmt.Errorf("unknown ingest type %+v", iType)
@@ -97,7 +102,6 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		log.Errorf("sendRequest: client.Do ERROR: %v", err)
 		return err
 	}
-	// Check if the Status code is not 200
 	if resp.StatusCode != http.StatusOK {
 		log.Errorf("sendRequest: client.Do ERROR Response: %v", "StatusCode: "+fmt.Sprint(resp.StatusCode)+": "+string(respBody))
 		return fmt.Errorf("sendRequest: client.Do ERROR Response: %v", "StatusCode: "+fmt.Sprint(resp.StatusCode)+": "+string(respBody))
@@ -105,6 +109,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	return nil
 }
 
+// Generate the body for the request based on the ingest type.
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 	actLines []string, bb *bytebufferpool.ByteBuffer) ([]byte, error) {
 	switch iType {
@@ -119,9 +124,9 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 	return nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
 
+// Generate the body for Elasticsearch Bulk API requests.
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
 	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
-
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
 		logline, err := rdr.GetLogLine()
@@ -135,66 +140,107 @@ func generateESBody(recs int, actionLine string, rdr utils.Generator,
 	return payLoad, nil
 }
 
+// Generate the body for OpenTSDB API requests.
 func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
-	finalPayLoad := make([]interface{}, recs)
+	finalPayLoad := make([]interface{}, 0, recs*2) // Account for multiple metrics per record
+
 	for i := 0; i < recs; i++ {
-		currPayload, err := rdr.GetRawLog()
+		rawMetrics, err := rdr.GetRawLog()
 		if err != nil {
 			return nil, err
 		}
-		finalPayLoad[i] = currPayload
+
+		// Handle multiple metrics from single GetRawLog call
+		if metrics, ok := rawMetrics["metrics"]; ok {
+			for _, m := range metrics.([]map[string]interface{}) {
+				finalPayLoad = append(finalPayLoad, m)
+			}
+		} else {
+			finalPayLoad = append(finalPayLoad, rawMetrics)
+		}
 	}
-	retVal, err := json.Marshal(finalPayLoad)
-	if err != nil {
-		return nil, err
-	}
-	return retVal, nil
+
+	return json.Marshal(finalPayLoad)
 }
 
 var preGeneratedSeries []map[string]interface{}
 var uniqueSeriesMap = make(map[string]struct{})
 var seriesId uint64
 
-func generateUniquePayload(rdr *utils.MetricsGenerator) (map[string]interface{}, error) {
-	var currPayload map[string]interface{}
-	var err error
-	for {
-		currPayload, err = rdr.GetRawLog()
+// Generate a unique payload for OpenTSDB metrics.
+func generateUniquePayload(rdr utils.Generator) (map[string]interface{}, error) {
+	if rdr == nil {
+		return nil, fmt.Errorf("reader is nil")
+	}
+
+	const maxRetries = 1000
+	var retryCount int
+
+	for retryCount = 0; retryCount < maxRetries; retryCount++ {
+		currPayload, err := rdr.GetRawLog()
 		if err != nil {
 			log.Errorf("generateUniquePayload: failed to get raw log: %+v", err)
-			return nil, err
+			continue // Retry on errors
 		}
-		metricName := currPayload["metric"].(string)
-		tags := currPayload["tags"].(map[string]interface{})
-		var builder strings.Builder
-		builder.WriteString(metricName)
-		for key, value := range tags {
-			builder.WriteString(key)
-			builder.WriteString(fmt.Sprintf("%v", value))
+
+		// Ensure tags is a map[string]interface{}
+		tags, ok := currPayload["tags"].(map[string]interface{})
+		if !ok {
+			if stringTags, ok := currPayload["tags"].(map[string]string); ok {
+				convertedTags := make(map[string]interface{})
+				for k, v := range stringTags {
+					convertedTags[k] = v
+				}
+				currPayload["tags"] = convertedTags
+				tags = convertedTags
+			} else {
+				log.Warnf("Skipping invalid tags type: %T", currPayload["tags"])
+				continue
+			}
 		}
-		id := builder.String()
+
+		// Generate composite ID
+		var idBuilder strings.Builder
+		idBuilder.WriteString(currPayload["metric"].(string))
+		for k, v := range tags {
+			idBuilder.WriteString(k)
+			idBuilder.WriteString(fmt.Sprintf("%v", v))
+		}
+		id := idBuilder.String()
+
 		if _, exists := uniqueSeriesMap[id]; !exists {
 			uniqueSeriesMap[id] = struct{}{}
-			break
+			return currPayload, nil
 		}
 	}
 
-	return currPayload, nil
+	log.Errorf("Failed to generate unique payload after %d attempts", maxRetries)
+	return nil, fmt.Errorf("maximum uniqueness retries exceeded")
 }
 
-func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string) error {
+// Pre-generate unique series for OpenTSDB metrics.
+func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string, metricType MetricGeneratorType) error {
 	preGeneratedSeries = make([]map[string]interface{}, cardinality)
-	rdr, err := utils.InitMetricsGenerator(nMetrics, gentype)
-	if err != nil {
-		log.Errorf("generatePredefinedSeries: failed to initialize metrics generator: %+v", err)
-		return err
+
+	var rdr utils.Generator
+	var err error
+
+	if gentype == "k8s" {
+		seed := int64(1001) // Use a fixed seed for reproducibility
+		rdr = InitK8sGenerator(seed, metricType)
+	} else {
+		rdr, err = utils.InitMetricsGenerator(nMetrics, gentype)
+		if err != nil {
+			return err
+		}
 	}
+
 	start := time.Now()
 	for i := uint64(0); i < cardinality; i++ {
 		currPayload, err := generateUniquePayload(rdr)
 		if err != nil {
-			log.Errorf("generatePredefinedSeries: failed to generate unique payload: %+v", err)
-			return err
+			log.Warnf("Skipping duplicate series after retries (total generated: %d)", i)
+			continue
 		}
 		preGeneratedSeries[i] = currPayload
 	}
@@ -203,17 +249,14 @@ func generatePredefinedSeries(nMetrics int, cardinality uint64, gentype string) 
 	return nil
 }
 
-func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64) ([]byte, error) {
+// Generate the body from pre-defined series for OpenTSDB.
+func generateBodyFromPredefinedSeries(recs int) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
-		series := preGeneratedSeries[(seriesId+uint64(i))%preGeneratedSeriesLength]
-		finalPayLoad[i] = series
+		// Use modulo to cycle through predefined series
+		finalPayLoad[i] = preGeneratedSeries[(atomic.AddUint64(&seriesId, 1)-1)%uint64(len(preGeneratedSeries))]
 	}
-	retVal, err := json.Marshal(finalPayLoad)
-	if err != nil {
-		return nil, err
-	}
-	return retVal, nil
+	return json.Marshal(finalPayLoad)
 }
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
@@ -255,7 +298,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			bb = bytebufferpool.Get()
 		}
 		if iType == OpenTSDB {
-			payload, err = generateBodyFromPredefinedSeries(recsInBatch, uint64(len(preGeneratedSeries)))
+			payload, err = generateBodyFromPredefinedSeries(recsInBatch) // Updated call
 			seriesId += uint64(recsInBatch)
 		} else {
 			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
@@ -311,6 +354,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	}
 }
 
+// Send performance data if the generator supports it.
 func SendPerformanceData(rdr utils.Generator) {
 	dynamicUserGen, isDUG := rdr.(*utils.DynamicUserGenerator)
 	if !isDUG || dynamicUserGen.DataConfig == nil {
@@ -319,6 +363,7 @@ func SendPerformanceData(rdr utils.Generator) {
 	dynamicUserGen.DataConfig.SendLog()
 }
 
+// Populate action lines for Elasticsearch Bulk API.
 func populateActionLines(idxPrefix string, indexName string, numIndices int) []string {
 	if numIndices == 0 {
 		log.Fatalf("number of indices cannot be zero!")
@@ -337,8 +382,8 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 	return actionLines
 }
 
-func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int) (utils.Generator, error) {
-
+// Get the appropriate reader based on the generator type.
+func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int, metricType MetricGeneratorType) (utils.Generator, error) {
 	if iType == OpenTSDB {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
 		if err != nil {
@@ -377,8 +422,8 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 		rdr, err = utils.InitPerfTestGenerator(ts, seed, accFakerSeed, generatorDataConfig, processIndex)
 	case "k8s":
 		log.Infof("Initializing k8s reader")
-		seed := int64(1001)
-		rdr = utils.InitK8sGenerator(ts, seed)
+		seed := int64(1001 + processIndex)
+		rdr = InitK8sGenerator(seed, metricType) // Pass flags to K8sGenerator
 	default:
 		return nil, fmt.Errorf("unsupported reader type %s. Options=[static,dynamic-user,file,benchmark]", gentype)
 	}
@@ -389,16 +434,19 @@ func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str str
 	return rdr, err
 }
 
+// Initialize the generator data configuration.
 func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int, uniqColumns int) *utils.GeneratorDataConfig {
 	return utils.InitGeneratorDataConfig(maxColumns, variableColums, minColumns, uniqColumns)
 }
 
+// Start the ingestion process.
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
-	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {
+	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{},
+	metricType MetricGeneratorType) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB {
-		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
+		err := generatePredefinedSeries(nMetrics, cardinality, generatorType, metricType)
 		if err != nil {
 			log.Errorf("Failed to pre-generate series: %v", err)
 			return
@@ -424,7 +472,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 
 	readers := make([]utils.Generator, processCount)
 	for i := 0; i < processCount; i++ {
-		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig, i)
+		reader, err := getReaderFromArgs(iType, nMetrics, generatorType, dataFile, addTs, dataGeneratorConfig, i, metricType)
 		if err != nil {
 			log.Fatalf("StartIngestion: failed to initalize reader! %+v", err)
 		}
