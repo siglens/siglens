@@ -21,14 +21,88 @@ let originalIndexValues = [];
 //eslint-disable-next-line no-unused-vars
 let indexValues = [];
 
+// Function to ensure fieldsSidebarHidden parameter exists in URL only if search is active
+function ensureFieldsSidebarParameterInUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('searchText') && !urlParams.has('fieldsHidden') && window.fieldssidebarRenderer) {
+        const currentState = window.fieldssidebarRenderer.getState().isFieldsSidebarHidden;
+
+        const url = new URL(window.location);
+        url.searchParams.set('fieldsHidden', currentState);
+        window.history.replaceState({}, document.title, url);
+    }
+}
+
+// Modify doSearch function to ensure sidebar parameter is set to false on new searches
+const originalDoSearch = window.doSearch;
+if (originalDoSearch) {
+    window.doSearch = function(...args) {
+        const result = originalDoSearch.apply(this, args);
+
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('searchText')) {
+                const url = new URL(window.location);
+                url.searchParams.set('fieldsHidden', 'false');
+                window.history.replaceState({}, document.title, url);
+            }
+
+            if (window.fieldssidebarRenderer) {
+                window.fieldssidebarRenderer.forceFieldsSidebarState(false);
+            }
+        }, 300);
+
+        return result;
+    };
+}
 
 $(document).ready(async () => {
     toggleClearButtonVisibility();
 
-    fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
-    fieldssidebarRenderer.init();
-    window.fieldssidebarRenderer = fieldssidebarRenderer;
-    // fieldssidebarRenderer.updateFromUrl();
+    // Initialize the fields sidebar renderer
+    window.fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
+    window.fieldssidebarRenderer.init();
+
+    // Always ensure fieldsSidebarHidden parameter exists in URL for search pages
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('searchText')) {
+        const url = new URL(window.location);
+        url.searchParams.set('fieldsHidden', 'false');
+        window.history.replaceState({}, document.title, url);
+
+        if (window.fieldssidebarRenderer) {
+            window.fieldssidebarRenderer.forceFieldsSidebarState(false);
+        }
+    }
+
+    // Add MutationObserver to monitor when chart and fields are added to DOM
+    const bodyObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                const fieldsSidebar = document.querySelector('.fields-sidebar');
+                const customChartTab = document.querySelector('.custom-chart-tab');
+
+                if (fieldsSidebar && customChartTab && window.fieldssidebarRenderer) {
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.has('searchText')) {
+                        const url = new URL(window.location);
+                        url.searchParams.set('fieldsSidebarHidden', 'false');
+                        window.history.replaceState({}, document.title, url);
+
+                        window.fieldssidebarRenderer.forceFieldsSidebarState(false);
+                    } else {
+                        window.fieldssidebarRenderer.updateFromUrl();
+                    }
+                    bodyObserver.disconnect();
+                    break;
+                }
+            }
+        }
+    });
+
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+
 
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
@@ -107,6 +181,19 @@ $(document).ready(async () => {
         data = getInitialSearchFilter(false, false);
         initialSearchData = data;
         doSearch(data);
+        // After search completes, ensure sidebar is visible by default and URL has parameter
+        setTimeout(() => {
+            if (window.fieldssidebarRenderer) {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('searchText')) {
+                    const url = new URL(window.location);
+                    url.searchParams.set('fieldsHidden', 'false');
+                    window.history.replaceState({}, document.title, url);
+                }
+
+                window.fieldssidebarRenderer.forceFieldsSidebarState(false);
+            }
+        }, 1000);
     } else {
         setIndexDisplayValue(selectedSearchIndex);
         let stDate = Cookies.get('startEpoch') || 'now-15m';
@@ -227,20 +314,4 @@ $(document).ready(async () => {
     initializeFilterInputEvents();
 });
 
-// $(window).on('load', () => {
-//     console.log('Window loaded - ensuring state is correct');
 
-//     if (fieldssidebarRenderer) {
-//       fieldssidebarRenderer.updateFromUrl();
-
-//       console.log('State after window load:', fieldssidebarRenderer.getState().isFieldsSidebarHidden);
-//     }
-//   });
-
-// Event handler for browser back/forward buttons
-window.addEventListener('popstate', () => {
-    // Re-initialize the renderer to pick up new URL state
-    if (window.fieldssidebarRenderer) {
-      window.fieldssidebarRenderer.init();
-    }
-  });

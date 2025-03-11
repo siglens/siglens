@@ -2983,17 +2983,30 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     transition: transform 0.3s ease;
 }
 
-.expand-svg-button svg rect:first-child {
+/* Light theme styling */
+[data-theme='light'] .expand-svg-button svg rect:first-child {
     fill: var(--icon-bg-color, black);
 }
 
-.expand-svg-button svg rect:nth-child(2) {
+[data-theme='light'] .expand-svg-button svg rect:nth-child(2) {
     fill: var(--icon-inner-bg-color, white);
 }
 
-.expand-svg-button svg path {
+[data-theme='light'] .expand-svg-button svg path {
     stroke: var(--icon-arrow-color, black);
-    stroke-width: 8;
+}
+
+/* Dark theme styling */
+[data-theme='dark'] .expand-svg-button svg .svg-outer-rect {
+    fill: var(--ui-widget-bg-color, #2c2c2c);
+}
+
+[data-theme='dark'] .expand-svg-button svg .svg-inner-rect {
+    fill: var(--ui-widget-border-color, #444);
+}
+
+[data-theme='dark'] .expand-svg-button svg .svg-path {
+    stroke: var(--text-color, white);
 }
 
 .expand-svg-button:hover svg rect:first-child {
@@ -3007,6 +3020,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .expand-svg-button:hover svg path {
     stroke: var(--icon-arrow-hover, var(--purple-2));
 }
+
+/* [data-theme='dark'] .expand-svg-button svg rect:first-child {
+    fill: var(--icon-bg-color, grey);
+}
+
+[data-theme='dark'] .expand-svg-button svg rect:nth-child(2) {
+    fill: var(--icon-inner-bg-color, black);
+}
+
+[data-theme='dark'] .expand-svg-button svg path {
+    stroke: var(--icon-arrow-color, rgba(178, 178, 178, 0.991));
+    stroke-width: 8;
+} */
+
+
+
+
+
+
+
 
 .odd-popup-textarea {
     background: var(--datatable-odd-row-bg-color) !important;

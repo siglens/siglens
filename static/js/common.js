@@ -1465,13 +1465,25 @@ function ExpandableJsonCellRenderer(type = 'events') {
     }
 }
 
-
-//Hiding and showing Fields Sidebar
-// Functional pattern for ExpandableFieldsSidebarRenderer
+//Hide and show fields sidebar
 const ExpandableFieldsSidebarRenderer = () => {
-    // Initial state reads directly from URL parameter
     const initialState = () => {
-      const urlHiddenState = new URLSearchParams(window.location.search).get('fieldsSidebarHidden') === 'true';
+      // Only check URL if there's a search being performed (searchText exists)
+      const urlParams = new URLSearchParams(window.location.search);
+      const isSearchActive = urlParams.has('searchText');
+
+      let urlHiddenState = false;
+
+      if (isSearchActive && urlParams.has('fieldsHidden')) {
+        urlHiddenState = urlParams.get('fieldsHidden') === 'true';
+      }
+
+      if (isSearchActive) {
+        const url = new URL(window.location);
+        url.searchParams.set('fieldsHidden', String(urlHiddenState));
+        window.history.replaceState({}, document.title, url);
+      }
+
       return {
         eGui: null,
         expandBtn: null,
@@ -1480,44 +1492,44 @@ const ExpandableFieldsSidebarRenderer = () => {
       };
     };
 
-    // Shared state (closure)
     let state = initialState();
 
     // Pure function to generate expand SVG
     const getExpandSvg = () => `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
-        <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="theme-svg">
+        <rect x="5" y="5" width="90" height="90" rx="15" ry="15" class="svg-outer-rect"/>
+        <rect x="30" y="13" width="57" height="74" rx="10" ry="10" class="svg-inner-rect"/>
         <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
     `;
 
-    // Pure function to generate collapse SVG
     const getCollapseSvg = () => `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
-        <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
-        <path d="M45 50 L68 50 M68 50 L56 38 M68 50 L56 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="theme-svg">
+        <rect x="5" y="5" width="90" height="90" rx="15" ry="15" class="svg-outer-rect"/>
+        <rect x="30" y="13" width="57" height="74" rx="10" ry="10" class="svg-inner-rect"/>
+        <path d="M45 50 L68 50 M68 50 L56 38 M68 50 L56 62" class="svg-path" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       </svg>
     `;
 
-    // Function to find DOM elements
-    const getDomElements = () => ({
-      fieldsSidebar: document.querySelector('.fields-sidebar'),
-      customChartTab: document.querySelector('.custom-chart-tab'),
-      container: document.querySelector('.custom-chart-container'),
-      tabList: document.querySelector('.tab-chart-list'),
-      selectedFieldsHeader: document.getElementById('selected-fields-header')
-    });
+    const getDomElements = () => {
+      const elements = {
+        fieldsSidebar: document.querySelector('.fields-sidebar'),
+        customChartTab: document.querySelector('.custom-chart-tab'),
+        container: document.querySelector('.custom-chart-container'),
+        tabList: document.querySelector('.tab-chart-list'),
+        selectedFieldsHeader: document.getElementById('selected-fields-header')
+      };
 
-    // Function to create UI element
+      return elements;
+    };
+
     const createGuiElement = (isHidden) => {
       const eGui = document.createElement('div');
       eGui.className = 'expand-svg-container';
 
       eGui.innerHTML = `
         <span class="expand-svg-box">
-          <button class="expand-svg-button">
+          <button id="fields-sidebar-toggle-btn" class="expand-svg-button">
             ${isHidden ? getCollapseSvg() : getExpandSvg()}
           </button>
         </span>
@@ -1526,7 +1538,6 @@ const ExpandableFieldsSidebarRenderer = () => {
       return eGui;
     };
 
-    // Function to apply CSS classes based on state
     const applyClassesBasedOnState = (elements, isHidden) => {
       const { fieldsSidebar, customChartTab, container } = elements;
 
@@ -1548,7 +1559,6 @@ const ExpandableFieldsSidebarRenderer = () => {
       return true;
     };
 
-    // Function to position GUI element based on state
     const positionGuiElement = (eGui, elements, isHidden) => {
       const { tabList, selectedFieldsHeader } = elements;
 
@@ -1561,50 +1571,65 @@ const ExpandableFieldsSidebarRenderer = () => {
       }
     };
 
-    // Function to update URL with current state
     const updateUrlState = (isHidden) => {
+      // Only update URL if we're on a search page (has searchText parameter)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has('searchText')) {
+        return;
+      }
+
       const url = new URL(window.location);
-      url.searchParams.set('fieldsSidebarHidden', isHidden);
+      url.searchParams.set('fieldsHidden', String(isHidden));
       window.history.pushState({}, document.title, url);
     };
 
-    // Toggle function
     const toggleFieldsSidebar = (event) => {
       if (event) {
         event.stopPropagation();
       }
 
-      // Update state
       const newIsHidden = !state.isFieldsSidebarHidden;
       state.isFieldsSidebarHidden = newIsHidden;
 
-      // Update SVG
       if (state.expandIcon) {
         state.expandIcon.outerHTML = newIsHidden ? getCollapseSvg() : getExpandSvg();
         state.expandIcon = state.eGui.querySelector('svg');
       }
 
-      // Get DOM elements
       const elements = getDomElements();
 
-      // Apply CSS classes
       if (!applyClassesBasedOnState(elements, newIsHidden)) {
         return;
       }
 
-      // Position GUI element
       positionGuiElement(state.eGui, elements, newIsHidden);
 
-      // Update URL
       updateUrlState(newIsHidden);
+
+      // Update tooltip content based on new state
+      updateTooltipContent();
     };
 
-    // Apply UI state based on current isFieldsSidebarHidden value
+    // Function to update tooltip content based on sidebar state
+    const updateTooltipContent = () => {
+      const toggleBtn = document.getElementById('fields-sidebar-toggle-btn');
+      if (toggleBtn && toggleBtn._tippy) {
+        const newContent = state.isFieldsSidebarHidden ? 'Show Fields' : 'Hide Fields';
+        toggleBtn._tippy.setContent(newContent);
+      }
+    };
+
+    const forceFieldsSidebarState = (isHidden) => {
+      if (state.isFieldsSidebarHidden !== isHidden) {
+        state.isFieldsSidebarHidden = isHidden;
+        applyFieldsSidebarState();
+        updateUrlState(isHidden);
+      }
+    };
+
     const applyFieldsSidebarState = () => {
-      // Get DOM elements
       const elements = getDomElements();
 
-      // Update SVG if we have one
       if (state.eGui) {
         if (!state.expandIcon) {
           state.expandIcon = state.eGui.querySelector('svg');
@@ -1616,34 +1641,45 @@ const ExpandableFieldsSidebarRenderer = () => {
         }
       }
 
-      // Apply CSS classes
+      console.log(`Applying sidebar state: isHidden=${state.isFieldsSidebarHidden}`);
       applyClassesBasedOnState(elements, state.isFieldsSidebarHidden);
 
-      // Position GUI element
       if (state.eGui) {
         positionGuiElement(state.eGui, elements, state.isFieldsSidebarHidden);
       }
+
+      updateTooltipContent();
     };
 
-    // Initialize function
+    const updateFromUrl = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('searchText') && urlParams.has('fieldsHidden')) {
+        const urlHiddenState = urlParams.get('fieldsHidden') === 'true';
+        console.log(`Reading from URL: fieldsHidden=${urlHiddenState}`);
+
+        if (state.isFieldsSidebarHidden !== urlHiddenState) {
+          state.isFieldsSidebarHidden = urlHiddenState;
+          applyFieldsSidebarState();
+        }
+      } else if (urlParams.has('searchText')) {
+        // If on search page but parameter missing, ensure it's set to false (visible)
+        forceFieldsSidebarState(false);
+      }
+    };
+
     const init = () => {
       if (state.eGui) {
-        // Just reapply the current state if already initialized
         applyFieldsSidebarState();
         return;
       }
 
-      // Create GUI element with current state from URL
       state.eGui = createGuiElement(state.isFieldsSidebarHidden);
 
-      // Set references to DOM elements
       state.expandBtn = state.eGui.querySelector('.expand-svg-button');
       state.expandIcon = state.eGui.querySelector('svg');
 
-      // Add event listener
       state.expandBtn.addEventListener('click', toggleFieldsSidebar);
 
-      // Insert expand button in appropriate place
       const elements = getDomElements();
       if (state.isFieldsSidebarHidden) {
         const { tabList } = elements;
@@ -1660,14 +1696,34 @@ const ExpandableFieldsSidebarRenderer = () => {
         }
       }
 
-      // Apply initial state to all UI elements
+      // Apply the initial state to DOM elements
       applyFieldsSidebarState();
+
+      // Create tooltip for the toggle button
+      if (typeof createTooltip === 'function') {
+        createTooltip('#fields-sidebar-toggle-btn', state.isFieldsSidebarHidden ? 'Show Fields' : 'Hide Fields');
+      } else {
+        $(document).ready(() => {
+          $('#fields-sidebar-toggle-btn').tooltip({
+            title: state.isFieldsSidebarHidden ? 'Show Fields' : 'Hide Fields',
+            placement: 'bottom',
+            container: 'body'
+          });
+        });
+      }
+
+      // Ensure URL parameter is correct
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('searchText')) {
+        updateUrlState(state.isFieldsSidebarHidden);
+      }
     };
 
-    // Return public interface
     return {
       init,
       getGui: () => state.eGui,
-      getState: () => ({ ...state })
+      getState: () => ({ ...state }),
+      updateFromUrl,
+      forceFieldsSidebarState
     };
-  };
+};
