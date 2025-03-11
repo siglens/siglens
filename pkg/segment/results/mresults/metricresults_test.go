@@ -18,7 +18,6 @@
 package mresults
 
 import (
-	"fmt"
 	"math"
 	"testing"
 
@@ -365,7 +364,7 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	expectedLeValue := 0.14778918800354002
 	expectedSeriesId := "demo_api_request_duration_seconds_bucket{instance:demo.promlabs.com:10000,job:demo,method:POST,path:/api/foo,status:200"
 
-	newSeriesId, leValue, hasLe, err := extractAndRemoveleFromSeriesId(seriesId)
+	newSeriesId, leValue, hasLe, err := extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
 	assert.True(t, hasLe)
 	assert.Equal(t, expectedLeValue, leValue)
@@ -375,7 +374,7 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	expectedLeValue = math.Inf(1)
 	expectedSeriesId = "metric{k1:v1,k2:v2"
 
-	newSeriesId, leValue, hasLe, err = extractAndRemoveleFromSeriesId(seriesId)
+	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
 	assert.True(t, hasLe)
 	assert.Equal(t, expectedLeValue, leValue)
@@ -385,7 +384,17 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	expectedLeValue = math.Inf(-1)
 	expectedSeriesId = "metric{k1:v1,k2:v2"
 
-	newSeriesId, leValue, hasLe, err = extractAndRemoveleFromSeriesId(seriesId)
+	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
+	assert.Nil(t, err)
+	assert.True(t, hasLe)
+	assert.Equal(t, expectedLeValue, leValue)
+	assert.Equal(t, expectedSeriesId, newSeriesId)
+
+	seriesId = "metric{k1:v1,k2:v2,le:-0.134433,k3:v3,"
+	expectedLeValue = -0.134433
+	expectedSeriesId = "metric{k1:v1,k2:v2,k3:v3"
+
+	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
 	assert.True(t, hasLe)
 	assert.Equal(t, expectedLeValue, leValue)
@@ -416,7 +425,6 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Equal(t, 3, len(binsPerSeries))
 
 	bins1 := binsPerSeries["test1{tk1:v1,tk2:v2,tk3:v3"]
-	fmt.Println(bins1)
 	assert.Equal(t, 3, len(bins1))
 	assert.Contains(t, bins1, uint32(1))
 	assert.Contains(t, bins1, uint32(2))

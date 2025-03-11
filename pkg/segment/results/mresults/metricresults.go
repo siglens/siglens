@@ -553,10 +553,7 @@ func (r *MetricsResult) applyHistogramQunatile(seriesIds []string, agg *structs.
 	}
 
 	if len(errors) > 0 {
-		sliceLen := len(errors)
-		if sliceLen > 5 {
-			sliceLen = 5
-		}
+		sliceLen := min(5, len(errors))
 		log.Errorf("applyHistogramQunatile: len(errors):%v, errors:%v", len(errors), errors[:sliceLen])
 	}
 
@@ -574,7 +571,7 @@ func getHistogramBins(seriesIds []string, results map[string]map[uint32]float64)
 
 		delete(results, seriesIdWithLe)
 
-		seriesId, leValue, hasLe, err := extractAndRemoveleFromSeriesId(seriesIdWithLe)
+		seriesId, leValue, hasLe, err := extractAndRemoveLeFromSeriesId(seriesIdWithLe)
 		if err != nil {
 			log.Errorf("getHistogramBins: Failed to extract and remove le from seriesId %v, err: %v", seriesIdWithLe, err)
 			continue
@@ -599,16 +596,14 @@ func getHistogramBins(seriesIds []string, results map[string]map[uint32]float64)
 			bins = append(bins, histogramBin{upperBound: leValue, count: val})
 			tsToBins[ts] = bins
 		}
-
-		histogramBinsPerSeries[seriesId] = tsToBins
 	}
 
 	return histogramBinsPerSeries, nil
 }
 
-func extractAndRemoveleFromSeriesId(seriesId string) (string, float64, bool, error) {
+func extractAndRemoveLeFromSeriesId(seriesId string) (string, float64, bool, error) {
 	// Regex pattern to find le="VALUE" and capture the VALUE
-	re := regexp.MustCompile(`le:(\+?Inf|-?Inf|[0-9.]+),?`)
+	re := regexp.MustCompile(`le:(\+?Inf|-?Inf|-?[0-9.]+),?`)
 
 	matches := re.FindStringSubmatch(seriesId)
 	var leValueStr string
