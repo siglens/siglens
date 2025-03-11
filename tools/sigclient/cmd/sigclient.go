@@ -516,6 +516,35 @@ var traceCmd = &cobra.Command{
 	},
 }
 
+var longevityCmd = &cobra.Command{
+	Use:   "longevity",
+	Short: "Run longevity tests",
+	Long:  "Continuously ingest and query data until stopped",
+	Run: func(cmd *cobra.Command, args []string) {
+		generatorType := "benchmark"
+		dataFile := ""
+		totalEvents := 0
+		continuous := true
+		batchSize := 100
+		dest, _ := cmd.Flags().GetString("dest")
+		indexPrefix := "longevity-test"
+		indexName := ""
+		numIndices := 1
+		processCount := 1
+		addTs := true
+		numMetrics := 0
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		eventsPerDay := uint64(100_000_000)
+
+		minCols := 50
+		maxCols := 150
+		uniqueCols := 0
+		dataGeneratorConfig := utils.InitGeneratorDataConfig(maxCols, true, minCols, uniqueCols)
+
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, addTs, numMetrics, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+	},
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
 	rootCmd.PersistentFlags().StringP("bearerToken", "r", "", "Bearer token")
@@ -594,4 +623,5 @@ func init() {
 	rootCmd.AddCommand(alertsCmd)
 	rootCmd.AddCommand(concurrentQueriesTestCmd)
 	rootCmd.AddCommand(clickBenchTestCmd)
+	rootCmd.AddCommand(longevityCmd)
 }
