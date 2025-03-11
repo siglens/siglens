@@ -1467,164 +1467,207 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
 
 //Hiding and showing Fields Sidebar
-function ExpandableFieldsSidebarRenderer() {
-    // Singleton-like instance
-    let instance = null;
-
-    return class {
-        constructor() {
-            if (!instance) {
-                instance = this;
-            }
-            return instance;
-        }
-
-        init() {
-            if (this.eGui) {
-                this.applyFieldsSidebarState();
-                return;
-            }
-
-            this.eGui = document.createElement('div');
-            this.eGui.className = 'expand-svg-container';
-
-            const urlParams = new URLSearchParams(window.location.search);
-            this.isFieldsSidebarHidden = urlParams.get('fieldsSidebarHidden') === 'true';
-
-            this.eGui.innerHTML = `
-                <span class="expand-svg-box">
-                    <button id="expand-toggle-svg" class="expand-svg-button">
-                    ${this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg()}
-                    </button>
-                </span>
-            `;
-
-            this.expandBtn = this.eGui.querySelector('.expand-svg-button');
-            this.expandIcon = this.eGui.querySelector('svg');
-            this.expandBtn.addEventListener('click', this.toggleFieldsSidebar.bind(this));
-
-            createTooltip('#expand-toggle-svg', this.isFieldsSidebarHidden ? 'Show Filters' : 'Hide Filters');
-
-            //initially,inserting expand button above "Selected Fields"
-            const selectedFieldsHeader = document.getElementById('selected-fields-header');
-            selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
-
-            // Apply initial state based on URL
-            this.applyFieldsSidebarState();
-        }
-
-        getExpandSvg() {
-            return `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                    <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
-                    <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
-                    <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                </svg>
-            `;
-        }
-
-        getCollapseSvg() {
-            return `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-                    <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
-                    <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
-                    <path d="M45 50 L68 50 M68 50 L56 38 M68 50 L56 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                </svg>
-
-            `;
-        }
-
-        toggleFieldsSidebar(event) {
-            event.stopPropagation();
-            const fieldsSidebar = document.querySelector('.fields-sidebar');
-            const customChartTab = document.querySelector('.custom-chart-tab');
-            const container = document.querySelector('.custom-chart-container');
-
-            this.isFieldsSidebarHidden = !this.isFieldsSidebarHidden;
-
-            this.expandIcon.outerHTML = this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg();
-            this.expandIcon = this.eGui.querySelector('svg'); // Reassign after replacement
-
-            createTooltip('#expand-toggle-svg', this.isFieldsSidebarHidden ? 'Show Filters' : 'Hide Filters');
-
-            if (this.isFieldsSidebarHidden) {
-                fieldsSidebar.classList.add('hidden');
-                customChartTab.classList.add('expanded');
-                container.classList.add('full-width');
-
-                const tabList = document.querySelector('.tab-chart-list');
-                tabList.parentNode.insertBefore(this.eGui, tabList);
-                this.eGui.classList.add('before-tabs');
-            } else {
-                fieldsSidebar.classList.remove('hidden');
-                customChartTab.classList.remove('expanded');
-                container.classList.remove('full-width');
-
-                const selectedFieldsHeader = document.getElementById('selected-fields-header');
-                selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
-                this.eGui.classList.remove('before-tabs');
-            }
-
-            this.updateUrlState();
-        }
-
-        applyFieldsSidebarState() {
-            const fieldsSidebar = document.querySelector('.fields-sidebar');
-            const customChartTab = document.querySelector('.custom-chart-tab');
-            const container = document.querySelector('.custom-chart-container');
-
-            this.expandIcon.outerHTML = this.isFieldsSidebarHidden ? this.getCollapseSvg() : this.getExpandSvg();
-            this.expandIcon = this.eGui.querySelector('svg');
-
-            createTooltip('#expand-toggle-svg', this.isFieldsSidebarHidden ? 'Show Filters' : 'Hide Filters');
-
-            if (this.isFieldsSidebarHidden) {
-                fieldsSidebar.classList.add('hidden');
-                customChartTab.classList.add('expanded');
-                container.classList.add('full-width');
-
-                const tabList = document.querySelector('.tab-chart-list');
-                tabList.parentNode.insertBefore(this.eGui, tabList);
-                this.eGui.classList.add('before-tabs');
-            } else {
-                fieldsSidebar.classList.remove('hidden');
-                customChartTab.classList.remove('expanded');
-                container.classList.remove('full-width');
-
-                const selectedFieldsHeader = document.getElementById('selected-fields-header');
-                selectedFieldsHeader.parentNode.insertBefore(this.eGui, selectedFieldsHeader);
-                this.eGui.classList.remove('before-tabs');
-            }
-        }
-
-        updateUrlState() {
-            const url = new URL(window.location);
-            url.searchParams.set('fieldsSidebarHidden', this.isFieldsSidebarHidden);
-            window.history.pushState({}, document.title, url);
-        }
-
-        getGui() {
-            return this.eGui;
-        }
-
-        //update state from URL
-        updateFromUrl() {
-            const urlParams = new URLSearchParams(window.location.search);
-            this.isFieldsSidebarHidden = urlParams.get('fieldsSidebarHidden') === 'true';
-            this.applyFieldsSidebarState();
-        }
+// Functional pattern for ExpandableFieldsSidebarRenderer
+const ExpandableFieldsSidebarRenderer = () => {
+    // Initial state reads directly from URL parameter
+    const initialState = () => {
+      const urlHiddenState = new URLSearchParams(window.location.search).get('fieldsSidebarHidden') === 'true';
+      return {
+        eGui: null,
+        expandBtn: null,
+        expandIcon: null,
+        isFieldsSidebarHidden: urlHiddenState
+      };
     };
-}
 
-//// Initialize fields renderer when the page loads
-document.addEventListener('DOMContentLoaded', () => {
-    fieldssidebarRenderer = new (ExpandableFieldsSidebarRenderer())();
-    fieldssidebarRenderer.init();
-});
+    // Shared state (closure)
+    let state = initialState();
 
-// Event Handling for browser back/forward button to reflect state changes
-window.addEventListener('popstate', () => {
-    if (fieldssidebarRenderer) {
-        fieldssidebarRenderer.updateFromUrl();// Update the existing instance
-    }
-});
+    // Pure function to generate expand SVG
+    const getExpandSvg = () => `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
+        <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
+        <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    `;
+
+    // Pure function to generate collapse SVG
+    const getCollapseSvg = () => `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <rect x="5" y="5" width="90" height="90" rx="15" ry="15" fill="black"/>
+        <rect x="30" y="13" width="57" height="74" rx="10" ry="10" fill="white"/>
+        <path d="M45 50 L68 50 M68 50 L56 38 M68 50 L56 62" stroke="black" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+    `;
+
+    // Function to find DOM elements
+    const getDomElements = () => ({
+      fieldsSidebar: document.querySelector('.fields-sidebar'),
+      customChartTab: document.querySelector('.custom-chart-tab'),
+      container: document.querySelector('.custom-chart-container'),
+      tabList: document.querySelector('.tab-chart-list'),
+      selectedFieldsHeader: document.getElementById('selected-fields-header')
+    });
+
+    // Function to create UI element
+    const createGuiElement = (isHidden) => {
+      const eGui = document.createElement('div');
+      eGui.className = 'expand-svg-container';
+
+      eGui.innerHTML = `
+        <span class="expand-svg-box">
+          <button class="expand-svg-button">
+            ${isHidden ? getCollapseSvg() : getExpandSvg()}
+          </button>
+        </span>
+      `;
+
+      return eGui;
+    };
+
+    // Function to apply CSS classes based on state
+    const applyClassesBasedOnState = (elements, isHidden) => {
+      const { fieldsSidebar, customChartTab, container } = elements;
+
+      if (!fieldsSidebar || !customChartTab || !container) {
+        console.warn('Required elements not found');
+        return false;
+      }
+
+      if (isHidden) {
+        fieldsSidebar.classList.add('hidden');
+        customChartTab.classList.add('expanded');
+        container.classList.add('full-width');
+      } else {
+        fieldsSidebar.classList.remove('hidden');
+        customChartTab.classList.remove('expanded');
+        container.classList.remove('full-width');
+      }
+
+      return true;
+    };
+
+    // Function to position GUI element based on state
+    const positionGuiElement = (eGui, elements, isHidden) => {
+      const { tabList, selectedFieldsHeader } = elements;
+
+      if (isHidden && tabList) {
+        tabList.parentNode.insertBefore(eGui, tabList);
+        eGui.classList.add('before-tabs');
+      } else if (!isHidden && selectedFieldsHeader) {
+        selectedFieldsHeader.parentNode.insertBefore(eGui, selectedFieldsHeader);
+        eGui.classList.remove('before-tabs');
+      }
+    };
+
+    // Function to update URL with current state
+    const updateUrlState = (isHidden) => {
+      const url = new URL(window.location);
+      url.searchParams.set('fieldsSidebarHidden', isHidden);
+      window.history.pushState({}, document.title, url);
+    };
+
+    // Toggle function
+    const toggleFieldsSidebar = (event) => {
+      if (event) {
+        event.stopPropagation();
+      }
+
+      // Update state
+      const newIsHidden = !state.isFieldsSidebarHidden;
+      state.isFieldsSidebarHidden = newIsHidden;
+
+      // Update SVG
+      if (state.expandIcon) {
+        state.expandIcon.outerHTML = newIsHidden ? getCollapseSvg() : getExpandSvg();
+        state.expandIcon = state.eGui.querySelector('svg');
+      }
+
+      // Get DOM elements
+      const elements = getDomElements();
+
+      // Apply CSS classes
+      if (!applyClassesBasedOnState(elements, newIsHidden)) {
+        return;
+      }
+
+      // Position GUI element
+      positionGuiElement(state.eGui, elements, newIsHidden);
+
+      // Update URL
+      updateUrlState(newIsHidden);
+    };
+
+    // Apply UI state based on current isFieldsSidebarHidden value
+    const applyFieldsSidebarState = () => {
+      // Get DOM elements
+      const elements = getDomElements();
+
+      // Update SVG if we have one
+      if (state.eGui) {
+        if (!state.expandIcon) {
+          state.expandIcon = state.eGui.querySelector('svg');
+        }
+
+        if (state.expandIcon) {
+          state.expandIcon.outerHTML = state.isFieldsSidebarHidden ? getCollapseSvg() : getExpandSvg();
+          state.expandIcon = state.eGui.querySelector('svg');
+        }
+      }
+
+      // Apply CSS classes
+      applyClassesBasedOnState(elements, state.isFieldsSidebarHidden);
+
+      // Position GUI element
+      if (state.eGui) {
+        positionGuiElement(state.eGui, elements, state.isFieldsSidebarHidden);
+      }
+    };
+
+    // Initialize function
+    const init = () => {
+      if (state.eGui) {
+        // Just reapply the current state if already initialized
+        applyFieldsSidebarState();
+        return;
+      }
+
+      // Create GUI element with current state from URL
+      state.eGui = createGuiElement(state.isFieldsSidebarHidden);
+
+      // Set references to DOM elements
+      state.expandBtn = state.eGui.querySelector('.expand-svg-button');
+      state.expandIcon = state.eGui.querySelector('svg');
+
+      // Add event listener
+      state.expandBtn.addEventListener('click', toggleFieldsSidebar);
+
+      // Insert expand button in appropriate place
+      const elements = getDomElements();
+      if (state.isFieldsSidebarHidden) {
+        const { tabList } = elements;
+        if (tabList) {
+          tabList.parentNode.insertBefore(state.eGui, tabList);
+          state.eGui.classList.add('before-tabs');
+        }
+      } else {
+        const { selectedFieldsHeader } = elements;
+        if (selectedFieldsHeader) {
+          selectedFieldsHeader.parentNode.insertBefore(state.eGui, selectedFieldsHeader);
+        } else {
+          console.warn('selected-fields-header not found');
+        }
+      }
+
+      // Apply initial state to all UI elements
+      applyFieldsSidebarState();
+    };
+
+    // Return public interface
+    return {
+      init,
+      getGui: () => state.eGui,
+      getState: () => ({ ...state })
+    };
+  };
