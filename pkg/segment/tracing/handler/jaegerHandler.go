@@ -2,22 +2,72 @@ package handler
 
 import (
 	"encoding/json"
-
-	log "github.com/sirupsen/logrus"
+	"fmt"
+	"strconv"
 
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
 	segstructs "github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/tracing/structs"
 	"github.com/siglens/siglens/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
 type ResponseBody struct {
-	Data   []string `json:"data"`
 	Total  int      `json:"total"`
 	Limit  int      `json:"limit"`
 	Offset int      `json:"offset"`
 	Errors []string `json:"errors"`
+}
+
+type ServiceOperationsResponse struct {
+	ResponseBody
+	Data []string `json:"data"`
+}
+type DependenciesResponse struct {
+	ResponseBody
+	Data []map[string]string `json:"data"`
+}
+
+type TracesResponse struct {
+	ResponseBody
+	Data []TraceData `json:"data"`
+}
+
+type Process struct {
+	ServiceName string `json:"serviceName"`
+}
+
+type TraceData struct {
+	TraceID   string             `json:"traceID"`
+	Spans     []Span             `json:"spans"`
+	Processes map[string]Process `json:"processes"`
+	Warnings  []string           `json:"warnings"`
+}
+
+type Span struct {
+	TraceID       string      `json:"traceID"`
+	SpanID        string      `json:"spanID"`
+	OperationName string      `json:"operationName"`
+	References    []Reference `json:"references"`
+	StartTime     int64       `json:"startTime"`
+	Duration      int64       `json:"duration"`
+	Tags          []Tag       `json:"tags"`
+	Logs          []string    `json:"logs"`
+	ProcessID     string      `json:"processID"`
+	Warnings      []string    `json:"warnings"`
+}
+
+type Reference struct {
+	RefType string `json:"refType"`
+	TraceID string `json:"traceID"`
+	SpanID  string `json:"spanID"`
+}
+
+type Tag struct {
+	Key   string      `json:"key"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
 }
 
 func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
@@ -69,12 +119,14 @@ func ProcessGetServiceName(ctx *fasthttp.RequestCtx, myid int64) {
 		distinctServices = append(distinctServices, service)
 	}
 
-	finalResponse := ResponseBody{
-		Data:   distinctServices,
-		Total:  len(distinctServices),
-		Limit:  0,
-		Offset: 0,
-		Errors: nil,
+	finalResponse := ServiceOperationsResponse{
+		Data: distinctServices,
+		ResponseBody: ResponseBody{
+			Total:  len(distinctServices),
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
@@ -130,14 +182,323 @@ func ProcessGetOperations(ctx *fasthttp.RequestCtx, myid int64) {
 		distinctNames = append(distinctNames, name)
 	}
 
-	finalResponse := ResponseBody{
-		Data:   distinctNames,
-		Total:  len(distinctNames),
-		Limit:  0,
-		Offset: 0,
-		Errors: nil,
+	finalResponse := ServiceOperationsResponse{
+		Data: distinctNames,
+		ResponseBody: ResponseBody{
+			Total:  len(distinctNames),
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, finalResponse)
 
+}
+
+func ProcessGetDependencies(ctx *fasthttp.RequestCtx, myid int64) {
+
+	response := DependenciesResponse{
+		Data: []map[string]string{},
+		ResponseBody: ResponseBody{
+			Total:  0,
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
+	}
+
+	endTs := string(ctx.QueryArgs().Peek("endTs"))
+	lookback := string(ctx.QueryArgs().Peek("lookback"))
+
+	startEpoch, endEpoch, err := computeStartTime("", endTs, lookback)
+
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		errors := []string{fmt.Sprintf("Missing required parameter err: %v", err)}
+		response.Errors = errors
+		utils.WriteJsonResponse(ctx, response)
+		log.Errorf("ProcessGetDependencies  : Missing required parameter err : %v ", err)
+		return
+	}
+
+	startEpoch = convertEpochToMilliseconds(startEpoch)
+	endEpoch = convertEpochToMilliseconds(endEpoch)
+
+	searchRequestBody := structs.SearchRequestBody{
+		SearchText:    "*",
+		StartEpoch:    strconv.FormatInt(startEpoch, 10),
+		EndEpoch:      strconv.FormatInt(endEpoch, 10),
+		IndexName:     "service-dependency",
+		QueryLanguage: "Splunk QL",
+		From:          0,
+	}
+
+	modifiedData, _ := json.Marshal(searchRequestBody)
+
+	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.Header.SetMethod("POST")
+	rawTraceCtx.Request.SetBody(modifiedData)
+
+	ProcessAggregatedDependencyGraphs(rawTraceCtx, myid)
+	responseBody := rawTraceCtx.Response.Body()
+	processedData := make(map[string]interface{})
+
+	var responseData []map[string]string
+
+	if string(responseBody) == utils.ErrNoDependencyGraphs {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		response.Errors = []string{utils.ErrNoDependencyGraphs}
+		log.Errorf("ProcessGetDependencies : %v", utils.ErrNoDependencyGraphs)
+		utils.WriteJsonResponse(ctx, response)
+		return
+	}
+
+	if err := json.Unmarshal(responseBody, &processedData); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		response.Errors = []string{string(responseBody)}
+		log.Errorf("ProcessGetDependencies : Error parsing response body: %v, err: %v", string(responseBody), err)
+		utils.WriteJsonResponse(ctx, response)
+		return
+	}
+
+	for parent, children := range processedData {
+
+		if childMap, ok := children.(map[string]interface{}); ok {
+			for child, callCount := range childMap {
+				var callCountStr string
+				switch v := callCount.(type) {
+				case int:
+					callCountStr = strconv.Itoa(v)
+				case float64:
+					callCountStr = strconv.FormatFloat(v, 'f', -1, 64)
+				default:
+					callCountStr = fmt.Sprintf("%v", v)
+				}
+				responseData = append(responseData, map[string]string{
+					"parent":    parent,
+					"child":     child,
+					"callCount": callCountStr,
+				})
+			}
+		}
+	}
+
+	if responseData != nil {
+		response.Data = responseData
+	}
+	response.Total = len(responseData)
+
+	ctx.SetContentType("application/json; charset=utf-8")
+	utils.WriteJsonResponse(ctx, response)
+	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func ProcessGetTracesSearch(ctx *fasthttp.RequestCtx, myid int64) {
+
+	response := TracesResponse{
+		Data: []TraceData{},
+		ResponseBody: ResponseBody{
+			Total:  0,
+			Limit:  0,
+			Offset: 0,
+			Errors: nil,
+		},
+	}
+
+	start := string(ctx.QueryArgs().Peek("start"))
+	end := string(ctx.QueryArgs().Peek("end"))
+	lookback := string(ctx.QueryArgs().Peek("lookback"))
+	service := string(ctx.QueryArgs().Peek("service"))
+
+	startEpoch, endEpoch, err := computeStartTime(start, end, lookback)
+
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		errors := []string{fmt.Sprintf("Missing required parameter err: %v", err)}
+		response.Errors = errors
+		utils.WriteJsonResponse(ctx, response)
+		log.Errorf("ProcessGetTracesSearch  : Missing required parameter err : %v ", err)
+		return
+	}
+
+	startEpoch = convertEpochToMilliseconds(startEpoch)
+	endEpoch = convertEpochToMilliseconds(endEpoch)
+
+	if service == "" {
+		service = "*"
+	} else {
+		service = "service=" + service
+	}
+	searchRequestBody := structs.SearchRequestBody{
+		SearchText: service,
+		StartEpoch: strconv.FormatInt(startEpoch, 10),
+		EndEpoch:   strconv.FormatInt(endEpoch, 10),
+		From:       0,
+	}
+
+	modifiedData, _ := json.Marshal(searchRequestBody)
+	rawTraceCtx := &fasthttp.RequestCtx{}
+	rawTraceCtx.Request.Header.SetMethod("POST")
+	rawTraceCtx.Request.SetBody(modifiedData)
+
+	ProcessSearchTracesRequest(rawTraceCtx, myid)
+	pipeSearchResponseOuter := &structs.TraceResult{}
+	responseBody := rawTraceCtx.Response.Body()
+
+	if err := json.Unmarshal(responseBody, &pipeSearchResponseOuter); err != nil {
+		ctx.SetStatusCode(fasthttp.StatusOK)
+		response.Errors = []string{string(responseBody)}
+		log.Errorf("ProcessGetTracesSearch : Error parsing response body: %v, err: %v", string(responseBody), err)
+		utils.WriteJsonResponse(ctx, response)
+		return
+	}
+
+	var allTraceData []TraceData
+	serviceProcesses := make(map[string]string)
+	for _, traces := range pipeSearchResponseOuter.Traces {
+		tracesId := traces.TraceId
+		searchGanttChartRequestBody := structs.SearchRequestBody{
+			SearchText: "trace_id=" + tracesId,
+			StartEpoch: strconv.FormatInt(startEpoch, 10),
+			EndEpoch:   strconv.FormatInt(endEpoch, 10),
+			From:       0,
+		}
+
+		ganttChartModifiedData, _ := json.Marshal(searchGanttChartRequestBody)
+		rawGanttChartCtx := &fasthttp.RequestCtx{}
+		rawGanttChartCtx.Request.Header.SetMethod("POST")
+		rawGanttChartCtx.Request.SetBody(ganttChartModifiedData)
+		ganttChartSpanResponseOuter := &structs.GanttChartSpan{}
+		ProcessGanttChartRequest(rawGanttChartCtx, myid)
+		gCResponseBody := rawGanttChartCtx.Response.Body()
+
+		if err := json.Unmarshal(gCResponseBody, &ganttChartSpanResponseOuter); err != nil {
+			log.Errorf("ProcessGetTracesSearch : Error parsing response body: %v, err: %v", string(gCResponseBody), err)
+		}
+		var spans []Span
+
+		processSpan(ganttChartSpanResponseOuter, tracesId, "", &spans, serviceProcesses)
+		traceData := TraceData{
+			TraceID: tracesId,
+			Spans:   spans,
+		}
+
+		processes := make(map[string]Process)
+		for serviceName, processKey := range serviceProcesses {
+			processes[processKey] = Process{ServiceName: serviceName}
+		}
+
+		traceData.Processes = processes
+
+		allTraceData = append(allTraceData, traceData)
+
+	}
+
+	if allTraceData != nil {
+		response.Data = allTraceData
+	}
+
+	response.Total = len(allTraceData)
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	utils.WriteJsonResponse(ctx, response)
+
+}
+
+func processSpan(span *structs.GanttChartSpan, traceID string, parentSpanID string, spans *[]Span, serviceProcesses map[string]string) {
+	if span == nil {
+		return
+	}
+
+	var spanTags []Tag
+	for k, v := range span.Tags {
+		spanTags = append(spanTags, Tag{
+			Key:   k,
+			Type:  fmt.Sprintf("%T", v),
+			Value: v,
+		})
+	}
+
+	var references []Reference
+	references = append(references, Reference{
+		RefType: "CHILD_OF",
+		TraceID: traceID,
+		SpanID:  parentSpanID,
+	})
+
+	var processName string
+	if process, exists := serviceProcesses[span.ServiceName]; exists {
+		processName = process
+	} else {
+		newProcess := fmt.Sprintf("p%d", len(serviceProcesses)+1)
+		serviceProcesses[span.ServiceName] = newProcess
+		processName = newProcess
+	}
+
+	spanEntry := Span{
+		TraceID:       traceID,
+		SpanID:        span.SpanID,
+		OperationName: span.OperationName,
+		References:    references,
+		StartTime:     int64(span.ActualStartTime),
+		Duration:      int64(span.Duration),
+		Tags:          spanTags,
+		Logs:          []string{},
+		ProcessID:     processName,
+		Warnings:      []string{},
+	}
+
+	*spans = append(*spans, spanEntry)
+
+	for _, child := range span.Children {
+		processSpan(child, traceID, span.SpanID, spans, serviceProcesses)
+	}
+}
+
+func computeStartTime(startTs, endTs, lookBack string) (int64, int64, error) {
+	if endTs == "" {
+		err := fmt.Errorf("ComputeStartTime : failed to process response missing endTs")
+		return 0, 0, err
+	}
+
+	if lookBack == "" {
+		err := fmt.Errorf("ComputeStartTime : failed to process response missing lookBack")
+		return 0, 0, err
+	}
+
+	endValue, err := strconv.ParseInt(endTs, 10, 64)
+	if err != nil {
+		log.Errorf("ComputeStartTime : failed to parsing endTs  err : %v", err)
+		return 0, 0, err
+	}
+
+	if startTs != "" {
+		startTsValue, err := strconv.ParseInt(startTs, 10, 64)
+		if err == nil {
+			return startTsValue, endValue, nil
+		}
+	}
+
+	lookBackVal, err := strconv.ParseInt(lookBack, 10, 64)
+	if err != nil {
+		log.Errorf("ComputeStartTime : failed to parsing lookBack err: %v", err)
+		return 0, 0, err
+	}
+	start := endValue - lookBackVal
+	return start, endValue, nil
+}
+
+func convertEpochToMilliseconds(epoch int64) int64 {
+	switch {
+	case epoch >= 1e9 && epoch < 1e10:
+		return epoch * 1000
+	case epoch >= 1e12 && epoch < 1e13:
+		return epoch
+	case epoch >= 1e15 && epoch < 1e16:
+		return epoch / 1000
+	default:
+		log.Errorf("convertEpochToMilliseconds : Unexpected epoch value: %d", epoch)
+		return 0
+	}
 }

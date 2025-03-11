@@ -1576,7 +1576,6 @@ func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
 	}
 
 }
-
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
 	testDir := t.TempDir()
 	dataDir := filepath.Join(testDir, "data")

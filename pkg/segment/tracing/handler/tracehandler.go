@@ -703,8 +703,30 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	searchRequestBody.QueryLanguage = "Splunk QL"
 	searchRequestBody.IndexName = "service-dependency"
 	searchRequestBody.SearchText = "*"
-	searchRequestBody.StartEpoch = readJSON["startEpoch"].(string)
-	searchRequestBody.EndEpoch = readJSON["endEpoch"].(string)
+
+	var valueType string
+	if val, ok := readJSON["startEpoch"]; ok {
+		searchRequestBody.StartEpoch, valueType = convertEpochToString(val)
+		if searchRequestBody.StartEpoch == "" {
+			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for startEpoch. Value: %v, Type: %s", val, valueType)
+			return
+		}
+	} else {
+		log.Errorf("ProcessAggregatedDependencyGraphs : startEpoch is missing")
+		return
+	}
+
+	if val, ok := readJSON["endEpoch"]; ok {
+		searchRequestBody.EndEpoch, valueType = convertEpochToString(val)
+		if searchRequestBody.EndEpoch == "" {
+			log.Errorf("ProcessAggregatedDependencyGraphs: Invalid data type for endEpoch. Value: %v, Type: %s", val, valueType)
+			return
+		}
+	} else {
+		log.Errorf("ProcessAggregatedDependencyGraphs : endEpoch is missing")
+		return
+	}
+
 	dependencyResponseOuter, err := processSearchRequest(searchRequestBody, myid)
 	if err != nil {
 		log.Errorf("ProcessAggregatedDependencyGraphs: processSearchRequest: Error=%v", err)
@@ -713,7 +735,7 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 	processedData := make(map[string]interface{})
 	if dependencyResponseOuter.Hits.Hits == nil || len(dependencyResponseOuter.Hits.Hits) == 0 {
 		ctx.SetStatusCode(fasthttp.StatusOK)
-		_, writeErr := ctx.WriteString("no dependencies graphs have been generated")
+		_, writeErr := ctx.WriteString(putils.ErrNoDependencyGraphs)
 		if writeErr != nil {
 			log.Errorf("ProcessAggregatedDependencyGraphs: Error writing to context: %v", writeErr)
 		}
@@ -766,6 +788,21 @@ func ProcessAggregatedDependencyGraphs(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func convertEpochToString(value interface{}) (string, string) {
+	valueType := fmt.Sprintf("%T", value)
+	switch v := value.(type) {
+	case string:
+		return v, valueType
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return fmt.Sprintf("%d", v), valueType
+	case float32, float64:
+		return fmt.Sprintf("%f", v), valueType
+	default:
+		log.Errorf("convertEpochToString: Unsupported data type: %T, Value: %v", v, v)
+		return "", valueType
+	}
 }
 
 // ProcessGeneratedDepGraph handles the /generate-dep-graph endpoint.
