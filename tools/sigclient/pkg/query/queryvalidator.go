@@ -17,10 +17,12 @@
 
 package query
 
+import "fmt"
+
 type queryValidator interface {
 	HandleLog(map[string]interface{}) error
-	GetExpectedResult() string          // JSON response.
 	GetQuery() (string, uint64, uint64) // Query, start epoch, end epoch.
+	MatchesResult([]byte) error
 }
 
 type basicValidator struct {
@@ -29,6 +31,14 @@ type basicValidator struct {
 	query      string
 }
 
+func (b *basicValidator) HandleLog(log map[string]interface{}) error {
+	return fmt.Errorf("basicValidator.HandleLog: not implemented")
+}
+
 func (b *basicValidator) GetQuery() (string, uint64, uint64) {
 	return b.query, b.startEpoch, b.endEpoch
+}
+
+func (b *basicValidator) MatchesResult(result []byte) error {
+	return fmt.Errorf("basicValidator.MatchesResult: not implemented")
 }
