@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sync"
 	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
@@ -58,6 +59,7 @@ type filterQueryValidator struct {
 	value           string
 	head            int
 	reversedResults []map[string]interface{}
+	lock            sync.Mutex
 }
 
 func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
@@ -95,6 +97,9 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 		return nil
 	}
 
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	f.reversedResults = append(f.reversedResults, log)
 
 	if len(f.reversedResults) > f.head {
@@ -120,6 +125,9 @@ type totalMatched struct {
 }
 
 func (f *filterQueryValidator) MatchesResult(result []byte) error {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	response := logsResponse{}
 	if err := json.Unmarshal(result, &response); err != nil {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)

@@ -18,6 +18,7 @@
 package query
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -195,6 +196,47 @@ func Test_FilterQueryValidator(t *testing.T) {
 					"value": 1,
 					"relation": "eq"
 		`)))
+	})
+
+	t.Run("Concurrency", func(t *testing.T) {
+		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs[:1])
+
+		expectedJson := []byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 1,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["age", "city", "timestamp"]
+		}`)
+		assert.NoError(t, validator.MatchesResult(expectedJson))
+
+		numIters := 10000
+		waitGroup := &sync.WaitGroup{}
+		waitGroup.Add(2)
+		go func() {
+			defer waitGroup.Done()
+
+			for i := 0; i < numIters; i++ {
+				assert.NoError(t, validator.MatchesResult(expectedJson))
+			}
+		}()
+		go func() {
+			defer waitGroup.Done()
+
+			for i := 0; i < numIters; i++ {
+				addLogsWithoutError(t, validator, logs[:1])
+			}
+		}()
+
+		waitGroup.Wait()
 	})
 }
 
