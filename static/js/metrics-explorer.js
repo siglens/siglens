@@ -151,6 +151,10 @@ $(document).ready(async function () {
     createTooltip('#run-filter-btn', 'Run query');
     createTooltip('.download-all-logs-btn', 'Download');
     createTooltip('.refresh-btn', 'Refresh');
+
+    $(document).on('input', '.raw-query-input', function () {
+        autoResizeTextarea(this);
+    });
 });
 
 function getUrlParameter(name) {
@@ -717,7 +721,7 @@ function createQueryElementTemplate(queryName) {
                 </div>
             </div>
             <div class="raw-query" style="display: none;">
-                <input type="text" class="raw-query-input"><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
+                <textarea class="raw-query-input" placeholder="Enter your query here"></textarea><button class="btn run-filter-btn" id="run-filter-btn" title="Run your search" type="button"> </button>
             </div>
         </div>
         <div>
@@ -858,6 +862,10 @@ function setupQueryElementEventListeners(queryElement) {
             if (!queryDetails.rawQueryExecuted) {
                 queryDetails.rawQueryInput = queryString;
                 queryElement.find('.raw-query-input').val(queryString);
+
+                setTimeout(function () {
+                    autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+                }, 10);
             } else {
                 queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
             }
@@ -1579,6 +1587,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         };
     }
 
+    var legendContainer = $('<div class="legend-container"></div>');
+    canvas.parent().append(legendContainer);
+
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
@@ -1587,13 +1598,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
+                    display: false,
                 },
                 tooltip: {
                     callbacks: {
@@ -1618,7 +1623,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         text: '',
                     },
                     grid: {
-                        display: false,
+                        display: true,
+                        color: gridLineColor,
                     },
                     ticks: {
                         color: tickColor,
@@ -1663,6 +1669,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                             return gridLineColor;
                         },
                     },
+                    border: {
+                        color: 'rgba(0, 0, 0, 0)',
+                    },
                     ticks: {
                         color: tickColor,
                         callback: function (value, index, values) {
@@ -1702,6 +1711,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             dataset.fill = false;
         });
     }
+
+    generateCustomLegend(lineChart, legendContainer[0]);
 
     lineChart.update();
     return lineChart;
@@ -1960,12 +1971,17 @@ function updateChartTheme(theme) {
             var chartData = chartDataCollection[queryName];
             chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70'; // opacity
             });
 
             var lineChart = lineCharts[queryName];
             if (lineChart) {
                 lineChart.update();
+                // Regenerate the legend after updating chart colors
+                var legendContainer = $(`.metrics-graph[data-query="${queryName}"] .legend-container`)[0];
+                if (legendContainer) {
+                    generateCustomLegend(lineChart, legendContainer);
+                }
             }
         }
     }
@@ -1973,9 +1989,15 @@ function updateChartTheme(theme) {
     if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
         mergedGraph.data.datasets.forEach(function (dataset, index) {
             dataset.borderColor = selectedPalette[index % selectedPalette.length];
-            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
         });
         mergedGraph.update();
+
+        // Regenerate the legend for merged graph
+        var mergedLegendContainer = $('.merged-graph .legend-container')[0];
+        if (mergedLegendContainer) {
+            generateCustomLegend(mergedGraph, mergedLegendContainer);
+        }
     }
 }
 
@@ -2152,10 +2174,10 @@ $('#json-block').on('click', function () {
     }
 });
 
-// Merge Graphs in one
 function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     var colorIndex = 0;
+    var mergedCanvas, legendContainer;
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
@@ -2165,16 +2187,24 @@ function mergeGraphs(chartType, panelId = -1) {
         var panelChartEl;
         if (panelId === -1) {
             panelChartEl = $(`.panelDisplay .panEdit-panel`);
+            panelChartEl.empty(); // Clear any existing content
+
+            var mergedGraphDiv = $('<div class="merged-graph"></div>');
+            panelChartEl.append(mergedGraphDiv);
+
+            mergedCanvas = $('<canvas></canvas>');
+            legendContainer = $('<div class="legend-container"></div>');
+            mergedGraphDiv.append(mergedCanvas);
+            mergedGraphDiv.append(legendContainer);
         } else {
             panelChartEl = $(`#panel${panelId} .panEdit-panel`);
             panelChartEl.css('width', '100%').css('height', '100%');
+
+            panelChartEl.empty(); // Clear any existing content
+            mergedCanvas = $('<canvas></canvas>');
+            panelChartEl.append(mergedCanvas);
         }
-
-        panelChartEl.empty(); // Clear any existing content
-        var mergedCanvas = $('<canvas></canvas>');
-        panelChartEl.append(mergedCanvas);
-
-        mergedCtx = panelChartEl.find('canvas')[0].getContext('2d');
+        mergedCtx = mergedCanvas[0].getContext('2d');
     } else {
         // For metrics explorer page
         var visualizationContainer = $(`
@@ -2184,8 +2214,9 @@ function mergeGraphs(chartType, panelId = -1) {
         $('#merged-graph-container').empty().append(visualizationContainer);
 
         mergedCanvas = $('<canvas></canvas>');
+        legendContainer = $('<div class="legend-container"></div>');
 
-        $('.merged-graph').empty().append(mergedCanvas);
+        $('.merged-graph').empty().append(mergedCanvas).append(legendContainer);
         mergedCtx = mergedCanvas[0].getContext('2d');
     }
 
@@ -2224,6 +2255,7 @@ function mergeGraphs(chartType, panelId = -1) {
     }
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
+
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: mergedData,
@@ -2232,14 +2264,7 @@ function mergeGraphs(chartType, panelId = -1) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: shouldShowLegend(panelId, mergedData.datasets),
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
+                    display: false,
                 },
                 tooltip: {
                     callbacks: {
@@ -2265,7 +2290,8 @@ function mergeGraphs(chartType, panelId = -1) {
                         text: '',
                     },
                     grid: {
-                        display: false,
+                        display: true,
+                        color: gridLineColor,
                     },
                     ticks: {
                         color: tickColor,
@@ -2301,6 +2327,9 @@ function mergeGraphs(chartType, panelId = -1) {
                     title: {
                         display: false,
                     },
+                    border: {
+                        color: 'rgba(0, 0, 0, 0)',
+                    },
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor },
                 },
@@ -2308,17 +2337,16 @@ function mergeGraphs(chartType, panelId = -1) {
             spanGaps: true,
         },
     });
+
+    // Only generate and display legend for panelId == -1 or metrics explorer
+    if (!isDashboardScreen || panelId === -1) {
+        var legendContainerEl = isDashboardScreen ? $(`.panelDisplay .panEdit-panel .merged-graph .legend-container`) : $('.merged-graph .legend-container');
+        generateCustomLegend(mergedLineChart, legendContainerEl[0]);
+    }
+
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
 }
-
-const shouldShowLegend = (panelId, datasets) => {
-    if ($('#overview-button').hasClass('active')) {
-        return true; // Show legends for panel overview
-    } else {
-        return panelId === -1 || datasets.length < 5; // Hide legends for panel with more than 5 legends
-    }
-};
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
@@ -2491,6 +2519,7 @@ function displayErrorMessage(container, message) {
         const errorSpan = $('<span></span>').addClass('error-message').text(message);
         panelContainer.append(errorSpan);
     }
+    $('.legend-container').hide();
 }
 
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
@@ -2880,6 +2909,7 @@ function updateChartColorsBasedOnTheme() {
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.x.grid.color = gridLineColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
@@ -2890,6 +2920,7 @@ function updateChartColorsBasedOnTheme() {
 
             lineChart.options.scales.x.ticks.color = tickColor;
             lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.x.grid.color = gridLineColor;
             lineChart.options.scales.y.grid.color = gridLineColor;
             lineChart.update();
         }
@@ -2899,7 +2930,7 @@ function updateChartColorsBasedOnTheme() {
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
+    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
     return { gridLineColor, tickColor };
@@ -3034,6 +3065,10 @@ async function populateQueryElement(queryElement, queryDetails) {
         queryElement.find('.raw-query-input').val(queryDetails.rawQueryInput);
         queryElement.find('.query-builder').toggle();
         queryElement.find('.raw-query').toggle();
+
+        setTimeout(function () {
+            autoResizeTextarea(queryElement.find('.raw-query-input')[0]);
+        }, 10);
     } else {
         // Set the metric
         queryElement.find('.metrics').val(queryDetails.metrics);
@@ -3349,3 +3384,93 @@ function getMetricsDataForSave(qname, qdesc) {
         metricsQueryParams: JSON.stringify(transformedMetricsQueryParams),
     };
 }
+
+function generateCustomLegend(chart, legendContainer) {
+    $(legendContainer).empty();
+
+    const ul = $('<ul></ul>').css({
+        'list-style-type': 'none',
+        padding: 0,
+        margin: 0,
+        display: 'flex',
+        'flex-wrap': 'wrap',
+    });
+
+    chart.data.datasets.forEach((dataset, index) => {
+        const li = $('<li></li>').css({
+            display: 'flex',
+            'align-items': 'center',
+            'margin-right': '10px',
+            'margin-bottom': '5px',
+            cursor: 'pointer',
+            'font-size': '12px',
+            'white-space': 'nowrap',
+        });
+
+        const colorBox = $('<span></span>').css({
+            display: 'inline-block',
+            width: '14px',
+            height: '4px',
+            'background-color': dataset.borderColor,
+            'margin-right': '8px',
+        });
+
+        const text = $('<span></span>').text(dataset.label);
+
+        li.append(colorBox).append(text);
+
+        li.on('click', function (e) {
+            if (e.shiftKey) {
+                const meta = chart.getDatasetMeta(index);
+                meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+                chart.update();
+
+                if (meta.hidden) {
+                    $(this).css('opacity', 0.4);
+                } else {
+                    $(this).css('opacity', 1);
+                }
+            } else {
+                const isOnlyVisibleDataset = chart.data.datasets.every((dataset, i) => (i === index ? chart.isDatasetVisible(i) : !chart.isDatasetVisible(i)));
+
+                if (isOnlyVisibleDataset) {
+                    chart.data.datasets.forEach((_, i) => {
+                        chart.setDatasetVisibility(i, true);
+                        $(ul.find('li')[i]).css('opacity', 1);
+                    });
+                } else {
+                    chart.data.datasets.forEach((_, i) => {
+                        if (i === index) {
+                            chart.setDatasetVisibility(i, true);
+                            $(ul.find('li')[i]).css('opacity', 1);
+                        } else {
+                            chart.setDatasetVisibility(i, false);
+                            $(ul.find('li')[i]).css('opacity', 0.4);
+                        }
+                    });
+                }
+                chart.update();
+            }
+        });
+
+        ul.append(li);
+    });
+
+    $(legendContainer).append(ul);
+}
+
+function autoResizeTextarea(textarea) {
+    textarea.style.height = '26px';
+
+    if (textarea.scrollHeight > 26) {
+        textarea.style.height = textarea.scrollHeight + 'px';
+    }
+}
+
+function resizeAllTextareas() {
+    const textareas = document.querySelectorAll('.raw-query-input');
+    textareas.forEach(autoResizeTextarea);
+}
+
+window.addEventListener('resize', resizeAllTextareas);
+document.addEventListener('DOMContentLoaded', resizeAllTextareas);

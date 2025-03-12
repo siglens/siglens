@@ -731,6 +731,7 @@ function processEmptyQueryResults(message) {
     $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
+    $('.json-popup').hide();
     el.append(`<span>${message}</span>`);
 }
 
@@ -870,7 +871,7 @@ function showErrorResponse(errorMsg, res) {
     $('#empty-response').show();
     $('#initial-response').hide();
     $('#save-query-div').children().hide();
-    $('#views-container, .fields-sidebar').hide();
+    $('#views-container, .fields-sidebar, .pagination-container').hide();
     $('#custom-chart-tab').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
@@ -886,7 +887,7 @@ function showErrorResponse(errorMsg, res) {
     $('#query-builder-btn').html(' ');
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
-
+    $('.json-popup').hide();
     wsState = 'query';
 }
 
