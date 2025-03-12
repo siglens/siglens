@@ -126,11 +126,11 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 			if isBadValue(float64(s.Value)) {
 				failedCount++
-				log.Infof("Nilesh HandlePutMetrics: Badcount for metric %v, value: %v valType:%T", string(mName), s.Value, s.Value)
 				continue
 			}
 
-			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, uint32(s.Timestamp), uint64(len(compressed)), myid)
+			ts1 := parsTimestamp(s.Timestamp)
+			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, ts1, uint64(len(compressed)), myid)
 			if err != nil {
 				log.Errorf("HandlePutMetrics: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, myid, err)
 				failedCount++
@@ -143,6 +143,18 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	bytesReceived := uint64(len(compressed))
 	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
+}
+
+func parsTimestamp(fltVal int64) uint32 {
+	var ts uint32
+	if utils.IsTimeInNano(uint64(fltVal)) {
+		ts = uint32(fltVal / 1_000_000_000)
+	} else if utils.IsTimeInMilli(uint64(fltVal)) {
+		ts = uint32(fltVal / 1000)
+	} else {
+		ts = uint32(fltVal)
+	}
+	return ts
 }
 
 func isBadValue(v float64) bool {

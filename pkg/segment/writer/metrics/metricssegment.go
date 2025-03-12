@@ -462,7 +462,6 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 
 	mSeg.rwLock.Lock()
 	mSeg.mNamesMap[string(mName)] = true
-	log.Infof("Nilesh EncodeDatapoint: Added mName: %v len(mNamesMap):%v ", string(mName), len(mSeg.mNamesMap))
 	mSeg.rwLock.Unlock()
 
 	mSeg.Orgid = orgid
@@ -520,7 +519,6 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 				tsid, dp, timestamp, mName, orgid, err)
 			return err
 		}
-		log.Infof("Nilesh EncodeDatapoint: encoding ")
 	}
 
 	mSeg.updateTimeRange(timestamp)
