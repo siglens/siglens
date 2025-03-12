@@ -633,4 +633,6 @@ input:checked+.slider:before {
     overflow: hidden;
     outline: none;
     font-size: 11px;
+    background-color: var(--input-box-bg-color);
+    color: var(--text-color);
 }
