@@ -22,6 +22,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path"
@@ -31,8 +32,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"io"
 
 	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
@@ -53,15 +52,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var otsdb_mname = []byte("metric")
-var metric_name_key = []byte("name")
-var otsdb_timestamp = []byte("timestamp")
-var otsdb_value = []byte("value")
-var metric_value_gauge_keyname = []byte("gauge")
-var metric_value_counter_keyname = []byte("counter")
-var metric_value_histogram_keyname = []byte("histogram")
-var metric_value_summary_keyname = []byte("summary")
-var otsdb_tags = []byte("tags")
+var (
+	otsdb_mname                    = []byte("metric")
+	metric_name_key                = []byte("name")
+	otsdb_timestamp                = []byte("timestamp")
+	otsdb_value                    = []byte("value")
+	metric_value_gauge_keyname     = []byte("gauge")
+	metric_value_counter_keyname   = []byte("counter")
+	metric_value_histogram_keyname = []byte("histogram")
+	metric_value_summary_keyname   = []byte("summary")
+	otsdb_tags                     = []byte("tags")
+)
 
 var tags_separator = []byte("__")
 
@@ -85,14 +86,16 @@ var dateTimeLayouts = []string{
 
 // The following variables should only be updated in the GetTotalEncodedSize() function
 // These track the Metrics Size info and will be used while printing the Global MemorySummary
-var totalTagTreesCount int
-var totalLeafNodesCount int
-var totalTagsTreeSizeInBytes uint64
-var totalSeriesCount int
-var totalSortedTSIDCount int
-var totalTSIDLookupCount int
-var totalAllMSegmentsEncodedSizeInBytes uint64 // Size of all blocks in all metrics segments including the blocks that are rotated
-var totalMSegBlocksEncodedSizeInBytes uint64   // Size of blocks in all metrics segments that are in memory. Unrotated blocks
+var (
+	totalTagTreesCount                  int
+	totalLeafNodesCount                 int
+	totalTagsTreeSizeInBytes            uint64
+	totalSeriesCount                    int
+	totalSortedTSIDCount                int
+	totalTSIDLookupCount                int
+	totalAllMSegmentsEncodedSizeInBytes uint64 // Size of all blocks in all metrics segments including the blocks that are rotated
+	totalMSegBlocksEncodedSizeInBytes   uint64 // Size of blocks in all metrics segments that are in memory. Unrotated blocks
+)
 
 type MetricsEncodedSizeInfo struct {
 	TotalTagTreesCount                  int
@@ -693,7 +696,6 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 	}
 	rawJson = bytes.Replace(rawJson, []byte("NaN"), []byte("0"), -1)
 	err = jp.ObjectEach(rawJson, handler)
-
 	if err != nil {
 		log.Errorf("ExtractOTSDBPayload: failed to parse json %s, err=%v", rawJson, err)
 		return mName, dpVal, ts, err
@@ -792,7 +794,6 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 	}
 	rawJson = bytes.Replace(rawJson, []byte("NaN"), []byte("0"), -1)
 	err = jp.ObjectEach(rawJson, handler)
-
 	if err != nil {
 		log.Errorf("ExtractOTLPPayload: failed to parse json %s, err=%v", rawJson, err)
 		return mName, dpVal, ts, err
@@ -809,14 +810,12 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 	log.Errorf(err.Error())
 
 	return nil, dpVal, 0, err
-
 }
 
 // for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
 // Call the EncodeDatapoint function to add the datapoint to the respective series
 // Return the number of datapoints ingested and any errors encountered
 func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid int64) (uint32, []error) {
-
 	var ts uint32 = uint32(time.Now().Unix())
 	var measurement string
 
@@ -904,7 +903,6 @@ func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid int6
 	}
 
 	return ingestedCount, errors
-
 }
 
 func parseInfluxValue(value string) (float64, error) {
@@ -938,7 +936,6 @@ func parseInfluxValue(value string) (float64, error) {
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder
 // the returned []*tagsHolder is sorted by tagKey
 func extractTagsFromJson(tagsObj []byte, tags *TagsHolder) error {
-
 	handler := func(key []byte, value []byte, valueType jp.ValueType, off int) error {
 		if key == nil {
 			log.Errorf("extractTagsFromJson: key is nil. value=%+v valueType=%+v", value, valueType)
@@ -1237,14 +1234,13 @@ Flushes the current metricsBlock & resets the struct for the new block
 TODO: filepath / force flush before rotate
 */
 func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16) error {
-
 	err := mb.flushBlock(basePath, suffix, bufId)
 	if err != nil {
 		log.Errorf("MetricsBlock.rotateBlock: Failed to flush block at %v/%v/%v", basePath, suffix, bufId)
 		return err
 	}
 
-	//erase map
+	// erase map
 	for k := range mb.tsidLookup {
 		delete(mb.tsidLookup, k)
 	}
@@ -1349,7 +1345,6 @@ func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNam
 }
 
 func (ms *MetricsSegment) FlushMetricNamesBloom() error {
-
 	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
 
 	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
@@ -1382,7 +1377,6 @@ func (ms *MetricsSegment) FlushMetricNamesBloom() error {
 - The Metirc Names are stored in the Length and Value format.
 */
 func (ms *MetricsSegment) FlushMetricNames() error {
-
 	if len(ms.mNamesMap) == 0 {
 		log.Warnf("FlushMetricNames: empty mNamesMap")
 		return nil
