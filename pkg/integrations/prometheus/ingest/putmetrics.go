@@ -25,7 +25,6 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -103,7 +102,6 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	var successCount uint64 = 0
 	var failedCount uint64 = 0
-	var mName []byte
 
 	req, err := decodeWriteRequest(compressed)
 	if err != nil {
@@ -113,8 +111,8 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	}
 
 	for _, ts := range req.Timeseries {
-		metric := make(model.Metric, len(ts.Labels))
 		tagHolder := metrics.GetTagsHolder()
+		var mName []byte
 		for _, l := range ts.Labels {
 			if l.Name == NAME {
 				mName = []byte(l.Value)
@@ -124,21 +122,11 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 		}
 
 		// tsid, err := tagHolder.GetTSID(mName)
-		if err != nil {
-			log.Errorf("HandlePutMetrics: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, myid, err)
-			failedCount++
-			continue
-		}
-
 		for _, s := range ts.Samples {
-			var sample model.Sample = model.Sample{
-				Metric:    metric,
-				Value:     model.SampleValue(s.Value),
-				Timestamp: model.Time(s.Timestamp),
-			}
 
-			if isBadValue(float64(sample.Value)) {
+			if isBadValue(float64(s.Value)) {
 				failedCount++
+				log.Infof("Nilesh HandlePutMetrics: Badcount for metric %v, value: %v valType:%T", string(mName), s.Value, s.Value)
 				continue
 			}
 
