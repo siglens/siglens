@@ -1071,7 +1071,7 @@ Wrapper function to check and rotate the current metrics block or the metrics se
 Caller is responsible for acquiring locks
 */
 func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
-  
+
 	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	blkEncSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
 	if blkEncSize > utils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
