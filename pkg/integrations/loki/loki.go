@@ -41,11 +41,11 @@ const (
 	LOKIINDEX = "loki-index"
 )
 
-func parseLabels(labelsString string) map[string]string {
+func parseLabels(labelsString string) map[string]interface{} {
 	labelsString = strings.Trim(labelsString, "{}")
 	labelPairs := strings.Split(labelsString, ", ")
 
-	labels := make(map[string]string)
+	labels := make(map[string]interface{})
 
 	for _, pair := range labelPairs {
 		parts := strings.Split(pair, "=")
@@ -138,7 +138,6 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	streams := jsonData["streams"]
-	allIngestData := make(map[string]interface{})
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
@@ -151,12 +150,7 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
-		ingestCommonFields := parseLabels(labels)
-
-		// Note: We might not need separate filename and job fields in the future
-		allIngestData["filename"] = ingestCommonFields["filename"]
-		allIngestData["job"] = ingestCommonFields["job"]
-		allIngestData["labels"] = labels
+		allIngestData := parseLabels(labels)
 
 		entries, ok := stream["entries"].([]interface{})
 		if !ok {
