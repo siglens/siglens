@@ -215,6 +215,11 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 	}
 
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
+
+		if mQuery.IsQueryCancelled() {
+			return nil, fmt.Errorf("FindTSIDS: query cancelled")
+		}
+
 		tf := mQuery.TagsFilters[i]
 		//  Check if the tag key exists in the tag tree
 		fileExists := attr.tagTreeFileExists(tf.TagKey)
