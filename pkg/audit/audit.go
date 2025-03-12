@@ -2,6 +2,7 @@ package audit
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 )
 
@@ -23,13 +24,26 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 		EpochTimestampSec: epochTimestampSec,
 		OrgId:             orgId,
 	}
-	file, err := os.OpenFile(auditLogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+
+	// Read existing data
+	var logs []AuditLog
+	file, err := os.OpenFile(auditLogFile, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	data, err := ioutil.ReadAll(file)
+	if err == nil && len(data) > 0 {
+		json.Unmarshal(data, &logs)
+	}
+
+	logs = append(logs, audit_log)
+
+	file.Truncate(0)
+	file.Seek(0, 0)
 	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(audit_log); err != nil {
+	if err := encoder.Encode(logs); err != nil {
 		return err
 	}
 	return nil
