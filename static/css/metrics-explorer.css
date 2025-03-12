@@ -274,6 +274,7 @@ input:checked+.slider:before {
 .metrics-query .agg-function {
     width: 90px !important;
     background-color: var(--drop-down-btn-bg-regular) !important;
+    border-radius: 0px !important;
 }
 
 .metrics-query .agg-function:focus {
@@ -306,7 +307,6 @@ input:checked+.slider:before {
 /* Styles for error messages */
 .error-message {
     display: block;
-    font-family: 'DINpro', sans-serif;
     font-weight: 700;
     font-size: 20px;
     color: var(--empty-response-text-color, #808080);

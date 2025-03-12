@@ -37,6 +37,25 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func manageStateForMetricsQuery(rQuery *query.RunningQueryState, mQuery *structs.MetricsQuery) {
+	if rQuery == nil {
+		return
+	}
+
+	for stateData := range rQuery.StateChan {
+		switch stateData.StateName {
+		case query.CANCELLED:
+			mQuery.SetQueryIsCancelled()
+			return
+		case query.ERROR, query.COMPLETE:
+			return
+		default:
+			// do nothing
+			continue
+		}
+	}
+}
+
 func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
@@ -55,8 +74,11 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 		}
 	}
 
+	go manageStateForMetricsQuery(rQuery, mQuery)
+
 	res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 	query.DeleteQuery(qid)
+	rQuery.SendQueryStateComplete()
 	querySummary.IncrementNumResultSeries(res.GetNumSeries())
 	return res
 }
@@ -87,8 +109,19 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 			}
 		}
 
+		go manageStateForMetricsQuery(rQuery, mQuery)
+
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
+
+		if mQuery.IsQueryCancelled() {
+			// If any of the queries are cancelled, then we should cancel the entire query.
+			return &mresults.MetricsResult{
+				ErrList: []error{errors.New("query is cancelled")},
+			}
+		}
+
 		query.DeleteQuery(qid)
+		rQuery.SendQueryStateComplete()
 		querySummary.IncrementNumResultSeries(res.GetNumSeries())
 		qid = rutils.GetNextQid()
 		resMap[hashList[index]] = res

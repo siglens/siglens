@@ -82,6 +82,7 @@ const (
 	TotalColumnCount
 	TotalCMISize
 	TotalCSGSize
+	PastMinuteActiveSeriesCount
 )
 
 var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
@@ -139,6 +140,11 @@ var allSimpleGauges = map[Gauge]*simpleInt64Gauge{
 		name:        "ss.past.minute.num.data.points",
 		unit:        "count",
 		description: "Number of metric data points ingested in the past minute",
+	},
+	PastMinuteActiveSeriesCount: {
+		name:        "ss.past.minute.active.series.count",
+		unit:        "count",
+		description: "Active Series Count ingested in the past minute",
 	},
 	TotalTagKeyCount: {
 		name:        "ss.total.tag.key.count",
@@ -199,6 +205,7 @@ var (
 	SetTotalMetricNames            = makeGaugeSetter(TotalMetricNames)
 	SetTotalTimeSeries             = makeGaugeSetter(TotalTimeSeries)
 	SetPastMinuteNumDataPoints     = makeGaugeSetter(PastMinuteNumDataPoints)
+	SetPastMinuteActiveSeriesCount = makeGaugeSetter(PastMinuteActiveSeriesCount)
 	SetTotalTagKeyCount            = makeGaugeSetter(TotalTagKeyCount)
 	SetTotalTagValueCount          = makeGaugeSetter(TotalTagValueCount)
 	SetTotalIndexCount             = makeGaugeSetter(TotalIndexCount)
