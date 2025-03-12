@@ -272,7 +272,7 @@ var metricsIngestCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
-		format, _ := cmd.Flags().GetString("format")
+		metricsFormat, _ := cmd.Flags().GetString("metricsFormat")
 
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
@@ -290,16 +290,16 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("generatorType : %+v.\n", generatorType)
 		log.Infof("cardinality : %+v.\n", cardinality)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
-		log.Infof("format : %+v\n", format)
+		log.Infof("metricsFormat : %+v\n", metricsFormat)
 
 		var ingestFormat ingest.IngestType
-		switch format {
-		case ingest.OpenTSDB.String():
+		switch strings.ToLower(metricsFormat) {
+		case strings.ToLower(ingest.OpenTSDB.String()):
 			ingestFormat = ingest.OpenTSDB
-		case ingest.PrometheusRemoteWrite.String():
+		case strings.ToLower(ingest.PrometheusRemoteWrite.String()):
 			ingestFormat = ingest.PrometheusRemoteWrite
 		default:
-			log.Fatalf("Invalid format: %s. Supported formats: OTSDB, Prometheus", format)
+			log.Fatalf("Invalid metric format: %s. Supported metric formats: otsdb, prometheus", metricsFormat)
 			return
 		}
 		ingest.StartIngestion(ingestFormat, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
@@ -566,7 +566,7 @@ func init() {
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
-	metricsIngestCmd.PersistentFlags().StringP("format", "f", "OTSDB", "Specify metrics format. Options=[OTSDB, Prometheus]")
+	metricsIngestCmd.PersistentFlags().StringP("metricsFormat", "f", "otsdb", "Specify metrics format. Options=[otsdb, prometheus]")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
