@@ -21,4 +21,4 @@
 
 package config
 
-const SigLensVersion = "1.0.27d"
+const SigLensVersion = "1.0.27"
