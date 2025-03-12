@@ -26,17 +26,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type queryTemplate struct {
+type QueryTemplate struct {
 	validator        queryValidator
 	timeRangeSeconds uint64
 	maxInProgress    int
 }
 
 type queryManager struct {
-	templates         map[*queryTemplate]int // Maps to number in progress
+	templates         map[*QueryTemplate]int // Maps to number in progress
 	inProgressQueries []queryValidator
 	runnableQueries   []queryValidator
-	templateChan      chan *queryTemplate
+	templateChan      chan *QueryTemplate
 
 	maxConcurrentQueries int32
 	numRunningQueries    atomic.Int32
@@ -44,17 +44,27 @@ type queryManager struct {
 	url string
 }
 
-func NewQueryManager(templates []*queryTemplate) *queryManager {
-	templatesMap := make(map[*queryTemplate]int)
+func NewQueryTemplate(validator queryValidator, timeRangeSeconds uint64, maxInProgress int) *QueryTemplate {
+	return &QueryTemplate{
+		validator:        validator,
+		timeRangeSeconds: timeRangeSeconds,
+		maxInProgress:    maxInProgress,
+	}
+}
+
+func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url string) *queryManager {
+	templatesMap := make(map[*QueryTemplate]int)
 	for _, template := range templates {
 		templatesMap[template] = 0
 	}
 
 	manager := &queryManager{
-		templates:         templatesMap,
-		inProgressQueries: make([]queryValidator, 0),
-		runnableQueries:   make([]queryValidator, 0),
-		templateChan:      make(chan *queryTemplate),
+		templates:            templatesMap,
+		inProgressQueries:    make([]queryValidator, 0),
+		runnableQueries:      make([]queryValidator, 0),
+		templateChan:         make(chan *QueryTemplate),
+		maxConcurrentQueries: maxConcurrentQueries,
+		url:                  url,
 	}
 
 	manager.spawnTemplateAdders()
@@ -64,13 +74,10 @@ func NewQueryManager(templates []*queryTemplate) *queryManager {
 
 func (qm *queryManager) spawnTemplateAdders() {
 	for template := range qm.templates {
-		if template.maxInProgress == 0 {
-			continue
-		}
-
 		// Space out the queries.
-		go func(template *queryTemplate) {
+		go func(template *QueryTemplate) {
 			seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
+			seconds = max(seconds, 1)
 			ticker := time.NewTicker(time.Duration(seconds) * time.Second)
 			for range ticker.C {
 				qm.templateChan <- template
@@ -104,7 +111,7 @@ func (qm *queryManager) addInProgessQueries() {
 				startEpochMs := endEpochMs - int64(template.timeRangeSeconds*1000)
 				validator.SetTimeRange(uint64(startEpochMs), uint64(endEpochMs))
 
-				qm.inProgressQueries = append(qm.inProgressQueries, template.validator.Copy())
+				qm.inProgressQueries = append(qm.inProgressQueries, validator)
 			}
 		default:
 			return
@@ -133,11 +140,17 @@ func (qm *queryManager) moveToRunnable(epoch uint64) {
 			qm.inProgressQueries = append(qm.inProgressQueries[:i], qm.inProgressQueries[i+1:]...)
 
 			// TODO: do this better.
+			found := false
 			for template := range qm.templates {
 				if template.validator == validator {
 					qm.templates[template]-- // Decrement the number in progress.
+					found = true
 					break
 				}
+			}
+
+			if !found {
+				log.Fatalf("queryManager.moveToRunnable: failed to find template for validator %+v", validator)
 			}
 		}
 	}

@@ -516,6 +516,14 @@ var traceCmd = &cobra.Command{
 	},
 }
 
+func unwrap[T any](value T, err error) T {
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	return value
+}
+
 var longevityCmd = &cobra.Command{
 	Use:   "longevity",
 	Short: "Run longevity tests",
@@ -526,7 +534,8 @@ var longevityCmd = &cobra.Command{
 		totalEvents := 0
 		continuous := true
 		batchSize := 100
-		dest, _ := cmd.Flags().GetString("dest")
+		ingestUrl, _ := cmd.Flags().GetString("dest")
+		queryUrl, _ := cmd.Flags().GetString("queryDest")
 		indexPrefix := "longevity-test"
 		indexName := ""
 		numIndices := 1
@@ -541,10 +550,21 @@ var longevityCmd = &cobra.Command{
 		uniqueCols := 0
 		dataGeneratorConfig := utils.InitGeneratorDataConfig(maxCols, true, minCols, uniqueCols)
 
+		templates := []*query.QueryTemplate{
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city", "Boston", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city", "Boston", 10, 0, 0)), 1, 1),
+		}
+		maxConcurrentQueries := int32(1)
+		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl)
+
+		callback := func(logs []map[string]interface{}) {
+			queryManager.HandleIngestedLogs(logs)
+		}
+
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile,
-			totalEvents, continuous, batchSize, dest, indexPrefix, indexName,
+			totalEvents, continuous, batchSize, ingestUrl, indexPrefix, indexName,
 			numIndices, processCount, addTs, numMetrics, bearerToken, 0,
-			eventsPerDay, dataGeneratorConfig, nil)
+			eventsPerDay, dataGeneratorConfig, callback)
 	},
 }
 
@@ -608,6 +628,8 @@ func init() {
 	alertsLoadTestCmd.PersistentFlags().Uint64P("numAlerts", "n", 1, "Number of alerts to create")
 	alertsLoadTestCmd.PersistentFlags().Int8P("runVector", "v", 0, "Run vector: -1 - Explicitly Disable running of Vector, 0 - Optional State: Will try to run vector, but will not stop the test if encountered and issue with Vector, 1 - Explictly Enable running of Vector")
 	alertsLoadTestCmd.PersistentFlags().BoolP("cleanup", "c", false, "Cleanup alerts. If this is set true, it will only cleanup alerts and not run the load test")
+
+	longevityCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address")
 
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
