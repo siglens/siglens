@@ -606,14 +606,16 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 	}
 
 	for buckInterval, entry := range resultMap {
-		allAscValues := ascBuckets[buckInterval]
-		aggVal := uint64(0)
-		for _, val := range allAscValues {
-			aggVal += val
+		allAscValues, ok := ascBuckets[buckInterval]
+		if ok && len(allAscValues) > 0 {
+			aggVal := uint64(0)
+			for _, val := range allAscValues {
+				aggVal += val
+			}
+			aggVal /= uint64(len(allAscValues))
+			entry.ActiveSeriesCount = aggVal
+			resultMap[bucketInterval] = entry
 		}
-		aggVal /= uint64(len(allAscValues))
-		entry.ActiveSeriesCount = aggVal
-		resultMap[bucketInterval] = entry
 	}
 	return resultMap, nil
 }
