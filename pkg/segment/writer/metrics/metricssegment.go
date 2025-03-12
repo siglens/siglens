@@ -47,6 +47,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
+	"github.com/siglens/siglens/pkg/usageStats"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -70,6 +71,8 @@ var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
+
+const METRICS_INSTRUMENTATION_FLUSH_DURATION = 60 // 60 seconds
 
 var dateTimeLayouts = []string{
 	time.RFC3339,
@@ -190,6 +193,7 @@ func InitMetricsSegStore() {
 	go timeBasedMetricsFlush()
 	go timeBasedRotate()
 	go timeBasedTagsTreeFlush()
+	go timeBasedInstruFlush()
 }
 
 func initOrgMetrics(orgid int64) error {
@@ -324,6 +328,24 @@ func timeBasedTagsTreeFlush() {
 				}
 			}
 		}
+	}
+}
+
+func timeBasedInstruFlush() {
+	for {
+		time.Sleep(METRICS_INSTRUMENTATION_FLUSH_DURATION * time.Second)
+
+		orgMetricsAndTagsLock.RLock()
+		for orgid, msegAndTags := range OrgMetricsAndTags {
+			activeSeriesCount := uint64(0)
+			for _, tth := range msegAndTags.TagHolders {
+				tth.rwLock.RLock()
+				activeSeriesCount += uint64(len(tth.tsidLookup))
+				tth.rwLock.RUnlock()
+				usageStats.UpdateActiveSeriesCount(orgid, activeSeriesCount)
+			}
+		}
+		orgMetricsAndTagsLock.RUnlock()
 	}
 }
 
@@ -1049,8 +1071,11 @@ Wrapper function to check and rotate the current metrics block or the metrics se
 Caller is responsible for acquiring locks
 */
 func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
-	encSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
-	if encSize > utils.MAX_BYTES_METRICS_BLOCK || (encSize > 0 && forceRotate) {
+  
+	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
+	blkEncSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
+	if blkEncSize > utils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
+		(blkEncSize > 0 && totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT) {
 		err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 		if err != nil {
 			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate block for key=%v, suffix=%v, blocknum=%v, err=%v",
@@ -1062,7 +1087,6 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		}
 	}
 
-	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	if totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
 		if err != nil {
