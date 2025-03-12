@@ -100,14 +100,6 @@ func Test_HandlePutMetrics_BadValues(t *testing.T) {
 	assert.Error(t, err)
 }
 
-var prompbMarshalDataSlice [][]byte = [][]byte{
-	// nested quotes
-	[]byte(`{"metric":{"__name__":"httpcheck_error","error_message":"Get \"http://frontend-proxy:8080\": dial tcp 172.18.0.26:8080: connect: connection refused","http_url":"http://frontend-proxy:8080"},"value":[1738943658.675,"1"]}`),
-	// tag with slice values
-	[]byte(`{"metric":{"__name__":"target_info","container_id":"bd8e4092ce8daaf26c72a454c4945775d16a4edf1582df59b4ea70302f881468","docker_cli_cobra_command_path":"docker compose","host_arch":"aarch64","host_name":"bd8e4092ce8d","job":"quote","os_description":"6.12.5-linuxkit","os_name":"Linux","os_type":"linux","os_version":"#1 SMP Tue Jan 21 10:23:32 UTC 2025","process_command":"public/index.php","process_command_args":"[\"public/index.php\"]","process_executable_path":"/usr/local/bin/php","process_owner":"www-data","process_pid":"1","process_runtime_name":"cli","process_runtime_version":"8.3.16","service_version":"1.0.0+no-version-set","telemetry_distro_name":"opentelemetry-php-instrumentation","telemetry_distro_version":"1.1.2","telemetry_sdk_language":"php","telemetry_sdk_name":"opentelemetry","telemetry_sdk_version":"1.2.0"},"value":[1738943729.308,"1"]}`),
-	[]byte(`{"metric":{"__name__":"target_info","container_id":"cd4ba3a39b41a843d04e83f40014c0d4b0a2c56f68fb339e5e1ffc3fd9975866","docker_cli_cobra_command_path":"docker compose","host_arch":"arm64","host_name":"cd4ba3a39b41","job":"payment","os_type":"linux","os_version":"6.12.5-linuxkit","process_command":"/usr/src/app/index.js","process_command_args":"[\"/usr/local/bin/node\",\"--require\",\"./opentelemetry.js\",\"/usr/src/app/index.js\"]","process_executable_name":"node","process_executable_path":"/usr/local/bin/node","process_owner":"node","process_pid":"18","process_runtime_description":"Node.js","process_runtime_name":"nodejs","process_runtime_version":"22.13.1","telemetry_sdk_language":"nodejs","telemetry_sdk_name":"opentelemetry","telemetry_sdk_version":"1.30.1"},"value":[1738943749.26,"1"]}`),
-}
-
 func Test_isBadValue(t *testing.T) {
 	assert.True(t, isBadValue(math.NaN()))
 	assert.True(t, isBadValue(math.Inf(1)))
