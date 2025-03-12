@@ -164,62 +164,6 @@ func isBadValue(v float64) bool {
 	return false
 }
 
-func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, error) {
-	var dataJson map[string]interface{}
-	err := json.Unmarshal(data, &dataJson)
-	if err != nil {
-		return nil, err
-	}
-
-	type Metric struct {
-		Name      string            `json:"metric"`
-		Tags      map[string]string `json:"tags"`
-		Timestamp int64             `json:"timestamp"`
-		Value     float64           `json:"value"`
-	}
-
-	var metricName string
-	tags := make(map[string]string)
-	for key, val := range dataJson {
-		if key == "metric" {
-			valMap, ok := val.(map[string]interface{})
-			if ok {
-				for k, v := range valMap {
-					if k == NAME {
-						valString, ok := v.(string)
-						if ok {
-							metricName = valString
-						}
-						continue // skip metric __name__ as tag
-					}
-					valString, ok := v.(string)
-					if ok {
-						tags[k] = valString
-					}
-				}
-			}
-		}
-	}
-
-	if metricName == "" {
-		return nil, fmt.Errorf("ConvertToOTSDBFormat: the Metric name is empty. json data payload: %+v", dataJson)
-	}
-
-	modifiedMetric := Metric{
-		Name:      metricName,
-		Tags:      tags,
-		Timestamp: timestamp,
-		Value:     value,
-	}
-
-	modifiedData, err := json.Marshal(modifiedMetric)
-	if err != nil {
-		return nil, err
-	}
-
-	return modifiedData, nil
-}
-
 func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedCount uint64, err string, code int) {
 	resp := PrometheusPutResp{Success: processedCount, Failed: failedCount}
 	if err != "" {
