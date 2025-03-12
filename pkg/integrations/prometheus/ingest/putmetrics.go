@@ -118,10 +118,9 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 				mName = []byte(l.Value)
 				continue
 			}
-			tagHolder.Insert(l.Name, []byte(l.Value), jsonparser.String) // TODO: Type is perhaps not correct.
+			tagHolder.Insert(l.Name, []byte(l.Value), jsonparser.String)
 		}
 
-		// tsid, err := tagHolder.GetTSID(mName)
 		for _, s := range ts.Samples {
 
 			if isBadValue(float64(s.Value)) {
@@ -129,7 +128,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 				continue
 			}
 
-			ts1 := parsTimestamp(s.Timestamp)
+			ts1 := parseTimestamp(s.Timestamp)
 			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, ts1, uint64(len(compressed)), myid)
 			if err != nil {
 				log.Errorf("HandlePutMetrics: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, myid, err)
@@ -145,14 +144,14 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	return successCount, failedCount, nil
 }
 
-func parsTimestamp(fltVal int64) uint32 {
+func parseTimestamp(timestamp int64) uint32 {
 	var ts uint32
-	if utils.IsTimeInNano(uint64(fltVal)) {
-		ts = uint32(fltVal / 1_000_000_000)
-	} else if utils.IsTimeInMilli(uint64(fltVal)) {
-		ts = uint32(fltVal / 1000)
+	if utils.IsTimeInNano(uint64(timestamp)) {
+		ts = uint32(timestamp / 1_000_000_000)
+	} else if utils.IsTimeInMilli(uint64(timestamp)) {
+		ts = uint32(timestamp / 1000)
 	} else {
-		ts = uint32(fltVal)
+		ts = uint32(timestamp)
 	}
 	return ts
 }
