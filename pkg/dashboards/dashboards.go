@@ -22,14 +22,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -489,6 +492,22 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
+	// audit log
+	username := "No-user" //TODO : Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("pipeSearchWebsocketHandler: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Created dashboard"
+	extraMsg := fmt.Sprintf("Dashboard Name: %s", req.Name)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, strconv.FormatInt(orgId, 10))
 
 	utils.WriteJsonResponse(ctx, dashboardInfo)
 	ctx.SetStatusCode(fasthttp.StatusOK)
