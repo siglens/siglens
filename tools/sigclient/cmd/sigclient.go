@@ -260,7 +260,7 @@ var clickBenchTestCmd = &cobra.Command{
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
-	Short: "ingest metrics to /api/put in OTSDB format",
+	Short: "Ingest metrics into Siglens",
 	Run: func(cmd *cobra.Command, args []string) {
 		processCount, _ := cmd.Flags().GetInt("processCount")
 		dest, _ := cmd.Flags().GetString("dest")
@@ -272,6 +272,7 @@ var metricsIngestCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		metricsFormat, _ := cmd.Flags().GetString("metricsFormat")
 
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
@@ -289,8 +290,19 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("generatorType : %+v.\n", generatorType)
 		log.Infof("cardinality : %+v.\n", cardinality)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+		log.Infof("metricsFormat : %+v\n", metricsFormat)
 
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
+		var ingestFormat ingest.IngestType
+		switch strings.ToLower(metricsFormat) {
+		case strings.ToLower(ingest.OpenTSDB.String()):
+			ingestFormat = ingest.OpenTSDB
+		case strings.ToLower(ingest.PrometheusRemoteWrite.String()):
+			ingestFormat = ingest.PrometheusRemoteWrite
+		default:
+			log.Fatalf("Invalid metric format: %s. Supported metric formats: otsdb, prometheus", metricsFormat)
+			return
+		}
+		ingest.StartIngestion(ingestFormat, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
 	},
 }
 
@@ -554,6 +566,7 @@ func init() {
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
+	metricsIngestCmd.PersistentFlags().StringP("metricsFormat", "f", "otsdb", "Specify metrics format. Options=[otsdb, prometheus]")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")

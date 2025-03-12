@@ -29,7 +29,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
@@ -67,9 +66,11 @@ type TagsTreeHolder struct {
 	mid          string
 	suffix       uint64
 	allTrees     map[string]*TagTree // maps tagKey to the corresponding tagTree
-	tagBloom     *bloom.BloomFilter  // bloom filter for all tsids that exist across allTrees
 	rwLock       *sync.RWMutex
 	createdTime  time.Time
+	// a quick lookup to see if this tsid has already been seen in the past
+	// if yes then we don't need to search through all trees in this mseg's holder
+	tsidLookup map[uint64]struct{}
 }
 
 // for a given tag value, store all tsids that match
@@ -101,47 +102,45 @@ func InitTagsTreeHolder(mid string) (*TagsTreeHolder, error) {
 		mid:          mid,
 		suffix:       suffix,
 		allTrees:     make(map[string]*TagTree),
-		tagBloom:     bloom.NewWithEstimates(10_000, 0.001), // TODO: dynamic sizing
 		rwLock:       &sync.RWMutex{},
 		createdTime:  time.Now(),
+		tsidLookup:   make(map[uint64]struct{}),
 	}, nil
 }
 
 /*
-Returns a bool indicating if this tsid is new
-
 # Adds the inputed tags into corresponding tagsTree
-
-Internally, will use the internal bloom to check if the tsid has already been added or not
 */
-func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid uint64) error {
+func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, th *TagsHolder, tsid uint64) error {
+
+	// if we have seen this tsid in the past, that means we have already added it in
+	// the corresponding trees
+	tth.rwLock.RLock()
+	_, ok := tth.tsidLookup[tsid]
+	if ok {
+		tth.rwLock.RUnlock()
+		return nil
+	}
+	tth.rwLock.RUnlock()
+
+	// if not then lets go ahead and add it
 	tth.rwLock.Lock()
 	defer tth.rwLock.Unlock()
 
-	err := tth.addTags(mName, tags, tsid)
-	if err != nil {
-		log.Errorf("TagsTreeHolder.AddTagsForTSID: failed to add tags to tree. mName: %v, tsid: %v, tags holder: %+v; err=%v", mName, tsid, tags, err)
-		return err
-	}
-
-	return nil
-}
-
-// Add tag keys and values to the tree. If inserted into a tree, sets the updated flag.
-func (tth *TagsTreeHolder) addTags(mName []byte, tags *TagsHolder, tsid uint64) error {
-	finaltags := tags.GetEntries()
-	for _, tag := range finaltags {
-		currKey := tag.tagKey
-		currTree, ok := tth.allTrees[currKey]
+	allTagEntries := th.GetEntries()
+	for _, tagEntry := range allTagEntries {
+		currTree, ok := tth.allTrees[tagEntry.tagKey]
 		if !ok {
-			currTree = InitTagsTree(currKey)
-			tth.allTrees[currKey] = currTree
+			currTree = InitTagsTree(tagEntry.tagKey)
+			tth.allTrees[tagEntry.tagKey] = currTree
 		}
-		if err := currTree.AddTagValue(mName, tag.tagValue, tag.tagValueType, tsid); err != nil {
-			log.Errorf("TagsTreeHolder.addTags: failed to add tag value to tree. mName: %v, tsid: %v, tag: %+v; err=%v", mName, tsid, tag, err)
+		if err := currTree.AddTagValue(mName, tagEntry.tagValue,
+			tagEntry.tagValueType, tsid); err != nil {
+			log.Errorf("TagsTreeHolder.addTags: failed to add tag value to tree. mName: %v, tsid: %v, tagEntry: %+v; err=%v", mName, tsid, tagEntry, err)
 			return err
 		}
 	}
+	tth.tsidLookup[tsid] = struct{}{}
 	return nil
 }
 
@@ -343,8 +342,8 @@ func (tt *TagsTreeHolder) rotateTagsTree(forceRotate bool) error {
 		tt.tagstreeBase = tagsTreePath
 		tt.suffix = nextSuffix
 		tt.allTrees = make(map[string]*TagTree)
-		tt.tagBloom = bloom.NewWithEstimates(10_000, 0.001) // TODO: dynamic sizing
 		tt.createdTime = time.Now()
+		tt.tsidLookup = make(map[uint64]struct{})
 	}
 	return nil
 }

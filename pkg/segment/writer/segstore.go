@@ -44,7 +44,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
-	"github.com/siglens/siglens/pkg/usageStats"
 	toputils "github.com/siglens/siglens/pkg/utils"
 
 	"github.com/siglens/siglens/pkg/segment/pqmr"
@@ -689,7 +688,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		if err != nil {
 			return err
 		}
-		usageStats.UpdateCompressedStats(int64(totalBytesWritten), segmeta.OrgId)
 		segstore.numBlocks += 1
 	}
 	if segstore.numBlocks > 0 && !isKibana {
