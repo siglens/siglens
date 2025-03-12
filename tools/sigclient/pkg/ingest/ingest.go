@@ -106,45 +106,49 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 }
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
-	actLines []string, bb *bytebufferpool.ByteBuffer,
-	callback func([]map[string]interface{})) ([]byte, error) {
+	actLines []string, bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, error) {
 
 	switch iType {
 	case ESBulk:
 		actionLine := actLines[i%len(actLines)]
-		return generateESBody(recs, actionLine, rdr, bb, callback)
+		return generateESBody(recs, actionLine, rdr, bb)
 	case OpenTSDB:
-		return generateOpenTSDBBody(recs, rdr)
+		// TODO: make generateOpenTSDBBody return the raw logs as well
+		payload, err := generateOpenTSDBBody(recs, rdr)
+		return nil, payload, err
 	default:
 		log.Fatalf("Unsupported ingest type %s", iType.String())
 	}
-	return nil, fmt.Errorf("unsupported ingest type %s", iType.String())
+	return nil, nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
 
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
-	bb *bytebufferpool.ByteBuffer, callback func([]map[string]interface{})) ([]byte, error) {
+	bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, error) {
 
 	allLogs := make([]map[string]interface{}, 0, recs)
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
 		rawLog, err := rdr.GetRawLog()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		allLogs = append(allLogs, rawLog)
+
+		logCopy := make(map[string]interface{}, len(rawLog))
+		for k, v := range rawLog {
+			logCopy[k] = v
+		}
+		allLogs = append(allLogs, logCopy)
 
 		logline, err := json.Marshal(rawLog)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
 
-	go callback(allLogs)
-
 	payLoad := bb.Bytes()
-	return payLoad, nil
+	return allLogs, payLoad, nil
 }
 
 func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
@@ -250,6 +254,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 
 	i := 0
 	var bb *bytebufferpool.ByteBuffer
+	var rawLogs []map[string]interface{}
 	var payload []byte
 	var err error
 	maxDuration := 2 * time.Hour
@@ -271,7 +276,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			payload, err = generateBodyFromPredefinedSeries(recsInBatch, uint64(len(preGeneratedSeries)))
 			seriesId += uint64(recsInBatch)
 		} else {
-			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb, callback)
+			rawLogs, payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
@@ -298,6 +303,8 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			retryCounter++
 			time.Sleep(sleepTime)
 		}
+
+		callback(rawLogs)
 
 		SendPerformanceData(rdr)
 
