@@ -93,12 +93,13 @@ func GetIntervalInMillis(num int, timeUnit utils.TimeUnit) uint64 {
 	return uint64((10 * time.Minute).Milliseconds()) // 10 Minutes
 }
 
-func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int) *structs.TimeBucket {
+func InitTimeBucket(num int, timeUnit utils.TimeUnit, byField string, limitExpr *structs.LimitExpr, measureAggLength int, bOptions *structs.BinOptions) *structs.TimeBucket {
 
 	intervalMillis := GetIntervalInMillis(num, timeUnit)
 
 	timechartExpr := &structs.TimechartExpr{
-		ByField: byField,
+		ByField:    byField,
+		BinOptions: bOptions,
 	}
 
 	if len(byField) > 0 {
