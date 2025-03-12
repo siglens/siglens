@@ -54,7 +54,8 @@ func writeMockMetricsBlockSummaryFile(file string, blockSums []*structs.MBlockSu
 		mbs := structs.MBlockSummary{
 			HighTs: block.HighTs,
 			LowTs:  block.LowTs,
-			Blknum: block.Blknum}
+			Blknum: block.Blknum,
+		}
 		_, err = mbs.FlushSummary(file)
 		if err != nil {
 			log.Errorf("WriteMockMetricsBlockSummary: Failed to write in file at %v, err: %v", file, err)
@@ -70,11 +71,9 @@ func writeMockMetricsBlockSummaryFile(file string, blockSums []*structs.MBlockSu
 }
 
 func Test_ReadMetricsBlockSummary(t *testing.T) {
-
 	entryCount := 10
 	dir := "data/"
 	err := os.MkdirAll(dir, os.FileMode(0755))
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +89,6 @@ func Test_ReadMetricsBlockSummary(t *testing.T) {
 		i++
 	}
 	err = writeMockMetricsBlockSummaryFile(blockSumFile, blockSummaries)
-
 	if err != nil {
 		log.Errorf("Failed to write mock block summary at %v", blockSumFile)
 	}
@@ -139,7 +137,6 @@ func generateFakeTimeSeries() ([]data, uint32) {
 }
 
 func Test_ReadWriteTsoTsgFiles(t *testing.T) {
-
 	dir := "data/"
 	err := os.MkdirAll(dir, os.FileMode(0755))
 	if err != nil {
@@ -258,14 +255,14 @@ func initFakeMetricsBlock() *MetricsBlock {
 	mb := &MetricsBlock{
 		tsidLookup:  make(map[uint64]int),
 		sortedTsids: make([]uint64, 2),
-		allSeries:   make([]*TimeSeries, 2),
-		mBlockSummary: &structs.MBlockSummary{
+		AllSeries:   make([]*TimeSeries, 2),
+		BlockSummary: &structs.MBlockSummary{
 			// garbage values
 			Blknum: 0,
 			HighTs: 1676089340,
 			LowTs:  1676089310,
 		},
-		blkEncodedSize: 0,
+		BlkEncodedSize: 0,
 	}
 	return mb
 }
@@ -290,14 +287,14 @@ func writeToTimeSeries(mb *MetricsBlock, index int) []data {
 	if err != nil {
 		log.Error("writeToTimeSeries: Error writing mock metrics time series")
 	}
-	mb.allSeries[index] = &TimeSeries{
+	mb.AllSeries[index] = &TimeSeries{
 		lock:        &sync.Mutex{},
 		rawEncoding: buf,
 		cFinishFn:   finish,
 		compressor:  c,
 	}
 	for _, data := range series {
-		_, err := mb.allSeries[index].compressor.Compress(data.t, data.v)
+		_, err := mb.AllSeries[index].compressor.Compress(data.t, data.v)
 		if err != nil {
 			log.Error("writeToTimeSeries: Error writing mock metrics time series")
 		}

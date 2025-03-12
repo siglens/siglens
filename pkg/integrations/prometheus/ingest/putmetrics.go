@@ -21,15 +21,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"sync/atomic"
 
+	"github.com/buger/jsonparser"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
-	. "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +41,10 @@ type PrometheusPutResp struct {
 	Success uint64   `json:"success"`
 	Errors  []string `json:"errors,omitempty"`
 }
+
+const (
+	NAME = "__name__"
+)
 
 func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 	reqBuf, err := snappy.Decode(nil, compressed)
@@ -99,6 +103,7 @@ func PutMetrics(ctx *fasthttp.RequestCtx, myid int64) {
 func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	var successCount uint64 = 0
 	var failedCount uint64 = 0
+	var mName []byte
 
 	req, err := decodeWriteRequest(compressed)
 	if err != nil {
@@ -107,53 +112,100 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 		return successCount, failedCount, err
 	}
 
-	for _, ts := range req.Timeseries {
-		metric := make(model.Metric, len(ts.Labels))
-		for _, l := range ts.Labels {
-			metric[model.LabelName(l.Name)] = model.LabelValue(l.Value)
+	for _, prmbts := range req.Timeseries {
+		// metric := make(model.Metric, len(ts.Labels))
+		tagHolder := metrics.GetTagsHolder()
+		for _, l := range prmbts.Labels {
+			if l.Name == NAME {
+				mName = []byte(l.Value)
+				continue
+			}
+			tagHolder.Insert(l.Name, []byte(l.Value), jsonparser.String) // TODO: Type is perhaps not correct.
 		}
 
-		for _, s := range ts.Samples {
-			var sample model.Sample = model.Sample{
-				Metric:    metric,
-				Value:     model.SampleValue(s.Value),
-				Timestamp: model.Time(s.Timestamp),
+		tsid, err := tagHolder.GetTSID(mName)
+		if err != nil {
+			log.Errorf("HandlePutMetrics: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, myid, err)
+			failedCount++
+			continue
+		}
+
+		mSeg, tth, err := metrics.GetMetricsSegment(mName, myid)
+		if err != nil || mSeg == nil {
+			log.Errorf("HandlePutMetrics: failed to get metrics segment for metric=%s, orgid=%v, err=%v", mName, myid, err)
+			failedCount++
+			continue
+		}
+
+		var mts *metrics.TimeSeries
+		var seriesExists bool
+		var bytesWritten uint64
+
+		//??mSeg.rwLock.RLock()
+		mts, seriesExists, err = mSeg.Block.GetTimeSeries(tsid)
+		skip := false
+		if !seriesExists {
+			dp := prmbts.Samples[0].Value
+			ts := uint32(prmbts.Samples[0].Timestamp)
+			mts, bytesWritten, err = metrics.InitTimeSeries(tsid, dp, ts)
+			if err != nil {
+				log.Errorf("Failed to create time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+					tsid, dp, ts, mName, myid, err)
+				failedCount++
+				continue
 			}
+
+			skip = true
+
+			mSeg.RWLock.Lock()
+			exists, idx, err := mSeg.Block.InsertTimeSeries(tsid, mts)
+			if err != nil {
+				mSeg.RWLock.Unlock()
+				log.Errorf("Failed to insert time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+					tsid, dp, ts, mName, myid, err)
+				failedCount++
+				continue
+			}
+
+			if !exists { // if the new series was actually added, add the tsid to the block
+				mSeg.Block.AddTsidToBlock(tsid)
+			}
+			mSeg.RWLock.Unlock()
+			if exists {
+				bytesWritten, err = mSeg.Block.AllSeries[idx].AddSingleEntry(dp, ts)
+				if err != nil {
+					log.Errorf("Failed to add single entry for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+						tsid, dp, ts, mName, myid, err)
+					continue
+				}
+			}
+			// consttuct tagsHolder
+			err = tth.AddTagsForTSID(mName, tagHolder, tsid)
+			if err != nil {
+				log.Errorf("Failed to add tags for tsid=%v, metric=%s, orgid=%v, err=%v", tsid, mName, myid, err)
+				continue
+			}
+		}
+
+		for _, sample := range prmbts.Samples {
 
 			if isBadValue(float64(sample.Value)) {
 				failedCount++
 				continue
 			}
+			ts := uint32(sample.Timestamp) // TODO: This assumes that type conversion is safe
 
-			data, err := sample.MarshalJSON()
-			if err != nil {
-				failedCount++
-				log.Errorf("HandlePutMetrics: failed to marshal sample=%+v to json, err=%v", sample, err)
-				continue
+			if !skip {
+				bytesWritten, err = mts.AddSingleEntry(sample.Value, ts)
 			}
+			skip = false
 
-			var dataJson map[string]interface{}
-			err = json.Unmarshal(data, &dataJson)
-			if err != nil {
-				failedCount++
-				log.Errorf("HandlePutMetrics: failed to Unmarshal data=%+v, err=%v", data, err)
-				continue
-			}
-
-			modifiedData, err := ConvertToOTSDBFormat(data, s.Timestamp, s.Value)
-			if err != nil {
-				failedCount++
-				log.Errorf("HandlePutMetrics: failed to convert data=%+v to OTSDB format, err=%v", string(data), err)
-				continue
-			}
-
-			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
-			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", string(modifiedData), err)
-				failedCount++
-			} else {
-				successCount++
-			}
+			mSeg.UpdateTimeRange(ts)
+			mSeg.Block.BlockSummary.UpdateTimeRange(ts)
+			atomic.AddUint64(&mSeg.Block.BlkEncodedSize, bytesWritten)
+			atomic.AddUint64(&mSeg.SegEncodedSize, bytesWritten)
+			// TODO: atomic.AddUint64(&mSeg.BytesReceived, nBytes)
+			atomic.AddUint64(&mSeg.DatapointCount, 1)
 		}
 	}
 	bytesReceived := uint64(len(compressed))
@@ -190,7 +242,7 @@ func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, 
 			valMap, ok := val.(map[string]interface{})
 			if ok {
 				for k, v := range valMap {
-					if k == "__name__" {
+					if k == NAME {
 						valString, ok := v.(string)
 						if ok {
 							metricName = valString
@@ -226,7 +278,6 @@ func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, 
 }
 
 func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedCount uint64, err string, code int) {
-
 	resp := PrometheusPutResp{Success: processedCount, Failed: failedCount}
 	if err != "" {
 		resp.Errors = []string{err}
