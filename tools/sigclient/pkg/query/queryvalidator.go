@@ -206,6 +206,8 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("FQV.MatchesResult: expected columns %+v, got %+v", expectedColumnsSet, actualColumnsSet)
 	}
 
+	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
+
 	return nil
 }
 

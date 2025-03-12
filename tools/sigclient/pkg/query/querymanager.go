@@ -20,11 +20,14 @@ package query
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+const delayForFlush = 30 * time.Second
 
 type QueryTemplate struct {
 	validator        queryValidator
@@ -33,13 +36,16 @@ type QueryTemplate struct {
 }
 
 type queryManager struct {
-	templates         map[*QueryTemplate]int // Maps to number in progress
+	templates         []*QueryTemplate
 	inProgressQueries []queryValidator
 	runnableQueries   []queryValidator
+	runnableLock      sync.Mutex
 	templateChan      chan *QueryTemplate
 
 	maxConcurrentQueries int32
 	numRunningQueries    atomic.Int32
+
+	lastLogEpochMs int64
 
 	url string
 }
@@ -53,13 +59,8 @@ func NewQueryTemplate(validator queryValidator, timeRangeSeconds uint64, maxInPr
 }
 
 func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url string) *queryManager {
-	templatesMap := make(map[*QueryTemplate]int)
-	for _, template := range templates {
-		templatesMap[template] = 0
-	}
-
 	manager := &queryManager{
-		templates:            templatesMap,
+		templates:            templates,
 		inProgressQueries:    make([]queryValidator, 0),
 		runnableQueries:      make([]queryValidator, 0),
 		templateChan:         make(chan *QueryTemplate),
@@ -73,7 +74,7 @@ func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url
 }
 
 func (qm *queryManager) spawnTemplateAdders() {
-	for template := range qm.templates {
+	for _, template := range qm.templates {
 		// Space out the queries.
 		go func(template *QueryTemplate) {
 			seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
@@ -91,6 +92,7 @@ func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}) {
 	qm.sendToValidators(logs)
 
 	if lastEpoch, ok := qm.getLastEpoch(logs); ok {
+		qm.lastLogEpochMs = int64(lastEpoch)
 		qm.moveToRunnable(lastEpoch)
 	}
 
@@ -103,16 +105,12 @@ func (qm *queryManager) addInProgessQueries() {
 	for {
 		select {
 		case template := <-qm.templateChan:
-			if qm.templates[template] < template.maxInProgress {
-				qm.templates[template]++
+			validator := template.validator.Copy()
+			startEpochMs := qm.lastLogEpochMs + 1
+			endEpochMs := startEpochMs + int64(template.timeRangeSeconds*1000)
+			validator.SetTimeRange(uint64(startEpochMs), uint64(endEpochMs))
 
-				validator := template.validator.Copy()
-				endEpochMs := time.Now().UnixNano() / int64(time.Millisecond)
-				startEpochMs := endEpochMs - int64(template.timeRangeSeconds*1000)
-				validator.SetTimeRange(uint64(startEpochMs), uint64(endEpochMs))
-
-				qm.inProgressQueries = append(qm.inProgressQueries, validator)
-			}
+			qm.inProgressQueries = append(qm.inProgressQueries, validator)
 		default:
 			return
 		}
@@ -136,22 +134,15 @@ func (qm *queryManager) moveToRunnable(epoch uint64) {
 		_, _, endEpoch := validator.GetQuery()
 		if endEpoch < epoch {
 			// Move it to runnable, since no future logs will affect the results.
-			qm.runnableQueries = append(qm.runnableQueries, validator)
 			qm.inProgressQueries = append(qm.inProgressQueries[:i], qm.inProgressQueries[i+1:]...)
 
-			// TODO: do this better.
-			found := false
-			for template := range qm.templates {
-				if template.validator == validator {
-					qm.templates[template]-- // Decrement the number in progress.
-					found = true
-					break
-				}
-			}
+			go func(validator queryValidator) {
+				time.Sleep(delayForFlush)
 
-			if !found {
-				log.Fatalf("queryManager.moveToRunnable: failed to find template for validator %+v", validator)
-			}
+				qm.runnableLock.Lock()
+				qm.runnableQueries = append(qm.runnableQueries, validator)
+				qm.runnableLock.Unlock()
+			}(validator)
 		}
 	}
 }
@@ -167,6 +158,7 @@ func (qm *queryManager) getLastEpoch(logs []map[string]interface{}) (uint64, boo
 		return 0, false
 	}
 
+	// Convert to uint64
 	s := fmt.Sprintf("%v", timestamp)
 	epoch, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
@@ -177,12 +169,20 @@ func (qm *queryManager) getLastEpoch(logs []map[string]interface{}) (uint64, boo
 }
 
 func (qm *queryManager) canRunMore() bool {
+	qm.runnableLock.Lock()
+	defer qm.runnableLock.Unlock()
+
 	return qm.numRunningQueries.Load() < qm.maxConcurrentQueries && len(qm.runnableQueries) > 0
 }
 
 func (qm *queryManager) startQueries() {
+	qm.runnableLock.Lock()
+	defer qm.runnableLock.Unlock()
+
 	maxToStart := int(qm.maxConcurrentQueries - qm.numRunningQueries.Load())
 	numToStart := min(maxToStart, len(qm.runnableQueries))
+
+	qm.numRunningQueries.Add(int32(numToStart))
 
 	for i := 0; i < numToStart; i++ {
 		validator := qm.runnableQueries[i]
@@ -190,7 +190,6 @@ func (qm *queryManager) startQueries() {
 	}
 
 	qm.runnableQueries = qm.runnableQueries[numToStart:]
-	qm.numRunningQueries.Add(int32(numToStart))
 }
 
 func (qm *queryManager) runQuery(validator queryValidator) {
@@ -206,5 +205,6 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 		log.Fatalf("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
 	}
 
+	log.Infof("queryManager.runQuery: successfully ran %v", queryInfo)
 	qm.numRunningQueries.Add(-1)
 }

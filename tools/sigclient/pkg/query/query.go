@@ -483,17 +483,12 @@ func getRandomQuery() []byte {
 }
 
 func sendSplunkQuery(url string, query string, startEpoch uint64, endEpoch uint64) ([]byte, error) {
-	// If the URL doesn't end with the search API path, append it
-	if !strings.HasSuffix(url, "/api/search") {
-		url = strings.TrimSuffix(url, "/") + "/api/search"
-	}
-
 	// Create the request body
-	requestBody := map[string]string{
+	requestBody := map[string]interface{}{
 		"searchText":    query,
 		"indexName":     "*",
-		"startEpoch":    fmt.Sprintf("%d", startEpoch),
-		"endEpoch":      fmt.Sprintf("%d", endEpoch),
+		"startEpoch":    startEpoch,
+		"endEpoch":      endEpoch,
 		"queryLanguage": "Splunk QL",
 	}
 
@@ -516,7 +511,7 @@ func sendSplunkQuery(url string, query string, startEpoch uint64, endEpoch uint6
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send HTTP request: %v", err)
+		return nil, fmt.Errorf("failed to send HTTP request to %v; err=%v", url, err)
 	}
 	defer resp.Body.Close()
 
