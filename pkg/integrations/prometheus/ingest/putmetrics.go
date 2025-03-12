@@ -131,7 +131,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			ts1 := parseTimestamp(s.Timestamp)
 			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, ts1, uint64(len(compressed)), myid)
 			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, myid, err)
+				log.Errorf("HandlePutMetrics: failed to encode data for metric=%s, orgid=%v, err=%v", mName, myid, err)
 				failedCount++
 				continue
 			}
