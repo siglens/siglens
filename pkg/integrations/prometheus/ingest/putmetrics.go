@@ -143,13 +143,18 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 		//??mSeg.rwLock.RLock()
 		mts, seriesExists, err = mSeg.Block.GetTimeSeries(tsid)
+		if err != nil {
+			log.Errorf("HandlePutMetrics: failed to create time series identity metric=%s, orgid=%v, err=%v", mName, myid, err)
+			continue
+		}
 		skip := false
+
 		if !seriesExists {
 			dp := prmbts.Samples[0].Value
 			ts := uint32(prmbts.Samples[0].Timestamp)
 			mts, bytesWritten, err = metrics.InitTimeSeries(tsid, dp, ts)
 			if err != nil {
-				log.Errorf("Failed to create time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+				log.Errorf("HandlePutMetrics: Failed to create time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
 					tsid, dp, ts, mName, myid, err)
 				failedCount++
 				continue
@@ -161,7 +166,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			exists, idx, err := mSeg.Block.InsertTimeSeries(tsid, mts)
 			if err != nil {
 				mSeg.RWLock.Unlock()
-				log.Errorf("Failed to insert time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+				log.Errorf("HandlePutMetrics: Failed to insert time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
 					tsid, dp, ts, mName, myid, err)
 				failedCount++
 				continue
@@ -174,7 +179,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			if exists {
 				bytesWritten, err = mSeg.Block.AllSeries[idx].AddSingleEntry(dp, ts)
 				if err != nil {
-					log.Errorf("Failed to add single entry for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
+					log.Errorf("HandlePutMetrics: Failed to add single entry for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
 						tsid, dp, ts, mName, myid, err)
 					continue
 				}
@@ -182,7 +187,8 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			// consttuct tagsHolder
 			err = tth.AddTagsForTSID(mName, tagHolder, tsid)
 			if err != nil {
-				log.Errorf("Failed to add tags for tsid=%v, metric=%s, orgid=%v, err=%v", tsid, mName, myid, err)
+				failedCount++
+				log.Errorf("HandlePutMetrics: Failed to add tags for tsid=%v, metric=%s, orgid=%v, err=%v", tsid, mName, myid, err)
 				continue
 			}
 		}
@@ -197,6 +203,9 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 			if !skip {
 				bytesWritten, err = mts.AddSingleEntry(sample.Value, ts)
+				if err != nil {
+					failedCount++
+				}
 			}
 			skip = false
 
@@ -204,7 +213,7 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			mSeg.Block.BlockSummary.UpdateTimeRange(ts)
 			atomic.AddUint64(&mSeg.Block.BlkEncodedSize, bytesWritten)
 			atomic.AddUint64(&mSeg.SegEncodedSize, bytesWritten)
-			// TODO: atomic.AddUint64(&mSeg.BytesReceived, nBytes)
+			atomic.AddUint64(&mSeg.BytesReceived, bytesWritten) // TODO:This is not correct.
 			atomic.AddUint64(&mSeg.DatapointCount, 1)
 		}
 	}
