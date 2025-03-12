@@ -29,6 +29,10 @@ import (
 	"time"
 	"verifier/pkg/utils"
 
+	"github.com/gogo/protobuf/proto"
+	"github.com/golang/snappy"
+	"github.com/prometheus/prometheus/prompb"
+
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
@@ -42,6 +46,7 @@ const (
 	_ IngestType = iota
 	ESBulk
 	OpenTSDB
+	PrometheusRemoteWrite
 )
 
 func (q IngestType) String() string {
@@ -50,6 +55,8 @@ func (q IngestType) String() string {
 		return "ES Bulk"
 	case OpenTSDB:
 		return "OTSDB"
+	case PrometheusRemoteWrite:
+		return "Prometheus"
 	default:
 		return "UNKNOWN"
 	}
@@ -70,7 +77,8 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 		requestStr = url + "/_bulk"
 	case OpenTSDB:
 		requestStr = url + "/api/put"
-
+	case PrometheusRemoteWrite:
+		requestStr = url + "/api/v1/write"
 	default:
 		log.Fatalf("unknown ingest type %+v", iType)
 		return fmt.Errorf("unknown ingest type %+v", iType)
@@ -80,7 +88,15 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 	if bearerToken != "" {
 		req.Header.Add("Authorization", bearerToken)
 	}
-	req.Header.Set("Content-Type", "application/json")
+
+	switch iType {
+	case PrometheusRemoteWrite:
+		req.Header.Set("Content-Type", "application/x-protobuf")
+		req.Header.Set("Content-Encoding", "snappy")
+		req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	default:
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	if err != nil {
 		log.Errorf("sendRequest: http.NewRequest ERROR: %v", err)
@@ -216,6 +232,42 @@ func generateBodyFromPredefinedSeries(recs int, preGeneratedSeriesLength uint64)
 	return retVal, nil
 }
 
+func generatePrometheusRemoteWriteBody(recs int, preGeneratedSeriesLength uint64) ([]byte, error) {
+	var timeSeriesList []prompb.TimeSeries
+	for i := 0; i < recs; i++ {
+		series := preGeneratedSeries[(seriesId+uint64(i))%preGeneratedSeriesLength]
+		metricName, _ := series["metric"].(string)
+		timestamp, _ := series["timestamp"].(int64)
+		value, _ := series["value"].(float64)
+		tags, _ := series["tags"].(map[string]interface{})
+
+		var labels []prompb.Label
+		labels = append(labels, prompb.Label{Name: "__name__", Value: metricName})
+		for key, val := range tags {
+			labels = append(labels, prompb.Label{Name: key, Value: fmt.Sprintf("%v", val)})
+		}
+
+		timeSeries := prompb.TimeSeries{
+			Labels: labels,
+			Samples: []prompb.Sample{
+				{Value: value, Timestamp: timestamp},
+			},
+		}
+		timeSeriesList = append(timeSeriesList, timeSeries)
+	}
+
+	writeReq := &prompb.WriteRequest{
+		Timeseries: timeSeriesList,
+	}
+
+	pbData, err := proto.Marshal(writeReq)
+	if err != nil {
+		return nil, fmt.Errorf("generatePrometheusRemoteWriteBody : failed to marshal protobuf: %v", err)
+	}
+	compressedData := snappy.Encode(nil, pbData)
+	return compressedData, nil
+}
+
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
 	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
 	eventsPerDayPerProcess int, totalBytes *uint64) {
@@ -256,6 +308,9 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		}
 		if iType == OpenTSDB {
 			payload, err = generateBodyFromPredefinedSeries(recsInBatch, uint64(len(preGeneratedSeries)))
+			seriesId += uint64(recsInBatch)
+		} else if iType == PrometheusRemoteWrite {
+			payload, err = generatePrometheusRemoteWriteBody(recsInBatch, uint64(len(preGeneratedSeries)))
 			seriesId += uint64(recsInBatch)
 		} else {
 			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
@@ -339,7 +394,7 @@ func populateActionLines(idxPrefix string, indexName string, numIndices int) []s
 
 func getReaderFromArgs(iType IngestType, nummetrics int, gentype string, str string, ts bool, generatorDataConfig *utils.GeneratorDataConfig, processIndex int) (utils.Generator, error) {
 
-	if iType == OpenTSDB {
+	if iType == OpenTSDB || iType == PrometheusRemoteWrite {
 		rdr, err := utils.InitMetricsGenerator(nummetrics, gentype)
 		if err != nil {
 			return rdr, err
@@ -397,7 +452,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
 	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
-	if iType == OpenTSDB {
+	if iType == OpenTSDB || iType == PrometheusRemoteWrite {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
 		if err != nil {
 			log.Errorf("Failed to pre-generate series: %v", err)
@@ -460,7 +515,7 @@ readChannel:
 				totalTimeTaken, humanize.Comma(int64(totalSent)), humanize.Comma(int64(mbCount)),
 				humanize.Comma(eventsPerSec), humanize.Comma(mbPerSec))
 
-			if iType == OpenTSDB {
+			if iType == OpenTSDB || iType == PrometheusRemoteWrite {
 				log.Infof("HLL Approx so far of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 			}
 			lastPrintedCount = totalSent
