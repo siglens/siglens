@@ -496,6 +496,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 	statsFnames := getBaseStatsDirs(startEpoch, endEpoch, orgid) // usageStats
 
 	allStatsMap := make([]ReadStats, 0)
+	// todo we should use ptr here to avoid mem allocations
 	resultMap := make(map[string]ReadStats)
 	var bucketInterval string
 	var intervalMinutes uint32
@@ -612,6 +613,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 		}
 		aggVal /= uint64(len(allAscValues))
 		entry.ActiveSeriesCount = aggVal
+		resultMap[bucketInterval] = entry
 	}
 	return resultMap, nil
 }
@@ -621,7 +623,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 // - Then, metrics were added: bytes, eventCount, metricCount, time
 // - Later, logsBytesCount and metricsBytesCount were added: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
 // - Later: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount.
-// Current format: ibytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount, activeSeriesCount
+// Current format: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount, activeSeriesCount
 //
 //	However, the new format is backward compatible with the old formats.
 func parseStatsRecord(record []string) (ReadStats, error) {

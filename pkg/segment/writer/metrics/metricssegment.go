@@ -1075,8 +1075,10 @@ Caller is responsible for acquiring locks
 */
 func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 
-	encSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
-	if encSize > utils.MAX_BYTES_METRICS_BLOCK || (encSize > 0 && forceRotate) {
+	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
+	blkEncSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
+	if blkEncSize > utils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
+		(blkEncSize > 0 && totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT) {
 		err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 		if err != nil {
 			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate block for key=%v, suffix=%v, blocknum=%v, err=%v",
@@ -1088,8 +1090,6 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		}
 	}
 
-	// todo bug here, if the last block was less the max_block_size, then we are not rotating it
-	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	if totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
 		if err != nil {
