@@ -1971,12 +1971,17 @@ function updateChartTheme(theme) {
             var chartData = chartDataCollection[queryName];
             chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70'; // opacity
             });
 
             var lineChart = lineCharts[queryName];
             if (lineChart) {
                 lineChart.update();
+                // Regenerate the legend after updating chart colors
+                var legendContainer = $(`.metrics-graph[data-query="${queryName}"] .legend-container`)[0];
+                if (legendContainer) {
+                    generateCustomLegend(lineChart, legendContainer);
+                }
             }
         }
     }
@@ -1984,9 +1989,15 @@ function updateChartTheme(theme) {
     if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
         mergedGraph.data.datasets.forEach(function (dataset, index) {
             dataset.borderColor = selectedPalette[index % selectedPalette.length];
-            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
         });
         mergedGraph.update();
+
+        // Regenerate the legend for merged graph
+        var mergedLegendContainer = $('.merged-graph .legend-container')[0];
+        if (mergedLegendContainer) {
+            generateCustomLegend(mergedGraph, mergedLegendContainer);
+        }
     }
 }
 
