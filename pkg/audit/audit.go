@@ -1,8 +1,9 @@
 package audit
 
 import (
+	"bufio"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
@@ -33,7 +34,7 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 	}
 	defer file.Close()
 
-	data, err := ioutil.ReadAll(file)
+	data, err := io.ReadAll(file)
 	if err == nil && len(data) > 0 {
 		json.Unmarshal(data, &logs)
 	}
@@ -47,4 +48,28 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 		return err
 	}
 	return nil
+}
+
+func ReadAuditEvents(orgId string, startEpochSec, endEpochSec int64) ([]AuditLog, error) {
+	file, err := os.Open(auditLogFile)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var logs []AuditLog
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var log AuditLog
+		if err := json.Unmarshal(scanner.Bytes(), &log); err != nil {
+			continue
+		}
+		if log.OrgId == orgId && log.EpochTimestampSec >= startEpochSec && log.EpochTimestampSec <= endEpochSec {
+			logs = append(logs, log)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return logs, nil
 }
