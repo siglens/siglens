@@ -1623,7 +1623,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         text: '',
                     },
                     grid: {
-                        display: false,
+                        display: true,
+                        color: gridLineColor,
                     },
                     ticks: {
                         color: tickColor,
@@ -1667,6 +1668,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                             if (context.tick.value === maxValue) return 'rgba(0, 0, 0, 0)';
                             return gridLineColor;
                         },
+                    },
+                    border: {
+                        color: 'rgba(0, 0, 0, 0)',
                     },
                     ticks: {
                         color: tickColor,
@@ -1967,12 +1971,17 @@ function updateChartTheme(theme) {
             var chartData = chartDataCollection[queryName];
             chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70'; // opacity
             });
 
             var lineChart = lineCharts[queryName];
             if (lineChart) {
                 lineChart.update();
+                // Regenerate the legend after updating chart colors
+                var legendContainer = $(`.metrics-graph[data-query="${queryName}"] .legend-container`)[0];
+                if (legendContainer) {
+                    generateCustomLegend(lineChart, legendContainer);
+                }
             }
         }
     }
@@ -1980,9 +1989,15 @@ function updateChartTheme(theme) {
     if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
         mergedGraph.data.datasets.forEach(function (dataset, index) {
             dataset.borderColor = selectedPalette[index % selectedPalette.length];
-            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
         });
         mergedGraph.update();
+
+        // Regenerate the legend for merged graph
+        var mergedLegendContainer = $('.merged-graph .legend-container')[0];
+        if (mergedLegendContainer) {
+            generateCustomLegend(mergedGraph, mergedLegendContainer);
+        }
     }
 }
 
@@ -2275,7 +2290,8 @@ function mergeGraphs(chartType, panelId = -1) {
                         text: '',
                     },
                     grid: {
-                        display: false,
+                        display: true,
+                        color: gridLineColor,
                     },
                     ticks: {
                         color: tickColor,
@@ -2310,6 +2326,9 @@ function mergeGraphs(chartType, panelId = -1) {
                     display: true,
                     title: {
                         display: false,
+                    },
+                    border: {
+                        color: 'rgba(0, 0, 0, 0)',
                     },
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor },
@@ -2890,6 +2909,7 @@ function updateChartColorsBasedOnTheme() {
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.x.grid.color = gridLineColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
@@ -2900,6 +2920,7 @@ function updateChartColorsBasedOnTheme() {
 
             lineChart.options.scales.x.ticks.color = tickColor;
             lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.x.grid.color = gridLineColor;
             lineChart.options.scales.y.grid.color = gridLineColor;
             lineChart.update();
         }
@@ -2909,7 +2930,7 @@ function updateChartColorsBasedOnTheme() {
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
+    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
     return { gridLineColor, tickColor };

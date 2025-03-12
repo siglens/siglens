@@ -6886,7 +6886,7 @@ p#versionInfo {
     align-items: center;
 }
 
-.chevron-icon {
+.fields-header i {
     margin-right: 8px;
     font-size: 12px;
 }
@@ -6911,6 +6911,7 @@ p#versionInfo {
     cursor: pointer;
     position: relative;
     height: 30px;
+    margin-left: 20px;
 }
 
 .field-item:hover {
