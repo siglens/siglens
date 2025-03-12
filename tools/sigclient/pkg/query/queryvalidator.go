@@ -30,6 +30,7 @@ import (
 const timestampCol = "timestamp"
 
 type queryValidator interface {
+	Copy() queryValidator
 	HandleLog(map[string]interface{}) error
 	GetQuery() (string, uint64, uint64) // Query, start epoch, end epoch.
 	SetTimeRange(startEpoch uint64, endEpoch uint64)
@@ -95,6 +96,20 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		head:            head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}, nil
+}
+
+func (f *filterQueryValidator) Copy() queryValidator {
+	return &filterQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch: f.startEpoch,
+			endEpoch:   f.endEpoch,
+			query:      f.query,
+		},
+		key:             f.key,
+		value:           f.value,
+		head:            f.head,
+		reversedResults: make([]map[string]interface{}, 0),
+	}
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
