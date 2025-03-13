@@ -180,13 +180,13 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	}
 
 	// Compare the logs.
+	slices.Reverse(f.reversedResults)       // Reverse it to match the order of the response.
+	defer slices.Reverse(f.reversedResults) // Revert to the original order, so subsequent calls work.
 	expectedLogs := f.reversedResults
-	slices.Reverse(expectedLogs)
-	for i, record := range response.Hits.Records {
-		if !utils.EqualMaps(record, expectedLogs[i]) {
-			return fmt.Errorf("FQV.MatchesResult: expected %+v, got %+v for iter %v",
-				expectedLogs[i], record, i)
-		}
+
+	err := logsMatch(expectedLogs, response.Hits.Records)
+	if err != nil {
+		return err
 	}
 
 	// Compare the columns.
@@ -209,6 +209,71 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
 
 	return nil
+}
+
+// Returns no error if the logs match the expected logs, and they're in the
+// same order. It also returns no error if the logs are in a different order,
+// but it's a valid sorting order; since sorting is on the timestamp, this
+// happens when multiple logs have the same timestamp.
+func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]interface{}) error {
+	if len(expectedLogs) != len(actualLogs) {
+		return fmt.Errorf("logsMatch: expected %d logs, got %d", len(expectedLogs), len(actualLogs))
+	}
+
+	expectedGroups, err := groupBySortColumn(expectedLogs, timestampCol)
+	if err != nil {
+		return fmt.Errorf("logsMatch: failed to group expected logs; err=%v", err)
+	}
+
+	actualGroups, err := groupBySortColumn(actualLogs, timestampCol)
+	if err != nil {
+		return fmt.Errorf("logsMatch: failed to group actual logs; err=%v", err)
+	}
+
+	if len(expectedGroups) != len(actualGroups) {
+		return fmt.Errorf("logsMatch: expected %d unique timestamps, got %d",
+			len(expectedGroups), len(actualGroups))
+	}
+
+	for i := range expectedGroups {
+		if !utils.IsPermutation(expectedGroups[i], actualGroups[i], utils.EqualMaps) {
+			return fmt.Errorf("logsMatch: expected logs in group %v: %+v, got %+v",
+				i, expectedGroups[i], actualGroups[i])
+		}
+	}
+
+	return nil
+}
+
+// This assumes the logs are already sorted by the sort column.
+func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]map[string]interface{}, error) {
+	if len(logs) == 0 {
+		return nil, nil
+	}
+
+	groups := make([][]map[string]interface{}, 0)
+	groups = append(groups, make([]map[string]interface{}, 0))
+
+	curValue, ok := logs[0][sortColumn]
+	if !ok {
+		return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
+	}
+
+	for _, log := range logs {
+		value, ok := log[sortColumn]
+		if !ok {
+			return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
+		}
+
+		if value != curValue {
+			groups = append(groups, make([]map[string]interface{}, 0))
+			curValue = value
+		}
+
+		groups[len(groups)-1] = append(groups[len(groups)-1], log)
+	}
+
+	return groups, nil
 }
 
 func withinTimeRange(record map[string]interface{}, startEpoch uint64, endEpoch uint64) bool {
