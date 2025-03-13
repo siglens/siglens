@@ -132,11 +132,6 @@ func (hs *ingestionServerCfg) Run() (err error) {
 	hs.router.PUT(server_utils.OTSDB_PREFIX+"/api/put", hs.Recovery(otsdbPutMetricsHandler()))
 	hs.router.POST(server_utils.OTSDB_PREFIX+"/api/put", hs.Recovery(otsdbPutMetricsHandler()))
 
-	// Influx Handlers
-	hs.router.POST(server_utils.INFLUX_PREFIX+"/api/v2/write", hs.Recovery(influxPutMetricsHandler()))
-	hs.router.GET(server_utils.INFLUX_PREFIX+"/api/v2/query", hs.Recovery(influxQueryGetHandler()))
-	hs.router.POST(server_utils.INFLUX_PREFIX+"/api/v2/query", hs.Recovery(influxQueryPostHandler()))
-
 	// Prometheus Handlers
 	hs.router.POST(server_utils.PROMQL_PREFIX+"/api/v1/write", hs.Recovery(prometheusPutMetricsHandler()))
 

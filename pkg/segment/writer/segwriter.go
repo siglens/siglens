@@ -538,12 +538,6 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		if err != nil {
 			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}
-	case SIGNAL_METRICS_INFLUX:
-		tagsHolder := metrics.GetTagsHolder()
-		ingestedCount, errors := metrics.ExtractInfluxPayloadAndInsertDp(rawJson, tagsHolder, orgid)
-		if ingestedCount == 0 {
-			return fmt.Errorf("influx entry rejected because of errors: %v", errors)
-		}
 
 	case SIGNAL_METRICS_OTLP:
 		tagsHolder := metrics.GetTagsHolder()
