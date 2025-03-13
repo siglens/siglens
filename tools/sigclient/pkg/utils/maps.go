@@ -30,3 +30,18 @@ func EqualMaps[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
 
 	return true
 }
+
+// Checks if set1 is a subset of set2.
+func IsSubset[K comparable](set1 map[K]struct{}, set2 map[K]struct{}) bool {
+	for key := range set1 {
+		if _, ok := set2[key]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func EqualSets[K comparable](set1 map[K]struct{}, set2 map[K]struct{}) bool {
+	return IsSubset(set1, set2) && IsSubset(set2, set1)
+}
