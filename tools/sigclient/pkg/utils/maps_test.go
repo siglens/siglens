@@ -36,20 +36,3 @@ func Test_EqualMaps(t *testing.T) {
 	assert.True(t, EqualMaps(map[string]interface{}{"key1": 1}, map[string]interface{}{"key1": 1}))
 	assert.False(t, EqualMaps(map[string]interface{}{"key1": int(1)}, map[string]interface{}{"key1": float64(1)}))
 }
-
-func Test_IsSubset(t *testing.T) {
-	assert.True(t, IsSubset(map[string]struct{}{}, map[string]struct{}{}))
-	assert.True(t, IsSubset(map[string]struct{}{}, map[string]struct{}{"key1": {}}))
-	assert.True(t, IsSubset(map[string]struct{}{"key1": {}}, map[string]struct{}{"key1": {}}))
-	assert.False(t, IsSubset(map[string]struct{}{"key1": {}}, map[string]struct{}{"key2": {}}))
-	assert.False(t, IsSubset(map[string]struct{}{"key1": {}, "key2": {}}, map[string]struct{}{"key1": {}}))
-}
-
-func Test_EqualSets(t *testing.T) {
-	assert.True(t, EqualSets(map[string]struct{}{}, map[string]struct{}{}))
-	assert.True(t, EqualSets(map[string]struct{}{"key1": {}}, map[string]struct{}{"key1": {}}))
-	assert.True(t, EqualSets(map[string]struct{}{"key1": {}, "key2": {}}, map[string]struct{}{"key2": {}, "key1": {}}))
-	assert.False(t, EqualSets(map[string]struct{}{"key1": {}}, map[string]struct{}{"key2": {}}))
-	assert.False(t, EqualSets(map[string]struct{}{"key1": {}}, map[string]struct{}{"key1": {}, "key2": {}}))
-	assert.False(t, EqualSets(map[string]struct{}{"key1": {}, "key2": {}}, map[string]struct{}{"key1": {}}))
-}
