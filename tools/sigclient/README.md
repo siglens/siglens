@@ -213,3 +213,15 @@ Options:
 -c, --numOfConcurrentQueries int      Number of concurrent queries to run.
 -i, --iterations             int      Number of iterations for this test
 ```
+
+## Longevity Test
+To run the longevity test use the following command
+```
+go run main.go longevity -d http://localhost:8081/elastic -q http://localhost:5122/api/search
+```
+
+Options:
+```
+-d, --dest string              Complete destination URL of the ingest server.
+-q, --queryDest string         Query server URL in the form IP:PORT.
+```

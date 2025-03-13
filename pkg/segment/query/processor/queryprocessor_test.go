@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -50,7 +51,10 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 	err := initTestConfig(t)
 	assert.NoError(t, err)
 
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
+
 	qid := uint64(0)
 	rQuery, err := query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
@@ -96,7 +100,10 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	err := initTestConfig(t)
 	assert.NoError(t, err)
 
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
+
 	qid := uint64(0)
 	rQuery, err := query.StartQuery(qid, true, nil, false)
 	assert.NoError(t, err)
@@ -144,7 +151,10 @@ func Test_NewQueryProcessor_simple(t *testing.T) {
 	err := initTestConfig(t)
 	assert.NoError(t, err)
 
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
+
 	_, err = query.StartQuery(0, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)
@@ -170,7 +180,10 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 	err := initTestConfig(t)
 	assert.NoError(t, err)
 
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
+
 	_, err = query.StartQuery(0, true, nil, false)
 	assert.NoError(t, err)
 	time.Sleep(1 * time.Second)

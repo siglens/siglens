@@ -20,12 +20,16 @@
 package e2etests
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
@@ -87,6 +91,25 @@ type seriesDataPoint struct {
 // This will happen because of how we calculate the downsampledTime using the formula: downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
 // So, it is better to keep this value to be constant and not change this.
 const dataStartTimestamp uint32 = 1718052279
+
+var qid uint64
+var qidLock = &sync.Mutex{}
+
+func init() {
+	var b [8]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		panic("Metrics e2e tests: unable to read random bytes: " + err.Error())
+	}
+	qid = binary.LittleEndian.Uint64(b[:])
+}
+
+func getNextQid() uint64 {
+	qidLock.Lock()
+	defer qidLock.Unlock()
+	qid++
+	return qid
+}
 
 func GetTestMetricsData(startTimestamp uint32) ([]timeSeries, []string, map[string][]string, map[string][]string) {
 	allTimeSeries := []timeSeries{
@@ -289,8 +312,7 @@ func GetTestMetricsData(startTimestamp uint32) ([]timeSeries, []string, map[stri
 }
 
 func initTestConfig(t *testing.T) error {
-	runningConfig := config.GetTestConfig(t.TempDir())
-	runningConfig.DataPath = "metrics-e2etest-data/"
+	runningConfig := config.GetTestConfig(t.TempDir() + "/")
 	runningConfig.SSInstanceName = "test"
 	config.SetConfig(runningConfig)
 	err := config.InitDerivedConfig("test")
@@ -440,7 +462,10 @@ func Test_RotatedMetricNames(t *testing.T) {
 
 func Test_GetAllTagsForAMetric(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, mNames, tagKeys, tagKeyValues := GetTestMetricsData(startTimestamp)
@@ -471,7 +496,7 @@ func Test_GetAllTagsForAMetric(t *testing.T) {
 		metricQueryRequest[0].MetricsQuery.ExitAfterTagsSearch = true
 		metricQueryRequest[0].MetricsQuery.TagIndicesToKeep = make(map[int]struct{})
 
-		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 
 		uniqueTagKeys, tagKeyValueSet, err := res.GetMetricTagsResultSet(&metricQueryRequest[0].MetricsQuery)
 		assert.Nil(t, err)
@@ -486,7 +511,10 @@ func Test_GetAllTagsForAMetric(t *testing.T) {
 
 func Test_SimpleMetricQuery_v1(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, metricNames, _, _ := GetTestMetricsData(startTimestamp)
@@ -520,7 +548,7 @@ func Test_SimpleMetricQuery_v1(t *testing.T) {
 		metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
 		assert.Nil(t, err)
 
-		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 		assert.NotNil(t, res)
 		assert.Equal(t, 1, len(res.Results))
 
@@ -542,7 +570,10 @@ func Test_SimpleMetricQuery_v1(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -590,7 +621,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 	*/
 	expectedResults := []float64{50, 90, 100, 110}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 1, len(res.Results))
 
@@ -611,7 +642,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Star(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -660,7 +694,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 
 	expectedResults := []float64{37.5, 70, 80, 90}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 1, len(res.Results))
 
@@ -682,7 +716,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_OR(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -732,7 +769,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 		"testmetric2{": {75, 130, 140, 150},
 	}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 3, len(res.Results))
 
@@ -754,7 +791,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_GroupByMetric(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -803,7 +843,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 
 	expectedResults := []float64{25, 50, 60, 70}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 1, len(res.Results))
 
@@ -828,7 +868,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -873,7 +916,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *
 		"testmetric0": {25, 50, 60, 70},
 	}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 1, len(res.Results))
 
@@ -898,7 +941,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v1(t *
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -947,7 +993,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *
 		"testmetric2": {75, 130, 140, 150},
 	}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 3, len(res.Results))
 
@@ -972,7 +1018,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v2(t *
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1015,7 +1064,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 
 	expectedResults := []float64{40}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 1, len(res.Results))
 
@@ -1040,7 +1089,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1092,7 +1144,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 
 	groupByKeys := []string{"color", "shape"}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 3, len(res.Results))
 
@@ -1133,7 +1185,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1196,7 +1251,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(
 
 	groupByKeys := []string{"color", "shape"}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 3, len(res.Results))
 
@@ -1244,7 +1299,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(
 
 func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_GroupByTag_v1(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1296,7 +1354,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 
 	groupByKeys := []string{"type"}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 3, len(res.Results))
 
@@ -1330,7 +1388,10 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 
 func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1484,7 +1545,7 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 
 		expectedResult := expectedResultsSlice[ind]
 
-		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+		res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 		assert.NotNil(t, res)
 		assert.Equal(t, expectedResult.resultSize, len(res.Results))
 
@@ -1516,7 +1577,10 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 
 func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
 	defer cleanUp(t)
-	go query.PullQueriesToRun()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	startTimestamp := dataStartTimestamp
 	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
@@ -1549,7 +1613,7 @@ func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
 		"testmetric0{color:red,type:solid":            {40},
 	}
 
-	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, 0)
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
 	assert.NotNil(t, res)
 	assert.Equal(t, 2, len(res.Results))
 

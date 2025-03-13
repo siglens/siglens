@@ -70,8 +70,7 @@
     cursor: pointer;
     padding: 4px 0;
     padding-left: 12px;
-    font-weight: var(--fw-400);
-    font-family: 'DINpro', Arial, sans-serif;
+    font-weight: 400;
     border-radius: 4px;
 }
 .span-name-index,

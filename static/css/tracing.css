@@ -421,7 +421,7 @@ a.warn-box-anchor {
     font-size: 12px;
     color: var(--subsection-border);
     font-weight: normal !important;
-    margin-left: 10px;
+    margin-left: 30px;
 }
 
 .trace-name .trace-id {
@@ -469,7 +469,7 @@ a.warn-box-anchor {
 
 .gantt-chart-heading {
     font-size: 14px;
-    font-weight: bold;
+    font-weight: 500;
     fill: var(--text-color);
 }
 
@@ -588,7 +588,7 @@ circle:hover {
 }
 
 .node-label-service {
-    font-weight: bold;
+    font-weight: 500;
 }
 
 .node-label-operation {

@@ -27,8 +27,6 @@ import (
 	eswriter "github.com/siglens/siglens/pkg/es/writer"
 	"github.com/siglens/siglens/pkg/health"
 	"github.com/siglens/siglens/pkg/hooks"
-	influxquery "github.com/siglens/siglens/pkg/influx/query"
-	influxwriter "github.com/siglens/siglens/pkg/influx/writer"
 	"github.com/siglens/siglens/pkg/instrumentation"
 	"github.com/siglens/siglens/pkg/integrations/loki"
 	otsdbwriter "github.com/siglens/siglens/pkg/integrations/otsdb/writer"
@@ -129,23 +127,6 @@ func otsdbPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func influxPutMetricsHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyId(influxwriter.PutMetrics, ctx)
-	}
-}
-
-func influxQueryGetHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyId(influxquery.GetQueryHandler, ctx)
-	}
-}
-
-func influxQueryPostHandler() func(ctx *fasthttp.RequestCtx) {
-	return func(ctx *fasthttp.RequestCtx) {
-		serverutils.CallWithMyId(influxquery.PostQueryHandler, ctx)
-	}
-}
 func esGreetHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		esutils.ProcessGreetHandler(ctx)

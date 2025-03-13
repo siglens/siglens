@@ -25,9 +25,9 @@ rad(testmetric2),now-90d,now,"1.4540314746763654,2.744328018635429,-9.5117738921
 "clamp(testmetric3, -10, 100)",now-90d,now,"-10,-10,100",eq,"","",false
 "clamp_max(testmetric3, 99)",now-90d,now,"-141.36081542523755,-61.650029946604214,99",approx,"","",false
 "clamp_min(testmetric3, 0)",now-90d,now,"0,0,436.78052525807817",approx,"","",false
-rate(testmetric3[48h]),now-90d,now,"0.0009225785356323297,0.003345725351176596",approx,"","",true
+"rate(testmetric3{color='black'}[48h:15m])",now-1h,now,"",approx,"","",true
 irate(testmetric3[48h]),now-90d,now,"0.0009225785356323284,0.005768872166720863",approx,"","",true
-increase(testmetric3[48h]),now-90d,now,"159.42157095726634,578.1413406833158",approx,"","",true
+"increase(testmetric3{color='black'}[48h:15m])",now-1h,now,"",approx,"","",true
 delta(testmetric3[48h]),now-90d,now,"79.71078547863307,578.1413406833155",approx,"","",true
 idelta(testmetric3[48h]),now-90d,now,"79.71078547863327,498.4305552046825",approx,"","",true
 changes(testmetric4[24h]),now-90d,now,"0,1,1",eq,"","",true

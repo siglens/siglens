@@ -1335,6 +1335,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
                 },
             },
         }
+        timechartExpr.BinOptions = bOptions
     }
 
     var limitExprTmp *structs.LimitExpr
@@ -1345,7 +1346,7 @@ TimechartBlock <- PIPE CMD_TIMECHART tcArgs:TimechartArgumentsList limitExpr:(Li
         }
     }
 
-    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs))
+    timeBucket := aggregations.InitTimeBucket(bOptions.SpanOptions.SpanLength.Num, bOptions.SpanOptions.SpanLength.TimeScalr, byField, limitExprTmp, len(measureAggs),bOptions)
     aggNode.TimeHistogram = timeBucket
     timechartExpr.TimeHistogram = timeBucket
     timechartExpr.ByField = byField

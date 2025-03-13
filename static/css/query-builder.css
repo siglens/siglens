@@ -70,7 +70,6 @@
 
 .dashboard-box {
     height: 100vh;
-    padding: 6px 12px 12px 12px;
     position: relative;
 }
 
@@ -364,17 +363,17 @@ input.form-control {
 }
 
 .tab-list {
-    margin-left: auto !important;
-    margin-bottom: 6px !important;
     width: 94px;
-    height: 22px;
-    border-radius: 5px;
+    height: 24px;
+    border-radius: 4px;
     background: var(--alert-background);
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    align-items: center;
     list-style: none;
-    padding: 0px;
+    padding: 3px !important;
+    margin: 0px !important;
 }
 
 #tabs-2 {
@@ -387,8 +386,8 @@ input.form-control {
     justify-content: space-between;
 }
 
-.dropdown-container{
-    display:flex;
+.dropdown-container {
+    display: flex;
 }
 
 .tab-li {
@@ -444,23 +443,28 @@ a:visited.ui-button,
 .ui-tabs .ui-tabs-nav li {
     margin: 0;
     background: var(--myOrg-input) !important;
-    height: 17px;
+    height: 100%;
     font-size: 10px;
+    border-radius: 4px;
 }
 
 .tab-chart-list .tab-li {
     margin: 0;
     background: var(--myOrg-input) !important;
-    height: 16px !important;
+    height: 100% !important;
     font-size: 12px !important;
-    margin-top: 2px !important;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
 .ui-tabs .ui-tabs-nav .ui-tabs-anchor {
     padding: 2px 5px;
     outline: none;
     text-decoration: none;
+}
+
+.ui-tabs .ui-tabs-nav li.ui-tabs-active{
+    margin-bottom: 0px;
+    padding-bottom: 0px;
 }
 
 .disabled-tab {
@@ -480,7 +484,6 @@ a:visited.ui-button,
 }
 
 .form-control {
-    border-radius: 5px 0 0 5px !important;
     border-right: 0;
     height: 32px;
 }
@@ -494,7 +497,7 @@ a:visited.ui-button,
 .query-text,
 .ui-widget,
 #filter-input.form-control {
-    font-family: "DINpro", Arial, sans-serif !important;
+    font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif !important;
 }
 
 textarea.form-control#filter-input {
@@ -509,7 +512,7 @@ textarea.form-control#filter-input {
     position: relative;
     width: 100%;
     border: 1px solid var(--search-input-border);
-
+    border-radius: 5px 0 0 5px !important;
 }
 
 textarea.form-control:focus {
@@ -717,13 +720,13 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 .tab-chart-list {
     height: 24px;
-    border-radius: 5px;
+    border-radius: 4px;
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     margin-right: 8px !important;
     background-color: var(--myOrg-input);
-    padding: 2px 4px !important;
+    padding: 3px !important;
     width: fit-content;
 }
 
@@ -737,8 +740,8 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #tabs-chart,
 #showTable {
     display: none;
-    margin: 6px 0 0 0;
-    height: calc(100% - 30px);
+    margin: 8px 0 0 0;
+    height: calc(100% - 32px);
 }
 
 #showTable {
@@ -792,19 +795,12 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 /* Clear query button styles */
 #clear-query-btn {
-    /* Position the button */
     position: absolute;
     top: 45%;
-    /* Adjust vertically */
     right: 10px;
-    /* Adjust horizontally */
     transform: translateY(-50%);
-
-    /* Button appearance */
     background-color: transparent;
     color: rgb(111, 108, 123);
-    /* R111 G108 B123 */
-    font-family: "DINpro", Arial, sans-serif;
     font-weight: lighter;
     font-size: 20px;
     border: none;
@@ -840,16 +836,15 @@ div.show-record-popup .ui-dialog-buttonpane button {
 .ui-widget select,
 .ui-widget textarea,
 .ui-widget button {
-    font-family: "DINpro", Arial, sans-serif;
+    font-family: Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif !important;
     font-size: 12px;
 }
 
 .query-builder-container {
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
-    border-radius: 5px;
-    padding: 10px 10px 14px 10px;
+    padding: 14px 10px;
     background-color: var(--qb-box-bg);
-    margin: 6px 0px;
+    margin-bottom: 6px;
 }
 
 [data-theme='dark'] .query-builder-container {
