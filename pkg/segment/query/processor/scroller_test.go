@@ -18,6 +18,7 @@
 package processor
 
 import (
+	"context"
 	"io"
 	"testing"
 	"time"
@@ -32,7 +33,9 @@ func Test_Scroll(t *testing.T) {
 	err := initTestConfig(t)
 	assert.NoError(t, err)
 
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	qid := uint64(0)
 	_, err = query.StartQuery(qid, true, nil, false)
