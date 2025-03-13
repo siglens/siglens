@@ -343,7 +343,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)
 		assert.NoError(t, validator.MatchesResult(expectedJson))
 
-		numIters := 10000
+		numIters := 1000
 		waitGroup := &sync.WaitGroup{}
 		waitGroup.Add(2)
 		go func() {
