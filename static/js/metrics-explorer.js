@@ -1750,7 +1750,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     position: 'nearest',
                     events: ['mousemove'],
                     mode: 'nearest',
-                    intersect: false,
+                    intersect: true,
                     callbacks: {
                         title: function (tooltipItems) {
                             const date = new Date(tooltipItems[0].parsed.x);
@@ -2549,7 +2549,7 @@ function mergeGraphs(chartType, panelId = -1) {
                     position: 'nearest',
                     events: ['mousemove'],
                     mode: 'nearest',
-                    intersect: false,
+                    intersect: true,
                     callbacks: {
                         title: function (tooltipItems) {
                             // Display formatted timestamp in the title
@@ -2618,7 +2618,7 @@ function mergeGraphs(chartType, panelId = -1) {
             interaction: {
                 mode: 'nearest',
                 axis: 'xy',
-                intersect: true,
+                intersect: false,
             },
             onHover: (event, _, chart) => {
                 if (!event) return;
