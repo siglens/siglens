@@ -202,6 +202,66 @@ func Test_FilterQueryValidator(t *testing.T) {
 		`)))
 	})
 
+	t.Run("MultipleValidSortings", func(t *testing.T) {
+		logs := []map[string]interface{}{
+			{"city": "Boston", "timestamp": uint64(1), "age": 30},
+			{"city": "Boston", "timestamp": uint64(2), "age": 36},
+			{"city": "Boston", "timestamp": uint64(2), "age": 22},
+		}
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// This order is valid: logs[1], logs[2], logs[0]
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 2, "age": 22},
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age"]
+		}`)))
+
+		// This is also valid: logs[2], logs[1], logs[0]
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age"]
+		}`)))
+
+		// This is not valid: logs[0], logs[1], logs[2]
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 1, "age": 30},
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 2, "age": 22}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age"]
+		}`)))
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
