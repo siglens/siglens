@@ -1311,7 +1311,15 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.P
 		}
 	}
 
-	allCNames := toputils.GetKeysOfMap(records)
+	allCNames := make([]string, 0, len(records))
+	for cname, values := range records {
+		for _, value := range values {
+			if !value.IsNull() {
+				allCNames = append(allCNames, cname)
+				break
+			}
+		}
+	}
 
 	var response *structs.PipeSearchResponseOuter
 	switch qType {
