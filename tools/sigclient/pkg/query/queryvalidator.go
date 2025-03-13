@@ -44,10 +44,6 @@ type basicValidator struct {
 	query      string
 }
 
-func (b *basicValidator) HandleLog(log map[string]interface{}) error {
-	return fmt.Errorf("basicValidator.HandleLog: not implemented")
-}
-
 func (b *basicValidator) GetQuery() (string, uint64, uint64) {
 	return b.query, b.startEpoch, b.endEpoch
 }
@@ -55,10 +51,6 @@ func (b *basicValidator) GetQuery() (string, uint64, uint64) {
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
 	b.startEpoch = startEpoch
 	b.endEpoch = endEpoch
-}
-
-func (b *basicValidator) MatchesResult(result []byte) error {
-	return fmt.Errorf("basicValidator.MatchesResult: not implemented")
 }
 
 func (b *basicValidator) PastEndTime(timestamp uint64) bool {
