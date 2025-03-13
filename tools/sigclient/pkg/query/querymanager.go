@@ -18,7 +18,6 @@
 package query
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -189,7 +188,7 @@ func (qm *queryManager) startQueries() {
 
 func (qm *queryManager) runQuery(validator queryValidator) {
 	query, startEpoch, endEpoch := validator.GetQuery()
-	queryInfo := fmt.Sprintf("query=%v, startEpoch=%v, endEpoch=%v", query, startEpoch, endEpoch)
+	queryInfo := validator.Info()
 	result, err := sendSplunkQuery(qm.url, query, startEpoch, endEpoch)
 	if err != nil {
 		log.Fatalf("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)
