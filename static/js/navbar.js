@@ -485,10 +485,12 @@ $(document).ready(function () {
 
 function setupNavigationState() {
     const currentUrl = window.location.href;
+    const url = new URL(currentUrl);
+    const pathOnly = url.pathname;
     let matchedConfig = null;
     let isOrgPage = false;
 
-    if (currentUrl.endsWith('/') || currentUrl.endsWith('/#')) {
+    if (pathOnly === '/' || pathOnly === '' || pathOnly === '/#') {
         matchedConfig = navigationStructure['index.html'];
     }
     else{

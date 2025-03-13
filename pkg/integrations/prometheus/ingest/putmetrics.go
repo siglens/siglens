@@ -22,14 +22,13 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/buger/jsonparser"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
-	. "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +40,10 @@ type PrometheusPutResp struct {
 	Success uint64   `json:"success"`
 	Errors  []string `json:"errors,omitempty"`
 }
+
+const (
+	NAME = "__name__"
+)
 
 func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 	reqBuf, err := snappy.Decode(nil, compressed)
@@ -108,57 +111,49 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 	}
 
 	for _, ts := range req.Timeseries {
-		metric := make(model.Metric, len(ts.Labels))
+		tagHolder := metrics.GetTagsHolder()
+		var mName []byte
 		for _, l := range ts.Labels {
-			metric[model.LabelName(l.Name)] = model.LabelValue(l.Value)
+			if l.Name == NAME {
+				mName = []byte(l.Value)
+				continue
+			}
+			tagHolder.Insert(l.Name, []byte(l.Value), jsonparser.String)
 		}
 
 		for _, s := range ts.Samples {
-			var sample model.Sample = model.Sample{
-				Metric:    metric,
-				Value:     model.SampleValue(s.Value),
-				Timestamp: model.Time(s.Timestamp),
-			}
 
-			if isBadValue(float64(sample.Value)) {
+			if isBadValue(float64(s.Value)) {
 				failedCount++
 				continue
 			}
 
-			data, err := sample.MarshalJSON()
+			ts1 := parseTimestamp(s.Timestamp)
+			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, ts1, uint64(len(compressed)), myid)
 			if err != nil {
+				log.Errorf("HandlePutMetrics: failed to encode data for metric=%s, orgid=%v, err=%v", mName, myid, err)
 				failedCount++
-				log.Errorf("HandlePutMetrics: failed to marshal sample=%+v to json, err=%v", sample, err)
 				continue
 			}
+			successCount++
 
-			var dataJson map[string]interface{}
-			err = json.Unmarshal(data, &dataJson)
-			if err != nil {
-				failedCount++
-				log.Errorf("HandlePutMetrics: failed to Unmarshal data=%+v, err=%v", data, err)
-				continue
-			}
-
-			modifiedData, err := ConvertToOTSDBFormat(data, s.Timestamp, s.Value)
-			if err != nil {
-				failedCount++
-				log.Errorf("HandlePutMetrics: failed to convert data=%+v to OTSDB format, err=%v", string(data), err)
-				continue
-			}
-
-			err = writer.AddTimeSeriesEntryToInMemBuf([]byte(modifiedData), SIGNAL_METRICS_OTSDB, myid)
-			if err != nil {
-				log.Errorf("HandlePutMetrics: failed to add time series entry for data=%+v, err=%v", string(modifiedData), err)
-				failedCount++
-			} else {
-				successCount++
-			}
 		}
 	}
 	bytesReceived := uint64(len(compressed))
 	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
+}
+
+func parseTimestamp(timestamp int64) uint32 {
+	var ts uint32
+	if utils.IsTimeInNano(uint64(timestamp)) {
+		ts = uint32(timestamp / 1_000_000_000)
+	} else if utils.IsTimeInMilli(uint64(timestamp)) {
+		ts = uint32(timestamp / 1000)
+	} else {
+		ts = uint32(timestamp)
+	}
+	return ts
 }
 
 func isBadValue(v float64) bool {
@@ -169,64 +164,7 @@ func isBadValue(v float64) bool {
 	return false
 }
 
-func ConvertToOTSDBFormat(data []byte, timestamp int64, value float64) ([]byte, error) {
-	var dataJson map[string]interface{}
-	err := json.Unmarshal(data, &dataJson)
-	if err != nil {
-		return nil, err
-	}
-
-	type Metric struct {
-		Name      string            `json:"metric"`
-		Tags      map[string]string `json:"tags"`
-		Timestamp int64             `json:"timestamp"`
-		Value     float64           `json:"value"`
-	}
-
-	var metricName string
-	tags := make(map[string]string)
-	for key, val := range dataJson {
-		if key == "metric" {
-			valMap, ok := val.(map[string]interface{})
-			if ok {
-				for k, v := range valMap {
-					if k == "__name__" {
-						valString, ok := v.(string)
-						if ok {
-							metricName = valString
-						}
-						continue // skip metric __name__ as tag
-					}
-					valString, ok := v.(string)
-					if ok {
-						tags[k] = valString
-					}
-				}
-			}
-		}
-	}
-
-	if metricName == "" {
-		return nil, fmt.Errorf("ConvertToOTSDBFormat: the Metric name is empty. json data payload: %+v", dataJson)
-	}
-
-	modifiedMetric := Metric{
-		Name:      metricName,
-		Tags:      tags,
-		Timestamp: timestamp,
-		Value:     value,
-	}
-
-	modifiedData, err := json.Marshal(modifiedMetric)
-	if err != nil {
-		return nil, err
-	}
-
-	return modifiedData, nil
-}
-
 func writePrometheusResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedCount uint64, err string, code int) {
-
 	resp := PrometheusPutResp{Success: processedCount, Failed: failedCount}
 	if err != "" {
 		resp.Errors = []string{err}

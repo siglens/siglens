@@ -5,9 +5,12 @@ go 1.21
 require (
 	github.com/brianvoe/gofakeit/v6 v6.21.0
 	github.com/dustin/go-humanize v1.0.0
+	github.com/gogo/protobuf v1.3.2
+	github.com/golang/snappy v0.0.4
 	github.com/json-iterator/go v1.1.12
 	github.com/liangyaopei/hyper v0.0.0-20200731140808-9971b0a7a810
 	github.com/montanaflynn/stats v0.6.6
+	github.com/prometheus/prometheus v0.50.1
 	github.com/siglens/siglens v0.0.0-20240702233012-91a49a94d576
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.4.0
