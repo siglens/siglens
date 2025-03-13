@@ -1,6 +1,6 @@
 module verifier
 
-go 1.19
+go 1.21
 
 require (
 	github.com/brianvoe/gofakeit/v6 v6.21.0
@@ -14,6 +14,7 @@ require (
 	github.com/siglens/siglens v0.0.0-20240702233012-91a49a94d576
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.4.0
+	github.com/stretchr/testify v1.8.4
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fastrand v1.1.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -21,12 +22,15 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/go-co-op/gocron v1.31.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/valyala/fasthttp v1.45.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/gorm v1.25.5 // indirect
 )
 
