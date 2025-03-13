@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 SigScalr, Inc.
+// Copyright (c) 2021-2025 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
 //
@@ -15,27 +15,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package grpc
+package utils
 
-// A single request for a segment key
-type SegkeyRequest interface {
-	GetSegmentKey() string
-	GetTableName() string
-	GetStartEpochMs() uint64
-	GetEndEpochMs() uint64
+func EqualMaps[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
+	if len(map1) != len(map2) {
+		return false
+	}
+
+	for key, v1 := range map1 {
+		if v2, ok := map2[key]; !ok || v1 != v2 {
+			return false
+		}
+	}
+
+	return true
 }
-
-type IngestFuncEnum uint32
-
-const (
-	INGEST_FUNC_UNKNOWN IngestFuncEnum = iota
-	INGEST_FUNC_ES_BULK
-	INGEST_FUNC_SPLUNK
-	INGEST_FUNC_OTSDB_METRICS
-	INGEST_FUNC_PROMETHEUS_METRICS
-	INGEST_FUNC_OTLP_LOGS
-	INGEST_FUNC_OTLP_TRACES
-	INGEST_FUNC_OTLP_METRICS
-	INGEST_FUNC_FAKE_DATA
-	INGEST_FUNC_LOKI
-)

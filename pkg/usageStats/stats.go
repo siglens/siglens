@@ -486,7 +486,7 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid int64) {
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
-func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64) (map[string]ReadStats, error) {
+func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64) (map[string]*ReadStats, error) {
 	endEpoch := time.Now()
 	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
 	startTOD := (startEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
@@ -497,7 +497,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 
 	allStatsMap := make([]ReadStats, 0)
 	// todo we should use ptr here to avoid mem allocations
-	resultMap := make(map[string]ReadStats)
+	resultMap := make(map[string]*ReadStats)
 	var bucketInterval string
 	var intervalMinutes uint32
 	var err error
@@ -512,7 +512,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			// Truncate runningTs to the nearest intervalMinutes
 			truncatedTs := runningTs.Truncate(time.Duration(intervalMinutes) * time.Minute)
 			bucketInterval = truncatedTs.Format("2006-01-02T15:04")
-			resultMap[bucketInterval] = ReadStats{} // Initialize the bucket if not already present
+			resultMap[bucketInterval] = &ReadStats{} // Initialize the bucket if not already present
 			runningTs = runningTs.Add(time.Duration(intervalMinutes) * time.Minute)
 		}
 	} else if granularity == Daily {
@@ -520,14 +520,14 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			bucketInterval = runningTs.Format("2006-01-02")
 			runningTs = runningTs.Add(24 * time.Hour)
 			startTOD = startTOD + segutils.MS_IN_DAY
-			resultMap[bucketInterval] = ReadStats{}
+			resultMap[bucketInterval] = &ReadStats{}
 		}
 	} else if granularity == Hourly {
 		for endTOH >= startTOH {
 			bucketInterval = runningTs.Format("2006-01-02T15")
 			runningTs = runningTs.Add(1 * time.Hour)
 			startTOH = startTOH + segutils.MS_IN_HOUR
-			resultMap[bucketInterval] = ReadStats{}
+			resultMap[bucketInterval] = &ReadStats{}
 		}
 	}
 
@@ -580,19 +580,19 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			// it will truncate the time to "20:40" and format it as "2006-01-02T20:40" to store in the resultMap.
 			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
 		}
-		if entry, ok := resultMap[bucketInterval]; ok {
-			entry.EventCount += rStat.EventCount
-			entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
-			entry.TotalBytesCount += rStat.TotalBytesCount
-			entry.LogsBytesCount += rStat.LogsBytesCount
-			entry.MetricsBytesCount += rStat.MetricsBytesCount
-			entry.TimeStamp = rStat.TimeStamp
-			entry.TraceBytesCount += rStat.TraceBytesCount
-			entry.TraceSpanCount += rStat.TraceSpanCount
-			resultMap[bucketInterval] = entry
-		} else {
-			resultMap[bucketInterval] = rStat
+		entry, ok := resultMap[bucketInterval]
+		if !ok {
+			resultMap[bucketInterval] = &ReadStats{}
+			entry = resultMap[bucketInterval]
 		}
+		entry.EventCount += rStat.EventCount
+		entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
+		entry.TotalBytesCount += rStat.TotalBytesCount
+		entry.LogsBytesCount += rStat.LogsBytesCount
+		entry.MetricsBytesCount += rStat.MetricsBytesCount
+		entry.TimeStamp = rStat.TimeStamp
+		entry.TraceBytesCount += rStat.TraceBytesCount
+		entry.TraceSpanCount += rStat.TraceSpanCount
 
 		// for ActiveSeriesCount we cannot keep adding them, but rather we want to accumulate all the values
 		// for each bucket, then the average of that specific bucket, since it is a gauge
@@ -614,7 +614,6 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			}
 			aggVal /= uint64(len(allAscValues))
 			entry.ActiveSeriesCount = aggVal
-			resultMap[bucketInterval] = entry
 		}
 	}
 	return resultMap, nil

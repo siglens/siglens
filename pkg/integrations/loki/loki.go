@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	lokilog "github.com/siglens/siglens/pkg/integrations/loki/log"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -147,6 +148,17 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	defer segwriter.ReleasePLEs(pleArray)
+
+	// this loop just so that we can count what we have received
+	receivedLogLineCount := uint64(0)
+	for _, stream := range streams {
+		entries, ok := stream["entries"].([]interface{})
+		if ok {
+			receivedLogLineCount += uint64(len(entries))
+		}
+	}
+
+	usageStats.UpdateStats(uint64(len(logJson)), receivedLogLineCount, myid)
 
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
