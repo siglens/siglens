@@ -230,7 +230,8 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	}
 
 	if !utils.EqualMaps(expectedColumnsSet, actualColumnsSet) {
-		return fmt.Errorf("FQV.MatchesResult: expected columns %+v, got %+v", expectedColumnsSet, actualColumnsSet)
+		return fmt.Errorf("FQV.MatchesResult: expected columns %+v, got %+v\nactual logs: %+v",
+			expectedColumnsSet, actualColumnsSet, response.Hits.Records)
 	}
 
 	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
@@ -256,6 +257,10 @@ func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]in
 	if len(expectedGroups) != len(actualGroups) {
 		return fmt.Errorf("logsMatch: expected %d unique timestamps, got %d",
 			len(expectedGroups), len(actualGroups))
+	}
+
+	if len(expectedGroups) == 0 {
+		return nil
 	}
 
 	for i := range expectedGroups[:len(expectedGroups)-1] {
