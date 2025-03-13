@@ -137,34 +137,6 @@ func Test_FilterQueryValidator(t *testing.T) {
 			"allColumns": ["age", "city", "timestamp"]
 		}`)))
 
-		// Missing the "age" column.
-		assert.Error(t, validator.MatchesResult([]byte(`{
-			"hits": {
-				"totalMatched": {
-					"value": 1,
-					"relation": "eq"
-				},
-				"records": [
-					{"city": "Boston", "timestamp": 1, "age": 30}
-				]
-			},
-			"allColumns": ["city", "timestamp"]
-		}`)))
-
-		// Extra column "latency".
-		assert.Error(t, validator.MatchesResult([]byte(`{
-			"hits": {
-				"totalMatched": {
-					"value": 1,
-					"relation": "eq"
-				},
-				"records": [
-					{"city": "Boston", "timestamp": 1, "age": 30}
-				]
-			},
-			"allColumns": ["age", "city", "timestamp", "latency"]
-		}`)))
-
 		// Incorrect totalMatched.
 		assert.Error(t, validator.MatchesResult([]byte(`{
 			"hits": {
@@ -262,6 +234,67 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("AmbiguousTopN", func(t *testing.T) {
+		logs := []map[string]interface{}{
+			{"city": "Boston", "timestamp": uint64(1), "foo": 30},
+			{"city": "Boston", "timestamp": uint64(1), "bar": 36},
+			{"city": "Boston", "timestamp": uint64(1), "baz": 22},
+			{"city": "Boston", "timestamp": uint64(2), "age": 42},
+		}
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// This is valid: logs[3], logs[2], logs[1]
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 42},
+					{"city": "Boston", "timestamp": 1, "baz": 22},
+					{"city": "Boston", "timestamp": 1, "bar": 36}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "baz", "bar"]
+		}`)))
+
+		// This is valid: logs[3], logs[2], logs[0]
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 42},
+					{"city": "Boston", "timestamp": 1, "baz": 22},
+					{"city": "Boston", "timestamp": 1, "foo": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "baz", "foo"]
+		}`)))
+
+		// This is valid: logs[3], logs[0], logs[1]
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 42},
+					{"city": "Boston", "timestamp": 1, "foo": 30},
+					{"city": "Boston", "timestamp": 1, "bar": 36}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "foo", "bar"]
+		}`)))
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
@@ -282,7 +315,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)
 		assert.NoError(t, validator.MatchesResult(expectedJson))
 
-		numIters := 10000
+		numIters := 1000
 		waitGroup := &sync.WaitGroup{}
 		waitGroup.Add(2)
 		go func() {

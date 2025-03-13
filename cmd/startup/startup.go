@@ -18,6 +18,7 @@
 package startup
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,6 +63,7 @@ import (
 
 const pauseModeSleepDuration = 2 // In minutes
 var StdOutLogger *log.Logger
+var queriesContextCancelFn context.CancelFunc
 
 func init() {
 	StdOutLogger = &log.Logger{
@@ -346,6 +348,8 @@ func ShutdownSiglensServer() {
 	alertsHandler.Disconnect()
 	writer.WaitForSortedIndexToComplete()
 
+	queriesContextCancelFn()
+
 	if hook := hooks.GlobalHooks.ShutdownSiglensExtrasHook; hook != nil {
 		hook()
 	}
@@ -431,5 +435,8 @@ func startQueryServer(serverAddr string) {
 	}()
 
 	query.InitMaxRunningQueries()
-	go query.PullQueriesToRun()
+
+	var pullQueriesContext context.Context
+	pullQueriesContext, queriesContextCancelFn = context.WithCancel(context.Background())
+	go query.PullQueriesToRun(pullQueriesContext)
 }
