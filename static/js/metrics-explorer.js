@@ -98,7 +98,6 @@ function updateDownloadButtons() {
 $(document).ready(async function () {
     updateDownloadButtons();
     setupEventHandlers();
-
     var currentPage = window.location.pathname;
     if (currentPage.startsWith('/alert.html') || currentPage === '/alert-details.html') {
         isAlertScreen = true;
@@ -156,7 +155,6 @@ $(document).ready(async function () {
     $(document).on('input', '.raw-query-input', function () {
         autoResizeTextarea(this);
     });
-
 });
 
 function getUrlParameter(name) {
@@ -1478,7 +1476,6 @@ function updateCloseIconVisibility() {
     $('.metrics-query .remove-query').toggle(numQueries > 1);
 }
 
-
 function prepareChartData(seriesData, chartDataCollection, queryName) {
     var labels = [];
     var datasets = [];
@@ -1514,7 +1511,6 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
 
     return chartData;
 }
-
 function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
@@ -1591,6 +1587,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         };
     }
 
+    var legendContainer = $('<div class="legend-container"></div>');
+    canvas.parent().append(legendContainer);
+
     // Variables to track active tooltip state
     let activeTooltip = {
         datasetIndex: -1,
@@ -1600,9 +1599,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
     let lastUpdateTime = 0;
     const throttleDelay = 20;
-
- var legendContainer = $('<div class="legend-container"></div>');
-    canvas.parent().append(legendContainer);
 
     // Create crosshair plugin
     const crosshairPlugin = {
@@ -1640,7 +1636,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
     const horizontalProximityThreshold = 15; // X-axis (horizontal) proximity in pixels
     const verticalProximityThreshold = 10;    // Y-axis (vertical) proximity in pixels
-
 
     const strictProximityPlugin = {
         id: 'strictProximity',
@@ -1738,7 +1733,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
         options: {
-            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
@@ -1774,7 +1768,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         text: '',
                     },
                     grid: {
-                        display: false,
+                        display: true,
+                        color: gridLineColor,
                     },
                     ticks: {
                         color: tickColor,
@@ -1819,6 +1814,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                             return gridLineColor;
                         },
                     },
+                    border: {
+                        color: 'rgba(0, 0, 0, 0)',
+                    },
                     ticks: {
                         color: tickColor,
                         callback: function (value, index, values) {
@@ -1841,8 +1839,8 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         plugins: [crosshairPlugin, strictProximityPlugin]
     });
 
-    // Add mouseout event listener to clear crosshair and tooltip
-    canvas[0].addEventListener('mouseout', () => {
+     // Add mouseout event listener to clear crosshair and tooltip
+     canvas[0].addEventListener('mouseout', () => {
         lineChart.crosshair = null;
         lineChart.tooltip.setActiveElements([]);
         activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
@@ -1878,7 +1876,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     lineChart.update();
     return lineChart;
 }
-
 
 function updateChartThresholds() {
     for (let queryName in lineCharts) {
@@ -2133,12 +2130,17 @@ function updateChartTheme(theme) {
             var chartData = chartDataCollection[queryName];
             chartData.datasets.forEach(function (dataset, index) {
                 dataset.borderColor = selectedPalette[index % selectedPalette.length];
-                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70; // opacity
+                dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70'; // opacity
             });
 
             var lineChart = lineCharts[queryName];
             if (lineChart) {
                 lineChart.update();
+                // Regenerate the legend after updating chart colors
+                var legendContainer = $(`.metrics-graph[data-query="${queryName}"] .legend-container`)[0];
+                if (legendContainer) {
+                    generateCustomLegend(lineChart, legendContainer);
+                }
             }
         }
     }
@@ -2146,9 +2148,15 @@ function updateChartTheme(theme) {
     if (mergedGraph && mergedGraph.data && mergedGraph.data.datasets) {
         mergedGraph.data.datasets.forEach(function (dataset, index) {
             dataset.borderColor = selectedPalette[index % selectedPalette.length];
-            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + 70;
+            dataset.backgroundColor = selectedPalette[index % selectedPalette.length] + '70';
         });
         mergedGraph.update();
+
+        // Regenerate the legend for merged graph
+        var mergedLegendContainer = $('.merged-graph .legend-container')[0];
+        if (mergedLegendContainer) {
+            generateCustomLegend(mergedGraph, mergedLegendContainer);
+        }
     }
 }
 
@@ -2414,11 +2422,10 @@ function mergeGraphs(chartType, panelId = -1) {
         distance: Infinity
     };
 
-    // Configure distance thresholds for tooltips - stricter values
-    const xDistanceThreshold = 10; // Horizontal distance threshold (pixels)
-    const yDistanceThreshold = 5; // Vertical distance threshold (pixels) - stricter than x
+    let lastUpdateTime = 0;
+    const throttleDelay = 20;
 
-    // Create crosshair plugin
+    // Create crosshair plugin - matching implementation from first code
     const crosshairPlugin = {
         id: 'crosshair',
         beforeDraw: (chart) => {
@@ -2430,6 +2437,7 @@ function mergeGraphs(chartType, panelId = -1) {
             if (x >= left && x <= right && y >= top && y <= bottom) {
                 ctx.save();
 
+                // Draw new crosshair lines
                 ctx.beginPath();
                 ctx.setLineDash([5, 5]);
                 ctx.lineWidth = 1;
@@ -2440,7 +2448,7 @@ function mergeGraphs(chartType, panelId = -1) {
 
                 ctx.beginPath();
                 ctx.setLineDash([5, 5]);
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(102, 102, 102, 0.9)';
                 ctx.moveTo(left, y);
                 ctx.lineTo(right, y);
@@ -2451,7 +2459,10 @@ function mergeGraphs(chartType, panelId = -1) {
         }
     };
 
-    // Custom tooltip plugin for strict proximity-based behavior
+    const horizontalProximityThreshold = 15; // X-axis (horizontal) proximity in pixels
+    const verticalProximityThreshold = 10;    // Y-axis (vertical) proximity in pixels
+
+    // Implement the strict proximity plugin matching the first code
     const strictProximityPlugin = {
         id: 'strictProximity',
         beforeEvent: (chart, args) => {
@@ -2460,8 +2471,17 @@ function mergeGraphs(chartType, panelId = -1) {
 
             const { x, y } = event;
             const { chartArea } = chart;
+            const currentTime = Date.now();
 
-            // Only process if mouse is within chart area
+            chart.crosshair = { x, y };
+
+            if (currentTime - lastUpdateTime < throttleDelay) {
+                chart.draw();
+                return;
+            }
+
+            lastUpdateTime = currentTime;
+
             if (x < chartArea.left || x > chartArea.right || y < chartArea.top || y > chartArea.bottom) {
                 chart.tooltip.setActiveElements([]);
                 chart.update('none');
@@ -2469,8 +2489,8 @@ function mergeGraphs(chartType, panelId = -1) {
                 return;
             }
 
-            // Find the nearest point that meets our strict proximity criteria
             let nearestPoint = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+            let foundPointInProximity = false;
 
             chart.data.datasets.forEach((dataset, datasetIndex) => {
                 if (!dataset.data || dataset.hidden) return;
@@ -2479,60 +2499,62 @@ function mergeGraphs(chartType, panelId = -1) {
                 if (!meta.visible) return;
 
                 meta.data.forEach((element, index) => {
-                    if (!element) return;
+                    if (!element || typeof element.getCenterPoint !== 'function') return;
 
-                    const dataPoint = {
-                        x: element.x,
-                        y: element.y
-                    };
+                    try {
+                        const centerPoint = element.getCenterPoint();
 
-                    // Calculate separate distances for x and y
-                    const dx = Math.abs(dataPoint.x - x);
-                    const dy = Math.abs(dataPoint.y - y);
+                        const dx = Math.abs(centerPoint.x - x);
+                        const dy = Math.abs(centerPoint.y - y);
 
-                    // Apply stricter vertical proximity requirement
-                    if (dx <= xDistanceThreshold && dy <= yDistanceThreshold) {
-                        // Use weighted distance to prioritize vertical proximity
-                        const weightedDistance = dx + (dy * 2); // Give more weight to vertical distance
+                        if (dx <= horizontalProximityThreshold && dy <= verticalProximityThreshold) {
+                            foundPointInProximity = true;
 
-                        // Update if this point is closer
-                        if (weightedDistance < nearestPoint.distance) {
-                            nearestPoint = {
-                                datasetIndex,
-                                pointIndex: index,
-                                distance: weightedDistance
-                            };
+                            const weightedDistance = Math.sqrt(dx * dx + dy * dy);
+
+                            if (weightedDistance < nearestPoint.distance) {
+                                nearestPoint = {
+                                    datasetIndex,
+                                    pointIndex: index,
+                                    distance: weightedDistance
+                                };
+                            }
                         }
+                    } catch (error) {
+                        console.log("Error processing data point:", error);
                     }
                 });
             });
 
-            // Only show tooltip if we found a point meeting our criteria
-            if (nearestPoint.datasetIndex !== -1) {
+            let needsUpdate = false;
+
+            if (foundPointInProximity && nearestPoint.datasetIndex !== -1) {
                 if (nearestPoint.datasetIndex !== activeTooltip.datasetIndex ||
                     nearestPoint.pointIndex !== activeTooltip.pointIndex) {
 
-                    // Update active tooltip
                     activeTooltip = nearestPoint;
 
-                    // Set the active element for the tooltip
                     chart.tooltip.setActiveElements([{
                         datasetIndex: nearestPoint.datasetIndex,
                         index: nearestPoint.pointIndex
                     }]);
 
-                    chart.update('none');
+                    needsUpdate = true;
                 }
+            } else if (activeTooltip.datasetIndex !== -1) {
+                chart.tooltip.setActiveElements([]);
+                activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                chart.update('none');
             } else {
-                // Hide tooltip if no point meets our criteria
-                if (activeTooltip.datasetIndex !== -1) {
-                    chart.tooltip.setActiveElements([]);
-                    chart.update('none');
-                    activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
-                }
+                chart.draw();
             }
         }
     };
+
 
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
@@ -2563,7 +2585,6 @@ function mergeGraphs(chartType, panelId = -1) {
                         },
                     },
                 },
-                crosshair: {}
             },
             scales: {
                 x: {
@@ -2574,7 +2595,8 @@ function mergeGraphs(chartType, panelId = -1) {
                         text: '',
                     },
                     grid: {
-                        display: false,
+                        display: true,
+                        color: gridLineColor,
                     },
                     ticks: {
                         color: tickColor,
@@ -2610,6 +2632,9 @@ function mergeGraphs(chartType, panelId = -1) {
                     title: {
                         display: false,
                     },
+                    border: {
+                        color: 'rgba(0, 0, 0, 0)',
+                    },
                     grid: { color: gridLineColor },
                     ticks: { color: tickColor },
                 },
@@ -2620,18 +2645,6 @@ function mergeGraphs(chartType, panelId = -1) {
                 axis: 'xy',
                 intersect: false,
             },
-            onHover: (event, _, chart) => {
-                if (!event) return;
-
-                // Store mouse position for crosshair
-                chart.crosshair = {
-                    x: event.x,
-                    y: event.y
-                };
-
-                // Force redraw to show crosshair
-                chart.draw();
-            }
         },
         plugins: [crosshairPlugin, strictProximityPlugin]
     });
@@ -2651,12 +2664,12 @@ function mergeGraphs(chartType, panelId = -1) {
             activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
             mergedLineChart.update();
         });
+    }
 
     // Only generate and display legend for panelId == -1 or metrics explorer
     if (!isDashboardScreen || panelId === -1) {
         var legendContainerEl = isDashboardScreen ? $(`.panelDisplay .panEdit-panel .merged-graph .legend-container`) : $('.merged-graph .legend-container');
         generateCustomLegend(mergedLineChart, legendContainerEl[0]);
-
     }
 
     mergedGraph = mergedLineChart;
@@ -3224,6 +3237,7 @@ function updateChartColorsBasedOnTheme() {
     if (mergedGraph) {
         mergedGraph.options.scales.x.ticks.color = tickColor;
         mergedGraph.options.scales.y.ticks.color = tickColor;
+        mergedGraph.options.scales.x.grid.color = gridLineColor;
         mergedGraph.options.scales.y.grid.color = gridLineColor;
         mergedGraph.update();
     }
@@ -3234,6 +3248,7 @@ function updateChartColorsBasedOnTheme() {
 
             lineChart.options.scales.x.ticks.color = tickColor;
             lineChart.options.scales.y.ticks.color = tickColor;
+            lineChart.options.scales.x.grid.color = gridLineColor;
             lineChart.options.scales.y.grid.color = gridLineColor;
             lineChart.update();
         }
@@ -3243,7 +3258,7 @@ function updateChartColorsBasedOnTheme() {
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
     let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-3');
+    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
     const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
 
     return { gridLineColor, tickColor };
