@@ -909,7 +909,12 @@ func PostPqsClear(ctx *fasthttp.RequestCtx) {
 	actionString := "Cleared persistent queries"
 	extraMsg := "All persistent queries and aggregations have been cleared"
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("PostPqsClear: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 }
 
 func ClearPqs() {
@@ -977,7 +982,12 @@ func PostPqsAggCols(ctx *fasthttp.RequestCtx) {
 	actionString := "Updated PQS aggregation columns"
 	extraMsg := fmt.Sprintf("Updated aggregation columns with data: %v", readJSON)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("PostPqsAggCols: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 }
 
 func parsePostPqsAggBody(jsonSource map[string]interface{}) error {

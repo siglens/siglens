@@ -411,8 +411,12 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 	epochTimestampSec := time.Now().Unix()
 	actionString := "Deleted user saved query"
 	extraMsg := fmt.Sprintf("Query Name: %s", queryName)
-
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("DeleteUserSavedQuery: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
@@ -533,7 +537,12 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Saved user query"
 	extraMsg := fmt.Sprintf("Query Name: %s", qname)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("SaveUserQueries: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }

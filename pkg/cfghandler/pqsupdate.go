@@ -86,7 +86,12 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 	actionString := "Updated PQS configuration"
 	extraMsg := fmt.Sprintf("PQS Enabled: %t", cfg.PQSEnabled)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("PostPqsUpdate: failed to create audit event. Err=%+v", err)
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetContentType("application/json")

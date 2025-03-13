@@ -142,7 +142,12 @@ func UploadLookupFile(ctx *fasthttp.RequestCtx) {
 	actionString := "Uploaded lookup file"
 	extraMsg := fmt.Sprintf("File Name: %s", fileName)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("UploadLookupFile: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 }
 
 func GetAllLookupFiles(ctx *fasthttp.RequestCtx) {
@@ -248,5 +253,10 @@ func DeleteLookupFile(ctx *fasthttp.RequestCtx) {
 	actionString := "Deleted lookup file"
 	extraMsg := fmt.Sprintf("File Name: %s", lookupFilename)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("DeleteLookupFile: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 }

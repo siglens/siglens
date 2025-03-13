@@ -122,7 +122,12 @@ func UpdateQueryTimeout(ctx *fasthttp.RequestCtx) {
 	actionString := "Updated query timeout"
 	extraMsg := fmt.Sprintf("New Timeout: %d seconds", cfg.TimeoutSecs)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("failed to create audit event: %v", err)
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetContentType("application/json")

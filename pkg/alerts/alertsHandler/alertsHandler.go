@@ -196,7 +196,12 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	actionString := "Created alert"
 	extraMsg := fmt.Sprintf("Alert Name: %s, Alert ID: %s", alertToBeCreated.AlertName, alertDataObj.AlertId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessCreateAlertRequest: failed to create audit event: %v", err)
+		utils.SendError(ctx, fmt.Sprintf("failed to create audit event: %v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully created an alert"
@@ -487,7 +492,12 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	actionString := "Updated alert"
 	extraMsg := fmt.Sprintf("Alert Name: %s, Alert ID: %s", alertToBeUpdated.AlertName, alertToBeUpdated.AlertId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessUpdateAlertRequest: failed to create audit event: %v", err)
+		utils.SendError(ctx, fmt.Sprintf("failed to create audit event: %v", err), fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
+		return
+	}
 
 	responseBody["message"] = "Alert updated successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
@@ -573,8 +583,12 @@ func ProcessDeleteAlertRequest(ctx *fasthttp.RequestCtx) {
 	actionString := "Deleted alert"
 	extraMsg := fmt.Sprintf("Alert Name: %s, Alert ID: %s", alertToBeRemoved.AlertName, alertToBeRemoved.AlertId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
-
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteAlertRequest: failed to create audit event: %v", err)
+		utils.SendError(ctx, fmt.Sprintf("failed to create audit event: %v", err), fmt.Sprintf("alert name: %v", alertToBeRemoved.AlertName), err)
+		return
+	}
 	responseBody["message"] = "Alert deleted successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -620,7 +634,12 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 	actionString := "Created contact"
 	extraMsg := fmt.Sprintf("Contact Name: %s, Contact ID: %s", contactToBeCreated.ContactName, contactToBeCreated.ContactId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessCreateContactRequest: failed to create audit event: %v", err)
+		utils.SendError(ctx, fmt.Sprintf("failed to create audit event: %v", err), fmt.Sprintf("contact name: %v", contactToBeCreated.ContactName), err)
+		return
+	}
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully created a contact point"
@@ -684,7 +703,12 @@ func ProcessUpdateContactRequest(ctx *fasthttp.RequestCtx) {
 	actionString := "Updated contact"
 	extraMsg := fmt.Sprintf("Contact Name: %s, Contact ID: %s", contactToBeUpdated.ContactName, contactToBeUpdated.ContactId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessUpdateContactRequest: failed to create audit event: %v", err)
+		utils.SendError(ctx, fmt.Sprintf("failed to create audit event: %v", err), fmt.Sprintf("contact name: %v", contactToBeUpdated.ContactName), err)
+		return
+	}
 
 	responseBody["message"] = "Contact details updated successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
@@ -732,7 +756,12 @@ func ProcessDeleteContactRequest(ctx *fasthttp.RequestCtx) {
 	actionString := "Deleted contact"
 	extraMsg := fmt.Sprintf("Contact Name: %s, Contact ID: %s", contact.ContactName, contact.ContactId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteContactRequest: failed to create audit event: %v", err)
+		utils.SendError(ctx, fmt.Sprintf("failed to create audit event: %v", err), fmt.Sprintf("contact ID: %v", contact.ContactId), err)
+		return
+	}
 
 	responseBody["message"] = "Contact point deleted successfully"
 	utils.WriteJsonResponse(ctx, responseBody)

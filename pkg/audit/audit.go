@@ -3,6 +3,7 @@ package audit
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 )
@@ -18,7 +19,7 @@ type AuditLog struct {
 }
 
 func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec, orgId int64) error {
-	audit_log := AuditLog{
+	auditLog := AuditLog{
 		Username:          username,
 		ActionString:      actionString,
 		ExtraMsg:          extraMsg,
@@ -26,27 +27,41 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 		OrgId:             orgId,
 	}
 
-	// Read existing data
 	var logs []AuditLog
 	file, err := os.OpenFile(auditLogFile, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open audit log file: %w", err)
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(file)
-	if err == nil && len(data) > 0 {
-		json.Unmarshal(data, &logs)
+	if err != nil {
+		return fmt.Errorf("failed to read audit log file: %w", err)
 	}
 
-	logs = append(logs, audit_log)
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &logs); err != nil {
+			return fmt.Errorf("failed to unmarshal audit logs: %w", err)
+		}
+	}
 
-	file.Truncate(0)
-	file.Seek(0, 0)
+	logs = append(logs, auditLog)
+
+	// Truncate file before writing new data
+	if err := file.Truncate(0); err != nil {
+		return fmt.Errorf("failed to truncate audit log file: %w", err)
+	}
+
+	// go to the beginning of the file
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to seek audit log file: %w", err)
+	}
+
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(logs); err != nil {
-		return err
+		return fmt.Errorf("failed to encode audit logs: %w", err)
 	}
+
 	return nil
 }
 

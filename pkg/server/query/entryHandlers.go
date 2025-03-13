@@ -410,7 +410,12 @@ func postPqsDeleteHandler() func(ctx *fasthttp.RequestCtx) {
 		actionString := "Deleted PQS data"
 		extraMsg := "All PQS data has been deleted"
 
-		audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+		err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+		if err != nil {
+			log.Errorf("postPqsDeleteHandler: failed to create audit event. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
 	}
 }
 

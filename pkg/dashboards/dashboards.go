@@ -506,7 +506,12 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Created dashboard"
 	extraMsg := fmt.Sprintf("Dashboard Name: %s", req.Name)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessCreateDashboardRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	utils.WriteJsonResponse(ctx, dashboardInfo)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -554,7 +559,12 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Toggled Dashboard favorite status"
 	extraMsg := fmt.Sprintf("Dashboard ID: %s, New Favorite Status: %t", dId, isFavorite)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessFavoriteRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	response := map[string]bool{"isFavorite": isFavorite}
 	utils.WriteJsonResponse(ctx, response)
@@ -628,7 +638,12 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Updated dashboard"
 	extraMsg := fmt.Sprintf("Dashboard ID: %s, Dashboard Name: %s", dId, dName)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessUpdateDashboardRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	response := map[string]interface{}{
 		"message":   "Dashboard updated successfully",
@@ -675,7 +690,12 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Deleted dashboard"
 	extraMsg := fmt.Sprintf("Dashboard ID: %s", dId)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteDashboardRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	utils.WriteJsonResponse(ctx, map[string]interface{}{
 		"message": "Dashboard deleted successfully",

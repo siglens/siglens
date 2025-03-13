@@ -834,8 +834,12 @@ func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	epochTimestampSec := time.Now().Unix()
 	actionString := "Created folder"
 	extraMsg := fmt.Sprintf("Folder Name: %s, Folder ID: %s", req.Name, folderID)
-
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessCreateFolderRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	response := map[string]string{
 		"id":      folderID,
@@ -902,7 +906,12 @@ func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Updated folder"
 	extraMsg := fmt.Sprintf("Folder ID: %s, New Name: %s", folderID, req.Name)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessUpdateFolderRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	response := map[string]string{
 		"message": "Folder updated successfully",
@@ -940,7 +949,12 @@ func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Deleted folder"
 	extraMsg := fmt.Sprintf("Folder ID: %s", folderID)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteFolderRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	response := map[string]string{
 		"message": "Folder and its contents deleted successfully",

@@ -489,7 +489,12 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Deleted index"
 	extraMsg := fmt.Sprintf("Index Name: %s", inIndexName)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteIndex: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 }
 
 func deleteIndex(inIndexName string, myid int64) ([]string, int) {
