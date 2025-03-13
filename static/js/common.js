@@ -1585,9 +1585,7 @@ const ExpandableFieldsSidebarRenderer = () => {
         updateUrlAndState(newIsHidden);
     };
 
-    // Function to update URL with current state and apply the state
     const updateUrlAndState = (isHidden) => {
-        // Only update the URL if a search has been performed
         const searchParams = new URLSearchParams(window.location.search);
         if (searchParams.has('searchText') && searchParams.has('indexName')) {
             const url = new URL(window.location);
@@ -1595,15 +1593,13 @@ const ExpandableFieldsSidebarRenderer = () => {
             window.history.pushState({}, document.title, url);
         }
 
-        // Always apply the state to the UI regardless of URL
         applyFieldsSidebarState(isHidden);
     };
 
     const init = () => {
-        // Default to false (fields visible)
+        // Default to false
         let isFieldsSidebarHidden = false;
 
-        // Only check URL if in search context
         const searchParams = new URLSearchParams(window.location.search);
         const isSearchActive = searchParams.has('searchText') && searchParams.has('indexName');
 
@@ -1614,10 +1610,8 @@ const ExpandableFieldsSidebarRenderer = () => {
         state.isFieldsSidebarHidden = isFieldsSidebarHidden;
 
         if (state.eGui) {
-            // Update UI to match current state
             applyFieldsSidebarState(state.isFieldsSidebarHidden);
 
-            // Only update URL if in search context
             if (isSearchActive) {
                 const url = new URL(window.location);
                 url.searchParams.set('fieldsHidden', state.isFieldsSidebarHidden);
@@ -1626,23 +1620,18 @@ const ExpandableFieldsSidebarRenderer = () => {
             return;
         }
 
-        // Create GUI elements
         state.eGui = createGuiElement(state.isFieldsSidebarHidden);
         state.expandBtn = state.eGui.querySelector('#expand-toggle-svg');
         state.expandIcon = state.eGui.querySelector('svg');
 
-        // Add click event
         if (state.expandBtn) {
             state.expandBtn.addEventListener('click', toggleFieldsSidebar);
         }
 
-        // Position the button based on current state
         repositionExpandButton(state.isFieldsSidebarHidden);
 
-        // Apply initial state to UI
         applyFieldsSidebarState(state.isFieldsSidebarHidden);
 
-        // Only update URL if in search context
         if (isSearchActive) {
             const url = new URL(window.location);
             url.searchParams.set('fieldsHidden', state.isFieldsSidebarHidden);

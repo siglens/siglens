@@ -28,11 +28,6 @@ $(document).ready(async () => {
     fieldssidebarRenderer.init();
     window.fieldssidebarRenderer = fieldssidebarRenderer;
 
-    // Ensure default state is applied if no URL parameter exists
-    // const urlParams = new URLSearchParams(window.location.search);
-    // if (!urlParams.has('fieldsHidden')) {
-    //     applyFieldsSidebarState(true); // Default to hidden
-    // }
 
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
