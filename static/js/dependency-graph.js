@@ -335,7 +335,7 @@ function updateGraphStyles() {
                     'text-halign': 'right',
                     'font-size': 8,
                     'font-weight': 'normal',
-                    'font-family': '"DINpro", Arial, sans-serif',
+                    'font-family': 'Inter, BlinkMacSystemFont, Helvetica, Arial, sans-serif',
                     'text-margin-y': -10,
                     'background-color': function (ele) {
                         const nodeId = ele.data('id');

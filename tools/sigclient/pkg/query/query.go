@@ -482,6 +482,53 @@ func getRandomQuery() []byte {
 	return raw
 }
 
+func sendSplunkQuery(url string, query string, startEpoch uint64, endEpoch uint64) ([]byte, error) {
+	// Create the request body
+	requestBody := map[string]interface{}{
+		"searchText":    query,
+		"indexName":     "*",
+		"startEpoch":    startEpoch,
+		"endEpoch":      endEpoch,
+		"queryLanguage": "Splunk QL",
+	}
+
+	// Convert request body to JSON
+	bodyBytes, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %v", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", url, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	// Set request headers
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send HTTP request to %v; err=%v", url, err)
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP request failed with status code: %d", resp.StatusCode)
+	}
+
+	// Read response body
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	return respBody, nil
+}
+
 func sendSingleRequest(qType logsQueryTypes, client *http.Client, body []byte, url string, verbose bool, authToken string) float64 {
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {

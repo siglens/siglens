@@ -1421,7 +1421,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
                     </div>
                 </div>
                 <div class="json-content-type-box">
-                    <div>
+                    <div class="tab-button-ctn">
                         <button class="tab-button active" onclick="switchTab('json')">JSON</button>
                         <button class="tab-button" onclick="switchTab('table')">Table</button>
                     </div>
@@ -1446,6 +1446,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             `;
 
             jsonPopup.classList.add('active');
+            $('.json-popup').show();
 
             const closeBtn = jsonPopup.querySelector('.json-popup-close');
             closeBtn.onclick = () => {

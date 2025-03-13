@@ -32,7 +32,6 @@ import (
 
 const ELASTIC_PREFIX string = "/elastic"
 const OTSDB_PREFIX string = "/otsdb"
-const INFLUX_PREFIX string = "/influx"
 const PROMQL_PREFIX string = "/promql"
 const OTLP_PREFIX string = "/otlp"
 const API_PREFIX string = "/api"

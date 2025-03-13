@@ -31,6 +31,10 @@ jobs:
         run: go test ./... --tags=e2e_all
       - name: Run Coverage
         run: go test ./... -coverprofile=coverage.txt -covermode=atomic
+      - name: Test sigclient
+        run: |
+          cd tools/sigclient
+          go test ./...
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         env:

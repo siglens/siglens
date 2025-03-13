@@ -162,6 +162,12 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	if mQuery.ExitAfterTagsSearch {
 		return mRes
 	}
+
+	if mQuery.IsQueryCancelled() {
+		mRes.AddError(fmt.Errorf("query cancelled"))
+		return mRes
+	}
+
 	parallelism := int(config.GetParallelism()) * 2
 	errors := mRes.DownsampleResults(mQuery.Downsampler, parallelism)
 	if errors != nil {
@@ -169,6 +175,11 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 			mRes.AddError(err)
 		}
 
+		return mRes
+	}
+
+	if mQuery.IsQueryCancelled() {
+		mRes.AddError(fmt.Errorf("query cancelled"))
 		return mRes
 	}
 
@@ -184,6 +195,11 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 	}
 
 	for mQuery.SubsequentAggs != nil {
+		if mQuery.IsQueryCancelled() {
+			mRes.AddError(fmt.Errorf("query cancelled"))
+			return mRes
+		}
+
 		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {
 			mQuery.Function = *mQuery.SubsequentAggs.FunctionBlock
 			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function, timeRange)
@@ -340,6 +356,10 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// var tsidInfo *tsidtracker.AllMatchedTSIDs
 
 	for baseDir, allMSearchReqs := range allSearchReqests {
+		if mQuery.IsQueryCancelled() {
+			return
+		}
+
 		attr, err := tagstree.InitAllTagsTreeReader(baseDir)
 		if err != nil {
 			mRes.AddError(err)
@@ -402,6 +422,9 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 		}
 
 		for _, mSeg := range allMSearchReqs {
+			if mQuery.IsQueryCancelled() {
+				return
+			}
 			search.RawSearchMetricsSegment(mQuery, segTsidInfo, mSeg, mRes, timeRange, qid, querySummary)
 		}
 	}

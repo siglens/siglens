@@ -22,7 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -458,6 +460,16 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	if function.FunctionType == structs.HistogramFunction {
+		err := r.ApplyHistogramToResults(parallelism, function.HistogramFunction)
+		if err != nil {
+			errList = append(errList, err)
+			return errList
+		}
+
+		return nil
+	}
+
 	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
 	results := make(map[string]map[uint32]float64, len(r.Results))
 
@@ -493,6 +505,135 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	r.DsResults = nil
 
 	return nil
+}
+
+func (r *MetricsResult) ApplyHistogramToResults(parallelism int, agg *structs.HistogramAgg) error {
+	if agg == nil {
+		log.Errorf("ApplyHistogramToResults: HistogramAgg is nil")
+		return fmt.Errorf("nil histogram agg")
+	}
+
+	seriesIds := make([]string, 0, len(r.Results))
+	for seriesId := range r.Results {
+		seriesIds = append(seriesIds, seriesId)
+	}
+
+	switch agg.Function {
+	case segutils.HistogramQuantile:
+		return r.applyHistogramQunatile(seriesIds, agg)
+	}
+
+	return nil
+}
+
+func (r *MetricsResult) applyHistogramQunatile(seriesIds []string, agg *structs.HistogramAgg) error {
+	// Get the histogram bins from the seriesIds
+	histogramBinsPerSeries, err := getHistogramBins(seriesIds, r.Results)
+	if err != nil {
+		return err
+	}
+
+	errors := make([]error, 0)
+
+	// Apply histogram quantile to the histogram bins
+	for seriesId, tsToBins := range histogramBinsPerSeries {
+		for ts, bins := range tsToBins {
+			val, err := histogramQuantile(agg.Quantile, bins)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
+
+			if _, ok := r.Results[seriesId]; !ok {
+				r.Results[seriesId] = make(map[uint32]float64, 0)
+			}
+
+			r.Results[seriesId][ts] = val
+		}
+	}
+
+	if len(errors) > 0 {
+		sliceLen := min(5, len(errors))
+		log.Errorf("applyHistogramQunatile: len(errors):%v, errors:%v", len(errors), errors[:sliceLen])
+	}
+
+	return nil
+}
+
+func getHistogramBins(seriesIds []string, results map[string]map[uint32]float64) (map[string]map[uint32][]histogramBin, error) {
+	histogramBinsPerSeries := make(map[string]map[uint32][]histogramBin, 0)
+
+	for _, seriesIdWithLe := range seriesIds {
+		timeSeries, ok := results[seriesIdWithLe]
+		if !ok {
+			continue
+		}
+
+		delete(results, seriesIdWithLe)
+
+		seriesId, leValue, hasLe, err := extractAndRemoveLeFromSeriesId(seriesIdWithLe)
+		if err != nil {
+			log.Errorf("getHistogramBins: Failed to extract and remove le from seriesId %v, err: %v", seriesIdWithLe, err)
+			continue
+		}
+
+		if !hasLe {
+			continue
+		}
+
+		tsToBins, ok := histogramBinsPerSeries[seriesId]
+		if !ok {
+			tsToBins = make(map[uint32][]histogramBin, 0)
+			histogramBinsPerSeries[seriesId] = tsToBins
+		}
+
+		for ts, val := range timeSeries {
+			bins, ok := tsToBins[ts]
+			if !ok {
+				bins = make([]histogramBin, 0)
+			}
+
+			bins = append(bins, histogramBin{upperBound: leValue, count: val})
+			tsToBins[ts] = bins
+		}
+	}
+
+	return histogramBinsPerSeries, nil
+}
+
+func extractAndRemoveLeFromSeriesId(seriesId string) (string, float64, bool, error) {
+	// Regex pattern to find le="VALUE" and capture the VALUE
+	re := regexp.MustCompile(`le:(\+?Inf|-?Inf|-?[0-9.]+),?`)
+
+	matches := re.FindStringSubmatch(seriesId)
+	var leValueStr string
+	if len(matches) == 2 {
+		leValueStr = matches[1]
+	} else {
+		return seriesId, 0, false, nil
+	}
+
+	var leValue float64
+	var err error
+
+	if leValueStr == "+Inf" {
+		leValue = math.Inf(1)
+	} else if leValueStr == "-Inf" {
+		leValue = math.Inf(-1)
+	} else {
+		leValue, err = strconv.ParseFloat(leValueStr, 64)
+		if err != nil {
+			return seriesId, 0, false, fmt.Errorf("extractAndRemoveleFromSeriesId: Failed to parse le value %v, err: %v", leValueStr, err)
+		}
+	}
+
+	// Remove the le="VALUE" from the seriesId
+	cleanedSeriesId := re.ReplaceAllString(seriesId, "")
+
+	cleanedSeriesId = strings.Replace(cleanedSeriesId, "{,", "{", 1)
+	cleanedSeriesId = strings.TrimSuffix(cleanedSeriesId, ",")
+
+	return cleanedSeriesId, leValue, true, nil
 }
 
 func (r *MetricsResult) AddError(err error) {

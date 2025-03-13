@@ -109,7 +109,7 @@ class SearchableDropdown {
                     border-radius: 3px 0 0 3px;
                     display: flex;
                     align-items: center;
-                    font-weight: bold;
+                    font-weight: 500;
                     font-size: 11px;
                     background-color: var(--drop-down-btn-bg-regular);
                 }

@@ -1239,6 +1239,37 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	assert.Equal(t, tagKeys, actualTagKeys)
 }
 
+func Test_parsePromQLQuery_HistogramQunatile(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := int64(0)
+
+	query := `histogram_quantile(0.9, rate(http_request_duration_seconds_bucket[5m]))`
+
+	metricName := "http_request_duration_seconds_bucket"
+	mHashedMName := xxhash.Sum64String(metricName)
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mQueryReqs))
+	assert.Equal(t, 0, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, metricName, mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
+	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggBlockType)
+	assert.Equal(t, segutils.Rate, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, float64(300), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.TimeWindow)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggBlockType)
+	assert.Equal(t, segutils.HistogramQuantile, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.FunctionBlock.HistogramFunction.Function)
+	assert.Equal(t, float64(0.9), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.FunctionBlock.HistogramFunction.Quantile)
+}
+
 func Test_parsePromQLQuery_Without(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day

@@ -41,6 +41,7 @@ const MAX_POINTS_TO_EVALUATE float64 = 250
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
+	isQueryCancelled       uint32            // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
 	MetricName             string            // metric name to query for.
 	MetricOperator         utils.TagOperator // operator to apply on metric name
 	MetricNameRegexPattern string            // regex pattern to apply on metric name
@@ -97,6 +98,7 @@ const (
 	RangeFunction
 	TimeFunction
 	LabelFunction
+	HistogramFunction
 )
 
 type LabelReplacementKeyType uint8
@@ -126,13 +128,19 @@ type LabelFunctionExpr struct {
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
-	MathFunction  utils.MathFunctions
-	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
-	ValueList     []string
-	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
-	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
-	TimeFunction  utils.TimeFunctions
-	LabelFunction *LabelFunctionExpr
+	MathFunction      utils.MathFunctions
+	RangeFunction     utils.RangeFunctions //range function to apply, only one of these will be non nil
+	ValueList         []string
+	TimeWindow        float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
+	Step              float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
+	TimeFunction      utils.TimeFunctions
+	LabelFunction     *LabelFunctionExpr
+	HistogramFunction *HistogramAgg
+}
+
+type HistogramAgg struct {
+	Function utils.HistogramFunctions
+	Quantile float64
 }
 
 type Downsampler struct {
@@ -380,6 +388,14 @@ func (d *PromQLInstantData) MarshalJSON() ([]byte, error) {
 	aliasData := (*Alias)(d)
 
 	return json.Marshal(aliasData)
+}
+
+func (mq *MetricsQuery) SetQueryIsCancelled() {
+	atomic.StoreUint32(&mq.isQueryCancelled, 1)
+}
+
+func (mq *MetricsQuery) IsQueryCancelled() bool {
+	return atomic.LoadUint32(&mq.isQueryCancelled) == 1
 }
 
 /*
