@@ -340,6 +340,12 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let selIndexName = queryParams.get('indexName');
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
+
+    // Only get fieldsHidden from URL if a search was performed
+    let fieldsHidden = false;
+    fieldsHidden = queryParams.get('fieldsHidden') === 'true';
+    applyFieldsSidebarState(fieldsHidden);
+
     queryLanguage = queryLanguage.replace('"', '');
     $('#query-language-btn span').html(queryLanguage);
     $('.query-language-option').removeClass('active');
@@ -402,6 +408,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', filterTab);
+        addQSParm('fieldsHidden', fieldsHidden);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -418,8 +425,37 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         from: sFrom,
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
+        fieldsHidden: fieldsHidden
     };
 }
+
+// Helper function to apply fieldsHidden state to the UI
+function applyFieldsSidebarState(isHidden) {
+    const fieldsSidebar = document.querySelector('.fields-sidebar');
+    const customChartTab = document.querySelector('.custom-chart-tab');
+    const container = document.querySelector('.custom-chart-container');
+
+    if (!fieldsSidebar) return;
+
+    if (isHidden) {
+        fieldsSidebar.classList.add('hidden');
+        if (customChartTab) {
+            customChartTab.classList.add('full-width');
+        }
+        if (container) {
+            container.classList.add('full-width-container');
+        }
+    } else {
+        fieldsSidebar.classList.remove('hidden');
+        if (customChartTab) {
+            customChartTab.classList.remove('full-width');
+        }
+        if (container) {
+            container.classList.remove('full-width-container');
+        }
+    }
+}
+
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
     let filterValue = $('#filter-input').val().trim() || '*';
     let endDate = 'now';
@@ -535,6 +571,9 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         filterValue = $('#filter-input').val().trim() || '*';
         isQueryBuilderSearch = false;
     }
+    // Get current sidebar state or default to false (visible)
+    const sidebarRenderer = window.fieldsSidebarRenderer;
+    const isFieldsHidden = sidebarRenderer ? sidebarRenderer.getState().isFieldsSidebarHidden : false;
 
     if (!skipPushState) {
         addQSParm('searchText', filterValue);
@@ -543,6 +582,7 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
+        addQSParm('fieldsHidden', isFieldsHidden);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -558,6 +598,7 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
+        fieldsHidden: isFieldsHidden
     };
 }
 //eslint-disable-next-line no-unused-vars
