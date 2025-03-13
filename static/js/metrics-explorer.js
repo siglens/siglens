@@ -1491,6 +1491,21 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         };
     }
 
+    // Variables to track active tooltip state
+    let activeTooltip = {
+        datasetIndex: -1,
+        pointIndex: -1,
+        distance: Infinity
+    };
+
+    // Keep track of last update time to throttle updates
+    let lastUpdateTime = 0;
+    const throttleDelay = 20;
+
+    // Reduced threshold values for stricter proximity detection
+    const xDistanceThreshold = 10;
+    const yDistanceThreshold = 10;
+
     // Create crosshair plugin
     const crosshairPlugin = {
         id: 'crosshair',
@@ -1501,9 +1516,9 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
             const { x, y } = chart.crosshair;
 
             if (x >= left && x <= right && y >= top && y <= bottom) {
-
                 ctx.save();
 
+                // Clear previous crosshair lines
                 ctx.beginPath();
                 ctx.setLineDash([5, 5]);
                 ctx.lineWidth = 1;
@@ -1514,7 +1529,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
 
                 ctx.beginPath();
                 ctx.setLineDash([5, 5]);
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(102, 102, 102, 0.9)';
                 ctx.moveTo(left, y);
                 ctx.lineTo(right, y);
@@ -1525,10 +1540,143 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
         }
     };
 
+    // Custom tooltip handler with strict proximity detection
+    const customTooltipPlugin = {
+        id: 'customTooltip',
+        afterDraw: (chart) => {
+            // This will completely disable the Chart.js default tooltip
+            chart.tooltip.active = false;
+        },
+        beforeEvent: (chart, args) => {
+            const event = args.event;
+            if (event.type !== 'mousemove') return;
+
+            const { x, y } = event;
+            const { chartArea } = chart;
+            const currentTime = Date.now();
+
+            // Update crosshair position without throttling
+            chart.crosshair = { x, y };
+
+            // Only process proximity detection at a throttled rate
+            if (currentTime - lastUpdateTime < throttleDelay) {
+                return;
+            }
+
+            lastUpdateTime = currentTime;
+
+            // Make sure we're inside the chart area
+            if (x < chartArea.left || x > chartArea.right || y < chartArea.top || y > chartArea.bottom) {
+                // Hide custom tooltip
+                if (chart.customTooltip && chart.customTooltip.style) {
+                    chart.customTooltip.style.opacity = '0';
+                }
+                activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+                return;
+            }
+
+            // Find the nearest point that meets our strict proximity criteria
+            let nearestPoint = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+            let foundPointInProximity = false;
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                if (!dataset.data || dataset.hidden) return;
+
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (!meta.visible) return;
+
+                meta.data.forEach((element, index) => {
+                    if (!element || typeof element.getCenterPoint !== 'function') return;
+
+                    try {
+                        const centerPoint = element.getCenterPoint();
+                        const dx = Math.abs(centerPoint.x - x);
+                        const dy = Math.abs(centerPoint.y - y);
+
+                        // Strict proximity check
+                        if (dx <= xDistanceThreshold && dy <= yDistanceThreshold) {
+                            foundPointInProximity = true;
+                            const weightedDistance = Math.sqrt(dx * dx + dy * dy);
+
+                            if (weightedDistance < nearestPoint.distance) {
+                                nearestPoint = {
+                                    datasetIndex,
+                                    pointIndex: index,
+                                    distance: weightedDistance,
+                                    x: centerPoint.x,
+                                    y: centerPoint.y
+                                };
+                            }
+                        }
+                    } catch (error) {
+                        console.log("Error processing data point:", error);
+                    }
+                });
+            });
+
+            // Create or update custom tooltip
+            if (!chart.customTooltip) {
+                chart.customTooltip = document.createElement('div');
+                chart.customTooltip.style.position = 'absolute';
+                chart.customTooltip.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                chart.customTooltip.style.color = 'white';
+                chart.customTooltip.style.padding = '8px';
+                chart.customTooltip.style.borderRadius = '4px';
+                chart.customTooltip.style.pointerEvents = 'none';
+                chart.customTooltip.style.zIndex = '1000';
+                chart.customTooltip.style.fontSize = '12px';
+                chart.customTooltip.style.opacity = '0';
+                chart.customTooltip.style.transition = 'opacity 0.1s';
+                document.body.appendChild(chart.customTooltip);
+            }
+
+            // Show or hide custom tooltip based on proximity
+            if (foundPointInProximity && nearestPoint.datasetIndex !== -1) {
+                const datasetIndex = nearestPoint.datasetIndex;
+                const pointIndex = nearestPoint.pointIndex;
+                const dataset = chart.data.datasets[datasetIndex];
+                const dataPoint = dataset.data[pointIndex];
+
+                // Format the tooltip content
+                let tooltipContent = '';
+                if (dataPoint) {
+                    const date = new Date(dataPoint.x);
+                    const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) +
+                                          ', ' + date.toLocaleTimeString();
+                    tooltipContent = `<div>${formattedDate}</div><div>${dataset.label}: ${dataPoint.y}</div>`;
+                }
+
+                chart.customTooltip.innerHTML = tooltipContent;
+                chart.customTooltip.style.opacity = '1';
+
+                // Position the tooltip
+                const canvasRect = canvas[0].getBoundingClientRect();
+                const tooltipX = canvasRect.left + nearestPoint.x;
+                const tooltipY = canvasRect.top + nearestPoint.y - 40; // Position above the point
+
+                chart.customTooltip.style.left = `${tooltipX}px`;
+                chart.customTooltip.style.top = `${tooltipY}px`;
+
+                activeTooltip = { datasetIndex, pointIndex, distance: nearestPoint.distance };
+            } else {
+                // Hide tooltip when not near any point
+                chart.customTooltip.style.opacity = '0';
+                activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+            }
+
+            // Force a redraw for the crosshair
+            chart.draw();
+        }
+    };
+
+    // Remove the existing tooltip plugin if we're using the custom one
+    const chartPlugins = [crosshairPlugin, customTooltipPlugin];
+
     var lineChart = new Chart(ctx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: chartData,
         options: {
+            animation: false,
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
@@ -1542,20 +1690,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     },
                 },
                 tooltip: {
-                    enabled: true,
-                    position: 'nearest',
-                    mode: 'index',                  // Use interpolate for precise positioning
-                    intersect: false,
-                    callbacks: {
-                        title: function (tooltipItems) {
-                            const date = new Date(tooltipItems[0].parsed.x);
-                            const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
-                            return formattedDate;
-                        },
-                        label: function (tooltipItem) {
-                            return `${tooltipItem.dataset.label}: ${tooltipItem.formattedValue}`;
-                        },
-                    },
+                    enabled: false, // Disable the default tooltip
                 },
                 ...annotationConfig,
                 crosshair: {}
@@ -1609,7 +1744,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                         drawTicks: true,
                         color: function (context) {
                             const maxValue = Math.max(...context.chart.scales.y.ticks.map((t) => t.value));
-                            // Hide the top grid line
                             if (context.tick.value === maxValue) return 'rgba(0, 0, 0, 0)';
                             return gridLineColor;
                         },
@@ -1617,7 +1751,6 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     ticks: {
                         color: tickColor,
                         callback: function (value, index, values) {
-                            // Hide label for the maximum tick value
                             if (index === values.length - 1) return '';
                             return value;
                         },
@@ -1627,32 +1760,39 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 },
             },
             spanGaps: true,
-            // Enable interaction mode for better tooltip experience
             interaction: {
-                mode: 'index',
+                mode: 'nearest',
+                axis: 'xy',
                 intersect: false,
             },
-            onHover: (event, _, chart) => {
-                if (!event) return;
-
-                // Store mouse position for crosshair
-                chart.crosshair = {
-                    x: event.x,
-                    y: event.y
-                };
-
-                // Force redraw to show crosshair
-                chart.draw();
-            }
         },
-        plugins: [crosshairPlugin]
+        plugins: chartPlugins
     });
 
-    // Add mouseout event listener to clear crosshair
+    // Add mouseout event listener to clear crosshair and tooltip
     canvas[0].addEventListener('mouseout', () => {
         lineChart.crosshair = null;
+
+        // Hide custom tooltip
+        if (lineChart.customTooltip && lineChart.customTooltip.style) {
+            lineChart.customTooltip.style.opacity = '0';
+        }
+
+        activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
         lineChart.draw();
     });
+
+    // Clean up on chart destroy
+    const originalDestroy = lineChart.destroy;
+    lineChart.destroy = function() {
+        // Remove custom tooltip element
+        if (lineChart.customTooltip) {
+            document.body.removeChild(lineChart.customTooltip);
+        }
+
+        // Call original destroy method
+        originalDestroy.apply(this, arguments);
+    };
 
     // Update threshold line if threshold value or condition is changed
     if (isAlertScreen) {
@@ -2200,6 +2340,134 @@ function mergeGraphs(chartType, panelId = -1) {
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
 
+    // Variables to track active tooltip state
+    let activeTooltip = {
+        datasetIndex: -1,
+        pointIndex: -1,
+        distance: Infinity
+    };
+
+    // Configure distance thresholds for tooltips - stricter values
+    const xDistanceThreshold = 10; // Horizontal distance threshold (pixels)
+    const yDistanceThreshold = 5; // Vertical distance threshold (pixels) - stricter than x
+
+    // Create crosshair plugin
+    const crosshairPlugin = {
+        id: 'crosshair',
+        beforeDraw: (chart) => {
+            if (!chart.crosshair) return;
+
+            const { ctx, chartArea: {top, bottom, left, right} } = chart;
+            const { x, y } = chart.crosshair;
+
+            if (x >= left && x <= right && y >= top && y <= bottom) {
+                ctx.save();
+
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(102, 102, 102, 0.8)';
+                ctx.moveTo(x, top);
+                ctx.lineTo(x, bottom);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = 'rgba(102, 102, 102, 0.9)';
+                ctx.moveTo(left, y);
+                ctx.lineTo(right, y);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+    };
+
+    // Custom tooltip plugin for strict proximity-based behavior
+    const strictProximityPlugin = {
+        id: 'strictProximity',
+        beforeEvent: (chart, args) => {
+            const event = args.event;
+            if (event.type !== 'mousemove') return;
+
+            const { x, y } = event;
+            const { chartArea } = chart;
+
+            // Only process if mouse is within chart area
+            if (x < chartArea.left || x > chartArea.right || y < chartArea.top || y > chartArea.bottom) {
+                chart.tooltip.setActiveElements([]);
+                chart.update('none');
+                activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+                return;
+            }
+
+            // Find the nearest point that meets our strict proximity criteria
+            let nearestPoint = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                if (!dataset.data || dataset.hidden) return;
+
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (!meta.visible) return;
+
+                meta.data.forEach((element, index) => {
+                    if (!element) return;
+
+                    const dataPoint = {
+                        x: element.x,
+                        y: element.y
+                    };
+
+                    // Calculate separate distances for x and y
+                    const dx = Math.abs(dataPoint.x - x);
+                    const dy = Math.abs(dataPoint.y - y);
+
+                    // Apply stricter vertical proximity requirement
+                    if (dx <= xDistanceThreshold && dy <= yDistanceThreshold) {
+                        // Use weighted distance to prioritize vertical proximity
+                        const weightedDistance = dx + (dy * 2); // Give more weight to vertical distance
+
+                        // Update if this point is closer
+                        if (weightedDistance < nearestPoint.distance) {
+                            nearestPoint = {
+                                datasetIndex,
+                                pointIndex: index,
+                                distance: weightedDistance
+                            };
+                        }
+                    }
+                });
+            });
+
+            // Only show tooltip if we found a point meeting our criteria
+            if (nearestPoint.datasetIndex !== -1) {
+                if (nearestPoint.datasetIndex !== activeTooltip.datasetIndex ||
+                    nearestPoint.pointIndex !== activeTooltip.pointIndex) {
+
+                    // Update active tooltip
+                    activeTooltip = nearestPoint;
+
+                    // Set the active element for the tooltip
+                    chart.tooltip.setActiveElements([{
+                        datasetIndex: nearestPoint.datasetIndex,
+                        index: nearestPoint.pointIndex
+                    }]);
+
+                    chart.update('none');
+                }
+            } else {
+                // Hide tooltip if no point meets our criteria
+                if (activeTooltip.datasetIndex !== -1) {
+                    chart.tooltip.setActiveElements([]);
+                    chart.update('none');
+                    activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+                }
+            }
+        }
+    };
+
+
 
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
@@ -2221,7 +2489,8 @@ function mergeGraphs(chartType, panelId = -1) {
                 tooltip: {
                     enabled: true,
                     position: 'nearest',
-                    mode: 'index',
+                    events: ['mousemove'],
+                    mode: 'nearest',
                     intersect: false,
                     callbacks: {
                         title: function (tooltipItems) {
@@ -2236,6 +2505,7 @@ function mergeGraphs(chartType, panelId = -1) {
                         },
                     },
                 },
+                crosshair: {}
             },
             scales: {
                 x: {
@@ -2287,17 +2557,43 @@ function mergeGraphs(chartType, panelId = -1) {
                 },
             },
             spanGaps: true,
-            //improve crosshair interaction
             interaction: {
-                mode: 'index',
-                intersect: false,
+                mode: 'nearest',
+                axis: 'xy',
+                intersect: true,
             },
-            hover: {
-                mode: 'index',
-                intersect: false,
-            },
+            onHover: (event, _, chart) => {
+                if (!event) return;
+
+                // Store mouse position for crosshair
+                chart.crosshair = {
+                    x: event.x,
+                    y: event.y
+                };
+
+                // Force redraw to show crosshair
+                chart.draw();
+            }
         },
+        plugins: [crosshairPlugin, strictProximityPlugin]
     });
+
+    // Add mouseout event listener to clear crosshair and tooltip
+    if (isDashboardScreen) {
+        panelChartEl.find('canvas')[0].addEventListener('mouseout', () => {
+            mergedLineChart.crosshair = null;
+            mergedLineChart.tooltip.setActiveElements([]);
+            activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+            mergedLineChart.update();
+        });
+    } else {
+        mergedCanvas[0].addEventListener('mouseout', () => {
+            mergedLineChart.crosshair = null;
+            mergedLineChart.tooltip.setActiveElements([]);
+            activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
+            mergedLineChart.update();
+        });
+    }
 
     mergedGraph = mergedLineChart;
     updateDownloadButtons();
@@ -2421,7 +2717,7 @@ async function getMetricNames() {
         };
         const res = await $.ajax({
             method: 'post',
-            url: 'metrics-explorer/api/v1/metric_names',
+            url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/metric_names',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
                 Accept: '*/*',
@@ -2640,7 +2936,7 @@ async function fetchTimeSeriesData(data) {
         // Show loading cursor
         $('body').css('cursor', 'wait');
 
-        const response = await fetch('metrics-explorer/api/v1/timeseries', {
+        const response = await fetch('http://playground.siglens.com:5122/metrics-explorer/api/v1/timeseries', {
             method: 'post',
             headers: { 'Content-Type': 'application/json', Accept: '*/*' },
             body: JSON.stringify(data),
@@ -2672,7 +2968,7 @@ function getTagKeyValue(metricName) {
 
             $.ajax({
                 method: 'post',
-                url: 'metrics-explorer/api/v1/all_tags',
+                url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/all_tags',
                 headers: {
                     'Content-Type': 'application/json; charset=utf-8',
                     Accept: '*/*',
@@ -2812,7 +3108,7 @@ function createQueryString(queryObject) {
 async function getFunctions() {
     const res = await $.ajax({
         method: 'get',
-        url: 'metrics-explorer/api/v1/functions',
+        url: 'http://playground.siglens.com:5122/metrics-explorer/api/v1/functions',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
