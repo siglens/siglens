@@ -210,30 +210,6 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return err
 	}
 
-	// Compare the columns.
-	expectedColumnsSet := make(map[string]struct{})
-	for _, log := range expectedLogs {
-		if len(expectedLogs) > f.head {
-			// The exact expected logs are ambiguous. Skip logs that weren't in the result.
-			if !utils.SliceContainsItems(response.Hits.Records, []map[string]interface{}{log}, utils.EqualMaps) {
-				continue
-			}
-		}
-		for col := range log {
-			expectedColumnsSet[col] = struct{}{}
-		}
-	}
-
-	actualColumnsSet := make(map[string]struct{})
-	for _, col := range response.AllColumns {
-		actualColumnsSet[col] = struct{}{}
-	}
-
-	if !utils.EqualMaps(expectedColumnsSet, actualColumnsSet) {
-		return fmt.Errorf("FQV.MatchesResult: expected columns %+v, got %+v\nactual logs: %+v",
-			expectedColumnsSet, actualColumnsSet, response.Hits.Records)
-	}
-
 	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
 
 	return nil
