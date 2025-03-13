@@ -130,7 +130,9 @@ func (qm *queryManager) sendToValidators(logs []map[string]interface{}) {
 }
 
 func (qm *queryManager) moveToRunnable(epoch uint64) {
-	for i, validator := range qm.inProgressQueries {
+	// Iterate backwards so we can remove elements from the slice.
+	for i := len(qm.inProgressQueries) - 1; i >= 0; i-- {
+		validator := qm.inProgressQueries[i]
 		_, _, endEpoch := validator.GetQuery()
 		if endEpoch < epoch {
 			// Move it to runnable, since no future logs will affect the results.
