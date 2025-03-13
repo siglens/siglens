@@ -74,8 +74,8 @@ func (s *WeightedSemaphore) TryAcquireWithBackoff(size int64, retryCount int, jo
 	for i := 0; i < retryCount; i++ {
 		err := s.acquireSingleJob(size, jobId)
 		if err != nil {
-			log.Errorf("WeightedSemaphore.%+s Failed to acquire resources for job %+v semaphore after %+v. Retrying %d more times",
-				s.Name, jobId, s.wait, retryCount-i-1)
+			log.Errorf("%+v, WeightedSemaphore.%+s Failed to acquire resources from semaphore after %+v. Retrying %d more times",
+				jobId, s.Name, s.wait, retryCount-i-1)
 		} else {
 			return nil
 		}

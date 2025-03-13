@@ -41,7 +41,7 @@ func init() {
 	// This can be set to runtime.GoMaxProcs(0)/2 to use half the number of cores. Previously it was set to 5.
 	// But we are setting it to 1 to avoid high memory usage.
 	max := 1
-	metricSearch = semaphore.NewWeightedSemaphore(int64(max), "metricsearch.limiter", time.Minute)
+	metricSearch = semaphore.NewWeightedSemaphore(int64(max), "metricsearch.limiter", 10*time.Second)
 }
 
 func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker.AllMatchedTSIDs, req *structs.MetricsSearchRequest, res *mresults.MetricsResult,
@@ -57,7 +57,7 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		return
 	}
 
-	err := metricSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
+	err := metricSearch.TryAcquireWithBackoff(1, 12, fmt.Sprintf("qid=%d", qid))
 	if err != nil {
 		log.Errorf("qid=%d RawSearchMetricsSegment: Failed to Acquire resources for raw search! error %+v", qid, err)
 		res.AddError(err)
