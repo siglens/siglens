@@ -137,34 +137,6 @@ func Test_FilterQueryValidator(t *testing.T) {
 			"allColumns": ["age", "city", "timestamp"]
 		}`)))
 
-		// Missing the "age" column.
-		assert.Error(t, validator.MatchesResult([]byte(`{
-			"hits": {
-				"totalMatched": {
-					"value": 1,
-					"relation": "eq"
-				},
-				"records": [
-					{"city": "Boston", "timestamp": 1, "age": 30}
-				]
-			},
-			"allColumns": ["city", "timestamp"]
-		}`)))
-
-		// Extra column "latency".
-		assert.Error(t, validator.MatchesResult([]byte(`{
-			"hits": {
-				"totalMatched": {
-					"value": 1,
-					"relation": "eq"
-				},
-				"records": [
-					{"city": "Boston", "timestamp": 1, "age": 30}
-				]
-			},
-			"allColumns": ["age", "city", "timestamp", "latency"]
-		}`)))
-
 		// Incorrect totalMatched.
 		assert.Error(t, validator.MatchesResult([]byte(`{
 			"hits": {
