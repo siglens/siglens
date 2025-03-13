@@ -304,7 +304,9 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			time.Sleep(sleepTime)
 		}
 
-		callback(rawLogs)
+		if callback != nil {
+			callback(rawLogs)
+		}
 
 		SendPerformanceData(rdr)
 
