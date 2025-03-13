@@ -65,15 +65,15 @@ func ProcessMetricsIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	dpCount, numFailedRecords := ingestMetrics(request, myid)
+	dpCount, numFailedDps := ingestMetrics(request, myid)
 	usageStats.UpdateMetricsStats(uint64(len(data)), uint64(dpCount), myid)
 
-	setMetricsIngestionResponse(ctx, dpCount, numFailedRecords)
+	setMetricsIngestionResponse(ctx, dpCount, numFailedDps)
 }
 
 func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int64) (int, int) {
 	dpCount := 0
-	numFailedRecords := 0
+	numFailedDps := 0
 
 	for _, resourceMetrics := range request.ResourceMetrics {
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
@@ -84,13 +84,13 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 					dpCount++
 					data, err := ConvertToOTLPMetricsFormat(metric, int64(metric.TimeUnixNano), float64(metric.Value))
 					if err != nil {
-						numFailedRecords++
+						numFailedDps++
 						log.Errorf("OLTPMetrics: failed to ConvertToOTLPMetricsFormat data=%+v, err=%v", data, err)
 						continue
 					}
 					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
 					if err != nil {
-						numFailedRecords++
+						numFailedDps++
 						log.Errorf("OLTPMetrics: failed to add time series entry for data=%+v, err=%v", data, err)
 					}
 				}
@@ -99,7 +99,7 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 		}
 
 	}
-	return dpCount, numFailedRecords
+	return dpCount, numFailedDps
 }
 
 func unmarshalMetricRequest(data []byte) (*collmetricspb.ExportMetricsServiceRequest, error) {
@@ -113,8 +113,8 @@ func unmarshalMetricRequest(data []byte) (*collmetricspb.ExportMetricsServiceReq
 	return &metrics, nil
 }
 
-func setMetricsIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numFailedRecords int) {
-	if numFailedRecords == 0 {
+func setMetricsIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, numFailedDps int) {
+	if numFailedDps == 0 {
 		response, err := proto.Marshal(&collmetricspb.ExportMetricsServiceRequest{})
 		if err != nil {
 			log.Errorf("setMetricsIngestionResponse: failed to marshal successful response; err=%v", err)
@@ -128,7 +128,7 @@ func setMetricsIngestionResponse(ctx *fasthttp.RequestCtx, numTotalRecords int, 
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			return
 		}
-	} else if numFailedRecords < numTotalRecords {
+	} else if numFailedDps < numTotalRecords {
 		response, err := proto.Marshal(&collmetricspb.ExportMetricsServiceRequest{})
 		if err != nil {
 			log.Errorf("setMetricsIngestionResponse: failed to marshal partially successful response; err=%v", err)
