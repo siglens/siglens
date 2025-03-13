@@ -44,7 +44,7 @@ func manageStateForMetricsQuery(qid uint64, rQuery *query.RunningQueryState, mQu
 
 	for stateData := range rQuery.StateChan {
 		switch stateData.StateName {
-		case query.CANCELLED:
+		case query.CANCELLED, query.TIMEOUT:
 			mQuery.SetQueryIsCancelled()
 			query.DeleteQuery(qid)
 			return
@@ -68,6 +68,7 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
 		}
 	}
+	go manageStateForMetricsQuery(qid, rQuery, mQuery)
 
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
@@ -75,8 +76,6 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 		}
 	}
-
-	go manageStateForMetricsQuery(qid, rQuery, mQuery)
 
 	res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 	rQuery.SendQueryStateComplete()
@@ -102,6 +101,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 				ErrList: []error{toputils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
 			}
 		}
+		go manageStateForMetricsQuery(qid, rQuery, mQuery)
 
 		signal := <-rQuery.StateChan
 		if signal.StateName != query.READY {
@@ -109,8 +109,6 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 				ErrList: []error{toputils.TeeErrorf("qid=%v, ExecuteMultipleMetricsQuery: Did not receive ready state, received: %v", qid, signal.StateName)},
 			}
 		}
-
-		go manageStateForMetricsQuery(qid, rQuery, mQuery)
 
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 
