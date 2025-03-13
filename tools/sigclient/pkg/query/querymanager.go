@@ -19,10 +19,10 @@ package query
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -158,14 +158,7 @@ func (qm *queryManager) getLastEpoch(logs []map[string]interface{}) (uint64, boo
 		return 0, false
 	}
 
-	// Convert to uint64
-	s := fmt.Sprintf("%v", timestamp)
-	epoch, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-
-	return epoch, true
+	return utils.AsUint64(timestamp)
 }
 
 func (qm *queryManager) canRunMore() bool {

@@ -129,7 +129,27 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	f.reversedResults = append(f.reversedResults, log)
 
 	if len(f.reversedResults) > f.head {
-		f.reversedResults = f.reversedResults[1:]
+		lastKeptLog := f.reversedResults[len(f.reversedResults)-f.head]
+		var lastKeptTimestamp uint64
+		if timestamp, ok := lastKeptLog[timestampCol]; !ok {
+			return fmt.Errorf("FQV.HandleLog: missing timestamp column")
+		} else if lastKeptTimestamp, ok = utils.AsUint64(timestamp); !ok {
+			return fmt.Errorf("FQV.HandleLog: invalid timestamp type %T", timestamp)
+		}
+
+		numToDelete := 0
+		for i := range f.reversedResults[:len(f.reversedResults)-f.head] {
+			var thisTimestamp uint64
+			if timestamp, ok := f.reversedResults[i][timestampCol]; !ok {
+				return fmt.Errorf("FQV.HandleLog: missing timestamp column")
+			} else if thisTimestamp, ok = utils.AsUint64(timestamp); !ok {
+				return fmt.Errorf("FQV.HandleLog: invalid timestamp type %T", timestamp)
+			} else if thisTimestamp < lastKeptTimestamp {
+				numToDelete++
+			}
+		}
+
+		f.reversedResults = f.reversedResults[numToDelete:]
 	}
 
 	return nil
@@ -159,9 +179,10 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
 	}
 
-	if response.Hits.TotalMatched.Value != len(f.reversedResults) {
+	numExpectedLogs := min(len(f.reversedResults), f.head)
+	if response.Hits.TotalMatched.Value != numExpectedLogs {
 		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
-			len(f.reversedResults), response.Hits.TotalMatched.Value)
+			numExpectedLogs, response.Hits.TotalMatched.Value)
 	}
 
 	if response.Hits.TotalMatched.Relation != "eq" {
@@ -169,9 +190,9 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 			response.Hits.TotalMatched.Relation)
 	}
 
-	if len(response.Hits.Records) != len(f.reversedResults) {
+	if len(response.Hits.Records) != numExpectedLogs {
 		return fmt.Errorf("FQV.MatchesResult: expected %d actual records, got %d",
-			len(f.reversedResults), len(response.Hits.Records))
+			numExpectedLogs, len(response.Hits.Records))
 	}
 
 	// Parsing json treats all numbers as float64, so we need to convert the logs.
@@ -192,6 +213,12 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	// Compare the columns.
 	expectedColumnsSet := make(map[string]struct{})
 	for _, log := range expectedLogs {
+		if len(expectedLogs) > f.head {
+			// The exact expected logs are ambiguous. Skip logs that weren't in the result.
+			if !utils.SliceContainsItems(response.Hits.Records, []map[string]interface{}{log}, utils.EqualMaps) {
+				continue
+			}
+		}
 		for col := range log {
 			expectedColumnsSet[col] = struct{}{}
 		}
@@ -203,7 +230,8 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	}
 
 	if !utils.EqualMaps(expectedColumnsSet, actualColumnsSet) {
-		return fmt.Errorf("FQV.MatchesResult: expected columns %+v, got %+v", expectedColumnsSet, actualColumnsSet)
+		return fmt.Errorf("FQV.MatchesResult: expected columns %+v, got %+v\nactual logs: %+v",
+			expectedColumnsSet, actualColumnsSet, response.Hits.Records)
 	}
 
 	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
@@ -216,10 +244,6 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 // but it's a valid sorting order; since sorting is on the timestamp, this
 // happens when multiple logs have the same timestamp.
 func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]interface{}) error {
-	if len(expectedLogs) != len(actualLogs) {
-		return fmt.Errorf("logsMatch: expected %d logs, got %d", len(expectedLogs), len(actualLogs))
-	}
-
 	expectedGroups, err := groupBySortColumn(expectedLogs, timestampCol)
 	if err != nil {
 		return fmt.Errorf("logsMatch: failed to group expected logs; err=%v", err)
@@ -235,11 +259,24 @@ func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]in
 			len(expectedGroups), len(actualGroups))
 	}
 
-	for i := range expectedGroups {
+	if len(expectedGroups) == 0 {
+		return nil
+	}
+
+	for i := range expectedGroups[:len(expectedGroups)-1] {
 		if !utils.IsPermutation(expectedGroups[i], actualGroups[i], utils.EqualMaps) {
 			return fmt.Errorf("logsMatch: expected logs in group %v: %+v, got %+v",
 				i, expectedGroups[i], actualGroups[i])
 		}
+	}
+
+	// For the last group, there can be some ambiguity (e.g., the last 3 logs
+	// all have the same timestamp, but 4 logs with that timestamp match the
+	// query, so any 3 of those 4 logs are valid).
+	i := len(expectedGroups) - 1
+	if !utils.SliceContainsItems(expectedGroups[i], actualGroups[i], utils.EqualMaps) {
+		return fmt.Errorf("logsMatch: expected logs in final group: %+v, got %+v",
+			expectedGroups[i], actualGroups[i])
 	}
 
 	return nil
