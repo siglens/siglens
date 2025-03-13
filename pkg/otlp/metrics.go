@@ -65,23 +65,23 @@ func ProcessMetricsIngest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	numTotalRecords, numFailedRecords := ingestMetrics(request, myid)
-	usageStats.UpdateStats(uint64(len(data)), uint64(max(0, numTotalRecords-numFailedRecords)), myid)
+	dpCount, numFailedRecords := ingestMetrics(request, myid)
+	usageStats.UpdateMetricsStats(uint64(len(data)), uint64(dpCount), myid)
 
-	setMetricsIngestionResponse(ctx, numTotalRecords, numFailedRecords)
+	setMetricsIngestionResponse(ctx, dpCount, numFailedRecords)
 }
 
 func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int64) (int, int) {
-	numTotalRecords := 0
+	dpCount := 0
 	numFailedRecords := 0
-	for _, resourceMetrics := range request.ResourceMetrics {
 
+	for _, resourceMetrics := range request.ResourceMetrics {
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
 
 			for _, metrics := range scopeMetrics.Metrics {
 				extractedMetrics := processMetric(metrics)
 				for _, metric := range extractedMetrics {
-					numTotalRecords++
+					dpCount++
 					data, err := ConvertToOTLPMetricsFormat(metric, int64(metric.TimeUnixNano), float64(metric.Value))
 					if err != nil {
 						numFailedRecords++
@@ -99,8 +99,7 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 		}
 
 	}
-
-	return numTotalRecords, numFailedRecords
+	return dpCount, numFailedRecords
 }
 
 func unmarshalMetricRequest(data []byte) (*collmetricspb.ExportMetricsServiceRequest, error) {
