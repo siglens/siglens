@@ -14,10 +14,10 @@ type AuditLog struct {
 	ActionString      string `json:"actionString"`
 	ExtraMsg          string `json:"extraMsg:"`
 	EpochTimestampSec int64  `json:"epochTimestampSec"`
-	OrgId             string `json:"orgId"`
+	OrgId             int64  `json:"orgId"`
 }
 
-func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec int64, orgId string) error {
+func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec, orgId int64) error {
 	audit_log := AuditLog{
 		Username:          username,
 		ActionString:      actionString,
@@ -50,7 +50,7 @@ func CreateAuditEvent(username, actionString, extraMsg string, epochTimestampSec
 	return nil
 }
 
-func ReadAuditEvents(orgId string, startEpochSec, endEpochSec int64) ([]AuditLog, error) {
+func ReadAuditEvents(orgId int64, startEpochSec, endEpochSec int64) ([]AuditLog, error) {
 	file, err := os.Open(auditLogFile)
 	if err != nil {
 		return nil, err

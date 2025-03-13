@@ -31,8 +31,10 @@ import (
 
 	"github.com/imdario/mergo"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/segment/query/colusage"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/utils"
@@ -891,6 +893,23 @@ func RefreshExternalAggsInfo(fNames []string) error {
 func PostPqsClear(ctx *fasthttp.RequestCtx) {
 	ClearPqs()
 	ctx.SetStatusCode(fasthttp.StatusOK)
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("PostPqsClear: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Cleared persistent queries"
+	extraMsg := "All persistent queries and aggregations have been cleared"
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 }
 
 func ClearPqs() {
@@ -942,6 +961,23 @@ func PostPqsAggCols(ctx *fasthttp.RequestCtx) {
 		httpResp.StatusCode = fasthttp.StatusOK
 	}
 	utils.WriteResponse(ctx, httpResp)
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("PostPqsAggCols: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Updated PQS aggregation columns"
+	extraMsg := fmt.Sprintf("Updated aggregation columns with data: %v", readJSON)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 }
 
 func parsePostPqsAggBody(jsonSource map[string]interface{}) error {

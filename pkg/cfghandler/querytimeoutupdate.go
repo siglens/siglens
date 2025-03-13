@@ -21,8 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
@@ -103,6 +106,23 @@ func UpdateQueryTimeout(ctx *fasthttp.RequestCtx) {
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
 	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("UpdateQueryTimeout: failed to extract orgId from context. Err=%+v", err)
+			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Updated query timeout"
+	extraMsg := fmt.Sprintf("New Timeout: %d seconds", cfg.TimeoutSecs)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetContentType("application/json")

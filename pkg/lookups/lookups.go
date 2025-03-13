@@ -24,8 +24,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -123,6 +126,23 @@ func UploadLookupFile(ctx *fasthttp.RequestCtx) {
 	log.Infof("UploadLookupFile: File uploaded successfully: %s", fileName)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	fmt.Fprintf(ctx, "File uploaded successfully: %s", fileName)
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("UploadLookupFile: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Uploaded lookup file"
+	extraMsg := fmt.Sprintf("File Name: %s", fileName)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 }
 
 func GetAllLookupFiles(ctx *fasthttp.RequestCtx) {
@@ -212,4 +232,21 @@ func DeleteLookupFile(ctx *fasthttp.RequestCtx) {
 	response := "Lookup file deleted successfully"
 	utils.WriteJsonResponse(ctx, response)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("DeleteLookupFile: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Deleted lookup file"
+	extraMsg := fmt.Sprintf("File Name: %s", lookupFilename)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 }

@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -507,7 +506,7 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	actionString := "Created dashboard"
 	extraMsg := fmt.Sprintf("Dashboard Name: %s", req.Name)
 
-	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, strconv.FormatInt(orgId, 10))
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 
 	utils.WriteJsonResponse(ctx, dashboardInfo)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -539,6 +538,23 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessFavoriteRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Toggled Dashboard favorite status"
+	extraMsg := fmt.Sprintf("Dashboard ID: %s, New Favorite Status: %t", dId, isFavorite)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 
 	response := map[string]bool{"isFavorite": isFavorite}
 	utils.WriteJsonResponse(ctx, response)
@@ -597,6 +613,23 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessUpdateDashboardRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Updated dashboard"
+	extraMsg := fmt.Sprintf("Dashboard ID: %s, Dashboard Name: %s", dId, dName)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+
 	response := map[string]interface{}{
 		"message":   "Dashboard updated successfully",
 		"dashboard": updatedDashboard,
@@ -627,6 +660,22 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessDeleteDashboardRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Deleted dashboard"
+	extraMsg := fmt.Sprintf("Dashboard ID: %s", dId)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 
 	utils.WriteJsonResponse(ctx, map[string]interface{}{
 		"message": "Dashboard deleted successfully",

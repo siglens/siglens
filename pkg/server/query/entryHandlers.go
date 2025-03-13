@@ -24,6 +24,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/alerts/alertsHandler"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/cfghandler"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/dashboards"
@@ -393,6 +394,23 @@ func postPqsDeleteHandler() func(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		querytracker.PostPqsClear(ctx)
+
+		// Audit log
+		username := "No-user" // TODO: Add logged in user when user auth is implemented
+		var orgId int64
+		if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+			orgId, err = hook(ctx)
+			if err != nil {
+				log.Errorf("postPqsDeleteHandler: failed to extract orgId from context. Err=%+v", err)
+				utils.SetBadMsg(ctx, "")
+				return
+			}
+		}
+		epochTimestampSec := time.Now().Unix()
+		actionString := "Deleted PQS data"
+		extraMsg := "All PQS data has been deleted"
+
+		audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 	}
 }
 

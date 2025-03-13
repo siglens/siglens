@@ -21,16 +21,20 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/imdario/mergo"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -392,6 +396,24 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 		log.Errorf("DeleteUserSavedQuery: Failed to upload query nodes dir  err=%v", err)
 		return
 	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("DeleteUserSavedQuery: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Deleted user saved query"
+	extraMsg := fmt.Sprintf("Query Name: %s", queryName)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
@@ -495,6 +517,24 @@ func SaveUserQueries(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 	log.Infof("SaveUserQueries: successfully written query %v to file ", qname)
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("SaveUserQueries: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Saved user query"
+	extraMsg := fmt.Sprintf("Query Name: %s", qname)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 

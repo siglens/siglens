@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -818,6 +820,23 @@ func ProcessCreateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessCreateFolderRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Created folder"
+	extraMsg := fmt.Sprintf("Folder Name: %s, Folder ID: %s", req.Name, folderID)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+
 	response := map[string]string{
 		"id":      folderID,
 		"message": "Folder created successfully",
@@ -867,6 +886,24 @@ func ProcessUpdateFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessUpdateFolderRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Updated folder"
+	extraMsg := fmt.Sprintf("Folder ID: %s, New Name: %s", folderID, req.Name)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+
 	response := map[string]string{
 		"message": "Folder updated successfully",
 	}
@@ -886,6 +923,24 @@ func ProcessDeleteFolderRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		utils.SetBadMsg(ctx, err.Error())
 		return
 	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessDeleteFolderRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Deleted folder"
+	extraMsg := fmt.Sprintf("Folder ID: %s", folderID)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 
 	response := map[string]string{
 		"message": "Folder and its contents deleted successfully",

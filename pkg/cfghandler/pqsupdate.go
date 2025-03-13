@@ -21,8 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/querytracker"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -67,6 +70,23 @@ func PostPqsUpdate(ctx *fasthttp.RequestCtx) {
 		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
 	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("PostPqsUpdate: failed to extract orgId from context. Err=%+v", err)
+			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Updated PQS configuration"
+	extraMsg := fmt.Sprintf("PQS Enabled: %t", cfg.PQSEnabled)
+
+	audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	ctx.SetContentType("application/json")
