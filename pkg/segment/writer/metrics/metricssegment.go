@@ -19,10 +19,8 @@ package metrics
 
 import (
 	"bytes"
-	"encoding/csv"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"path"
@@ -810,127 +808,6 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 	log.Errorf(err.Error())
 
 	return nil, dpVal, 0, err
-}
-
-// for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
-// Call the EncodeDatapoint function to add the datapoint to the respective series
-// Return the number of datapoints ingested and any errors encountered
-func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid int64) (uint32, []error) {
-	var ts uint32 = uint32(time.Now().Unix())
-	var measurement string
-
-	ingestedCount := uint32(0)
-	errors := make([]error, 0)
-
-	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
-	inserted_tags := ""
-
-	size := uint64(len(rawCSV))
-
-	for {
-		record, err := reader.Read()
-		if err != nil {
-			// If there is an error, check if it's EOF
-			if err == io.EOF {
-				break // End of file
-			}
-
-			log.Errorf("ExtractInfluxPayloadAndInsertDp: failed to read raw csv: %+v, error: %+v", rawCSV, err)
-			errors = append(errors, err)
-			return 0, errors
-
-		} else {
-			line := strings.Join(record, ",")
-			whitespace_split := strings.Fields(line)
-			tag_set := strings.Split(whitespace_split[0], ",")
-			field_set := strings.Split(whitespace_split[1], ",")
-			if len(whitespace_split) > 2 {
-				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
-				if err != nil {
-					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp to an int: %+v, error: %+v", whitespace_split[2], err)
-				} else {
-					ts = uint32(tsNano / 1_000_000_000)
-				}
-			}
-			for index, value := range tag_set {
-				if index == 0 {
-					// db/measurement name
-					measurement = value
-					continue
-				} else {
-					kvPair := strings.Split(value, "=")
-					if len(kvPair) < 2 {
-						log.Errorf("ExtractInfluxPayload: tag set pair %v is invalid (expected key=value)", value)
-						errors = append(errors, fmt.Errorf("tag %v is not a key=value pair", value))
-						continue
-					}
-					key := kvPair[0]
-					value = kvPair[1]
-					tags.Insert(key, []byte(value), jp.String)
-					inserted_tags += key + "," + value + " "
-
-				}
-			}
-
-			for _, metricValueSet := range field_set {
-				kvPair := strings.Split(metricValueSet, "=")
-				if len(kvPair) < 2 {
-					log.Errorf("ExtractInfluxPayload: metric pair %v is invalid (expected key=value)", metricValueSet)
-					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
-					continue
-				}
-				metricName := fmt.Sprintf(`%s_%s`, measurement, kvPair[0])
-				metricValue := kvPair[1]
-
-				parsedVal, err := parseInfluxValue(metricValue)
-				if err != nil {
-					errors = append(errors, err)
-					continue
-				}
-
-				err = EncodeDatapoint([]byte(metricName), tags, parsedVal, ts, size, orgid)
-				if err != nil {
-					errors = append(errors, err)
-					continue
-				} else {
-					size = 0
-					ingestedCount++
-				}
-			}
-
-		}
-
-	}
-
-	return ingestedCount, errors
-}
-
-func parseInfluxValue(value string) (float64, error) {
-	fltVal, err := strconv.ParseFloat(value, 64)
-	if err == nil {
-		return fltVal, nil
-	}
-
-	// parse the value as a integer.
-	lastChar := value[len(value)-1:]
-	if lastChar == "i" || lastChar == "u" {
-		intVal, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
-		if err == nil {
-			return float64(intVal), nil
-		}
-	}
-
-	// parse the value as a boolean.
-	tempVal := strings.ToLower(value)
-	if tempVal == "t" || tempVal == "true" {
-		return 1, nil
-	} else if tempVal == "f" || tempVal == "false" {
-		return 0, nil
-	}
-
-	err = fmt.Errorf("parseInfluxValue: value %v is not a valid float, int, or bool", value)
-	log.Errorf(err.Error())
-	return 0, err
 }
 
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder
