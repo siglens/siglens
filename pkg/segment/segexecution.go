@@ -37,7 +37,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func manageStateForMetricsQuery(rQuery *query.RunningQueryState, mQuery *structs.MetricsQuery) {
+func manageStateForMetricsQuery(qid uint64, rQuery *query.RunningQueryState, mQuery *structs.MetricsQuery) {
 	if rQuery == nil {
 		return
 	}
@@ -46,8 +46,10 @@ func manageStateForMetricsQuery(rQuery *query.RunningQueryState, mQuery *structs
 		switch stateData.StateName {
 		case query.CANCELLED:
 			mQuery.SetQueryIsCancelled()
+			query.DeleteQuery(qid)
 			return
 		case query.ERROR, query.COMPLETE:
+			query.DeleteQuery(qid)
 			return
 		default:
 			// do nothing
@@ -74,10 +76,9 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 		}
 	}
 
-	go manageStateForMetricsQuery(rQuery, mQuery)
+	go manageStateForMetricsQuery(qid, rQuery, mQuery)
 
 	res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
-	query.DeleteQuery(qid)
 	rQuery.SendQueryStateComplete()
 	querySummary.IncrementNumResultSeries(res.GetNumSeries())
 	return res
@@ -109,7 +110,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 			}
 		}
 
-		go manageStateForMetricsQuery(rQuery, mQuery)
+		go manageStateForMetricsQuery(qid, rQuery, mQuery)
 
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
 
@@ -120,7 +121,6 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 			}
 		}
 
-		query.DeleteQuery(qid)
 		rQuery.SendQueryStateComplete()
 		querySummary.IncrementNumResultSeries(res.GetNumSeries())
 		qid = rutils.GetNextQid()
