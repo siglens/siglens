@@ -2983,42 +2983,46 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     transition: transform 0.3s ease;
 }
 
-/* Light theme styling */
-[data-theme='light'] .svg-outer-rect {
+[data-theme='light'] .expand-svg-button svg rect:first-child {
     fill: var(--icon-bg-color, black);
 }
 
-[data-theme='light'] .svg-inner-rect {
+[data-theme='light'] .expand-svg-button svg rect:nth-child(2) {
     fill: var(--icon-inner-bg-color, white);
 }
 
-[data-theme='light'] .svg-path {
+[data-theme='light'] .expand-svg-button svg path {
     stroke: var(--icon-arrow-color, black);
 }
 
-
 [data-theme='dark'] .svg-outer-rect {
-    fill: rgba(178, 178, 178, 0.991);
+    fill: var(--icon-bg-hover, rgba(178, 178, 178, 0.991))
 }
 
 [data-theme='dark'] .svg-inner-rect {
-    fill: black;
+    fill: var(--icon-inner-bg-hover, black);
 }
 
 [data-theme='dark'] .svg-path {
-    stroke:var(--icon-arrow-color, rgba(178, 178, 178, 0.991)) ;
+    stroke: var(--icon-arrow-color, rgba(178, 178, 178, 0.991)) ;
 }
 
-.expand-svg-button:hover svg rect:first-child {
+.expand-svg-button:hover svg rect:first-child,
+.expand-svg-button:hover .svg-outer-rect {
     fill: var(--icon-bg-hover, var(--purple-2));
 }
 
-.expand-svg-button:hover svg rect:nth-child(2) {
+.expand-svg-button:hover svg path,
+.expand-svg-button:hover .svg-path {
+    stroke: var(--icon-arrow-hover, var(--purple-2));
+}
+
+[data-theme='light'] .expand-svg-button:hover svg rect:nth-child(2) {
     fill: var(--icon-inner-bg-hover, #f0f0f0);
 }
 
-.expand-svg-button:hover svg path {
-    stroke: var(--icon-arrow-hover, var(--purple-2));
+[data-theme='dark'] .expand-svg-button:hover  .svg-inner-rect{
+    fill: var(--icon-inner-bg-hover, var(--myOrg-input));
 }
 
 .odd-popup-textarea {
@@ -6663,13 +6667,12 @@ p#versionInfo {
     overflow: hidden;
 }
 
- .custom-chart-container.full-width {
-    display: flex;
-    /* flex-direction: column; */
+.custom-chart-tab.expanded {
+    width: 100%;
 }
 
-.custom-chart-tab.expanded {
-    flex: 100%;
+.custom-chart-container.full-width {
+    padding-left: 0;
 }
 
 .json-popup {
@@ -6937,8 +6940,7 @@ p#versionInfo {
 }
 
 .fields-sidebar.hidden {
-    width: 0;
-    display: none;
+    display: none !important;
 }
 
 .fields-section {
