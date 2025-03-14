@@ -160,6 +160,11 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 type logsResponse struct {
 	Hits       hits     `json:"hits"`
 	AllColumns []string `json:"allColumns"`
+
+	// Used for aggregation queries.
+	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
+	Measure          []measureResult `json:"measure,omitempty"`
+	BucketCount      int             `json:"bucketCount,omitempty"`
 }
 
 type hits struct {
@@ -170,6 +175,11 @@ type hits struct {
 type totalMatched struct {
 	Value    int    `json:"value"`
 	Relation string `json:"relation"`
+}
+
+type measureResult struct {
+	GroupByValues []string               `json:"GroupByValues"`
+	Value         map[string]interface{} `json:"MeasureVal"`
 }
 
 func (f *filterQueryValidator) MatchesResult(result []byte) error {
