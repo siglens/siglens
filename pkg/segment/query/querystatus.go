@@ -431,21 +431,26 @@ func getNextWaitStateData() *WaitStateData {
 	return wsData
 }
 
-func PullQueriesToRun() {
+func PullQueriesToRun(ctx context.Context) {
 	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
 	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
 
 	for {
-		if canRunQuery() {
-			wsData := getNextWaitStateData()
-			if wsData == nil {
-				time.Sleep(PULL_QUERY_INTERVAL)
-				continue
+		select {
+		case <-ctx.Done():
+			log.Info("PullQueriesToRun exiting")
+			return
+		default:
+			if canRunQuery() {
+				wsData := getNextWaitStateData()
+				if wsData == nil {
+					time.Sleep(PULL_QUERY_INTERVAL)
+					continue
+				}
+				initiateRunQuery(wsData, segmentsRLockFunc, segmentsRUnlockFunc)
 			}
-
-			initiateRunQuery(wsData, segmentsRLockFunc, segmentsRUnlockFunc)
+			time.Sleep(PULL_QUERY_INTERVAL)
 		}
-		time.Sleep(PULL_QUERY_INTERVAL)
 	}
 }
 

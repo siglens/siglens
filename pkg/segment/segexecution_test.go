@@ -18,6 +18,7 @@
 package segment
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -177,7 +178,9 @@ func getMyIds() []int64 {
 }
 
 func Test_Query(t *testing.T) {
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	dir := t.TempDir()
 	t.Cleanup(func() { os.RemoveAll(dir) })
@@ -202,7 +205,9 @@ func Test_Query(t *testing.T) {
 }
 
 func Test_Scroll(t *testing.T) {
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	dir := t.TempDir()
 	t.Cleanup(func() { os.RemoveAll(dir) })
@@ -225,7 +230,9 @@ func Test_Scroll(t *testing.T) {
 }
 
 func Test_unrotatedQuery(t *testing.T) {
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	t.Cleanup(func() { os.RemoveAll(config.GetDataPath()) })
 
