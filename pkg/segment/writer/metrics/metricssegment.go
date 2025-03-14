@@ -1092,7 +1092,7 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 func (mb *MetricsBlock) flushBlock(basePath string, suffix uint64, bufId uint16) error {
 	finalPath := fmt.Sprintf("%s%d_%d", basePath, suffix, bufId)
 	fName := fmt.Sprintf("%s%d.mbsu", basePath, suffix)
-	_, err := mb.mBlockSummary.FlushSummary(fName)
+	err := mb.mBlockSummary.FlushSummary(fName)
 	if err != nil {
 		log.Errorf("MetricsBlock.flushBlock: Failed to write metrics block summary for block at %s, err=%v", finalPath, err)
 		return err
