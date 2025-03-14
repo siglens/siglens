@@ -164,7 +164,6 @@ type logsResponse struct {
 	// Used for aggregation queries.
 	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
 	Measure          []measureResult `json:"measure,omitempty"`
-	BucketCount      int             `json:"bucketCount,omitempty"`
 }
 
 type hits struct {

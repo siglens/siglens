@@ -363,8 +363,7 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": ["*"],
 					"MeasureVal": {"count(*)": 0}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
 	})
 
@@ -386,8 +385,7 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": ["*"],
 					"MeasureVal": {"count(*)": 4}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
 	})
 
@@ -410,8 +408,7 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": ["*"],
 					"MeasureVal": {"count(*)": 4}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
 
 		// Bad allColumns.
@@ -427,8 +424,7 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": ["*"],
 					"MeasureVal": {"count(*)": 4}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
 
 		// Bad measureFunctions.
@@ -444,8 +440,7 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": ["*"],
 					"MeasureVal": {"count(*)": 4}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
 
 		// Bad GroupByValues.
@@ -461,8 +456,7 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": [""],
 					"MeasureVal": {"count(*)": 4}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
 
 		// Bad MeasureVal.
@@ -478,10 +472,8 @@ func Test_CountQueryValidator(t *testing.T) {
 			"measure": [{
 					"GroupByValues": ["*"],
 					"MeasureVal": {"count(*)": 42}
-			}],
-			"bucketCount": 1
+			}]
 		}`)))
-
 	})
 }
 
