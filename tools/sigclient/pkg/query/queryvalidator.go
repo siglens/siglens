@@ -420,5 +420,15 @@ func (c *countQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("CQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
 	}
 
-	panic("not implemented")
+	if response.Hits.TotalMatched.Value != c.numMatches {
+		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
+			c.numMatches, response.Hits.TotalMatched.Value)
+	}
+
+	if response.Hits.TotalMatched.Relation != "eq" {
+		return fmt.Errorf("FQV.MatchesResult: expected relation to be eq, got %s",
+			response.Hits.TotalMatched.Relation)
+	}
+
+	return nil
 }
