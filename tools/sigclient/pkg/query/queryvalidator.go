@@ -339,3 +339,76 @@ func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
 
 	return newLog
 }
+
+type countQueryValidator struct {
+	basicValidator
+	key        string
+	value      string
+	numMatches int
+	lock       sync.Mutex
+}
+
+func NewCountQueryValidator(key string, value string, startEpoch uint64,
+	endEpoch uint64) (queryValidator, error) {
+
+	return &countQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch: startEpoch,
+			endEpoch:   endEpoch,
+			query:      fmt.Sprintf("%v=%v | stats count", key, value),
+		},
+		key:        key,
+		value:      value,
+		numMatches: 0,
+	}, nil
+}
+
+func (c *countQueryValidator) Copy() queryValidator {
+	return &countQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch: c.startEpoch,
+			endEpoch:   c.endEpoch,
+			query:      c.query,
+		},
+		key:        c.key,
+		value:      c.value,
+		numMatches: c.numMatches,
+	}
+}
+
+func (c *countQueryValidator) Info() string {
+	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v results",
+		c.query, duration, c.startEpoch, c.endEpoch, c.numMatches)
+}
+
+func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
+	if !withinTimeRange(log, c.startEpoch, c.endEpoch) {
+		return nil
+	}
+
+	value, ok := log[c.key]
+	if !ok || value != fmt.Sprintf("%v", c.value) {
+		return nil
+	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.numMatches++
+
+	return nil
+}
+
+func (c *countQueryValidator) MatchesResult(result []byte) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	response := logsResponse{}
+	if err := json.Unmarshal(result, &response); err != nil {
+		return fmt.Errorf("CQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
+	}
+
+	panic("not implemented")
+}
