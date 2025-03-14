@@ -178,7 +178,7 @@ func (qs *QuerySummary) tickWatcher() {
 			} else if qs.queryType == METRICS {
 				log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v",
 					qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
-					qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), qs.getNumTSGFilesLoaded())
+					qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded())
 			}
 		}
 	}
