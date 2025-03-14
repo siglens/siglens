@@ -24,8 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_implmentsQueryValidator(t *testing.T) {
+func Test_implementsQueryValidator(t *testing.T) {
 	var _ queryValidator = &filterQueryValidator{}
+	var _ queryValidator = &countQueryValidator{}
 }
 
 func Test_FilterQueryValidator(t *testing.T) {
@@ -334,6 +335,145 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}()
 
 		waitGroup.Wait()
+	})
+}
+
+func Test_CountQueryValidator(t *testing.T) {
+	logs := []map[string]interface{}{
+		{"city": "Boston", "timestamp": uint64(1), "age": 30},
+		{"city": "Boston", "timestamp": uint64(2), "age": 36},
+		{"city": "New York", "timestamp": uint64(3), "age": 22},
+		{"city": "Boston", "timestamp": uint64(4), "age": 22},
+		{"city": "Boston", "timestamp": uint64(5), "latency": 100},
+	}
+
+	t.Run("NoMatches", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		assert.NoError(t, err)
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 0,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 0}
+			}]
+		}`)))
+	})
+
+	t.Run("SomeMatches", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+	})
+
+	t.Run("BadResponse", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// Incorrect totalMatched.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 2,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+
+		// Bad allColumns.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["total"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+
+		// Bad measureFunctions.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["someFunc"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+
+		// Bad GroupByValues.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": [""],
+					"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+
+		// Bad MeasureVal.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 42}
+			}]
+		}`)))
 	})
 }
 
