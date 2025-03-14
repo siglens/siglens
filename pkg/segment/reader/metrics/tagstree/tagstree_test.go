@@ -172,7 +172,6 @@ func verifyMetric(t *testing.T, attr *AllTagTreeReaders, metricName string,
 	hashedMname := xxhash.Sum64String(metricName)
 	hashedTagVal := xxhash.Sum64String(tagValue)
 
-
 	exists, tagValExists, rawTagValueToTSIDs, retTagVal, err := attr.GetMatchingTSIDsOrCount(hashedMname, tagKey, hashedTagVal, segutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
@@ -206,8 +205,6 @@ func writeScaledMockMetrics(t *testing.T, forceRotate bool,
 
 	return retVal, nil
 }
-
-
 
 func numTSIDs(rawTagValueToTSIDs map[string]map[uint64]struct{}) int {
 	total := 0
