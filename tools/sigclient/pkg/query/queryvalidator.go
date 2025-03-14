@@ -110,7 +110,7 @@ func (f *filterQueryValidator) Info() string {
 	duration := time.Duration(f.endEpoch-f.startEpoch) * time.Millisecond
 	numResults := min(len(f.reversedResults), f.head)
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v results",
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
 		f.query, duration, f.startEpoch, f.endEpoch, numResults)
 }
 
@@ -388,7 +388,7 @@ func (c *countQueryValidator) Copy() queryValidator {
 func (c *countQueryValidator) Info() string {
 	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v results",
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
 		c.query, duration, c.startEpoch, c.endEpoch, c.numMatches)
 }
 
