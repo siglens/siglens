@@ -359,6 +359,35 @@ func Test_CountQueryValidator(t *testing.T) {
 			"bucketCount": 1
 		}`)))
 	})
+
+	t.Run("SomeMatches", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, []map[string]interface{}{
+			{"city": "Boston", "timestamp": uint64(1), "age": 30},
+			{"city": "Boston", "timestamp": uint64(2), "age": 36},
+			{"city": "New York", "timestamp": uint64(3), "age": 22},
+			{"city": "Boston", "timestamp": uint64(4), "age": 22},
+			{"city": "Boston", "timestamp": uint64(5), "latency": 100},
+		})
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 4}
+			}],
+			"bucketCount": 1
+		}`)))
+	})
 }
 
 func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
