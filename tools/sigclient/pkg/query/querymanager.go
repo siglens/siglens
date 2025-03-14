@@ -18,7 +18,6 @@
 package query
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -130,7 +129,9 @@ func (qm *queryManager) sendToValidators(logs []map[string]interface{}) {
 }
 
 func (qm *queryManager) moveToRunnable(epoch uint64) {
-	for i, validator := range qm.inProgressQueries {
+	// Iterate backwards so we can remove elements from the slice.
+	for i := len(qm.inProgressQueries) - 1; i >= 0; i-- {
+		validator := qm.inProgressQueries[i]
 		_, _, endEpoch := validator.GetQuery()
 		if endEpoch < epoch {
 			// Move it to runnable, since no future logs will affect the results.
@@ -187,7 +188,7 @@ func (qm *queryManager) startQueries() {
 
 func (qm *queryManager) runQuery(validator queryValidator) {
 	query, startEpoch, endEpoch := validator.GetQuery()
-	queryInfo := fmt.Sprintf("query=%v, startEpoch=%v, endEpoch=%v", query, startEpoch, endEpoch)
+	queryInfo := validator.Info()
 	result, err := sendSplunkQuery(qm.url, query, startEpoch, endEpoch)
 	if err != nil {
 		log.Fatalf("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)

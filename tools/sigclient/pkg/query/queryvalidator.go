@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 	"verifier/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
@@ -36,16 +37,13 @@ type queryValidator interface {
 	SetTimeRange(startEpoch uint64, endEpoch uint64)
 	MatchesResult(jsonResult []byte) error
 	PastEndTime(timestamp uint64) bool
+	Info() string
 }
 
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
 	query      string
-}
-
-func (b *basicValidator) HandleLog(log map[string]interface{}) error {
-	return fmt.Errorf("basicValidator.HandleLog: not implemented")
 }
 
 func (b *basicValidator) GetQuery() (string, uint64, uint64) {
@@ -55,10 +53,6 @@ func (b *basicValidator) GetQuery() (string, uint64, uint64) {
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
 	b.startEpoch = startEpoch
 	b.endEpoch = endEpoch
-}
-
-func (b *basicValidator) MatchesResult(result []byte) error {
-	return fmt.Errorf("basicValidator.MatchesResult: not implemented")
 }
 
 func (b *basicValidator) PastEndTime(timestamp uint64) bool {
@@ -110,6 +104,14 @@ func (f *filterQueryValidator) Copy() queryValidator {
 		head:            f.head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}
+}
+
+func (f *filterQueryValidator) Info() string {
+	duration := time.Duration(f.endEpoch-f.startEpoch) * time.Millisecond
+	numResults := min(len(f.reversedResults), f.head)
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v results",
+		f.query, duration, f.startEpoch, f.endEpoch, numResults)
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
@@ -209,8 +211,6 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	if err != nil {
 		return err
 	}
-
-	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
 
 	return nil
 }
