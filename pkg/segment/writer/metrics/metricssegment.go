@@ -31,7 +31,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -116,24 +115,23 @@ The tagsTree will be shared across metrics this metrics segment.
 A metrics segment generate the following set of files:
   - A tagTree file for each incoming tagKey seen across this segment
   - A metricsBlock file for each incoming 15minute window
-  - A bloomfilter for all metric names in the metrics segment
+  - A map for all metric names in the metrics segment
 
 TODO: this metrics segment should reject samples not in 2hr window
 */
 type MetricsSegment struct {
-	metricsKeyBase  string             // base string of this metric segment's key
-	Suffix          uint64             // current suffix
-	Mid             string             // metrics id for this metric segment
-	highTS          uint32             // highest epoch timestamp seen across this segment
-	lowTS           uint32             // lowest epoch timestamp seen across this segment
-	mBlock          *MetricsBlock      // current in memory block
-	currBlockNum    uint16             // current block number
-	mNamesBloom     *bloom.BloomFilter // all metric names bloom across segment
-	mNamesMap       map[string]bool    // all metric names seen across segment
-	mSegEncodedSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
-	bytesReceived   uint64             // total size of incoming data
-	rwLock          *sync.RWMutex      // read write lock for access
-	datapointCount  uint64             // total number of datapoints across all series in the block
+	metricsKeyBase  string          // base string of this metric segment's key
+	Suffix          uint64          // current suffix
+	Mid             string          // metrics id for this metric segment
+	highTS          uint32          // highest epoch timestamp seen across this segment
+	lowTS           uint32          // lowest epoch timestamp seen across this segment
+	mBlock          *MetricsBlock   // current in memory block
+	currBlockNum    uint16          // current block number
+	mNamesMap       map[string]bool // all metric names seen across segment
+	mSegEncodedSize uint64          // total size of all metric blocks. TODO: this should include tagsTree & mNames
+	bytesReceived   uint64          // total size of incoming data
+	rwLock          *sync.RWMutex   // read write lock for access
+	datapointCount  uint64          // total number of datapoints across all series in the block
 	Orgid           int64
 }
 
@@ -358,7 +356,6 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 		return nil, err
 	}
 	return &MetricsSegment{
-		mNamesBloom:  bloom.NewWithEstimates(1000, 0.001),
 		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
@@ -433,10 +430,6 @@ func initTimeSeries(tsid uint64, dp float64, timestamp uint32) (*TimeSeries, uin
 	return ts, writtenBytes, nil
 }
 
-func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
-	ms.mNamesBloom.Add(mName)
-}
-
 func (ms *MetricsSegment) LoadMetricNamesIntoMap(resultContainer map[string]bool) {
 	ms.rwLock.RLock()
 	defer ms.rwLock.RUnlock()
@@ -477,8 +470,6 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		log.Errorf("EncodeDatapoint: got nil metrics segment for metric=%s, orgid=%v", mName, orgid)
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
-
-	mSeg.AddMNameToBloom(mName)
 
 	mSeg.rwLock.Lock()
 	mSeg.mNamesMap[string(mName)] = true
@@ -1134,17 +1125,12 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 }
 
 /*
-Flushes the metrics segment's tags tree, mNames bloom
+Flushes the metrics segment's tags tree, mNames
 
 This function assumes that the prior metricssBlock has alraedy been rotated/reset
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
-	err = ms.FlushMetricNamesBloom()
-	if err != nil {
-		log.Errorf("rotateSegment: failed to flush metric names bloom for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
-		return err
-	}
 	err = ms.FlushMetricNames()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
@@ -1176,7 +1162,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 			log.Errorf("rotateSegment: failed to get next base key for metric ID %s, orgid=%v, err %+v", ms.Mid, ms.Orgid, err)
 			return err
 		}
-		mNamesCount := uint(len(ms.mNamesMap))
 		for k := range ms.mNamesMap {
 			delete(ms.mNamesMap, k)
 		}
@@ -1186,7 +1171,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001)
 		ms.mSegEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1203,14 +1187,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 }
 
 // This is a mock function and is only used during tests.
-func (ms *MetricsSegment) SetMockMetricSegmentMNamesBloom() string {
-	ms.mNamesBloom = bloom.NewWithEstimates(100_000, 0.001)
-	ms.metricsKeyBase = "./testMockMetric"
-	ms.Suffix = uint64(0)
-	return fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
-}
-
-// This is a mock function and is only used during tests.
 func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNameBase string) string {
 	ms.mNamesMap = make(map[string]bool)
 	ms.metricsKeyBase = "./testMockMetric"
@@ -1219,34 +1195,6 @@ func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNam
 		ms.mNamesMap[fmt.Sprintf("%s_%d", mNameBase, i)] = true
 	}
 	return fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
-}
-
-func (ms *MetricsSegment) FlushMetricNamesBloom() error {
-	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
-
-	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Errorf("FlushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
-		return err
-	}
-
-	defer fd.Close()
-
-	// version
-	_, err = fd.Write([]byte{1})
-	if err != nil {
-		log.Errorf("FlushMetricNamesBloom: failed to write version err=%v", err)
-		return err
-	}
-
-	// write the blockBloom
-	_, err = ms.mNamesBloom.WriteTo(fd)
-	if err != nil {
-		log.Errorf("FlushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
-		return err
-	}
-
-	return nil
 }
 
 /*
