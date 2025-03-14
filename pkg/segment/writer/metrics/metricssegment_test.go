@@ -55,7 +55,7 @@ func writeMockMetricsBlockSummaryFile(file string, blockSums []*structs.MBlockSu
 			HighTs: block.HighTs,
 			LowTs:  block.LowTs,
 			Blknum: block.Blknum}
-		_, err = mbs.FlushSummary(file)
+		err = mbs.FlushSummary(file)
 		if err != nil {
 			log.Errorf("WriteMockMetricsBlockSummary: Failed to write in file at %v, err: %v", file, err)
 			return err
