@@ -29,6 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/hooks"
 	lokilog "github.com/siglens/siglens/pkg/integrations/loki/log"
 	segwriter "github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/usageStats"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -41,11 +42,11 @@ const (
 	LOKIINDEX = "loki-index"
 )
 
-func parseLabels(labelsString string) map[string]string {
+func parseLabels(labelsString string) map[string]interface{} {
 	labelsString = strings.Trim(labelsString, "{}")
 	labelPairs := strings.Split(labelsString, ", ")
 
-	labels := make(map[string]string)
+	labels := make(map[string]interface{})
 
 	for _, pair := range labelPairs {
 		parts := strings.Split(pair, "=")
@@ -138,7 +139,6 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	}
 
 	streams := jsonData["streams"]
-	allIngestData := make(map[string]interface{})
 
 	idxToStreamIdCache := make(map[string]string)
 	cnameCacheByteHashToStr := make(map[uint64]string)
@@ -149,14 +149,20 @@ func processPromtailLogs(ctx *fasthttp.RequestCtx, myid int64) {
 	pleArray := make([]*segwriter.ParsedLogEvent, 0)
 	defer segwriter.ReleasePLEs(pleArray)
 
+	// this loop just so that we can count what we have received
+	receivedLogLineCount := uint64(0)
+	for _, stream := range streams {
+		entries, ok := stream["entries"].([]interface{})
+		if ok {
+			receivedLogLineCount += uint64(len(entries))
+		}
+	}
+
+	usageStats.UpdateStats(uint64(len(logJson)), receivedLogLineCount, myid)
+
 	for _, stream := range streams {
 		labels := stream["labels"].(string)
-		ingestCommonFields := parseLabels(labels)
-
-		// Note: We might not need separate filename and job fields in the future
-		allIngestData["filename"] = ingestCommonFields["filename"]
-		allIngestData["job"] = ingestCommonFields["job"]
-		allIngestData["labels"] = labels
+		allIngestData := parseLabels(labels)
 
 		entries, ok := stream["entries"].([]interface{})
 		if !ok {

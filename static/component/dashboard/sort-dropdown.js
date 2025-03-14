@@ -51,7 +51,7 @@ class SortDropdown {
                     <i class="dropdown-arrow"></i>
                     <span class="clear-sort" style="display: none; margin-left: 8px; cursor: pointer;">✕</span>
                 </button>
-                <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">
+                <div class="dropdown-menu box-shadow dropdown-menu-style" style="width: 140px;">
                     <li class="dropdown-option" data-sort="alpha-asc">Alphabetically (A-Z)</li>
                     <li class="dropdown-option" data-sort="alpha-desc">Alphabetically (Z-A)</li>
                     <li class="dropdown-option" data-sort="created-desc">Newest First</li>

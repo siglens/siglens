@@ -454,6 +454,12 @@ const (
 	LabelReplace
 )
 
+type HistogramFunctions int
+
+const (
+	HistogramQuantile HistogramFunctions = iota + 1
+)
+
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
 // For columns only used by aggs without eval statements, we should not keep their raw values because it is a waste of performance
 // If we only use two modes. Later occurring aggs will overwrite earlier occurring aggs' usage status. E.g. stats dc(eval(lower(state))), dc(state)
@@ -1594,7 +1600,6 @@ const (
 	SIGNAL_METRICS_OTSDB      = 1
 	SIGNAL_EVENTS             = 2
 	SIGNAL_JAEGER_TRACES      = 3
-	SIGNAL_METRICS_INFLUX     = 4
 	SIGNAL_METRICS_PROMETHEUS = 5
 	SIGNAL_METRICS_OTLP       = 6
 )
