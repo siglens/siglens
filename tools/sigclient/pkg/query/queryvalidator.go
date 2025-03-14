@@ -421,13 +421,48 @@ func (c *countQueryValidator) MatchesResult(result []byte) error {
 	}
 
 	if response.Hits.TotalMatched.Value != c.numMatches {
-		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
+		return fmt.Errorf("CQV.MatchesResult: expected %d logs, got %d",
 			c.numMatches, response.Hits.TotalMatched.Value)
 	}
 
 	if response.Hits.TotalMatched.Relation != "eq" {
-		return fmt.Errorf("FQV.MatchesResult: expected relation to be eq, got %s",
+		return fmt.Errorf("CQV.MatchesResult: expected relation to be eq, got %s",
 			response.Hits.TotalMatched.Relation)
+	}
+
+	if len(response.AllColumns) != 1 || response.AllColumns[0] != "count(*)" {
+		return fmt.Errorf("CQV.MatchesResult: expected allColumns to be [count(*)], got %v",
+			response.AllColumns)
+	}
+
+	if len(response.MeasureFunctions) != 1 || response.MeasureFunctions[0] != "count(*)" {
+		return fmt.Errorf("CQV.MatchesResult: expected measureFunctions to be [count(*)], got %v",
+			response.MeasureFunctions)
+	}
+
+	if len(response.Measure) != 1 {
+		return fmt.Errorf("CQV.MatchesResult: expected 1 measure, got %d", len(response.Measure))
+	}
+
+	measure := response.Measure[0]
+	if len(measure.GroupByValues) != 1 || measure.GroupByValues[0] != "*" {
+		return fmt.Errorf("CQV.MatchesResult: expected groupByValues to be [*], got %v",
+			measure.GroupByValues)
+	}
+
+	if len(measure.Value) != 1 {
+		return fmt.Errorf("CQV.MatchesResult: expected 1 value, got %d", len(measure.Value))
+	}
+
+	if count, ok := measure.Value["count(*)"]; !ok {
+		return fmt.Errorf("CQV.MatchesResult: expected measure[0] to have key count(*), got %v",
+			measure.Value)
+	} else if countUint, ok := utils.AsUint64(count); !ok {
+		return fmt.Errorf("CQV.MatchesResult: invalid count type %T in measure[0] value %v",
+			count, measure.Value)
+	} else if countUint != uint64(c.numMatches) {
+		return fmt.Errorf("CQV.MatchesResult: expected measure[0] count to be %d, got %d",
+			c.numMatches, countUint)
 	}
 
 	return nil
