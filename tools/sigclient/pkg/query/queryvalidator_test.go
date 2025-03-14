@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_implmentsQueryValidator(t *testing.T) {
+func Test_implementsQueryValidator(t *testing.T) {
 	var _ queryValidator = &filterQueryValidator{}
 	var _ queryValidator = &countQueryValidator{}
 }
