@@ -366,7 +366,6 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 
 		attr, err := tagstree.InitAllTagsTreeReader(baseDir)
 		if err != nil {
-			mRes.AddError(err)
 			continue
 		}
 
