@@ -65,7 +65,7 @@ var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 
-const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
+const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
@@ -844,6 +844,22 @@ func getMetricsSegment(mName []byte, orgid int64) (*MetricsSegment, *TagsTreeHol
 	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
+func getMetricSegmentFromMid(mid string, orgid int64) (*MetricsSegment, error) {
+	orgMetricsAndTagsLock.RLock()
+	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
+	orgMetricsAndTagsLock.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("getMetricSegmentFromMid: no metrics segment found for orgid=%v", orgid)
+	}
+
+	mSeg, ok := metricsAndTagsHolder.MetricSegments[mid]
+	if !ok {
+		return nil, fmt.Errorf("getMetricSegmentFromMid: no metrics segment found for orgid=%v and mid=%v", orgid, mid)
+	}
+
+	return mSeg, nil
+}
+
 /*
 returns:
 
@@ -866,6 +882,29 @@ func (mb *MetricsBlock) GetTimeSeries(tsid uint64) (*TimeSeries, bool, error) {
 		ts = mb.allSeries[idx]
 	}
 	return ts, ok, nil
+}
+
+func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBuffer *bytes.Buffer) (bool, *compress.DecompressIterator, error) {
+	idx, ok := mb.tsidLookup[tsid]
+	if !ok {
+		return false, nil, nil
+	}
+
+	ts := mb.allSeries[idx]
+	if ts == nil || ts.rawEncoding == nil {
+		return false, nil, nil
+	}
+
+	ts.lock.Lock()
+	_, err := bytesBuffer.Write(ts.rawEncoding.Bytes())
+	ts.lock.Unlock()
+	if err != nil {
+		return false, nil, err
+	}
+
+	iter, err := compress.NewDecompressIterator(bytesBuffer)
+
+	return true, iter, err
 }
 
 /*
@@ -1326,25 +1365,29 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
 					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
+				} else {
+					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
 					return
 				}
-				log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
-				return
 			}
-			for _, bSum := range blockSummaries {
-				if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
-					retBlocks[bSum.Blknum] = true
+
+			if len(blockSummaries) > 0 {
+				for _, bSum := range blockSummaries {
+					if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
+						retBlocks[bSum.Blknum] = true
+					}
 				}
 			}
+
 			tKeys := make(map[string]bool)
 			allTrees := GetTagsTreeHolder(orgid, mSeg.Mid).allTrees
 			for k := range allTrees {
 				tKeys[k] = true
 			}
-			if len(retBlocks) == 0 {
-				return
-			}
+
 			finalReq := &structs.MetricsSearchRequest{
+				Mid:                  mSeg.Mid,
+				UnrotatedBlkToSearch: make(map[uint16]bool),
 				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
 				BlocksToSearch:       retBlocks,
 				BlkWorkerParallelism: uint(2),
@@ -1352,6 +1395,16 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				AllTagKeys:           tKeys,
 				UnrotatedMetricNames: mSeg.mNamesMap,
 			}
+
+			// Check if the current unrotated block is within the time range
+			if tRange.CheckRangeOverLap(mSeg.mBlock.mBlockSummary.LowTs, mSeg.mBlock.mBlockSummary.HighTs) {
+				finalReq.UnrotatedBlkToSearch[mSeg.mBlock.mBlockSummary.Blknum] = true
+			}
+
+			if len(retBlocks) == 0 && len(finalReq.UnrotatedBlkToSearch) == 0 {
+				return
+			}
+
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {
 				return

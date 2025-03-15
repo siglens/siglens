@@ -18,6 +18,7 @@
 package query
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"sync"
@@ -355,6 +356,9 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// for each metrics segment, apply a single metrics segment search
 	// var tsidInfo *tsidtracker.AllMatchedTSIDs
 
+	// allocate 1 MB buffer
+	bytesBuffer := bytes.NewBuffer(make([]byte, 0, 1024*1024))
+
 	for baseDir, allMSearchReqs := range allSearchReqests {
 		if mQuery.IsQueryCancelled() {
 			return
@@ -425,6 +429,16 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			if mQuery.IsQueryCancelled() {
 				return
 			}
+
+			if mSeg.QueryType == structs.UNROTATED_METRICS_SEARCH {
+				searchInRotated := metrics.SearchUnrotatedMetricsBlock(mQuery, segTsidInfo, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
+				if searchInRotated {
+					for blkNum := range mSeg.UnrotatedBlkToSearch {
+						mSeg.BlocksToSearch[blkNum] = true
+					}
+				}
+			}
+
 			search.RawSearchMetricsSegment(mQuery, segTsidInfo, mSeg, mRes, timeRange, qid, querySummary)
 		}
 	}
