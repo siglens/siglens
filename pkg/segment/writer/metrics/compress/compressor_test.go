@@ -35,7 +35,7 @@ func Test_Compress_Decompress(t *testing.T) {
 	}
 	header := uint32(time.Now().Unix())
 
-	const dataLen = 50000
+	const dataLen = 5000
 	expected := make([]data, dataLen)
 	valueFuzz := fuzz.New().NilChance(0)
 	ts := header
@@ -53,18 +53,70 @@ func Test_Compress_Decompress(t *testing.T) {
 	buf := new(bytes.Buffer)
 
 	// Compression
-	c, finish, err := NewCompressor(buf, header)
+	c, cFinishFn, err := NewCompressor(buf, header)
 	require.Nil(t, err)
 	for _, data := range expected {
 		b, err := c.Compress(data.t, data.v)
 		require.Nil(t, err)
 		require.Greater(t, b, uint64(0))
 	}
-	require.Nil(t, finish())
+
+	// copy the buffer
+	copyBytesBuffer := bytes.NewBuffer(make([]byte, 0, buf.Len()))
+	_, err = copyBytesBuffer.Write(buf.Bytes())
+	require.Nil(t, err)
 
 	// Decompression
 	var actual []data
-	iter, err := NewDecompressIterator(buf)
+	iter, err := NewDecompressIterator(copyBytesBuffer)
+	require.Nil(t, err)
+	for iter.Next() {
+		t, v := iter.At()
+		actual = append(actual, data{t, v})
+	}
+	require.Nil(t, iter.Err())
+	assert.Equal(t, expected[:len(expected)-1], actual)
+
+	// Second Iteration of compression and decompression
+	for i := 0; i < dataLen; i++ {
+		if 0 < i && i%10 == 0 {
+			ts -= uint32(rand.Intn(100))
+		} else {
+			ts += uint32(rand.Int31n(100))
+		}
+		var v float64
+		valueFuzz.Fuzz(&v)
+		expected = append(expected, data{ts, v})
+	}
+
+	// Compression
+	for _, data := range expected[dataLen:] {
+		b, err := c.Compress(data.t, data.v)
+		require.Nil(t, err)
+		require.Greater(t, b, uint64(0))
+	}
+
+	// reset the copy buffer
+	copyBytesBuffer.Reset()
+	_, err = copyBytesBuffer.Write(buf.Bytes())
+	require.Nil(t, err)
+
+	// Decompression
+	actual = []data{}
+	iter, err = NewDecompressIterator(copyBytesBuffer)
+	require.Nil(t, err)
+	for iter.Next() {
+		t, v := iter.At()
+		actual = append(actual, data{t, v})
+	}
+	require.Nil(t, iter.Err())
+	assert.Equal(t, expected[:len(expected)-1], actual)
+
+	cFinishFn()
+
+	// Decompression
+	actual = []data{}
+	iter, err = NewDecompressIterator(buf)
 	require.Nil(t, err)
 	for iter.Next() {
 		t, v := iter.At()

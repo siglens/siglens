@@ -333,6 +333,8 @@ type OTSDBMetricsQueryExpRequest struct {
 }
 
 type MetricsSearchRequest struct {
+	Mid                  string
+	UnrotatedBlkToSearch map[uint16]bool
 	MetricsKeyBaseDir    string
 	BlocksToSearch       map[uint16]bool
 	BlkWorkerParallelism uint
