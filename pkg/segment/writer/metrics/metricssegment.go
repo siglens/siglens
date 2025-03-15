@@ -902,6 +902,7 @@ func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBu
 		return false, nil, err
 	}
 
+	// TODO: Add a flag to not log error for not finding the EOF when decompressing
 	iter, err := compress.NewDecompressIterator(bytesBuffer)
 
 	return true, iter, err
