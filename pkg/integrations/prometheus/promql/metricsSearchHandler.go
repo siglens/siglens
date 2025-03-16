@@ -1022,7 +1022,7 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 	for tagKey := range tagKeys {
 		tsidCard := structs.CreateNewHll()
 		for _, segmentTagTreeReader := range tagsTreeReaders {
-			_, err := segmentTagTreeReader.GetTSIDsForKey(tagKey, tsidCard)
+			err := segmentTagTreeReader.CountTSIDsForKey(tagKey, tsidCard)
 			if err != nil {
 				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
 				// continue, since we would want to still the rest of tagkeys
