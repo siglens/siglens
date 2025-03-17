@@ -28,11 +28,11 @@ test('Cluster Stats Page Test', async ({ page }) => {
 
     // Check for the presence of charts
     await expect(page.locator('#EventCountChart-logs')).toBeVisible();
-    await expect(page.locator('#GBCountChart-logs')).toBeVisible();
+    await expect(page.locator('#bytesCountChart-logs')).toBeVisible();
     await expect(page.locator('#EventCountChart-metrics')).toBeVisible();
-    await expect(page.locator('#GBCountChart-metrics')).toBeVisible();
+    await expect(page.locator('#bytesCountChart-metrics')).toBeVisible();
     await expect(page.locator('#EventCountChart-trace')).toBeVisible();
-    await expect(page.locator('#GBCountChart-trace')).toBeVisible();
+    await expect(page.locator('#bytesCountChart-trace')).toBeVisible();
 
     // Check for the presence of data tables
     await expect(page.locator('#index-data-table')).toBeVisible();

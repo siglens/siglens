@@ -48,7 +48,6 @@ let selectedFieldsList = [];
 let updatedSelFieldList = false;
 let aggsColumnDefs = [];
 let segStatsRowData = [];
-let GBCountChart, LogLinesCountChart, TotalVolumeChart;
 let queryStr = '*';
 let panelChart;
 let metricsDatasets;
