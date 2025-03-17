@@ -73,7 +73,8 @@ func Test_Compress_Decompress(t *testing.T) {
 
 	// Finish the cloned compressor
 	// This should not affect the original compressor
-	clonedFinish()
+	err = clonedFinish()
+	require.Nil(t, err)
 
 	// Decompression using the cloned compressor
 	var actual []data
@@ -116,7 +117,8 @@ func Test_Compress_Decompress(t *testing.T) {
 	require.Equal(t, c, clonedCompressor)
 
 	// Finish the cloned compressor
-	clonedFinish()
+	err = clonedFinish()
+	require.Nil(t, err)
 
 	// Decompression using the cloned compressor
 	actual = []data{}
@@ -130,7 +132,8 @@ func Test_Compress_Decompress(t *testing.T) {
 	assert.Equal(t, expected, actual)
 
 	// Finish the original compressor
-	cFinishFn()
+	err = cFinishFn()
+	require.Nil(t, err)
 
 	// Decompression using the original compressor
 	actual = []data{}
