@@ -1469,3 +1469,37 @@ function ExpandableJsonCellRenderer(type = 'events') {
         }
     }
 }
+
+function determineUnit(data) {
+    console.log(data)
+    let maxBytes = 0;
+    data.forEach(point => {
+        if (point.y > maxBytes) {
+            maxBytes = point.y;
+        }
+    });
+    
+    if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    
+    const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
+    
+    return {
+        unit: sizes[i],
+        divisor: Math.pow(k, i)
+    };
+}
+
+function formatByteSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    
+    // Format with 2 decimal places for larger units, round to integers for bytes
+    return i === 0 
+        ? bytes + ' ' + units[i]
+        : (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
+}
