@@ -51,10 +51,10 @@ function resetDataTable(firstQUpdate) {
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#save-query-div').children().show();
-            $('#views-container, .fields-sidebar').show();
+            $('#views-container, .fields-sidebar').show;
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar').hide();
+            $('#views-container, .fields-sidebar').show;
         }
         $('#agg-result-container').hide();
         $('#data-row-container').hide();
@@ -77,6 +77,21 @@ function doSearch(data) {
         const timerName = `socket timing ${doSearchCounter}`;
         doSearchCounter++;
         console.time(timerName);
+
+        // Get the current fieldsHidden state from the renderer and update URL
+        const sidebarRenderer = window.fieldssidebarRenderer;
+        if (sidebarRenderer) {
+            const { isFieldsSidebarHidden } = sidebarRenderer.getState();
+            data.fieldsHidden = isFieldsSidebarHidden; // Update data object
+
+            // Update URL with fieldsHidden only if search is active
+            const searchParams = new URLSearchParams(window.location.search);
+            if (searchParams.has('searchText') && searchParams.has('indexName')) {
+                const url = new URL(window.location);
+                url.searchParams.set('fieldsHidden', isFieldsSidebarHidden);
+                window.history.pushState({ path: url.href }, document.title, url);
+            }
+        }
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -341,9 +356,14 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
 
-    // Only get fieldsHidden from URL if a search was performed
+    // Get fieldsHidden from renderer state
+    const sidebarRenderer = window.fieldssidebarRenderer;
     let fieldsHidden = false;
-    fieldsHidden = queryParams.get('fieldsHidden') === 'true';
+    if (sidebarRenderer) {
+        fieldsHidden = sidebarRenderer.getState().isFieldsSidebarHidden;
+    } else {
+        fieldsHidden = queryParams.get('fieldsHidden') === 'true'; // Fallback
+    }
     applyFieldsSidebarState(fieldsHidden);
 
     queryLanguage = queryLanguage.replace('"', '');
@@ -571,9 +591,6 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         filterValue = $('#filter-input').val().trim() || '*';
         isQueryBuilderSearch = false;
     }
-    // Get current sidebar state or default to false (visible)
-    const sidebarRenderer = window.fieldsSidebarRenderer;
-    const isFieldsHidden = sidebarRenderer ? sidebarRenderer.getState().isFieldsSidebarHidden : false;
 
     if (!skipPushState) {
         addQSParm('searchText', filterValue);
@@ -582,7 +599,6 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
-        addQSParm('fieldsHidden', isFieldsHidden);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -598,7 +614,6 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         indexName: selIndexName,
         from: sFrom,
         queryLanguage: queryLanguage,
-        fieldsHidden: isFieldsHidden
     };
 }
 //eslint-disable-next-line no-unused-vars

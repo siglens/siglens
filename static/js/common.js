@@ -1464,13 +1464,11 @@ function ExpandableJsonCellRenderer(type = 'events') {
         }
     }
 }
-
+//eslint-disable-next-line no-unused-vars
 const ExpandableFieldsSidebarRenderer = () => {
     const initialState = () => {
-        // Default to false (fields visible)
         let isFieldsSidebarHidden = false;
 
-        // Only check URL if in search context
         const searchParams = new URLSearchParams(window.location.search);
         const isSearchActive = searchParams.has('searchText') && searchParams.has('indexName');
 
@@ -1482,6 +1480,7 @@ const ExpandableFieldsSidebarRenderer = () => {
             eGui: null,
             expandBtn: null,
             expandIcon: null,
+            tooltipInstance: null,
             isFieldsSidebarHidden: isFieldsSidebarHidden
         };
     };
@@ -1490,20 +1489,20 @@ const ExpandableFieldsSidebarRenderer = () => {
 
     // Pure function to generate expand SVG
     const getExpandSvg = () => `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="theme-svg">
-            <rect x="5" y="5" width="90" height="90" rx="15" ry="15" class="svg-outer-rect"/>
-            <rect x="30" y="13" width="57" height="74" rx="10" ry="10" class=".svg-inner-rect"/>
-            <path d="M68 50 L45 50 M45 50 L57 38 M45 50 L57 62" class="svg-path" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
-    `;
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-open">
+        <rect width="16" height="16" x="4" y="4" rx="1.5"/>
+        <path d="M8 4v16"/>
+        <path d="m12 9 2 2-2 2"/>
+    </svg>
+`;
 
-    const getCollapseSvg = () => `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="theme-svg">
-            <rect x="5" y="5" width="90" height="90" rx="15" ry="15" class="svg-outer-rect"/>
-            <rect x="30" y="13" width="57" height="74" rx="10" ry="10" class=".svg-inner-rect"/>
-            <path d="M45 50 L68 50 M68 50 L56 38 M68 50 L56 62" class="svg-path" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
-    `;
+const getCollapseSvg = () => `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close">
+        <rect width="16" height="16" x="4" y="4" rx="1.5"/>
+        <path d="M8 4v16"/>
+        <path d="m14 13-2-2 2-2"/>
+    </svg>
+`;
 
     const getDomElements = () => ({
         fieldsSidebar: document.querySelector('.fields-sidebar'),
@@ -1519,7 +1518,7 @@ const ExpandableFieldsSidebarRenderer = () => {
 
         eGui.innerHTML = `
             <span class="expand-svg-box">
-                <button id="expand-toggle-svg" class="expand-svg-button">
+                <button id="expand-toggle-svg" class="btn expand-svg-button below-btn-img">
                     ${isHidden ? getCollapseSvg() : getExpandSvg()}
                 </button>
             </span>
@@ -1530,11 +1529,26 @@ const ExpandableFieldsSidebarRenderer = () => {
 
     // Function to update tooltip
     const updateTooltip = (isHidden) => {
-        if (window._tippy && window._tippy['#expand-toggle-svg']) {
-            window._tippy['#expand-toggle-svg'].destroy();
+        const tooltipText = isHidden ? 'Show Fields' : 'Hide Fields';
+
+        if (state.tooltipInstance) {
+            state.tooltipInstance.setContent(tooltipText);
+            return;
         }
 
-        createTooltip('#expand-toggle-svg', isHidden ? 'Show Fields' : 'Hide Fields');
+        // Create a new tooltip with Tippy.js options
+        const targetElement = document.querySelector('#expand-toggle-svg');
+        if (targetElement) {
+            state.tooltipInstance = tippy(targetElement, {
+                content: tooltipText,
+                trigger: 'mouseenter focus', // Show on hover or focus
+                onClickOutside(instance, event) {
+                    if (!instance.reference.contains(event.target)) {
+                        instance.hide();
+                    }
+                }
+            });
+        } 
     };
 
     // Function to reposition the expand button based on sidebar state

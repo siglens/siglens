@@ -2957,6 +2957,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .expand-svg-container.before-tabs {
     margin-right: 10px;
+    padding: 0;
 }
 
 .expand-svg-box {
@@ -2968,7 +2969,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .expand-svg-button {
     background: none;
     border: none;
-    padding: 4px;
+    padding: 2px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -2977,52 +2978,46 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .expand-svg-button svg {
-    width: 24px;
-    height: 24px;
-    stroke-width: 1.5;
+    height: 18px;
+    width: 18px;
     transition: transform 0.3s ease;
 }
 
-[data-theme='light'] .expand-svg-button svg rect:first-child {
-    fill: var(--icon-bg-color, black);
+/* Base styles for SVG elements */
+.expand-svg-button svg rect {
+    fill: none;
+    stroke: var(--icon-border-color, #303030);
+    stroke-width: 1;
 }
 
-[data-theme='light'] .expand-svg-button svg rect:nth-child(2) {
-    fill: var(--icon-inner-bg-color, white);
+.expand-svg-button svg path {
+    fill: none;
+    stroke: var(--icon-arrow-color, #303030);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
-[data-theme='light'] .expand-svg-button svg path {
-    stroke: var(--icon-arrow-color, black);
+/* Light theme - Keep current color (#ccc) */
+[data-theme='light'] .expand-svg-button .lucide-panel-left-open rect,
+[data-theme='light'] .expand-svg-button .lucide-panel-left-close rect {
+    stroke: var(--icon-border-color, #303030);
 }
 
-[data-theme='dark'] .svg-outer-rect {
-    fill: var(--icon-bg-hover, rgba(178, 178, 178, 0.991))
+[data-theme='light'] .expand-svg-button .lucide-panel-left-open path,
+[data-theme='light'] .expand-svg-button .lucide-panel-left-close path {
+    stroke: var(--icon-arrow-color, #303030);
 }
 
-[data-theme='dark'] .svg-inner-rect {
-    fill: var(--icon-inner-bg-hover, black);
+/* Dark theme - Set color to white */
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-open rect,
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-close rect {
+    stroke: var(--icon-border-color, white);
 }
 
-[data-theme='dark'] .svg-path {
-    stroke: var(--icon-arrow-color, rgba(178, 178, 178, 0.991)) ;
-}
-
-.expand-svg-button:hover svg rect:first-child,
-.expand-svg-button:hover .svg-outer-rect {
-    fill: var(--icon-bg-hover, var(--purple-2));
-}
-
-.expand-svg-button:hover svg path,
-.expand-svg-button:hover .svg-path {
-    stroke: var(--icon-arrow-hover, var(--purple-2));
-}
-
-[data-theme='light'] .expand-svg-button:hover svg rect:nth-child(2) {
-    fill: var(--icon-inner-bg-hover, #f0f0f0);
-}
-
-[data-theme='dark'] .expand-svg-button:hover  .svg-inner-rect{
-    fill: var(--icon-inner-bg-hover, var(--myOrg-input));
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-open path,
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-close path {
+    stroke: var(--icon-arrow-color, white);
 }
 
 .odd-popup-textarea {
