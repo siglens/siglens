@@ -296,6 +296,47 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("Wildcard", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "New *", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, []map[string]interface{}{
+			{"city": "New York", "timestamp": uint64(1), "age": 30},
+			{"city": "Hello New York", "timestamp": uint64(2), "age": 30},
+			{"city": "Newark", "timestamp": uint64(3), "age": 22},
+			{"city": "Boston", "timestamp": uint64(4), "age": 22},
+			{"city": "New Orleans", "timestamp": uint64(5), "age": 36},
+		})
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 2,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "New Orleans", "timestamp": 5, "age": 36},
+					{"city": "New York", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age"]
+		}`)))
+	})
+
+	t.Run("MatchLiteralAsterisk", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		_, err := NewFilterQueryValidator("city", "2 \\* 5", head, startEpoch, endEpoch)
+		assert.Error(t, err) // Change if we want to support this.
+	})
+
+	t.Run("ValueHasSpaces", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "New York", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		query, _, _ := validator.GetQuery()
+		assert.Equal(t, `city="New York" | head 3`, query)
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
@@ -474,6 +515,12 @@ func Test_CountQueryValidator(t *testing.T) {
 					"MeasureVal": {"count(*)": 42}
 			}]
 		}`)))
+	})
+
+	t.Run("Wildcard", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		_, err := NewCountQueryValidator("city", "*", startEpoch, endEpoch)
+		assert.Error(t, err) // Change if we want to support this.
 	})
 }
 

@@ -20,7 +20,9 @@ package query
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 	"verifier/pkg/utils"
@@ -62,10 +64,24 @@ func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 type filterQueryValidator struct {
 	basicValidator
 	key             string
-	value           string
+	value           stringOrRegex
 	head            int
 	reversedResults []map[string]interface{}
 	lock            sync.Mutex
+}
+
+type stringOrRegex struct {
+	isRegex   bool
+	rawString string
+	regex     regexp.Regexp
+}
+
+func (s *stringOrRegex) Matches(value string) bool {
+	if s.isRegex {
+		return s.regex.MatchString(value)
+	}
+
+	return value == s.rawString
 }
 
 func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
@@ -79,14 +95,32 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		return nil, fmt.Errorf("NewFilterQueryValidator: head must be between 1 and 99 inclusive")
 	}
 
+	// Don't allow matching literal asterisks.
+	if strings.Contains(value, "\\*") {
+		return nil, fmt.Errorf("NewFilterQueryValidator: matching literal asterisks is not implemented")
+	}
+
+	finalValue := stringOrRegex{isRegex: false, rawString: value}
+	if strings.Contains(finalValue.rawString, "*") {
+		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
+		s = fmt.Sprintf("^%v$", s)
+		regex, err := regexp.Compile(s)
+		if err != nil {
+			return nil, fmt.Errorf("NewFilterQueryValidator: invalid regex %v; err=%v",
+				finalValue.rawString, err)
+		}
+
+		finalValue = stringOrRegex{isRegex: true, regex: *regex}
+	}
+
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | head %v", key, value, head),
+			query:      fmt.Sprintf(`%v="%v" | head %v`, key, value, head),
 		},
 		key:             key,
-		value:           value,
+		value:           finalValue,
 		head:            head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}, nil
@@ -121,7 +155,7 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	}
 
 	value, ok := log[f.key]
-	if !ok || value != fmt.Sprintf("%v", f.value) {
+	if !ok || !f.value.Matches(fmt.Sprintf("%v", value)) {
 		return nil
 	}
 
@@ -359,6 +393,10 @@ type countQueryValidator struct {
 
 func NewCountQueryValidator(key string, value string, startEpoch uint64,
 	endEpoch uint64) (queryValidator, error) {
+
+	if strings.Contains(value, "*") {
+		return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+	}
 
 	return &countQueryValidator{
 		basicValidator: basicValidator{
