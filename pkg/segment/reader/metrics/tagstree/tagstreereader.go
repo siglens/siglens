@@ -267,12 +267,6 @@ func (attr *AllTagTreeReaders) processExactFilter(mQuery *structs.MetricsQuery,
 		return err
 	}
 
-	err = tracker.FinishBlock()
-	if err != nil {
-		log.Errorf("FindTSIDS: failed to execute finish on block! Error %+v", err)
-		return err
-	}
-
 	return nil
 }
 
@@ -346,7 +340,6 @@ func (attr *AllTagTreeReaders) processWildcardOrRegexFilter(mQuery *structs.Metr
 
 func isWildcardOrRegex(tf *structs.TagsFilter) bool {
 	tagVal, ok := tf.RawTagValue.(string)
-	// todo should we also check for negative regex ?
 	return ok && (tagVal == "*" || tf.IsRegex())
 }
 
