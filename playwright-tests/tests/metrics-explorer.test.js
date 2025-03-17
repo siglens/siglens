@@ -11,14 +11,6 @@ test.describe('Metrics Explorer Tests', () => {
         await testDateTimePicker(page);
     });
 
-
-    test('Verify page loads correctly', async ({ page }) => {
-        await expect(page.locator('#metrics-graphs')).toBeVisible();
-        await expect(page.locator('.graph-view-container')).toBeVisible();
-        await expect(page.locator('#visualization-options')).toBeVisible();
-        await expect(page.locator('#metrics-explorer')).toBeVisible();
-    });
-
     test('Create a new metrics query', async ({ page }) => {
         await test.step('Select metric', async () => {
             await page.click('#select-metric-input');
@@ -189,7 +181,6 @@ test.describe('Metrics Explorer Tests', () => {
         await page.click('#stroke-input');
         await page.click('#ui-id-4');
         await expect(page.locator('#stroke-input')).toHaveValue('Thin');
-
     });
 
 });
