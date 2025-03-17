@@ -115,6 +115,26 @@ test.describe('Dashboard Page Tests', () => {
         await page.waitForSelector('#new-dashboard', { timeout: 30000 });
         await page.waitForTimeout(2000);
 
+        // Toggle favorite
+        await page.waitForSelector('#favbutton', { state: 'visible', timeout: 20000 });
+        const favButton = page.locator('#favbutton').first();
+        await favButton.click();
+        await page.waitForTimeout(3000);
+
+        // Test date picker
+        const datePickerBtn = page.locator('#new-dashboard #date-picker-btn');
+        await datePickerBtn.click();
+
+        const dateRangePicker = page.locator('#new-dashboard .daterangepicker').first();
+        await expect(dateRangePicker).toBeVisible({ timeout: 15000 });
+
+        const timeRangeOption = dateRangePicker.locator('#now-5m');
+        await timeRangeOption.click();
+        await page.waitForTimeout(2000);
+
+        const datePickerText = datePickerBtn.locator('span');
+        await expect(datePickerText).toHaveText('Last 5 Mins', { timeout: 15000 });
+
         // Change dashboard settings
         await page.click('#db-settings-btn');
         await expect(page.locator('.dbSet-container')).toBeVisible({ timeout: 20000 });
@@ -123,20 +143,6 @@ test.describe('Dashboard Page Tests', () => {
         await page.fill('.dbSet-dbName', updatedName);
         await page.waitForTimeout(1000);
         await page.click('#dbSet-save');
-
-        // Test date picker
-        const datePickerBtn = page.locator('#new-dashboard #date-picker-btn');
-        await datePickerBtn.click();
-        
-        const dateRangePicker = page.locator('#new-dashboard .daterangepicker').first();
-        await expect(dateRangePicker).toBeVisible({ timeout: 15000 });
-        
-        const timeRangeOption = dateRangePicker.locator('#now-5m');
-        await timeRangeOption.click();
-        await page.waitForTimeout(2000);
-        
-        const datePickerText = datePickerBtn.locator('span');
-        await expect(datePickerText).toHaveText('Last 5 Mins', { timeout: 15000 });
     });
 
     test.afterAll(async ({ browser }) => {
