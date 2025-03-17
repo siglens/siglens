@@ -392,6 +392,10 @@ type countQueryValidator struct {
 func NewCountQueryValidator(key string, value string, startEpoch uint64,
 	endEpoch uint64) (queryValidator, error) {
 
+	if strings.Contains(value, "*") {
+		return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+	}
+
 	return &countQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,

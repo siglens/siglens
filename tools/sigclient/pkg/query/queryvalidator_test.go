@@ -507,6 +507,12 @@ func Test_CountQueryValidator(t *testing.T) {
 			}]
 		}`)))
 	})
+
+	t.Run("Wildcard", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		_, err := NewCountQueryValidator("city", "*", startEpoch, endEpoch)
+		assert.Error(t, err) // Change if we want to support this.
+	})
 }
 
 func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
