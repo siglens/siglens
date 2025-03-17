@@ -1,4 +1,3 @@
-// dashboard-1.test.js
 const { test, expect } = require('@playwright/test');
 
 test.describe('Dashboard Page Tests', () => {
@@ -83,13 +82,13 @@ test.describe('Dashboard Page Tests', () => {
         await expect(page.locator('#viewPanel-container')).toBeVisible({ timeout: 20000 });
         await page.waitForTimeout(2000);
 
+        await page.click('#discard-btn');
         // Delete panel
-        await page.reload({ waitUntil: 'networkidle', timeout: 45000 });
 
-        const refreshedPanelHeader = page.locator('.panel-header').first();
-        await refreshedPanelHeader.hover();
+        await panelHeader.hover();
+        await page.waitForTimeout(1000);
 
-        const optionsBtn = refreshedPanelHeader.locator('#panel-options-btn');
+        const optionsBtn = panelHeader.locator('#panel-options-btn');
         await expect(optionsBtn).toBeVisible({ timeout: 15000 });
         await optionsBtn.click();
 

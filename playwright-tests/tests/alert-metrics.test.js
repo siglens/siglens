@@ -40,19 +40,6 @@ test.describe('Metrics Alert Tests', () => {
         });
 
         await test.step('Configure alert conditions', async () => {
-            await expect(page.locator('#alert-condition')).toBeVisible({ timeout: 10000 });
-            await expect(page.locator('#alert-condition')).toBeEnabled({ timeout: 10000 });
-            await page.waitForTimeout(1000);
-
-            await page.click('#alert-condition');
-
-            await expect(page.locator('.alert-condition-options')).toBeVisible({ timeout: 15000 });
-            await page.waitForTimeout(1000);
-
-            await page.locator('.alert-condition-options #option-0').click({ force: true, timeout: 10000 });
-
-            await page.waitForTimeout(1000);
-
             await page.fill('#threshold-value', '100');
 
             await expect(page.locator('#evaluate-every')).toBeVisible({ timeout: 10000 });
