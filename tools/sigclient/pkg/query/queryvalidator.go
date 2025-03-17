@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -65,6 +66,7 @@ type filterQueryValidator struct {
 	basicValidator
 	key             string
 	value           stringOrRegex
+	sortCol         string
 	head            int
 	reversedResults []map[string]interface{}
 	lock            sync.Mutex
@@ -84,8 +86,8 @@ func (s *stringOrRegex) Matches(value string) bool {
 	return value == s.rawString
 }
 
-func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
-	endEpoch uint64) (queryValidator, error) {
+func NewFilterQueryValidator(key string, value string, numericSortCol string, head int,
+	startEpoch uint64, endEpoch uint64) (queryValidator, error) {
 
 	if head < 1 || head > 99 {
 		// The 99 limit is to simplify the expected results. If siglens returns
@@ -113,14 +115,25 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		finalValue = stringOrRegex{isRegex: true, regex: *regex}
 	}
 
+	var query string
+	if numericSortCol == "" {
+		numericSortCol = timestampCol
+		query = fmt.Sprintf(`%v="%v" | head %v`, key, value, head)
+	} else {
+		// Only sorting by numeric columns is supported for now.
+		// Sort so the highest values are first.
+		query = fmt.Sprintf(`%v="%v" | sort %v -num(%v)`, key, value, head, numericSortCol)
+	}
+
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf(`%v="%v" | head %v`, key, value, head),
+			query:      query,
 		},
 		key:             key,
 		value:           finalValue,
+		sortCol:         numericSortCol,
 		head:            head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}, nil
@@ -135,6 +148,7 @@ func (f *filterQueryValidator) Copy() queryValidator {
 		},
 		key:             f.key,
 		value:           f.value,
+		sortCol:         f.sortCol,
 		head:            f.head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}
@@ -163,24 +177,55 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	defer f.lock.Unlock()
 
 	f.reversedResults = append(f.reversedResults, log)
+	sort.Slice(f.reversedResults, func(i, j int) bool {
+		iSortVal, ok := f.reversedResults[i][f.sortCol]
+		if !ok {
+			return true
+		}
+
+		jSortVal, ok := f.reversedResults[j][f.sortCol]
+		if !ok {
+			return false
+		}
+
+		iFloat, ok := utils.AsFloat64(iSortVal)
+		if !ok {
+			return true
+		}
+
+		jFloat, ok := utils.AsFloat64(jSortVal)
+		if !ok {
+			return false
+		}
+
+		return iFloat < jFloat
+	})
 
 	if len(f.reversedResults) > f.head {
 		lastKeptLog := f.reversedResults[len(f.reversedResults)-f.head]
-		var lastKeptTimestamp uint64
-		if timestamp, ok := lastKeptLog[timestampCol]; !ok {
-			return fmt.Errorf("FQV.HandleLog: missing timestamp column")
-		} else if lastKeptTimestamp, ok = utils.AsUint64(timestamp); !ok {
-			return fmt.Errorf("FQV.HandleLog: invalid timestamp type %T", timestamp)
+		var lastKeptVal float64
+		var lastOk bool
+		if sortVal, ok := lastKeptLog[f.sortCol]; !ok {
+			lastOk = false
+		} else if lastKeptVal, ok = utils.AsFloat64(sortVal); !ok {
+			return fmt.Errorf("FQV.HandleLog: invalid type in sort column %v: %T", f.sortCol, sortVal)
+		} else {
+			lastOk = true
 		}
 
 		numToDelete := 0
 		for i := range f.reversedResults[:len(f.reversedResults)-f.head] {
-			var thisTimestamp uint64
-			if timestamp, ok := f.reversedResults[i][timestampCol]; !ok {
-				return fmt.Errorf("FQV.HandleLog: missing timestamp column")
-			} else if thisTimestamp, ok = utils.AsUint64(timestamp); !ok {
-				return fmt.Errorf("FQV.HandleLog: invalid timestamp type %T", timestamp)
-			} else if thisTimestamp < lastKeptTimestamp {
+			var thisSortVal float64
+			var thisOk bool
+			if sortVal, ok := f.reversedResults[i][f.sortCol]; !ok {
+				thisOk = false
+			} else if thisSortVal, ok = utils.AsFloat64(sortVal); !ok {
+				return fmt.Errorf("FQV.HandleLog: invalid type in sort column %v: %T", f.sortCol, sortVal)
+			} else {
+				thisOk = true
+			}
+
+			if lastOk != thisOk || (lastOk && thisOk && thisSortVal != lastKeptVal) {
 				numToDelete++
 			}
 		}
@@ -250,7 +295,7 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	defer slices.Reverse(f.reversedResults) // Revert to the original order, so subsequent calls work.
 	expectedLogs := f.reversedResults
 
-	err := logsMatch(expectedLogs, response.Hits.Records)
+	err := logsMatch(expectedLogs, response.Hits.Records, f.sortCol)
 	if err != nil {
 		return err
 	}
@@ -260,21 +305,23 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 
 // Returns no error if the logs match the expected logs, and they're in the
 // same order. It also returns no error if the logs are in a different order,
-// but it's a valid sorting order; since sorting is on the timestamp, this
-// happens when multiple logs have the same timestamp.
-func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]interface{}) error {
-	expectedGroups, err := groupBySortColumn(expectedLogs, timestampCol)
+// but it's a valid sorting order; this happens when multiple logs have the
+// same value in the column being sorted on.
+func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]interface{},
+	sortCol string) error {
+
+	expectedGroups, err := groupBySortColumn(expectedLogs, sortCol)
 	if err != nil {
 		return fmt.Errorf("logsMatch: failed to group expected logs; err=%v", err)
 	}
 
-	actualGroups, err := groupBySortColumn(actualLogs, timestampCol)
+	actualGroups, err := groupBySortColumn(actualLogs, sortCol)
 	if err != nil {
 		return fmt.Errorf("logsMatch: failed to group actual logs; err=%v", err)
 	}
 
 	if len(expectedGroups) != len(actualGroups) {
-		return fmt.Errorf("logsMatch: expected %d unique timestamps, got %d",
+		return fmt.Errorf("logsMatch: expected %d unique sort values, got %d",
 			len(expectedGroups), len(actualGroups))
 	}
 
@@ -310,20 +357,15 @@ func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]ma
 	groups := make([][]map[string]interface{}, 0)
 	groups = append(groups, make([]map[string]interface{}, 0))
 
-	curValue, ok := logs[0][sortColumn]
-	if !ok {
-		return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
-	}
+	curValue, curOk := logs[0][sortColumn]
 
 	for _, log := range logs {
 		value, ok := log[sortColumn]
-		if !ok {
-			return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
-		}
 
-		if value != curValue {
+		if ok != curOk || (ok && curOk && value != curValue) {
 			groups = append(groups, make([]map[string]interface{}, 0))
 			curValue = value
+			curOk = ok
 		}
 
 		groups[len(groups)-1] = append(groups[len(groups)-1], log)
