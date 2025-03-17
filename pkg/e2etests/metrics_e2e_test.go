@@ -1665,7 +1665,7 @@ func Test_SimpleMetricQueryUnrotatedBlockData(t *testing.T) {
 	}
 
 	// Tags tree flush time
-	time.Sleep(11 * time.Second)
+	time.Sleep(time.Duration(metrics.TAGS_TREE_FLUSH_SLEEP_DURATION+1) * time.Second)
 
 	query := `(testmetric0)`
 	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)

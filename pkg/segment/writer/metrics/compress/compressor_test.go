@@ -43,7 +43,7 @@ func Test_Compress_Decompress(t *testing.T) {
 		if 0 < i && i%10 == 0 {
 			ts -= uint32(rand.Intn(100))
 		} else {
-			ts += uint32(rand.Int31n(100))
+			ts += uint32(rand.Intn(100))
 		}
 		var v float64
 		valueFuzz.Fuzz(&v)
@@ -92,7 +92,7 @@ func Test_Compress_Decompress(t *testing.T) {
 		if 0 < i && i%10 == 0 {
 			ts -= uint32(rand.Intn(100))
 		} else {
-			ts += uint32(rand.Int31n(100))
+			ts += uint32(rand.Intn(100))
 		}
 		var v float64
 		valueFuzz.Fuzz(&v)
