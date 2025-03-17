@@ -560,11 +560,11 @@ func (attr *AllTagTreeReaders) CountTSIDsForKey(tagKey string,
 	return nil
 }
 
-func (attr *AllTagTreeReaders) GetTSIDCountForTagPair(tagKey string,
+func (attr *AllTagTreeReaders) InsertTSIDsForTagPair(tagKey string,
 	tagValue string, tsidCard *utils.GobbableHll) error {
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
-		return fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
+		return fmt.Errorf("AllTagTreeReaders.InsertTSIDsForTagPair: tag key %v not found", tagKey)
 	}
 
 	err := ttr.countTSIDsForTagValue(tagValue, tsidCard)

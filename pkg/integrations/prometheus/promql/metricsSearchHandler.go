@@ -1082,7 +1082,7 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int6
 	for tk, tvalues := range tagPairsCardMap {
 		for tv, tsidCard := range tvalues {
 			for _, segmentTagTreeReader := range tagsTreeReaders {
-				err := segmentTagTreeReader.GetTSIDCountForTagPair(tk, tv, tsidCard)
+				err := segmentTagTreeReader.InsertTSIDsForTagPair(tk, tv, tsidCard)
 				if err != nil {
 					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", tk, tv), err)
 					return
