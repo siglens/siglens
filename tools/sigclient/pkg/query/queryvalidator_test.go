@@ -382,6 +382,28 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("CustomSortMissingValues", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", "latency", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
