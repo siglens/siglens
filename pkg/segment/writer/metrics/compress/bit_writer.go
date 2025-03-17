@@ -44,6 +44,14 @@ func newBitWriter(w io.Writer) *bitWriter {
 	}
 }
 
+func (b *bitWriter) clone(w io.Writer) *bitWriter {
+	return &bitWriter{
+		w:      w,
+		buffer: b.buffer,
+		count:  b.count,
+	}
+}
+
 // writeBit writes a single bit.
 func (b *bitWriter) writeBit(bit bit) error {
 	if bit {

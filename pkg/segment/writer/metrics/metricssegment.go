@@ -896,13 +896,19 @@ func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBu
 	}
 
 	ts.lock.Lock()
+	defer ts.lock.Unlock()
+
 	_, err := bytesBuffer.Write(ts.rawEncoding.Bytes())
-	ts.lock.Unlock()
+	if err != nil {
+		ts.lock.Unlock()
+		return false, nil, err
+	}
+	_, finish := ts.compressor.CloneCompressor(bytesBuffer)
+	err = finish()
 	if err != nil {
 		return false, nil, err
 	}
 
-	// TODO: Add a flag to not log error for not finding the EOF when decompressing
 	iter, err := compress.NewDecompressIterator(bytesBuffer)
 
 	return true, iter, err

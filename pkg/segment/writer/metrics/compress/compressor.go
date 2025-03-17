@@ -57,6 +57,20 @@ func NewCompressor(w io.Writer, header uint32) (c *Compressor, finish func() err
 	return c, c.finish, nil
 }
 
+func (c *Compressor) CloneCompressor(w io.Writer) (clone *Compressor, finish func() error) {
+	clone = &Compressor{
+		bw:            c.bw.clone(w),
+		header:        c.header,
+		t:             c.t,
+		tDelta:        c.tDelta,
+		leadingZeros:  c.leadingZeros,
+		trailingZeros: c.trailingZeros,
+		value:         c.value,
+	}
+
+	return clone, clone.finish
+}
+
 // Compress compresses time-series data and write.
 func (c *Compressor) Compress(t uint32, v float64) (uint64, error) {
 	// First time to compress.
