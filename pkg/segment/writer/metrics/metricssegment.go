@@ -898,11 +898,11 @@ func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBu
 	ts.lock.Lock()
 	defer ts.lock.Unlock()
 
-	_, err := bytesBuffer.Write(ts.rawEncoding.Bytes())
+	_, finish, err := compress.CloneCompressor(ts.compressor, bytesBuffer)
 	if err != nil {
 		return false, nil, err
 	}
-	_, finish := ts.compressor.CloneCompressor(bytesBuffer)
+
 	err = finish()
 	if err != nil {
 		return false, nil, err

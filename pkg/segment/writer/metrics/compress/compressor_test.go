@@ -61,12 +61,11 @@ func Test_Compress_Decompress(t *testing.T) {
 		require.Greater(t, b, uint64(0))
 	}
 
-	// copy the buffer
+	// copy buffer
 	copyBytesBuffer := bytes.NewBuffer(make([]byte, 0, buf.Len()))
-	_, err = copyBytesBuffer.Write(buf.Bytes())
-	require.Nil(t, err)
 
-	clonedCompressor, clonedFinish := c.CloneCompressor(copyBytesBuffer)
+	clonedCompressor, clonedFinish, err := CloneCompressor(c, copyBytesBuffer)
+	require.Nil(t, err)
 	require.NotNil(t, clonedCompressor)
 	require.NotNil(t, clonedFinish)
 	require.Equal(t, c, clonedCompressor)
@@ -108,10 +107,9 @@ func Test_Compress_Decompress(t *testing.T) {
 
 	// reset the copy buffer
 	copyBytesBuffer.Reset()
-	_, err = copyBytesBuffer.Write(buf.Bytes())
-	require.Nil(t, err)
 
-	clonedCompressor, clonedFinish = c.CloneCompressor(copyBytesBuffer)
+	clonedCompressor, clonedFinish, err = CloneCompressor(c, copyBytesBuffer)
+	require.Nil(t, err)
 	require.NotNil(t, clonedCompressor)
 	require.NotNil(t, clonedFinish)
 	require.Equal(t, c, clonedCompressor)

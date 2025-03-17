@@ -18,6 +18,7 @@
 package compress
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math"
@@ -57,9 +58,18 @@ func NewCompressor(w io.Writer, header uint32) (c *Compressor, finish func() err
 	return c, c.finish, nil
 }
 
-func (c *Compressor) CloneCompressor(w io.Writer) (clone *Compressor, finish func() error) {
+func CloneCompressor(c *Compressor, toCopyBuffer *bytes.Buffer) (clone *Compressor, finish func() error, err error) {
+	if c == nil {
+		return nil, nil, fmt.Errorf("compressor is nil")
+	}
+
+	clonedBW, err := c.bw.clone(toCopyBuffer)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to clone bitWriter: %w", err)
+	}
+
 	clone = &Compressor{
-		bw:            c.bw.clone(w),
+		bw:            clonedBW,
 		header:        c.header,
 		t:             c.t,
 		tDelta:        c.tDelta,
@@ -68,7 +78,7 @@ func (c *Compressor) CloneCompressor(w io.Writer) (clone *Compressor, finish fun
 		value:         c.value,
 	}
 
-	return clone, clone.finish
+	return clone, clone.finish, nil
 }
 
 // Compress compresses time-series data and write.
