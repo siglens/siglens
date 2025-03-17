@@ -1,21 +1,4 @@
-/*
- * Copyright (c) 2021-2024 SigScalr, Inc.
- *
- * This file is part of SigLens Observability Solution
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+
 $(document).ready(function () {
     let selectionStart = null;
     let selectionEnd = null;
@@ -26,16 +9,17 @@ $(document).ready(function () {
     let initialStartEpoch = null;
     let initialEndEpoch = null;
     let lastQueryTime = 0;
-    let histogramSocket = null; // Separate WebSocket for histogram
+    let socket = window.sharedSocket; // Reference to shared socket
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 5;
     let reconnectTimeout = null;
-    let isQueryComplete = false;
-    let baselineMaxCount = null;
+    let isQueryComplete = false; // Flag to track completion
+    let baselineMaxCount = null; // Store initial maximum count, validated
 
     function wsURL(path) {
         var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
-        return protocol + location.host + path;
+        var url = protocol + location.host;
+        return url + path;
     }
 
     function parseTimeRange() {
@@ -85,20 +69,27 @@ $(document).ready(function () {
     }
 
     function initializeHistogram() {
-        if (!histogramSocket || histogramSocket.readyState === WebSocket.CLOSED) {
-            console.log('Initializing new WebSocket for histogram.');
-            const newUri = wsURL('/api/search/ws');
-            histogramSocket = new WebSocket(newUri);
-            reconnectAttempts = 0;
+        if (!socket || socket.readyState === WebSocket.CLOSED) {
+            console.warn('No active WebSocket or socket closed. Attempting to reinitialize.');
 
-            histogramSocket.onopen = function () {
-                console.log('WebSocket opened for histogram.');
+            if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
+                socket = window.sharedSocket;
+            } else if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && !isQueryComplete) {
+                reconnectAttempts++;
                 const { startEpoch, endDate } = parseTimeRange();
-                submitTimeRangeQuery(startEpoch, endDate);
-            };
+                socket = new WebSocket(wsURL('/api/search/ws'));
+                socket.onopen = function () {
+                    console.log('Reopened WebSocket for histogram.');
+                    submitTimeRangeQuery(startEpoch, endDate);
+                    reconnectAttempts = 0; // Reset on successful connection
+                };
+            } else {
+                console.error('Max reconnection attempts reached or query complete. Please refresh the page.');
+                return;
+            }
         }
 
-        histogramSocket.onmessage = function (event) {
+        socket.onmessage = function (event) {
             const jsonEvent = JSON.parse(event.data);
             console.log('WebSocket message received in histo.js:', jsonEvent.state, JSON.stringify(jsonEvent, null, 2));
 
@@ -122,7 +113,7 @@ $(document).ready(function () {
                         }));
                         if (buckets.length > 0 && !baselineMaxCount) {
                             const initialMax = Math.max(...buckets.map(b => b.count || 0));
-                            if (initialMax <= 200) {
+                            if (initialMax <= 200) { // Reasonable upper limit
                                 baselineMaxCount = initialMax;
                                 console.log('Initialized baselineMaxCount:', baselineMaxCount);
                             } else {
@@ -170,9 +161,7 @@ $(document).ready(function () {
                     } else {
                         console.warn('Invalid or missing timechart complete data:', jsonEvent.timechartComplete);
                     }
-                    isQueryComplete = true;
-                    histogramSocket.close(1000);
-                    histogramSocket = null;
+                    isQueryComplete = true; // Mark query as complete
                     break;
                 }
 
@@ -185,27 +174,29 @@ $(document).ready(function () {
             }
         };
 
-        histogramSocket.onclose = function (event) {
+        socket.onclose = function (event) {
             console.log(`WebSocket closed, code=${event.code}, reason=${event.reason}`);
-            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && !isQueryComplete) {
-                reconnectAttempts++;
+            socket = null;
+            if (window.sharedSocket && window.sharedSocket.readyState === WebSocket.OPEN) {
+                socket = window.sharedSocket;
+            } else if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && !isQueryComplete) {
                 reconnectTimeout = setTimeout(() => {
                     console.log('Attempting to reconnect...');
                     initializeHistogram();
                 }, 2000);
             } else {
                 console.error('Max reconnection attempts reached or query complete. Please refresh the page.');
-                histogramSocket = null;
             }
+            return () => clearTimeout(reconnectTimeout); // Cleanup function
         };
 
-        histogramSocket.onerror = function (error) {
+        socket.onerror = function (error) {
             console.error('WebSocket error in histo.js:', error);
-            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            if (reconnectTimeout) clearTimeout(reconnectTimeout); // Cleanup on error
         };
     }
 
-    $('#toggle-btn').on('click', function () {
+    $('#histo-toggle-btn').on('click', function () {
         const $histoContainer = $('.histo-container');
         const isVisible = $histoContainer.hasClass('visible');
 
@@ -214,20 +205,21 @@ $(document).ready(function () {
             initializeHistogram();
             if (originalData.length > 0) {
                 updateHistogram(originalData.map((count, i) => ({ timestamp: originalTimestamps[i], count })));
+            } else if (initialStartEpoch && initialEndEpoch) {
+                submitTimeRangeQuery(initialStartEpoch, initialEndEpoch);
             }
         } else {
             $histoContainer.removeClass('visible');
-            isQueryComplete = false;
-            if (histogramSocket) {
-                histogramSocket.close(1000);
-                histogramSocket = null;
+            isQueryComplete = false; // Reset for next toggle
+            if (socket) {
+                socket.close();
+                socket = null;
             }
             if (window.myChart) {
                 window.myChart.destroy();
                 window.myChart = null;
             }
-            baselineMaxCount = null;
-            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            baselineMaxCount = null; // Reset baseline for next query
         }
     });
 
@@ -270,7 +262,7 @@ $(document).ready(function () {
     $(document).on('mouseup', function () {
         if (isDragging && selectionStart && selectionEnd) {
             const start = Math.min(selectionStart, selectionEnd);
-            const end = Math.max(selectionStart, selectionEnd);
+            const end = Math.max(start, selectionEnd); // Corrected to use start
             const now = Date.now();
             if (now - lastQueryTime > 1000) {
                 submitTimeRangeQuery(start, end);
@@ -301,10 +293,8 @@ $(document).ready(function () {
     });
 
     function submitTimeRangeQuery(startTime, endTime) {
-        if (!histogramSocket || histogramSocket.readyState !== WebSocket.OPEN) {
-            console.warn('WebSocket not open, initializing and queuing query');
-            initializeHistogram();
-            setTimeout(() => submitTimeRangeQuery(startTime, endTime), 1000); // Retry after initialization
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.warn('WebSocket not open, skipping query');
             return;
         }
 
@@ -319,7 +309,7 @@ $(document).ready(function () {
             bucketSize: bucketSize
         };
         console.log('Submitting Query:', queryData);
-        histogramSocket.send(JSON.stringify(queryData));
+        socket.send(JSON.stringify(queryData));
         updateZoomInfo(startTime, endTime, bucketSize, true);
     }
 
@@ -339,9 +329,10 @@ $(document).ready(function () {
             return;
         }
 
+        // Filter outliers and calculate effective max count
         const counts = buckets.map(bucket => bucket.count || 0);
-        console.log('Raw Buckets:', buckets);
-        const validCounts = counts.filter(count => count <= 200);
+        console.log('Raw Buckets:', buckets); // Debug raw buckets
+        const validCounts = counts.filter(count => count <= 200); // Filter out extreme outliers
         const currentMaxCount = validCounts.length > 0 ? Math.max(...validCounts) : 0;
         if (!baselineMaxCount && currentMaxCount > 0 && currentMaxCount <= 200) {
             baselineMaxCount = currentMaxCount;
@@ -543,7 +534,7 @@ $(document).ready(function () {
     function updateZoomInfo(startTime, endTime, granularity, loading = false) {
         let $zoomInfo = $('#zoom-info');
         if ($zoomInfo.length === 0) {
-            $zoomInfo = $('<div id="zoom-info" style="position: absolute; top: 0; right: 0; text-align: center; margin: 2px; font-size: 10px; padding: 2px;"></div>');
+            $zoomInfo = $('<div id="zoom-info" style="position: absolute; top: 0; right: 0; text-align: center; margin: 2px; font-size: 10px; padding: 2px; "></div>');
             $('.my-chart-container').after($zoomInfo);
         }
         const start = moment(startTime).format('YYYY-MM-DD HH:mm:ss');

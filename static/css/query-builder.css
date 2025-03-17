@@ -759,12 +759,13 @@ div.show-record-popup .ui-dialog-buttonpane button {
     transition: height 0.3s ease; /* Smooth height transition */
 }
 
-#toggle-btn {
+#histo-toggle-btn {
     cursor: pointer;
     border: none;
     display: flex;
     align-items: center;
     padding: 5px;
+    size: 10px;
 }
 
 .histo-container.visible {
@@ -786,6 +787,44 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 .histo-container.visible #histogram-container {
     display: block; /* Show when visible */
+}
+
+.my-chart-container {
+    background: white;
+    padding: 5px;
+    border: none;
+    width: 100%;
+    height: 100%;
+    margin-top: 0;
+    position: relative;
+    overflow: hidden; /* Prevent overflow issues */
+}
+
+.my-chart-container canvas {
+    cursor: crosshair !important;
+    width: 100% !important;
+    height: 100% !important; /* Ensure canvas fills container */
+}
+
+.show-table {
+    transition: transform 0.3s ease;
+    transform: translateY(0);
+}
+
+.bx-bar-chart-square {
+    display: inline-block;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-bottom: 10px;
+    font-size: 30px;
+}
+.bx-bar-chart-square:hover {
+    color: var(--purple-1) !important;
+}
+
+
+.histo-container.visible + .show-table {
+    transform: translateY(230px);
 }
 
 .tab-content-size {
