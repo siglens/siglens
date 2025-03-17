@@ -22,12 +22,14 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/cespare/xxhash"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
+	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
@@ -39,8 +41,14 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+type TagKeySeriesCount struct {
+	Key       string `json:"key"`
+	NumSeries uint64 `json:"numSeries"`
+}
 
 func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
 	rotatedMetricRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
@@ -527,4 +535,58 @@ func GetRotatedTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid in
 	}
 
 	return tagsTrees, nil
+}
+
+func GetTagKeysWithMostSeriesRequest(timeRange *dtu.MetricsTimeRange,
+	limit uint64, myid int64) ([]TagKeySeriesCount, error) {
+
+	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
+	defer querySummary.LogMetricsQuerySummary(myid)
+	tagsTreeReaders, err := GetRotatedTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	if err != nil {
+		return nil, err
+	}
+
+	tagKeys := make(map[string]struct{})
+	for _, segmentTagTreeReader := range tagsTreeReaders {
+		tagKeys = toputils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
+	}
+
+	seriesCardMap := make(map[string]*toputils.GobbableHll)
+	for tagKey := range tagKeys {
+		tsidCard := structs.CreateNewHll()
+		seriesCardMap[tagKey] = tsidCard
+		for _, segmentTagTreeReader := range tagsTreeReaders {
+			err := segmentTagTreeReader.CountTSIDsForKey(tagKey, tsidCard)
+			if err != nil {
+				log.Warningf("ProcessGetTagKeysWithMostSeriesRequest: Failed to get tsids for key %v, continuing with rest", tagKey)
+				continue
+			}
+		}
+	}
+
+	// do unrotated
+	err = metrics.CountUnrotatedTSIDsForTagKeys(timeRange, myid, seriesCardMap)
+	if err != nil {
+		log.Warningf("ProcessGetTagKeysWithMostSeriesRequest: Failed to count tsids for unrotated, contiuing with rest, err: %v", err)
+	}
+
+	seriesCounts := make([]TagKeySeriesCount, 0, len(seriesCardMap))
+	for tagKey, tsidCard := range seriesCardMap {
+		keyAndCount := TagKeySeriesCount{
+			Key:       tagKey,
+			NumSeries: tsidCard.Cardinality(),
+		}
+		seriesCounts = append(seriesCounts, keyAndCount)
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if limit != 0 && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	return seriesCounts, nil
 }

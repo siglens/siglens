@@ -982,12 +982,9 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 		EndEpoch   utils.Epoch `json:"endEpoch"`
 		Limit      uint64      `json:"limit"`
 	}
-	type tagKeySeriesCount struct {
-		Key       string `json:"key"`
-		NumSeries uint64 `json:"numSeries"`
-	}
+
 	type outputStruct struct {
-		TagKeys []tagKeySeriesCount `json:"tagKeys"`
+		TagKeys []query.TagKeySeriesCount `json:"tagKeys"`
 	}
 
 	input := inputStruct{Limit: 10} // Set defaults
@@ -1003,60 +1000,13 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 		return
 	}
 
-	limit := input.Limit
-	noLimit := (limit == 0)
-	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
-	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetRotatedTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	seriesCounts, err := query.GetTagKeysWithMostSeriesRequest(timeRange, input.Limit, myid)
 	if err != nil {
-		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		utils.SendInternalError(ctx, "Failed to search tagkeys", "Failed to get tagkeys", err)
 		return
 	}
 
-	tagKeys := make(map[string]struct{})
-	for _, segmentTagTreeReader := range tagsTreeReaders {
-		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
-	}
-
-	seriesCardMap := make(map[string]*utils.GobbableHll)
-	for tagKey := range tagKeys {
-		tsidCard := structs.CreateNewHll()
-		seriesCardMap[tagKey] = tsidCard
-		for _, segmentTagTreeReader := range tagsTreeReaders {
-			err := segmentTagTreeReader.CountTSIDsForKey(tagKey, tsidCard)
-			if err != nil {
-				log.Errorf("ProcessGetTagKeysWithMostSeriesRequest: Failed to get tsids for key %v", tagKey)
-				// continue, since we would want to still the rest of tagkeys
-				continue
-			}
-		}
-	}
-
-	// do unrotated
-	err = metrics.CountUnrotatedTSIDsForTagKeys(timeRange, myid, seriesCardMap)
-	if err != nil {
-		log.Errorf("ProcessGetTagKeysWithMostSeriesRequest: Failed to count tsids for unrotated")
-		// continue, since we would want to still the rest of tagkeys
-	}
-
-	seriesCounts := make([]tagKeySeriesCount, 0, len(seriesCardMap))
-	for tagKey, tsidCard := range seriesCardMap {
-		keyAndCount := tagKeySeriesCount{
-			Key:       tagKey,
-			NumSeries: tsidCard.Cardinality(),
-		}
-		seriesCounts = append(seriesCounts, keyAndCount)
-	}
-
-	sort.Slice(seriesCounts, func(i, j int) bool {
-		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
-	})
-
-	if !noLimit && limit < uint64(len(seriesCounts)) {
-		seriesCounts = seriesCounts[:limit]
-	}
-
-	output := outputStruct{
+	output := &outputStruct{
 		TagKeys: seriesCounts,
 	}
 
