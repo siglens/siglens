@@ -1378,11 +1378,9 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				}
 			}
 
-			if len(blockSummaries) > 0 {
-				for _, bSum := range blockSummaries {
-					if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
-						retBlocks[bSum.Blknum] = true
-					}
+			for _, bSum := range blockSummaries {
+				if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
+					retBlocks[bSum.Blknum] = true
 				}
 			}
 

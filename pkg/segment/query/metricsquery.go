@@ -356,8 +356,8 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// for each metrics segment, apply a single metrics segment search
 	// var tsidInfo *tsidtracker.AllMatchedTSIDs
 
-	// allocate 1 MB buffer
-	bytesBuffer := bytes.NewBuffer(make([]byte, 0, 1024*1024))
+	// allocate 50 KB buffer
+	bytesBuffer := bytes.NewBuffer(make([]byte, 0, 50*1024))
 
 	for baseDir, allMSearchReqs := range allSearchReqests {
 		if mQuery.IsQueryCancelled() {
@@ -430,8 +430,9 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			}
 
 			if mSeg.QueryType == structs.UNROTATED_METRICS_SEARCH {
-				searchInRotated := metrics.SearchUnrotatedMetricsBlock(mQuery, segTsidInfo, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
-				if searchInRotated {
+				searchInRotatedBlk := metrics.SearchUnrotatedMetricsBlock(mQuery, segTsidInfo, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
+				if searchInRotatedBlk {
+					// The length of the unrotated block is 1
 					for blkNum := range mSeg.UnrotatedBlkToSearch {
 						mSeg.BlocksToSearch[blkNum] = true
 					}
