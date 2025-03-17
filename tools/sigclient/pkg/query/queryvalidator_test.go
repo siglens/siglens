@@ -328,6 +328,14 @@ func Test_FilterQueryValidator(t *testing.T) {
 		assert.Error(t, err) // Change if we want to support this.
 	})
 
+	t.Run("ValueHasSpaces", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "New York", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		query, _, _ := validator.GetQuery()
+		assert.Equal(t, `city="New York" | head 3`, query)
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)

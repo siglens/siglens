@@ -115,7 +115,7 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | head %v", key, value, head),
+			query:      fmt.Sprintf(`%v="%v" | head %v`, key, value, head),
 		},
 		key:             key,
 		value:           finalValue,
