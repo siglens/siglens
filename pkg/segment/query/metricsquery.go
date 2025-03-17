@@ -488,7 +488,7 @@ func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int
 	pastXhours := max(1, diff/3600)
 	asCounts, err := usageStats.GetActiveSeriesCounts(pastXhours, myid)
 	if err != nil {
-		log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get card, err: %v", err)
+		log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get cardinality, err: %v", err)
 		return 0, err
 	}
 
