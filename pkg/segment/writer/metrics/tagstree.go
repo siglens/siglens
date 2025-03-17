@@ -544,7 +544,7 @@ func (tt *TagTree) countTSIDsForTagPairs(tvaluesMap map[string]*utils.GobbableHl
 			for _, tsid := range ti.matchingtsids {
 				tv := string(ti.tagValue)
 				tsidCard, ok := tvaluesMap[tv]
-				if !ok {
+				if !ok || tsidCard == nil {
 					tsidCard = structs.CreateNewHll()
 					tvaluesMap[tv] = tsidCard
 				}

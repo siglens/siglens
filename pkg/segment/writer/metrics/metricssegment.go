@@ -1587,16 +1587,16 @@ func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
 			continue
 		}
 		for tagkey, tkTree := range tagsTreeHolder.allTrees {
-			tvaluesMap, ok := tagPairsMap[tagkey]
-			if !ok {
-				tvaluesMap = make(map[string]struct{})
-				tagPairsMap[tagkey] = tvaluesMap
+			valuesSet, ok := tagPairsMap[tagkey]
+			if !ok || valuesSet == nil {
+				valuesSet = make(map[string]struct{})
+				tagPairsMap[tagkey] = valuesSet
 			}
 
 			for _, allTi := range tkTree.rawValues {
 				for _, ti := range allTi {
 					tv := string(ti.tagValue)
-					tvaluesMap[tv] = struct{}{}
+					valuesSet[tv] = struct{}{}
 				}
 			}
 		}
@@ -1624,18 +1624,18 @@ func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.Metric
 				continue
 			}
 
-			tvaluesMap, ok := resTagValues[tf.TagKey]
-			if !ok {
-				tvaluesMap = make(map[string]struct{})
-				resTagValues[tf.TagKey] = tvaluesMap
+			valuesSet, ok := resTagValues[tf.TagKey]
+			if !ok || valuesSet == nil {
+				valuesSet = make(map[string]struct{})
+				resTagValues[tf.TagKey] = valuesSet
 			}
 
 			for _, allTi := range tkTree.rawValues {
 				for _, ti := range allTi {
 					tv := string(ti.tagValue)
-					_, ok := tvaluesMap[tv]
+					_, ok := valuesSet[tv]
 					if !ok {
-						tvaluesMap[tv] = struct{}{}
+						valuesSet[tv] = struct{}{}
 					}
 				}
 			}
