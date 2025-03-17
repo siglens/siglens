@@ -252,12 +252,12 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
-		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.TotalBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TotalBytesCount"] = float64(entry.TotalBytesCount)
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
-		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000
-		httpResp.ChartStats[k]["MetricsGBCount"] = float64(entry.MetricsBytesCount) / 1_000_000_000
-		httpResp.ChartStats[k]["TraceGBCount"] = float64(entry.TraceBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["LogsBytesCount"] = float64(entry.LogsBytesCount)
+		httpResp.ChartStats[k]["MetricsBytesCount"] = float64(entry.MetricsBytesCount)
+		httpResp.ChartStats[k]["TraceBytesCount"] = float64(entry.TraceBytesCount)
 		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
 	}
 	utils.WriteJsonResponse(ctx, httpResp)

@@ -86,33 +86,33 @@ function drawStatsChart(res, data, chartType) {
             gridLineColor = '#383148';
             tickColor = '#FFFFFF';
         }
-        var GBCountData = [];
+        var BytesCountData = [];
         var EventCountData = [];
         _.forEach(res, (mvalue, key) => {
             if (key === 'chartStats') {
                 _.forEach(mvalue, (val, bucketKey) => {
                     if (chartType === 'logs') {
-                        GBCountData.push({
+                        BytesCountData.push({
                             x: bucketKey,
-                            y: val.LogsGBCount,
+                            y: val.LogsBytesCount,
                         }),
                             EventCountData.push({
                                 x: bucketKey,
                                 y: val.LogsEventCount,
                             });
                     } else if (chartType === 'metrics') {
-                        GBCountData.push({
+                        BytesCountData.push({
                             x: bucketKey,
-                            y: val.MetricsGBCount,
+                            y: val.MetricsBytesCount,
                         }),
                             EventCountData.push({
                                 x: bucketKey,
                                 y: val.MetricsDatapointsCount,
                             });
                     } else if (chartType === 'trace') {
-                        GBCountData.push({
+                        BytesCountData.push({
                             x: bucketKey,
-                            y: val.TraceGBCount,
+                            y: val.TraceBytesCount,
                         }),
                             EventCountData.push({
                                 x: bucketKey,
@@ -121,15 +121,15 @@ function drawStatsChart(res, data, chartType) {
                     }
                 });
                 // Destroy only the relevant charts to prevent overwriting
-                if (window[chartType + 'GBCountChart'] !== undefined) {
-                    window[chartType + 'GBCountChart'].destroy();
+                if (window[chartType + 'BytesCountChart'] !== undefined) {
+                    window[chartType + 'BytesCountChart'].destroy();
                 }
                 if (window[chartType + 'EventCountChart'] !== undefined) {
                     window[chartType + 'EventCountChart'].destroy();
                 }
 
                 // Create charts and store in a global variable scoped by chart type
-                window[chartType + 'GBCountChart'] = renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType);
+                window[chartType + 'BytesCountChart'] = renderBytesCountChart(BytesCountData, gridLineColor, tickColor, chartType);
                 window[chartType + 'EventCountChart'] = renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType);
             }
         });
@@ -137,18 +137,47 @@ function drawStatsChart(res, data, chartType) {
     });
 }
 
-function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
-    var GBCountChartCanvas = $('#GBCountChart-' + chartType)
+function determineUnit(data) {
+    let maxBytes = 0;
+    data.forEach(point => {
+        if (point.y > maxBytes) {
+            maxBytes = point.y;
+        }
+    });
+    
+    if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    
+    const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
+    
+    return {
+        unit: sizes[i],
+        divisor: Math.pow(k, i)
+    };
+}
+
+
+function renderBytesCountChart(BytesCountData, gridLineColor, tickColor, chartType) {
+    var canvas = $('#bytesCountChart-' + chartType)
         .get(0)
         .getContext('2d');
+    
+    const scale = determineUnit(BytesCountData);
+    
+    const scaledData = BytesCountData.map(point => ({
+        x: point.x,
+        y: point.y / scale.divisor
+    }));
 
-    var GBCountChart = new Chart(GBCountChartCanvas, {
+    var chart = new Chart(canvas, {
         type: 'line',
         data: {
             datasets: [
                 {
                     label: 'Ingestion Volume',
-                    data: GBCountData,
+                    data: scaledData,
                     borderColor: ['rgb(99,71,217)'],
                     yAxisID: 'y',
                     pointStyle: 'circle',
@@ -171,12 +200,12 @@ function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
                         label: function (context) {
                             let label = context.dataset.label || '';
                             if (context.parsed.y !== null) {
-                                let f = context.parsed.y;
-                                if (context.parsed.y >= 10) {
-                                    f = Number(context.parsed.y.toFixed()).toLocaleString('en-us');
-                                    label += ' ' + f + ' GB';
+                                let value = context.parsed.y;
+                                if (value >= 10) {
+                                    value = Number(value.toFixed()).toLocaleString('en-us');
+                                    label += ' ' + value + ' ' + scale.unit;
                                 } else {
-                                    label += ' ' + f.toFixed(3) + ' GB';
+                                    label += ' ' + value.toFixed(3) + ' ' + scale.unit;
                                 }
                             }
                             return label;
@@ -191,7 +220,7 @@ function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
                 y: {
                     ticks: {
                         callback: function (value, _index, _ticks) {
-                            return value.toFixed(3) + ' GB';
+                            return value + ' ' + scale.unit;
                         },
                         color: tickColor,
                     },
@@ -237,7 +266,7 @@ function renderGBCountChart(GBCountData, gridLineColor, tickColor, chartType) {
             },
         },
     });
-    return GBCountChart;
+    return chart;
 }
 
 function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType) {
