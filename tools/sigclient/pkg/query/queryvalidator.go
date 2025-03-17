@@ -115,15 +115,20 @@ func NewFilterQueryValidator(key string, value string, numericSortCol string, he
 		finalValue = stringOrRegex{isRegex: true, regex: *regex}
 	}
 
+	var query string
 	if numericSortCol == "" {
 		numericSortCol = timestampCol
+		query = fmt.Sprintf(`%v="%v" | head %v`, key, value, head)
+	} else {
+		// Only sorting by numeric columns is supported for now.
+		query = fmt.Sprintf(`%v="%v" | sort %v num(%v)`, key, value, head, numericSortCol)
 	}
 
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf(`%v="%v" | head %v`, key, value, head),
+			query:      query,
 		},
 		key:             key,
 		value:           finalValue,
