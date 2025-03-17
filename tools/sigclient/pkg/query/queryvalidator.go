@@ -357,20 +357,15 @@ func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]ma
 	groups := make([][]map[string]interface{}, 0)
 	groups = append(groups, make([]map[string]interface{}, 0))
 
-	curValue, ok := logs[0][sortColumn]
-	if !ok {
-		return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
-	}
+	curValue, curOk := logs[0][sortColumn]
 
 	for _, log := range logs {
 		value, ok := log[sortColumn]
-		if !ok {
-			return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
-		}
 
-		if value != curValue {
+		if ok != curOk || (ok && curOk && value != curValue) {
 			groups = append(groups, make([]map[string]interface{}, 0))
 			curValue = value
+			curOk = ok
 		}
 
 		groups[len(groups)-1] = append(groups[len(groups)-1], log)
