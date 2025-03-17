@@ -563,10 +563,12 @@ var longevityCmd = &cobra.Command{
 		dataGeneratorConfig := utils.InitGeneratorDataConfig(maxCols, true, minCols, uniqueCols)
 
 		templates := []*query.QueryTemplate{
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", 10, 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", 10, 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", 10, 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", "", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", "", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("state_c1", "Texas", "latency", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("state_c1", "Texas", "latency", 10, 0, 0)), 1, 1),
 		}
 		maxConcurrentQueries := int32(1)
 		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl)
