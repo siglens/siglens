@@ -884,3 +884,29 @@ func (ttr *TagTreeReader) getHashedMetricNames() (map[uint64]struct{}, error) {
 
 	return hashedMetricNames, nil
 }
+
+func SearchAndInsertTSIDs(mQuery *structs.MetricsQuery,
+	allMatchedTsids *tsidtracker.AllMatchedTSIDs,
+	metricNames []string, baseDir string,
+	allMSearchReqs []*structs.MetricsSearchRequest, qid uint64) error {
+
+	attr, err := InitAllTagsTreeReader(baseDir)
+	if err != nil {
+		return err
+	}
+
+	for _, mName := range metricNames {
+		mQuery.MetricName = mName
+		mQuery.HashedMName = xxhash.Sum64String(mName)
+		tsidInfo, err := attr.FindTSIDS(mQuery)
+		if err != nil {
+			log.Errorf("qid=%d, SearchAndInsertTSIDs: Error finding TSIDs for metric %s: %v", qid, mName, err)
+			return err
+		}
+		allMatchedTsids.MergeTSIDs(tsidInfo)
+	}
+	// Close the TagTreeReader
+	attr.CloseAllTagTreeReaders()
+
+	return nil
+}

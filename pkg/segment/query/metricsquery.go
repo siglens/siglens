@@ -381,6 +381,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// for each metrics segment, apply a single metrics segment search
 	// var tsidInfo *tsidtracker.AllMatchedTSIDs
 
+	var err error
 	// allocate 50 KB buffer
 	bytesBuffer := bytes.NewBuffer(make([]byte, 0, 50*1024))
 
@@ -389,13 +390,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			return
 		}
 
-		attr, err := tagstree.InitAllTagsTreeReader(baseDir)
-		if err != nil {
-			continue
-		}
-
 		var metricNames []string
-
 		if mQuery.IsRegexOnMetricName() {
 			// Regex Search on Metric Name. We need to get all the Metric Names in this Segment.
 			// The baseDir is the base directory of the tags tree holder but not the segment directory.
@@ -421,31 +416,25 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 
 		sTime := time.Now()
 
-		segTsidInfo, err := tsidtracker.InitTSIDTracker(len(mQuery.TagsFilters))
+		allMatchedTsids, err := tsidtracker.InitTSIDTracker(len(mQuery.TagsFilters))
 		if err != nil {
 			mRes.AddError(err)
 			continue
 		}
 
-		for _, mName := range metricNames {
-			mQuery.MetricName = mName
-			mQuery.HashedMName = xxhash.Sum64String(mName)
-			tsidInfo, err := attr.FindTSIDS(mQuery)
-			if err != nil {
-				log.Errorf("qid=%d, applyMetricsOperatorOnSegments: Error finding TSIDs for metric %s: %v", qid, mName, err)
-				continue
-			}
-			segTsidInfo.MergeTSIDs(tsidInfo)
+		err = tagstree.SearchAndInsertTSIDs(mQuery, allMatchedTsids, metricNames, baseDir,
+			allMSearchReqs, qid)
+		if err != nil {
+			mRes.AddError(err)
+			continue
 		}
-		// Close the TagTreeReader
-		attr.CloseAllTagTreeReaders()
 
 		querySummary.UpdateTimeSearchingTagsTrees(time.Since(sTime))
 		querySummary.IncrementNumTagsTreesSearched(1)
 
-		querySummary.IncrementNumTSIDsMatched(uint64(segTsidInfo.GetNumMatchedTSIDs()))
+		querySummary.IncrementNumTSIDsMatched(uint64(allMatchedTsids.GetNumMatchedTSIDs()))
 		if mQuery.ExitAfterTagsSearch {
-			mRes.AddAllSeriesTagsOnlyMap(segTsidInfo.GetTSIDInfoMap())
+			mRes.AddAllSeriesTagsOnlyMap(allMatchedTsids.GetTSIDInfoMap())
 			continue
 		}
 
@@ -454,7 +443,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 				return
 			}
 
-			search.RawSearchMetricsSegment(mQuery, segTsidInfo, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
+			search.RawSearchMetricsSegment(mQuery, allMatchedTsids, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
 		}
 	}
 }
