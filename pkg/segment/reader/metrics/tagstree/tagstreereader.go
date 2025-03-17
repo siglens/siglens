@@ -353,7 +353,7 @@ func isWildcardOrRegex(tf *structs.TagsFilter) bool {
 func matchesRegex(tagOperator segutils.TagOperator, pattern string, tagRawValue []byte) bool {
 	match, err := acceptRegexVal(pattern, tagRawValue, tagOperator)
 	if err != nil {
-		log.Errorf("Regex match error: %v", err)
+		log.Errorf("matchesRegex: Regex match error: %v", err)
 	}
 	return match
 }
