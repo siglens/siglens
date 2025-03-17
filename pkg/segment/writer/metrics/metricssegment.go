@@ -1596,10 +1596,7 @@ func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
 			for _, allTi := range tkTree.rawValues {
 				for _, ti := range allTi {
 					tv := string(ti.tagValue)
-					_, ok := tvaluesMap[tv]
-					if !ok {
-						tvaluesMap[tv] = struct{}{}
-					}
+					tvaluesMap[tv] = struct{}{}
 				}
 			}
 		}
