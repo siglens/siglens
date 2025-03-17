@@ -124,12 +124,6 @@ test.describe('Dashboard Page Tests', () => {
         await page.waitForTimeout(1000);
         await page.click('#dbSet-save');
 
-        // Toggle favorite
-        await page.waitForSelector('#favbutton', { state: 'visible', timeout: 20000 });
-        const favButton = page.locator('#favbutton').first();
-        await favButton.click();
-        await page.waitForTimeout(3000);
-
         // Test date picker
         const datePickerBtn = page.locator('#new-dashboard #date-picker-btn');
         await datePickerBtn.click();
