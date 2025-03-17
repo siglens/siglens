@@ -121,7 +121,8 @@ func NewFilterQueryValidator(key string, value string, numericSortCol string, he
 		query = fmt.Sprintf(`%v="%v" | head %v`, key, value, head)
 	} else {
 		// Only sorting by numeric columns is supported for now.
-		query = fmt.Sprintf(`%v="%v" | sort %v num(%v)`, key, value, head, numericSortCol)
+		// Sort so the highest values are first.
+		query = fmt.Sprintf(`%v="%v" | sort %v -num(%v)`, key, value, head, numericSortCol)
 	}
 
 	return &filterQueryValidator{
@@ -147,6 +148,7 @@ func (f *filterQueryValidator) Copy() queryValidator {
 		},
 		key:             f.key,
 		value:           f.value,
+		sortCol:         f.sortCol,
 		head:            f.head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}
