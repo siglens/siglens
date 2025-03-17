@@ -982,12 +982,9 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 		EndEpoch   utils.Epoch `json:"endEpoch"`
 		Limit      uint64      `json:"limit"`
 	}
-	type tagKeySeriesCount struct {
-		Key       string `json:"key"`
-		NumSeries uint64 `json:"numSeries"`
-	}
+
 	type outputStruct struct {
-		TagKeys []tagKeySeriesCount `json:"tagKeys"`
+		TagKeys []query.TagKeySeriesCount `json:"tagKeys"`
 	}
 
 	input := inputStruct{Limit: 10} // Set defaults
@@ -1003,49 +1000,13 @@ func ProcessGetTagKeysWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int64
 		return
 	}
 
-	limit := input.Limit
-	noLimit := (limit == 0)
-	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
-	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	seriesCounts, err := query.GetTagKeysWithMostSeriesRequest(timeRange, input.Limit, myid)
 	if err != nil {
-		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
+		utils.SendInternalError(ctx, "Failed to search tagkeys", "Failed to get tagkeys", err)
 		return
 	}
 
-	tagKeys := make(map[string]struct{})
-	for _, segmentTagTreeReader := range tagsTreeReaders {
-		tagKeys = utils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
-	}
-
-	seriesCounts := make([]tagKeySeriesCount, 0, len(tagKeys))
-	for tagKey := range tagKeys {
-		tsidCard := structs.CreateNewHll()
-		for _, segmentTagTreeReader := range tagsTreeReaders {
-			_, err := segmentTagTreeReader.GetTSIDsForKey(tagKey, tsidCard)
-			if err != nil {
-				utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v", tagKey), err)
-				// continue, since we would want to still the rest of tagkeys
-				continue
-			}
-		}
-
-		keyAndCount := tagKeySeriesCount{
-			Key:       tagKey,
-			NumSeries: tsidCard.Cardinality(),
-		}
-		seriesCounts = append(seriesCounts, keyAndCount)
-	}
-
-	sort.Slice(seriesCounts, func(i, j int) bool {
-		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
-	})
-
-	if !noLimit && limit < uint64(len(seriesCounts)) {
-		seriesCounts = seriesCounts[:limit]
-	}
-
-	output := outputStruct{
+	output := &outputStruct{
 		TagKeys: seriesCounts,
 	}
 
@@ -1085,7 +1046,8 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int6
 	noLimit := (limit == 0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+
+	tagsTreeReaders, err := query.GetRotatedTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
 		return
@@ -1107,23 +1069,45 @@ func ProcessGetTagPairsWithMostSeriesRequest(ctx *fasthttp.RequestCtx, myid int6
 		}
 	}
 
-	seriesCounts := make([]tagPairSeriesCount, 0)
-	for key, valueSet := range tagPairs {
-		for value := range valueSet {
+	numCardinalities := 0
+	tagPairsCardMap := make(map[string]map[string]*utils.GobbableHll, len(tagPairs))
+	for tk, tvalues := range tagPairs {
+		tagPairsCardMap[tk] = make(map[string]*utils.GobbableHll, len(tvalues))
+		for tv := range tvalues {
+			tagPairsCardMap[tk][tv] = structs.CreateNewHll()
+			numCardinalities++
+		}
+	}
+
+	for tk, tvalues := range tagPairsCardMap {
+		for tv, tsidCard := range tvalues {
 			for _, segmentTagTreeReader := range tagsTreeReaders {
-				tsidCount, err := segmentTagTreeReader.GetTSIDCountForTagPair(key, value)
+				err := segmentTagTreeReader.InsertTSIDsForTagPair(tk, tv, tsidCard)
 				if err != nil {
-					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", key, value), err)
+					utils.SendInternalError(ctx, "Failed to search metrics", fmt.Sprintf("Failed to get tsids for key %v and value %v", tk, tv), err)
 					return
 				}
-
-				keyAndCount := tagPairSeriesCount{
-					Key:       key,
-					Value:     value,
-					NumSeries: tsidCount,
-				}
-				seriesCounts = append(seriesCounts, keyAndCount)
 			}
+		}
+	}
+
+	// do unrotated
+	err = metrics.CountUnrotatedTSIDsForTagPairs(timeRange, myid, tagPairsCardMap)
+	if err != nil {
+		log.Errorf("ProcessGetTagPairsWithMostSeriesRequest: Failed to count tsids for unrotated")
+		// continue, since we would want to still the rest
+	}
+
+	// start off with rotatedCard num, unortated we do not keep track of how many entries are there
+	seriesCounts := make([]tagPairSeriesCount, numCardinalities)
+	for tk, tvaluesMap := range tagPairsCardMap {
+		for tv, tsidCard := range tvaluesMap {
+			keyAndCount := tagPairSeriesCount{
+				Key:       tk,
+				Value:     tv,
+				NumSeries: tsidCard.Cardinality(),
+			}
+			seriesCounts = append(seriesCounts, keyAndCount)
 		}
 	}
 
@@ -1174,7 +1158,8 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid int64
 	noLimit := (limit == 0)
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := query.GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+
+	tagsTreeReaders, err := query.GetRotatedTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
 		utils.SendInternalError(ctx, "Failed to search metrics", "Failed to get tags trees", err)
 		return
@@ -1194,6 +1179,12 @@ func ProcessGetTagKeysWithMostValuesRequest(ctx *fasthttp.RequestCtx, myid int64
 				tagPairs[key] = utils.MergeMaps(tagPairs[key], valueSet)
 			}
 		}
+	}
+
+	err = metrics.GetUnrotatedTagPairs(timeRange, myid, tagPairs)
+	if err != nil {
+		log.Errorf("ProcessGetTagKeysWithMostValuesRequest: Failed to get tagpairs for unrotated")
+		// continue, since we would want to still the rest of tagkeys
 	}
 
 	keysAndNumValues := make([]keyAndNumValues, 0)
