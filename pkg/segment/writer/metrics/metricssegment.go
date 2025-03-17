@@ -1536,7 +1536,7 @@ func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
 		if tagsTreeHolder != nil {
 			for tagkey, tkTree := range tagsTreeHolder.allTrees {
 				tsidCard, ok := seriesCardMap[tagkey]
-				if !ok {
+				if !ok || tsidCard == nil {
 					tsidCard = structs.CreateNewHll()
 					seriesCardMap[tagkey] = tsidCard
 				}
@@ -1560,12 +1560,12 @@ func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
 		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
 		if tagsTreeHolder != nil {
 			for tagkey, tkTree := range tagsTreeHolder.allTrees {
-				tvaluesMap, ok := tagPairsCardMap[tagkey]
-				if !ok {
-					tvaluesMap = make(map[string]*toputils.GobbableHll)
-					tagPairsCardMap[tagkey] = tvaluesMap
+				valuesSet, ok := tagPairsCardMap[tagkey]
+				if !ok || valuesSet == nil {
+					valuesSet = make(map[string]*toputils.GobbableHll)
+					tagPairsCardMap[tagkey] = valuesSet
 				}
-				tkTree.countTSIDsForTagPairs(tvaluesMap)
+				tkTree.countTSIDsForTagPairs(valuesSet)
 			}
 		}
 	}
@@ -1633,10 +1633,7 @@ func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.Metric
 			for _, allTi := range tkTree.rawValues {
 				for _, ti := range allTi {
 					tv := string(ti.tagValue)
-					_, ok := valuesSet[tv]
-					if !ok {
-						valuesSet[tv] = struct{}{}
-					}
+					valuesSet[tv] = struct{}{}
 				}
 			}
 		}
