@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -1640,6 +1641,72 @@ func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
 	}
 
 }
+
+func Test_SimpleMetricQueryUnrotatedBlockData(t *testing.T) {
+	defer cleanUp(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+	metrics.InitMetricsSegStore()
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	timeRange := &dtypeutils.MetricsTimeRange{
+		StartEpochSec: uint32(startTimestamp),
+		EndEpochSec:   uint32(startTimestamp + 4600),
+	}
+
+	// Tags tree flush time
+	time.Sleep(11 * time.Second)
+
+	query := `(testmetric0)`
+	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(metricQueryRequest))
+
+	expectedResults := map[string][]float64{
+		"testmetric0{color:red,radius:10,shape:circle,type:solid,":  {40},
+		"testmetric0{color:red,shape:circle,size:small,type:solid,": {10, 50, 60, 70},
+	}
+
+	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
+	assert.NotNil(t, res)
+	assert.Equal(t, 2, len(res.Results))
+
+	for seriesId, seriesDp := range res.Results {
+		expectedSeriesDpValues, ok := expectedResults[seriesId]
+		assert.True(t, ok, "SeriesId: ", seriesId)
+
+		seriesDpStructSlice := make([]*seriesDataPoint, 0)
+		for ts, dp := range seriesDp {
+			seriesDpStructSlice = append(seriesDpStructSlice, &seriesDataPoint{ts: ts, val: dp})
+		}
+
+		sort.Slice(seriesDpStructSlice, func(i, j int) bool {
+			return seriesDpStructSlice[i].ts < seriesDpStructSlice[j].ts
+		})
+
+		seriesDpValues := make([]float64, 0)
+		for _, dp := range seriesDpStructSlice {
+			seriesDpValues = append(seriesDpValues, dp.val)
+		}
+
+		assert.EqualValues(t, expectedSeriesDpValues, seriesDpValues)
+
+		delete(expectedResults, seriesId)
+	}
+
+	assert.Equal(t, 0, len(expectedResults))
+}
+
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
 	testDir := t.TempDir()
 	dataDir := filepath.Join(testDir, "data")
