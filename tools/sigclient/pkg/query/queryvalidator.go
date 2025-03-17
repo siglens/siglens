@@ -20,7 +20,9 @@ package query
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 	"verifier/pkg/utils"
@@ -62,10 +64,24 @@ func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 type filterQueryValidator struct {
 	basicValidator
 	key             string
-	value           string
+	value           stringOrRegex
 	head            int
 	reversedResults []map[string]interface{}
 	lock            sync.Mutex
+}
+
+type stringOrRegex struct {
+	isRegex   bool
+	rawString string
+	regex     regexp.Regexp
+}
+
+func (s *stringOrRegex) Matches(value string) bool {
+	if s.isRegex {
+		return s.regex.MatchString(value)
+	}
+
+	return value == s.rawString
 }
 
 func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
@@ -79,14 +95,32 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		return nil, fmt.Errorf("NewFilterQueryValidator: head must be between 1 and 99 inclusive")
 	}
 
+	// Don't allow matching literal asterisks.
+	if strings.Contains(value, "\\*") {
+		return nil, fmt.Errorf("NewFilterQueryValidator: matching literal asterisks is not implemented")
+	}
+
+	finalValue := stringOrRegex{isRegex: false, rawString: value}
+	if strings.Contains(finalValue.rawString, "*") {
+		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
+		s = fmt.Sprintf("^%v$", s)
+		regex, err := regexp.Compile(s)
+		if err != nil {
+			return nil, fmt.Errorf("NewFilterQueryValidator: invalid regex %v; err=%v",
+				finalValue.rawString, err)
+		}
+
+		finalValue = stringOrRegex{isRegex: true, regex: *regex}
+	}
+
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | head %v", key, value, head),
+			query:      fmt.Sprintf(`%v="%v" | head %v`, key, value, head),
 		},
 		key:             key,
-		value:           value,
+		value:           finalValue,
 		head:            head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}, nil
@@ -110,7 +144,7 @@ func (f *filterQueryValidator) Info() string {
 	duration := time.Duration(f.endEpoch-f.startEpoch) * time.Millisecond
 	numResults := min(len(f.reversedResults), f.head)
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v results",
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
 		f.query, duration, f.startEpoch, f.endEpoch, numResults)
 }
 
@@ -121,7 +155,7 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	}
 
 	value, ok := log[f.key]
-	if !ok || value != fmt.Sprintf("%v", f.value) {
+	if !ok || !f.value.Matches(fmt.Sprintf("%v", value)) {
 		return nil
 	}
 
@@ -160,6 +194,10 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 type logsResponse struct {
 	Hits       hits     `json:"hits"`
 	AllColumns []string `json:"allColumns"`
+
+	// Used for aggregation queries.
+	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
+	Measure          []measureResult `json:"measure,omitempty"`
 }
 
 type hits struct {
@@ -170,6 +208,11 @@ type hits struct {
 type totalMatched struct {
 	Value    int    `json:"value"`
 	Relation string `json:"relation"`
+}
+
+type measureResult struct {
+	GroupByValues []string               `json:"GroupByValues"`
+	Value         map[string]interface{} `json:"MeasureVal"`
 }
 
 func (f *filterQueryValidator) MatchesResult(result []byte) error {
@@ -338,4 +381,126 @@ func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
 	}
 
 	return newLog
+}
+
+type countQueryValidator struct {
+	basicValidator
+	key        string
+	value      string
+	numMatches int
+	lock       sync.Mutex
+}
+
+func NewCountQueryValidator(key string, value string, startEpoch uint64,
+	endEpoch uint64) (queryValidator, error) {
+
+	if strings.Contains(value, "*") {
+		return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+	}
+
+	return &countQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch: startEpoch,
+			endEpoch:   endEpoch,
+			query:      fmt.Sprintf("%v=%v | stats count", key, value),
+		},
+		key:        key,
+		value:      value,
+		numMatches: 0,
+	}, nil
+}
+
+func (c *countQueryValidator) Copy() queryValidator {
+	return &countQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch: c.startEpoch,
+			endEpoch:   c.endEpoch,
+			query:      c.query,
+		},
+		key:        c.key,
+		value:      c.value,
+		numMatches: c.numMatches,
+	}
+}
+
+func (c *countQueryValidator) Info() string {
+	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
+		c.query, duration, c.startEpoch, c.endEpoch, c.numMatches)
+}
+
+func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
+	if !withinTimeRange(log, c.startEpoch, c.endEpoch) {
+		return nil
+	}
+
+	value, ok := log[c.key]
+	if !ok || value != fmt.Sprintf("%v", c.value) {
+		return nil
+	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.numMatches++
+
+	return nil
+}
+
+func (c *countQueryValidator) MatchesResult(result []byte) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	response := logsResponse{}
+	if err := json.Unmarshal(result, &response); err != nil {
+		return fmt.Errorf("CQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
+	}
+
+	if response.Hits.TotalMatched.Value != c.numMatches {
+		return fmt.Errorf("CQV.MatchesResult: expected %d logs, got %d",
+			c.numMatches, response.Hits.TotalMatched.Value)
+	}
+
+	if response.Hits.TotalMatched.Relation != "eq" {
+		return fmt.Errorf("CQV.MatchesResult: expected relation to be eq, got %s",
+			response.Hits.TotalMatched.Relation)
+	}
+
+	if len(response.AllColumns) != 1 || response.AllColumns[0] != "count(*)" {
+		return fmt.Errorf("CQV.MatchesResult: expected allColumns to be [count(*)], got %v",
+			response.AllColumns)
+	}
+
+	if len(response.MeasureFunctions) != 1 || response.MeasureFunctions[0] != "count(*)" {
+		return fmt.Errorf("CQV.MatchesResult: expected measureFunctions to be [count(*)], got %v",
+			response.MeasureFunctions)
+	}
+
+	if len(response.Measure) != 1 {
+		return fmt.Errorf("CQV.MatchesResult: expected 1 measure, got %d", len(response.Measure))
+	}
+
+	measure := response.Measure[0]
+	if len(measure.GroupByValues) != 1 || measure.GroupByValues[0] != "*" {
+		return fmt.Errorf("CQV.MatchesResult: expected groupByValues to be [*], got %v",
+			measure.GroupByValues)
+	}
+
+	if len(measure.Value) != 1 {
+		return fmt.Errorf("CQV.MatchesResult: expected 1 value, got %d", len(measure.Value))
+	}
+
+	if count, ok := measure.Value["count(*)"]; !ok {
+		return fmt.Errorf("CQV.MatchesResult: expected measure[0] to have key count(*), got %v",
+			measure.Value)
+	} else if countUint, ok := utils.AsUint64(count); !ok {
+		return fmt.Errorf("CQV.MatchesResult: invalid count type %T in measure[0] value %v",
+			count, measure.Value)
+	} else if countUint != uint64(c.numMatches) {
+		return fmt.Errorf("CQV.MatchesResult: expected measure[0] count to be %d, got %d",
+			c.numMatches, countUint)
+	}
+
+	return nil
 }

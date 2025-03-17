@@ -19,8 +19,10 @@ package query
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"sync"
 	"time"
 
@@ -36,11 +38,18 @@ import (
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	tutils "github.com/siglens/siglens/pkg/segment/tracing/utils"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
+	"github.com/siglens/siglens/pkg/usageStats"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
+
+type TagKeySeriesCount struct {
+	Key       string `json:"key"`
+	NumSeries uint64 `json:"numSeries"`
+}
 
 func getAllRequestsWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) (map[string][]*structs.MetricsSearchRequest, error) {
 	rotatedMetricRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
@@ -102,6 +111,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		finalTimeRange.StartEpochSec = timeRange.StartEpochSec - uint32(mQuery.LookBackToInclude)
 	}
 
+	// todo: switch this to use rotated segs only
 	mSegments, err := getAllRequestsWithinTimeRange(finalTimeRange, mQuery.OrgId, querySummary)
 	if err != nil {
 		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", finalTimeRange, err)
@@ -154,6 +164,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 	if mQuery.TagValueSearchOnly {
 		applyTagValuesSearchOnlyOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+		applyTagValuesSearchOnlyOnUnrotatedSegs(mQuery, mRes, timeRange, qid, querySummary)
 		return mRes
 	}
 
@@ -327,6 +338,20 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid in
 	return result, gErr
 }
 
+func applyTagValuesSearchOnlyOnUnrotatedSegs(mQuery *structs.MetricsQuery,
+	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64,
+	querySummary *summary.QuerySummary) {
+
+	if mRes.TagValues == nil {
+		mRes.TagValues = make(map[string]map[string]struct{})
+	}
+
+	err := metrics.FindTagValuesUnrotated(timeRange, mQuery, mRes.TagValues)
+	if err != nil {
+		log.Errorf("applyTagValuesSearchOnlyOnUnrotatedSegs: failed to find tag vals for unrotated, err: %v", err)
+	}
+}
+
 func applyTagValuesSearchOnlyOnSegments(mQuery *structs.MetricsQuery, allSearchRequests map[string][]*structs.MetricsSearchRequest,
 	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 
@@ -465,12 +490,63 @@ func getRegexMatchedMetricNames(mSegSearchReq *structs.MetricsSearchRequest, reg
 }
 
 func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int64) (uint64, error) {
+	diff := uint64(timeRange.EndEpochSec - timeRange.StartEpochSec)
+	if diff <= 0 {
+		log.Errorf("GetSeriesCardinalityOverTimeRange: invalid time range, diff: %+v, start: %v, end: %v",
+			diff, timeRange.EndEpochSec, timeRange.StartEpochSec)
+		return 0, errors.New("Invalid time range")
+	}
+
+	pastXhours := max(1, diff/3600)
+	asCounts, err := usageStats.GetActiveSeriesCounts(pastXhours, myid)
+	if err != nil {
+		log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get cardinality, err: %v", err)
+		return 0, err
+	}
+
+	if len(asCounts) <= 0 {
+		// the older versions of usageStats would return 0 buckets
+		return 0, nil
+	}
+
+	p95 := uint64(tutils.FindPercentileData(asCounts, 95))
+
+	return p95, nil
+}
+
+func GetRotatedTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
+
+	allSearchRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
+	if err != nil {
+		err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	// Extract the tags trees from the metric requests.
+	tagsTrees := make([]*tagstree.AllTagTreeReaders, 0)
+	for baseDir := range allSearchRequests {
+		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(baseDir)
+		if err != nil {
+			err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get tags tree reader for baseDir: %s; err=%v", baseDir, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		tagsTrees = append(tagsTrees, allTagsTreeReader)
+	}
+
+	return tagsTrees, nil
+}
+
+func GetTagKeysWithMostSeriesRequest(timeRange *dtu.MetricsTimeRange,
+	limit uint64, myid int64) ([]TagKeySeriesCount, error) {
+
 	querySummary := summary.InitQuerySummary(summary.METRICS, rutils.GetNextQid())
 	defer querySummary.LogMetricsQuerySummary(myid)
-	tagsTreeReaders, err := GetAllTagsTreesWithinTimeRange(timeRange, myid, querySummary)
+	tagsTreeReaders, err := GetRotatedTagsTreesWithinTimeRange(timeRange, myid, querySummary)
 	if err != nil {
-		log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get tags trees within time range %+v; err=%v", timeRange, err)
-		return 0, err
+		return nil, err
 	}
 
 	tagKeys := make(map[string]struct{})
@@ -478,16 +554,41 @@ func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int
 		tagKeys = toputils.MergeMaps(tagKeys, segmentTagTreeReader.GetAllTagKeys())
 	}
 
-	tsidCard := structs.CreateNewHll()
-	for _, segmentTagTreeReader := range tagsTreeReaders {
-		for tagKey := range tagKeys {
-			_, err := segmentTagTreeReader.GetTSIDsForKey(tagKey, tsidCard)
+	seriesCardMap := make(map[string]*toputils.GobbableHll)
+	for tagKey := range tagKeys {
+		tsidCard := structs.CreateNewHll()
+		seriesCardMap[tagKey] = tsidCard
+		for _, segmentTagTreeReader := range tagsTreeReaders {
+			err := segmentTagTreeReader.CountTSIDsForKey(tagKey, tsidCard)
 			if err != nil {
-				log.Errorf("GetSeriesCardinalityOverTimeRange: failed to get tsids for key %v; err=%v", tagKey, err)
-				return 0, err
+				log.Warningf("ProcessGetTagKeysWithMostSeriesRequest: Failed to get tsids for key %v, continuing with rest", tagKey)
+				continue
 			}
 		}
 	}
 
-	return tsidCard.Cardinality(), nil
+	// do unrotated
+	err = metrics.CountUnrotatedTSIDsForTagKeys(timeRange, myid, seriesCardMap)
+	if err != nil {
+		log.Warningf("ProcessGetTagKeysWithMostSeriesRequest: Failed to count tsids for unrotated, contiuing with rest, err: %v", err)
+	}
+
+	seriesCounts := make([]TagKeySeriesCount, 0, len(seriesCardMap))
+	for tagKey, tsidCard := range seriesCardMap {
+		keyAndCount := TagKeySeriesCount{
+			Key:       tagKey,
+			NumSeries: tsidCard.Cardinality(),
+		}
+		seriesCounts = append(seriesCounts, keyAndCount)
+	}
+
+	sort.Slice(seriesCounts, func(i, j int) bool {
+		return seriesCounts[i].NumSeries > seriesCounts[j].NumSeries
+	})
+
+	if limit != 0 && limit < uint64(len(seriesCounts)) {
+		seriesCounts = seriesCounts[:limit]
+	}
+
+	return seriesCounts, nil
 }
