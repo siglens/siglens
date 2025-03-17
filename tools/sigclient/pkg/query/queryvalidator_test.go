@@ -302,9 +302,10 @@ func Test_FilterQueryValidator(t *testing.T) {
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, []map[string]interface{}{
 			{"city": "New York", "timestamp": uint64(1), "age": 30},
-			{"city": "Newark", "timestamp": uint64(2), "age": 22},
-			{"city": "Boston", "timestamp": uint64(3), "age": 22},
-			{"city": "New Orleans", "timestamp": uint64(4), "age": 36},
+			{"city": "Hello New York", "timestamp": uint64(2), "age": 30},
+			{"city": "Newark", "timestamp": uint64(3), "age": 22},
+			{"city": "Boston", "timestamp": uint64(4), "age": 22},
+			{"city": "New Orleans", "timestamp": uint64(5), "age": 36},
 		})
 
 		assert.NoError(t, validator.MatchesResult([]byte(`{
@@ -314,7 +315,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 					"relation": "eq"
 				},
 				"records": [
-					{"city": "New Orleans", "timestamp": 4, "age": 36},
+					{"city": "New Orleans", "timestamp": 5, "age": 36},
 					{"city": "New York", "timestamp": 1, "age": 30}
 				]
 			},

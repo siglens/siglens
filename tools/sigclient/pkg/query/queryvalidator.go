@@ -102,7 +102,9 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 
 	finalValue := stringOrRegex{isRegex: false, rawString: value}
 	if strings.Contains(finalValue.rawString, "*") {
-		regex, err := regexp.Compile(strings.ReplaceAll(finalValue.rawString, "*", ".*"))
+		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
+		s = fmt.Sprintf("^%v$", s)
+		regex, err := regexp.Compile(s)
 		if err != nil {
 			return nil, fmt.Errorf("NewFilterQueryValidator: invalid regex %v; err=%v",
 				finalValue.rawString, err)
