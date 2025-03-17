@@ -337,11 +337,19 @@ func Test_FilterQueryValidator(t *testing.T) {
 		assert.Equal(t, `city="New York" | head 3`, query)
 	})
 
-	t.Run("Sort", func(t *testing.T) {
+	t.Run("CustomSortColumn", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator("city", "Boston", "age", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
-		addLogsWithoutError(t, validator, logs)
+		addLogsWithoutError(t, validator, []map[string]interface{}{
+			{"city": "Boston", "timestamp": uint64(1), "age": 30},
+			{"city": "Boston", "timestamp": uint64(2), "age": 36},
+			{"city": "Boston", "timestamp": uint64(3), "latency": 100}, // Missing the sort column.
+			{"city": "Boston", "timestamp": uint64(4), "age": 22},
+			{"city": "Boston", "timestamp": uint64(5), "age": 5}, // Ensure we don't sort lexographically.
+			{"city": "New York", "timestamp": uint64(6), "age": 33},
+			{"city": "Boston", "timestamp": uint64(7), "age": 22},
+		})
 
 		assert.NoError(t, validator.MatchesResult([]byte(`{
 			"hits": {
@@ -352,7 +360,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 				"records": [
 					{"city": "Boston", "timestamp": 2, "age": 36},
 					{"city": "Boston", "timestamp": 1, "age": 30},
-					{"city": "Boston", "timestamp": 4, "age": 22}
+					{"city": "Boston", "timestamp": 7, "age": 22}
 				]
 			},
 			"allColumns": ["city", "timestamp", "age"]
@@ -367,7 +375,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 				"records": [
 					{"city": "Boston", "timestamp": 2, "age": 36},
 					{"city": "Boston", "timestamp": 1, "age": 30},
-					{"city": "New York", "timestamp": 3, "age": 22}
+					{"city": "Boston", "timestamp": 4, "age": 22}
 				]
 			},
 			"allColumns": ["city", "timestamp", "age"]
