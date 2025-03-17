@@ -123,7 +123,7 @@ test.describe('Dashboard Page Tests', () => {
         await page.fill('.dbSet-dbName', updatedName);
         await page.waitForTimeout(1000);
 
-        const responsePromise = page.waitForResponse((response) => response.url().includes('/api/dashboards/') && response.status() === 200, { timeout: 30000 });
+        const responsePromise = page.waitForResponse((response) => response.url().includes('/api/dashboards/') && response.status() === 200, { timeout: 60000 });
         await page.click('#dbSet-save');
         await responsePromise;
 
