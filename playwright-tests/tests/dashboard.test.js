@@ -85,8 +85,6 @@ test.describe('Dashboard Page Tests', () => {
 
         // Delete panel
         await page.reload({ waitUntil: 'networkidle', timeout: 45000 });
-        await page.waitForSelector('.panel-header', { timeout: 30000 });
-        await page.waitForTimeout(2000);
 
         const refreshedPanelHeader = page.locator('.panel-header').first();
         await refreshedPanelHeader.hover();
