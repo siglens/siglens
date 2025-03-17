@@ -1509,6 +1509,7 @@ func GetAllTagsTreeHolders() []*TagsTreeHolder {
 
 func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	orgMetricsAndTagsLock.RLock()
+	defer orgMetricsAndTagsLock.RUnlock()
 	var tt *TagsTreeHolder
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
 		tt, ok = metricsAndTags.TagHolders[mid]
@@ -1518,6 +1519,131 @@ func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	} else {
 		return nil
 	}
-	orgMetricsAndTagsLock.RUnlock()
 	return tt
+}
+
+func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
+	seriesCardMap map[string]*toputils.GobbableHll) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for tagkey, tkTree := range tagsTreeHolder.allTrees {
+				tsidCard, ok := seriesCardMap[tagkey]
+				if !ok {
+					tsidCard = structs.CreateNewHll()
+					seriesCardMap[tagkey] = tsidCard
+				}
+				tkTree.countTSIDsForTagkey(tsidCard)
+			}
+		}
+	}
+	return nil
+}
+
+func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
+	tagPairsCardMap map[string]map[string]*toputils.GobbableHll) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for tagkey, tkTree := range tagsTreeHolder.allTrees {
+				tvaluesMap, ok := tagPairsCardMap[tagkey]
+				if !ok {
+					tvaluesMap = make(map[string]*toputils.GobbableHll)
+					tagPairsCardMap[tagkey] = tvaluesMap
+				}
+				tkTree.countTSIDsForTagPairs(tvaluesMap)
+			}
+		}
+	}
+	return nil
+}
+
+func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
+	myid int64, tagPairsMap map[string]map[string]struct{}) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("GetUnrotatedTagPairs: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder == nil {
+			continue
+		}
+		for tagkey, tkTree := range tagsTreeHolder.allTrees {
+			tvaluesMap, ok := tagPairsMap[tagkey]
+			if !ok {
+				tvaluesMap = make(map[string]struct{})
+				tagPairsMap[tagkey] = tvaluesMap
+			}
+
+			for _, allTi := range tkTree.rawValues {
+				for _, ti := range allTi {
+					tv := string(ti.tagValue)
+					_, ok := tvaluesMap[tv]
+					if !ok {
+						tvaluesMap[tv] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.MetricsQuery,
+	resTagValues map[string]map[string]struct{}) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, mQuery.OrgId)
+	if err != nil {
+		log.Errorf("FindTagValuesUnrotated: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, mQuery.OrgId, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(mQuery.OrgId, segment.Mid)
+		if tagsTreeHolder == nil {
+			continue
+		}
+		for _, tf := range mQuery.TagsFilters {
+			tkTree, ok := tagsTreeHolder.allTrees[tf.TagKey]
+			if !ok {
+				continue
+			}
+
+			tvaluesMap, ok := resTagValues[tf.TagKey]
+			if !ok {
+				tvaluesMap = make(map[string]struct{})
+				resTagValues[tf.TagKey] = tvaluesMap
+			}
+
+			for _, allTi := range tkTree.rawValues {
+				for _, ti := range allTi {
+					tv := string(ti.tagValue)
+					_, ok := tvaluesMap[tv]
+					if !ok {
+						tvaluesMap[tv] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

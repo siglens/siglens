@@ -102,6 +102,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		finalTimeRange.StartEpochSec = timeRange.StartEpochSec - uint32(mQuery.LookBackToInclude)
 	}
 
+	// todo: switch this to use rotated segs only
 	mSegments, err := getAllRequestsWithinTimeRange(finalTimeRange, mQuery.OrgId, querySummary)
 	if err != nil {
 		log.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", finalTimeRange, err)
@@ -154,6 +155,7 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 
 	if mQuery.TagValueSearchOnly {
 		applyTagValuesSearchOnlyOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+		applyTagValuesSearchOnlyOnUnrotatedSegs(mQuery, mRes, timeRange, qid, querySummary)
 		return mRes
 	}
 
@@ -327,6 +329,20 @@ func GetAllMetricNamesOverTheTimeRange(timeRange *dtu.MetricsTimeRange, orgid in
 	return result, gErr
 }
 
+func applyTagValuesSearchOnlyOnUnrotatedSegs(mQuery *structs.MetricsQuery,
+	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64,
+	querySummary *summary.QuerySummary) {
+
+	if mRes.TagValues == nil {
+		mRes.TagValues = make(map[string]map[string]struct{})
+	}
+
+	err := metrics.FindTagValuesUnrotated(timeRange, mQuery, mRes.TagValues)
+	if err != nil {
+		log.Errorf("applyTagValuesSearchOnlyOnUnrotatedSegs: failed to find tag vals for unrotated, err: %v", err)
+	}
+}
+
 func applyTagValuesSearchOnlyOnSegments(mQuery *structs.MetricsQuery, allSearchRequests map[string][]*structs.MetricsSearchRequest,
 	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 
@@ -486,4 +502,29 @@ func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int
 	n := int(round(float64(k) * 0.95))
 	p95 := asCounts[n]
 	return p95, nil
+}
+
+func GetRotatedTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64, querySummary *summary.QuerySummary) ([]*tagstree.AllTagTreeReaders, error) {
+
+	allSearchRequests, err := segmetadata.GetMetricsSegmentRequests(timeRange, querySummary, myid)
+	if err != nil {
+		err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get rotated metric segments for time range %+v; err=%v", timeRange, err)
+		log.Errorf(err.Error())
+		return nil, err
+	}
+
+	// Extract the tags trees from the metric requests.
+	tagsTrees := make([]*tagstree.AllTagTreeReaders, 0)
+	for baseDir := range allSearchRequests {
+		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(baseDir)
+		if err != nil {
+			err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get tags tree reader for baseDir: %s; err=%v", baseDir, err)
+			log.Errorf(err.Error())
+			return nil, err
+		}
+
+		tagsTrees = append(tagsTrees, allTagsTreeReader)
+	}
+
+	return tagsTrees, nil
 }

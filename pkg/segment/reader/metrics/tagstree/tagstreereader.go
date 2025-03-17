@@ -538,19 +538,18 @@ func (attr *AllTagTreeReaders) CountTSIDsForKey(tagKey string,
 }
 
 func (attr *AllTagTreeReaders) GetTSIDCountForTagPair(tagKey string,
-	tagValue string) (uint64, error) {
+	tagValue string, tsidCard *utils.GobbableHll) error {
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
-		return 0, fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
+		return fmt.Errorf("AllTagTreeReaders.GetTSIDsForTagPair: tag key %v not found", tagKey)
 	}
 
-	tsidCard := structs.CreateNewHll()
 	err := ttr.countTSIDsForTagValue(tagValue, tsidCard)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return tsidCard.Cardinality(), nil
+	return nil
 }
 
 func (ttr *TagTreeReader) countTSIDsForTagValue(tagValue string,

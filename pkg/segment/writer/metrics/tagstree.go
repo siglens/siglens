@@ -32,6 +32,7 @@ import (
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/utils"
@@ -519,4 +520,36 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	}
 	copy(dataBuf[0:metadataSize], metadataBuf)
 	return dataBuf, nil
+}
+
+func (tt *TagTree) countTSIDsForTagkey(tsidCard *utils.GobbableHll) {
+	tt.rwLock.RLock()
+	defer tt.rwLock.RUnlock()
+
+	for _, allTi := range tt.rawValues {
+		for _, ti := range allTi {
+			for _, tsid := range ti.matchingtsids {
+				tsidCard.AddRaw(tsid)
+			}
+		}
+	}
+}
+
+func (tt *TagTree) countTSIDsForTagPairs(tvaluesMap map[string]*utils.GobbableHll) {
+	tt.rwLock.RLock()
+	defer tt.rwLock.RUnlock()
+
+	for _, allTi := range tt.rawValues {
+		for _, ti := range allTi {
+			for _, tsid := range ti.matchingtsids {
+				tv := string(ti.tagValue)
+				tsidCard, ok := tvaluesMap[tv]
+				if !ok {
+					tsidCard = structs.CreateNewHll()
+					tvaluesMap[tv] = tsidCard
+				}
+				tsidCard.AddRaw(tsid)
+			}
+		}
+	}
 }
