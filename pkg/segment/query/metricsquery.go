@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -38,6 +37,7 @@ import (
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	tutils "github.com/siglens/siglens/pkg/segment/tracing/utils"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
@@ -500,15 +500,13 @@ func GetSeriesCardinalityOverTimeRange(timeRange *dtu.MetricsTimeRange, myid int
 		return 0, err
 	}
 
-	k := len(asCounts)
-	if k <= 0 {
+	if len(asCounts) <= 0 {
 		// the older versions of usageStats would return 0 buckets
 		return 0, nil
 	}
 
-	slices.Sort(asCounts)
-	n := int(round(float64(k) * 0.95))
-	p95 := asCounts[n]
+	p95 := uint64(tutils.FindPercentileData(asCounts, 95))
+
 	return p95, nil
 }
 
