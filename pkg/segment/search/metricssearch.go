@@ -18,6 +18,7 @@
 package search
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ import (
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
@@ -45,7 +47,7 @@ func init() {
 }
 
 func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker.AllMatchedTSIDs, req *structs.MetricsSearchRequest, res *mresults.MetricsResult,
-	timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
+	bytesBuffer *bytes.Buffer, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 
 	if req == nil {
 		log.Errorf("qid=%d, RawSearchMetricsSegment: received a nil search request", qid)
@@ -55,6 +57,11 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		log.Errorf("qid=%d, RawSearchMetricsSegment: invalid fileParallelism of %d - must be > 0", qid, req.BlkWorkerParallelism)
 		res.AddError(fmt.Errorf("invalid fileParallelism - must be > 0"))
 		return
+	}
+
+	if req.QueryType == structs.UNROTATED_METRICS_SEARCH {
+		// If the search req is unrotated, then there will one unrotated block that needs to be searched.
+		metrics.SearchUnrotatedMetricsBlock(mQuery, tsidInfo, req, res, bytesBuffer, timeRange, qid, querySummary)
 	}
 
 	err := metricSearch.TryAcquireWithBackoff(1, 12, fmt.Sprintf("qid=%d", qid))
