@@ -844,7 +844,7 @@ func getMetricsSegment(mName []byte, orgid int64) (*MetricsSegment, *TagsTreeHol
 	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
-func getMetricSegmentFromMid(mid string, orgid int64) (*MetricsSegment, error) {
+func getUnrotatedMetricSegment(mid string, orgid int64) (*MetricsSegment, error) {
 	orgMetricsAndTagsLock.RLock()
 	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
 	orgMetricsAndTagsLock.RUnlock()
@@ -900,7 +900,6 @@ func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBu
 
 	_, err := bytesBuffer.Write(ts.rawEncoding.Bytes())
 	if err != nil {
-		ts.lock.Unlock()
 		return false, nil, err
 	}
 	_, finish := ts.compressor.CloneCompressor(bytesBuffer)

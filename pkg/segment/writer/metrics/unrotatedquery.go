@@ -29,38 +29,37 @@ import (
 )
 
 func SearchUnrotatedMetricsBlock(mQuery *structs.MetricsQuery, segTsidInfo *tsidtracker.AllMatchedTSIDs, searchReq *structs.MetricsSearchRequest, res *mresults.MetricsResult,
-	bytesBuffer *bytes.Buffer, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) bool {
-
-	searchInRotatedBlk := false
+	bytesBuffer *bytes.Buffer, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 
 	if searchReq.QueryType != structs.UNROTATED_METRICS_SEARCH {
 		log.Errorf("qid=%d, SearchUnrotatedMetricsBlock: invalid query type %v", qid, searchReq.QueryType)
-		return searchInRotatedBlk
+		return
 	}
 
-	mSegment, err := getMetricSegmentFromMid(searchReq.Mid, mQuery.OrgId)
+	mSegment, err := getUnrotatedMetricSegment(searchReq.Mid, mQuery.OrgId)
 	if err != nil {
 		log.Errorf("qid=%d, SearchUnrotatedMetricsBlock: failed to get metric segment for mid=%s, err=%v", qid, searchReq.Mid, err)
-		return searchInRotatedBlk
+		return
 	}
 
 	mSegment.rwLock.RLock()
 	defer mSegment.rwLock.RUnlock()
 
-	// The length of the unrotated block is 1
-	for blkNum, shouldSearch := range searchReq.UnrotatedBlkToSearch {
-		if blkNum != mSegment.mBlock.mBlockSummary.Blknum {
-			searchInRotatedBlk = shouldSearch
-			break
+	_, ok := searchReq.UnrotatedBlkToSearch[mSegment.mBlock.mBlockSummary.Blknum]
+	if !ok {
+		// Since the current unrotated block is not in the search request unrotated block list,
+		// it is assumed that the block is rotated and the search should be done in the rotated block.
+		// So, check the search request unrotated block list and add the block to rotated block list,
+		// if the block should be searched.
+		for blkNum, shouldSearch := range searchReq.UnrotatedBlkToSearch {
+			if shouldSearch {
+				searchReq.BlocksToSearch[blkNum] = true
+			}
 		}
 	}
 
-	if searchInRotatedBlk {
-		return searchInRotatedBlk
-	}
-
 	if !timeRange.CheckRangeOverLap(mSegment.mBlock.mBlockSummary.LowTs, mSegment.mBlock.mBlockSummary.HighTs) {
-		return searchInRotatedBlk
+		return
 	}
 
 	localRes := mresults.InitMetricResults(mQuery, qid)
@@ -104,6 +103,4 @@ func SearchUnrotatedMetricsBlock(mQuery *structs.MetricsQuery, segTsidInfo *tsid
 		res.AddError(err)
 		log.Errorf("qid=%v, SearchUnrotatedMetricsBlock: Failed to merge local results to global results!", qid)
 	}
-
-	return searchInRotatedBlk
 }

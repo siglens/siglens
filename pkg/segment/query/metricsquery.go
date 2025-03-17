@@ -430,13 +430,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			}
 
 			if mSeg.QueryType == structs.UNROTATED_METRICS_SEARCH {
-				searchInRotatedBlk := metrics.SearchUnrotatedMetricsBlock(mQuery, segTsidInfo, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
-				if searchInRotatedBlk {
-					// The length of the unrotated block is 1
-					for blkNum := range mSeg.UnrotatedBlkToSearch {
-						mSeg.BlocksToSearch[blkNum] = true
-					}
-				}
+				metrics.SearchUnrotatedMetricsBlock(mQuery, segTsidInfo, mSeg, mRes, bytesBuffer, timeRange, qid, querySummary)
 			}
 
 			search.RawSearchMetricsSegment(mQuery, segTsidInfo, mSeg, mRes, timeRange, qid, querySummary)
