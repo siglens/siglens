@@ -53,7 +53,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("FewerThanHeadMatch", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:2])
 		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
@@ -61,7 +61,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("FilterByValue", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:3]) // The third log has a different city, so it should be ignored.
 		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
@@ -69,7 +69,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("FilterByTime", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(1), uint64(2)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
@@ -77,7 +77,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("MissingColumns", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[3:])
 
@@ -98,7 +98,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("MoreThanHeadMatch", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -120,7 +120,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("BadResponse", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:1])
 
@@ -182,7 +182,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 			{"city": "Boston", "timestamp": uint64(2), "age": 22},
 		}
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -243,7 +243,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 			{"city": "Boston", "timestamp": uint64(2), "age": 42},
 		}
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -298,7 +298,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("Wildcard", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "New *", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "New *", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, []map[string]interface{}{
 			{"city": "New York", "timestamp": uint64(1), "age": 30},
@@ -325,21 +325,58 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("MatchLiteralAsterisk", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		_, err := NewFilterQueryValidator("city", "2 \\* 5", head, startEpoch, endEpoch)
+		_, err := NewFilterQueryValidator("city", "2 \\* 5", "", head, startEpoch, endEpoch)
 		assert.Error(t, err) // Change if we want to support this.
 	})
 
 	t.Run("ValueHasSpaces", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "New York", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "New York", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		query, _, _ := validator.GetQuery()
 		assert.Equal(t, `city="New York" | head 3`, query)
 	})
 
+	t.Run("Sort", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator("city", "Boston", "age", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30},
+					{"city": "Boston", "timestamp": 4, "age": 22}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age"]
+		}`)))
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 3,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30},
+					{"city": "New York", "timestamp": 3, "age": 22}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age"]
+		}`)))
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:1])
 

@@ -65,6 +65,7 @@ type filterQueryValidator struct {
 	basicValidator
 	key             string
 	value           stringOrRegex
+	sortCol         string
 	head            int
 	reversedResults []map[string]interface{}
 	lock            sync.Mutex
@@ -84,8 +85,8 @@ func (s *stringOrRegex) Matches(value string) bool {
 	return value == s.rawString
 }
 
-func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
-	endEpoch uint64) (queryValidator, error) {
+func NewFilterQueryValidator(key string, value string, numericSortCol string, head int,
+	startEpoch uint64, endEpoch uint64) (queryValidator, error) {
 
 	if head < 1 || head > 99 {
 		// The 99 limit is to simplify the expected results. If siglens returns
@@ -113,6 +114,10 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		finalValue = stringOrRegex{isRegex: true, regex: *regex}
 	}
 
+	if numericSortCol == "" {
+		numericSortCol = timestampCol
+	}
+
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
@@ -121,6 +126,7 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		},
 		key:             key,
 		value:           finalValue,
+		sortCol:         numericSortCol,
 		head:            head,
 		reversedResults: make([]map[string]interface{}, 0),
 	}, nil
