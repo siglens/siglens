@@ -31,3 +31,13 @@ func AsUint64(x interface{}) (uint64, bool) {
 
 	return result, true
 }
+
+func AsFloat64(x interface{}) (float64, bool) {
+	s := fmt.Sprintf("%v", x)
+	result, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return result, true
+}
