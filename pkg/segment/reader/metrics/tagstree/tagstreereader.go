@@ -297,7 +297,7 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 	if attr != nil {
 		fileExists := attr.tagTreeFileExists(tf.TagKey)
 		if !fileExists {
-			return
+			return nil
 		}
 
 		itr, mNameExists, err = attr.getValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
