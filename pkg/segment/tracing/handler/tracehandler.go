@@ -133,7 +133,10 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		if err != nil {
 			log.Errorf("ProcessSearchTracesRequest: failed to convert startTime: %v", err)
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-			ctx.WriteString("Invalid startTime: " + err.Error())
+			_, err := ctx.WriteString("Invalid startTime: " + err.Error())
+			if err != nil {
+				log.Errorf("ProcessSearchTracesRequest: Error writing to context: %v", err)
+			}
 			return
 		}
 
@@ -141,7 +144,10 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		if err != nil {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			log.Errorf("ProcessSearchTracesRequest: failed to convert endTime: %v", err)
-			ctx.WriteString("Invalid endTime: " + err.Error())
+			_, err := ctx.WriteString("Invalid endTime: " + err.Error())
+			if err != nil {
+				log.Errorf("ProcessSearchTracesRequest: Error writing to context: %v", err)
+			}
 			return
 		}
 
