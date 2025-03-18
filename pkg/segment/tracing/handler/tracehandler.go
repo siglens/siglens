@@ -129,8 +129,21 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			continue
 		}
 
-		traceStartTime := uint64(startTime.(float64))
-		traceEndTime := uint64(endTime.(float64))
+		traceStartTime, err := convertTimeToUint64(startTime)
+		if err != nil {
+			log.Errorf("ProcessSearchTracesRequest: failed to convert startTime: %v", err)
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.WriteString("Invalid startTime: " + err.Error())
+			return
+		}
+
+		traceEndTime, err := convertTimeToUint64(endTime)
+		if err != nil {
+			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			log.Errorf("ProcessSearchTracesRequest: failed to convert endTime: %v", err)
+			ctx.WriteString("Invalid endTime: " + err.Error())
+			return
+		}
 
 		// Only process traces which start and end in this period [startEpoch, endEpoch]
 		if (startEpoch*1e6 > traceStartTime) || (endEpoch*1e6 < traceEndTime) {
@@ -153,6 +166,27 @@ func ProcessSearchTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	putils.WriteJsonResponse(ctx, traceResult)
 	ctx.SetStatusCode(fasthttp.StatusOK)
+}
+
+func convertTimeToUint64(val interface{}) (uint64, error) {
+	switch v := val.(type) {
+	case float64:
+		return uint64(v), nil
+	case int:
+		return uint64(v), nil
+	case int64:
+		return uint64(v), nil
+	case uint64:
+		return v, nil
+	case string:
+		floatVal, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return 0, fmt.Errorf("error converting string to float64: %v", err)
+		}
+		return uint64(floatVal), nil
+	default:
+		return 0, fmt.Errorf("unexpected type %T", v)
+	}
 }
 
 func ProcessTotalTracesRequest(ctx *fasthttp.RequestCtx, myid int64) {
