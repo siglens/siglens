@@ -291,13 +291,13 @@ func writeToTimeSeries(mb *MetricsBlock, index int) []data {
 		log.Error("writeToTimeSeries: Error writing mock metrics time series")
 	}
 	mb.allSeries[index] = &TimeSeries{
-		lock:        &sync.Mutex{},
-		rawEncoding: buf,
-		cFinishFn:   finish,
-		compressor:  c,
+		Lock:        &sync.Mutex{},
+		RawEncoding: buf,
+		CFinishFn:   finish,
+		Compressor:  c,
 	}
 	for _, data := range series {
-		_, err := mb.allSeries[index].compressor.Compress(data.t, data.v)
+		_, err := mb.allSeries[index].Compressor.Compress(data.t, data.v)
 		if err != nil {
 			log.Error("writeToTimeSeries: Error writing mock metrics time series")
 		}

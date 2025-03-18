@@ -155,13 +155,13 @@ type MetricsBlock struct {
 // Represents a single timeseries
 type TimeSeries struct {
 	// TODO: what is stored here, how is it flushed?
-	lock        *sync.Mutex
-	rawEncoding *bytes.Buffer
+	Lock        *sync.Mutex
+	RawEncoding *bytes.Buffer
 
-	nEntries    int          // number of ts/dp combinations in this series
-	lastKnownTS uint32       // last known timestamp
-	cFinishFn   func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
-	compressor  *compress.Compressor
+	NEntries    int          // number of ts/dp combinations in this series
+	LastKnownTS uint32       // last known timestamp
+	CFinishFn   func() error // function to call at end of compression, to write the final bytes for the encoded timestamps
+	Compressor  *compress.Compressor
 }
 
 var orgMetricsAndTagsLock *sync.RWMutex = &sync.RWMutex{}
@@ -411,19 +411,19 @@ func GetFinalMetricsDir(mId string, suffix uint64) string {
 }
 
 // returns the new series, number of bytes encoded, or any error
-func initTimeSeries(tsid uint64, dp float64, timestamp uint32) (*TimeSeries, uint64, error) {
-	ts := &TimeSeries{lock: &sync.Mutex{}}
-	ts.rawEncoding = new(bytes.Buffer)
-	c, finish, err := compress.NewCompressor(ts.rawEncoding, timestamp)
+func InitTimeSeries(tsid uint64, dp float64, timestamp uint32) (*TimeSeries, uint64, error) {
+	ts := &TimeSeries{Lock: &sync.Mutex{}}
+	ts.RawEncoding = new(bytes.Buffer)
+	c, finish, err := compress.NewCompressor(ts.RawEncoding, timestamp)
 	if err != nil {
-		log.Errorf("initTimeSeries: failed to create compressor for encoding=%v, timestamp=%v, err=%v", ts.rawEncoding, timestamp, err)
+		log.Errorf("initTimeSeries: failed to create compressor for encoding=%v, timestamp=%v, err=%v", ts.RawEncoding, timestamp, err)
 		return nil, 0, err
 	}
-	ts.cFinishFn = finish
-	ts.compressor = c
-	ts.nEntries++
-	ts.lastKnownTS = timestamp
-	writtenBytes, err := ts.compressor.Compress(timestamp, dp)
+	ts.CFinishFn = finish
+	ts.Compressor = c
+	ts.NEntries++
+	ts.LastKnownTS = timestamp
+	writtenBytes, err := ts.Compressor.Compress(timestamp, dp)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -450,16 +450,12 @@ If it cannot find the series or no space exists in the metrics segment, it will 
 
 Return number of bytes written and any error encountered
 */
-func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid int64) error {
+func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint32, nBytes uint64, orgid int64, tsid uint64) error {
 	if len(mName) == 0 {
 		log.Errorf("EncodeDatapoint: metric name is empty, orgid=%v", orgid)
 		return fmt.Errorf("metric name is empty")
 	}
-	tsid, err := tags.GetTSID(mName)
-	if err != nil {
-		log.Errorf("EncodeDatapoint: failed to get TSID for metric=%s, orgid=%v, err=%v", mName, orgid, err)
-		return err
-	}
+
 	mSeg, tth, err := getMetricsSegment(mName, orgid)
 	if err != nil {
 		log.Errorf("EncodeDatapoint: failed to get metrics segment for metric=%s, orgid=%v, err=%v", mName, orgid, err)
@@ -492,7 +488,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	// as a result, we will check again while holding the write lock
 	// In addition, we need to always write at least one datapoint to the series to avoid panics on time based flushing
 	if !seriesExists {
-		ts, bytesWritten, err = initTimeSeries(tsid, dp, timestamp)
+		ts, bytesWritten, err = InitTimeSeries(tsid, dp, timestamp)
 		if err != nil {
 			log.Errorf("EncodeDatapoint: failed to create time series for tsid=%v, dp=%v, timestamp=%v, metric=%s, orgid=%v, err=%v",
 				tsid, dp, timestamp, mName, orgid, err)
@@ -891,14 +887,14 @@ func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBu
 	}
 
 	ts := mb.allSeries[idx]
-	if ts == nil || ts.rawEncoding == nil {
+	if ts == nil || ts.RawEncoding == nil {
 		return false, nil, nil
 	}
 
-	ts.lock.Lock()
-	defer ts.lock.Unlock()
+	ts.Lock.Lock()
+	defer ts.Lock.Unlock()
 
-	_, finish, err := compress.CloneCompressor(ts.compressor, bytesBuffer)
+	_, finish, err := compress.CloneCompressor(ts.Compressor, bytesBuffer)
 	if err != nil {
 		return false, nil, err
 	}
@@ -946,35 +942,35 @@ every 15 mins, if a series was updated, we need to flush it
 Returns number of bytes written, or any errors encoundered
 */
 func (ts *TimeSeries) AddSingleEntry(dpVal float64, dpTS uint32) (uint64, error) {
-	ts.lock.Lock()
-	defer ts.lock.Unlock()
+	ts.Lock.Lock()
+	defer ts.Lock.Unlock()
 	var writtenBytes uint64
 	var err error
-	if ts.nEntries == 0 {
-		ts.rawEncoding = new(bytes.Buffer)
+	if ts.NEntries == 0 {
+		ts.RawEncoding = new(bytes.Buffer)
 
 		// set the header of the dod to the current epoch time. TODO: prevent additions if dpTS is not within 2hrs of header
-		c, finish, err := compress.NewCompressor(ts.rawEncoding, dpTS)
+		c, finish, err := compress.NewCompressor(ts.RawEncoding, dpTS)
 		if err != nil {
-			log.Errorf("TimeSeries.AddSingleEntry: failed to create compressor for encoding=%v, timestamp=%v, err=%v", ts.rawEncoding, dpTS, err)
+			log.Errorf("TimeSeries.AddSingleEntry: failed to create compressor for encoding=%v, timestamp=%v, err=%v", ts.RawEncoding, dpTS, err)
 			return writtenBytes, err
 		}
-		ts.cFinishFn = finish
-		ts.compressor = c
-		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
+		ts.CFinishFn = finish
+		ts.Compressor = c
+		writtenBytes, err = ts.Compressor.Compress(dpTS, dpVal)
 		if err != nil {
-			log.Errorf("TimeSeries.AddSingleEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", dpTS, dpVal, ts.nEntries, err)
+			log.Errorf("TimeSeries.AddSingleEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", dpTS, dpVal, ts.NEntries, err)
 			return writtenBytes, err
 		}
 	} else {
-		writtenBytes, err = ts.compressor.Compress(dpTS, dpVal)
+		writtenBytes, err = ts.Compressor.Compress(dpTS, dpVal)
 		if err != nil {
-			log.Errorf("TimeSeries.AddSingleEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", dpTS, dpVal, ts.nEntries, err)
+			log.Errorf("TimeSeries.AddSingleEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", dpTS, dpVal, ts.NEntries, err)
 			return writtenBytes, err
 		}
 	}
-	ts.nEntries++
-	ts.lastKnownTS = dpTS
+	ts.NEntries++
+	ts.LastKnownTS = dpTS
 	return writtenBytes, nil
 }
 
@@ -1079,20 +1075,20 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 		}
 
 		index := mb.tsidLookup[tsid]
-		err = mb.allSeries[index].cFinishFn()
+		err = mb.allSeries[index].CFinishFn()
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not mark the finish of raw encoding time series, err:%v", err)
 			return err
 		}
 
-		_, err = tsgBuffer.Write(toputils.Uint32ToBytesLittleEndian(uint32(mb.allSeries[index].rawEncoding.Len())))
+		_, err = tsgBuffer.Write(toputils.Uint32ToBytesLittleEndian(uint32(mb.allSeries[index].RawEncoding.Len())))
 		size += 4
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not write len of raw series to file %v. Err %v", tsgFileName, err)
 			return err
 		}
 
-		n, err := tsgBuffer.Write(mb.allSeries[index].rawEncoding.Bytes())
+		n, err := tsgBuffer.Write(mb.allSeries[index].RawEncoding.Bytes())
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not write raw series to file %v. Err %v", tsgFileName, err)
 			return err

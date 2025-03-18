@@ -534,7 +534,8 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		if err != nil {
 			return err
 		}
-		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid)
+		tsid, err := tagsHolder.GetTSID(mName)
+		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid, tsid)
 		if err != nil {
 			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}
@@ -545,7 +546,8 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		if err != nil {
 			return err
 		}
-		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid)
+		tsid, err := tagsHolder.GetTSID(mName)
+		err = metrics.EncodeDatapoint(mName, tagsHolder, dp, ts, uint64(len(rawJson)), orgid, tsid)
 		if err != nil {
 			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}

@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"math"
 
+	wal "github.com/siglens/siglens/pkg/segment/writer/wal"
+
 	"github.com/buger/jsonparser"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -44,6 +46,49 @@ type PrometheusPutResp struct {
 const (
 	NAME = "__name__"
 )
+
+type WalData struct {
+	TsidLookup map[uint64]int
+	AllSeries  []*metrics.TimeSeries
+}
+
+func getTimeSeries(tsid uint64, wd *WalData) (*metrics.TimeSeries, bool) {
+	var ts *metrics.TimeSeries
+	idx, ok := wd.TsidLookup[tsid]
+	if !ok {
+		return ts, false
+	}
+	ts = wd.AllSeries[idx]
+	return ts, true
+}
+
+func insertTimeSeries(tsid uint64, ts *metrics.TimeSeries, wd *WalData) {
+	_, ok := wd.TsidLookup[tsid]
+	if !ok {
+		wd.TsidLookup[tsid] = len(wd.AllSeries)
+		wd.AllSeries = append(wd.AllSeries, ts)
+	}
+}
+
+func flushWal(wd *WalData) {
+	var Tsids []uint64
+	Compressed := make(map[uint64][]byte)
+	for tsid, index := range wd.TsidLookup {
+		Tsids = append(Tsids, tsid)
+		err := wd.AllSeries[index].CFinishFn()
+		if err != nil {
+			log.Errorf("flushWal: Could not mark the finish of raw encoding time series, err:%v", err)
+		}
+		Compressed[tsid] = wd.AllSeries[index].RawEncoding.Bytes()
+	}
+
+	walManager, _ := wal.CreateWal("0", "0", "0", 0)
+	block := wal.TimeSeriesBlock{
+		Tsids:      Tsids,
+		Compressed: Compressed,
+	}
+	walManager.FlushWal(block)
+}
 
 func decodeWriteRequest(compressed []byte) (*prompb.WriteRequest, error) {
 	reqBuf, err := snappy.Decode(nil, compressed)
@@ -110,6 +155,11 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 		return successCount, failedCount, err
 	}
 
+	var walData = &WalData{
+		TsidLookup: make(map[uint64]int),
+		AllSeries:  []*metrics.TimeSeries{},
+	}
+
 	for _, ts := range req.Timeseries {
 		tagHolder := metrics.GetTagsHolder()
 		var mName []byte
@@ -129,7 +179,11 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 			}
 
 			ts1 := parseTimestamp(s.Timestamp)
-			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, ts1, uint64(len(compressed)), myid)
+
+			tsid, err := tagHolder.GetTSID(mName)
+			AddWalSeriesEntry(tsid, walData, s.Value, ts1)
+
+			err = metrics.EncodeDatapoint(mName, tagHolder, s.Value, ts1, uint64(len(compressed)), myid, tsid)
 			if err != nil {
 				log.Errorf("HandlePutMetrics: failed to encode data for metric=%s, orgid=%v, err=%v", mName, myid, err)
 				failedCount++
@@ -139,9 +193,34 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 		}
 	}
+
+	flushWal(walData)
 	bytesReceived := uint64(len(compressed))
 	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil
+}
+
+func AddWalSeriesEntry(tsid uint64, walData *WalData, dpVal float64, timeStamp uint32) {
+	var ts *metrics.TimeSeries
+	var exists bool
+	var err error
+	ts, exists = getTimeSeries(tsid, walData)
+
+	if !exists {
+		ts, _, err = metrics.InitTimeSeries(tsid, dpVal, timeStamp)
+		if err != nil {
+			log.Errorf("AddWalSeriesEntry: failed to create time series for tsid=%v, dp=%v, timestamp=%v, err=%v",
+				tsid, dpVal, timeStamp, err)
+		}
+		insertTimeSeries(tsid, ts, walData)
+	} else {
+		_, err := ts.Compressor.Compress(timeStamp, dpVal)
+		if err != nil {
+			log.Errorf("AddWalSeriesEntry: failed to compress dpTS=%v, dpVal=%v, num entries=%v, err=%v", timeStamp, dpVal, ts.NEntries, err)
+		}
+		ts.NEntries++
+		ts.LastKnownTS = timeStamp
+	}
 }
 
 func parseTimestamp(timestamp int64) uint32 {
