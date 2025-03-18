@@ -1064,7 +1064,8 @@ func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
 func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
 	for key, val := range ts {
 		if val < 0 {
-			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
+			log.Debugf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
+			continue
 		}
 		ts[key] = mathFunc(val)
 	}
