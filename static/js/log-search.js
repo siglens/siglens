@@ -23,10 +23,11 @@ let indexValues = [];
 $(document).ready(async () => {
     toggleClearButtonVisibility();
 
-    // Initialize fieldssidebarRenderer
-    fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
-    fieldssidebarRenderer.init();
-    window.fieldssidebarRenderer = fieldssidebarRenderer;
+    if (window.fieldssidebarRenderer) {
+        window.fieldssidebarRenderer.init();
+    } else {
+        console.error('fieldssidebarRenderer is not defined. Ensure common.js initializes it correctly.');
+    }
 
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');

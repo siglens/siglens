@@ -1548,7 +1548,7 @@ const getCollapseSvg = () => `
                     }
                 }
             });
-        } 
+        }
     };
 
     // Function to reposition the expand button based on sidebar state
@@ -1659,3 +1659,7 @@ const getCollapseSvg = () => `
         getState: () => ({ ...state })
     };
 };
+
+window.ExpandableFieldsSidebarRenderer = ExpandableFieldsSidebarRenderer;
+fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
+window.fieldssidebarRenderer = fieldssidebarRenderer;
