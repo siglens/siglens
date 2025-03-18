@@ -28,6 +28,7 @@ import (
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	wmetrics "github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -65,9 +66,8 @@ func (ttr *TagTreeReader) Close() error {
 Iterator to get all tag values for a given metric name & tagKey
 */
 type TagValueIterator struct {
-	tagTreeBuf    []byte
-	treeOffset    uint32
-	matchingTSIDs map[uint64]struct{}
+	tagTreeBuf []byte
+	treeOffset uint32
 }
 
 func (attr *AllTagTreeReaders) tagTreeFileExists(tagKey string) bool {
@@ -198,12 +198,13 @@ TSIDs, we know that none of M's time series have the key so we can remove it. Mo
 any results for the search myKey=*, we got all of M's TSIDs because they all have a value for that
 key.
 */
-func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtracker.AllMatchedTSIDs, error) {
+func runTSIDSearch(mQuery *structs.MetricsQuery,
+	attr *AllTagTreeReaders, tth *wmetrics.TagsTreeHolder) (*tsidtracker.AllMatchedTSIDs, error) {
 
 	// for each filter, somehow keep track of the running group for each TSID?
 	tracker, err := tsidtracker.InitTSIDTracker(len(mQuery.TagsFilters))
 	if err != nil {
-		log.Errorf("FindTSIDS: failed to initialize the TSID tracker. Error: %v", err)
+		log.Errorf("runTSIDSearch: failed to initialize the TSID tracker. Error: %v", err)
 		return nil, err
 	}
 
@@ -217,7 +218,7 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 	for i := 0; i < len(mQuery.TagsFilters); i++ {
 
 		if mQuery.IsQueryCancelled() {
-			return nil, fmt.Errorf("FindTSIDS: query cancelled")
+			return nil, fmt.Errorf("runTSIDSearch: query cancelled")
 		}
 
 		tf := mQuery.TagsFilters[i]
@@ -227,19 +228,19 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 		}
 
 		if isWildcardOrRegex(tf) {
-			err = attr.processWildcardOrRegexFilter(mQuery, tf, tracker, metricName, i)
+			err = processWildcardOrRegexFilter(mQuery, tf, tracker, metricName, i, attr, tth)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			err = attr.processExactFilter(mQuery, tf, tracker, metricName)
+			err = processExactFilter(mQuery, tf, tracker, metricName, attr, tth)
 			if err != nil {
 				return nil, err
 			}
 		}
 		err = tracker.FinishBlock()
 		if err != nil {
-			log.Errorf("FindTSIDS: failed to execute finish on block! Error %+v", err)
+			log.Errorf("runTSIDSearch: failed to execute finish on block! Error %+v", err)
 			return nil, err
 		}
 	}
@@ -248,13 +249,27 @@ func (attr *AllTagTreeReaders) FindTSIDS(mQuery *structs.MetricsQuery) (*tsidtra
 	return tracker, nil
 }
 
-func (attr *AllTagTreeReaders) processExactFilter(mQuery *structs.MetricsQuery,
-	tf *structs.TagsFilter, tracker *tsidtracker.AllMatchedTSIDs, metricName string) error {
+func processExactFilter(mQuery *structs.MetricsQuery,
+	tf *structs.TagsFilter, tracker *tsidtracker.AllMatchedTSIDs, metricName string,
+	attr *AllTagTreeReaders, tth *wmetrics.TagsTreeHolder) error {
 
-	_, _, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDsOrCount(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
-	if err != nil {
-		log.Infof("FindTSIDS: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
-		return err
+	var err error
+	var rawTagValueToTSIDs map[string]map[uint64]struct{}
+
+	if attr != nil {
+		_, _, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDsOrCount(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
+		if err != nil {
+			log.Infof("runTSIDSearch: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
+			return err
+		}
+	} else {
+		if tth == nil {
+			log.Infof("runTSIDSearch: unrotated tth was nil, mName: %v, tagkey: %v, err: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
+			return errors.New("unrotated tag search failed due to nil tth")
+		}
+
+		// todo do unrotated search
+
 	}
 
 	if mQuery.ExitAfterTagsSearch {
@@ -263,25 +278,47 @@ func (attr *AllTagTreeReaders) processExactFilter(mQuery *structs.MetricsQuery,
 		err = tracker.BulkAdd(rawTagValueToTSIDs, metricName, tf.TagKey)
 	}
 	if err != nil {
-		log.Errorf("FindTSIDS: failed to build add tsids to tracker! Error %+v", err)
+		log.Errorf("runTSIDSearch: failed to build add tsids to tracker! Error %+v", err)
 		return err
 	}
 
 	return nil
 }
 
-func (attr *AllTagTreeReaders) processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
+func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 	tf *structs.TagsFilter, tracker *tsidtracker.AllMatchedTSIDs, metricName string,
-	tfIndex int) error {
+	tfIndex int, attr *AllTagTreeReaders, tth *wmetrics.TagsTreeHolder) error {
 
-	itr, mNameExists, err := attr.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
+	var itr *TagValueIterator
+	var mNameExists bool
+	var err error
+	var uItr *wmetrics.UnrotatedItr
+
+	if attr != nil {
+		itr, mNameExists, err = attr.getValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
+	} else {
+		if tth == nil {
+			log.Errorf("processWildcardOrRegexFilter: unrotated tagsearch failed due to nil tth")
+			return errors.New("processWildcardOrRegexFilter: unrotated tagsearch failed due to nil tth")
+		}
+		uItr, mNameExists, err = tth.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
+	}
 	if err != nil || !mNameExists {
 		return err
 	}
 
 	rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
 	for {
-		_, tagRawValue, tsids, tagRawValueType, found := itr.Next()
+		var tagRawValue []byte
+		var tsids map[uint64]struct{}
+		var tagRawValueType []byte
+		var found bool
+
+		if attr != nil {
+			_, tagRawValue, tsids, tagRawValueType, found = itr.Next()
+		} else {
+			_, tagRawValue, tsids, tagRawValueType, found = uItr.Next()
+		}
 
 		if !found {
 			break
@@ -298,7 +335,7 @@ func (attr *AllTagTreeReaders) processWildcardOrRegexFilter(mQuery *structs.Metr
 			for tsid := range tsids {
 				err := tracker.AddTSID(tsid, metricName, tf.TagKey, false)
 				if err != nil {
-					log.Errorf("FindTSIDS: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tf.TagKey, err)
+					log.Errorf("runTSIDSearch: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tf.TagKey, err)
 					return err
 				}
 			}
@@ -607,20 +644,20 @@ func (ttr *TagTreeReader) countTSIDsForTagValue(tagValue string,
 /*
 Returns *TagValueIterator a boolean indicating if the metric name was found, or any errors encountered
 */
-func (attr *AllTagTreeReaders) GetValueIteratorForMetric(mName uint64, tagKey string) (*TagValueIterator, bool, error) {
+func (attr *AllTagTreeReaders) getValueIteratorForMetric(mName uint64, tagKey string) (*TagValueIterator, bool, error) {
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
 		ttr, err := attr.initTagsTreeReader(tagKey)
 		if err != nil {
-			return nil, false, fmt.Errorf("GetValueIteratorForMetric: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
+			return nil, false, fmt.Errorf("getValueIteratorForMetric: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
-			return ttr.GetValueIteratorForMetric(mName)
+			return ttr.getValueIteratorForMetric(mName)
 		}
 	}
-	return ttr.GetValueIteratorForMetric(mName)
+	return ttr.getValueIteratorForMetric(mName)
 }
 
-func (ttr *TagTreeReader) GetValueIteratorForMetric(mName uint64) (*TagValueIterator, bool, error) {
+func (ttr *TagTreeReader) getValueIteratorForMetric(mName uint64) (*TagValueIterator, bool, error) {
 	var hashedMName uint64
 	var startOff, endOff uint32
 	id := uint32(0)
@@ -637,13 +674,12 @@ func (ttr *TagTreeReader) GetValueIteratorForMetric(mName uint64) (*TagValueIter
 		tagTreeBuf := make([]byte, endOff-startOff)
 		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
 		if err != nil {
-			log.Errorf("GetValueIteratorForMetric: failed to read tagtree buffer at %d! Err %+v", startOff, err)
+			log.Errorf("getValueIteratorForMetric: failed to read tagtree buffer at %d! Err %+v", startOff, err)
 			return nil, false, err
 		}
 		return &TagValueIterator{
-			tagTreeBuf:    tagTreeBuf,
-			treeOffset:    0,
-			matchingTSIDs: make(map[uint64]struct{}),
+			tagTreeBuf: tagTreeBuf,
+			treeOffset: 0,
 		}, true, nil
 	}
 	return nil, false, nil
@@ -689,7 +725,6 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte
 			tsid := utils.BytesToUint64LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8])
 			tvi.treeOffset += 8
 			matchingTSIDs[tsid] = struct{}{}
-			tvi.matchingTSIDs[tsid] = struct{}{}
 		}
 		if len(matchingTSIDs) > 0 {
 			return tagHashValue, tagValue, matchingTSIDs, tagRawValueType, true
@@ -778,13 +813,12 @@ func (ttr *TagTreeReader) readTagValuesOnly(tagKey string,
 		tagTreeBuf := make([]byte, endOff-startOff)
 		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
 		if err != nil {
-			log.Errorf("GetValueIteratorForMetric: failed to read tagtree buffer at %d! Err %+v", startOff, err)
+			log.Errorf("getValueIteratorForMetric: failed to read tagtree buffer at %d! Err %+v", startOff, err)
 			return err
 		}
 		tvi := &TagValueIterator{
-			tagTreeBuf:    tagTreeBuf,
-			treeOffset:    0,
-			matchingTSIDs: make(map[uint64]struct{}),
+			tagTreeBuf: tagTreeBuf,
+			treeOffset: 0,
 		}
 		tvi.loopThroughTagValues(currTvMap)
 		id = endOff
@@ -898,7 +932,7 @@ func SearchAndInsertTSIDs(mQuery *structs.MetricsQuery,
 	for _, mName := range metricNames {
 		mQuery.MetricName = mName
 		mQuery.HashedMName = xxhash.Sum64String(mName)
-		tsidInfo, err := attr.FindTSIDS(mQuery)
+		tsidInfo, err := runTSIDSearch(mQuery, attr, nil)
 		if err != nil {
 			log.Errorf("qid=%d, SearchAndInsertTSIDs: Error finding TSIDs for metric %s: %v", qid, mName, err)
 			return err

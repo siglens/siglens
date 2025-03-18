@@ -128,7 +128,7 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	expectedtagValues := []string{"group 0", "group 1"}
 	tagKeyFileExists = attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
-	itr, found, err := attr.GetValueIteratorForMetric(metricName, tagKey)
+	itr, found, err := attr.getValueIteratorForMetric(metricName, tagKey)
 	assert.Nil(t, err)
 	assert.True(t, found)
 	count := 0

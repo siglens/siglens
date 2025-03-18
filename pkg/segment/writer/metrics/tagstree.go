@@ -82,6 +82,14 @@ type tagInfo struct {
 	matchingtsids []uint64
 }
 
+type UnrotatedItrInterface interface {
+	Next()
+}
+
+type UnrotatedItr struct {
+	tt *TagTree
+}
+
 func InitTagsTree(name string) *TagTree {
 	return &TagTree{
 		name:      name,
@@ -398,9 +406,9 @@ each block is:
   - 8 bytes for the hashed tag value
   - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64)
   - The raw tag value
-    -- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
-    the string, and then N more bytes, where N is the size of the string.
-    -- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
+	-- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
+	the string, and then N more bytes, where N is the size of the string.
+	-- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
   - 2 bytes for the number of matching TSIDs; call this numMatchingTSIDs
   - numMatchingTSIDs 8-byte numbers, each representing a TSID satisfying this (metric, key, value) combination
 */
@@ -552,4 +560,30 @@ func (tt *TagTree) countTSIDsForTagPairs(tvaluesMap map[string]*utils.GobbableHl
 			}
 		}
 	}
+}
+
+func (uitr UnrotatedItr) Next() (uint64, []byte, map[uint64]struct{}, []byte, bool) {
+
+	// todo implement Next
+	return 0, nil, nil, nil, false
+}
+
+func (tth *TagsTreeHolder) GetValueIteratorForMetric(mName uint64,
+	tagkey string) (*UnrotatedItr, bool, error) {
+	tth.rwLock.RLock()
+	defer tth.rwLock.RUnlock()
+
+	tt, ok := tth.allTrees[tagkey]
+	if !ok {
+		return nil, false, fmt.Errorf("GetValueIteratorForMetric: unrotated tagtree not present for tagkey: %s", tagkey)
+	}
+
+	_, ok = tt.rawValues[mName]
+	if !ok {
+		return nil, false, nil
+	}
+
+	return &UnrotatedItr{
+		tt: tt,
+	}, true, nil
 }
