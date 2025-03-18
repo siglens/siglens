@@ -139,6 +139,17 @@ func HandlePutMetrics(compressed []byte, myid int64) (uint64, uint64, error) {
 
 		}
 	}
+
+	metrics.WriteTimemSeriesDataInWalFile(myid)
+
+	for k := range metrics.TimeSeriesRecoveryData {
+		delete(metrics.TimeSeriesRecoveryData, k)
+	}
+
+	for k := range metrics.WalFileMetaData {
+		delete(metrics.WalFileMetaData, k)
+	}
+
 	bytesReceived := uint64(len(compressed))
 	usageStats.UpdateMetricsStats(bytesReceived, successCount, myid)
 	return successCount, failedCount, nil

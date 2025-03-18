@@ -21,6 +21,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	wal "github.com/siglens/siglens/pkg/segment/writer/metricswal"
+
 	"math"
 	"os"
 	"path"
@@ -174,9 +176,22 @@ type MetricsAndTagsHolder struct {
 var numMetricsSegments uint64
 
 var OrgMetricsAndTags map[int64]*MetricsAndTagsHolder = make(map[int64]*MetricsAndTagsHolder)
+var TimeSeriesRecoveryData map[int64]*timeSeriesRecoveryData = make(map[int64]*timeSeriesRecoveryData)
+var WalFileMetaData map[uint64]*walFileMetaData = make(map[uint64]*walFileMetaData)
 
 func InitTestingConfig() {
 	TAGS_TREE_FLUSH_SLEEP_DURATION = 10
+}
+
+type timeSeriesRecoveryData struct {
+	tsidLookup map[uint64]int
+	allSeries  []*TimeSeries
+}
+
+type walFileMetaData struct {
+	shardID   string
+	segmentID string
+	blockNO   string
 }
 
 // TODO: pre-allocates as many metricsbuffers that can fix and sets hash range
@@ -461,6 +476,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		return err
 	}
 	mSeg, tth, err := getMetricsSegment(mName, orgid)
+	wRdata, err := getTimeSeriesRecoveryData(orgid, tsid)
 	if err != nil {
 		log.Errorf("EncodeDatapoint: failed to get metrics segment for metric=%s, orgid=%v, err=%v", mName, orgid, err)
 		return err
@@ -477,9 +493,21 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 
 	mSeg.Orgid = orgid
 	var ts *TimeSeries
+	var tsWalRecovery *TimeSeries
 	var seriesExists bool
+	var tsExists bool
+
 	mSeg.rwLock.RLock()
 	ts, seriesExists, err = mSeg.mBlock.GetTimeSeries(tsid)
+	tsWalRecovery, tsExists = wRdata.getTimeSeries(tsid)
+
+	if !tsExists {
+		tsWalRecovery, _, _ = initTimeSeries(tsid, dp, timestamp)
+		_, _, _ = wRdata.InsertTimeSeries(tsid, tsWalRecovery)
+	} else {
+		_, _ = tsWalRecovery.AddSingleEntry(dp, timestamp)
+	}
+
 	if err != nil {
 		mSeg.rwLock.RUnlock()
 		log.Errorf("EncodeDatapoint: failed to get time series for tsid=%v, metric=%s, orgid=%v, err=%v", tsid, mName, orgid, err)
@@ -532,6 +560,11 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		}
 	}
 
+	WalFileMetaData[tsid] = &walFileMetaData{
+		shardID:   mSeg.Mid,
+		segmentID: strconv.FormatUint(mSeg.Suffix, 10),
+		blockNO:   strconv.Itoa(int(mSeg.currBlockNum)),
+	}
 	mSeg.updateTimeRange(timestamp)
 	mSeg.mBlock.mBlockSummary.UpdateTimeRange(timestamp)
 	atomic.AddUint64(&mSeg.mBlock.blkEncodedSize, bytesWritten)
@@ -860,6 +893,68 @@ func getUnrotatedMetricSegment(mid string, orgid int64) (*MetricsSegment, error)
 	return mSeg, nil
 }
 
+func getTimeSeriesRecoveryData(orgid int64, tsid uint64) (*timeSeriesRecoveryData, error) {
+	timeSeriesRecoveryData, ok := TimeSeriesRecoveryData[orgid]
+	if !ok || len(TimeSeriesRecoveryData) == 0 {
+		err := initWalRecoeryData(orgid)
+		if err != nil {
+			return nil, err
+		}
+		timeSeriesRecoveryData = TimeSeriesRecoveryData[orgid]
+	}
+
+	return timeSeriesRecoveryData, nil
+}
+
+func initWalRecoeryData(orgid int64) error {
+	if _, ok := TimeSeriesRecoveryData[orgid]; !ok {
+		TimeSeriesRecoveryData[orgid] = &timeSeriesRecoveryData{
+			tsidLookup: make(map[uint64]int),
+			allSeries:  []*TimeSeries{},
+		}
+	}
+
+	return nil
+}
+
+func WriteTimemSeriesDataInWalFile(orgid int64) {
+	recoveryData := TimeSeriesRecoveryData[orgid]
+
+	shardToTimeSeriesBlock := make(map[string]*wal.ShardedTimeSeriesBlock)
+
+	for tsid, index := range recoveryData.tsidLookup {
+
+		shardID := WalFileMetaData[tsid].shardID
+
+		if _, ok := shardToTimeSeriesBlock[shardID]; !ok {
+			shardToTimeSeriesBlock[shardID] = &wal.ShardedTimeSeriesBlock{
+				SegmentID: WalFileMetaData[tsid].segmentID,
+				BlockNO:   WalFileMetaData[tsid].blockNO,
+				Block: wal.TimeSeriesBlock{
+					Tsids:      []uint64{},
+					Compressed: make(map[uint64][]byte),
+				},
+			}
+		}
+
+		shardToTimeSeriesBlock[shardID].Block.Tsids = append(shardToTimeSeriesBlock[shardID].Block.Tsids, tsid)
+		_ = recoveryData.allSeries[index].cFinishFn()
+		shardToTimeSeriesBlock[shardID].Block.Compressed[tsid] = recoveryData.allSeries[index].rawEncoding.Bytes()
+
+	}
+
+	for shardID, tsBlock := range shardToTimeSeriesBlock {
+		manager, _ := wal.GetWALManager(shardID, tsBlock.SegmentID, tsBlock.BlockNO, 0)
+		block := wal.TimeSeriesBlock{
+			Tsids:      tsBlock.Block.Tsids,
+			Compressed: tsBlock.Block.Compressed,
+		}
+		manager.WriteWALBlock(block)
+
+	}
+
+}
+
 /*
 returns:
 
@@ -913,6 +1008,18 @@ func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBu
 	return true, iter, err
 }
 
+func (fd *timeSeriesRecoveryData) getTimeSeries(tsid uint64) (*TimeSeries, bool) {
+
+	var ts *TimeSeries
+	idx, ok := fd.tsidLookup[tsid]
+	if !ok {
+		return ts, false
+	}
+	ts = fd.allSeries[idx]
+	return ts, true
+
+}
+
 /*
 Inserts a time series for the given tsid
 
@@ -932,6 +1039,20 @@ func (mb *MetricsBlock) InsertTimeSeries(tsid uint64, ts *TimeSeries) (bool, int
 		idx = len(mb.allSeries)
 		mb.allSeries = append(mb.allSeries, ts)
 	}
+	if ok {
+		return true, idx, nil
+	}
+	return false, idx, nil
+}
+
+func (mb *timeSeriesRecoveryData) InsertTimeSeries(tsid uint64, ts *TimeSeries) (bool, int, error) {
+	idx, ok := mb.tsidLookup[tsid]
+	if !ok {
+		mb.tsidLookup[tsid] = len(mb.allSeries)
+		idx = len(mb.allSeries)
+		mb.allSeries = append(mb.allSeries, ts)
+	}
+
 	if ok {
 		return true, idx, nil
 	}
