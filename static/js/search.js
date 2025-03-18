@@ -51,10 +51,10 @@ function resetDataTable(firstQUpdate) {
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#save-query-div').children().show();
-            $('#views-container, .fields-sidebar').show;
+            $('#views-container, .fields-sidebar').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar').show;
+            $('#views-container, .fields-sidebar').show();
         }
         $('#agg-result-container').hide();
         $('#data-row-container').hide();
