@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
@@ -175,7 +176,9 @@ func (qs *QuerySummary) tickWatcher() {
 					len(qs.allQuerySummaries[STREE].searchTimeHistory),
 					remainingDQsString)
 			} else if qs.queryType == METRICS {
-				log.Infof("qid=%d, still executing. Time Elapsed (%v). So far, number of metrics segments searched=%+v, number of TSIDs searched=%+v across %+v tags trees, number of TSO files loaded=%+v, number of TSG files loaded=%+v", qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(), qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), qs.getNumTSGFilesLoaded())
+				log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v",
+					qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
+					qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded())
 			}
 		}
 	}
@@ -505,8 +508,9 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 		return qs.metadataSummary.allTimes[i] < qs.metadataSummary.allTimes[j]
 	})
 
-	log.Warnf("qid=%d, pqid %v, QuerySummary: Finished in  %+vms time. Total number of records searched %+v. Total number of records matched=%+v. Total number of files searched=%+v. Total number of buckets created=%+v",
-		qs.qid, pqid, qs.getQueryTotalTime().Milliseconds(), qs.getTotNumRecordsSearched(), qs.getTotNumRecordsMatched(), qs.getTotNumFilesSearched(), qs.getNumBuckets())
+	log.Warnf("qid=%d, pqid %v, QuerySummary: Finished in  %+v ms time. Total number of records searched %+v. Total number of records matched=%+v. Total number of files searched=%+v. Total number of buckets created=%+v",
+		qs.qid, pqid, humanize.Comma(int64(qs.getQueryTotalTime().Milliseconds())), humanize.Comma(int64(qs.getTotNumRecordsSearched())),
+		humanize.Comma(int64(qs.getTotNumRecordsMatched())), qs.getTotNumFilesSearched(), qs.getNumBuckets())
 
 	avgCmiTime := float64(qs.metadataSummary.totalTime.Milliseconds()) / float64(len(qs.metadataSummary.allTimes))
 
@@ -551,8 +555,8 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 	log.Warnf("qid=%d, pqid %v, QuerySummary: RawSearch: Number of records matched %d, min/segment (%v) max/segment (%v)", qs.qid, pqid, qs.getNumRecordsMatched(RAW), min, max)
 
 	if config.IsPQSEnabled() {
-		log.Warnf("qid=%d, pqid %v, QuerySummary: PQS: Finished in %+vms time, after searching %+v files",
-			qs.qid, pqid, qs.getTotalTime(PQS).Milliseconds(), qs.getNumFilesSearched(PQS))
+		log.Warnf("qid=%d, pqid %v, QuerySummary: PQS: Finished in %+v ms time, after searching %+v files",
+			qs.qid, pqid, humanize.Comma(int64(qs.getTotalTime(PQS).Milliseconds())), qs.getNumFilesSearched(PQS))
 
 		if len(qs.allQuerySummaries[PQS].searchTimeHistory) <= 25 {
 			log.Warnf("qid=%d, pqid %v, QuerySummary: PQS: Search Time History across all files %vms",
@@ -596,9 +600,9 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 }
 
 func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
-	log.Warnf("qid=%d, MetricsQuerySummary: Finished in %+vms time. Searched a total of %+v TSIDs. Total number of series searched=%+v. Returned number of series=%+v",
-		qs.qid, time.Since(qs.startTime).Milliseconds(), qs.getNumTSIDsMatched(), qs.getNumSeriesSearched(), qs.getNumResultSeries())
-	log.Warnf("qid=%d, MetricsQuerySummary: Time taken to get rotated search requests=%+vms. Time taken to get unrotated search requests=%+vms. Total number of metrics segments searched=%+v.",
+	log.Warnf("qid=%d, MetricsQuerySummary: Finished in %+v ms time. numTSIDsMatched: %+v, numSeriesSearched=%+v. Returned numSeries=%+v",
+		qs.qid, humanize.Comma(int64(time.Since(qs.startTime).Milliseconds())), qs.getNumTSIDsMatched(), qs.getNumSeriesSearched(), qs.getNumResultSeries())
+	log.Warnf("qid=%d, MetricsQuerySummary: Time taken to get rotated search requests=%+vms. Time taken to get unrotated search requests=%+vms. Total numMetricSegs searched=%+v.",
 		qs.qid, qs.metricsQuerySummary.timeGettingRotatedSearchRequests.Microseconds(),
 		qs.metricsQuerySummary.timeGettingUnrotatedSearchRequests.Microseconds(), qs.getNumMetricsSegmentsSearched())
 

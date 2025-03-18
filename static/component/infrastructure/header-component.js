@@ -32,7 +32,7 @@ class DashboardHeader {
 
     render() {
         const headerHtml = `
-            <div class="d-flex align-items-center justify-content-between mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-5">
                 <div class="header-left">
                     <div class="title-container">
                         <div class="title-row d-flex align-items-center gap-3">

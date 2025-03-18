@@ -41,6 +41,7 @@ const MAX_POINTS_TO_EVALUATE float64 = 250
 Struct to represent a single metrics query request.
 */
 type MetricsQuery struct {
+	isQueryCancelled       uint32            // flag to indicate if the query is cancelled/deleted. 1 if cancelled/deleted, 0 otherwise
 	MetricName             string            // metric name to query for.
 	MetricOperator         utils.TagOperator // operator to apply on metric name
 	MetricNameRegexPattern string            // regex pattern to apply on metric name
@@ -97,6 +98,7 @@ const (
 	RangeFunction
 	TimeFunction
 	LabelFunction
+	HistogramFunction
 )
 
 type LabelReplacementKeyType uint8
@@ -126,13 +128,19 @@ type LabelFunctionExpr struct {
 type Function struct {
 	FunctionType MetricsFunctionType
 	// TODO: remove the below MathFunction, RangeFunction, TimeFunction fields and use FunctionType instead
-	MathFunction  utils.MathFunctions
-	RangeFunction utils.RangeFunctions //range function to apply, only one of these will be non nil
-	ValueList     []string
-	TimeWindow    float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
-	Step          float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
-	TimeFunction  utils.TimeFunctions
-	LabelFunction *LabelFunctionExpr
+	MathFunction      utils.MathFunctions
+	RangeFunction     utils.RangeFunctions //range function to apply, only one of these will be non nil
+	ValueList         []string
+	TimeWindow        float64 //E.g: rate(metrics[1m]), extract 1m and convert to seconds
+	Step              float64 //E.g: rate(metrics[5m:1m]), extract 1m and convert to seconds
+	TimeFunction      utils.TimeFunctions
+	LabelFunction     *LabelFunctionExpr
+	HistogramFunction *HistogramAgg
+}
+
+type HistogramAgg struct {
+	Function utils.HistogramFunctions
+	Quantile float64
 }
 
 type Downsampler struct {
@@ -325,6 +333,8 @@ type OTSDBMetricsQueryExpRequest struct {
 }
 
 type MetricsSearchRequest struct {
+	Mid                  string
+	UnrotatedBlkToSearch map[uint16]bool
 	MetricsKeyBaseDir    string
 	BlocksToSearch       map[uint16]bool
 	BlkWorkerParallelism uint
@@ -380,6 +390,14 @@ func (d *PromQLInstantData) MarshalJSON() ([]byte, error) {
 	aliasData := (*Alias)(d)
 
 	return json.Marshal(aliasData)
+}
+
+func (mq *MetricsQuery) SetQueryIsCancelled() {
+	atomic.StoreUint32(&mq.isQueryCancelled, 1)
+}
+
+func (mq *MetricsQuery) IsQueryCancelled() bool {
+	return atomic.LoadUint32(&mq.isQueryCancelled) == 1
 }
 
 /*
@@ -493,25 +511,28 @@ func (ds *Downsampler) GetIntervalTimeInSeconds() uint32 {
 Format of block summary file
 [version - 1 byte][blk num - 2 bytes][high ts - 4 bytes][low ts - 4 bytes]
 */
-func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
+func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	var flag bool = false
 	if _, err := os.Stat(fName); os.IsNotExist(err) {
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		flag = true
 		if err != nil {
 			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
-			return nil, err
+			return err
 		}
 	}
 	fd, err := os.OpenFile(fName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to open file: %v, err: %v", fName, err)
-		return nil, err
+		return err
 	}
 	defer fd.Close()
 	idx := 0
 	var mBlkSum []byte
 	// hard coded byte size for [version][blk num][high Ts][low Ts] when file is created
+	// todo bug here, the highTs/lowTs are of 4bytes, but we do 8 here
+	// once the version is updated, change here and on the reader side to
+	// read both types of version files
 	if flag {
 		mBlkSum = make([]byte, 19)
 		copy(mBlkSum[idx:], utils.VERSION_MBLOCKSUMMARY)
@@ -528,9 +549,9 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 
 	if _, err := fd.Write(mBlkSum); err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to write block in file: %v, err: %v", fName, err)
-		return nil, err
+		return err
 	}
-	return mBlkSum, nil
+	return nil
 }
 
 func (mbs *MBlockSummary) UpdateTimeRange(ts uint32) {

@@ -18,6 +18,7 @@
 package compress
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -42,6 +43,25 @@ func newBitWriter(w io.Writer) *bitWriter {
 	return &bitWriter{
 		w: w, count: 8,
 	}
+}
+
+func (b *bitWriter) clone(toCopyBuffer *bytes.Buffer) (*bitWriter, error) {
+	bwBuf, ok := b.w.(*bytes.Buffer)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast bitWriter.w to bytes.Buffer")
+	}
+
+	// copy the buffer
+	_, err := toCopyBuffer.Write(bwBuf.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy buffer: %w", err)
+	}
+
+	return &bitWriter{
+		w:      toCopyBuffer,
+		buffer: b.buffer,
+		count:  b.count,
+	}, nil
 }
 
 // writeBit writes a single bit.

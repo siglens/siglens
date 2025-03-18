@@ -541,9 +541,7 @@
   align-items: center;
   font-size: 24px;
   font-weight: 700;
-  height: 100%;
   width: 100%;
-  background-color: var(--datatable-bg-color);
   border-radius: 5px;
 }
 
@@ -1075,8 +1073,6 @@
   display: inline-block;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
   vertical-align: bottom;
 }
 #dbSet-discard, #dbSet-save{
