@@ -741,6 +741,8 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 	if !mQuery.SelectAllSeries {
 		mQuery.SelectAllSeries = true
 
+		// If the query has a group by (metricname or tags) or has an aggregation function, with tags,
+		// then we do not need to search all the series. We can search only the series that match the tags.
 		if (mQuery.AggWithoutGroupBy || mQuery.GroupByMetricName) && len(mQuery.TagsFilters) > 0 {
 			mQuery.SelectAllSeries = false
 		} else {
@@ -752,6 +754,7 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 			}
 		}
 
+		// For the queries without group by and without an aggregation function, we need to get all the labels
 		if mQuery.SelectAllSeries && !mQuery.Groupby && !mQuery.AggWithoutGroupBy {
 			mQuery.GetAllLabels = true
 		}

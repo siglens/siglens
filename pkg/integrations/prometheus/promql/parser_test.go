@@ -1433,6 +1433,22 @@ func assertGetAllLabels(t *testing.T, expected bool, query string) {
 	assert.Equal(t, expected, mQuery.GetAllLabels)
 }
 
+func Test_SelectAllSeries(t *testing.T) {
+	assertSelectAllSeries(t, true, `allocated_bytes`)
+	assertSelectAllSeries(t, true, `allocated_bytes{app="foo"}`)
+	assertSelectAllSeries(t, true, `avg(allocated_bytes)`)
+	assertSelectAllSeries(t, false, `group by (app) (allocated_bytes)`)
+	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"})`)
+	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"}) by (app)`)
+}
+
+func assertSelectAllSeries(t *testing.T, expected bool, query string) {
+	t.Helper()
+
+	mQuery := parsePromQLForTest(t, query)
+	assert.Equal(t, expected, mQuery.SelectAllSeries)
+}
+
 func parsePromQLForTest(t *testing.T, query string) structs.MetricsQuery {
 	t.Helper()
 
