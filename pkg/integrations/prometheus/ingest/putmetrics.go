@@ -20,8 +20,9 @@ package writer
 import (
 	"encoding/json"
 	"fmt"
-	wal "github.com/siglens/siglens/pkg/segment/writer/wal"
 	"math"
+
+	wal "github.com/siglens/siglens/pkg/segment/writer/wal"
 
 	"github.com/buger/jsonparser"
 	"github.com/gogo/protobuf/proto"

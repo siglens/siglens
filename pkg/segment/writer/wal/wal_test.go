@@ -1,9 +1,10 @@
 package wal
 
 import (
-	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"os"
 	"testing"
+
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/stretchr/testify/assert"
