@@ -28,10 +28,6 @@ $(document).ready(async () => {
     fieldssidebarRenderer.init();
     window.fieldssidebarRenderer = fieldssidebarRenderer;
 
-    // Apply the initial state to the DOM but not to the URL unless search params exist
-    const { isFieldsSidebarHidden } = fieldssidebarRenderer.getState();
-    applyFieldsSidebarState(isFieldsSidebarHidden);
-
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
