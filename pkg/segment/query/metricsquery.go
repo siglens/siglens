@@ -81,10 +81,10 @@ func GetAllTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid int64,
 
 	// Extract the tags trees from the metric requests.
 	tagsTrees := make([]*tagstree.AllTagTreeReaders, 0)
-	for baseDir := range allSearchRequests {
-		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(baseDir)
+	for tthBaseDir := range allSearchRequests {
+		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(tthBaseDir)
 		if err != nil {
-			err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get tags tree reader for baseDir: %s; err=%v", baseDir, err)
+			err = fmt.Errorf("GetAllTagsTreesWithinTimeRange: failed to get tags tree reader for tthBaseDir: %s; err=%v", tthBaseDir, err)
 			log.Errorf(err.Error())
 			return nil, err
 		}
@@ -357,8 +357,8 @@ func applyTagValuesSearchOnlyOnSegments(mQuery *structs.MetricsQuery, allSearchR
 
 	mRes.TagValues = make(map[string]map[string]struct{})
 
-	for baseDir := range allSearchRequests {
-		attr, err := tagstree.InitAllTagsTreeReader(baseDir)
+	for tthBaseDir := range allSearchRequests {
+		attr, err := tagstree.InitAllTagsTreeReader(tthBaseDir)
 		if err != nil {
 			mRes.AddError(err)
 			continue
@@ -385,7 +385,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// allocate 50 KB buffer
 	bytesBuffer := bytes.NewBuffer(make([]byte, 0, 50*1024))
 
-	for baseDir, allMSearchReqs := range allSearchReqests {
+	for tthBaseDir, allMSearchReqs := range allSearchReqests {
 		if mQuery.IsQueryCancelled() {
 			return
 		}
@@ -393,11 +393,11 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 		var metricNames []string
 		if mQuery.IsRegexOnMetricName() {
 			// Regex Search on Metric Name. We need to get all the Metric Names in this Segment.
-			// The baseDir is the base directory of the tags tree holder but not the segment directory.
+			// The tthBaseDir is the base directory of the tags tree holder but not the segment directory.
 			// The Segement base Directory can be taken from the first MetricSearchRequest.
 
 			if len(allMSearchReqs) == 0 {
-				mRes.AddError(fmt.Errorf("no metric search request found for the tags tree holder baseDir: %s", baseDir))
+				mRes.AddError(fmt.Errorf("no metric search request found for the tags tree holder tthBaseDir: %s", tthBaseDir))
 				continue
 			}
 
@@ -424,7 +424,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 
 		// todo we are only pulling the first mSearchReq and getting tsids from it, should
 		// we be doing it for all mSegs ?
-		err = tagstree.SearchAndInsertTSIDs(mQuery, allMatchedTsids, metricNames, baseDir,
+		err = tagstree.SearchAndInsertTSIDs(mQuery, allMatchedTsids, metricNames, tthBaseDir,
 			allMSearchReqs[0], qid)
 		if err != nil {
 			mRes.AddError(err)
@@ -516,10 +516,10 @@ func GetRotatedTagsTreesWithinTimeRange(timeRange *dtu.MetricsTimeRange, myid in
 
 	// Extract the tags trees from the metric requests.
 	tagsTrees := make([]*tagstree.AllTagTreeReaders, 0)
-	for baseDir := range allSearchRequests {
-		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(baseDir)
+	for tthBaseDir := range allSearchRequests {
+		allTagsTreeReader, err := tagstree.InitAllTagsTreeReader(tthBaseDir)
 		if err != nil {
-			err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get tags tree reader for baseDir: %s; err=%v", baseDir, err)
+			err = fmt.Errorf("GetRotatedTagsTreesWithinTimeRange: failed to get tags tree reader for tthBaseDir: %s; err=%v", tthBaseDir, err)
 			log.Errorf(err.Error())
 			return nil, err
 		}
