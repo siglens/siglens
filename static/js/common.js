@@ -567,7 +567,6 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
 }
 
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
-    console.log("runMetric");
     $('body').css('cursor', 'progress');
 
     try {
