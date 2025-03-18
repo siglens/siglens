@@ -16,13 +16,19 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 let originalIndexValues = [];
 //eslint-disable-next-line no-unused-vars
 let indexValues = [];
 
 $(document).ready(async () => {
     toggleClearButtonVisibility();
+
+    if (window.fieldssidebarRenderer) {
+        window.fieldssidebarRenderer.init();
+    } else {
+        console.error('fieldssidebarRenderer is not defined. Ensure common.js initializes it correctly.');
+    }
+
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
@@ -219,3 +225,5 @@ $(document).ready(async () => {
 
     initializeFilterInputEvents();
 });
+
+
