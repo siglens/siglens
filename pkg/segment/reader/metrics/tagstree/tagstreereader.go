@@ -310,7 +310,7 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 	rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
 	for {
 		var tagRawValue []byte
-		var tsids map[uint64]struct{}
+		var tsids interface{}
 		var tagRawValueType []byte
 		var found bool
 
@@ -332,19 +332,13 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 		}
 
 		if !mQuery.GetAllLabels && mQuery.SelectAllSeries && !mQuery.ExitAfterTagsSearch {
-			for tsid := range tsids {
-				err := tracker.AddTSID(tsid, metricName, tf.TagKey, false)
-				if err != nil {
-					log.Errorf("runTSIDSearch: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tf.TagKey, err)
-					return err
-				}
+			err := addToTracker(tracker, tsids, metricName, tf.TagKey)
+			if err != nil {
+				log.Errorf("processWildcardOrRegexFilter: failed to add to tracker, err: %v", err)
+				return err
 			}
 		} else {
-			groupIDStr := getGroupIDStr(tagRawValue, tagRawValueType)
-			rawTagValueToTSIDs[groupIDStr] = make(map[uint64]struct{})
-			for tsid := range tsids {
-				rawTagValueToTSIDs[groupIDStr][tsid] = struct{}{}
-			}
+			addToTsidMap(tagRawValue, tagRawValueType, rawTagValueToTSIDs, tsids)
 		}
 	}
 
@@ -373,6 +367,51 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 		}
 	}
 	return nil
+}
+
+func addToTracker(tracker *tsidtracker.AllMatchedTSIDs, tsids interface{},
+	metricName string, tagkey string) error {
+
+	switch v := tsids.(type) {
+	case map[uint64]struct{}:
+		for tsid := range v {
+			err := tracker.AddTSID(tsid, metricName, tagkey, false)
+			if err != nil {
+				return fmt.Errorf("addToTracker: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tagkey, err)
+			}
+		}
+	case []uint64:
+		for _, tsid := range v {
+			err := tracker.AddTSID(tsid, metricName, tagkey, false)
+			if err != nil {
+				return fmt.Errorf("addToTracker: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tagkey, err)
+			}
+		}
+	default:
+		return fmt.Errorf("addToTracker: got unknown tsids type: %t", tsids)
+	}
+
+	return nil
+}
+
+func addToTsidMap(tagRawValue []byte, tagRawValueType []byte,
+	rawTagValueToTSIDs map[string]map[uint64]struct{}, tsids interface{}) {
+
+	groupIDStr := getGroupIDStr(tagRawValue, tagRawValueType)
+	rawTagValueToTSIDs[groupIDStr] = make(map[uint64]struct{})
+
+	switch v := tsids.(type) {
+	case map[uint64]struct{}:
+		for tsid := range v {
+			rawTagValueToTSIDs[groupIDStr][tsid] = struct{}{}
+		}
+	case []uint64:
+		for _, tsid := range v {
+			rawTagValueToTSIDs[groupIDStr][tsid] = struct{}{}
+		}
+	default:
+		log.Errorf("addToTsidMap: unknown tsids type: %T", tsids)
+	}
 }
 
 func isWildcardOrRegex(tf *structs.TagsFilter) bool {

@@ -87,7 +87,9 @@ type UnrotatedItrInterface interface {
 }
 
 type UnrotatedItr struct {
-	tt *TagTree
+	tt     *TagTree
+	offset int
+	mName  uint64
 }
 
 func InitTagsTree(name string) *TagTree {
@@ -406,9 +408,9 @@ each block is:
   - 8 bytes for the hashed tag value
   - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64)
   - The raw tag value
-	-- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
-	the string, and then N more bytes, where N is the size of the string.
-	-- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
+    -- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
+    the string, and then N more bytes, where N is the size of the string.
+    -- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
   - 2 bytes for the number of matching TSIDs; call this numMatchingTSIDs
   - numMatchingTSIDs 8-byte numbers, each representing a TSID satisfying this (metric, key, value) combination
 */
@@ -562,12 +564,6 @@ func (tt *TagTree) countTSIDsForTagPairs(tvaluesMap map[string]*utils.GobbableHl
 	}
 }
 
-func (uitr UnrotatedItr) Next() (uint64, []byte, map[uint64]struct{}, []byte, bool) {
-
-	// todo implement Next
-	return 0, nil, nil, nil, false
-}
-
 func (tth *TagsTreeHolder) GetValueIteratorForMetric(mName uint64,
 	tagkey string) (*UnrotatedItr, bool, error) {
 	tth.rwLock.RLock()
@@ -584,6 +580,39 @@ func (tth *TagsTreeHolder) GetValueIteratorForMetric(mName uint64,
 	}
 
 	return &UnrotatedItr{
-		tt: tt,
+		tt:     tt,
+		offset: 0,
+		mName:  mName,
 	}, true, nil
+}
+
+func (uitr *UnrotatedItr) Next() (uint64, []byte, []uint64, []byte, bool) {
+
+	uitr.tt.rwLock.RLock()
+	defer uitr.tt.rwLock.RUnlock()
+
+	allTis := uitr.tt.rawValues[uitr.mName]
+	if uitr.offset >= len(allTis) {
+		return 0, nil, nil, nil, false
+	}
+
+	ti := allTis[uitr.offset]
+	uitr.offset++
+
+	var valueType []byte
+	switch ti.tagValueType {
+	case jp.String:
+		valueType = VALTYPE_ENC_SMALL_STRING
+	case jp.Number:
+		_, err := jp.ParseInt(ti.tagValue)
+		if err != nil {
+			valueType = VALTYPE_ENC_FLOAT64
+		} else {
+			valueType = VALTYPE_ENC_INT64
+		}
+	default:
+		valueType = VALTYPE_ENC_SMALL_STRING
+	}
+
+	return ti.tagHashValue, ti.tagValue, ti.matchingtsids, valueType, true
 }
