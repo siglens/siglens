@@ -833,6 +833,7 @@ $('.editPanelMenu-chart #chart-type-options').on('click', function () {
     $('.horizontalCaret').css('rotate', '90deg');
     refreshChartMenuOptions();
     checkChartType(currentPanel);
+    runQueryBtnHandler();
 });
 
 $('.colorCircle').on('click', function () {
@@ -857,6 +858,7 @@ $('.editPanelMenu-logLinesView .editPanelMenu-options').on('click', function () 
         currentPanel.logLinesViewType = 'Multi line display view';
     }
     refreshLogLinesViewMenuOptions();
+    runQueryBtnHandler();
 });
 
 $('.misc-options').on('click', function () {
