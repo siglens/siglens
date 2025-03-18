@@ -1055,8 +1055,17 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
                 const tagsAndValue = await getTagKeyValue(ui.item.value);
                 availableEverything = tagsAndValue.availableEverything[0];
                 availableEverywhere = tagsAndValue.availableEverywhere;
-                queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
-                queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+
+                // Ensure autocomplete widgets are initialized before updating their sources
+                const everywhereWidget = queryElement.find('.everywhere').autocomplete('instance');
+                const everythingWidget = queryElement.find('.everything').autocomplete('instance');
+
+                if (everywhereWidget) {
+                    everywhereWidget.options.source = availableEverywhere;
+                }
+                if (everythingWidget) {
+                    everythingWidget.options.source = availableEverything;
+                }
 
                 $(this).blur();
                 setTimeout(() => {
@@ -1419,6 +1428,7 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
         });
         filteredOptions.sort();
         queryElement.find('.everywhere').autocomplete('option', 'source', filteredOptions);
+        queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
     }
 
     queries[queryElement.find('.query-name').text()] = queryDetails;

@@ -638,7 +638,6 @@ function handleNestedDataDropDownClick(e) {
     $('#nestedDataDropDown').toggleClass('active');
     $('#dataOptionsDropDown').slideToggle();
     $('#nestedDataDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedDataDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -670,7 +669,6 @@ function handleNestedTptDropDownClick(e) {
     $('#nestedThroughputDropDown').toggleClass('active');
     $('#throughputOptionsDropDown').slideToggle();
     $('#nestedThroughputDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedThroughputDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -702,7 +700,6 @@ function handleNestedPercentDropDownClick(e) {
     $('#nestedPercentDropDown').toggleClass('active');
     $('#percentOptionsDropDown').slideToggle();
     $('#nestedPercentDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedPercentDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -734,7 +731,6 @@ function handleNestedTimeDropDownClick(e) {
     $('#nestedTimeDropDown').toggleClass('active');
     $('#timeOptionsDropDown').slideToggle();
     $('#nestedTimeDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedTimeDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -766,7 +762,6 @@ function handleNestedDataRateDropDownClick(e) {
     $('#nestedDataRateDropDown').toggleClass('active');
     $('#dataRateOptionsDropDown').slideToggle();
     $('#nestedDataRateDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedDataRateDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -788,6 +783,23 @@ function handleNestedDataRateDropDownClick(e) {
 $('.editPanelMenu-dataSource .editPanelMenu-options').on('click', function () {
     selectedDataSourceTypeIndex = $(this).data('index');
     displayQueryToolTip(selectedDataSourceTypeIndex);
+
+    // Update button visibility based on data source
+    const $runQueryBtn = $('.queryInputs #run-panel-query').closest('.text-end');
+    if (selectedDataSourceTypeIndex == 0 && currentPanel.chartType === 'number') {
+        // Show button only for metrics data source and number chart
+        if (!$('.queryInputs #run-panel-query').length) {
+            $('.queryInputs').append(`
+                <div class="text-end mt-3">
+                    <button class="btn btn-primary" id="run-panel-query">Run Query</button>
+                </div>
+            `);
+        }
+    } else {
+        // Hide button for other data sources
+        $runQueryBtn.remove();
+    }
+
     if (selectedDataSourceTypeIndex == 1) {
         $('.index-container, .queryInput-container, #query-language-btn').css('display', 'inline-flex');
         $('#metrics-query-language').css('display', 'none');
@@ -805,6 +817,23 @@ $('.editPanelMenu-dataSource .editPanelMenu-options').on('click', function () {
 $('.editPanelMenu-chart #chart-type-options').on('click', function () {
     selectedChartTypeIndex = $(this).data('index');
     currentPanel.chartType = mapIndexToChartType.get(selectedChartTypeIndex);
+
+    // Handle run query button visibility
+    const $runQueryBtn = $('.queryInputs #run-panel-query').closest('.text-end');
+    if (selectedChartTypeIndex === 4 && currentPanel.queryType === 'metrics') {
+        // Show run query button only for number chart and metrics
+        if (!$('.queryInputs #run-panel-query').length) {
+            $('.queryInputs').append(`
+                <div class="text-end mt-3">
+                    <button class="btn btn-primary" id="run-panel-query">Run Query</button>
+                </div>
+            `);
+        }
+    } else {
+        // Hide run query button for other chart types
+        $runQueryBtn.remove();
+    }
+
     if (selectedChartTypeIndex === 4) {
         $('.dropDown-unit').css('display', 'flex');
         $('#nestedDropDownContainer').css('display', 'flex');
@@ -1399,14 +1428,10 @@ function displayPanelView(panelIndex) {
     }
 }
 
-// Add submit button HTML after the query input container
-$('.queryInputs').append(`
-    <div class="text-end mt-3">
-        <button class="btn btn-primary" id="run-panel-query">Run Query</button>
-    </div>
-`);
+// Remove the initial button append since we'll handle it in the chart type selection
+$('.queryInputs .text-end').remove();
 
 // Add click handler for submit button
-$('#run-panel-query').on('click', async function() {
+$(document).on('click', '#run-panel-query', async function() {
     await runQueryBtnHandler();
 });
