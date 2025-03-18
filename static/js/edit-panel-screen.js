@@ -832,7 +832,6 @@ $('.editPanelMenu-chart #chart-type-options').on('click', function () {
     $('.editPanelMenu-inner-options').css('display', 'none');
     $('.horizontalCaret').css('rotate', '90deg');
     refreshChartMenuOptions();
-    runQueryBtnHandler();
     checkChartType(currentPanel);
 });
 
@@ -858,7 +857,6 @@ $('.editPanelMenu-logLinesView .editPanelMenu-options').on('click', function () 
         currentPanel.logLinesViewType = 'Multi line display view';
     }
     refreshLogLinesViewMenuOptions();
-    runQueryBtnHandler();
 });
 
 $('.misc-options').on('click', function () {
@@ -1398,3 +1396,15 @@ function displayPanelView(panelIndex) {
             break;
     }
 }
+
+// Add submit button HTML after the query input container
+$('.queryInputs').append(`
+    <div class="text-end mt-3">
+        <button class="btn btn-primary" id="run-panel-query">Run Query</button>
+    </div>
+`);
+
+// Add click handler for submit button
+$('#run-panel-query').on('click', async function() {
+    await runQueryBtnHandler();
+});

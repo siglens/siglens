@@ -3474,3 +3474,26 @@ function resizeAllTextareas() {
 
 window.addEventListener('resize', resizeAllTextareas);
 document.addEventListener('DOMContentLoaded', resizeAllTextareas);
+
+// Remove any automatic query triggers from visualization options
+$('#display-input').off('change');
+$('#color-input').off('change');
+$('#line-style-input').off('change');
+$('#stroke-input').off('change');
+
+// Update visualization options to only store values without triggering query
+$('#display-input').on('change', function() {
+    chartType = $(this).val();
+});
+
+$('#color-input').on('change', function() {
+    selectedTheme = $(this).val();
+});
+
+$('#line-style-input').on('change', function() {
+    selectedLineStyle = $(this).val();
+});
+
+$('#stroke-input').on('change', function() {
+    selectedStroke = $(this).val();
+});
