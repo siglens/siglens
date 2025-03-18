@@ -344,6 +344,10 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	if len(expr.Grouping) > 0 {
 		mQuery.Groupby = true
+	} else {
+		mQuery.AggWithoutGroupBy = true
+		mQuery.SelectAllSeries = false
+		mQuery.GetAllLabels = false
 	}
 
 	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
@@ -734,8 +738,23 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
-	if len(mQuery.TagsFilters) == 0 {
+	if !mQuery.SelectAllSeries {
 		mQuery.SelectAllSeries = true
+
+		if (mQuery.AggWithoutGroupBy || mQuery.GroupByMetricName) && len(mQuery.TagsFilters) > 0 {
+			mQuery.SelectAllSeries = false
+		} else {
+			for _, tag := range mQuery.TagsFilters {
+				if tag.IsGroupByKey && !tag.NotInitialGroup {
+					mQuery.SelectAllSeries = false
+					break
+				}
+			}
+		}
+
+		if mQuery.SelectAllSeries && !mQuery.Groupby && !mQuery.AggWithoutGroupBy {
+			mQuery.GetAllLabels = true
+		}
 	}
 
 	return mQueryReqs, nil

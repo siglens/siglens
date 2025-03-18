@@ -74,7 +74,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "testmetric3", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -336,7 +336,7 @@ func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeMatrix, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -1421,7 +1421,7 @@ func Test_parsePromQLQuery_Parse_Promql_Test_CSV(t *testing.T) {
 
 func Test_GetAllLabels(t *testing.T) {
 	assertGetAllLabels(t, true, `allocated_bytes`)
-	assertGetAllLabels(t, false, `allocated_bytes{app="foo"}`)
+	assertGetAllLabels(t, true, `allocated_bytes{app="foo"}`)
 	assertGetAllLabels(t, false, `avg(allocated_bytes)`)
 	assertGetAllLabels(t, false, `group by (app) (allocated_bytes)`)
 }
