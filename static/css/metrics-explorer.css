@@ -379,7 +379,7 @@ input:checked+.slider:before {
     margin-right: 10px;
 }
 
-.raw-query-btn {
+.raw-query-btn svg{
     width: 15px;
 }
 
