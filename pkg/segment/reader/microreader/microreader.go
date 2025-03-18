@@ -192,6 +192,8 @@ func ReadMetricsBlockSummaries(fileName string) ([]*structs.MBlockSummary, error
 		blkNum := toputils.BytesToUint16LittleEndian(data[offset:])
 		offset += 2
 
+		// todo fix bug here, the highTs/lowTs are only 4 bytes but we are reading 8
+		// once the writer is switched to 4 bytes and version updated, do same here
 		// read highTs
 		highTs := toputils.BytesToUint32LittleEndian(data[offset:])
 		offset += 8

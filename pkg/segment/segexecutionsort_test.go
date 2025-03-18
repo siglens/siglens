@@ -18,6 +18,7 @@
 package segment
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -34,7 +35,9 @@ import (
 )
 
 func Test_SortResultsArossMultipleFiles(t *testing.T) {
-	go query.PullQueriesToRun()
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
 
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
