@@ -181,10 +181,12 @@ func convertTimeToUint64(val interface{}) (uint64, error) {
 	case string:
 		floatVal, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return 0, fmt.Errorf("error converting string to float64: %v", err)
+			log.Errorf("convertTimeToUint64 : error converting string to float64: %v", err)
+			return 0, fmt.Errorf("error converting string to float64 ")
 		}
 		return uint64(floatVal), nil
 	default:
+		log.Errorf("convertTimeToUint64 : unexpected type %T", v)
 		return 0, fmt.Errorf("unexpected type %T", v)
 	}
 }
