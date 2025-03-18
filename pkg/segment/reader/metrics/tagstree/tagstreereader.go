@@ -929,26 +929,26 @@ func (ttr *TagTreeReader) getHashedMetricNames() (map[uint64]struct{}, error) {
 
 func SearchAndInsertTSIDs(mQuery *structs.MetricsQuery,
 	allMatchedTsids *tsidtracker.AllMatchedTSIDs,
-	metricNames []string, baseDir string,
+	metricNames []string, tthBaseDir string,
 	mSearchReq *structs.MetricsSearchRequest, qid uint64) error {
 
-	if mSearchReq.QueryType == structs.UNROTATED_METRICS_SEARCH {
-		// todo we only got the first searhReq/mSeg that may or not be unrotated,
-		// so doing unrotated needs a little bit of more work, we need to store the mseg in
-		// the msearchReq for this mid-orgid combo and then search the tsids in it
-		// for now we will just rely on rotated tagstree
-		return searchAndInsertTSIDsRotated(mQuery, allMatchedTsids, metricNames, baseDir, qid)
-	} else {
-		return searchAndInsertTSIDsRotated(mQuery, allMatchedTsids, metricNames, baseDir, qid)
+	tth := wmetrics.CheckAndGetUnrotatedTth(tthBaseDir, mSearchReq.Mid, mQuery.OrgId)
+	if tth != nil {
+		// we found a valid tth for this group of mSearchReq that belong to this tth
+		// also handles the case if the tth got rotated in the middle of query,then we will fall
+		// into the rotated search below
+		return searchAndInsertTSIDsUnrotated(mQuery, allMatchedTsids, metricNames, tth, qid)
 	}
+
+	return searchAndInsertTSIDsRotated(mQuery, allMatchedTsids, metricNames, tthBaseDir, qid)
 }
 
 func searchAndInsertTSIDsRotated(mQuery *structs.MetricsQuery,
 	allMatchedTsids *tsidtracker.AllMatchedTSIDs,
-	metricNames []string, baseDir string,
+	metricNames []string, tthBaseDir string,
 	qid uint64) error {
 
-	attr, err := InitAllTagsTreeReader(baseDir)
+	attr, err := InitAllTagsTreeReader(tthBaseDir)
 	if err != nil {
 		return err
 	}
@@ -958,12 +958,30 @@ func searchAndInsertTSIDsRotated(mQuery *structs.MetricsQuery,
 		mQuery.HashedMName = xxhash.Sum64String(mName)
 		tsidInfo, err := runTSIDSearch(mQuery, attr, nil)
 		if err != nil {
-			log.Errorf("qid=%d, SearchAndInsertTSIDs: Error finding TSIDs for metric %s: %v", qid, mName, err)
+			log.Errorf("qid=%d, searchAndInsertTSIDsRotated: Error finding TSIDs for metric %s: %v", qid, mName, err)
 			return err
 		}
 		allMatchedTsids.MergeTSIDs(tsidInfo)
 	}
 	// Close the TagTreeReader
 	attr.CloseAllTagTreeReaders()
+	return nil
+}
+
+func searchAndInsertTSIDsUnrotated(mQuery *structs.MetricsQuery,
+	allMatchedTsids *tsidtracker.AllMatchedTSIDs,
+	metricNames []string, tth *wmetrics.TagsTreeHolder,
+	qid uint64) error {
+
+	for _, mName := range metricNames {
+		mQuery.MetricName = mName
+		mQuery.HashedMName = xxhash.Sum64String(mName)
+		tsidInfo, err := runTSIDSearch(mQuery, nil, tth)
+		if err != nil {
+			log.Errorf("qid=%d, searchAndInsertTSIDsUnrotated: Error finding TSIDs for metric %s: %v", qid, mName, err)
+			return err
+		}
+		allMatchedTsids.MergeTSIDs(tsidInfo)
+	}
 	return nil
 }

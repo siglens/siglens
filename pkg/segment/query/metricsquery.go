@@ -385,6 +385,10 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// allocate 50 KB buffer
 	bytesBuffer := bytes.NewBuffer(make([]byte, 0, 50*1024))
 
+	// The tthBaseDir is the base directory of the tags tree holder but not the segment directory.
+	// The Segement base Directory can be taken from the first MetricSearchRequest.
+	// tthBaseDir can span for 24 hours, and it can contain multiple mSegs, some of these mSegs
+	// can be rotated and unrotated
 	for tthBaseDir, allMSearchReqs := range allSearchReqests {
 		if mQuery.IsQueryCancelled() {
 			return
@@ -393,9 +397,6 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 		var metricNames []string
 		if mQuery.IsRegexOnMetricName() {
 			// Regex Search on Metric Name. We need to get all the Metric Names in this Segment.
-			// The tthBaseDir is the base directory of the tags tree holder but not the segment directory.
-			// The Segement base Directory can be taken from the first MetricSearchRequest.
-
 			if len(allMSearchReqs) == 0 {
 				mRes.AddError(fmt.Errorf("no metric search request found for the tags tree holder tthBaseDir: %s", tthBaseDir))
 				continue
@@ -422,8 +423,6 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			continue
 		}
 
-		// todo we are only pulling the first mSearchReq and getting tsids from it, should
-		// we be doing it for all mSegs ?
 		err = tagstree.SearchAndInsertTSIDs(mQuery, allMatchedTsids, metricNames, tthBaseDir,
 			allMSearchReqs[0], qid)
 		if err != nil {

@@ -690,3 +690,20 @@ func TagValueMatches(actualValue uint64, pattern uint64, tagOperator segutils.Ta
 
 	return matchesThis, mightMatchOtherValue
 }
+
+func CheckAndGetUnrotatedTth(tthBaseDir string, mid string, orgid int64) *TagsTreeHolder {
+
+	tth := GetTagsTreeHolder(orgid, mid)
+	if tth == nil {
+		return nil
+	}
+
+	tth.rwLock.RLock()
+	defer tth.rwLock.RUnlock()
+	// the tagtreeholder may have rotated
+	if tth.tagstreeBase != tthBaseDir {
+		return nil
+	}
+
+	return tth
+}
