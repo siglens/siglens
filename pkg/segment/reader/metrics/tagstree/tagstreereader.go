@@ -255,19 +255,22 @@ func processExactFilter(mQuery *structs.MetricsQuery,
 	if attr != nil {
 		_, _, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
 		if err != nil {
-			log.Infof("runTSIDSearch: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
+			log.Errorf("processExactFilter: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v",
+				mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 			return err
 		}
 	} else {
 		if tth == nil {
-			log.Infof("runTSIDSearch: unrotated tth was nil, mName: %v, tagkey: %v, err: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
+			log.Errorf("processExactFilter: unrotated tth was nil, mName: %v, tagkey: %v, err: %v. TagVAlH %+v tagVal %+v",
+				mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 			return errors.New("unrotated tag search failed due to nil tth")
 		}
 
 		_, _, rawTagValueToTSIDs, err = tth.GetOrInsertMatchingTSIDs(mQuery.HashedMName,
 			tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
 		if err != nil {
-			log.Infof("runTSIDSearch: unrotated, failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
+			log.Errorf("processExactFilter: unrotated, failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v",
+				mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 			return err
 		}
 	}
@@ -278,7 +281,7 @@ func processExactFilter(mQuery *structs.MetricsQuery,
 		err = tracker.BulkAdd(rawTagValueToTSIDs, metricName, tf.TagKey)
 	}
 	if err != nil {
-		log.Errorf("runTSIDSearch: failed to build add tsids to tracker! Error %+v", err)
+		log.Errorf("processExactFilter: failed to build add tsids to tracker! Error %+v", err)
 		return err
 	}
 
@@ -927,7 +930,23 @@ func (ttr *TagTreeReader) getHashedMetricNames() (map[uint64]struct{}, error) {
 func SearchAndInsertTSIDs(mQuery *structs.MetricsQuery,
 	allMatchedTsids *tsidtracker.AllMatchedTSIDs,
 	metricNames []string, baseDir string,
-	allMSearchReqs []*structs.MetricsSearchRequest, qid uint64) error {
+	mSearchReq *structs.MetricsSearchRequest, qid uint64) error {
+
+	if mSearchReq.QueryType == structs.UNROTATED_METRICS_SEARCH {
+		// todo we only got the first searhReq/mSeg that may or not be unrotated,
+		// so doing unrotated needs a little bit of more work, we need to store the mseg in
+		// the msearchReq for this mid-orgid combo and then search the tsids in it
+		// for now we will just rely on rotated tagstree
+		return searchAndInsertTSIDsRotated(mQuery, allMatchedTsids, metricNames, baseDir, qid)
+	} else {
+		return searchAndInsertTSIDsRotated(mQuery, allMatchedTsids, metricNames, baseDir, qid)
+	}
+}
+
+func searchAndInsertTSIDsRotated(mQuery *structs.MetricsQuery,
+	allMatchedTsids *tsidtracker.AllMatchedTSIDs,
+	metricNames []string, baseDir string,
+	qid uint64) error {
 
 	attr, err := InitAllTagsTreeReader(baseDir)
 	if err != nil {
@@ -946,6 +965,5 @@ func SearchAndInsertTSIDs(mQuery *structs.MetricsQuery,
 	}
 	// Close the TagTreeReader
 	attr.CloseAllTagTreeReaders()
-
 	return nil
 }

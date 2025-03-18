@@ -422,8 +422,10 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 			continue
 		}
 
+		// todo we are only pulling the first mSearchReq and getting tsids from it, should
+		// we be doing it for all mSegs ?
 		err = tagstree.SearchAndInsertTSIDs(mQuery, allMatchedTsids, metricNames, baseDir,
-			allMSearchReqs, qid)
+			allMSearchReqs[0], qid)
 		if err != nil {
 			mRes.AddError(err)
 			continue
