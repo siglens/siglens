@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 let lastQType = '';
+window.sharedSocket = null;
+window.reconnectAttempts = 0;
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -24,7 +26,7 @@ function wsURL(path) {
 }
 //eslint-disable-next-line no-unused-vars
 function doCancel(data) {
-    socket.send(JSON.stringify(data));
+    sharedSocket.send(JSON.stringify(data));
     $('body').css('cursor', 'default');
     $('#run-filter-btn').html(' ');
     $('#run-filter-btn').removeClass('cancel-search');
@@ -69,7 +71,7 @@ function doSearch(data) {
     return new Promise((resolve, reject) => {
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/ws');
-        socket = new WebSocket(newUri);
+        sharedSocket = new WebSocket(newUri);
         let timeToFirstByte = 0;
         let firstQUpdate = true;
         let lastKnownHits = 0;
@@ -78,7 +80,7 @@ function doSearch(data) {
         doSearchCounter++;
         console.time(timerName);
 
-        socket.onopen = function (_e) {
+        sharedSocket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
             $('#run-filter-btn').addClass('cancel-search');
             $('#run-filter-btn').addClass('active');
@@ -87,7 +89,7 @@ function doSearch(data) {
             $('#query-builder-btn').addClass('active');
 
             try {
-                socket.send(JSON.stringify(data));
+                sharedSocket.send(JSON.stringify(data));
             } catch (e) {
                 reject(`Error sending message to server: ${e}`);
                 console.timeEnd(timerName);
@@ -95,7 +97,7 @@ function doSearch(data) {
             }
         };
 
-        socket.onmessage = function (event) {
+        sharedSocket.onmessage = function (event) {
             let jsonEvent = JSON.parse(event.data);
             let eventType = jsonEvent.state;
             let totalEventsSearched = jsonEvent.total_events_searched;
@@ -133,7 +135,7 @@ function doSearch(data) {
                     scrollFrom = jsonEvent.total_rrc_count;
                     processCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
                     console.timeEnd('COMPLETE');
-                    socket.close(1000);
+                    sharedSocket.close(1000);
                     break;
                 }
                 case 'CANCELLED':
@@ -142,7 +144,7 @@ function doSearch(data) {
                     processCancelUpdate(jsonEvent);
                     console.timeEnd('CANCELLED');
                     errorMessages.push(`CANCELLED: ${jsonEvent}`);
-                    socket.close(1000);
+                    sharedSocket.close(1000);
                     break;
                 case 'TIMEOUT':
                     console.time('TIMEOUT');
@@ -150,7 +152,7 @@ function doSearch(data) {
                     processTimeoutUpdate(jsonEvent);
                     console.timeEnd('TIMEOUT');
                     errorMessages.push(`Timeout: ${jsonEvent}`);
-                    socket.close(1000);
+                    sharedSocket.close(1000);
                     break;
                 case 'ERROR':
                     console.time('ERROR');
@@ -171,7 +173,7 @@ function doSearch(data) {
             }
         };
 
-        socket.onclose = function (event) {
+        sharedSocket.onclose = function (event) {
             if (event.wasClean) {
                 console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
             } else {
@@ -189,7 +191,7 @@ function doSearch(data) {
             $('#hits-summary .final-res-time span').html(`${finalResultResponseTime}`);
         };
 
-        socket.addEventListener('error', (event) => {
+        sharedSocket.addEventListener('error', (event) => {
             errorMessages.push(`WebSocket error: ${event}`);
         });
     });
@@ -218,7 +220,7 @@ function createLiveTailSocket(data) {
         if (!liveTailState) return;
         startQueryTime = new Date().getTime();
         newUri = wsURL('/api/search/live_tail');
-        socket = new WebSocket(newUri);
+        sharedSocket = new WebSocket(newUri);
         doLiveTailSearch(data);
     } catch (e) {
         console.log('live tail connect websocket catch: ' + e);
@@ -229,15 +231,15 @@ function doLiveTailSearch(data) {
     let timeToFirstByte = 0;
     let firstQUpdate = true;
     let lastKnownHits = 0;
-    socket.onopen = function (_e) {
+    sharedSocket.onopen = function (_e) {
         //  console.time("socket timing");
         $('body').css('cursor', 'progress');
         $('#live-tail-btn').html('Cancel Live Tail');
         $('#live-tail-btn').addClass('active');
-        socket.send(JSON.stringify(data));
+        sharedSocket.send(JSON.stringify(data));
     };
 
-    socket.onmessage = function (event) {
+    sharedSocket.onmessage = function (event) {
         let jsonEvent = JSON.parse(event.data);
         let eventType = jsonEvent.state;
         if (jsonEvent && jsonEvent.total_events_searched && jsonEvent.total_events_searched != 0) {
@@ -281,7 +283,7 @@ function doLiveTailSearch(data) {
                 scrollFrom = jsonEvent.total_rrc_count;
                 processLiveTailCompleteUpdate(jsonEvent, eventType, totalEventsSearched, timeToFirstByte, eqRel);
                 console.timeEnd('COMPLETE');
-                socket.close(1000);
+                sharedSocket.close(1000);
                 break;
             }
             case 'TIMEOUT':
@@ -313,7 +315,7 @@ function doLiveTailSearch(data) {
         }
     };
 
-    socket.onclose = function (event) {
+    sharedSocket.onclose = function (event) {
         if (liveTailState) {
             reconnect();
             console.log('live tail reconnect websocket');
@@ -328,7 +330,7 @@ function doLiveTailSearch(data) {
         }
     };
 
-    socket.addEventListener('error', (event) => {
+    sharedSocket.addEventListener('error', (event) => {
         console.log('WebSocket error: ', event);
     });
 }

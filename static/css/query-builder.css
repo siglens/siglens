@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -572,9 +572,6 @@ textarea.form-control.expanded {
     padding: 0;
 }
 
-
-
-
 .saveq-btn {
     background-image: var(--save-btn-img);
 }
@@ -740,8 +737,9 @@ div.show-record-popup .ui-dialog-buttonpane button {
 #tabs-chart,
 #showTable {
     display: none;
-    margin: 8px 0 0 0;
-    height: calc(100% - 32px);
+    margin: 6px 0 0 0;
+    height: calc(100% - 30px);
+    transition: transform 0.3s ease;
 }
 
 #showTable {
@@ -749,6 +747,84 @@ div.show-record-popup .ui-dialog-buttonpane button {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    margin-top: 30px;
+}
+
+.histo-container {
+    background: white;
+    width: 100%;
+    margin-top: 0px;
+    height: 0;
+    position: relative;
+    transition: height 0.3s ease; /* Smooth height transition */
+}
+
+#histo-toggle-btn {
+    cursor: pointer;
+    border: none;
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    size: 10px;
+}
+
+.histo-container.visible {
+    height: 180px;
+}
+
+#histogram-container {
+    display: none;
+    background: white;
+    padding: 2px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    position: absolute;
+    width: 100%;
+    box-sizing: border-box;
+    top: 0;
+    bottom: 0;
+}
+
+.histo-container.visible #histogram-container {
+    display: block; /* Show when visible */
+}
+
+.my-chart-container {
+    background: white;
+    padding: 5px;
+    border: none;
+    width: 100%;
+    height: 100%;
+    margin-top: 0;
+    position: relative;
+    overflow: hidden; /* Prevent overflow issues */
+}
+
+.my-chart-container canvas {
+    cursor: crosshair !important;
+    width: 100% !important;
+    height: 100% !important; /* Ensure canvas fills container */
+}
+
+.show-table {
+    transition: transform 0.3s ease;
+    transform: translateY(0);
+}
+
+.bx-bar-chart-square {
+    display: inline-block;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-bottom: 10px;
+    font-size: 30px;
+}
+.bx-bar-chart-square:hover {
+    color: var(--purple-1) !important;
+}
+
+
+.histo-container.visible + .show-table {
+    transform: translateY(230px);
 }
 
 .tab-content-size {
