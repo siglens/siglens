@@ -222,10 +222,6 @@ func runTSIDSearch(mQuery *structs.MetricsQuery,
 		}
 
 		tf := mQuery.TagsFilters[i]
-		fileExists := attr.tagTreeFileExists(tf.TagKey)
-		if !fileExists {
-			continue
-		}
 
 		if isWildcardOrRegex(tf) {
 			err = processWildcardOrRegexFilter(mQuery, tf, tracker, metricName, i, attr, tth)
@@ -257,7 +253,7 @@ func processExactFilter(mQuery *structs.MetricsQuery,
 	var rawTagValueToTSIDs map[string]map[uint64]struct{}
 
 	if attr != nil {
-		_, _, rawTagValueToTSIDs, _, err = attr.getOrInsertMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
+		_, _, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
 		if err != nil {
 			log.Infof("runTSIDSearch: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 			return err
@@ -268,8 +264,12 @@ func processExactFilter(mQuery *structs.MetricsQuery,
 			return errors.New("unrotated tag search failed due to nil tth")
 		}
 
-		// todo do unrotated search
-
+		_, _, rawTagValueToTSIDs, err = tth.GetOrInsertMatchingTSIDs(mQuery.HashedMName,
+			tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
+		if err != nil {
+			log.Infof("runTSIDSearch: unrotated, failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v", mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
+			return err
+		}
 	}
 
 	if mQuery.ExitAfterTagsSearch {
@@ -295,6 +295,11 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 	var uItr *wmetrics.UnrotatedItr
 
 	if attr != nil {
+		fileExists := attr.tagTreeFileExists(tf.TagKey)
+		if !fileExists {
+			return
+		}
+
 		itr, mNameExists, err = attr.getValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
 	} else {
 		if tth == nil {
@@ -426,13 +431,13 @@ Returns:
 */
 func (attr *AllTagTreeReaders) getOrInsertMatchingTSIDs(mName uint64, tagKey string, tagValue uint64,
 	tagOperator segutils.TagOperator,
-	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
 
 	ttr, ok := attr.tagTrees[tagKey]
 	if !ok {
 		ttr, err := attr.initTagsTreeReader(tagKey)
 		if err != nil {
-			return false, false, nil, 0, fmt.Errorf("getOrInsertMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
+			return false, false, nil, fmt.Errorf("getOrInsertMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
 			return ttr.getOrInsertMatchingTSIDs(mName, tagValue, tagOperator, tsidCard)
 		}
@@ -450,14 +455,14 @@ func (attr *AllTagTreeReaders) getOrInsertMatchingTSIDs(mName uint64, tagKey str
 //
 //	then return the count of matching TSIDs (via HLL method)
 //
-// The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, tagHashValue, error)
+// The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, error)
 func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64,
 	tagOperator segutils.TagOperator,
-	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, uint64, error) {
+	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
 
 	if tagOperator != segutils.Equal && tagOperator != segutils.NotEqual {
 		log.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: tagOperator %v is not supported; only Equal and NotEqual are currently implemented", tagOperator)
-		return false, false, nil, tagValue, fmt.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: tagOperator not supported")
+		return false, false, nil, fmt.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: tagOperator not supported")
 	}
 
 	var hashedMName uint64
@@ -482,7 +487,7 @@ func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64
 		_, err := ttr.fd.ReadAt(tagTreeBuf, int64(startOff))
 		if err != nil {
 			log.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: failed to read tagtree buffer for %v with startOffset %v and endOffset %v; err=%+v", ttr.fd.Name(), startOff, endOff, err)
-			return false, false, nil, 0, err
+			return false, false, nil, err
 		}
 		treeOffset := uint32(0)
 		for treeOffset < uint32(len(tagTreeBuf)) {
@@ -507,7 +512,7 @@ func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64
 			} else {
 				log.Errorf("TagTreeReader.getOrInsertMatchingTSIDs: unknown value type: %v, (treeOffset, len(tagTreeBuf)): (%v, %v), file name: %v, startOffset: %v",
 					tagRawValueType, treeOffset, len(tagTreeBuf), ttr.fd.Name(), startOff)
-				return false, false, nil, 0, fmt.Errorf("unknown value type: %v", tagRawValueType)
+				return false, false, nil, fmt.Errorf("unknown value type: %v", tagRawValueType)
 			}
 
 			tsidCount := uint32(utils.BytesToUint16LittleEndian(tagTreeBuf[treeOffset : treeOffset+2]))
@@ -517,7 +522,8 @@ func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64
 				log.Errorf("getOrInsertMatchingTSIDs: unexpected lack of space for %v TSIDs", tsidCount)
 				break
 			}
-			matchesThis, mightMatchOtherValue := tagValueMatches(tagHashValue, tagValue, tagOperator)
+			matchesThis, mightMatchOtherValue := wmetrics.TagValueMatches(tagHashValue, tagValue,
+				tagOperator)
 			if matchesThis {
 				matchedSomething = true
 				valueAsStr := string(rawTagValue)
@@ -543,13 +549,13 @@ func (ttr *TagTreeReader) getOrInsertMatchingTSIDs(mName uint64, tagValue uint64
 		if matchedSomething {
 			break
 		} else {
-			return true, false, rawTagValueToTSIDs, tagHashValue, nil
+			return true, false, rawTagValueToTSIDs, nil
 		}
 	}
 	if !matchedSomething {
-		return false, false, rawTagValueToTSIDs, tagHashValue, nil
+		return false, false, rawTagValueToTSIDs, nil
 	}
-	return true, true, rawTagValueToTSIDs, tagHashValue, nil
+	return true, true, rawTagValueToTSIDs, nil
 }
 
 func (attr *AllTagTreeReaders) GetAllTagKeys() map[string]struct{} {
@@ -646,7 +652,7 @@ func (ttr *TagTreeReader) countTSIDsForTagValue(tagValue string,
 	hashedTagValue := xxhash.Sum64String(tagValue)
 
 	for hashedMetricName := range hashedMetricNames {
-		_, _, _, _, err := ttr.getOrInsertMatchingTSIDs(hashedMetricName, hashedTagValue,
+		_, _, _, err := ttr.getOrInsertMatchingTSIDs(hashedMetricName, hashedTagValue,
 			segutils.Equal, tsidCard)
 		if err != nil {
 			log.Errorf("AllTagTreeReaders.countTSIDsForTagValue: failed to get matching TSIDs for tag value %v, metric hash %v. Error: %v",
@@ -748,24 +754,6 @@ func (tvi *TagValueIterator) next() (uint64, []byte, []uint64, []byte, bool) {
 		}
 	}
 	return 0, nil, nil, nil, false
-}
-
-// Returns two bools; first is true if it matches this value, second is true if it might match a different value.
-func tagValueMatches(actualValue uint64, pattern uint64, tagOperator segutils.TagOperator) (matchesThis bool, mightMatchOtherValue bool) {
-	switch tagOperator {
-	case segutils.Equal:
-		matchesThis = (actualValue == pattern)
-		mightMatchOtherValue = !matchesThis
-	case segutils.NotEqual:
-		matchesThis = (actualValue != pattern)
-		mightMatchOtherValue = true
-	default:
-		log.Errorf("tagValueMatches: unsupported tagOperator: %v", tagOperator)
-		matchesThis = false
-		mightMatchOtherValue = false
-	}
-
-	return matchesThis, mightMatchOtherValue
 }
 
 func (attr *AllTagTreeReaders) FindTagValuesOnly(mQuery *structs.MetricsQuery,

@@ -33,7 +33,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	. "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -408,9 +408,9 @@ each block is:
   - 8 bytes for the hashed tag value
   - 1 byte for the type of the tag value (currently, either VALTYPE_ENC_SMALL_STRING or VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64)
   - The raw tag value
-    -- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
-    the string, and then N more bytes, where N is the size of the string.
-    -- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
+	-- If the type is VALTYPE_ENC_SMALL_STRING there's 2 bytes for the size of
+	the string, and then N more bytes, where N is the size of the string.
+	-- If the type is VALTYPE_ENC_FLOAT64 or VALTYPE_ENC_INT64 there's 8 bytes
   - 2 bytes for the number of matching TSIDs; call this numMatchingTSIDs
   - numMatchingTSIDs 8-byte numbers, each representing a TSID satisfying this (metric, key, value) combination
 */
@@ -421,7 +421,7 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	dataBuf := make([]byte, metadataSize)
 	totalBytesWritten := 0
 	startOff := metadataSize
-	copy(metadataBuf[:1], VERSION_TAGSTREE) // Write version byte as 0x01
+	copy(metadataBuf[:1], segutils.VERSION_TAGSTREE) // Write version byte as 0x01
 	utils.Uint32ToBytesLittleEndianInplace(metadataSize, metadataBuf[1:5])
 	idx := uint32(5)
 	for hashedMName, tagInfo := range tree.rawValues {
@@ -440,9 +440,9 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 					log.Errorf("TagTree.encodeTagsTree: Failed to parse %v as string for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
 					return nil, err
 				}
-				if _, err = tagBuf.Write(VALTYPE_ENC_SMALL_STRING[:]); err != nil {
+				if _, err = tagBuf.Write(segutils.VALTYPE_ENC_SMALL_STRING[:]); err != nil {
 					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value type: %+v to buffer for tag tree %v. Error: %v",
-						VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
+						segutils.VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
 					return nil, err
 				}
 				id += 1
@@ -469,10 +469,10 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 						log.Errorf("TagTree.encodeTagsTree: Failed to parse tag value %v as int or float for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
 						return nil, err
 					}
-					valueType = VALTYPE_ENC_FLOAT64
+					valueType = segutils.VALTYPE_ENC_FLOAT64
 					valueInBytes = utils.Float64ToBytesLittleEndian(value.(float64))
 				} else {
-					valueType = VALTYPE_ENC_INT64
+					valueType = segutils.VALTYPE_ENC_INT64
 					valueInBytes = utils.Int64ToBytesLittleEndian(value.(int64))
 				}
 
@@ -571,7 +571,7 @@ func (tth *TagsTreeHolder) GetValueIteratorForMetric(mName uint64,
 
 	tt, ok := tth.allTrees[tagkey]
 	if !ok {
-		return nil, false, fmt.Errorf("GetValueIteratorForMetric: unrotated tagtree not present for tagkey: %s", tagkey)
+		return nil, false, nil
 	}
 
 	_, ok = tt.rawValues[mName]
@@ -602,17 +602,91 @@ func (uitr *UnrotatedItr) Next() (uint64, []byte, []uint64, []byte, bool) {
 	var valueType []byte
 	switch ti.tagValueType {
 	case jp.String:
-		valueType = VALTYPE_ENC_SMALL_STRING
+		valueType = segutils.VALTYPE_ENC_SMALL_STRING
 	case jp.Number:
 		_, err := jp.ParseInt(ti.tagValue)
 		if err != nil {
-			valueType = VALTYPE_ENC_FLOAT64
+			valueType = segutils.VALTYPE_ENC_FLOAT64
 		} else {
-			valueType = VALTYPE_ENC_INT64
+			valueType = segutils.VALTYPE_ENC_INT64
 		}
 	default:
-		valueType = VALTYPE_ENC_SMALL_STRING
+		valueType = segutils.VALTYPE_ENC_SMALL_STRING
 	}
 
 	return ti.tagHashValue, ti.tagValue, ti.matchingtsids, valueType, true
+}
+
+// This Function will either return matchind TSIDs or HLL Counts
+// if tsidCard is nil :
+//
+//	then return the TSIDs
+//
+// else :
+//
+//	then return the count of matching TSIDs (via HLL method)
+//
+// The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, error)
+func (tth *TagsTreeHolder) GetOrInsertMatchingTSIDs(mName uint64, tagKey string,
+	tagHashValue uint64,
+	tagOperator segutils.TagOperator,
+	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
+
+	tth.rwLock.RLock()
+	defer tth.rwLock.RUnlock()
+
+	tt, ok := tth.allTrees[tagKey]
+	if !ok {
+		return false, false, nil, fmt.Errorf("GetOrInsertMatchingTSIDs: unrotated tagtree not present for tagkey: %s", tagKey)
+	}
+
+	allTis, ok := tt.rawValues[mName]
+	if !ok {
+		return false, false, nil, nil
+	}
+
+	matchedSomething := false
+	rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
+	for _, tInfo := range allTis {
+
+		matchesThis, mightMatchOtherValue := TagValueMatches(tInfo.tagHashValue,
+			tagHashValue, tagOperator)
+
+		if matchesThis {
+			matchedSomething = true
+			valueAsStr := string(tInfo.tagValue)
+			rawTagValueToTSIDs[valueAsStr] = make(map[uint64]struct{})
+
+			for _, tsid := range tInfo.matchingtsids {
+				if tsidCard != nil {
+					tsidCard.AddRaw(tsid)
+				} else {
+					rawTagValueToTSIDs[valueAsStr][tsid] = struct{}{}
+				}
+			}
+		}
+		if !mightMatchOtherValue {
+			break
+		}
+	}
+
+	return true, matchedSomething, rawTagValueToTSIDs, nil
+}
+
+// Returns two bools; first is true if it matches this value, second is true if it might match a different value.
+func TagValueMatches(actualValue uint64, pattern uint64, tagOperator segutils.TagOperator) (matchesThis bool, mightMatchOtherValue bool) {
+	switch tagOperator {
+	case segutils.Equal:
+		matchesThis = (actualValue == pattern)
+		mightMatchOtherValue = !matchesThis
+	case segutils.NotEqual:
+		matchesThis = (actualValue != pattern)
+		mightMatchOtherValue = true
+	default:
+		log.Errorf("tagValueMatches: unsupported tagOperator: %v", tagOperator)
+		matchesThis = false
+		mightMatchOtherValue = false
+	}
+
+	return matchesThis, mightMatchOtherValue
 }
