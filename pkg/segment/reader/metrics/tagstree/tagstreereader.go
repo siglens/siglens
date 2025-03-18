@@ -310,12 +310,12 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 	rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
 	for {
 		var tagRawValue []byte
-		var tsids interface{}
+		var tsids []uint64
 		var tagRawValueType []byte
 		var found bool
 
 		if attr != nil {
-			_, tagRawValue, tsids, tagRawValueType, found = itr.Next()
+			_, tagRawValue, tsids, tagRawValueType, found = itr.next()
 		} else {
 			_, tagRawValue, tsids, tagRawValueType, found = uItr.Next()
 		}
@@ -369,48 +369,26 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 	return nil
 }
 
-func addToTracker(tracker *tsidtracker.AllMatchedTSIDs, tsids interface{},
+func addToTracker(tracker *tsidtracker.AllMatchedTSIDs, tsids []uint64,
 	metricName string, tagkey string) error {
 
-	switch v := tsids.(type) {
-	case map[uint64]struct{}:
-		for tsid := range v {
-			err := tracker.AddTSID(tsid, metricName, tagkey, false)
-			if err != nil {
-				return fmt.Errorf("addToTracker: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tagkey, err)
-			}
+	for _, tsid := range tsids {
+		err := tracker.AddTSID(tsid, metricName, tagkey, false)
+		if err != nil {
+			return fmt.Errorf("addToTracker: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tagkey, err)
 		}
-	case []uint64:
-		for _, tsid := range v {
-			err := tracker.AddTSID(tsid, metricName, tagkey, false)
-			if err != nil {
-				return fmt.Errorf("addToTracker: failed to add tsid %v to tracker tagkey: %v, err: %+v", tsid, tagkey, err)
-			}
-		}
-	default:
-		return fmt.Errorf("addToTracker: got unknown tsids type: %t", tsids)
 	}
-
 	return nil
 }
 
 func addToTsidMap(tagRawValue []byte, tagRawValueType []byte,
-	rawTagValueToTSIDs map[string]map[uint64]struct{}, tsids interface{}) {
+	rawTagValueToTSIDs map[string]map[uint64]struct{}, tsids []uint64) {
 
 	groupIDStr := getGroupIDStr(tagRawValue, tagRawValueType)
 	rawTagValueToTSIDs[groupIDStr] = make(map[uint64]struct{})
 
-	switch v := tsids.(type) {
-	case map[uint64]struct{}:
-		for tsid := range v {
-			rawTagValueToTSIDs[groupIDStr][tsid] = struct{}{}
-		}
-	case []uint64:
-		for _, tsid := range v {
-			rawTagValueToTSIDs[groupIDStr][tsid] = struct{}{}
-		}
-	default:
-		log.Errorf("addToTsidMap: unknown tsids type: %T", tsids)
+	for _, tsid := range tsids {
+		rawTagValueToTSIDs[groupIDStr][tsid] = struct{}{}
 	}
 }
 
@@ -728,9 +706,8 @@ func (ttr *TagTreeReader) getValueIteratorForMetric(mName uint64) (*TagValueIter
 Returns next tag value, all matching tsids
 If bool=false, the returned tagvalue/rawvalue/matching tsids will be empty
 */
-func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte, bool) {
+func (tvi *TagValueIterator) next() (uint64, []byte, []uint64, []byte, bool) {
 	var tagValue []byte
-	var matchingTSIDs map[uint64]struct{} = map[uint64]struct{}{}
 	for tvi.treeOffset < uint32(len(tvi.tagTreeBuf)) {
 		if uint32(len(tvi.tagTreeBuf))-tvi.treeOffset < 10 {
 			// not enough bytes left in tagTreeBuf for a full tag tree entry
@@ -752,7 +729,7 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte
 			tagValue = tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8]
 			tvi.treeOffset += 8
 		} else {
-			log.Errorf("TagValueIterator.Next: unknown value type: %v", tagRawValueType)
+			log.Errorf("TagValueIterator.next: unknown value type: %v", tagRawValueType)
 		}
 		tsidCount := uint32(utils.BytesToUint16LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+2]))
 		tvi.treeOffset += 2
@@ -760,12 +737,13 @@ func (tvi *TagValueIterator) Next() (uint64, []byte, map[uint64]struct{}, []byte
 			// not enough bytes left in tagTreeBuf for all TSIDs
 			return 0, nil, nil, nil, false
 		}
+		matchingTSIDs := make([]uint64, tsidCount)
 		for i := uint32(0); i < tsidCount; i++ {
 			tsid := utils.BytesToUint64LittleEndian(tvi.tagTreeBuf[tvi.treeOffset : tvi.treeOffset+8])
 			tvi.treeOffset += 8
-			matchingTSIDs[tsid] = struct{}{}
+			matchingTSIDs[i] = tsid
 		}
-		if len(matchingTSIDs) > 0 {
+		if tsidCount > 0 {
 			return tagHashValue, tagValue, matchingTSIDs, tagRawValueType, true
 		}
 	}
