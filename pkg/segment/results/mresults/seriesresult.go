@@ -342,7 +342,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Abs:
 		evaluate(ts, math.Abs)
 	case segutils.Sqrt:
-		err = applyFuncToNonNegativeValues(ts, math.Sqrt)
+		applyFuncToNonNegativeValues(ts, math.Sqrt)
 	case segutils.Ceil:
 		evaluate(ts, math.Ceil)
 	case segutils.Floor:
@@ -356,11 +356,11 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Exp:
 		evaluate(ts, math.Exp)
 	case segutils.Ln:
-		err = applyFuncToNonNegativeValues(ts, math.Log)
+		applyFuncToNonNegativeValues(ts, math.Log)
 	case segutils.Log2:
-		err = applyFuncToNonNegativeValues(ts, math.Log2)
+		applyFuncToNonNegativeValues(ts, math.Log2)
 	case segutils.Log10:
-		err = applyFuncToNonNegativeValues(ts, math.Log10)
+		applyFuncToNonNegativeValues(ts, math.Log10)
 	case segutils.Sgn:
 		evaluate(ts, calculateSgn)
 	case segutils.Deg:
@@ -1061,14 +1061,14 @@ func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
 	return nil
 }
 
-func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
+func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		if val < 0 {
-			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
+			ts[key] = math.NaN()
+			continue
 		}
 		ts[key] = mathFunc(val)
 	}
-	return nil
 }
 
 func calculateSgn(val float64) float64 {
