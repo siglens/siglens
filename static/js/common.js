@@ -65,6 +65,7 @@ let isQueryBuilderSearch = false;
 let defaultDashboardIds = ['10329b95-47a8-48df-8b1d-0a0a01ec6c42', 'a28f485c-4747-4024-bb6b-d230f101f852', 'bd74f11e-26c8-4827-bf65-c0b464e1f2a4', '53cb3dde-fd78-4253-808c-18e4077ef0f1'];
 let initialSearchData = {};
 let isMetricsScreen = false;
+let fieldssidebarRenderer;
 
 let aggGridOptions = {
     columnDefs: aggsColumnDefs,
@@ -279,13 +280,13 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $('body').css('cursor', 'default');
         }
     }
-    
+
     canScrollMore = res.can_scroll_more;
     scrollFrom = scrollFrom + res.hits.totalMatched.value;
 
     // Only show empty results error if this is the first request (not a scroll request)
     // or if there's no existing data in panelLogsRowData
-    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) && 
+    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) &&
         (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
         panelProcessEmptyQueryResults('', panelId);
     }
@@ -518,7 +519,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
 
             if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
                 if (res.qtype === 'segstats-query') {
-                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);  
+                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
                 } else {
                     panelProcessEmptyQueryResults('', panelId);
                 }
@@ -823,7 +824,7 @@ function addZero(i) {
 function showToast(msg, type = 'error') {
     let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
     let toast = `
-        <div class="${toastTypeClass}" id="message-toast"> 
+        <div class="${toastTypeClass}" id="message-toast">
             <button type="button" aria-label="Close" class="toast-close">×</button>
             ${msg}
             <div class="toast-buttons">
@@ -1233,14 +1234,14 @@ function handleRelatedTraces(traceId, timestamp, newTab) {
 
 function handleRelatedLogs(id, traceStartTime, type = 'trace') {
     const traceStartEpoch = Math.floor(Number(traceStartTime) / 1000000);
-    
+
     const fifteenMinutesMs = 15 * 60 * 1000;
-    
+
     const startEpoch = traceStartEpoch - fifteenMinutesMs;
     const endEpoch = traceStartEpoch + fifteenMinutesMs;
 
-    const searchQuery = type === 'span' 
-        ? `span_id="${id}"` 
+    const searchQuery = type === 'span'
+        ? `span_id="${id}"`
         : `trace_id="${id}"`;
 
     const searchParams = new URLSearchParams({
@@ -1281,7 +1282,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             this.eGui.style.display = 'flex';
             this.isExpanded = false;
 
-            const displayValue = type === 'logs' && params.column.colId === 'timestamp' 
+            const displayValue = type === 'logs' && params.column.colId === 'timestamp'
                 ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
                 : params.value;
 
@@ -1381,7 +1382,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
                     const row = document.createElement('tr');
                     const keyCell = document.createElement('td');
                     const valueCell = document.createElement('td');
-                    
+
                     keyCell.textContent = key;
                     valueCell.textContent = formattedValue;
                     [keyCell, valueCell].forEach(cell => {
@@ -1469,3 +1470,202 @@ function ExpandableJsonCellRenderer(type = 'events') {
         }
     }
 }
+//eslint-disable-next-line no-unused-vars
+const ExpandableFieldsSidebarRenderer = () => {
+    const initialState = () => {
+        let isFieldsSidebarHidden = false;
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const isSearchActive = searchParams.has('searchText') && searchParams.has('indexName');
+
+        if (isSearchActive && searchParams.has('fieldsHidden')) {
+            isFieldsSidebarHidden = searchParams.get('fieldsHidden') === 'true';
+        }
+
+        return {
+            eGui: null,
+            expandBtn: null,
+            expandIcon: null,
+            tooltipInstance: null,
+            isFieldsSidebarHidden: isFieldsSidebarHidden
+        };
+    };
+
+    let state = initialState(); // Shared state (closure)
+
+    // Pure function to generate expand SVG
+    const getExpandSvg = () => `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-open">
+        <rect width="16" height="16" x="4" y="4" rx="1.5"/>
+        <path d="M8 4v16"/>
+        <path d="m12 9 2 2-2 2"/>
+    </svg>
+`;
+
+const getCollapseSvg = () => `
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close">
+        <rect width="16" height="16" x="4" y="4" rx="1.5"/>
+        <path d="M8 4v16"/>
+        <path d="m14 13-2-2 2-2"/>
+    </svg>
+`;
+
+    const getDomElements = () => ({
+        fieldsSidebar: document.querySelector('.fields-sidebar'),
+        customChartTab: document.querySelector('.custom-chart-tab'),
+        container: document.querySelector('.custom-chart-container'),
+        tabList: document.querySelector('.tab-chart-list'),
+        selectedFieldsHeader: document.getElementById('selected-fields-header')
+    });
+
+    const createGuiElement = (isHidden) => {
+        const eGui = document.createElement('div');
+        eGui.className = 'expand-svg-container';
+
+        eGui.innerHTML = `
+            <span class="expand-svg-box">
+                <button id="expand-toggle-svg" class="btn expand-svg-button below-btn-img">
+                    ${isHidden ? getCollapseSvg() : getExpandSvg()}
+                </button>
+            </span>
+        `;
+
+        return eGui;
+    };
+
+    // Function to update tooltip
+    const updateTooltip = (isHidden) => {
+        const tooltipText = isHidden ? 'Show Fields' : 'Hide Fields';
+
+        if (state.tooltipInstance) {
+            state.tooltipInstance.setContent(tooltipText);
+            return;
+        }
+
+        // Create a new tooltip with Tippy.js options
+        const targetElement = document.querySelector('#expand-toggle-svg');
+        if (targetElement) {
+            state.tooltipInstance = tippy(targetElement, {
+                content: tooltipText,
+                trigger: 'mouseenter focus', // Show on hover or focus
+                onClickOutside(instance, event) {
+                    if (!instance.reference.contains(event.target)) {
+                        instance.hide();
+                    }
+                }
+            });
+        }
+    };
+
+    // Function to reposition the expand button based on sidebar state
+    const repositionExpandButton = (isHidden) => {
+        if (!state.eGui) return;
+
+        if (state.eGui.parentNode) {
+            state.eGui.parentNode.removeChild(state.eGui);
+        }
+
+        const elements = getDomElements();
+
+        if (isHidden) {
+            const { tabList } = elements;
+            if (tabList) {
+                tabList.parentNode.insertBefore(state.eGui, tabList);
+                state.eGui.classList.add('before-tabs');
+            }
+        } else {
+            const { selectedFieldsHeader } = elements;
+            if (selectedFieldsHeader) {
+                selectedFieldsHeader.parentNode.insertBefore(state.eGui, selectedFieldsHeader);
+                state.eGui.classList.remove('before-tabs');
+            } else {
+                console.warn('selected-fields-header not found');
+            }
+        }
+
+        updateTooltip(isHidden); // Update tooltip after repositioning
+    };
+
+    // Toggle function
+    const toggleFieldsSidebar = (event) => {
+        if (event) {
+            event.stopPropagation();
+        }
+
+        const newIsHidden = !state.isFieldsSidebarHidden;
+        state.isFieldsSidebarHidden = newIsHidden;
+
+        if (state.expandIcon) {
+            state.expandIcon.outerHTML = newIsHidden ? getCollapseSvg() : getExpandSvg();
+            state.expandIcon = state.eGui.querySelector('svg');
+        }
+
+        repositionExpandButton(newIsHidden); // Reposition the button based on new state
+
+        updateUrlAndState(newIsHidden);
+    };
+
+    const updateUrlAndState = (isHidden) => {
+        const searchParams = new URLSearchParams(window.location.search);
+        if (searchParams.has('searchText') && searchParams.has('indexName')) {
+            const url = new URL(window.location);
+            url.searchParams.set('fieldsHidden', isHidden);
+            window.history.pushState({}, document.title, url);
+        }
+
+        applyFieldsSidebarState(isHidden);
+    };
+
+    const init = () => {
+        // Default to false
+        let isFieldsSidebarHidden = false;
+
+        const searchParams = new URLSearchParams(window.location.search);
+        const isSearchActive = searchParams.has('searchText') && searchParams.has('indexName');
+
+        if (isSearchActive && searchParams.has('fieldsHidden')) {
+            isFieldsSidebarHidden = searchParams.get('fieldsHidden') === 'true';
+        }
+
+        state.isFieldsSidebarHidden = isFieldsSidebarHidden;
+
+        if (state.eGui) {
+            applyFieldsSidebarState(state.isFieldsSidebarHidden);
+
+            if (isSearchActive) {
+                const url = new URL(window.location);
+                url.searchParams.set('fieldsHidden', state.isFieldsSidebarHidden);
+                window.history.pushState({}, document.title, url);
+            }
+            return;
+        }
+
+        state.eGui = createGuiElement(state.isFieldsSidebarHidden);
+        state.expandBtn = state.eGui.querySelector('#expand-toggle-svg');
+        state.expandIcon = state.eGui.querySelector('svg');
+
+        if (state.expandBtn) {
+            state.expandBtn.addEventListener('click', toggleFieldsSidebar);
+        }
+
+        repositionExpandButton(state.isFieldsSidebarHidden);
+
+        applyFieldsSidebarState(state.isFieldsSidebarHidden);
+
+        if (isSearchActive) {
+            const url = new URL(window.location);
+            url.searchParams.set('fieldsHidden', state.isFieldsSidebarHidden);
+            window.history.pushState({}, document.title, url);
+        }
+    };
+
+    return {
+        init,
+        getGui: () => state.eGui,
+        getState: () => ({ ...state })
+    };
+};
+
+window.ExpandableFieldsSidebarRenderer = ExpandableFieldsSidebarRenderer;
+fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
+window.fieldssidebarRenderer = fieldssidebarRenderer;
