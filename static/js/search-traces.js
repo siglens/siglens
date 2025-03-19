@@ -485,7 +485,7 @@ function showScatterPlot() {
 
                     // For traces with errors
                     if (val[3] > 0) {
-                        return baseSize + 5;
+                        return baseSize + 2;
                     }
 
                     return baseSize;
