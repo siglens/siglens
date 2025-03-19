@@ -102,6 +102,9 @@ func InitAllTagsTreeReader(tagsTreeBaseDir string) (*AllTagTreeReaders, error) {
 		// This also inserts the tagTreeReader into the tagTrees map.
 		_, err = attr.initTagsTreeReader(tagKey)
 		if err != nil {
+			if utils.IsNotExistError(err) {
+				continue
+			}
 			err = fmt.Errorf("InitAllTagsTreeReader: failed to initialize tag tree reader for tag key %s in base dir %v; err=%v", tagKey, tagsTreeBaseDir, err)
 			log.Errorf(err.Error())
 			return nil, err
@@ -116,8 +119,11 @@ func (attr *AllTagTreeReaders) initTagsTreeReader(tagKey string) (*TagTreeReader
 
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("initTagsTreeReader: failed to open file %s. Error: %v.", fName, err)
-		return nil, err
+		toLogErr := fmt.Errorf("initTagsTreeReader: failed to open file %s", fName)
+		if os.IsNotExist(err) {
+			return nil, utils.NewErrorWithCode(os.ErrNotExist.Error(), toLogErr)
+		}
+		return nil, utils.NewErrorWithCode(err.Error(), toLogErr)
 	}
 
 	err = syscall.Flock(int(fd.Fd()), syscall.LOCK_SH)
@@ -255,6 +261,10 @@ func processExactFilter(mQuery *structs.MetricsQuery,
 	if attr != nil {
 		_, _, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(mQuery.HashedMName, tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
 		if err != nil {
+			if utils.IsNotExistError(err) {
+				return nil
+			}
+
 			log.Errorf("processExactFilter: failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v",
 				mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 			return err
@@ -269,6 +279,9 @@ func processExactFilter(mQuery *structs.MetricsQuery,
 		_, _, rawTagValueToTSIDs, err = tth.GetOrInsertMatchingTSIDs(mQuery.HashedMName,
 			tf.TagKey, tf.HashTagValue, tf.TagOperator, nil)
 		if err != nil {
+			if utils.IsNotExistError(err) {
+				return nil
+			}
 			log.Errorf("processExactFilter: unrotated, failed to get matching tsids for mNAme %v and tag key %v. Error: %v. TagVAlH %+v tagVal %+v",
 				mQuery.MetricName, tf.TagKey, err, tf.HashTagValue, tf.RawTagValue)
 			return err
@@ -311,8 +324,15 @@ func processWildcardOrRegexFilter(mQuery *structs.MetricsQuery,
 		}
 		uItr, mNameExists, err = tth.GetValueIteratorForMetric(mQuery.HashedMName, tf.TagKey)
 	}
-	if err != nil || !mNameExists {
-		return err
+	if err != nil {
+		if utils.IsNotExistError(err) {
+			return nil
+		}
+		return utils.WrapErrorf(err, "processWildcardOrRegexFilter: failed to get value iterator for metric %v and tag key %v. Error: %v", mQuery.MetricName, tf.TagKey, err)
+	}
+
+	if !mNameExists {
+		return nil
 	}
 
 	rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
@@ -440,7 +460,7 @@ func (attr *AllTagTreeReaders) getOrInsertMatchingTSIDs(mName uint64, tagKey str
 	if !ok {
 		ttr, err := attr.initTagsTreeReader(tagKey)
 		if err != nil {
-			return false, false, nil, fmt.Errorf("getOrInsertMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
+			return false, false, nil, utils.WrapErrorf(err, "getOrInsertMatchingTSIDs: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
 			return ttr.getOrInsertMatchingTSIDs(mName, tagValue, tagOperator, tsidCard)
 		}
@@ -675,7 +695,7 @@ func (attr *AllTagTreeReaders) getValueIteratorForMetric(mName uint64, tagKey st
 	if !ok {
 		ttr, err := attr.initTagsTreeReader(tagKey)
 		if err != nil {
-			return nil, false, fmt.Errorf("getValueIteratorForMetric: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
+			return nil, false, utils.WrapErrorf(err, "getValueIteratorForMetric: failed to initialize tags tree reader for key %s, error: %v", tagKey, err)
 		} else {
 			return ttr.getValueIteratorForMetric(mName)
 		}
