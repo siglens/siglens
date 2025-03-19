@@ -18,6 +18,7 @@
 package mresults
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -1173,7 +1174,8 @@ func Test_applyMathFunctionSqrt(t *testing.T) {
 	result["metric"] = ts
 	metricsResults.Results = result
 	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprint(math.NaN()), fmt.Sprint(metricsResults.Results["metric"][3]))
 }
 
 func Test_applyMathFunctionFloor(t *testing.T) {
@@ -1420,7 +1422,8 @@ func Test_applyMathFunctionLog2(t *testing.T) {
 	result["metric"] = ts
 	metricsResults.Results = result
 	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprint(math.NaN()), fmt.Sprint(metricsResults.Results["metric"][3]))
 }
 
 func Test_applyMathFunctionLog10(t *testing.T) {
@@ -1458,7 +1461,8 @@ func Test_applyMathFunctionLog10(t *testing.T) {
 	result["metric"] = ts
 	metricsResults.Results = result
 	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprint(math.NaN()), fmt.Sprint(metricsResults.Results["metric"][3]))
 }
 
 func Test_applyMathFunctionLn(t *testing.T) {
@@ -1496,7 +1500,8 @@ func Test_applyMathFunctionLn(t *testing.T) {
 	result["metric"] = ts
 	metricsResults.Results = result
 	err = metricsResults.ApplyFunctionsToResults(8, function, nil)
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.Equal(t, fmt.Sprint(math.NaN()), fmt.Sprint(metricsResults.Results["metric"][3]))
 }
 
 func Test_applyMathFunctionSgn(t *testing.T) {

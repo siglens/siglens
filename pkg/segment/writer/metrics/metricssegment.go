@@ -1362,7 +1362,7 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			defer wg.Done()
 			mSeg.rwLock.RLock()
 			defer mSeg.rwLock.RUnlock()
-			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || metricSeg.Orgid != orgid {
+			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || mSeg.Orgid != orgid {
 				return
 			}
 			retBlocks := make(map[uint16]bool)
