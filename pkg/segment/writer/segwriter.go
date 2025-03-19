@@ -286,7 +286,7 @@ func InitWriterNode() {
 // TODO: this should be pushed based & we should have checks in uploadingestnode function to prevent uploading unupdated files.
 func timeBasedUploadIngestNodeDir() {
 	for {
-		time.Sleep(UPLOAD_INGESTNODE_DIR)
+		time.Sleep(UPLOAD_INGESTNODE_DIR_SLEEP)
 		err := blob.UploadIngestNodeDir()
 		if err != nil {
 			log.Errorf("timeBasedUploadIngestNodeDir: failed to upload ingestnode dir: err=%v", err)

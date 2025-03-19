@@ -213,9 +213,10 @@ func ValTypeToSSDType(valtype byte) SS_DTYPE {
 	}
 }
 
-const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
-const STALE_SEGMENT_DELETION_SECONDS = 15 * 60             // 15 mins
-var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
+const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000 // one minute
+const STALE_SEGMENT_DELETION_SECONDS = 15 * 60 // 15 mins
+// todo temp icnrease timer to reduce num of uploads
+var UPLOAD_INGESTNODE_DIR_SLEEP = time.Duration(10 * time.Minute) // 10 minutes
 const STALE_SEGMENT_DELETION_SLEEP_SECONDS = 120
 
 const QUERY_EARLY_EXIT_LIMIT = uint64(100)
