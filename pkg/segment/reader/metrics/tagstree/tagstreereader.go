@@ -119,7 +119,11 @@ func (attr *AllTagTreeReaders) initTagsTreeReader(tagKey string) (*TagTreeReader
 
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		return nil, utils.NewErrorWithCode(os.ErrNotExist.Error(), fmt.Errorf("initTagsTreeReader: failed to open file %s", fName))
+		toLogErr := fmt.Errorf("initTagsTreeReader: failed to open file %s", fName)
+		if os.IsNotExist(err) {
+			return nil, utils.NewErrorWithCode(os.ErrNotExist.Error(), toLogErr)
+		}
+		return nil, utils.NewErrorWithCode(err.Error(), toLogErr)
 	}
 
 	err = syscall.Flock(int(fd.Fd()), syscall.LOCK_SH)
