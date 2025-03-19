@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -56,14 +56,38 @@ $(document).ready(async function () {
             {{ .IngestDataCmd }}
         {{ end }}
 
-        var curlCommand = 'curl -X POST "' + baseUrl + '/elastic/_bulk" \\\n' +
-            '-H \'Content-Type: application/json\' \\\n' +
-            ingestCmd +
-            '-d \'{ "index" : { "_index" : "test" } }\n' +
-            '{ "name" : "john", "age":"23" }\'';
-        $('#verify-command').text(curlCommand);
+        // Hide test data button by default
+        $('#test-data-btn').hide();
+        $('#data-ingestion').show();
 
         switch (selectedLogSource) {
+            case 'OpenTelemetry':
+                $('#platform-input').val(selectedLogSource);
+                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/opentelemetry');
+                // Example OTLP command for logs
+                var curlCommand = 'curl -X POST "' + baseUrl + '/v1/logs" \\\n' +
+                    '-H \'Content-Type: application/json\' \\\n' +
+                    '-H \'Accept: application/json\' \\\n' +
+                    ingestCmd +
+                    '-d \'{\n' +
+                    '  "resourceLogs": [{\n' +
+                    '    "resource": {\n' +
+                    '      "attributes": [{\n' +
+                    '        "key": "service.name",\n' +
+                    '        "value": { "stringValue": "test-service" }\n' +
+                    '      }]\n' +
+                    '    },\n' +
+                    '    "scopeLogs": [{\n' +
+                    '      "logRecords": [{\n' +
+                    '        "timeUnixNano": "1234567890000000000",\n' +
+                    '        "severityText": "INFO",\n' +
+                    '        "body": { "stringValue": "This is a test log" }\n' +
+                    '      }]\n' +
+                    '    }]\n' +
+                    '  }]\n' +
+                    '}\'';
+                $('#verify-command').text(curlCommand);
+                break;
             case 'Vector':
             case 'Logstash':
             case 'Fluentd':
@@ -71,10 +95,24 @@ $(document).ready(async function () {
             case 'Promtail':
                 $('#platform-input').val(selectedLogSource);
                 $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
+                // Keep existing elastic bulk command
+                var curlCommand = 'curl -X POST "' + baseUrl + '/elastic/_bulk" \\\n' +
+                    '-H \'Content-Type: application/json\' \\\n' +
+                    ingestCmd +
+                    '-d \'{ "index" : { "_index" : "test" } }\n' +
+                    '{ "name" : "john", "age":"23" }\'';
+                $('#verify-command').text(curlCommand);
                 break;
             case 'Elastic Bulk':
                 $('#platform-input').val(selectedLogSource);
                 $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
+                // Keep existing elastic bulk command
+                var curlCommand = 'curl -X POST "' + baseUrl + '/elastic/_bulk" \\\n' +
+                    '-H \'Content-Type: application/json\' \\\n' +
+                    ingestCmd +
+                    '-d \'{ "index" : { "_index" : "test" } }\n' +
+                    '{ "name" : "john", "age":"23" }\'';
+                $('#verify-command').text(curlCommand);
                 break;
             case 'Splunk HEC':
                 $('#platform-input').val(selectedLogSource);
@@ -86,6 +124,7 @@ $(document).ready(async function () {
                 $('#verify-command').text(curlCommand);
                 break;
             case 'Send Test Data':
+                $('#data-ingestion').hide();
                 $('#test-data-btn').show();
                 break;
             default:
@@ -93,6 +132,7 @@ $(document).ready(async function () {
         }
     });
 
+    // Update the initial tab selection to be OpenTelemetry
     $('.custom-chart-tab ul li:first a').click();
 
     //Copy Handler
