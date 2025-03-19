@@ -606,8 +606,7 @@ func removeStaleSegments() {
 	for streamid, segstore := range allSegStores {
 
 		segstore.Lock.Lock()
-		// remove unused segstores if its has been twice
-		// the segrotation time since we last updated it
+		// remove unused segstores
 		if segstore.isSegstoreUnusedSinceTime(STALE_SEGMENT_DELETION_SECONDS) {
 			segStoresToDeleteChan <- streamid
 		}

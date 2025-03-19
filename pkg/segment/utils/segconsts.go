@@ -215,7 +215,7 @@ func ValTypeToSSDType(valtype byte) SS_DTYPE {
 
 const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000 // one minute
 const STALE_SEGMENT_DELETION_SECONDS = 15 * 60 // 15 mins
-// todo temp icnrease timer to reduce num of uploads
+// todo : once the blindly uploading thing is fixed, we should change this timer back to 1 min
 var UPLOAD_INGESTNODE_DIR_SLEEP = time.Duration(10 * time.Minute) // 10 minutes
 const STALE_SEGMENT_DELETION_SLEEP_SECONDS = 120
 
