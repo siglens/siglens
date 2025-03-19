@@ -4,46 +4,31 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
-	"github.com/siglens/siglens/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	config.SetDataPath(os.TempDir() + "/test-wal/")
-	runningConfig := config.GetTestConfig(os.TempDir())
-	config.SetConfig(runningConfig)
-}
-
-func cleanUpWalFile() {
-	os.RemoveAll(config.GetDataPath())
-}
-
 func TestWALAppendAndRead(t *testing.T) {
-	filename := "testwal"
+	filename := "testwal.wal"
+	dirPath := t.TempDir()
 
-	cleanUpWalFile()
-	defer cleanUpWalFile()
-
-	wal, err := NewWAL(filename)
+	wal, err := NewWAL(dirPath, filename)
 	assert.NoError(t, err)
 	defer wal.Close()
 
-	datapoints := []WALDatapoint{
-		{Timestamp: 1001, DpVal: 12.5, Tsid: 1},
-		{Timestamp: 1002, DpVal: 13.7, Tsid: 2},
-		{Timestamp: 1003, DpVal: 15.1, Tsid: 3},
-	}
+	numDatapoints := 500
+
+	datapoints := generateRandomDatapoints(numDatapoints)
 
 	err = wal.AppendToWAL(datapoints)
 	assert.NoError(t, err)
 
-	it, err := NewReaderWAL(filename)
+	it, err := NewReaderWAL(dirPath, filename)
 	assert.NoError(t, err)
 	defer it.Close()
 
 	var readDatapoints []WALDatapoint
-
 	for {
 		dp, ok, err := it.Next()
 		assert.NoError(t, err)
@@ -55,65 +40,55 @@ func TestWALAppendAndRead(t *testing.T) {
 
 	assert.Equal(t, len(datapoints), len(readDatapoints))
 
-	for i, dp := range datapoints {
-		assert.Equal(t, dp.Timestamp, readDatapoints[i].Timestamp)
-		assert.Equal(t, dp.DpVal, readDatapoints[i].DpVal)
-		assert.Equal(t, dp.Tsid, readDatapoints[i].Tsid)
+	for i := 0; i < numDatapoints; i++ {
+		assert.Equal(t, datapoints[i], readDatapoints[i])
 	}
 }
 
-func GetWalFilePath(filename string) (string, error) {
-	dirPath, err := getBaseWalDir()
-	filePath := filepath.Join(dirPath, filename+".wal")
-	return filePath, err
-}
-
-func TestNewWAL(t *testing.T) {
-	filename := "test_newwal"
-	defer cleanUpWalFile()
-
-	wal, err := NewWAL(filename)
-	assert.NoError(t, err)
-	assert.NotNil(t, wal)
-	defer wal.Close()
-
-	filePath, _ := GetWalFilePath(filename)
-	_, err = os.Stat(filePath)
-	assert.NoError(t, err)
-}
-
 func TestDeleteWAL(t *testing.T) {
-	filename := "test_deletewal"
+	dir := t.TempDir()
+	filename := "testwal3.wal"
+	filePath := filepath.Join(dir, filename)
 
-	wal, err := NewWAL(filename)
+	f, err := os.Create(filePath)
 	assert.NoError(t, err)
-	wal.Close()
+	f.Close()
 
-	err = DeleteWAL(filename)
+	err = DeleteWAL(dir, filename)
 	assert.NoError(t, err)
 
-	filePath, _ := GetWalFilePath(filename)
 	_, err = os.Stat(filePath)
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestAppendToWAL(t *testing.T) {
-	filename := "test_appendwal"
-	defer cleanUpWalFile()
+func TestWALStats(t *testing.T) {
+	dir := t.TempDir()
+	filename := "testwal4.wal"
 
-	wal, err := NewWAL(filename)
+	w, err := NewWAL(dir, filename)
 	assert.NoError(t, err)
-	defer wal.Close()
+	defer w.Close()
 
-	dps := []WALDatapoint{
-		{Timestamp: 1010, DpVal: 20.0, Tsid: 10},
+	dps := generateRandomDatapoints(500)
+	err = w.AppendToWAL(dps)
+	assert.NoError(t, err)
+
+	fname, totalDps, encodedSize := w.GetWALStats()
+	assert.Contains(t, fname, filename)
+	assert.Equal(t, uint32(3), totalDps)
+	assert.True(t, encodedSize > 0)
+}
+
+func generateRandomDatapoints(n int) []WALDatapoint {
+	var dps []WALDatapoint
+	currentMillis := time.Now().UnixMilli()
+	for i := 0; i < n; i++ {
+		dp := WALDatapoint{
+			Timestamp: uint64(currentMillis + int64(i*1000)),
+			DpVal:     float64(10 + i),
+			Tsid:      uint64(i + 1),
+		}
+		dps = append(dps, dp)
 	}
-
-	err = wal.AppendToWAL(dps)
-	assert.NoError(t, err)
-
-	filePath, _ := GetWalFilePath(filename)
-	info, err := os.Stat(filePath)
-	assert.NoError(t, err)
-	assert.Greater(t, info.Size(), int64(0))
+	return dps
 }
