@@ -28,7 +28,7 @@ func TestWALAppendAndRead(t *testing.T) {
 	assert.NoError(t, err)
 	defer it.Close()
 
-	var readDatapoints []WALDatapoint
+	var readDatapoints []walDatapoint
 	for {
 		dp, ok, err := it.Next()
 		assert.NoError(t, err)
@@ -45,16 +45,18 @@ func TestWALAppendAndRead(t *testing.T) {
 	}
 }
 
-func TestDeleteWAL(t *testing.T) {
+func TestDeleteWALFile(t *testing.T) {
 	dir := t.TempDir()
-	filename := "testwal3.wal"
+	filename := "deletewaltest.wal"
 	filePath := filepath.Join(dir, filename)
-
-	f, err := os.Create(filePath)
+	wal, err := NewWAL(dir, filename)
 	assert.NoError(t, err)
-	f.Close()
+	_, err = os.Stat(filePath)
+	assert.False(t, os.IsNotExist(err))
+	err = wal.Close()
+	assert.NoError(t, err)
 
-	err = DeleteWAL(dir, filename)
+	err = wal.DeleteWAL()
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filePath)
@@ -74,16 +76,16 @@ func TestWALStats(t *testing.T) {
 	assert.NoError(t, err)
 
 	fname, totalDps, encodedSize := w.GetWALStats()
-	assert.Contains(t, fname, filename)
-	assert.Equal(t, uint32(3), totalDps)
+	assert.Contains(t, fname, filepath.Join(dir, filename))
+	assert.Equal(t, uint32(500), totalDps)
 	assert.True(t, encodedSize > 0)
 }
 
-func generateRandomDatapoints(n int) []WALDatapoint {
-	var dps []WALDatapoint
+func generateRandomDatapoints(n int) []walDatapoint {
+	var dps []walDatapoint
 	currentMillis := time.Now().UnixMilli()
 	for i := 0; i < n; i++ {
-		dp := WALDatapoint{
+		dp := walDatapoint{
 			Timestamp: uint64(currentMillis + int64(i*1000)),
 			DpVal:     float64(10 + i),
 			Tsid:      uint64(i + 1),
