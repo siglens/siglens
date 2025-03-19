@@ -20,6 +20,7 @@ package utils
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -232,5 +233,5 @@ func IsNotExistError(err error) bool {
 		return ewc.code == fs.ErrNotExist.Error()
 	}
 
-	return false
+	return os.IsNotExist(err)
 }
