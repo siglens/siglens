@@ -78,6 +78,7 @@ type MetricsQuery struct {
 	GetAllLabels        bool // If set, the query should return all series for the matched metrics
 	Groupby             bool // flag to group by tags
 	GroupByMetricName   bool // flag to group by metric name
+	AggWithoutGroupBy   bool // flag that indicates aggregation without group by anywhere in the query
 }
 
 // This is used to aggregate multiple things into fewer things. Currently, two
@@ -333,6 +334,8 @@ type OTSDBMetricsQueryExpRequest struct {
 }
 
 type MetricsSearchRequest struct {
+	Mid                  string
+	UnrotatedBlkToSearch map[uint16]bool
 	MetricsKeyBaseDir    string
 	BlocksToSearch       map[uint16]bool
 	BlkWorkerParallelism uint
@@ -509,25 +512,28 @@ func (ds *Downsampler) GetIntervalTimeInSeconds() uint32 {
 Format of block summary file
 [version - 1 byte][blk num - 2 bytes][high ts - 4 bytes][low ts - 4 bytes]
 */
-func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
+func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	var flag bool = false
 	if _, err := os.Stat(fName); os.IsNotExist(err) {
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		flag = true
 		if err != nil {
 			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
-			return nil, err
+			return err
 		}
 	}
 	fd, err := os.OpenFile(fName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to open file: %v, err: %v", fName, err)
-		return nil, err
+		return err
 	}
 	defer fd.Close()
 	idx := 0
 	var mBlkSum []byte
 	// hard coded byte size for [version][blk num][high Ts][low Ts] when file is created
+	// todo bug here, the highTs/lowTs are of 4bytes, but we do 8 here
+	// once the version is updated, change here and on the reader side to
+	// read both types of version files
 	if flag {
 		mBlkSum = make([]byte, 19)
 		copy(mBlkSum[idx:], utils.VERSION_MBLOCKSUMMARY)
@@ -544,9 +550,9 @@ func (mbs *MBlockSummary) FlushSummary(fName string) ([]byte, error) {
 
 	if _, err := fd.Write(mBlkSum); err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to write block in file: %v, err: %v", fName, err)
-		return nil, err
+		return err
 	}
-	return mBlkSum, nil
+	return nil
 }
 
 func (mbs *MBlockSummary) UpdateTimeRange(ts uint32) {

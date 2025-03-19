@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 SigScalr, Inc.
+// Copyright (c) 2021-2025 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
 //
@@ -15,10 +15,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+func EqualMaps[K comparable, V comparable](map1 map[K]V, map2 map[K]V) bool {
+	if len(map1) != len(map2) {
+		return false
+	}
 
-const SigLensVersion = "1.0.28"
+	for key, v1 := range map1 {
+		if v2, ok := map2[key]; !ok || v1 != v2 {
+			return false
+		}
+	}
+
+	return true
+}

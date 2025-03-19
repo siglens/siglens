@@ -122,33 +122,49 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 }
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
-	actLines []string, bb *bytebufferpool.ByteBuffer) ([]byte, error) {
+	actLines []string, bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, error) {
+
 	switch iType {
 	case ESBulk:
 		actionLine := actLines[i%len(actLines)]
 		return generateESBody(recs, actionLine, rdr, bb)
 	case OpenTSDB:
-		return generateOpenTSDBBody(recs, rdr)
+		// TODO: make generateOpenTSDBBody return the raw logs as well
+		payload, err := generateOpenTSDBBody(recs, rdr)
+		return nil, payload, err
 	default:
 		log.Fatalf("Unsupported ingest type %s", iType.String())
 	}
-	return nil, fmt.Errorf("unsupported ingest type %s", iType.String())
+	return nil, nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
 
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
-	bb *bytebufferpool.ByteBuffer) ([]byte, error) {
+	bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, error) {
 
+	allLogs := make([]map[string]interface{}, 0, recs)
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
-		logline, err := rdr.GetLogLine()
+		rawLog, err := rdr.GetRawLog()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		logCopy := make(map[string]interface{}, len(rawLog))
+		for k, v := range rawLog {
+			logCopy[k] = v
+		}
+		allLogs = append(allLogs, logCopy)
+
+		logline, err := json.Marshal(rawLog)
+		if err != nil {
+			return nil, nil, err
 		}
 		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
+
 	payLoad := bb.Bytes()
-	return payLoad, nil
+	return allLogs, payLoad, nil
 }
 
 func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
@@ -270,7 +286,8 @@ func generatePrometheusRemoteWriteBody(recs int, preGeneratedSeriesLength uint64
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
 	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
-	eventsPerDayPerProcess int, totalBytes *uint64) {
+	eventsPerDayPerProcess int, totalBytes *uint64, callback func([]map[string]interface{})) {
+
 	defer wg.Done()
 	eventCounter := 0
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -289,6 +306,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 
 	i := 0
 	var bb *bytebufferpool.ByteBuffer
+	var rawLogs []map[string]interface{}
 	var payload []byte
 	var err error
 	maxDuration := 2 * time.Hour
@@ -313,7 +331,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			payload, err = generatePrometheusRemoteWriteBody(recsInBatch, uint64(len(preGeneratedSeries)))
 			seriesId += uint64(recsInBatch)
 		} else {
-			payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
+			rawLogs, payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
@@ -339,6 +357,10 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v s before retrying.", retryCounter, sleepTime.String())
 			retryCounter++
 			time.Sleep(sleepTime)
+		}
+
+		if callback != nil {
+			callback(rawLogs)
 		}
 
 		SendPerformanceData(rdr)
@@ -450,7 +472,9 @@ func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int,
 
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
-	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{}) {
+	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{},
+	callback func(logs []map[string]interface{})) {
+
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB || iType == PrometheusRemoteWrite {
 		err := generatePredefinedSeries(nMetrics, cardinality, generatorType)
@@ -489,7 +513,7 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		go runIngestion(iType, readers[i], &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
-			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes)
+			&totalSent, bearerToken, indexName, numIndices, eventsPerDayPerProcess, &totalBytes, callback)
 	}
 
 	go func() {

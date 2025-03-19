@@ -127,11 +127,11 @@ func writeOtsdbResponse(ctx *fasthttp.RequestCtx, processedCount uint64, failedC
 	ctx.SetContentType(utils.ContentJson)
 	jval, mErr := json.Marshal(resp)
 	if mErr != nil {
-		log.Errorf("writeInfluxResponse: failed to marshal resp %+v", mErr)
+		log.Errorf("writeOtsdbResponse: failed to marshal resp %+v", mErr)
 	}
 	_, mErr = ctx.Write(jval)
 
 	if mErr != nil {
-		log.Errorf("writeInfluxResponse: failed to write jval to http request %+v", mErr)
+		log.Errorf("writeOtsdbResponse: failed to write jval to http request %+v", mErr)
 	}
 }

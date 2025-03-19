@@ -19,10 +19,8 @@ package metrics
 
 import (
 	"bytes"
-	"encoding/csv"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"os"
 	"path"
@@ -33,7 +31,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -68,7 +65,7 @@ var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 
-const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
+const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
@@ -118,24 +115,23 @@ The tagsTree will be shared across metrics this metrics segment.
 A metrics segment generate the following set of files:
   - A tagTree file for each incoming tagKey seen across this segment
   - A metricsBlock file for each incoming 15minute window
-  - A bloomfilter for all metric names in the metrics segment
+  - A map for all metric names in the metrics segment
 
 TODO: this metrics segment should reject samples not in 2hr window
 */
 type MetricsSegment struct {
-	metricsKeyBase  string             // base string of this metric segment's key
-	Suffix          uint64             // current suffix
-	Mid             string             // metrics id for this metric segment
-	highTS          uint32             // highest epoch timestamp seen across this segment
-	lowTS           uint32             // lowest epoch timestamp seen across this segment
-	mBlock          *MetricsBlock      // current in memory block
-	currBlockNum    uint16             // current block number
-	mNamesBloom     *bloom.BloomFilter // all metric names bloom across segment
-	mNamesMap       map[string]bool    // all metric names seen across segment
-	mSegEncodedSize uint64             // total size of all metric blocks. TODO: this should include tagsTree & mNames blooms
-	bytesReceived   uint64             // total size of incoming data
-	rwLock          *sync.RWMutex      // read write lock for access
-	datapointCount  uint64             // total number of datapoints across all series in the block
+	metricsKeyBase  string          // base string of this metric segment's key
+	Suffix          uint64          // current suffix
+	Mid             string          // metrics id for this metric segment
+	highTS          uint32          // highest epoch timestamp seen across this segment
+	lowTS           uint32          // lowest epoch timestamp seen across this segment
+	mBlock          *MetricsBlock   // current in memory block
+	currBlockNum    uint16          // current block number
+	mNamesMap       map[string]bool // all metric names seen across segment
+	mSegEncodedSize uint64          // total size of all metric blocks. TODO: this should include tagsTree & mNames
+	bytesReceived   uint64          // total size of incoming data
+	rwLock          *sync.RWMutex   // read write lock for access
+	datapointCount  uint64          // total number of datapoints across all series in the block
 	Orgid           int64
 }
 
@@ -360,7 +356,6 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 		return nil, err
 	}
 	return &MetricsSegment{
-		mNamesBloom:  bloom.NewWithEstimates(1000, 0.001),
 		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
@@ -435,10 +430,6 @@ func initTimeSeries(tsid uint64, dp float64, timestamp uint32) (*TimeSeries, uin
 	return ts, writtenBytes, nil
 }
 
-func (ms *MetricsSegment) AddMNameToBloom(mName []byte) {
-	ms.mNamesBloom.Add(mName)
-}
-
 func (ms *MetricsSegment) LoadMetricNamesIntoMap(resultContainer map[string]bool) {
 	ms.rwLock.RLock()
 	defer ms.rwLock.RUnlock()
@@ -479,8 +470,6 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 		log.Errorf("EncodeDatapoint: got nil metrics segment for metric=%s, orgid=%v", mName, orgid)
 		return fmt.Errorf("no segment remaining to be assigned to orgid=%v", orgid)
 	}
-
-	mSeg.AddMNameToBloom(mName)
 
 	mSeg.rwLock.Lock()
 	mSeg.mNamesMap[string(mName)] = true
@@ -812,127 +801,6 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 	return nil, dpVal, 0, err
 }
 
-// for an input raw csv row []byte; extract the metric name, datapoint value, timestamp, all tags
-// Call the EncodeDatapoint function to add the datapoint to the respective series
-// Return the number of datapoints ingested and any errors encountered
-func ExtractInfluxPayloadAndInsertDp(rawCSV []byte, tags *TagsHolder, orgid int64) (uint32, []error) {
-	var ts uint32 = uint32(time.Now().Unix())
-	var measurement string
-
-	ingestedCount := uint32(0)
-	errors := make([]error, 0)
-
-	reader := csv.NewReader(bytes.NewBuffer(rawCSV))
-	inserted_tags := ""
-
-	size := uint64(len(rawCSV))
-
-	for {
-		record, err := reader.Read()
-		if err != nil {
-			// If there is an error, check if it's EOF
-			if err == io.EOF {
-				break // End of file
-			}
-
-			log.Errorf("ExtractInfluxPayloadAndInsertDp: failed to read raw csv: %+v, error: %+v", rawCSV, err)
-			errors = append(errors, err)
-			return 0, errors
-
-		} else {
-			line := strings.Join(record, ",")
-			whitespace_split := strings.Fields(line)
-			tag_set := strings.Split(whitespace_split[0], ",")
-			field_set := strings.Split(whitespace_split[1], ",")
-			if len(whitespace_split) > 2 {
-				tsNano, err := strconv.ParseInt(whitespace_split[2], 10, 64)
-				if err != nil {
-					log.Errorf("ExtractInfluxPayload: failed to parse the timestamp to an int: %+v, error: %+v", whitespace_split[2], err)
-				} else {
-					ts = uint32(tsNano / 1_000_000_000)
-				}
-			}
-			for index, value := range tag_set {
-				if index == 0 {
-					// db/measurement name
-					measurement = value
-					continue
-				} else {
-					kvPair := strings.Split(value, "=")
-					if len(kvPair) < 2 {
-						log.Errorf("ExtractInfluxPayload: tag set pair %v is invalid (expected key=value)", value)
-						errors = append(errors, fmt.Errorf("tag %v is not a key=value pair", value))
-						continue
-					}
-					key := kvPair[0]
-					value = kvPair[1]
-					tags.Insert(key, []byte(value), jp.String)
-					inserted_tags += key + "," + value + " "
-
-				}
-			}
-
-			for _, metricValueSet := range field_set {
-				kvPair := strings.Split(metricValueSet, "=")
-				if len(kvPair) < 2 {
-					log.Errorf("ExtractInfluxPayload: metric pair %v is invalid (expected key=value)", metricValueSet)
-					errors = append(errors, fmt.Errorf("metric key value pair is not valid for metric: %v", metricValueSet))
-					continue
-				}
-				metricName := fmt.Sprintf(`%s_%s`, measurement, kvPair[0])
-				metricValue := kvPair[1]
-
-				parsedVal, err := parseInfluxValue(metricValue)
-				if err != nil {
-					errors = append(errors, err)
-					continue
-				}
-
-				err = EncodeDatapoint([]byte(metricName), tags, parsedVal, ts, size, orgid)
-				if err != nil {
-					errors = append(errors, err)
-					continue
-				} else {
-					size = 0
-					ingestedCount++
-				}
-			}
-
-		}
-
-	}
-
-	return ingestedCount, errors
-}
-
-func parseInfluxValue(value string) (float64, error) {
-	fltVal, err := strconv.ParseFloat(value, 64)
-	if err == nil {
-		return fltVal, nil
-	}
-
-	// parse the value as a integer.
-	lastChar := value[len(value)-1:]
-	if lastChar == "i" || lastChar == "u" {
-		intVal, err := strconv.ParseInt(value[:len(value)-1], 10, 64)
-		if err == nil {
-			return float64(intVal), nil
-		}
-	}
-
-	// parse the value as a boolean.
-	tempVal := strings.ToLower(value)
-	if tempVal == "t" || tempVal == "true" {
-		return 1, nil
-	} else if tempVal == "f" || tempVal == "false" {
-		return 0, nil
-	}
-
-	err = fmt.Errorf("parseInfluxValue: value %v is not a valid float, int, or bool", value)
-	log.Errorf(err.Error())
-	return 0, err
-}
-
 // extracts raw []byte from the read tags objects and returns it as []*tagsHolder
 // the returned []*tagsHolder is sorted by tagKey
 func extractTagsFromJson(tagsObj []byte, tags *TagsHolder) error {
@@ -976,6 +844,22 @@ func getMetricsSegment(mName []byte, orgid int64) (*MetricsSegment, *TagsTreeHol
 	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
+func getUnrotatedMetricSegment(mid string, orgid int64) (*MetricsSegment, error) {
+	orgMetricsAndTagsLock.RLock()
+	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
+	orgMetricsAndTagsLock.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("getMetricSegmentFromMid: no metrics segment found for orgid=%v", orgid)
+	}
+
+	mSeg, ok := metricsAndTagsHolder.MetricSegments[mid]
+	if !ok {
+		return nil, fmt.Errorf("getMetricSegmentFromMid: no metrics segment found for orgid=%v and mid=%v", orgid, mid)
+	}
+
+	return mSeg, nil
+}
+
 /*
 returns:
 
@@ -998,6 +882,35 @@ func (mb *MetricsBlock) GetTimeSeries(tsid uint64) (*TimeSeries, bool, error) {
 		ts = mb.allSeries[idx]
 	}
 	return ts, ok, nil
+}
+
+func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBuffer *bytes.Buffer) (bool, *compress.DecompressIterator, error) {
+	idx, ok := mb.tsidLookup[tsid]
+	if !ok {
+		return false, nil, nil
+	}
+
+	ts := mb.allSeries[idx]
+	if ts == nil || ts.rawEncoding == nil {
+		return false, nil, nil
+	}
+
+	ts.lock.Lock()
+	defer ts.lock.Unlock()
+
+	_, finish, err := compress.CloneCompressor(ts.compressor, bytesBuffer)
+	if err != nil {
+		return false, nil, err
+	}
+
+	err = finish()
+	if err != nil {
+		return false, nil, err
+	}
+
+	iter, err := compress.NewDecompressIterator(bytesBuffer)
+
+	return true, iter, err
 }
 
 /*
@@ -1215,7 +1128,7 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 func (mb *MetricsBlock) flushBlock(basePath string, suffix uint64, bufId uint16) error {
 	finalPath := fmt.Sprintf("%s%d_%d", basePath, suffix, bufId)
 	fName := fmt.Sprintf("%s%d.mbsu", basePath, suffix)
-	_, err := mb.mBlockSummary.FlushSummary(fName)
+	err := mb.mBlockSummary.FlushSummary(fName)
 	if err != nil {
 		log.Errorf("MetricsBlock.flushBlock: Failed to write metrics block summary for block at %s, err=%v", finalPath, err)
 		return err
@@ -1257,17 +1170,12 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 }
 
 /*
-Flushes the metrics segment's tags tree, mNames bloom
+Flushes the metrics segment's tags tree, mNames
 
 This function assumes that the prior metricssBlock has alraedy been rotated/reset
 */
 func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 	var err error
-	err = ms.FlushMetricNamesBloom()
-	if err != nil {
-		log.Errorf("rotateSegment: failed to flush metric names bloom for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
-		return err
-	}
 	err = ms.FlushMetricNames()
 	if err != nil {
 		log.Errorf("rotateSegment: failed to flush metric names for base=%s, suffix=%d, orgid=%v. Error %+v", ms.metricsKeyBase, ms.Suffix, ms.Orgid, err)
@@ -1299,7 +1207,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 			log.Errorf("rotateSegment: failed to get next base key for metric ID %s, orgid=%v, err %+v", ms.Mid, ms.Orgid, err)
 			return err
 		}
-		mNamesCount := uint(len(ms.mNamesMap))
 		for k := range ms.mNamesMap {
 			delete(ms.mNamesMap, k)
 		}
@@ -1309,7 +1216,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.highTS = 0
 		ms.lowTS = math.MaxUint32
 		ms.currBlockNum = 0
-		ms.mNamesBloom = bloom.NewWithEstimates(mNamesCount, 0.001)
 		ms.mSegEncodedSize = 0
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
@@ -1326,14 +1232,6 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 }
 
 // This is a mock function and is only used during tests.
-func (ms *MetricsSegment) SetMockMetricSegmentMNamesBloom() string {
-	ms.mNamesBloom = bloom.NewWithEstimates(100_000, 0.001)
-	ms.metricsKeyBase = "./testMockMetric"
-	ms.Suffix = uint64(0)
-	return fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
-}
-
-// This is a mock function and is only used during tests.
 func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNameBase string) string {
 	ms.mNamesMap = make(map[string]bool)
 	ms.metricsKeyBase = "./testMockMetric"
@@ -1342,34 +1240,6 @@ func (ms *MetricsSegment) SetMockMetricSegmentMNamesMap(mNamesCount uint32, mNam
 		ms.mNamesMap[fmt.Sprintf("%s_%d", mNameBase, i)] = true
 	}
 	return fmt.Sprintf("%s%d.mnm", ms.metricsKeyBase, ms.Suffix)
-}
-
-func (ms *MetricsSegment) FlushMetricNamesBloom() error {
-	filePath := fmt.Sprintf("%s%d.mbi", ms.metricsKeyBase, ms.Suffix)
-
-	fd, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Errorf("FlushMetricNamesBloom: failed to open filename=%v: err=%v", filePath, err)
-		return err
-	}
-
-	defer fd.Close()
-
-	// version
-	_, err = fd.Write([]byte{1})
-	if err != nil {
-		log.Errorf("FlushMetricNamesBloom: failed to write version err=%v", err)
-		return err
-	}
-
-	// write the blockBloom
-	_, err = ms.mNamesBloom.WriteTo(fd)
-	if err != nil {
-		log.Errorf("FlushMetricNamesBloom: write mNames Bloom failed fpath=%v, err=%v", filePath, err)
-		return err
-	}
-
-	return nil
 }
 
 /*
@@ -1492,7 +1362,7 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			defer wg.Done()
 			mSeg.rwLock.RLock()
 			defer mSeg.rwLock.RUnlock()
-			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || metricSeg.Orgid != orgid {
+			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || mSeg.Orgid != orgid {
 				return
 			}
 			retBlocks := make(map[uint16]bool)
@@ -1501,25 +1371,27 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			if err != nil {
 				if errors.Is(err, os.ErrNotExist) {
 					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
+				} else {
+					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
 					return
 				}
-				log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
-				return
 			}
+
 			for _, bSum := range blockSummaries {
 				if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
 					retBlocks[bSum.Blknum] = true
 				}
 			}
+
 			tKeys := make(map[string]bool)
 			allTrees := GetTagsTreeHolder(orgid, mSeg.Mid).allTrees
 			for k := range allTrees {
 				tKeys[k] = true
 			}
-			if len(retBlocks) == 0 {
-				return
-			}
+
 			finalReq := &structs.MetricsSearchRequest{
+				Mid:                  mSeg.Mid,
+				UnrotatedBlkToSearch: make(map[uint16]bool),
 				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
 				BlocksToSearch:       retBlocks,
 				BlkWorkerParallelism: uint(2),
@@ -1527,6 +1399,16 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				AllTagKeys:           tKeys,
 				UnrotatedMetricNames: mSeg.mNamesMap,
 			}
+
+			// Check if the current unrotated block is within the time range
+			if tRange.CheckRangeOverLap(mSeg.mBlock.mBlockSummary.LowTs, mSeg.mBlock.mBlockSummary.HighTs) {
+				finalReq.UnrotatedBlkToSearch[mSeg.mBlock.mBlockSummary.Blknum] = true
+			}
+
+			if len(retBlocks) == 0 && len(finalReq.UnrotatedBlkToSearch) == 0 {
+				return
+			}
+
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {
 				return
@@ -1684,6 +1566,7 @@ func GetAllTagsTreeHolders() []*TagsTreeHolder {
 
 func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	orgMetricsAndTagsLock.RLock()
+	defer orgMetricsAndTagsLock.RUnlock()
 	var tt *TagsTreeHolder
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
 		tt, ok = metricsAndTags.TagHolders[mid]
@@ -1693,6 +1576,125 @@ func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	} else {
 		return nil
 	}
-	orgMetricsAndTagsLock.RUnlock()
 	return tt
+}
+
+func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
+	seriesCardMap map[string]*toputils.GobbableHll) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for tagkey, tkTree := range tagsTreeHolder.allTrees {
+				tsidCard, ok := seriesCardMap[tagkey]
+				if !ok || tsidCard == nil {
+					tsidCard = structs.CreateNewHll()
+					seriesCardMap[tagkey] = tsidCard
+				}
+				tkTree.countTSIDsForTagkey(tsidCard)
+			}
+		}
+	}
+	return nil
+}
+
+func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
+	tagPairsCardMap map[string]map[string]*toputils.GobbableHll) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for tagkey, tkTree := range tagsTreeHolder.allTrees {
+				valuesSet, ok := tagPairsCardMap[tagkey]
+				if !ok || valuesSet == nil {
+					valuesSet = make(map[string]*toputils.GobbableHll)
+					tagPairsCardMap[tagkey] = valuesSet
+				}
+				tkTree.countTSIDsForTagPairs(valuesSet)
+			}
+		}
+	}
+	return nil
+}
+
+func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
+	myid int64, tagPairsMap map[string]map[string]struct{}) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("GetUnrotatedTagPairs: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder == nil {
+			continue
+		}
+		for tagkey, tkTree := range tagsTreeHolder.allTrees {
+			valuesSet, ok := tagPairsMap[tagkey]
+			if !ok || valuesSet == nil {
+				valuesSet = make(map[string]struct{})
+				tagPairsMap[tagkey] = valuesSet
+			}
+
+			for _, allTi := range tkTree.rawValues {
+				for _, ti := range allTi {
+					tv := string(ti.tagValue)
+					valuesSet[tv] = struct{}{}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.MetricsQuery,
+	resTagValues map[string]map[string]struct{}) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, mQuery.OrgId)
+	if err != nil {
+		log.Errorf("FindTagValuesUnrotated: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, mQuery.OrgId, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(mQuery.OrgId, segment.Mid)
+		if tagsTreeHolder == nil {
+			continue
+		}
+		for _, tf := range mQuery.TagsFilters {
+			tkTree, ok := tagsTreeHolder.allTrees[tf.TagKey]
+			if !ok {
+				continue
+			}
+
+			valuesSet, ok := resTagValues[tf.TagKey]
+			if !ok || valuesSet == nil {
+				valuesSet = make(map[string]struct{})
+				resTagValues[tf.TagKey] = valuesSet
+			}
+
+			for _, allTi := range tkTree.rawValues {
+				for _, ti := range allTi {
+					tv := string(ti.tagValue)
+					valuesSet[tv] = struct{}{}
+				}
+			}
+		}
+	}
+
+	return nil
 }

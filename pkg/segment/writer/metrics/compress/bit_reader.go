@@ -69,11 +69,11 @@ func (b *bitReader) readByte() (byte, error) {
 	if b.count == 0 {
 		n, err := b.r.Read(b.buffer[:])
 		if err != nil {
-			log.Errorf("bitReader.readByte: failed to read a byte from buffer=%v, reader=%v, err=%v", b.buffer, b.r, err)
+			log.Errorf("bitReader.readByte: failed to read a byte when count is 0 from buffer=%v, reader=%v, err=%v", b.buffer, b.r, err)
 			return b.buffer[0], fmt.Errorf("failed to read a byte: %w", err)
 		}
 		if n != 1 {
-			log.Errorf("bitReader.readByte: read more than one byte from buffer=%v, reader=%v", b.buffer, b.r)
+			log.Errorf("bitReader.readByte: read more than one byte when count is 0 from buffer=%v, reader=%v", b.buffer, b.r)
 			return b.buffer[0], errors.New("read more than one byte")
 		}
 		return b.buffer[0], nil

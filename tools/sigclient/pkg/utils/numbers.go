@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 SigScalr, Inc.
+// Copyright (c) 2021-2025 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
 //
@@ -15,10 +15,29 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import (
+	"fmt"
+	"strconv"
+)
 
-const SigLensVersion = "1.0.28"
+func AsUint64(x interface{}) (uint64, bool) {
+	s := fmt.Sprintf("%v", x)
+	result, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return result, true
+}
+
+func AsFloat64(x interface{}) (float64, bool) {
+	s := fmt.Sprintf("%v", x)
+	result, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+
+	return result, true
+}
