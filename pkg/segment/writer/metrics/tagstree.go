@@ -637,7 +637,7 @@ func (tth *TagsTreeHolder) GetOrInsertMatchingTSIDs(mName uint64, tagKey string,
 
 	tt, ok := tth.allTrees[tagKey]
 	if !ok {
-		return false, false, nil, fmt.Errorf("GetOrInsertMatchingTSIDs: unrotated tagtree not present for tagkey: %s", tagKey)
+		return false, false, nil, utils.NewErrorWithCode(os.ErrNotExist.Error(), fmt.Errorf("GetOrInsertMatchingTSIDs: unrotated tagtree not present for tagkey: %s", tagKey))
 	}
 
 	allTis, ok := tt.rawValues[mName]

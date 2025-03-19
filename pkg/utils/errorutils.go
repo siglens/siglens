@@ -19,6 +19,7 @@ package utils
 
 import (
 	"fmt"
+	"io/fs"
 	"sync"
 	"sync/atomic"
 
@@ -221,6 +222,14 @@ func IsNonNilValueError(err error) bool {
 func IsRPCUnavailableError(err error) bool {
 	if ewc, ok := err.(*ErrorWithCode); ok {
 		return ewc.code == "RPC__Unavailable"
+	}
+
+	return false
+}
+
+func IsNotExistError(err error) bool {
+	if ewc, ok := err.(*ErrorWithCode); ok {
+		return ewc.code == fs.ErrNotExist.Error()
 	}
 
 	return false
