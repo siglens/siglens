@@ -1373,7 +1373,7 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				if errors.Is(err, os.ErrNotExist) {
 					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
 				} else {
-					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
+					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v. Error=%v", blockSummaryFile, err)
 				}
 			}
 
