@@ -812,7 +812,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			}
 		}
 
-		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
+		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, segstore.VirtualTableName)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
 		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)
