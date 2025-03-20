@@ -86,11 +86,72 @@ func generateRandomDatapoints(n int) []walDatapoint {
 	currentMillis := time.Now().UnixMilli()
 	for i := 0; i < n; i++ {
 		dp := walDatapoint{
-			Timestamp: uint64(currentMillis + int64(i*1000)),
-			DpVal:     float64(10 + i),
-			Tsid:      uint64(i + 1),
+			timestamp: uint64(currentMillis + int64(i*1000)),
+			dpVal:     float64(10 + i),
+			tsid:      uint64(i + 1),
 		}
 		dps = append(dps, dp)
 	}
 	return dps
+}
+
+func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
+	filename := "testwal.wal"
+	dirPath := t.TempDir()
+
+	wal, err := NewWAL(dirPath, filename)
+	assert.NoError(t, err)
+	defer wal.Close()
+
+	numDatapoints1 := 500
+	datapoints1 := generateRandomDatapoints(numDatapoints1)
+
+	err = wal.AppendToWAL(datapoints1)
+	assert.NoError(t, err)
+
+	it, err := NewReaderWAL(dirPath, filename)
+	assert.NoError(t, err)
+	defer it.Close()
+
+	var readDatapoints1 []walDatapoint
+	for {
+		dp, ok, err := it.Next()
+		assert.NoError(t, err)
+		if !ok {
+			break
+		}
+		readDatapoints1 = append(readDatapoints1, *dp)
+	}
+
+	assert.Equal(t, len(datapoints1), len(readDatapoints1))
+	for i := 0; i < numDatapoints1; i++ {
+		assert.Equal(t, datapoints1[i], readDatapoints1[i])
+	}
+
+	numDatapoints2 := 1000
+	datapoints2 := generateRandomDatapoints(numDatapoints2)
+
+	err = wal.AppendToWAL(datapoints2)
+	assert.NoError(t, err)
+
+	it2, err := NewReaderWAL(dirPath, filename)
+	assert.NoError(t, err)
+	defer it2.Close()
+
+	var totalReadDatapoints []walDatapoint
+	for {
+		dp, ok, err := it2.Next()
+		assert.NoError(t, err)
+		if !ok {
+			break
+		}
+		totalReadDatapoints = append(totalReadDatapoints, *dp)
+	}
+
+	expectedDatapoints := append(datapoints1, datapoints2...)
+	assert.Equal(t, len(expectedDatapoints), len(totalReadDatapoints))
+
+	for i := 0; i < len(expectedDatapoints); i++ {
+		assert.Equal(t, expectedDatapoints[i], totalReadDatapoints[i])
+	}
 }
