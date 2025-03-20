@@ -106,6 +106,10 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 			allSearchResults.AddError(err)
 			break
 		}
+
+		blockSummary := searchReq.SearchMetadata.BlockSummaries[blockReq.BlockNum]
+		isBlockEnclosed := queryRange.AreTimesFullyEnclosed(blockSummary.LowTs, blockSummary.HighTs)
+
 		switch queryType {
 		case structs.MatchAllQuery:
 			// time should have been checked before, and recsToSearch
@@ -113,6 +117,20 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 			for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 				if recIT.ShouldProcessRecord(i) {
 					blockHelper.AddMatchedRecord(i)
+				}
+
+				// Ensure the timestamp is in range.
+				if !isBlockEnclosed {
+					recTs, err := multiColReader.GetTimeStampForRecord(blockReq.BlockNum, uint16(i), qid)
+					if err != nil {
+						nodeRes.StoreGlobalSearchError("filterBlockRequestFromQuery: Failed to extract timestamp from record",
+							log.ErrorLevel, err)
+						break
+					}
+					if !queryRange.CheckInRange(recTs) {
+						recIT.UnsetRecord(i)
+						continue
+					}
 				}
 			}
 		case structs.ColumnValueQuery:
