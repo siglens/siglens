@@ -573,6 +573,7 @@ var longevityCmd = &cobra.Command{
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 300, 10),
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 3600, 10),
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 6*3600, 100),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("state_c1", "Texas", 0, 0)), 1, 1),
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("state_c1", "Texas", 0, 0)), 300, 10),
 		}
 		maxConcurrentQueries := int32(1)
