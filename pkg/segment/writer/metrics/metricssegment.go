@@ -1369,11 +1369,11 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
 			blockSummaries, err := microreader.ReadMetricsBlockSummaries(blockSummaryFile)
 			if err != nil {
+				// Regardless of the error, we continue execution as we need to consider the unrotated block for this segment.
 				if errors.Is(err, os.ErrNotExist) {
 					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
 				} else {
 					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
-					return
 				}
 			}
 
