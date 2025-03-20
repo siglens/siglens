@@ -181,6 +181,13 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 		}
 	}
 
+	blockSummaries := searchReq.SearchMetadata.BlockSummaries
+	isBlkFullyEncosed := queryRange.AreTimesFullyEnclosed(blockSummaries[blockNum].LowTs, blockSummaries[blockNum].HighTs)
+	if !isBlkFullyEncosed {
+		// We need to check if each record is in the query time range.
+		doRecLevelSearch = true
+	}
+
 	// we skip rawsearching for columns that are dict encoded,
 	// since we already search for them in the above call to applyColumnarSearchUsingDictEnc
 	for dcname := range deCnames {
