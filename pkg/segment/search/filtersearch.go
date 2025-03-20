@@ -182,8 +182,8 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 	}
 
 	blockSummaries := searchReq.SearchMetadata.BlockSummaries
-	isBlkFullyEncosed := queryRange.AreTimesFullyEnclosed(blockSummaries[blockNum].LowTs, blockSummaries[blockNum].HighTs)
-	if !isBlkFullyEncosed {
+	isBlockEnclosed := queryRange.AreTimesFullyEnclosed(blockSummaries[blockNum].LowTs, blockSummaries[blockNum].HighTs)
+	if !isBlockEnclosed {
 		// We need to check if each record is in the query time range.
 		doRecLevelSearch = true
 	}
@@ -260,7 +260,7 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			}
 
 			// Ensure the timestamp is in range.
-			if !isBlkFullyEncosed {
+			if !isBlockEnclosed {
 				recTs, err := multiColReader.GetTimeStampForRecord(blockNum, uint16(i), qid)
 				if err != nil {
 					nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to extract timestamp from record",
