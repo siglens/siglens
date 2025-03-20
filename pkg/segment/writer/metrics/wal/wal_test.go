@@ -28,7 +28,7 @@ func TestWALAppendAndRead(t *testing.T) {
 	assert.NoError(t, err)
 	defer it.Close()
 
-	var readDatapoints []walDatapoint
+	var readDatapoints []WalDatapoint
 	for {
 		dp, ok, err := it.Next()
 		assert.NoError(t, err)
@@ -81,11 +81,11 @@ func TestWALStats(t *testing.T) {
 	assert.True(t, encodedSize > 0)
 }
 
-func generateRandomDatapoints(n int) []walDatapoint {
-	var dps []walDatapoint
+func generateRandomDatapoints(n int) []WalDatapoint {
+	var dps []WalDatapoint
 	currentMillis := time.Now().UnixMilli()
 	for i := 0; i < n; i++ {
-		dp := walDatapoint{
+		dp := WalDatapoint{
 			timestamp: uint64(currentMillis + int64(i*1000)),
 			dpVal:     float64(10 + i),
 			tsid:      uint64(i + 1),
@@ -113,7 +113,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	assert.NoError(t, err)
 	defer it.Close()
 
-	var readDatapoints1 []walDatapoint
+	var readDatapoints1 []WalDatapoint
 	for {
 		dp, ok, err := it.Next()
 		assert.NoError(t, err)
@@ -138,7 +138,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	assert.NoError(t, err)
 	defer it2.Close()
 
-	var totalReadDatapoints []walDatapoint
+	var totalReadDatapoints []WalDatapoint
 	for {
 		dp, ok, err := it2.Next()
 		assert.NoError(t, err)

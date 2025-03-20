@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type walDatapoint struct {
+type WalDatapoint struct {
 	timestamp uint64
 	dpVal     float64
 	tsid      uint64
@@ -27,6 +28,8 @@ type WAL struct {
 	totalDps      uint32
 	encodedSize   uint64
 	encodeBuf     []byte
+	rawBlockBuf   *bytes.Buffer
+	checksumBuf   []byte
 }
 
 var encoder, _ = zstd.NewWriter(nil)
@@ -45,6 +48,8 @@ func NewWAL(baseDir, filename string) (*WAL, error) {
 		totalDps:      0,
 		encodedSize:   0,
 		fd:            f,
+		rawBlockBuf:   &bytes.Buffer{},
+		checksumBuf:   make([]byte, 4),
 	}, nil
 }
 
@@ -53,6 +58,7 @@ This function appends the block to the file, a new block is added.
 
 File Format:
 BlockLen:               4 Bytes
+Checksum:				4 Bytes
 ZstdEncoding of following block:
     NumOfDatapoints (N): 4 Bytes
     BinaryEncodedAllTimestamps
@@ -62,24 +68,32 @@ ZstdEncoding of following block:
 Multiple such blocks are appended continuously.
 */
 
-func (w *WAL) AppendToWAL(dps []walDatapoint) error {
-	blockBuf := &bytes.Buffer{}
-	err := w.encodeWALBlock(dps, blockBuf)
+func (w *WAL) AppendToWAL(dps []WalDatapoint) error {
+	err := w.encodeWALBlock(dps)
 	if err != nil {
 		log.Errorf("AppendToWAL: dataCompression failed: %v", err)
 		return err
 	}
 
-	blockSize := uint32(blockBuf.Len())
+	checksum := crc32.ChecksumIEEE(w.encodeBuf)
+
+	blockSize := uint32(len(w.encodeBuf) + 4)
 	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
 	if err != nil {
 		log.Errorf("AppendToWAL : failed to write block size: %v", err)
 		return err
 	}
 
-	_, err = w.fd.Write(blockBuf.Bytes())
+	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
+	_, err = w.fd.Write(w.checksumBuf)
 	if err != nil {
-		log.Errorf("AppendToWAL: failed to write block content of size %d to WAL file: %v", len(blockBuf.Bytes()), err)
+		log.Errorf("AppendToWAL: failed to write checksum: %v", err)
+		return err
+	}
+
+	_, err = w.fd.Write(w.encodeBuf)
+	if err != nil {
+		log.Errorf("AppendToWAL: failed to write block content of size %d to WAL file: %v", len(w.encodeBuf), err)
 		return err
 	}
 
@@ -90,18 +104,32 @@ func (w *WAL) AppendToWAL(dps []walDatapoint) error {
 }
 
 func (w *WAL) Close() error {
-	return w.fd.Close()
+	if w.fd != nil {
+		return w.fd.Close()
+	}
+	return errors.New("file descriptor is nil")
 }
 
 func (w *WAL) DeleteWAL() error {
-	return os.Remove(w.fNameWithPath)
+	if w.fd != nil {
+		_ = w.fd.Close()
+	}
+
+	if err := os.Remove(w.fNameWithPath); err != nil {
+		log.Errorf("DeleteWAL : failed to delete WAL file: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 type WalIterator struct {
 	fd           *os.File
-	currentBlock []walDatapoint
 	currentIndex int
 	readBuf      []byte
+	readBlockBuf []byte
+	readDps      []WalDatapoint
 }
 
 func (w *WAL) GetWALStats() (string, uint32, uint64) {
@@ -118,14 +146,14 @@ func NewReaderWAL(baseDir, filename string) (*WalIterator, error) {
 	return &WalIterator{
 		fd:      f,
 		readBuf: make([]byte, 0),
+		readDps: make([]WalDatapoint, 0),
 	}, nil
 }
 
-func (it *WalIterator) Next() (*walDatapoint, bool, error) {
-	if it.currentIndex < len(it.currentBlock) {
-		dp := &it.currentBlock[it.currentIndex]
+func (it *WalIterator) Next() (*WalDatapoint, bool, error) {
+	if it.currentIndex < len(it.readDps) {
 		it.currentIndex++
-		return dp, true, nil
+		return &it.readDps[it.currentIndex-1], true, nil
 	}
 
 	var blockSize uint32
@@ -133,93 +161,107 @@ func (it *WalIterator) Next() (*walDatapoint, bool, error) {
 	if errors.Is(err, io.EOF) {
 		return nil, false, nil
 	} else if err != nil {
-		log.Errorf("Next: failed to read block size from WAL file: %v", it.fd.Name())
+		log.Errorf("WalIterator Next: failed to read block size from WAL file: %v", it.fd.Name())
 		return nil, false, err
 	}
 
-	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize))
+	if blockSize < 4 {
+		log.Errorf("WalIterator Next: invalid block size (%d), less than checksum size", blockSize)
+		return nil, false, errors.New("invalid block size")
+	}
+
+	var checksum uint32
+	err = binary.Read(it.fd, binary.LittleEndian, &checksum)
+	if err != nil {
+		log.Errorf("WalIterator Next: failed to read checksum: %v", err)
+		return nil, false, err
+	}
+
+	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize-4))
 	_, err = io.ReadFull(it.fd, it.readBuf)
 	if err != nil {
-		log.Errorf("Next: failed to read block data of size %d from file %s: %v", blockSize, it.fd.Name(), err)
+		log.Errorf("WalIterator Next: failed to read block data of size %d from file %s: %v", blockSize, it.fd.Name(), err)
 		return nil, false, err
+	}
+
+	calculatedChecksum := crc32.ChecksumIEEE(it.readBuf)
+	if calculatedChecksum != checksum {
+		log.Errorf("WalIterator Next: checksum mismatch! Calculated: %v, Expected: %v", calculatedChecksum, checksum)
+		return nil, false, errors.New("checksum mismatch")
 	}
 
 	blockBuf := bytes.NewReader(it.readBuf)
-	newBlock, err := it.decodeWALBlock(blockBuf)
+	err = it.decodeWALBlock(blockBuf)
 
 	if err != nil {
-		log.Errorf("Next: dataDecompression failed: %v", err)
+		log.Errorf("WalIterator Next: dataDecompression failed: %v", err)
 		return nil, false, err
 	}
 
-	it.currentBlock = newBlock
-	it.currentIndex = 1
-
-	return &newBlock[0], true, nil
+	it.currentIndex++
+	return &it.readDps[it.currentIndex-1], true, nil
 }
 
 func (it *WalIterator) Close() error {
-	return it.fd.Close()
+	if it.fd != nil {
+		return it.fd.Close()
+	}
+	return errors.New("file descriptor is nil")
 }
 
-func (w *WAL) encodeWALBlock(dps []walDatapoint, compressedBlockBuf *bytes.Buffer) error {
+func (w *WAL) encodeWALBlock(dps []WalDatapoint) error {
 	N := uint32(len(dps))
 	if N == 0 {
 		log.Warn("EncodeWALBlock: received empty data points slice")
 		return errors.New("empty data points")
 	}
 
-	rawBlockBuf := &bytes.Buffer{}
-
-	err := binary.Write(rawBlockBuf, binary.LittleEndian, N)
+	w.rawBlockBuf.Reset()
+	err := binary.Write(w.rawBlockBuf, binary.LittleEndian, N)
 	if err != nil {
 		log.Errorf("EncodeWALBlock: failed to write datapoint count: %v", err)
 		return err
 	}
 
 	for _, dp := range dps {
-		if err := binary.Write(rawBlockBuf, binary.LittleEndian, dp.timestamp); err != nil {
-			log.Errorf("EncodeWALBlock: failed to write timestamp: %v", err)
+		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.timestamp); err != nil {
+			log.Errorf("EncodeWALBlock: failed to write timestamp : %v err : %v", dp.timestamp, err)
 			return err
 		}
 	}
 
 	for _, dp := range dps {
-		if err := binary.Write(rawBlockBuf, binary.LittleEndian, dp.dpVal); err != nil {
-			log.Errorf("EncodeWALBlock: failed to write dpVal: %v", err)
+		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.dpVal); err != nil {
+			log.Errorf("EncodeWALBlock: failed to write dpVal : %v err : %v", dp.dpVal, err)
 			return err
 		}
 	}
 
 	for _, dp := range dps {
-		if err := binary.Write(rawBlockBuf, binary.LittleEndian, dp.tsid); err != nil {
-			log.Errorf("EncodeWALBlock: failed to write tsid: %v", err)
+		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.tsid); err != nil {
+			log.Errorf("EncodeWALBlock: failed to write tsid : %v err : %v", dp.tsid, err)
 			return err
 		}
 	}
 
-	w.encodeBuf = encoder.EncodeAll(rawBlockBuf.Bytes(), w.encodeBuf[:0])
-
-	_, err = compressedBlockBuf.Write(w.encodeBuf)
-	if err != nil {
-		log.Errorf("EncodeWALBlock: failed to write compressed data to buffer: %v", err)
-		return err
-	}
+	w.encodeBuf = encoder.EncodeAll(w.rawBlockBuf.Bytes(), w.encodeBuf[:0])
 	return nil
 }
 
-func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) ([]walDatapoint, error) {
-	compressedData, err := io.ReadAll(blockBuf)
+func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
+	it.readBlockBuf = toputils.ResizeSlice(it.readBlockBuf, blockBuf.Len())
+	_, err := blockBuf.Read(it.readBlockBuf)
+
 	if err != nil {
-		log.Errorf("decodeWALBlock: failed to read compressed data: %v", err)
-		return nil, err
+		log.Errorf("decodeWALBlock: failed to read from blockBuf into blockBuf: %v", err)
+		return err
 	}
 
-	it.readBuf, err = decoder.DecodeAll(compressedData, it.readBuf[:0])
+	it.readBuf, err = decoder.DecodeAll(it.readBlockBuf, it.readBuf[:0])
 
 	if err != nil {
 		log.Errorf("decodeWALBlock: decompression failed: %v", err)
-		return nil, err
+		return err
 	}
 
 	rawReader := bytes.NewReader(it.readBuf)
@@ -228,45 +270,34 @@ func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) ([]walDatapoint, e
 	err = binary.Read(rawReader, binary.LittleEndian, &N)
 	if err != nil {
 		log.Errorf("decodeWALBlock: failed to read datapoint count: %v", err)
-		return nil, err
+		return err
 	}
 
-	timestamps := make([]uint64, N)
-	dpVals := make([]float64, N)
-	tsids := make([]uint64, N)
+	it.readDps = toputils.ResizeSlice(it.readDps, int(N+uint32(len(it.readDps))))
 
-	for i := 0; i < int(N); i++ {
-		err := binary.Read(rawReader, binary.LittleEndian, &timestamps[i])
+	for i := len(it.readDps) - int(N); i < len(it.readDps); i++ {
+		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].timestamp)
 		if err != nil {
-			log.Errorf("decodeWALBlock: failed to read timestamp: %v", err)
-			return nil, err
+			log.Errorf("decodeWALBlock: failed to read timestamp at index %d: %v", i, err)
+			return err
 		}
 	}
 
-	for i := 0; i < int(N); i++ {
-		err := binary.Read(rawReader, binary.LittleEndian, &dpVals[i])
+	for i := len(it.readDps) - int(N); i < len(it.readDps); i++ {
+		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].dpVal)
 		if err != nil {
-			log.Errorf("decodeWALBlock: failed to read dpVal: %v", err)
-			return nil, err
+			log.Errorf("decodeWALBlock: failed to read dpVal at index %d: %v", i, err)
+			return err
 		}
 	}
 
-	for i := 0; i < int(N); i++ {
-		err := binary.Read(rawReader, binary.LittleEndian, &tsids[i])
+	for i := len(it.readDps) - int(N); i < len(it.readDps); i++ {
+		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].tsid)
 		if err != nil {
-			log.Errorf("decodeWALBlock: failed to read tsid: %v", err)
-			return nil, err
+			log.Errorf("decodeWALBlock: failed to read tsid at index %d: %v", i, err)
+			return err
 		}
 	}
 
-	dps := make([]walDatapoint, N)
-	for i := 0; i < int(N); i++ {
-		dps[i] = walDatapoint{
-			timestamp: timestamps[i],
-			dpVal:     dpVals[i],
-			tsid:      tsids[i],
-		}
-	}
-
-	return dps, nil
+	return nil
 }
