@@ -70,7 +70,6 @@ type Hooks struct {
 	ReleaseOwnedSegmentRLockHook func()
 
 	// Retention
-	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
 	InternalRetentionCleanerHook2 func(string, int)
 
