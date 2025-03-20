@@ -439,7 +439,7 @@ func NewCountQueryValidator(key string, value string, startEpoch uint64,
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | stats count", key, value),
+			query:      fmt.Sprintf(`%v="%v" | stats count`, key, value),
 		},
 		key:        key,
 		value:      value,
