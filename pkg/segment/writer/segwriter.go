@@ -82,6 +82,7 @@ func InitKibanaInternalData() {
 type SegfileRotateInfo struct {
 	FinalName   string
 	TimeRotated uint64
+	tableName   string
 }
 
 type DeData struct {

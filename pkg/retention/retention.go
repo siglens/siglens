@@ -167,6 +167,12 @@ func DeleteEmptyIndices(ingestNodeDir string, myid int64) {
 		return
 	}
 
+	// get table names for unrotated segs
+	utn := writer.GetIndexNamesForUnrotated()
+
+	// get table names for recently rotated segs
+	rrtn := writer.GetIndexNamesForRecentlyRotated()
+
 	segMetaEntries := writer.ReadLocalSegmeta(false)
 
 	// Create a set of virtualTableName values from segMetaEntries
@@ -175,10 +181,14 @@ func DeleteEmptyIndices(ingestNodeDir string, myid int64) {
 		virtualTableNames[entry.VirtualTableName] = struct{}{}
 	}
 
+	utils.MergeMapsRetainingFirst(virtualTableNames, utn)
+	utils.MergeMapsRetainingFirst(virtualTableNames, rrtn)
+
 	// Iterate over all indices
 	for indexName := range allIndices {
 		// If an index is not in the set of virtualTableName values from segMetaEntries, delete it
 		if _, exists := virtualTableNames[indexName]; !exists {
+			log.Infof("DeleteEmptyIndices: deleting unused index: %v", indexName)
 			err := vtable.DeleteVirtualTable(&indexName, myid)
 			if err != nil {
 				log.Errorf("DeleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
