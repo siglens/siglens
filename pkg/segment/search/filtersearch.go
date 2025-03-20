@@ -260,15 +260,17 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 			}
 
 			// Ensure the timestamp is in range.
-			recTs, err := multiColReader.GetTimeStampForRecord(blockNum, uint16(i), qid)
-			if err != nil {
-				nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to extract timestamp from record",
-					log.ErrorLevel, err)
-				break
-			}
-			if !queryRange.CheckInRange(recTs) {
-				recIT.UnsetRecord(i)
-				continue
+			if !isBlkFullyEncosed {
+				recTs, err := multiColReader.GetTimeStampForRecord(blockNum, uint16(i), qid)
+				if err != nil {
+					nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to extract timestamp from record",
+						log.ErrorLevel, err)
+					break
+				}
+				if !queryRange.CheckInRange(recTs) {
+					recIT.UnsetRecord(i)
+					continue
+				}
 			}
 
 			matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
