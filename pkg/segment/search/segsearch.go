@@ -535,7 +535,7 @@ func applyRawSearchToConditions(cond *structs.SearchCondition, searchReq *struct
 	if cond.SearchQueries != nil {
 		for _, query := range cond.SearchQueries {
 			RawSearchSingleQuery(query, searchReq, searchRes, allBlockSearchHelpers, op, queryMetrics,
-				qid, allSearchResults, nodeRes)
+				qid, allSearchResults, nodeRes, timeRange)
 		}
 	}
 
