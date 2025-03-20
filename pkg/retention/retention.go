@@ -49,12 +49,6 @@ const MAX_INODE_USAGE_PERCENT = 85
 
 // Starting the periodic retention based deletion
 func InitRetentionCleaner() error {
-	if hook := hooks.GlobalHooks.ExtraRetentionCleanerHook; hook != nil {
-		err := hook()
-		if err != nil {
-			return err
-		}
-	}
 
 	go internalRetentionCleaner()
 	return nil
