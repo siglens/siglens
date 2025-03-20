@@ -109,12 +109,12 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 		switch queryType {
 		case structs.MatchAllQuery:
 			// time should have been checked before, and recsToSearch
+			// TODO: check if time range actually was checked before.
 			for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 				if recIT.ShouldProcessRecord(i) {
 					blockHelper.AddMatchedRecord(i)
 				}
 			}
-			// TODO: check time range
 		case structs.ColumnValueQuery:
 			filterRecordsFromSearchQuery(query, segmentSearch, blockHelper, multiColReader, recIT,
 				blockReq.BlockNum, holderDte, qid, allSearchResults, searchReq, nodeRes, queryRange)
