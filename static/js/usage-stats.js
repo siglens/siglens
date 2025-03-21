@@ -38,15 +38,13 @@ $(document).ready(() => {
     getClusterIngestStats();
     getClusterStats();
 
-    $('.tab').click(function () {
-        $('.tab').removeClass('active');
-        $('.tab-content').removeClass('active');
-
+    $('.granularity-tabs .tab').click(function () {
+        $('.granularity-tabs .tab').removeClass('active');
         $(this).addClass('active');
-        selectedTab = $(this).data('tab');
+        selectedGranularity = $(this).data('tab');
 
-        $('#' + $(this).data('tab')).addClass('active');
-        console.log('Selected tab:', selectedTab);
+        // Refresh the data with the new granularity
+        getClusterIngestStats();
     });
 });
 
@@ -203,7 +201,7 @@ function createVolumeChart(chartId, data, options) {
                                     value = Number(value.toFixed()).toLocaleString('en-us');
                                     label += ' ' + value + ' ' + scale.unit;
                                 } else {
-                                    label += ' ' + value.toFixed(3) + ' ' + scale.unit;
+                                    label += ' ' + value.toFixed(2) + ' ' + scale.unit;
                                 }
                             }
                             return label;
@@ -245,13 +243,7 @@ function createVolumeChart(chartId, data, options) {
                         color: tickColor,
                         callback: function (val, _index, _ticks) {
                             let value = this.getLabelForValue(val);
-                            if (value && value.indexOf('T') > -1) {
-                                let parts = value.split('T');
-                                return 'T' + parts[1];
-                            } else if (value) {
-                                let parts = value.split('-');
-                                return parts[1] + '-' + parts[2];
-                            }
+                            return formatDateLabel(value);
                         },
                     },
                 },
@@ -308,7 +300,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     tension: 0.3,
                     pointRadius: 3,
                     pointHoverRadius: 5,
-                    fill: false
+                    fill: false,
                 },
                 {
                     label: 'Metrics Datapoints Count',
@@ -319,7 +311,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     tension: 0.3,
                     pointRadius: 3,
                     pointHoverRadius: 5,
-                    fill: false
+                    fill: false,
                 },
             ],
         },
@@ -363,13 +355,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                         color: tickColor,
                         callback: function (val, _index, _ticks) {
                             let value = this.getLabelForValue(val);
-                            if (value && value.indexOf('T') > -1) {
-                                let parts = value.split('T');
-                                return 'T' + parts[1];
-                            } else if (value) {
-                                let parts = value.split('-');
-                                return parts[1] + '-' + parts[2];
-                            }
+                            return formatDateLabel(value);
                         },
                     },
                 },
@@ -378,8 +364,35 @@ function renderStackedChart(data, gridLineColor, tickColor) {
     });
 }
 
+function formatDateLabel(value) {
+    if (!value) {
+        return '';
+    }
+    // (YYYY-MM-DDThh)
+    if (value.indexOf('T') > -1) {
+        let parts = value.split('T');
+        return 'T' + parts[1];
+    }
+    // (YYYY-MM)
+    else if (value.split('-').length === 2) {
+        return value;
+    }
+    // (YYYY-MM-DD)
+    else {
+        let parts = value.split('-');
+        return parts[1] + '-' + parts[2];
+    }
+}
+
 // Update the getClusterIngestStats function to use our charting functions
 function getClusterIngestStats() {
+    const selectedGranularity = $('.granularity-tabs .tab.active').data('tab');
+
+    const requestBody = {
+        startEpoch: filterStartDate,
+        endEpoch: filterEndDate,
+        granularity: selectedGranularity,
+    };
     $.ajax({
         method: 'post',
         url: 'api/clusterIngestStats',
@@ -389,10 +402,7 @@ function getClusterIngestStats() {
         },
         crossDomain: true,
         dataType: 'json',
-        data: JSON.stringify({
-            startEpoch: filterStartDate,
-            endEpoch: filterEndDate,
-        }),
+        data: JSON.stringify(requestBody),
     })
         .then((res) => {
             console.log(res);

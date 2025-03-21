@@ -259,72 +259,176 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		httpResp.ChartStats[k]["MetricsBytesCount"] = float64(entry.MetricsBytesCount)
 		httpResp.ChartStats[k]["TraceBytesCount"] = float64(entry.TraceBytesCount)
 		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
+		httpResp.ChartStats[k]["ActiveSeriesCount"] = entry.ActiveSeriesCount
 	}
 	utils.WriteJsonResponse(ctx, httpResp)
 }
 
-func parseAlphaNumTime(inp string, defValue uint64) (uint64, usageStats.UsageStatsGranularity) {
-	granularity := usageStats.Daily
-	sanTime := strings.ReplaceAll(inp, " ", "")
-	retVal := defValue
+func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity) {
+	defaultPastHours := uint64(7 * 24) // 7 days default
 
+	startEpoch, hasStart := jsonSource["startEpoch"]
+	endEpoch, hasEnd := jsonSource["endEpoch"]
+	granularity, hasGranularity := jsonSource["granularity"]
+
+	getDefault := func() (uint64, usageStats.UsageStatsGranularity) {
+		if hasGranularity {
+			return defaultPastHours, parseGranularity(granularity)
+		}
+		return defaultPastHours, determineGranularity(defaultPastHours)
+	}
+
+	if !hasStart || !hasEnd || startEpoch == nil || endEpoch == nil {
+		return getDefault()
+	}
+
+	// Relative time format (now-Xh)
+	if startStr, ok := startEpoch.(string); ok && strings.Contains(startStr, "now-") {
+		pastHours, _ := parseAlphaNumTime(startStr, defaultPastHours)
+		if hasGranularity {
+			return pastHours, parseGranularity(granularity)
+		}
+		return pastHours, determineGranularity(pastHours)
+	}
+
+	// Parse timestamps
+	startTs := parseTimestamp(startEpoch)
+	endTs := parseTimestamp(endEpoch)
+
+	// Validate timestamps
+	if startTs == -1 || endTs == -1 || endTs <= startTs {
+		return getDefault()
+	}
+
+	// Calculate hours difference
+	hours := uint64((endTs - startTs) / 3600)
+	if hasGranularity {
+		return hours, parseGranularity(granularity)
+	}
+	return hours, determineGranularity(hours)
+}
+
+func determineGranularity(hours uint64) usageStats.UsageStatsGranularity {
+	switch {
+	case hours < 24:
+		return usageStats.ByMinute
+	case hours <= 48:
+		return usageStats.Hourly
+	default:
+		return usageStats.Daily
+	}
+}
+
+func parseGranularity(value interface{}) usageStats.UsageStatsGranularity {
+	switch v := value.(type) {
+	case string:
+		switch strings.ToLower(v) {
+		case "minute", "byminute":
+			return usageStats.ByMinute
+		case "hour", "hourly":
+			return usageStats.Hourly
+		case "day", "daily":
+			return usageStats.Daily
+		case "month", "monthly":
+			return usageStats.Monthly
+		default:
+			return usageStats.Daily
+		}
+	case json.Number:
+		num, err := v.Int64()
+		if err != nil {
+			return usageStats.Daily
+		}
+		return intToGranularity(int(num))
+	case float64:
+		return intToGranularity(int(v))
+	case int:
+		return intToGranularity(v)
+	case int64:
+		return intToGranularity(int(v))
+	default:
+		return usageStats.Daily
+	}
+}
+
+func intToGranularity(value int) usageStats.UsageStatsGranularity {
+	switch value {
+	case 0:
+		return usageStats.Hourly
+	case 1:
+		return usageStats.Daily
+	case 2:
+		return usageStats.ByMinute
+	case 3:
+		return usageStats.Monthly
+	default:
+		return usageStats.Daily
+	}
+}
+
+func parseAlphaNumTime(inp string, defValue uint64) (uint64, usageStats.UsageStatsGranularity) {
+	sanTime := strings.ReplaceAll(inp, " ", "")
 	strln := len(sanTime)
 	if strln < 6 {
-		return retVal, usageStats.Daily
+		return defValue, determineGranularity(defValue)
 	}
 
 	unit := sanTime[strln-1]
 	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
 	if err != nil {
-		return defValue, usageStats.Daily
+		return defValue, determineGranularity(defValue)
 	}
 
+	var hours uint64
 	switch unit {
 	case 'h':
-		retVal = uint64(num)
-		granularity = usageStats.Hourly
+		hours = uint64(num)
 	case 'd':
-		retVal = 24 * uint64(num)
-		granularity = usageStats.Daily
+		hours = 24 * uint64(num)
+	default:
+		hours = defValue
 	}
-	// for past 2 days , set granularity to Hourly
-	if num <= 2 {
-		granularity = usageStats.Hourly
-	}
-	return retVal, granularity
+
+	return hours, determineGranularity(hours)
 }
 
-func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity) {
-	var pastXhours uint64
-	granularity := usageStats.Daily
-	startE, ok := jsonSource["startEpoch"]
-	if !ok || startE == nil {
-		pastXhours = uint64(7 * 24)
-	} else {
-		switch val := startE.(type) {
-		case json.Number:
-			temp, _ := val.Int64()
-			pastXhours = uint64(temp)
-		case float64:
-			pastXhours = uint64(val)
-		case int64:
-			pastXhours = uint64(val)
-		case uint64:
-			pastXhours = uint64(val)
-		case string:
-			defValue := uint64(7 * 24)
-			pastXhours, granularity = parseAlphaNumTime(string(val), defValue)
-		default:
-			pastXhours = uint64(7 * 24)
+func parseTimestamp(value interface{}) int64 {
+	switch v := value.(type) {
+	case json.Number:
+		num, err := v.Int64()
+		if err != nil {
+			return -1
 		}
-	}
+		return normalizeToSeconds(num)
+	case float64:
+		return normalizeToSeconds(int64(v))
+	case int64:
+		return normalizeToSeconds(v)
+	case uint64:
+		return normalizeToSeconds(int64(v))
+	case string:
+		// Handle relative time
+		if strings.Contains(v, "now-") {
+			hoursAgo, _ := parseAlphaNumTime(v, 7*24)
+			return time.Now().Unix() - (int64(hoursAgo) * 3600)
+		}
 
-	// If pastXhours is less than 24, set granularity to ByMinute
-	if pastXhours < 24 {
-		granularity = usageStats.ByMinute
+		// Parse epoch
+		num, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return -1
+		}
+		return normalizeToSeconds(num)
+	default:
+		return -1
 	}
+}
 
-	return pastXhours, granularity
+func normalizeToSeconds(timestamp int64) int64 {
+	if timestamp > 10000000000 {
+		return timestamp / 1000
+	}
+	return timestamp
 }
 
 func isTraceRelatedIndex(indexName string) bool {
