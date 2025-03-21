@@ -85,8 +85,8 @@ func (f *filterSelector) Matches(log map[string]interface{}) bool {
 	return f.value.Matches(fmt.Sprintf("%v", value))
 }
 
-func (f *filterSelector) String() string {
-	return fmt.Sprintf(`%v="%v"`, f.key, f.value.String())
+func (f filterSelector) String() string {
+	return fmt.Sprintf(`%v="%v"`, f.key, f.value)
 }
 
 type matchAllSelector struct{}
@@ -99,7 +99,7 @@ func (m *matchAllSelector) Matches(log map[string]interface{}) bool {
 	return true
 }
 
-func (m *matchAllSelector) String() string {
+func (m matchAllSelector) String() string {
 	return "*"
 }
 
@@ -137,7 +137,7 @@ type stringOrRegex struct {
 	regex     regexp.Regexp
 }
 
-func (s *stringOrRegex) String() string {
+func (s stringOrRegex) String() string {
 	return s.rawString
 }
 
@@ -163,11 +163,11 @@ func NewFilterQueryValidator(filter selector, numericSortCol string, head int,
 	var query string
 	if numericSortCol == "" {
 		numericSortCol = timestampCol
-		query = fmt.Sprintf(`%v | head %v`, filter.String(), head)
+		query = fmt.Sprintf(`%v | head %v`, filter, head)
 	} else {
 		// Only sorting by numeric columns is supported for now.
 		// Sort so the highest values are first.
-		query = fmt.Sprintf(`%v | sort %v -num(%v)`, filter.String(), head, numericSortCol)
+		query = fmt.Sprintf(`%v | sort %v -num(%v)`, filter, head, numericSortCol)
 	}
 
 	return &filterQueryValidator{
@@ -477,7 +477,7 @@ func NewCountQueryValidator(filter selector, startEpoch uint64,
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v | stats count", filter.String()),
+			query:      fmt.Sprintf("%v | stats count", filter),
 		},
 		filter:     filter,
 		numMatches: 0,
