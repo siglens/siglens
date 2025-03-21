@@ -198,27 +198,36 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	r.Results = make(map[string]map[uint32]float64)
 	errors := make([]error, 0)
 
+	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+	for grpID, ds := range r.DsResults {
+		if ds == nil {
+			err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
+			errors = append(errors, err)
+			return errors
+		}
+
+		var aggSeriesId string
+
+		if aggregation.IsAggregateFromAllTimeseries() {
+			aggSeriesId = grpID
+		} else {
+			aggSeriesId = getAggSeriesId(grpID, &aggregation)
+		}
+
+		if _, exists := seriesEntriesMap[aggSeriesId]; !exists {
+			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
+		}
+
+		for i := 0; i < ds.idx; i++ {
+			entry := ds.runningEntries[i]
+			seriesEntriesMap[aggSeriesId][entry.downsampledTime] = append(seriesEntriesMap[aggSeriesId][entry.downsampledTime], entry)
+		}
+	}
+
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
-
-		for grpID, ds := range r.DsResults {
-			if ds == nil {
-				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
-				errors = append(errors, err)
-				return errors
-			}
-
-			if _, exists := seriesEntriesMap[grpID]; !exists {
-				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
-			}
-
-			for i := 0; i < ds.idx; i++ {
-				entry := ds.runningEntries[i]
-				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
-			}
-		}
 
 		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
@@ -234,23 +243,31 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	errorLock := &sync.Mutex{}
 
 	var idx int
-	for grpID, runningDS := range r.DsResults {
+	for seriesId, timeSeries := range seriesEntriesMap {
 		wg.Add(1)
-		go func(grp string, ds *DownsampleSeries) {
+		go func(grp string, ts map[uint32][]RunningEntry) {
 			defer wg.Done()
 
-			grpVal, err := ds.AggregateFromSingleTimeseries()
-			if err != nil {
-				errorLock.Lock()
-				errors = append(errors, err)
-				errorLock.Unlock()
-				return
+			for ts, entries := range ts {
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
+				if err != nil {
+					errorLock.Lock()
+					errors = append(errors, err)
+					errorLock.Unlock()
+					return
+				}
+				lock.Lock()
+				tsMap, ok := r.Results[grp]
+				if !ok {
+					tsMap = make(map[uint32]float64, 0)
+					r.Results[grp] = tsMap
+				}
+
+				tsMap[ts] = aggVal
+				lock.Unlock()
 			}
 
-			lock.Lock()
-			r.Results[grp] = grpVal
-			lock.Unlock()
-		}(grpID, runningDS)
+		}(seriesId, timeSeries)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -712,6 +729,10 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 		for _, val := range tagValues {
 			keyValue := strings.Split(removeMetricNameFromGroupID(val), ":")
+			if len(keyValue) != 2 {
+				log.Errorf("GetResults: Invalid tag keyvalue: %v", val)
+				continue
+			}
 			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
@@ -1207,12 +1228,8 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 		timestampToCount := make(map[uint32]float64)
 
 		for _, timeSeries := range seriesEntriesMap {
-			for timestamp, entries := range timeSeries {
-				for _, entry := range entries {
-					if entry.runningCount > 0 {
-						timestampToCount[timestamp] += float64(entry.runningCount)
-					}
-				}
+			for timestamp := range timeSeries {
+				timestampToCount[timestamp]++
 			}
 		}
 		r.Results[r.MetricName+"{"] = timestampToCount
