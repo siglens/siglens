@@ -1537,17 +1537,17 @@ const ChartUtils = (function () {
 
                 // Draw new crosshair lines
                 ctx.beginPath();
-                ctx.setLineDash([5, 5]);
+                ctx.setLineDash([3, 3]);
                 ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(102, 102, 102, 0.8)';
+                ctx.strokeStyle = 'rgba(102, 102, 102, 0.5)';
                 ctx.moveTo(x, top);
                 ctx.lineTo(x, bottom);
                 ctx.stroke();
 
                 ctx.beginPath();
-                ctx.setLineDash([5, 5]);
+                ctx.setLineDash([3, 3]);
                 ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(102, 102, 102, 0.9)';
+                ctx.strokeStyle = 'rgba(102, 102, 102, 0.5)';
                 ctx.moveTo(left, y);
                 ctx.lineTo(right, y);
                 ctx.stroke();
