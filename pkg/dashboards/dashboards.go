@@ -28,8 +28,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -489,6 +491,27 @@ func ProcessCreateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		utils.SetBadMsg(ctx, "")
 		return
 	}
+	// audit log
+	username := "No-user" //TODO : Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("pipeSearchWebsocketHandler: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Created dashboard"
+	extraMsg := fmt.Sprintf("Dashboard Name: %s", req.Name)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessCreateDashboardRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
 
 	utils.WriteJsonResponse(ctx, dashboardInfo)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -517,6 +540,28 @@ func ProcessFavoriteRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	isFavorite, err := toggleFavorite(dId, myid)
 	if err != nil {
 		log.Errorf("ProcessFavoriteRequest: could not toggle favorite status for Dashboard=%v, err=%v", dId, err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessFavoriteRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Toggled Dashboard favorite status"
+	extraMsg := fmt.Sprintf("Dashboard ID: %s, New Favorite Status: %t", dId, isFavorite)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessFavoriteRequest: failed to create audit event. Err=%+v", err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -578,6 +623,28 @@ func ProcessUpdateDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessUpdateDashboardRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Updated dashboard"
+	extraMsg := fmt.Sprintf("Dashboard ID: %s, Dashboard Name: %s", dId, dName)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessUpdateDashboardRequest: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
+	}
+
 	response := map[string]interface{}{
 		"message":   "Dashboard updated successfully",
 		"dashboard": updatedDashboard,
@@ -605,6 +672,27 @@ func ProcessDeleteDashboardRequest(ctx *fasthttp.RequestCtx, myid int64) {
 			})
 			return
 		}
+		utils.SetBadMsg(ctx, "")
+		return
+	}
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessDeleteDashboardRequest: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Deleted dashboard"
+	extraMsg := fmt.Sprintf("Dashboard ID: %s", dId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteDashboardRequest: failed to create audit event. Err=%+v", err)
 		utils.SetBadMsg(ctx, "")
 		return
 	}
