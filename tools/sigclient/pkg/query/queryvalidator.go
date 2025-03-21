@@ -42,17 +42,17 @@ type queryValidator interface {
 	Info() string
 }
 
-type selector interface {
+type filter interface {
 	Matches(map[string]interface{}) bool
 	String() string
 }
 
-type filterSelector struct {
+type kvFilter struct {
 	key   string
 	value stringOrRegex
 }
 
-func Filter(key string, value string) (selector, error) {
+func Filter(key string, value string) (filter, error) {
 	// Don't allow matching literal asterisks.
 	if strings.Contains(value, "\\*") {
 		return nil, fmt.Errorf("Filter: matching literal asterisks is not implemented")
@@ -70,36 +70,36 @@ func Filter(key string, value string) (selector, error) {
 		finalValue.isRegex = true
 		finalValue.regex = *regex
 	}
-	return &filterSelector{
+	return &kvFilter{
 		key:   key,
 		value: finalValue,
 	}, nil
 }
 
-func (f *filterSelector) Matches(log map[string]interface{}) bool {
-	value, ok := log[f.key]
+func (kv *kvFilter) Matches(log map[string]interface{}) bool {
+	value, ok := log[kv.key]
 	if !ok {
 		return false
 	}
 
-	return f.value.Matches(fmt.Sprintf("%v", value))
+	return kv.value.Matches(fmt.Sprintf("%v", value))
 }
 
-func (f filterSelector) String() string {
-	return fmt.Sprintf(`%v="%v"`, f.key, f.value)
+func (kv kvFilter) String() string {
+	return fmt.Sprintf(`%v="%v"`, kv.key, kv.value)
 }
 
-type matchAllSelector struct{}
+type matchAllFilter struct{}
 
-func MatchAll() selector {
-	return &matchAllSelector{}
+func MatchAll() filter {
+	return &matchAllFilter{}
 }
 
-func (m *matchAllSelector) Matches(log map[string]interface{}) bool {
+func (m *matchAllFilter) Matches(log map[string]interface{}) bool {
 	return true
 }
 
-func (m matchAllSelector) String() string {
+func (m matchAllFilter) String() string {
 	return "*"
 }
 
@@ -124,7 +124,7 @@ func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 
 type filterQueryValidator struct {
 	basicValidator
-	filter  selector
+	filter  filter
 	sortCol string
 	head    int
 	results []map[string]interface{} // Sorted descending by sortCol.
@@ -149,7 +149,7 @@ func (s *stringOrRegex) Matches(value string) bool {
 	return value == s.rawString
 }
 
-func NewFilterQueryValidator(filter selector, numericSortCol string, head int,
+func NewFilterQueryValidator(filter filter, numericSortCol string, head int,
 	startEpoch uint64, endEpoch uint64) (queryValidator, error) {
 
 	if head < 1 || head > 99 {
@@ -465,12 +465,12 @@ func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
 
 type countQueryValidator struct {
 	basicValidator
-	filter     selector
+	filter     filter
 	numMatches int
 	lock       sync.Mutex
 }
 
-func NewCountQueryValidator(filter selector, startEpoch uint64,
+func NewCountQueryValidator(filter filter, startEpoch uint64,
 	endEpoch uint64) (queryValidator, error) {
 
 	return &countQueryValidator{
