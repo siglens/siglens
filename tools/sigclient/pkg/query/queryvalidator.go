@@ -42,6 +42,66 @@ type queryValidator interface {
 	Info() string
 }
 
+type selector interface {
+	Matches(map[string]interface{}) bool
+	String() string
+}
+
+type filterSelector struct {
+	key   string
+	value stringOrRegex
+}
+
+func Filter(key string, value string) (selector, error) {
+	// Don't allow matching literal asterisks.
+	if strings.Contains(value, "\\*") {
+		return nil, fmt.Errorf("Filter: matching literal asterisks is not implemented")
+	}
+
+	finalValue := stringOrRegex{isRegex: false, rawString: value}
+	if strings.Contains(finalValue.rawString, "*") {
+		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
+		s = fmt.Sprintf("^%v$", s)
+		regex, err := regexp.Compile(s)
+		if err != nil {
+			return nil, fmt.Errorf("Filter: invalid regex %v; err=%v", finalValue.rawString, err)
+		}
+
+		finalValue = stringOrRegex{isRegex: true, regex: *regex}
+	}
+	return &filterSelector{
+		key:   key,
+		value: finalValue,
+	}, nil
+}
+
+func (f *filterSelector) Matches(log map[string]interface{}) bool {
+	value, ok := log[f.key]
+	if !ok {
+		return false
+	}
+
+	return f.value.Matches(fmt.Sprintf("%v", value))
+}
+
+func (f *filterSelector) String() string {
+	return fmt.Sprintf(`%v="%v"`, f.key, f.value)
+}
+
+type matchAllSelector struct{}
+
+func MatchAll() selector {
+	return &matchAllSelector{}
+}
+
+func (m *matchAllSelector) Matches(log map[string]interface{}) bool {
+	return true
+}
+
+func (m *matchAllSelector) String() string {
+	return "*"
+}
+
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
