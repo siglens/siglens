@@ -193,9 +193,9 @@ func parsePipeSearch(searchText string, queryLanguage string, qid uint64) (*ASTN
 
 	result, err := json.MarshalIndent(res, "", "   ")
 	if err == nil {
-		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, string(result))
+		log.Debugf("qid=%d, parsePipeSearch output:\n%v\n", qid, string(result))
 	} else {
-		log.Infof("qid=%d, parsePipeSearch output:\n%v\n", qid, res)
+		log.Debugf("qid=%d, parsePipeSearch output:\n%v\n", qid, res)
 	}
 
 	queryStruct, ok := res.(ast.QueryStruct)

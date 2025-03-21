@@ -718,25 +718,25 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 func LogSearchNode(prefix string, sNode *structs.SearchNode, qid uint64) {
 
 	sNodeJSON, _ := json.Marshal(sNode)
-	log.Infof("qid=%d, SearchNode for %v: %v", qid, prefix, string(sNodeJSON))
+	log.Debugf("qid=%d, SearchNode for %v: %v", qid, prefix, string(sNodeJSON))
 }
 
 func LogASTNode(prefix string, astNode *structs.ASTNode, qid uint64) {
 
 	fullASTNodeJSON, _ := json.Marshal(astNode)
-	log.Infof("qid=%d, ASTNode for %v: %v", qid, prefix, string(fullASTNodeJSON))
+	log.Debugf("qid=%d, ASTNode for %v: %v", qid, prefix, string(fullASTNodeJSON))
 }
 
 func LogNode(prefix string, node any, qid uint64) {
 
 	nodeJSON, _ := json.Marshal(node)
-	log.Infof("qid=%d, Raw value for %v: %v", qid, prefix, string(nodeJSON))
+	log.Debugf("qid=%d, Raw value for %v: %v", qid, prefix, string(nodeJSON))
 }
 
 func LogQueryAggsNode(prefix string, node *structs.QueryAggregators, qid uint64) {
 
 	nodeval, _ := json.Marshal(node)
-	log.Infof("qid=%d, QueryAggregators for %v: %v", qid, prefix, string(nodeval))
+	log.Debugf("qid=%d, QueryAggregators for %v: %v", qid, prefix, string(nodeval))
 }
 
 func LogMetricsQuery(prefix string, mQRequest *structs.MetricsQueryRequest, qid uint64) {
