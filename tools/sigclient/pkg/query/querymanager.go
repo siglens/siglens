@@ -18,6 +18,7 @@
 package query
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -57,6 +58,8 @@ type queryStats struct {
 	numFailedToRun int
 	numBadResults  int
 	numSuccess     int
+
+	lastFailure string
 }
 
 func (qs *queryStats) Log() {
@@ -65,6 +68,10 @@ func (qs *queryStats) Log() {
 
 	log.Infof("QueryStats: %d queries failed to run, %d queries gave bad results, %d queries succeeded",
 		qs.numFailedToRun, qs.numBadResults, qs.numSuccess)
+
+	if qs.lastFailure != "" {
+		log.Infof("QueryStats: Last failure: %s", qs.lastFailure)
+	}
 }
 
 func NewQueryTemplate(validator queryValidator, timeRangeSeconds uint64, maxInProgress int) *QueryTemplate {
@@ -220,6 +227,7 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 	if err != nil {
 		qm.stats.lock.Lock()
 		qm.stats.numFailedToRun++
+		qm.stats.lastFailure = fmt.Sprintf("failed to run %v; err=%v", queryInfo, err)
 		qm.stats.lock.Unlock()
 
 		qm.logErrorf("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)
@@ -229,6 +237,7 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 	if err != nil {
 		qm.stats.lock.Lock()
 		qm.stats.numBadResults++
+		qm.stats.lastFailure = fmt.Sprintf("incorrect results for %v; err=%v", queryInfo, err)
 		qm.stats.lock.Unlock()
 
 		qm.logErrorf("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
