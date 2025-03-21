@@ -47,6 +47,24 @@ type queryManager struct {
 	lastLogEpochMs int64
 
 	url string
+
+	failOnError bool
+	stats       queryStats
+}
+
+type queryStats struct {
+	lock           sync.Mutex
+	numFailedToRun int
+	numBadResults  int
+	numSuccess     int
+}
+
+func (qs *queryStats) Log() {
+	qs.lock.Lock()
+	defer qs.lock.Unlock()
+
+	log.Infof("QueryStats: %d queries failed to run, %d queries gave bad results, %d queries succeeded",
+		qs.numFailedToRun, qs.numBadResults, qs.numSuccess)
 }
 
 func NewQueryTemplate(validator queryValidator, timeRangeSeconds uint64, maxInProgress int) *QueryTemplate {
@@ -57,7 +75,7 @@ func NewQueryTemplate(validator queryValidator, timeRangeSeconds uint64, maxInPr
 	}
 }
 
-func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url string) *queryManager {
+func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url string, failOnError bool) *queryManager {
 	manager := &queryManager{
 		templates:            templates,
 		inProgressQueries:    make([]queryValidator, 0),
@@ -65,9 +83,11 @@ func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url
 		templateChan:         make(chan *QueryTemplate),
 		maxConcurrentQueries: maxConcurrentQueries,
 		url:                  url,
+		failOnError:          failOnError,
 	}
 
 	manager.spawnTemplateAdders()
+	go manager.logStatsOnInterval(1 * time.Minute)
 
 	return manager
 }
@@ -83,6 +103,13 @@ func (qm *queryManager) spawnTemplateAdders() {
 				qm.templateChan <- template
 			}
 		}(template)
+	}
+}
+
+func (qm *queryManager) logStatsOnInterval(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	for range ticker.C {
+		qm.stats.Log()
 	}
 }
 
@@ -191,14 +218,36 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 	queryInfo := validator.Info()
 	result, err := sendSplunkQuery(qm.url, query, startEpoch, endEpoch)
 	if err != nil {
-		log.Fatalf("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)
+		qm.stats.lock.Lock()
+		qm.stats.numFailedToRun++
+		qm.stats.lock.Unlock()
+
+		qm.logErrorf("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)
 	}
 
 	err = validator.MatchesResult(result)
 	if err != nil {
-		log.Fatalf("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
+		qm.stats.lock.Lock()
+		qm.stats.numBadResults++
+		qm.stats.lock.Unlock()
+
+		qm.logErrorf("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
 	}
+
+	qm.stats.lock.Lock()
+	qm.stats.numSuccess++
+	qm.stats.lock.Unlock()
 
 	log.Infof("queryManager.runQuery: successfully ran %v", queryInfo)
 	qm.numRunningQueries.Add(-1)
+
+}
+
+func (qm *queryManager) logErrorf(format string, args ...interface{}) {
+	if qm.failOnError {
+		qm.stats.Log() // One more time, before exiting.
+		log.Fatalf(format, args...)
+	} else {
+		log.Errorf(format, args...)
+	}
 }
