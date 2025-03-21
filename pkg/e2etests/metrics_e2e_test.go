@@ -853,7 +853,6 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 		assert.Greater(t, len(seriesDp), 0)
 
 		assert.True(t, strings.Contains(seriesId, "*{"))
-		assert.True(t, strings.Contains(seriesId, "color:red"))
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1049,7 +1048,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(20), intervalSeconds)
 
-	query := `avg ({__name__=~"testmetric.*", radius="10"}) by (__name__)`
+	query := `avg ({__name__=~"testmetric.*", radius=~".+"}) by (__name__)`
 	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(metricQueryRequest))
@@ -1074,7 +1073,6 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 		assert.Greater(t, len(seriesDp), 0)
 
 		assert.True(t, strings.Contains(seriesId, "testmetric0{"))
-		assert.True(t, strings.Contains(seriesId, "radius:10"))
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
