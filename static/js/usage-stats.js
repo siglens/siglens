@@ -17,8 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let selectedTab = 'daily';
-
 $(document).ready(() => {
     $('#app-content-area').hide();
     setupEventHandlers();
@@ -41,9 +39,6 @@ $(document).ready(() => {
     $('.granularity-tabs .tab').click(function () {
         $('.granularity-tabs .tab').removeClass('active');
         $(this).addClass('active');
-        selectedGranularity = $(this).data('tab');
-
-        // Refresh the data with the new granularity
         getClusterIngestStats();
     });
 });
@@ -72,8 +67,9 @@ function displayTotal(res) {
     const totalLogsVol = res.ingestionStats['Log Incoming Volume']; // Bytes
     const totalTracesVol = res.traceStats['Total Trace Volume']; // Bytes
     const totalDatapoints = res.metricsStats['Datapoints Count'];
-
+    //eslint-disable-next-line no-undef
     const formattedLogsVol = formatByteSize(totalLogsVol);
+    //eslint-disable-next-line no-undef
     const formattedTracesVol = formatByteSize(totalTracesVol);
 
     $('.logs-total').text(formattedLogsVol);
@@ -162,6 +158,7 @@ function createVolumeChart(chartId, data, options) {
     }));
 
     // Determine appropriate scale
+    //eslint-disable-next-line no-undef
     const scale = determineUnit(bytesData);
 
     // Scale the data
