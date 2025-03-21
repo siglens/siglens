@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const delayForFlush = 30 * time.Second
+const delayForFlush = 60 * time.Second
 
 type QueryTemplate struct {
 	validator        queryValidator
