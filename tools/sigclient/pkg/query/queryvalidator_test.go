@@ -18,6 +18,7 @@
 package query
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -614,6 +615,23 @@ func Test_CountQueryValidator(t *testing.T) {
 			}]
 		}`)))
 	})
+}
+
+func Test_filterToString(t *testing.T) {
+	filter, err := Filter("city", "Boston")
+	assert.NoError(t, err)
+	assert.Equal(t, `city="Boston"`, fmt.Sprintf("%v", filter))
+
+	filter, err = Filter("city", "New *")
+	assert.NoError(t, err)
+	assert.Equal(t, `city="New *"`, fmt.Sprintf("%v", filter))
+
+	filter, err = Filter("city", "*")
+	assert.NoError(t, err)
+	assert.Equal(t, `city="*"`, fmt.Sprintf("%v", filter))
+
+	filter = MatchAll()
+	assert.Equal(t, `*`, fmt.Sprintf("%v", filter))
 }
 
 func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
