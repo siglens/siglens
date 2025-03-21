@@ -386,8 +386,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	if aggregation.IsAggregateFromAllTimeseries() {
 		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
-		for seriesId, timeSeries := range r.Results {
-			aggSeriesId := getAggSeriesId(seriesId, &aggregation)
+		for aggSeriesId, timeSeries := range r.Results {
 			if _, ok := results[aggSeriesId]; !ok {
 				results[aggSeriesId] = make(map[uint32]float64, 0)
 				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
