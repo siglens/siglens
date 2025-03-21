@@ -245,10 +245,10 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	var idx int
 	for seriesId, timeSeries := range seriesEntriesMap {
 		wg.Add(1)
-		go func(grp string, ts map[uint32][]RunningEntry) {
+		go func(grp string, timeSeries map[uint32][]RunningEntry) {
 			defer wg.Done()
 
-			for ts, entries := range ts {
+			for ts, entries := range timeSeries {
 				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
 				if err != nil {
 					errorLock.Lock()
