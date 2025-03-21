@@ -32,7 +32,7 @@ import (
 )
 
 func Test_GetResults_AggFn_Sum(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Sum}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Sum, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -102,7 +102,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Avg(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -130,12 +130,12 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	series := mresults.InitSeriesHolder(mQuery, tsGroupId)
 
 	// they should all downsample to i
-	avg := float64(0)
+	sum := float64(0)
 	for i := 0; i < 10; i++ {
-		avg += float64(i)
+		sum += float64(i)
 		series.AddEntry(uint32(i), float64(i))
 	}
-	finalAvg := avg // because we have 1 series, with a 1h-sum:avg, the avg does nothing
+	finalAvg := sum / 10
 
 	assert.Equal(t, series.GetIdx(), 10)
 	tsid := uint64(100)
@@ -162,7 +162,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 	retVal := metricsResults.Results[tsGroupId.String()]
 	assert.Len(t, retVal, 1)
 	assert.Contains(t, retVal, uint32(0))
-	assert.Equal(t, retVal[0], finalAvg)
+	assert.Equal(t, finalAvg, retVal[0])
 
 	mQResponse, err := metricsResults.GetOTSDBResults(mQuery)
 	assert.NoError(t, err)
@@ -174,7 +174,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Count(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Count}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Count, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -208,7 +208,7 @@ func Test_GetResults_AggFn_Count(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Group(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Group}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Group, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -244,7 +244,7 @@ func Test_GetResults_AggFn_Group(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Stdvar(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Stdvar}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Stdvar, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -284,7 +284,7 @@ func Test_GetResults_AggFn_Stdvar(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Stddev(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Stddev}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Stddev, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -325,7 +325,7 @@ func Test_GetResults_AggFn_Stddev(t *testing.T) {
 
 func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	var numSeries int = 5
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -386,7 +386,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Quantile(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -456,7 +456,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -527,7 +527,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 
 func Test_GetResults_AggFn_TopK(t *testing.T) {
 	// Compute top 2 elements for each timestamp
-	aggregator := structs.Aggregation{AggregatorFunction: utils.TopK, FuncConstant: 2.0}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.TopK, FuncConstant: 2.0, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -570,7 +570,7 @@ func Test_GetResults_AggFn_TopK(t *testing.T) {
 
 func Test_GetResults_AggFn_BottomK(t *testing.T) {
 	// Compute bottom 2 elements for each timestamp
-	aggregator := structs.Aggregation{AggregatorFunction: utils.BottomK, FuncConstant: 2.0}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.BottomK, FuncConstant: 2.0, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -1160,9 +1160,10 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 
 func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap map[uint32]float64, queryOps []structs.QueryArithmetic, downsampler structs.Downsampler) {
 	mQuery := &structs.MetricsQuery{
-		MetricName:  "test.metric.0",
-		HashedMName: 1,
-		Downsampler: downsampler,
+		MetricName:      "test.metric.0",
+		HashedMName:     1,
+		Downsampler:     downsampler,
+		FirstAggregator: downsampler.Aggregator,
 	}
 	qid := uint64(0)
 	metricsResults := mresults.InitMetricResults(mQuery, qid)
@@ -1198,7 +1199,7 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 }
 
 func Test_GetResults_And(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains only one matching label set
 	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
@@ -1236,7 +1237,7 @@ func Test_GetResults_And(t *testing.T) {
 }
 
 func Test_GetResults_Or(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains all unique label sets
 	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
@@ -1280,7 +1281,7 @@ func Test_GetResults_Or(t *testing.T) {
 }
 
 func Test_GetResults_Unless(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	expectedResults := make(map[string]map[uint32]float64)
 	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
@@ -1381,6 +1382,7 @@ func initialize_Multiple_Metric_Results(t *testing.T, initialEntries1 map[uint32
 		Downsampler:     downsampler,
 		GetAllLabels:    true,
 		SelectAllSeries: true,
+		FirstAggregator: aggregator,
 	}
 	qid = uint64(1)
 	metricsResults2 := mresults.InitMetricResults(mQuery2, qid)
@@ -1434,7 +1436,7 @@ func validateResults(t *testing.T, res map[string]map[uint32]float64, ansMap map
 }
 
 func Test_GetResults_On(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    3,
@@ -1479,7 +1481,7 @@ func Test_GetResults_On(t *testing.T) {
 }
 
 func Test_GetResults_Ignoring(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    -5,
@@ -1528,7 +1530,7 @@ func Test_GetResults_Ignoring(t *testing.T) {
 }
 
 func Test_GetResults_GroupRight(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.2{color:red,type:compact,"] = map[uint32]float64{
 		0:    100,
@@ -1578,7 +1580,7 @@ func Test_GetResults_GroupRight(t *testing.T) {
 }
 
 func Test_GetResults_GroupLeft(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg}
+	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    2,
