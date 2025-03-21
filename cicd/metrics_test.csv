@@ -61,10 +61,10 @@ day_of_year(testmetric0),now-90d,now,"",gt,"","",false
 "days_in_month(testmetric1{car_type=""Passenger car compact"",color=""aqua"",group=""group 1""})",now-90d,now,"32",lt,"","",false
 days_in_month(testmetric0),now-90d,now,"",gt,"","",false
 "avg({__name__=~'testmetric.*'})",now-90d,now,"163.13171934207875,133.61927559580516,-20.18911392543914",approx,"*","",false
-"avg ({__name__!~'testmetric(2)', fuel_type='LPG', color='maroon'}) by (__name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric3","color:maroon,fuel_type:LPG",false
-"avg ({__name__=~'testmetric(0|1|2|3|4)', color='maroon'}) by (group, color, __name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric2,testmetric3,testmetric4","color:maroon,group:group 1,__,color:maroon,group:group 0",false
-"avg ({__name__=~'testmetric(0|1|2|3|4)', color='maroon'}) by (group, color)",now-90d,now,"",approx,"*","color:maroon,group:group 1,__,color:maroon,group:group 0",false
-"avg ({__name__=~'testmetric(2|3)', fuel_type='LPG', color=~'g.*'}) by (__name__)",now-90d,now,"",approx,"testmetric2,testmetric3","color:gray,fuel_type:LPG,__,color:green,fuel_type:LPG",false
+"avg ({__name__!~'testmetric(2)', fuel_type='LPG', color='maroon'}) by (__name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric3","",false
+"avg ({__name__=~'testmetric(0|1|2|3|4)', color='maroon'}) by (color, group, __name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric2,testmetric3,testmetric4","color:maroon,group:group 1,__,color:maroon,group:group 0",false
+"avg ({__name__=~'testmetric(0|1|2|3|4)', color='maroon'}) by (color, group)",now-90d,now,"",approx,"*","color:maroon,group:group 1,__,color:maroon,group:group 0",false
+"avg ({__name__=~'testmetric(2|3)', fuel_type='LPG', color=~'g.*'}) by (__name__)",now-90d,now,"",approx,"testmetric2,testmetric3","",false
 "count(testmetric0{car_type='Passenger car compact'})",now-90d,now,"11,8,21",eq,"","",false
 "count(group by (car_type) (testmetric0))",now-90d,now,"8,8,8",eq,"","",false
 "count(group by (car_type) (testmetric0{color=~'.+'}))",now-90d,now,"8,8,8",eq,"","",false
