@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
-    
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -79,7 +79,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="dashboard" class="dashboard-box">
-            
+
             <div id="custom-code-tab" class="custom-code-tab w-100">
                 <div class="query-builder-container">
                     <div class="dropdown-box">
@@ -233,7 +233,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
                                                                             SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
                                                                             SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-                    
+
                                     </i>
                                     <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
                                         title=' {app="mysql",name="mysql-backup"}
@@ -278,7 +278,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                       <span class="field-count">0</span>
                     </div>
                     <div id="selected-fields-list" class="fields-list"></div>
-                    
+
                     <div id="available-fields-header" class="fields-header">
                         <div>
                             <i class="fa fa-chevron-down"></i>
@@ -349,8 +349,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="pagination-container"></div>
             <div id="empty-response"></div>
             <div id="initial-response">Create a query using the builder to access and view the logs.</div>
-            
-           
+
+
 
             <div id="corner-popup">
                 <div class="corner-container">
@@ -446,7 +446,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </button>
                 </div>
             </div>
-        
+
         <div class="popupContent" id="error-popup">
             <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
             <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
@@ -475,7 +475,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/log-search.js?cb={{ AppVersion }}"></script>
     <script src="./js/dashboard-from-logs-metrics.js?cb={{ AppVersion }}"></script>
     <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
-    <script src="./js/pagination.js?cb={{ AppVersion }}"></script>    
+    <script src="./js/pagination.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sync"
 
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/segread"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
@@ -32,10 +33,11 @@ import (
 // Search a single SearchQuery and returns which records passes the filter
 func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.SegmentSearchRequest, segmentSearch *SegmentSearchStatus,
 	allBlockSearchHelpers []*structs.BlockSearchHelper, op utils.LogicalOperator, queryMetrics *structs.QueryProcessingMetrics, qid uint64,
-	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult) *SegmentSearchStatus {
+	allSearchResults *segresults.SearchResults, nodeRes *structs.NodeResult, queryRange *dtu.TimeRange) *SegmentSearchStatus {
 
 	queryType := query.GetQueryType()
 	searchCols := getAllColumnsNeededForSearch(query, searchReq.AllPossibleColumns)
+	searchCols[config.GetTimeStampKey()] = true
 	sharedMultiReader, err := segread.InitSharedMultiColumnReaders(searchReq.SegmentKey, searchCols, searchReq.AllBlocksToSearch,
 		searchReq.SearchMetadata.BlockSummaries, len(allBlockSearchHelpers), searchReq.ConsistentCValLenMap, qid, nodeRes)
 
@@ -62,7 +64,7 @@ func RawSearchSingleQuery(query *structs.SearchQuery, searchReq *structs.Segment
 		runningBlockManagers.Add(1)
 		go filterBlockRequestFromQuery(sharedMultiReader.MultiColReaders[i], query, segmentSearch,
 			filterBlockRequestsChan, blockHelper, &runningBlockManagers, op, queryType, qid,
-			allSearchResults, searchReq, nodeRes)
+			allSearchResults, searchReq, nodeRes, queryRange)
 	}
 	runningBlockManagers.Wait()
 	logSingleQuerySummary(segmentSearch, op, qid)
@@ -91,7 +93,7 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 	segmentSearch *SegmentSearchStatus, resultsChan chan *BlockSearchStatus, blockHelper *structs.BlockSearchHelper,
 	runningBlockManagers *sync.WaitGroup, op utils.LogicalOperator, queryType structs.SearchNodeType,
 	qid uint64, allSearchResults *segresults.SearchResults, searchReq *structs.SegmentSearchRequest,
-	nodeRes *structs.NodeResult) {
+	nodeRes *structs.NodeResult, queryRange *dtu.TimeRange) {
 
 	defer runningBlockManagers.Done() // defer in case of panics
 
@@ -104,17 +106,36 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 			allSearchResults.AddError(err)
 			break
 		}
+
+		blockSummary := searchReq.SearchMetadata.BlockSummaries[blockReq.BlockNum]
+		isBlockEnclosed := queryRange.AreTimesFullyEnclosed(blockSummary.LowTs, blockSummary.HighTs)
+
 		switch queryType {
 		case structs.MatchAllQuery:
 			// time should have been checked before, and recsToSearch
+			// TODO: check if time range actually was checked before.
 			for i := uint(0); i < uint(recIT.AllRecLen); i++ {
 				if recIT.ShouldProcessRecord(i) {
 					blockHelper.AddMatchedRecord(i)
 				}
+
+				// Ensure the timestamp is in range.
+				if !isBlockEnclosed {
+					recTs, err := multiColReader.GetTimeStampForRecord(blockReq.BlockNum, uint16(i), qid)
+					if err != nil {
+						nodeRes.StoreGlobalSearchError("filterBlockRequestFromQuery: Failed to extract timestamp from record",
+							log.ErrorLevel, err)
+						break
+					}
+					if !queryRange.CheckInRange(recTs) {
+						recIT.UnsetRecord(i)
+						continue
+					}
+				}
 			}
 		case structs.ColumnValueQuery:
 			filterRecordsFromSearchQuery(query, segmentSearch, blockHelper, multiColReader, recIT,
-				blockReq.BlockNum, holderDte, qid, allSearchResults, searchReq, nodeRes)
+				blockReq.BlockNum, holderDte, qid, allSearchResults, searchReq, nodeRes, queryRange)
 		case structs.InvalidQuery:
 			// don't match any records
 		}
@@ -131,7 +152,7 @@ func filterBlockRequestFromQuery(multiColReader *segread.MultiColSegmentReader, 
 func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *SegmentSearchStatus,
 	blockHelper *structs.BlockSearchHelper, multiColReader *segread.MultiColSegmentReader, recIT *BlockRecordIterator,
 	blockNum uint16, holderDte *utils.DtypeEnclosure, qid uint64, allSearchResults *segresults.SearchResults,
-	searchReq *structs.SegmentSearchRequest, nodeRes *structs.NodeResult) {
+	searchReq *structs.SegmentSearchRequest, nodeRes *structs.NodeResult, queryRange *dtu.TimeRange) {
 
 	// first we walk through the search checking if this query can be satisfied by looking at the
 	// dict encoding file for the column/s
@@ -176,6 +197,13 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 				doRecLevelSearch = false
 			}
 		}
+	}
+
+	blockSummaries := searchReq.SearchMetadata.BlockSummaries
+	isBlockEnclosed := queryRange.AreTimesFullyEnclosed(blockSummaries[blockNum].LowTs, blockSummaries[blockNum].HighTs)
+	if !isBlockEnclosed {
+		// We need to check if each record is in the query time range.
+		doRecLevelSearch = true
 	}
 
 	// we skip rawsearching for columns that are dict encoded,
@@ -245,24 +273,40 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 
 		for _, i := range recordNums {
 			i := uint(i)
-			if recIT.ShouldProcessRecord(i) {
-				matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
-					qid, searchReq, cmiPassedNonDictColKeyIndices,
-					queryInfoColKeyIndex, compiledRegex)
+			if !recIT.ShouldProcessRecord(i) {
+				continue
+			}
+
+			// Ensure the timestamp is in range.
+			if !isBlockEnclosed {
+				recTs, err := multiColReader.GetTimeStampForRecord(blockNum, uint16(i), qid)
 				if err != nil {
-					nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to ApplyColumnarSearchQuery", log.ErrorLevel, err)
+					nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to extract timestamp from record",
+						log.ErrorLevel, err)
 					break
 				}
-				if query.MatchFilter != nil && query.MatchFilter.NegateMatch {
-					if matched || blockHelper.DoesRecordMatch(i) {
-						blockHelper.ClearBit(i)
-					} else {
-						blockHelper.AddMatchedRecord(i)
-					}
+				if !queryRange.CheckInRange(recTs) {
+					recIT.UnsetRecord(i)
+					continue
+				}
+			}
+
+			matched, err := ApplyColumnarSearchQuery(query, multiColReader, blockNum, uint16(i), holderDte,
+				qid, searchReq, cmiPassedNonDictColKeyIndices,
+				queryInfoColKeyIndex, compiledRegex)
+			if err != nil {
+				nodeRes.StoreGlobalSearchError("filterRecordsFromSearchQuery: Failed to ApplyColumnarSearchQuery", log.ErrorLevel, err)
+				break
+			}
+			if query.MatchFilter != nil && query.MatchFilter.NegateMatch {
+				if matched || blockHelper.DoesRecordMatch(i) {
+					blockHelper.ClearBit(i)
 				} else {
-					if matched {
-						blockHelper.AddMatchedRecord(i)
-					}
+					blockHelper.AddMatchedRecord(i)
+				}
+			} else {
+				if matched {
+					blockHelper.AddMatchedRecord(i)
 				}
 			}
 		}

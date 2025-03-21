@@ -65,7 +65,7 @@ var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 
-const METRICS_BLK_FLUSH_SLEEP_DURATION = 60 // 1 min
+const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
@@ -844,6 +844,22 @@ func getMetricsSegment(mName []byte, orgid int64) (*MetricsSegment, *TagsTreeHol
 	return metricsAndTagsHolder.MetricSegments[mid], metricsAndTagsHolder.TagHolders[mid], nil
 }
 
+func getUnrotatedMetricSegment(mid string, orgid int64) (*MetricsSegment, error) {
+	orgMetricsAndTagsLock.RLock()
+	metricsAndTagsHolder, ok := OrgMetricsAndTags[orgid]
+	orgMetricsAndTagsLock.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("getMetricSegmentFromMid: no metrics segment found for orgid=%v", orgid)
+	}
+
+	mSeg, ok := metricsAndTagsHolder.MetricSegments[mid]
+	if !ok {
+		return nil, fmt.Errorf("getMetricSegmentFromMid: no metrics segment found for orgid=%v and mid=%v", orgid, mid)
+	}
+
+	return mSeg, nil
+}
+
 /*
 returns:
 
@@ -866,6 +882,35 @@ func (mb *MetricsBlock) GetTimeSeries(tsid uint64) (*TimeSeries, bool, error) {
 		ts = mb.allSeries[idx]
 	}
 	return ts, ok, nil
+}
+
+func (mb *MetricsBlock) getUnrotatedBlockTimeSeriesIterator(tsid uint64, bytesBuffer *bytes.Buffer) (bool, *compress.DecompressIterator, error) {
+	idx, ok := mb.tsidLookup[tsid]
+	if !ok {
+		return false, nil, nil
+	}
+
+	ts := mb.allSeries[idx]
+	if ts == nil || ts.rawEncoding == nil {
+		return false, nil, nil
+	}
+
+	ts.lock.Lock()
+	defer ts.lock.Unlock()
+
+	_, finish, err := compress.CloneCompressor(ts.compressor, bytesBuffer)
+	if err != nil {
+		return false, nil, err
+	}
+
+	err = finish()
+	if err != nil {
+		return false, nil, err
+	}
+
+	iter, err := compress.NewDecompressIterator(bytesBuffer)
+
+	return true, iter, err
 }
 
 /*
@@ -1317,34 +1362,36 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			defer wg.Done()
 			mSeg.rwLock.RLock()
 			defer mSeg.rwLock.RUnlock()
-			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || metricSeg.Orgid != orgid {
+			if !tRange.CheckRangeOverLap(mSeg.lowTS, mSeg.highTS) || mSeg.Orgid != orgid {
 				return
 			}
 			retBlocks := make(map[uint16]bool)
 			blockSummaryFile := mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix) + ".mbsu"
 			blockSummaries, err := microreader.ReadMetricsBlockSummaries(blockSummaryFile)
 			if err != nil {
+				// Regardless of the error, we continue execution as we need to consider the unrotated block for this segment.
 				if errors.Is(err, os.ErrNotExist) {
 					log.Warnf("GetUnrotatedMetricsSegmentRequests: Block summary file not found at %v", blockSummaryFile)
-					return
+				} else {
+					log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v. Error=%v", blockSummaryFile, err)
 				}
-				log.Errorf("GetUnrotatedMetricsSegmentRequests: Error reading block summary file at %v", blockSummaryFile)
-				return
 			}
+
 			for _, bSum := range blockSummaries {
 				if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
 					retBlocks[bSum.Blknum] = true
 				}
 			}
+
 			tKeys := make(map[string]bool)
 			allTrees := GetTagsTreeHolder(orgid, mSeg.Mid).allTrees
 			for k := range allTrees {
 				tKeys[k] = true
 			}
-			if len(retBlocks) == 0 {
-				return
-			}
+
 			finalReq := &structs.MetricsSearchRequest{
+				Mid:                  mSeg.Mid,
+				UnrotatedBlkToSearch: make(map[uint16]bool),
 				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
 				BlocksToSearch:       retBlocks,
 				BlkWorkerParallelism: uint(2),
@@ -1352,6 +1399,16 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				AllTagKeys:           tKeys,
 				UnrotatedMetricNames: mSeg.mNamesMap,
 			}
+
+			// Check if the current unrotated block is within the time range
+			if tRange.CheckRangeOverLap(mSeg.mBlock.mBlockSummary.LowTs, mSeg.mBlock.mBlockSummary.HighTs) {
+				finalReq.UnrotatedBlkToSearch[mSeg.mBlock.mBlockSummary.Blknum] = true
+			}
+
+			if len(retBlocks) == 0 && len(finalReq.UnrotatedBlkToSearch) == 0 {
+				return
+			}
+
 			tt := GetTagsTreeHolder(orgid, mSeg.Mid)
 			if tt == nil {
 				return
@@ -1509,6 +1566,7 @@ func GetAllTagsTreeHolders() []*TagsTreeHolder {
 
 func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	orgMetricsAndTagsLock.RLock()
+	defer orgMetricsAndTagsLock.RUnlock()
 	var tt *TagsTreeHolder
 	if metricsAndTags, ok := OrgMetricsAndTags[orgid]; ok {
 		tt, ok = metricsAndTags.TagHolders[mid]
@@ -1518,6 +1576,125 @@ func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 	} else {
 		return nil
 	}
-	orgMetricsAndTagsLock.RUnlock()
 	return tt
+}
+
+func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
+	seriesCardMap map[string]*toputils.GobbableHll) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for tagkey, tkTree := range tagsTreeHolder.allTrees {
+				tsidCard, ok := seriesCardMap[tagkey]
+				if !ok || tsidCard == nil {
+					tsidCard = structs.CreateNewHll()
+					seriesCardMap[tagkey] = tsidCard
+				}
+				tkTree.countTSIDsForTagkey(tsidCard)
+			}
+		}
+	}
+	return nil
+}
+
+func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
+	tagPairsCardMap map[string]map[string]*toputils.GobbableHll) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("CountUnrotatedTSIDsForTagKeys: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder != nil {
+			for tagkey, tkTree := range tagsTreeHolder.allTrees {
+				valuesSet, ok := tagPairsCardMap[tagkey]
+				if !ok || valuesSet == nil {
+					valuesSet = make(map[string]*toputils.GobbableHll)
+					tagPairsCardMap[tagkey] = valuesSet
+				}
+				tkTree.countTSIDsForTagPairs(valuesSet)
+			}
+		}
+	}
+	return nil
+}
+
+func GetUnrotatedTagPairs(tRange *dtu.MetricsTimeRange,
+	myid int64, tagPairsMap map[string]map[string]struct{}) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
+	if err != nil {
+		log.Errorf("GetUnrotatedTagPairs: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, myid, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(myid, segment.Mid)
+		if tagsTreeHolder == nil {
+			continue
+		}
+		for tagkey, tkTree := range tagsTreeHolder.allTrees {
+			valuesSet, ok := tagPairsMap[tagkey]
+			if !ok || valuesSet == nil {
+				valuesSet = make(map[string]struct{})
+				tagPairsMap[tagkey] = valuesSet
+			}
+
+			for _, allTi := range tkTree.rawValues {
+				for _, ti := range allTi {
+					tv := string(ti.tagValue)
+					valuesSet[tv] = struct{}{}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.MetricsQuery,
+	resTagValues map[string]map[string]struct{}) error {
+
+	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, mQuery.OrgId)
+	if err != nil {
+		log.Errorf("FindTagValuesUnrotated: failed to get unrotated metric segments for time range=%v, myid=%v, err=%v", tRange, mQuery.OrgId, err)
+		return err
+	}
+
+	for _, segment := range unrotatedMetricSegments {
+		tagsTreeHolder := GetTagsTreeHolder(mQuery.OrgId, segment.Mid)
+		if tagsTreeHolder == nil {
+			continue
+		}
+		for _, tf := range mQuery.TagsFilters {
+			tkTree, ok := tagsTreeHolder.allTrees[tf.TagKey]
+			if !ok {
+				continue
+			}
+
+			valuesSet, ok := resTagValues[tf.TagKey]
+			if !ok || valuesSet == nil {
+				valuesSet = make(map[string]struct{})
+				resTagValues[tf.TagKey] = valuesSet
+			}
+
+			for _, allTi := range tkTree.rawValues {
+				for _, ti := range allTi {
+					tv := string(ti.tagValue)
+					valuesSet[tv] = struct{}{}
+				}
+			}
+		}
+	}
+
+	return nil
 }
