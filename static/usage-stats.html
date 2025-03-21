@@ -1,0 +1,184 @@
+<!-- 
+Copyright (c) 2021-2025 SigScalr, Inc.
+
+This file is part of SigLens Observability Solution
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-5SBJC04YFB');
+</script>
+
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <style>
+        .chart-container {
+            height: 300px;
+            padding: 0px;
+        }
+    </style>
+
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/date_fns.min.js"></script>
+    <script src="./js/lib/popper.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
+    <script>
+        var defaultTheme = Cookies.get('theme') || 'light';
+        $('html').attr('data-theme', defaultTheme);
+    </script>
+    {{ .RunCheck1 | safeHTML }}
+</head>
+
+<body>
+    <div id="app-container">
+        <div id="app-side-nav">
+        </div>
+        <div id="dashboard">
+            <div id="stats-charts-container" class="myOrg-container p-4">
+                <div class="d-flex justify-content-between mb-3 align-items-center">
+                    <div>
+                        <h1 class="myOrg-heading">Usage Stats</h1>
+                        <p class="caption">Track ingestion volume across time periods </p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center gap-2">
+                            Granularity:
+                            <div class="granularity-tabs">
+                                <div class="tab" data-tab="hourly">Per Hour</div>
+                                <div class="tab active" data-tab="daily">Per Day</div>
+                                <div class="tab" data-tab="monthly">Per Month</div>
+                            </div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                                <span>Time Picker</span>
+                                <i class="dropdown-arrow"></i>
+                            </button>
+                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                id="daterangepicker ">
+                                <p class="dt-header">Search the last</p>
+                                <div class="ranges">
+                                    <div class="inner-range">
+                                        <div id="now-1h" class="range-item">1 Hr</div>
+                                        <div id="now-3h" class="range-item">3 Hrs</div>
+                                        <div id="now-6h" class="range-item">6 Hrs</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-12h" class="range-item">12 Hrs</div>
+                                        <div id="now-24h" class="range-item">24 Hrs</div>
+                                        <div id="now-2d" class="range-item">2 Days</div>
+                                    </div>
+                                    <div class="inner-range">
+                                        <div id="now-7d" class="range-item active">7 Days</div>
+                                        <div id="now-30d" class="range-item">30 Days</div>
+                                        <div id="now-90d" class="range-item">90 Days</div>
+                                    </div>
+                                    <hr>
+                                    </hr>
+                                    <div class="dt-header">Custom Search <span id="reset-timepicker"
+                                            type="reset">Reset</span>
+                                    </div>
+                                    <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
+                                        <input type="date" id="date-start" />
+                                        <input type="time" id="time-start" value="00:00" />
+                                    </div>
+                                    <div id="daterange-to"> <span id="dt-to-text"> To </span> <br />
+                                        <input type="date" id="date-end">
+                                        <input type="time" id="time-end" value="00:00">
+                                    </div>
+                                    <div class="drp-buttons">
+                                        <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                                            type="button">Apply</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="chart-container">
+                        <div class="stats-header">
+                            <div>Logs Volume</div>
+                            <div>Total: <span class="logs-total"></span></div>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="logsVolumeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container mt-5">
+                        <div class="stats-header">
+                            <div>Traces Volume</div>
+                            <div>Total: <span class="traces-total"></span></div>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="tracesVolumeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-container mt-5">
+                        <div class="stats-header">
+                            <div>Active Series & Datapoints</div>
+                            <div>Total Datapoints: <span class="datapoints-total"></span></div>
+                        </div>
+                        <div class="canvas-container">
+                            <canvas id="stackedChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="app-footer">
+            2024 &copy; SigLens
+        </div>
+
+    </div>
+
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
+    <script src="./js/usage-stats.js?cb={{ AppVersion }}"></script>
+
+    {{ .RunCheck2 | safeHTML }}
+    {{ .RunCheck3 | safeHTML }}
+
+</body>
+
+</html>

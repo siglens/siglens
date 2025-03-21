@@ -97,6 +97,10 @@ let navbarComponent = `
             <a href="./cluster-stats.html" class="nav-links link-myorg"><span class="icon-myorg"></span><span
                     class="nav-link-text">My Org</span></a>
         </div>
+        <div class="menu nav-usage-stats">
+            <a href="./usage-stats.html" class="nav-links link-usage-stats"><span class="icon-usage-stats"></span><span
+                    class="nav-link-text">Usage Stats</span></a>
+        </div>
         <div class="menu nav-lookups">
             <a href="./lookups.html" class="nav-links link-lookups"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
@@ -320,6 +324,10 @@ const navigationStructure = {
     'traces-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [{ name: 'Traces Ingestion Methods'}]
+    },
+    'usage-stats.html': {
+        activeClass: 'nav-usage-stats',
+        breadcrumbs: [{ name: 'Usage Stats'}]
     }
 };
 
