@@ -217,6 +217,35 @@ function handleDownload() {
 }
 
 let requestFlag = 0;
+
+// Function to convert duration string to nanoseconds
+function durationToNanoseconds(durationStr) {
+    if (!durationStr) return null;
+
+    const durationRegex = /([\d.]+)\s*(s|ms|µs|us|µ|u)?/i;
+    const match = durationStr.match(durationRegex);
+
+    if (!match) return null;
+
+    const value = parseFloat(match[1]);
+    let unit = match[2] ? match[2].toLowerCase() : 's'; // Default to seconds if no unit is specified
+
+    switch (unit) {
+        case 's':
+            return value * 1e9; // seconds to nanoseconds
+        case 'ms':
+            return value * 1e6; // milliseconds to nanoseconds
+        case 'µs':
+        case 'us':
+        case 'µ':
+        case 'u':
+            return value * 1e3; // microseconds to nanoseconds
+        default:
+            console.warn("No unit provided for duration. Assuming seconds.");
+            return value * 1e9; // Assuming seconds if no unit is specified.
+    }
+}
+
 function searchTraceHandler(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -230,8 +259,24 @@ function searchTraceHandler(e) {
     let serviceValue = $('#service-span-name').text();
     let operationValue = $('#operation-span-name').text();
     let tagValue = $('#tags-input').val();
-    let maxDurationValue = $('#max-duration-input').val();
-    let minDurationValue = $('#min-duration-input').val();
+
+    let maxDurationValueStr = $('#max-duration-input').val();
+    let minDurationValueStr = $('#min-duration-input').val();
+    
+    // Convert min and max duration to nanoseconds
+    let maxDurationValue = durationToNanoseconds(maxDurationValueStr);
+    let minDurationValue = durationToNanoseconds(minDurationValueStr);
+
+    if (maxDurationValue === null && maxDurationValueStr) {
+        showToast("Invalid format for Max Duration.  Examples: 1.2s, 100ms, 500µs", 'error');
+        return;
+    }
+
+    if (minDurationValue === null && minDurationValueStr) {
+        showToast("Invalid format for Min Duration. Examples: 1.2s, 100ms, 500µs", 'error');
+        return;
+    }
+
     let limitResValue = $('#limit-result-input').val();
     if (limitResValue) limitation = parseInt(limitResValue);
     else limitation = -1;
