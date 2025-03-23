@@ -31,6 +31,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/siglens/siglens/pkg/segment/writer/metrics/wal"
+
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -145,11 +147,17 @@ Every 5s, this metrics buffer should persist to disk and will create / update tw
  2. TSID offset file. Format [tsid][soff]
 */
 type MetricsBlock struct {
-	tsidLookup     map[uint64]int
-	allSeries      []*TimeSeries
-	sortedTsids    []uint64
-	mBlockSummary  *structs.MBlockSummary
-	blkEncodedSize uint64 // total encoded size of the block
+	tsidLookup      map[uint64]int
+	allSeries       []*TimeSeries
+	sortedTsids     []uint64
+	mBlockSummary   *structs.MBlockSummary
+	blkEncodedSize  uint64 // total encoded size of the block
+	currentWal      *wal.WAL
+	walDPBuffer     []wal.WalDatapoint
+	allWALFD        []*wal.WAL
+	currentWALIndex uint64
+	segID           uint64
+	shardID         string
 }
 
 // Represents a single timeseries
@@ -214,6 +222,11 @@ func initOrgMetrics(orgid int64) error {
 		mSeg, err := InitMetricsSegment(orgid, fmt.Sprintf("%d", i))
 		if err != nil {
 			log.Errorf("initOrgMetrics: Initialising metrics segment failed for org: %v, err: %v", orgid, err)
+			return err
+		}
+		err = mSeg.mBlock.initNewWAL()
+		if err != nil {
+			log.Errorf("initOrgMetrics : Failed to initialize new WAL in mSeg.mBlock: %v", err)
 			return err
 		}
 
@@ -359,9 +372,12 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
-			tsidLookup:  make(map[uint64]int),
-			allSeries:   make([]*TimeSeries, 0),
-			sortedTsids: make([]uint64, 0),
+			tsidLookup:      make(map[uint64]int),
+			allSeries:       make([]*TimeSeries, 0),
+			sortedTsids:     make([]uint64, 0),
+			currentWALIndex: 0,
+			segID:           suffix,
+			shardID:         mId,
 			mBlockSummary: &structs.MBlockSummary{
 				Blknum: 0,
 				HighTs: 0,
@@ -491,6 +507,13 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	// if the series does not exist, create it. but it may have been created by another goroutine during the same time
 	// as a result, we will check again while holding the write lock
 	// In addition, we need to always write at least one datapoint to the series to avoid panics on time based flushing
+
+	walDataPoint := wal.WalDatapoint{
+		Timestamp: uint64(timestamp),
+		DpVal:     dp,
+		Tsid:      tsid,
+	}
+
 	if !seriesExists {
 		ts, bytesWritten, err = initTimeSeries(tsid, dp, timestamp)
 		if err != nil {
@@ -530,6 +553,11 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 				tsid, dp, timestamp, mName, orgid, err)
 			return err
 		}
+	}
+	err = mSeg.mBlock.appendToWALBuffer(walDataPoint)
+	if err != nil {
+		log.Errorf("EncodeDatapoint : Failed to buffer WAL datapoint: %v", err)
+		return err
 	}
 
 	mSeg.updateTimeRange(timestamp)
@@ -1166,6 +1194,26 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 	mb.mBlockSummary.Blknum++
 	mb.mBlockSummary.HighTs = 0
 	mb.mBlockSummary.LowTs = math.MaxInt32
+
+	err = mb.cleanAndInitNewWal()
+	if err != nil {
+		log.Errorf("rotateBlock : Failed to initialize new WAL: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (mb *MetricsBlock) cleanAndInitNewWal() error {
+	mb.deleteWALFiles()
+	mb.walDPBuffer = mb.walDPBuffer[:0]
+	mb.allWALFD = mb.allWALFD[:0]
+	mb.currentWALIndex = 0
+	err := mb.initNewWAL()
+	if err != nil {
+		log.Errorf("cleanAndInitNewWal : Failed to initialize new WAL: %v", err)
+		return err
+	}
 	return nil
 }
 
@@ -1220,6 +1268,13 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		ms.datapointCount = 0
 		ms.bytesReceived = 0
 		ms.mBlock.mBlockSummary.Reset()
+
+		err = ms.mBlock.cleanAndInitNewWal()
+		if err != nil {
+			log.Errorf("rotateSegment : Failed to initialize new WAL: %v", err)
+			return err
+		}
+
 	}
 
 	err = meta.AddMetricsMetaEntry(metaEntry)
@@ -1697,4 +1752,65 @@ func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.Metric
 	}
 
 	return nil
+}
+
+func (mb *MetricsBlock) appendToWALBuffer(dp wal.WalDatapoint) error {
+	mb.walDPBuffer = append(mb.walDPBuffer, dp)
+	if len(mb.walDPBuffer) > utils.MAX_WALDATPOINT_SIZE_TO_FLUSH {
+		err := mb.currentWal.AppendToWAL(mb.walDPBuffer)
+		if err != nil {
+			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
+			return err
+		}
+		_, _, totalEncodedSize := mb.currentWal.GetWALStats()
+		if totalEncodedSize > utils.MAX_BYTES_WAL_FILE {
+			if err := mb.RotateWAL(); err != nil {
+				log.Errorf("AppendWalDataPoint : Failed to rotate WAL file: %v", err)
+				return err
+			}
+		}
+		mb.walDPBuffer = mb.walDPBuffer[:0]
+	}
+	return nil
+}
+
+func (mb *MetricsBlock) RotateWAL() error {
+	mb.currentWALIndex++
+	return mb.initNewWAL()
+}
+
+func (mb *MetricsBlock) initNewWAL() error {
+	if mb.currentWal != nil {
+		err := mb.currentWal.Close()
+		if err != nil {
+			log.Errorf("initNewWAL : Failed to close current WAL: %v", err)
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(config.GetDataPath())
+	sb.WriteString(config.GetHostID())
+	sb.WriteString("/wal-ts/")
+	basedir := sb.String()
+	fileName := "shardID_" + mb.shardID + "_segID_" + strconv.FormatUint(mb.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.currentWALIndex, 10) + ".wal"
+	var err error
+	mb.currentWal, err = wal.NewWAL(basedir, fileName)
+	if err != nil {
+		log.Errorf("initNewWAL : Failed to create new WAL file %s in %s: %v", fileName, basedir, err)
+		return err
+	}
+	mb.allWALFD = append(mb.allWALFD, mb.currentWal)
+	return nil
+}
+
+func (mb *MetricsBlock) deleteWALFiles() {
+	for _, walFd := range mb.allWALFD {
+		if walFd != nil {
+			err := walFd.DeleteWAL()
+			if err != nil {
+				log.Errorf("deleteWALFiles : Failed to delete WAL file: %v", err)
+				return
+			}
+		}
+	}
 }

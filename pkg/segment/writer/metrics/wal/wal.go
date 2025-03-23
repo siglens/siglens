@@ -17,9 +17,9 @@ import (
 )
 
 type WalDatapoint struct {
-	timestamp uint64
-	dpVal     float64
-	tsid      uint64
+	Timestamp uint64
+	DpVal     float64
+	Tsid      uint64
 }
 
 type WAL struct {
@@ -39,6 +39,14 @@ const UINT32_SIZE = 4
 
 func NewWAL(baseDir, filename string) (*WAL, error) {
 	filePath := filepath.Join(baseDir, filename)
+
+	dir := filepath.Dir(baseDir)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		log.Errorf("NewWAL : Failed to create directories for path %s: %v", dir, err)
+		return nil, err
+	}
+
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Errorf("NewWAL : Failed to open WAL file at path %s: %v", filePath, err)
@@ -225,22 +233,22 @@ func (w *WAL) encodeWALBlock(dps []WalDatapoint) error {
 	}
 
 	for _, dp := range dps {
-		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.timestamp); err != nil {
-			log.Errorf("EncodeWALBlock: failed to write timestamp : %v err : %v", dp.timestamp, err)
+		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.Timestamp); err != nil {
+			log.Errorf("EncodeWALBlock: failed to write timestamp : %v err : %v", dp.Timestamp, err)
 			return err
 		}
 	}
 
 	for _, dp := range dps {
-		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.dpVal); err != nil {
-			log.Errorf("EncodeWALBlock: failed to write dpVal : %v err : %v", dp.dpVal, err)
+		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.DpVal); err != nil {
+			log.Errorf("EncodeWALBlock: failed to write dpVal : %v err : %v", dp.DpVal, err)
 			return err
 		}
 	}
 
 	for _, dp := range dps {
-		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.tsid); err != nil {
-			log.Errorf("EncodeWALBlock: failed to write tsid : %v err : %v", dp.tsid, err)
+		if err := binary.Write(w.rawBlockBuf, binary.LittleEndian, dp.Tsid); err != nil {
+			log.Errorf("EncodeWALBlock: failed to write tsid : %v err : %v", dp.Tsid, err)
 			return err
 		}
 	}
@@ -277,7 +285,7 @@ func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
 	it.readDps = toputils.ResizeSlice(it.readDps, int(N))
 
 	for i := 0; i < int(N); i++ {
-		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].timestamp)
+		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].Timestamp)
 		if err != nil {
 			log.Errorf("decodeWALBlock: failed to read timestamp at index %d: %v", i, err)
 			return err
@@ -285,7 +293,7 @@ func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
 	}
 
 	for i := 0; i < int(N); i++ {
-		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].dpVal)
+		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].DpVal)
 		if err != nil {
 			log.Errorf("decodeWALBlock: failed to read dpVal at index %d: %v", i, err)
 			return err
@@ -293,7 +301,7 @@ func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
 	}
 
 	for i := 0; i < int(N); i++ {
-		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].tsid)
+		err := binary.Read(rawReader, binary.LittleEndian, &it.readDps[i].Tsid)
 		if err != nil {
 			log.Errorf("decodeWALBlock: failed to read tsid at index %d: %v", i, err)
 			return err

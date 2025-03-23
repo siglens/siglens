@@ -86,9 +86,9 @@ func generateRandomDatapoints(n int) []WalDatapoint {
 	currentMillis := time.Now().UnixMilli()
 	for i := 0; i < n; i++ {
 		dp := WalDatapoint{
-			timestamp: uint64(currentMillis + int64(i*1000)),
-			dpVal:     float64(10 + i),
-			tsid:      uint64(i + 1),
+			Timestamp: uint64(currentMillis + int64(i*1000)),
+			DpVal:     float64(10 + i),
+			Tsid:      uint64(i + 1),
 		}
 		dps = append(dps, dp)
 	}
