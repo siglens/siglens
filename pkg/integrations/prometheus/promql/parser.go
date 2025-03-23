@@ -193,7 +193,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 	if mQuery.SubsequentAggs == nil {
 		mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 			AggBlockType:    structs.AggregatorBlock,
-			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
 		}
 		if len(mQuery.TagsFilters) == 0 {
 			mQuery.GetAllLabels = true
@@ -205,7 +205,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		if mQuery.SubsequentAggs.AggBlockType != structs.AggregatorBlock {
 			mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 				AggBlockType:    structs.AggregatorBlock,
-				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
 				Next:            mQuery.SubsequentAggs,
 			}
 			mQueryReqs[0].MetricsQuery = mQuery
@@ -299,6 +299,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
+		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
@@ -346,8 +347,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.Groupby = true
 	} else {
 		mQuery.AggWithoutGroupBy = true
-		mQuery.SelectAllSeries = false
-		mQuery.GetAllLabels = false
+		mQuery.SelectAllSeries = mQuery.GetAllLabels
 	}
 
 	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)

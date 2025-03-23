@@ -1424,6 +1424,8 @@ func Test_GetAllLabels(t *testing.T) {
 	assertGetAllLabels(t, true, `allocated_bytes{app="foo"}`)
 	assertGetAllLabels(t, false, `avg(allocated_bytes)`)
 	assertGetAllLabels(t, false, `group by (app) (allocated_bytes)`)
+	assertGetAllLabels(t, true, `count(allocated_bytes{instance="foo"})`)
+	assertGetAllLabels(t, true, `count by (app) (allocated_bytes{instance="foo"})`)
 }
 
 func assertGetAllLabels(t *testing.T, expected bool, query string) {
@@ -1440,6 +1442,8 @@ func Test_SelectAllSeries(t *testing.T) {
 	assertSelectAllSeries(t, false, `group by (app) (allocated_bytes)`)
 	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"})`)
 	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"}) by (app)`)
+	assertSelectAllSeries(t, true, `count(allocated_bytes{instance="foo"})`)
+	assertSelectAllSeries(t, false, `count by (app) (allocated_bytes{instance="foo"})`)
 }
 
 func assertSelectAllSeries(t *testing.T, expected bool, query string) {
