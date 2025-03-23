@@ -65,7 +65,6 @@ func requiresGzipDecompression(ctx *fasthttp.RequestCtx) bool {
 func extractKeyValue(keyvalue *commonpb.KeyValue) (string, interface{}, error) {
 	value, err := extractAnyValue(keyvalue.Value)
 	if err != nil {
-		log.Errorf("extractKeyValue: failed to extract value for key %s: %v", keyvalue.Key, err)
 		return "", nil, err
 	}
 
