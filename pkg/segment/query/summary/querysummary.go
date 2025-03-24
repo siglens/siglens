@@ -105,8 +105,13 @@ type QuerySummary struct {
 	tickCount                   uint32
 }
 
-var numQsForLogs int64
-var numQsForMetrics int64
+const TICK_DURATION_SECS = 10
+
+var numTicksInFiveMins = uint32(5 * 60 / TICK_DURATION_SECS)
+var numTicksInTwoMins = uint32(2 * 60 / TICK_DURATION_SECS)
+
+var activeQSCountForLogs int64
+var activeQSCountForMetrics int64
 
 // InitQuerySummary returns a struct to store query level search stats.
 // This function starts a ticker to log info about long running queries.
@@ -137,9 +142,9 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 		tickCount:                   0,
 	}
 	if queryType == METRICS {
-		atomic.AddInt64(&numQsForMetrics, 1)
+		atomic.AddInt64(&activeQSCountForMetrics, 1)
 	} else {
-		atomic.AddInt64(&numQsForLogs, 1)
+		atomic.AddInt64(&activeQSCountForLogs, 1)
 	}
 
 	qs.startTicker()
@@ -147,7 +152,7 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 }
 
 func (qs *QuerySummary) startTicker() {
-	qs.ticker = time.NewTicker(10 * time.Second)
+	qs.ticker = time.NewTicker(TICK_DURATION_SECS * time.Second)
 	qs.tickerStopChan = make(chan bool)
 	go qs.tickWatcher()
 }
@@ -169,9 +174,9 @@ func (qs *QuerySummary) tickWatcher() {
 		select {
 		case <-qs.tickerStopChan:
 			if qs.queryType == METRICS {
-				atomic.AddInt64(&numQsForMetrics, ^int64(0))
+				atomic.AddInt64(&activeQSCountForMetrics, ^int64(0))
 			} else {
-				atomic.AddInt64(&numQsForLogs, ^int64(0))
+				atomic.AddInt64(&activeQSCountForLogs, ^int64(0))
 			}
 			return
 		case <-qs.ticker.C:
@@ -183,16 +188,16 @@ func (qs *QuerySummary) tickWatcher() {
 
 func (qs *QuerySummary) processTick() {
 
-	logit := false
-	if qs.tickCount < 30 {
-		// we log only the first 30 iterations (aka 5 minutes) with the 10 sec granularity
-		logit = true
-	} else if qs.tickCount%12 == 0 {
+	logIt := false
+	if qs.tickCount < numTicksInFiveMins {
+		// we log only in the first 5 minutes with the TICK_DURATION_SECS granularity
+		logIt = true
+	} else if qs.tickCount%numTicksInTwoMins == 0 {
 		// after the first 5 mins, we will log only every 2 minutes
-		logit = true
+		logIt = true
 	}
 
-	if !logit {
+	if !logIt {
 		return
 	}
 
@@ -207,17 +212,17 @@ func (qs *QuerySummary) processTick() {
 			remainingDQsString = fmt.Sprintf(", remaining distributed queries: %v", qs.remainingDistributedQueries)
 		}
 
-		log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v, numQsForLogs: %v",
+		log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v, activeQSCountForLogs: %v",
 			qs.qid, time.Since(qs.startTime),
 			len(qs.allQuerySummaries[PQS].searchTimeHistory),
 			len(qs.allQuerySummaries[RAW].searchTimeHistory),
 			len(qs.allQuerySummaries[STREE].searchTimeHistory),
 			remainingDQsString,
-			numQsForLogs)
+			activeQSCountForLogs)
 	} else if qs.queryType == METRICS {
-		log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, numQsForMetrics: %v",
+		log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
 			qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
-			qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), numQsForMetrics)
+			qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), activeQSCountForMetrics)
 	}
 }
 
