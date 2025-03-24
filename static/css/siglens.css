@@ -6083,7 +6083,6 @@ p#versionInfo {
 
 .code-wrapper.expanded {
     max-height: 500px;
-    min-width: none;
     overflow: auto;
     width: auto;
 }

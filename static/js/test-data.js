@@ -18,9 +18,61 @@
  */
 let selectedLogSource = "";
 let iToken = "";
-$(document).ready(async function () {
-    $('.theme-btn').on('click', themePickerHandler);
 
+function sendTestData() {
+    // Disable the button to prevent multiple clicks
+    let testDataBtn = document.getElementById("test-data-btn");
+    if (testDataBtn) {
+        testDataBtn.disabled = true;
+    }
+
+    sendTestDataWithoutBearerToken().then((_res) => {
+        showToast('Sent Test Data Successfully', 'success');
+        if (testDataBtn) {
+            testDataBtn.disabled = false;
+        }
+    })
+    .catch((err) => {
+        console.log(err);
+        showToast('Error Sending Test Data', 'error');
+        if (testDataBtn) {
+            testDataBtn.disabled = false;
+        }
+    });
+}
+
+function sendTestDataWithoutBearerToken() {
+    return new Promise((resolve, reject) => {
+        $.ajax({
+            method: 'post',
+            url: '/api/sampledataset_bulk',
+            crossDomain: true,
+            dataType: 'json',
+            credentials: 'include'
+        }).then((res) => {
+            resolve(res);
+        })
+        .catch((err) => {
+            console.log(err);
+            reject(err);
+        });
+    });
+}
+
+function myOrgSendTestData(_token) {
+    const testDataBtn = $('#test-data-btn');
+    if (testDataBtn.length === 0) {
+        console.error("Test data button not found in the DOM");
+        return;
+    }
+
+    testDataBtn.off('click').on('click', function() {
+        sendTestData();
+    });
+}
+
+
+$(document).ready(async function () {
     let baseUrl = "";
     try {
         const config = await $.ajax({
@@ -36,10 +88,13 @@ $(document).ready(async function () {
         {{ if .TestDataSendData }}
             {{ .TestDataSendData }}
         {{ else }}
+            // Initialize the test data button immediately
             myOrgSendTestData(iToken);
         {{ end }}
     } catch (err) {
-        console.log(err);
+        console.log("Error loading config:", err);
+        // Still try to initialize the button even if config fails
+        myOrgSendTestData(iToken);
     }
 
     function setCodeBlockContainerBackground() {
@@ -286,11 +341,21 @@ $(document).ready(async function () {
 
 
     const savedSource = localStorage.getItem('selectedLogSource');
-    if (savedSource && savedSource !== 'Send Test Data') {
+    if (savedSource) {
         selectedLogSource = savedSource;
-        $('.ingestion-cards-container').hide();
-        $('#configuration-section').show();
-        updateConfiguration(selectedLogSource);
+
+        if (selectedLogSource === 'Send Test Data') {
+            setTimeout(() => {
+                const testDataBtn = $('#test-data-btn');
+                if (testDataBtn.length) {
+                    testDataBtn.trigger('click');
+                }
+            }, 500);
+        } else {
+            $('.ingestion-cards-container').hide();
+            $('#configuration-section').show();
+            updateConfiguration(selectedLogSource);
+        }
     }
 
     $('.ingestion-card').on('click', function(e) {
@@ -298,11 +363,16 @@ $(document).ready(async function () {
 
         selectedLogSource = $(this).data('source');
         if (selectedLogSource === 'Send Test Data') {
-            $('#test-data-btn').trigger('click');
+            localStorage.setItem('selectedLogSource', selectedLogSource);
+            const testDataBtn = $('#test-data-btn');
+            if (testDataBtn.length) {
+                testDataBtn.trigger('click');
+            } else {
+                console.error("Test data button not found");
+                sendTestData();
+            }
             return;
         }
-
-        // Save state when a card is clicked
         localStorage.setItem('selectedLogSource', selectedLogSource);
 
         $('.ingestion-cards-container').hide();
@@ -314,7 +384,17 @@ $(document).ready(async function () {
         e.stopPropagation();
         selectedLogSource = $(this).closest('.ingestion-card').data('source');
 
-        // Save state when configure button is clicked
+        if (selectedLogSource === 'Send Test Data') {
+            localStorage.setItem('selectedLogSource', selectedLogSource);
+            const testDataBtn = $('#test-data-btn');
+            if (testDataBtn.length) {
+                testDataBtn.trigger('click');
+            } else {
+                sendTestData();
+            }
+            return;
+        }
+
         localStorage.setItem('selectedLogSource', selectedLogSource);
 
         $('.ingestion-cards-container').hide();
@@ -323,7 +403,6 @@ $(document).ready(async function () {
     });
 
     $('.back-button').on('click', function() {
-        // Clear saved state when back button is clicked
         localStorage.removeItem('selectedLogSource');
 
         $('#configuration-section').hide();
@@ -474,44 +553,44 @@ $(document).ready(async function () {
     {{ .Button1Function }}
 });
 
-function sendTestData() {
-    sendTestDataWithoutBearerToken().then((_res) => {
-        showToast('Sent Test Data Successfully', 'success');
-        let testDataBtn = document.getElementById("test-data-btn");
-        testDataBtn.disabled = false;
-    })
-    .catch((err) => {
-        console.log(err);
-        showToast('Error Sending Test Data', 'error');
-        let testDataBtn = document.getElementById("test-data-btn");
-        testDataBtn.disabled = false;
-    });
-}
+// function sendTestData() {
+//     sendTestDataWithoutBearerToken().then((_res) => {
+//         showToast('Sent Test Data Successfully', 'success');
+//         let testDataBtn = document.getElementById("test-data-btn");
+//         testDataBtn.disabled = false;
+//     })
+//     .catch((err) => {
+//         console.log(err);
+//         showToast('Error Sending Test Data', 'error');
+//         let testDataBtn = document.getElementById("test-data-btn");
+//         testDataBtn.disabled = false;
+//     });
+// }
 
-function sendTestDataWithoutBearerToken() {
-    return new Promise((resolve, reject) => {
-        $.ajax({
-            method: 'post',
-            url: '/api/sampledataset_bulk',
-            crossDomain: true,
-            dataType: 'json',
-            credentials: 'include'
-        }).then((res) => {
-            resolve(res);
-        })
-        .catch((err) => {
-            console.log(err);
-            reject(err);
-        });
-    });
-}
+// function sendTestDataWithoutBearerToken() {
+//     return new Promise((resolve, reject) => {
+//         $.ajax({
+//             method: 'post',
+//             url: '/api/sampledataset_bulk',
+//             crossDomain: true,
+//             dataType: 'json',
+//             credentials: 'include'
+//         }).then((res) => {
+//             resolve(res);
+//         })
+//         .catch((err) => {
+//             console.log(err);
+//             reject(err);
+//         });
+//     });
+// }
 
-function myOrgSendTestData(_token) {
-    $('#test-data-btn').on('click', (_e) => {
-        if (selectedLogSource === 'Send Test Data') {
-            var testDataBtn = document.getElementById("test-data-btn");
-            testDataBtn.disabled = true;
-            sendTestData();
-        }
-    });
-}
+// function myOrgSendTestData(_token) {
+//     $('#test-data-btn').on('click', (_e) => {
+//         if (selectedLogSource === 'Send Test Data') {
+//             var testDataBtn = document.getElementById("test-data-btn");
+//             testDataBtn.disabled = true;
+//             sendTestData();
+//         }
+//     });
+// }
