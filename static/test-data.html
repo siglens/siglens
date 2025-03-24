@@ -74,68 +74,122 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div class="myOrg">
             <div class="myOrg-container">
-                    <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
-                        <ul class="tab-chart-list">
-                            <li class="tab-li" id="option-0"><a href="#data-ingestion" class="custom-query-builder">OpenTelemetry</a>
-                            </li>
-                            <li class="tab-li" id="option-1"><a href="#sample-data" class="custom-query-builder">Send Test Data</a>
-                            </li>
-                            <li class="tab-li" id="option-2"><a href="#data-ingestion" class="custom-query-builder">Vector</a>
-                            </li>
-                            <li class="tab-li" id="option-3"><a href="#data-ingestion" class="custom-query-builder">Logstash</a>
-                            </li>
-                            <li class="tab-li" id="option-4"><a href="#data-ingestion" class="custom-query-builder">Fluentd</a>
-                            </li>
-                            <li class="tab-li" id="option-5"><a href="#data-ingestion" class="custom-query-builder">Filebeat</a>
-                            </li>
-                            <li class="tab-li" id="option-6"><a href="#data-ingestion" class="custom-query-builder">Promtail</a>
-                            </li>
-                            <li class="tab-li" id="option-7"><a href="#data-ingestion" class="custom-query-builder">Splunk HEC</a>
-                            </li>
-                            <li class="tab-li" id="option-8"><a href="#data-ingestion" class="custom-query-builder">Elastic Bulk</a>
-                            </li>
-                        </ul>
-
-                        <div class="ingest-inner-container">
-                            <div id="data-ingestion">
-                                <div class="ingestion-section">
-                                    <h5 class="myOrg-heading">Setup instructions</h5>
-                                    <div class="ingestion-container">
-                                        <p>Follow the steps in <a href="" id="setup-instructions-link" target="_blank">Quick start guide<span id="open-new-tab-icon"></span></a></p>
-                                    </div>
-                                </div>
-                                <div class="ingestion-section">
-                                    <h5 class="myOrg-heading">Verify data collection</h5>
-                                    <div class="ingestion-container">
-                                        <p>Test the pipes by running the following command in your terminal:</p>
-                                        <div class="code-block-container position-relative">
-                                            <div class="code-wrapper">
-                                                <pre class="language-yaml"><code id="verify-command"></code></pre>
-                                            </div>
-                                            <button class="expand-btn" title="Expand/Collapse" style="display: none;">
-                                                <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M15 3h6v6"></path>
-                                                    <path d="M9 21H3v-6"></path>
-                                                    <path d="M21 3l-7 7"></path>
-                                                    <path d="M3 21l7-7"></path>
-                                                </svg>
-                                                <span class="sr-only">Expand</span>
-                                            </button>
-                                            <button class="copy-btn" title="Copy">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="sample-data">
-                                <p class="caption"> Get started by sending sample logs data &nbsp; </p>
-                                <button type="button" class="btn btn-primary" id="test-data-btn">Send Test Data</button>
-                            </div>
+                <div class="ingestion-cards-container">
+                    <div class="ingestion-card" data-source="OpenTelemetry">
+                        <div class="card-header">
+                            <i class="fa fa-cube"></i>
+                            <h3>OpenTelemetry</h3>
                         </div>
+                        <div class="card-description">
+                            Send logs using the OpenTelemetry protocol
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Vector">
+                        <div class="card-header">
+                            <i class="fa fa-random"></i>
+                            <h3>Vector</h3>
+                        </div>
+                        <div class="card-description">
+                            Collect and forward logs using Vector
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Logstash">
+                        <div class="card-header">
+                            <i class="fa fa-stream"></i>
+                            <h3>Logstash</h3>
+                        </div>
+                        <div class="card-description">
+                            Process logs with Logstash pipeline
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Fluentd">
+                        <div class="card-header">
+                            <i class="fa fa-filter"></i>
+                            <h3>Fluentd</h3>
+                        </div>
+                        <div class="card-description">
+                            Unified logging with Fluentd
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Filebeat">
+                        <div class="card-header">
+                            <i class="fa fa-file"></i>
+                            <h3>Filebeat</h3>
+                        </div>
+                        <div class="card-description">
+                            Lightweight log shipping with Filebeat
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Promtail">
+                        <div class="card-header">
+                            <i class="fa fa-chart-line"></i>
+                            <h3>Promtail</h3>
+                        </div>
+                        <div class="card-description">
+                            Loki log collection with Promtail
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Splunk HEC">
+                        <div class="card-header">
+                            <i class="fa fa-cloud"></i>
+                            <h3>Splunk HEC</h3>
+                        </div>
+                        <div class="card-description">
+                            HTTP Event Collector for Splunk
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Elastic Bulk">
+                        <div class="card-header">
+                            <i class="fa fa-database"></i>
+                            <h3>Elastic Bulk</h3>
+                        </div>
+                        <div class="card-description">
+                            Bulk ingestion for Elasticsearch
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary configure-btn">Configure</button>
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Send Test Data">
+                        <div class="card-header">
+                            <i class="fa fa-vial"></i>
+                            <h3>Test Data</h3>
+                        </div>
+                        <div class="card-description">
+                            Send sample data to get started quickly
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn btn-primary" id="test-data-btn">Send Test Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="configuration-section" style="display: none;">
+                    <div class="back-button">
+                        <i class="fa fa-arrow-left"></i> Back to ingestion methods
+                    </div>
+                    <div id="data-ingestion">
                     </div>
                 </div>
             </div>

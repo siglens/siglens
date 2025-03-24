@@ -47,6 +47,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -72,7 +76,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="myOrg-container">
                     <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                         <ul class="tab-chart-list">
-                            <li class="tab-li" id="option-0"><a href="#data-ingestion" class="custom-query-builder">OpenTelemetry</a>
+                            <li class="tab-li" id="option-0">
                             </li>
                             <li class="tab-li" id="option-1"><a href="#sample-data" class="custom-query-builder">Send Test Data</a>
                             </li>
@@ -92,26 +96,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </li>
                         </ul>
 
-                        <div class="ingest-inner-container">
-                            <div>
-                                <div id="data-ingestion">
 
-                                <div class="mt-4">
-                                    <div class="d-flex mt-4">
-                                        <h5 class="myOrg-heading">Setup instructions</h5>
-                                        <div class="ingestion-container">
-                                            <div>Follow the steps in <a href="" id="setup-instructions-link" target="_blank">Quick start
-                                                    guide<span id="open-new-tab-icon"></span></a></div>
-                                        </div>
+                        <div class="ingest-inner-container">
+                            <div id="data-ingestion">
+                                <div class="ingestion-section">
+                                    <h5 class="myOrg-heading">Setup instructions</h5>
+                                    <div class="ingestion-container">
+                                        <p>Follow the steps in <a href="" id="setup-instructions-link" target="_blank">Quick start guide<span id="open-new-tab-icon"></span></a></p>
                                     </div>
-                                    <div class="d-flex mt-4">
-                                        <h5 class="myOrg-heading">Verify data collection</h5>
-                                        <div class="ingestion-container">
-                                            <p>Test the pipes by running the following command in your terminal:</p>
-                                            <div class="position-relative">
-                                                <textarea name="" id="verify-command" cols="30" rows="6"
-                                                    class="form-control copyable" readonly></textarea>
+                                </div>
+                                <div class="ingestion-section">
+                                    <h5 class="myOrg-heading">Verify data collection</h5>
+                                    <div class="ingestion-container">
+                                        <p>Test the pipes by running the following command in your terminal:</p>
+                                        <div class="code-block-container position-relative">
+                                            <div class="code-wrapper">
+                                                <pre class="language-yaml"><code id="verify-command"></code></pre>
                                             </div>
+                                            <button class="expand-btn" title="Expand/Collapse" style="display: none;">
+                                                <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M15 3h6v6"></path>
+                                                    <path d="M9 21H3v-6"></path>
+                                                    <path d="M21 3l-7 7"></path>
+                                                    <path d="M3 21l7-7"></path>
+                                                </svg>
+                                                <span class="sr-only">Expand</span>
+                                            </button>
+                                            <button class="copy-btn" title="Copy">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                                </svg>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -120,6 +136,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <p class="caption"> Get started by sending sample logs data &nbsp; </p>
                                 <button type="button" class="btn btn-primary" id="test-data-btn">Send Test Data</button>
                             </div>
+                        </div>
                     </div>
                 </div>
             </div>
