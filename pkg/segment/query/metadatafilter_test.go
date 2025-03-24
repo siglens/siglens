@@ -289,8 +289,8 @@ func getMyIds() []int64 {
 
 func Test_MetadataFilter(t *testing.T) {
 	numBlocks := 5
-	numEntriesInBlock := 10
-	fileCount := 5
+	numEntriesInBlock := 10_000
+	numColumns := 5
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
 	limit.InitMemoryLimiter()
@@ -299,12 +299,12 @@ func Test_MetadataFilter(t *testing.T) {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
 
-	_, err = metadata.InitMockColumnarMetadataStore(0, "metadatafilter", fileCount, numBlocks, numEntriesInBlock)
+	_, err = metadata.InitMockColumnarMetadataStore(0, "metadatafilter", numColumns, numBlocks, numEntriesInBlock)
 	assert.Nil(t, err)
 
-	testTimeFilter(t, numBlocks, numEntriesInBlock, fileCount)
-	testBloomFilter(t, numBlocks, numEntriesInBlock, fileCount)
-	testRangeFilter(t, numBlocks, numEntriesInBlock, fileCount)
+	testTimeFilter(t, numBlocks, numEntriesInBlock, numColumns)
+	testBloomFilter(t, numBlocks, numEntriesInBlock, numColumns)
+	testRangeFilter(t, numBlocks, numEntriesInBlock, numColumns)
 
 	os.RemoveAll(dir)
 }
