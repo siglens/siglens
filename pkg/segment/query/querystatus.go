@@ -386,9 +386,9 @@ func RestartAllRunningQueries() {
 
 // Removes reference to qid. If qid does not exist this is a noop
 func DeleteQuery(qid uint64) {
-	// Can remove the LogGlobalSearchErrors after we fully migrate
+	// Can remove the logGlobalSearchErrors after we fully migrate
 	// to the putils.BatchError
-	LogGlobalSearchErrors(qid)
+	_ = logGlobalSearchErrors(qid) // not checking err, since the query is getting deleted
 	putils.LogAllErrorsWithQidAndDelete(qid)
 
 	arqMapLock.Lock()
@@ -804,12 +804,12 @@ func GetOrCreateQuerySearchNodeResult(qid uint64) (*structs.NodeResult, error) {
 }
 
 func CancelQuery(qid uint64) {
-	LogGlobalSearchErrors(qid)
+	_ = logGlobalSearchErrors(qid) // not checking return err val, since query is getting deleted
 	arqMapLock.RLock()
 	rQuery, ok := allRunningQueries[qid]
 	arqMapLock.RUnlock()
 	if !ok {
-		log.Errorf("CancelQuery: qid %+v does not exist!", qid)
+		log.Debugf("CancelQuery: qid %+v does not exist!", qid)
 		return
 	}
 	rQuery.rqsLock.Lock()
@@ -1271,11 +1271,10 @@ func GetFinalColsOrder(columnsOrder map[string]int) []string {
 
 }
 
-func LogGlobalSearchErrors(qid uint64) {
+func logGlobalSearchErrors(qid uint64) error {
 	nodeRes, err := GetOrCreateQuerySearchNodeResult(qid)
 	if err != nil {
-		log.Errorf("LogGlobalSearchErrors: Error getting query search node result for qid=%v", qid)
-		return
+		return fmt.Errorf("logGlobalSearchErrors: Error getting query search node result for qid=%v", qid)
 	}
 	for errMsg, errInfo := range nodeRes.GlobalSearchErrors {
 		if errInfo == nil {
@@ -1283,6 +1282,7 @@ func LogGlobalSearchErrors(qid uint64) {
 		}
 		putils.LogUsingLevel(errInfo.LogLevel, "qid=%v, %v, Count: %v, ExtraInfo: %v", qid, errMsg, errInfo.Count, errInfo.Error)
 	}
+	return nil
 }
 
 func SetPipeResp(response *structs.PipeSearchResponseOuter, qid uint64) error {
