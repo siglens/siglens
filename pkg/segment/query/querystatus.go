@@ -247,11 +247,8 @@ func getWaitingQueryCount() int {
 
 func logQueueSizesForever(interval time.Duration) {
 	ticker := time.NewTicker(interval)
-	for {
-		select {
-		case <-ticker.C:
-			log.Infof("ActiveQueryCount=%d, WaitingQueryCount=%d", GetActiveQueryCount(), getWaitingQueryCount())
-		}
+	for range ticker.C {
+		log.Infof("ActiveQueryCount=%d, WaitingQueryCount=%d", GetActiveQueryCount(), getWaitingQueryCount())
 	}
 }
 
