@@ -6074,6 +6074,14 @@ p#versionInfo {
     justify-content: center;
 }
 
+.expand-btn svg, .copy-btn svg {
+    stroke: #fff;
+}
+
+.copy-btn.success {
+    background-color: green !important;
+}
+
 .code-wrapper {
     max-height: 150px;
     max-width: 100%;
@@ -6083,8 +6091,9 @@ p#versionInfo {
 
 .code-wrapper.expanded {
     max-height: 500px;
-    overflow: auto;
-    width: auto;
+    max-width: none;
+    /* overflow: auto;
+    width: auto; */
 }
 
 .code-wrapper pre {
@@ -6092,12 +6101,11 @@ p#versionInfo {
     word-wrap: normal;
 }
 
-.code-wrapper.expanded pre {
+/* .code-wrapper.expanded pre {
     white-space: pre !important;
     display: inline-block;
     min-width: 100%;
-}
-
+} */
 
 .overflow-available {
     display: none;
@@ -6107,34 +6115,7 @@ p#versionInfo {
     display: flex;
 }
 
-.expand-btn svg, .copy-btn svg {
-    stroke: #fff;
-}
-
-.copy-btn.success {
-    background-color: green !important;
-}
-
-.back-button {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 20px 0;
-    cursor: pointer;
-    color: #6347D9;
-    font-weight: 500;
-    font-size: 16px;
-}
-
-.back-button:hover {
-    opacity: 0.8;
-}
-
-.back-button i {
-    font-size: 18px;
-}
-
-.code-container pre {
+/* .code-container pre {
     background-color: transparent;
     border: none;
     margin: 0;
@@ -6159,7 +6140,7 @@ p#versionInfo {
 
 .code-container pre::-webkit-scrollbar-thumb:hover {
     background: #b2bec3;
-}
+} */
 
 #verify-command {
     font-family: monospace;
