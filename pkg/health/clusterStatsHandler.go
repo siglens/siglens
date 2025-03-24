@@ -271,18 +271,15 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 	endEpoch, hasEnd := jsonSource["endEpoch"]
 	granularity, hasGranularity := jsonSource["granularity"]
 
-	getDefault := func() (uint64, usageStats.UsageStatsGranularity) {
+	// Handle missing values
+	if !hasStart || !hasEnd || startEpoch == nil || endEpoch == nil {
 		if hasGranularity {
 			return defaultPastHours, parseGranularity(granularity)
 		}
 		return defaultPastHours, determineGranularity(defaultPastHours)
 	}
 
-	if !hasStart || !hasEnd || startEpoch == nil || endEpoch == nil {
-		return getDefault()
-	}
-
-	// Relative time format (now-Xh)
+	// Handle relative time format (now-Xh)
 	if startStr, ok := startEpoch.(string); ok && strings.Contains(startStr, "now-") {
 		pastHours, _ := parseAlphaNumTime(startStr, defaultPastHours)
 		if hasGranularity {
@@ -297,7 +294,10 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 
 	// Validate timestamps
 	if startTs == -1 || endTs == -1 || endTs <= startTs {
-		return getDefault()
+		if hasGranularity {
+			return defaultPastHours, parseGranularity(granularity)
+		}
+		return defaultPastHours, determineGranularity(defaultPastHours)
 	}
 
 	// Calculate hours difference
