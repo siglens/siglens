@@ -207,7 +207,6 @@ func ProcessPipeSearchWebsocket(conn *websocket.Conn, orgid int64, ctx *fasthttp
 			}
 			if !ok {
 				log.Errorf("qid=%v, ProcessPipeSearchWebsocket: Got non ok, state: %v", qid, qscd.StateName)
-				query.LogGlobalSearchErrors(qid)
 				query.DeleteQuery(qid)
 				return
 			}

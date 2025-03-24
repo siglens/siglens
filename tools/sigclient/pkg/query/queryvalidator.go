@@ -431,15 +431,26 @@ type countQueryValidator struct {
 func NewCountQueryValidator(key string, value string, startEpoch uint64,
 	endEpoch uint64) (queryValidator, error) {
 
-	if strings.Contains(value, "*") {
-		return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+	var query string
+	if key == "*" {
+		if value == "*" {
+			query = `* | stats count`
+		} else {
+			return nil, fmt.Errorf("NewCountQueryValidator: value must be * if key is *")
+		}
+	} else {
+		if strings.Contains(value, "*") {
+			return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+		}
+
+		query = fmt.Sprintf(`%v="%v" | stats count`, key, value)
 	}
 
 	return &countQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | stats count", key, value),
+			query:      query,
 		},
 		key:        key,
 		value:      value,
@@ -472,9 +483,11 @@ func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
 		return nil
 	}
 
-	value, ok := log[c.key]
-	if !ok || value != fmt.Sprintf("%v", c.value) {
-		return nil
+	if c.key != "*" {
+		value, ok := log[c.key]
+		if !ok || value != fmt.Sprintf("%v", c.value) {
+			return nil
+		}
 	}
 
 	c.lock.Lock()

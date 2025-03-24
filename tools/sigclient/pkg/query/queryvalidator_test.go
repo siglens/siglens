@@ -497,6 +497,29 @@ func Test_CountQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("MatchAllQuery", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator("*", "*", startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 5,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+				"GroupByValues": ["*"],
+				"MeasureVal": {"count(*)": 5}
+			}]
+		}`)))
+
+	})
+
 	t.Run("BadResponse", func(t *testing.T) {
 		startEpoch, endEpoch := uint64(0), uint64(10)
 		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
