@@ -2239,6 +2239,32 @@ func Test_ParseTimechart(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func Test_LogHistogramIntervalCalculation(t *testing.T) {
+	queryStr := `* | timechart count`
+	query := []byte(queryStr)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+
+	astNode, aggregator, indexNames, err := pipesearch.ParseQuery(string(query), 0, "Splunk QL")
+
+	assert.Nil(t, err)
+	assert.NotNil(t, astNode)
+	assert.NotNil(t, aggregator)
+	assert.Equal(t, 0, len(indexNames))
+	pipeCommands := res.(ast.QueryStruct).PipeCommands
+	assert.NotNil(t, pipeCommands)
+	assert.NotNil(t, pipeCommands.TimeHistogram)
+	assert.NotNil(t, pipeCommands.TimeHistogram.Timechart)
+	assert.Equal(t, uint64(600_00), pipeCommands.TimeHistogram.IntervalMillis)
+	assert.Equal(t, "", pipeCommands.TimeHistogram.Timechart.ByField)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart.BinOptions)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions)
+	assert.NotNil(t, aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.DefaultSettings)
+	assert.Equal(t, 1, aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.SpanLength.Num)
+	assert.Equal(t, utils.TimeUnit(utils.TMMinute), aggregator.TimeHistogram.Timechart.BinOptions.SpanOptions.SpanLength.TimeScalr)
+
+}
+
 func Test_aggHasEvalFuncWithoutGroupBy(t *testing.T) {
 	query := []byte(`city=Boston | stats max(latitude), range(eval(latitude >= 0))`)
 	res, err := spl.Parse("", query)

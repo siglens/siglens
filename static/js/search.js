@@ -54,7 +54,7 @@ function resetDataTable(firstQUpdate) {
             $('#views-container, .fields-sidebar').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar').hide();
+            $('#views-container, .fields-sidebar').show();
         }
         $('#agg-result-container').hide();
         $('#data-row-container').hide();
@@ -77,6 +77,21 @@ function doSearch(data) {
         const timerName = `socket timing ${doSearchCounter}`;
         doSearchCounter++;
         console.time(timerName);
+
+        // Get the current fieldsHidden state from the renderer and update URL
+        const sidebarRenderer = window.fieldssidebarRenderer;
+        if (sidebarRenderer) {
+            const { isFieldsSidebarHidden } = sidebarRenderer.getState();
+            data.fieldsHidden = isFieldsSidebarHidden; // Update data object
+
+            // Update URL with fieldsHidden only if search is active
+            const searchParams = new URLSearchParams(window.location.search);
+            if (searchParams.has('searchText') && searchParams.has('indexName')) {
+                const url = new URL(window.location);
+                url.searchParams.set('fieldsHidden', isFieldsSidebarHidden);
+                window.history.pushState({ path: url.href }, document.title, url);
+            }
+        }
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -340,6 +355,17 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let selIndexName = queryParams.get('indexName');
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
+
+    // Get fieldsHidden from renderer state
+    const sidebarRenderer = window.fieldssidebarRenderer;
+    let fieldsHidden = false;
+    if (sidebarRenderer) {
+        fieldsHidden = sidebarRenderer.getState().isFieldsSidebarHidden;
+    } else {
+        fieldsHidden = queryParams.get('fieldsHidden') === 'true'; // Fallback
+    }
+    applyFieldsSidebarState(fieldsHidden);
+
     queryLanguage = queryLanguage.replace('"', '');
     $('#query-language-btn span').html(queryLanguage);
     $('.query-language-option').removeClass('active');
@@ -402,6 +428,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', filterTab);
+        addQSParm('fieldsHidden', fieldsHidden);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -418,8 +445,37 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         from: sFrom,
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
+        fieldsHidden: fieldsHidden
     };
 }
+
+// Helper function to apply fieldsHidden state to the UI
+function applyFieldsSidebarState(isHidden) {
+    const fieldsSidebar = document.querySelector('.fields-sidebar');
+    const customChartTab = document.querySelector('.custom-chart-tab');
+    const container = document.querySelector('.custom-chart-container');
+
+    if (!fieldsSidebar) return;
+
+    if (isHidden) {
+        fieldsSidebar.classList.add('hidden');
+        if (customChartTab) {
+            customChartTab.classList.add('full-width');
+        }
+        if (container) {
+            container.classList.add('full-width-container');
+        }
+    } else {
+        fieldsSidebar.classList.remove('hidden');
+        if (customChartTab) {
+            customChartTab.classList.remove('full-width');
+        }
+        if (container) {
+            container.classList.remove('full-width-container');
+        }
+    }
+}
+
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
     let filterValue = $('#filter-input').val().trim() || '*';
     let endDate = 'now';
@@ -731,6 +787,7 @@ function processEmptyQueryResults(message) {
     $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
+    $('.json-popup').hide();
     el.append(`<span>${message}</span>`);
 }
 
@@ -870,7 +927,7 @@ function showErrorResponse(errorMsg, res) {
     $('#empty-response').show();
     $('#initial-response').hide();
     $('#save-query-div').children().hide();
-    $('#views-container, .fields-sidebar').hide();
+    $('#views-container, .fields-sidebar, .pagination-container').hide();
     $('#custom-chart-tab').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
@@ -886,7 +943,7 @@ function showErrorResponse(errorMsg, res) {
     $('#query-builder-btn').html(' ');
     $('#query-builder-btn').removeClass('cancel-search');
     $('#query-builder-btn').removeClass('active');
-
+    $('.json-popup').hide();
     wsState = 'query';
 }
 

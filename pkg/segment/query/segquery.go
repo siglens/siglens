@@ -916,7 +916,7 @@ func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.Quer
 	// rawSearchSSR should be of size 1 or 0
 	for _, req := range rawSearchSSR {
 		req.ConsistentCValLenMap = segReq.ConsistentCValLenMap
-		sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.segKeyTsRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs, nodeRes)
+		sstMap, err = search.RawComputeSegmentStats(req, segReq.parallelismPerFile, segReq.sNode, segReq.queryRange, segReq.aggs.MeasureOperations, allSegFileResults, qid, qs, nodeRes)
 		if err != nil {
 			return sstMap, fmt.Errorf("qid=%d, computeSegStatsFromRawRecords: Failed to get segment level stats for segKey %+v! Error: %v", qid, segReq.segKey, err)
 		}
@@ -946,7 +946,7 @@ func applyAggOpOnSegments(sortedQSRSlice []*QuerySegmentRequest, allSegFileResul
 		if isCancelled {
 			break
 		}
-		isSegmentFullyEnclosed := segReq.segKeyTsRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
+		isSegmentFullyEnclosed := segReq.queryRange.AreTimesFullyEnclosed(segReq.segKeyTsRange.StartEpochMs, segReq.segKeyTsRange.EndEpochMs)
 
 		// For Unrotated search, Check if the segment is rotated and update the search type accordingly
 		if segReq.sType == structs.UNROTATED_SEGMENT_STATS_SEARCH {

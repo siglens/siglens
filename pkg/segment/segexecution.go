@@ -37,6 +37,27 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func manageStateForMetricsQuery(qid uint64, rQuery *query.RunningQueryState, mQuery *structs.MetricsQuery) {
+	if rQuery == nil {
+		return
+	}
+
+	for stateData := range rQuery.StateChan {
+		switch stateData.StateName {
+		case query.CANCELLED, query.TIMEOUT:
+			mQuery.SetQueryIsCancelled()
+			query.DeleteQuery(qid)
+			return
+		case query.ERROR, query.COMPLETE:
+			query.DeleteQuery(qid)
+			return
+		default:
+			// do nothing
+			continue
+		}
+	}
+}
+
 func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 	querySummary := summary.InitQuerySummary(summary.METRICS, qid)
 	defer querySummary.LogMetricsQuerySummary(mQuery.OrgId)
@@ -55,8 +76,10 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 		}
 	}
 
+	go manageStateForMetricsQuery(qid, rQuery, mQuery)
+
 	res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
-	query.DeleteQuery(qid)
+	rQuery.SendQueryStateComplete()
 	querySummary.IncrementNumResultSeries(res.GetNumSeries())
 	return res
 }
@@ -87,8 +110,18 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 			}
 		}
 
+		go manageStateForMetricsQuery(qid, rQuery, mQuery)
+
 		res := query.ApplyMetricsQuery(mQuery, timeRange, qid, querySummary)
-		query.DeleteQuery(qid)
+
+		if mQuery.IsQueryCancelled() {
+			// If any of the queries are cancelled, then we should cancel the entire query.
+			return &mresults.MetricsResult{
+				ErrList: []error{errors.New("query is cancelled")},
+			}
+		}
+
+		rQuery.SendQueryStateComplete()
 		querySummary.IncrementNumResultSeries(res.GetNumSeries())
 		qid = rutils.GetNextQid()
 		resMap[hashList[index]] = res
@@ -685,25 +718,25 @@ func executeQueryInternal(root *structs.ASTNode, aggs *structs.QueryAggregators,
 func LogSearchNode(prefix string, sNode *structs.SearchNode, qid uint64) {
 
 	sNodeJSON, _ := json.Marshal(sNode)
-	log.Infof("qid=%d, SearchNode for %v: %v", qid, prefix, string(sNodeJSON))
+	log.Debugf("qid=%d, SearchNode for %v: %v", qid, prefix, string(sNodeJSON))
 }
 
 func LogASTNode(prefix string, astNode *structs.ASTNode, qid uint64) {
 
 	fullASTNodeJSON, _ := json.Marshal(astNode)
-	log.Infof("qid=%d, ASTNode for %v: %v", qid, prefix, string(fullASTNodeJSON))
+	log.Debugf("qid=%d, ASTNode for %v: %v", qid, prefix, string(fullASTNodeJSON))
 }
 
 func LogNode(prefix string, node any, qid uint64) {
 
 	nodeJSON, _ := json.Marshal(node)
-	log.Infof("qid=%d, Raw value for %v: %v", qid, prefix, string(nodeJSON))
+	log.Debugf("qid=%d, Raw value for %v: %v", qid, prefix, string(nodeJSON))
 }
 
 func LogQueryAggsNode(prefix string, node *structs.QueryAggregators, qid uint64) {
 
 	nodeval, _ := json.Marshal(node)
-	log.Infof("qid=%d, QueryAggregators for %v: %v", qid, prefix, string(nodeval))
+	log.Debugf("qid=%d, QueryAggregators for %v: %v", qid, prefix, string(nodeval))
 }
 
 func LogMetricsQuery(prefix string, mQRequest *structs.MetricsQueryRequest, qid uint64) {

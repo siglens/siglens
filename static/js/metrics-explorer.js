@@ -39,7 +39,7 @@ let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
 let funcApplied = false;
-let selectedTheme = 'Classic';
+let selectedTheme = 'Palette';
 let selectedLineStyle = 'Solid';
 let selectedStroke = 'Normal';
 var colorPalette = {
@@ -50,7 +50,7 @@ var colorPalette = {
     Warm: ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'],
     Orange: ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'],
     Gray: ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'],
-    Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
+    Palette: ['#5795e4', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
 let cachedMetrics = [];
@@ -1493,8 +1493,8 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
             return {
                 label: series.seriesName,
                 data: series.values,
-                borderColor: colorPalette.Classic[index % colorPalette.Classic.length],
-                backgroundColor: colorPalette.Classic[index % colorPalette.Classic.length] + '70',
+                borderColor: colorPalette.Palette[index % colorPalette.Palette.length],
+                backgroundColor: colorPalette.Palette[index % colorPalette.Palette.length] + '70',
                 borderWidth: 2,
                 fill: false,
             };
@@ -1567,7 +1567,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
     const { gridLineColor, tickColor } = getGraphGridColors();
-    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Palette;
 
     // Calculate max value from data
     const maxDataValue = Math.max(...chartData.datasets.flatMap((d) => Object.values(d.data).filter((v) => v !== null)));
@@ -2045,7 +2045,7 @@ $('#color-input')
 
 function updateChartTheme(theme) {
     selectedTheme = theme; // Store the selected theme
-    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Palette;
 
     // Loop through each chart data
     for (var queryName in chartDataCollection) {

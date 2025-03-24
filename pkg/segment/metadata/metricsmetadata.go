@@ -18,19 +18,18 @@
 package metadata
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/bits-and-blooms/bloom/v3"
 	blob "github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -76,7 +75,7 @@ type MetricsSegmentMetadata struct {
 
 type MetricsSegmentSearchMetadata struct {
 	mBlockSummary        []*structs.MBlockSummary
-	mNamesBloom          *bloom.BloomFilter
+	mNamesMap            map[string]bool
 	mBlockSize           uint64
 	loadedSearchMetadata bool
 }
@@ -91,7 +90,6 @@ func InitMetricsMicroIndex(mMeta *structs.MetricsMeta) *MetricsSegmentMetadata {
 		MetricsMeta: *mMeta,
 	}
 	mm.loadedSearchMetadata = false
-	mm.mNamesBloom = bloom.NewWithEstimates(1000, 0.001)
 	mm.initMetadataSize()
 	return mm
 }
@@ -209,68 +207,78 @@ func (mm *MetricsSegmentMetadata) LoadSearchMetadata() error {
 		log.Errorf("LoadSearchMetadata: unable to read the metrics block summaries. Error: %v", err)
 		return err
 	}
-	err = mm.ReadMetricNamesBloom(fmt.Sprintf("%s.mbi", mm.MSegmentDir))
+	err = mm.DownloadAndReadMNames()
 	if err != nil {
 		mm.clearSearchMetadata()
-		log.Errorf("LoadSearchMetadata: unable to read the metric names bloom. Error: %v", err)
+		log.Errorf("LoadSearchMetadata: unable to read the metric names. Error: %v", err)
 	}
 	mm.loadedSearchMetadata = true
 	mm.mBlockSummary = blockSum
 	return nil
 }
 
-func (mm *MetricsSegmentMetadata) ReadMetricNamesBloom(fileName string) error {
+func (mm *MetricsSegmentMetadata) DownloadAndReadMNames() error {
+
+	fileName := fmt.Sprintf("%s.mnm", mm.MSegmentDir)
+
 	err := blob.DownloadSegmentBlob(fileName, false)
 	if err != nil {
-		log.Errorf("ReadMetricNamesBloom: Error downloading metrics block summary file at %s, err: %v", fileName, err)
+		log.Errorf("DownloadAndReadMNames: Error downloading mnames file at %s, err: %v", fileName, err)
 		return err
 	}
-
-	finfo, err := os.Stat(fileName)
+	mnames, err := ReadMetricNames(fileName)
 	if err != nil {
-		log.Errorf("ReadMetricNamesBloom: Error getting file info for the Metric Names Bloom file: %s, err: %v", fileName, err)
+		// logged at parent
 		return err
 	}
+	mm.mNamesMap = mnames
+	return nil
+}
 
-	fileSize := finfo.Size()
+/*
+TODO: Use the buffer pools for such kinds of memory accesses, it will reduce GC pressures.
+*/
+func ReadMetricNames(filePath string) (map[string]bool, error) {
 
-	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	fd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Infof("ReadMetricNamesBloom: failed to open fileName: %v  Error: %v.", fileName, err)
-		return err
+		log.Errorf("ReadMetricNames: failed to open fileName: %v  Error: %v", filePath, err)
+		return nil, err
 	}
 
 	defer fd.Close()
 
-	data := make([]byte, fileSize)
-	_, err = fd.Read(data)
+	finfo, err := fd.Stat()
 	if err != nil {
-		log.Errorf("ReadMetricNamesBloom: Error reading mbi file: %v, err: %v", fileName, err)
-		return err
+		log.Errorf("ReadMetricNames: error when trying to stat file=%+v. Error=%+v", filePath, err)
+		return nil, err
 	}
 
-	// read the version byte
-	bufRdr := bytes.NewReader(data[1:])
+	fileSize := finfo.Size()
+	buf := make([]byte, fileSize)
 
-	if mm.mNamesBloom == nil {
-		log.Warnf("ReadMetricNamesBloom: Bloom filter is nil, creating a new one")
-		mm.mNamesBloom = bloom.NewWithEstimates(1000, 0.001)
-	}
-	_, err = mm.mNamesBloom.ReadFrom(bufRdr)
+	_, err = fd.Read(buf)
 	if err != nil {
-		log.Errorf("ReadMetricNamesBloom: Error reading bloom filter from file: %v, err: %v", fileName, err)
-		return err
+		log.Errorf("ReadMetricNames: Error reading the Metric Names file: %v, err: %v", filePath, err)
+		return nil, err
 	}
 
-	mm.mBlockSize += uint64(fileSize)
+	metricNames := make(map[string]bool)
 
-	return nil
+	for i := 0; i < len(buf); {
+		metricNameLen := int(toputils.BytesToUint16LittleEndian(buf[i : i+2]))
+		i += 2
+		metricName := string(buf[i : i+metricNameLen])
+		i += metricNameLen
+		metricNames[metricName] = true
+	}
+
+	return metricNames, nil
 }
 
 func (mm *MetricsSegmentMetadata) clearSearchMetadata() {
 	mm.loadedSearchMetadata = false
 	mm.mBlockSummary = nil
-	mm.mNamesBloom = nil
 }
 
 /*

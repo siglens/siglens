@@ -103,7 +103,7 @@ var esBulkCmd = &cobra.Command{
 			log.Infof("minColumns : %+v\n", dataGeneratorConfig.MinColumns)
 		}
 
-		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig)
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile, totalEvents, continuous, batchSize, dest, indexPrefix, indexName, numIndices, processCount, ts, 0, bearerToken, 0, eventsPerDay, dataGeneratorConfig, nil)
 	},
 }
 
@@ -150,7 +150,7 @@ var functionalTestCmd = &cobra.Command{
 			dataGeneratorConfig := utils.InitFunctionalTestGeneratorDataConfig(numFixedCols, maxVariableCols)
 
 			ingest.StartIngestion(ingest.ESBulk, "functional", "", totalEvents, false, batchSize, dest, indexPrefix,
-				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig)
+				indexName, numIndices, processCount, true, 0, bearerToken, 0, 0, dataGeneratorConfig, nil)
 
 			err := query.MigrateLookups([]string{"../../cicd/test_lookup.csv"})
 			if err != nil {
@@ -201,7 +201,7 @@ var performanceTestCmd = &cobra.Command{
 			defer cancel()
 			// addTs should be false for performance testing
 			ingest.StartIngestion(ingest.ESBulk, "performance", "", totalEvents, false, batchSize, dest, indexPrefix,
-				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig)
+				indexName, numIndices, processCount, false, 0, bearerToken, 0, 0, dataGenConfig, nil)
 		}(cancel)
 
 		go query.PerformanceTest(ctx, logChan, queryDest, concurrentQueries, utils.GetVariablesColsNamesFromConfig(dataGenConfig))
@@ -260,7 +260,7 @@ var clickBenchTestCmd = &cobra.Command{
 // metricsIngestCmd represents the metrics ingestion
 var metricsIngestCmd = &cobra.Command{
 	Use:   "metrics",
-	Short: "ingest metrics to /api/put in OTSDB format",
+	Short: "Ingest metrics into Siglens",
 	Run: func(cmd *cobra.Command, args []string) {
 		processCount, _ := cmd.Flags().GetInt("processCount")
 		dest, _ := cmd.Flags().GetString("dest")
@@ -272,6 +272,7 @@ var metricsIngestCmd = &cobra.Command{
 		generatorType, _ := cmd.Flags().GetString("generator")
 		cardinality, _ := cmd.Flags().GetUint64("cardinality")
 		eventsPerDay, _ := cmd.Flags().GetUint64("eventsPerDay")
+		metricsFormat, _ := cmd.Flags().GetString("metricsFormat")
 
 		if eventsPerDay > 0 {
 			if cmd.Flags().Changed("totalEvents") {
@@ -289,8 +290,19 @@ var metricsIngestCmd = &cobra.Command{
 		log.Infof("generatorType : %+v.\n", generatorType)
 		log.Infof("cardinality : %+v.\n", cardinality)
 		log.Infof("eventsPerDay : %+v\n", eventsPerDay)
+		log.Infof("metricsFormat : %+v\n", metricsFormat)
 
-		ingest.StartIngestion(ingest.OpenTSDB, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil)
+		var ingestFormat ingest.IngestType
+		switch strings.ToLower(metricsFormat) {
+		case strings.ToLower(ingest.OpenTSDB.String()):
+			ingestFormat = ingest.OpenTSDB
+		case strings.ToLower(ingest.PrometheusRemoteWrite.String()):
+			ingestFormat = ingest.PrometheusRemoteWrite
+		default:
+			log.Fatalf("Invalid metric format: %s. Supported metric formats: otsdb, prometheus", metricsFormat)
+			return
+		}
+		ingest.StartIngestion(ingestFormat, generatorType, "", totalEvents, continuous, batchSize, dest, "", "", 0, processCount, false, nMetrics, bearerToken, cardinality, eventsPerDay, nil, nil)
 	},
 }
 
@@ -516,6 +528,72 @@ var traceCmd = &cobra.Command{
 	},
 }
 
+func unwrap[T any](value T, err error) T {
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	return value
+}
+
+var longevityCmd = &cobra.Command{
+	Use:   "longevity",
+	Short: "Run longevity tests",
+	Long:  "Continuously ingest and query data until stopped",
+	Run: func(cmd *cobra.Command, args []string) {
+		generatorType := "benchmark"
+		dataFile := ""
+		totalEvents := 0
+		continuous := true
+		batchSize := 100
+		ingestUrl, _ := cmd.Flags().GetString("dest")
+		queryUrl, _ := cmd.Flags().GetString("queryDest")
+		indexPrefix := "longevity-test"
+		indexName := ""
+		numIndices := 1
+		processCount := 1
+		addTs := true
+		numMetrics := 0
+		bearerToken, _ := cmd.Flags().GetString("bearerToken")
+		eventsPerDay := uint64(100_000_000)
+
+		minCols := 50
+		maxCols := 150
+		uniqueCols := 0
+		dataGeneratorConfig := utils.InitGeneratorDataConfig(maxCols, true, minCols, uniqueCols)
+
+		failOnError, _ := cmd.Flags().GetBool("failOnError")
+
+		templates := []*query.QueryTemplate{
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", "", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", "", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("state_c1", "Texas", "latency_c1", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("state_c1", "Texas", "latency_c1", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 3600, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 6*3600, 100),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("state_c1", "Texas", 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("state_c1", "Texas", 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("*", "*", 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("*", "*", 0, 0)), 300, 10),
+		}
+		maxConcurrentQueries := int32(1)
+		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl, failOnError)
+
+		callback := func(logs []map[string]interface{}) {
+			queryManager.HandleIngestedLogs(logs)
+		}
+
+		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile,
+			totalEvents, continuous, batchSize, ingestUrl, indexPrefix, indexName,
+			numIndices, processCount, addTs, numMetrics, bearerToken, 0,
+			eventsPerDay, dataGeneratorConfig, callback)
+	},
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringP("dest", "d", "", "Server URL.")
 	rootCmd.PersistentFlags().StringP("bearerToken", "r", "", "Bearer token")
@@ -554,6 +632,7 @@ func init() {
 	metricsIngestCmd.PersistentFlags().IntP("metrics", "m", 1_000, "Number of different metric names to send")
 	metricsIngestCmd.PersistentFlags().StringP("generator", "g", "dynamic-user", "type of generator to use. Options=[static,dynamic-user,file]. If file is selected, -x/--filePath must be specified")
 	metricsIngestCmd.PersistentFlags().Uint64P("cardinality", "u", 2_000_000, "Specify the total unique time series (cardinality).")
+	metricsIngestCmd.PersistentFlags().StringP("metricsFormat", "f", "otsdb", "Specify metrics format. Options=[otsdb, prometheus]")
 
 	queryCmd.PersistentFlags().IntP("numIterations", "n", 10, "number of times to run entire query suite")
 	queryCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose querying will output raw docs returned by queries")
@@ -577,6 +656,9 @@ func init() {
 	alertsLoadTestCmd.PersistentFlags().Int8P("runVector", "v", 0, "Run vector: -1 - Explicitly Disable running of Vector, 0 - Optional State: Will try to run vector, but will not stop the test if encountered and issue with Vector, 1 - Explictly Enable running of Vector")
 	alertsLoadTestCmd.PersistentFlags().BoolP("cleanup", "c", false, "Cleanup alerts. If this is set true, it will only cleanup alerts and not run the load test")
 
+	longevityCmd.PersistentFlags().StringP("queryDest", "q", "", "Query Server Address")
+	longevityCmd.PersistentFlags().BoolP("failOnError", "f", false, "Fail on first error")
+
 	queryCmd.AddCommand(esQueryCmd)
 	queryCmd.AddCommand(metricsQueryCmd)
 	queryCmd.AddCommand(promQLQueryCmd)
@@ -594,4 +676,5 @@ func init() {
 	rootCmd.AddCommand(alertsCmd)
 	rootCmd.AddCommand(concurrentQueriesTestCmd)
 	rootCmd.AddCommand(clickBenchTestCmd)
+	rootCmd.AddCommand(longevityCmd)
 }

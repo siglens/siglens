@@ -22,7 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -196,27 +198,36 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	r.Results = make(map[string]map[uint32]float64)
 	errors := make([]error, 0)
 
+	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+	for grpID, ds := range r.DsResults {
+		if ds == nil {
+			err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
+			errors = append(errors, err)
+			return errors
+		}
+
+		var aggSeriesId string
+
+		if aggregation.IsAggregateFromAllTimeseries() {
+			aggSeriesId = grpID
+		} else {
+			aggSeriesId = getAggSeriesId(grpID, &aggregation)
+		}
+
+		if _, exists := seriesEntriesMap[aggSeriesId]; !exists {
+			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
+		}
+
+		for i := 0; i < ds.idx; i++ {
+			entry := ds.runningEntries[i]
+			seriesEntriesMap[aggSeriesId][entry.downsampledTime] = append(seriesEntriesMap[aggSeriesId][entry.downsampledTime], entry)
+		}
+	}
+
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
-
-		for grpID, ds := range r.DsResults {
-			if ds == nil {
-				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
-				errors = append(errors, err)
-				return errors
-			}
-
-			if _, exists := seriesEntriesMap[grpID]; !exists {
-				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
-			}
-
-			for i := 0; i < ds.idx; i++ {
-				entry := ds.runningEntries[i]
-				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
-			}
-		}
 
 		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
@@ -232,23 +243,31 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	errorLock := &sync.Mutex{}
 
 	var idx int
-	for grpID, runningDS := range r.DsResults {
+	for seriesId, timeSeries := range seriesEntriesMap {
 		wg.Add(1)
-		go func(grp string, ds *DownsampleSeries) {
+		go func(grp string, timeSeries map[uint32][]RunningEntry) {
 			defer wg.Done()
 
-			grpVal, err := ds.AggregateFromSingleTimeseries()
-			if err != nil {
-				errorLock.Lock()
-				errors = append(errors, err)
-				errorLock.Unlock()
-				return
+			for ts, entries := range timeSeries {
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
+				if err != nil {
+					errorLock.Lock()
+					errors = append(errors, err)
+					errorLock.Unlock()
+					return
+				}
+				lock.Lock()
+				tsMap, ok := r.Results[grp]
+				if !ok {
+					tsMap = make(map[uint32]float64, 0)
+					r.Results[grp] = tsMap
+				}
+
+				tsMap[ts] = aggVal
+				lock.Unlock()
 			}
 
-			lock.Lock()
-			r.Results[grp] = grpVal
-			lock.Unlock()
-		}(grpID, runningDS)
+		}(seriesId, timeSeries)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -367,8 +386,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	if aggregation.IsAggregateFromAllTimeseries() {
 		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
-		for seriesId, timeSeries := range r.Results {
-			aggSeriesId := getAggSeriesId(seriesId, &aggregation)
+		for aggSeriesId, timeSeries := range r.Results {
 			if _, ok := results[aggSeriesId]; !ok {
 				results[aggSeriesId] = make(map[uint32]float64, 0)
 				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -458,6 +476,16 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	wg := &sync.WaitGroup{}
 	errList := []error{} // Thread-safe list of errors
 
+	if function.FunctionType == structs.HistogramFunction {
+		err := r.ApplyHistogramToResults(parallelism, function.HistogramFunction)
+		if err != nil {
+			errList = append(errList, err)
+			return errList
+		}
+
+		return nil
+	}
+
 	// Use a temporary map to record the results modified by goroutines, thus resolving concurrency issues caused by modifying a map during iteration.
 	results := make(map[string]map[uint32]float64, len(r.Results))
 
@@ -493,6 +521,135 @@ func (r *MetricsResult) ApplyFunctionsToResults(parallelism int, function struct
 	r.DsResults = nil
 
 	return nil
+}
+
+func (r *MetricsResult) ApplyHistogramToResults(parallelism int, agg *structs.HistogramAgg) error {
+	if agg == nil {
+		log.Errorf("ApplyHistogramToResults: HistogramAgg is nil")
+		return fmt.Errorf("nil histogram agg")
+	}
+
+	seriesIds := make([]string, 0, len(r.Results))
+	for seriesId := range r.Results {
+		seriesIds = append(seriesIds, seriesId)
+	}
+
+	switch agg.Function {
+	case segutils.HistogramQuantile:
+		return r.applyHistogramQunatile(seriesIds, agg)
+	}
+
+	return nil
+}
+
+func (r *MetricsResult) applyHistogramQunatile(seriesIds []string, agg *structs.HistogramAgg) error {
+	// Get the histogram bins from the seriesIds
+	histogramBinsPerSeries, err := getHistogramBins(seriesIds, r.Results)
+	if err != nil {
+		return err
+	}
+
+	errors := make([]error, 0)
+
+	// Apply histogram quantile to the histogram bins
+	for seriesId, tsToBins := range histogramBinsPerSeries {
+		for ts, bins := range tsToBins {
+			val, err := histogramQuantile(agg.Quantile, bins)
+			if err != nil {
+				errors = append(errors, err)
+				continue
+			}
+
+			if _, ok := r.Results[seriesId]; !ok {
+				r.Results[seriesId] = make(map[uint32]float64, 0)
+			}
+
+			r.Results[seriesId][ts] = val
+		}
+	}
+
+	if len(errors) > 0 {
+		sliceLen := min(5, len(errors))
+		log.Errorf("applyHistogramQunatile: len(errors):%v, errors:%v", len(errors), errors[:sliceLen])
+	}
+
+	return nil
+}
+
+func getHistogramBins(seriesIds []string, results map[string]map[uint32]float64) (map[string]map[uint32][]histogramBin, error) {
+	histogramBinsPerSeries := make(map[string]map[uint32][]histogramBin, 0)
+
+	for _, seriesIdWithLe := range seriesIds {
+		timeSeries, ok := results[seriesIdWithLe]
+		if !ok {
+			continue
+		}
+
+		delete(results, seriesIdWithLe)
+
+		seriesId, leValue, hasLe, err := extractAndRemoveLeFromSeriesId(seriesIdWithLe)
+		if err != nil {
+			log.Errorf("getHistogramBins: Failed to extract and remove le from seriesId %v, err: %v", seriesIdWithLe, err)
+			continue
+		}
+
+		if !hasLe {
+			continue
+		}
+
+		tsToBins, ok := histogramBinsPerSeries[seriesId]
+		if !ok {
+			tsToBins = make(map[uint32][]histogramBin, 0)
+			histogramBinsPerSeries[seriesId] = tsToBins
+		}
+
+		for ts, val := range timeSeries {
+			bins, ok := tsToBins[ts]
+			if !ok {
+				bins = make([]histogramBin, 0)
+			}
+
+			bins = append(bins, histogramBin{upperBound: leValue, count: val})
+			tsToBins[ts] = bins
+		}
+	}
+
+	return histogramBinsPerSeries, nil
+}
+
+func extractAndRemoveLeFromSeriesId(seriesId string) (string, float64, bool, error) {
+	// Regex pattern to find le="VALUE" and capture the VALUE
+	re := regexp.MustCompile(`le:(\+?Inf|-?Inf|-?[0-9.]+),?`)
+
+	matches := re.FindStringSubmatch(seriesId)
+	var leValueStr string
+	if len(matches) == 2 {
+		leValueStr = matches[1]
+	} else {
+		return seriesId, 0, false, nil
+	}
+
+	var leValue float64
+	var err error
+
+	if leValueStr == "+Inf" {
+		leValue = math.Inf(1)
+	} else if leValueStr == "-Inf" {
+		leValue = math.Inf(-1)
+	} else {
+		leValue, err = strconv.ParseFloat(leValueStr, 64)
+		if err != nil {
+			return seriesId, 0, false, fmt.Errorf("extractAndRemoveleFromSeriesId: Failed to parse le value %v, err: %v", leValueStr, err)
+		}
+	}
+
+	// Remove the le="VALUE" from the seriesId
+	cleanedSeriesId := re.ReplaceAllString(seriesId, "")
+
+	cleanedSeriesId = strings.Replace(cleanedSeriesId, "{,", "{", 1)
+	cleanedSeriesId = strings.TrimSuffix(cleanedSeriesId, ",")
+
+	return cleanedSeriesId, leValue, true, nil
 }
 
 func (r *MetricsResult) AddError(err error) {
@@ -571,6 +728,10 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 		for _, val := range tagValues {
 			keyValue := strings.Split(removeMetricNameFromGroupID(val), ":")
+			if len(keyValue) != 2 {
+				log.Errorf("GetResults: Invalid tag keyvalue: %v", val)
+				continue
+			}
 			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
@@ -1066,12 +1227,8 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 		timestampToCount := make(map[uint32]float64)
 
 		for _, timeSeries := range seriesEntriesMap {
-			for timestamp, entries := range timeSeries {
-				for _, entry := range entries {
-					if entry.runningCount > 0 {
-						timestampToCount[timestamp] += float64(entry.runningCount)
-					}
-				}
+			for timestamp := range timeSeries {
+				timestampToCount[timestamp]++
 			}
 		}
 		r.Results[r.MetricName+"{"] = timestampToCount

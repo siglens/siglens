@@ -342,7 +342,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Abs:
 		evaluate(ts, math.Abs)
 	case segutils.Sqrt:
-		err = applyFuncToNonNegativeValues(ts, math.Sqrt)
+		applyFuncToNonNegativeValues(ts, math.Sqrt)
 	case segutils.Ceil:
 		evaluate(ts, math.Ceil)
 	case segutils.Floor:
@@ -356,11 +356,11 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Exp:
 		evaluate(ts, math.Exp)
 	case segutils.Ln:
-		err = applyFuncToNonNegativeValues(ts, math.Log)
+		applyFuncToNonNegativeValues(ts, math.Log)
 	case segutils.Log2:
-		err = applyFuncToNonNegativeValues(ts, math.Log2)
+		applyFuncToNonNegativeValues(ts, math.Log2)
 	case segutils.Log10:
-		err = applyFuncToNonNegativeValues(ts, math.Log10)
+		applyFuncToNonNegativeValues(ts, math.Log10)
 	case segutils.Sgn:
 		evaluate(ts, calculateSgn)
 	case segutils.Deg:
@@ -543,7 +543,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		delete(ts, sortedTimeSeries[0].downsampledTime)
 		return ts, nil
 	case segutils.Rate:
-		return evaluateRate(sortedTimeSeries, ts, timeWindow), nil
+		return evaluateRate(sortedTimeSeries, ts, timeRange, function)
 	case segutils.IRate:
 		// Calculate the instant rate (per-second rate) for each timestamp, based on the last two data points within the timewindow
 		// If the previous point is outside the time window, we still need to use it to calculate the current point's rate, unless its value is greater than the value of the current point
@@ -575,11 +575,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		return ts, nil
 	case segutils.Increase:
 		// Increase is extrapolated to cover the full time range as specified in the range vector selector. (increse = avg rate * timewindow)
-		ts := evaluateRate(sortedTimeSeries, ts, timeWindow)
-		for key, rateVal := range ts {
-			ts[key] = rateVal * float64(timeWindow)
-		}
-		return ts, nil
+		return evaluateRate(sortedTimeSeries, ts, timeRange, function)
 	case segutils.Delta:
 		// Calculates the difference between the first and last value of each time series element within the timewindow
 		for i := 1; i < len(sortedTimeSeries); i++ {
@@ -1065,14 +1061,14 @@ func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
 	return nil
 }
 
-func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
+func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		if val < 0 {
-			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
+			ts[key] = math.NaN()
+			continue
 		}
 		ts[key] = mathFunc(val)
 	}
-	return nil
 }
 
 func calculateSgn(val float64) float64 {
@@ -1143,45 +1139,113 @@ func convertStrToFloat64(toNearestStr string) (float64, error) {
 	}
 }
 
-// Calculate the average rate (per-second rate) for each timestamp. E.g: to determine the rate for the current point with its timestamp,
-// find the earliest point within the time window: [timestamp - time window, timestamp]
-// Then, calculate the rate between that point and the current point
-func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeWindow uint32) map[uint32]float64 {
-	var dx, dt float64
-	resetIndex := -1
-	for i := 1; i < len(sortedTimeSeries); i++ {
-		timeWindowStartTime := sortedTimeSeries[i].downsampledTime - timeWindow
-		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
-		})
-
-		if i <= preIndex { // Can not find the second point within the time window
-			delete(ts, sortedTimeSeries[i].downsampledTime)
-			continue
-		}
-
-		if sortedTimeSeries[i].dpVal < sortedTimeSeries[i-1].dpVal {
-			// This metric was reset.
-			dx = sortedTimeSeries[i].dpVal
-			dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[i-1].downsampledTime)
-			ts[sortedTimeSeries[i].downsampledTime] = dx / dt
-			resetIndex = i
-			continue
-		}
-
-		if resetIndex > preIndex {
-			preIndex = resetIndex
-		}
-
-		// Calculate the time difference between consecutive data points
-		dx = sortedTimeSeries[i].dpVal - sortedTimeSeries[preIndex].dpVal
-		dt = float64(sortedTimeSeries[i].downsampledTime - sortedTimeSeries[preIndex].downsampledTime)
-		ts[sortedTimeSeries[i].downsampledTime] = dx / dt
+// Computes the per-second rate for each step within the time window.
+// The rate is derived from the first and last samples in the window.
+// If the counter resets, adjustments are made to maintain accuracy.
+// The rate is then normalized over the specified time window.
+// This function is inspired by Prometheus' `extrapolatedRate` function,
+// adapting the extrapolation logic to ensure Prometheus compatibility.
+// Source: https://github.com/prometheus/prometheus/blob/main/promql/functions.go#L72
+// Explanation about the extrapolation logic: https://promlabs.com/blog/2021/01/29/how-exactly-does-promql-calculate-rates/
+func evaluateRate(sortedTimeSeries []Entry, ts map[uint32]float64, timeRange *dtypeutils.MetricsTimeRange, function structs.Function) (map[uint32]float64, error) {
+	if len(sortedTimeSeries) == 0 {
+		return ts, nil
 	}
 
-	// Rate at edge does not exist.
-	delete(ts, sortedTimeSeries[0].downsampledTime)
-	return ts
+	var isRate bool
+
+	switch function.RangeFunction {
+	case segutils.Rate:
+		isRate = true
+	case segutils.Increase:
+		isRate = false
+	default:
+		return ts, fmt.Errorf("evaluateRate: unsupported function type %v", function.RangeFunction)
+	}
+
+	var dx float64
+
+	timeWindow := uint32(function.TimeWindow)
+	step := uint32(function.Step)
+	nextEvaluationTime := timeRange.StartEpochSec
+
+	for nextEvaluationTime <= timeRange.EndEpochSec {
+		windowStartTime := nextEvaluationTime - timeWindow
+
+		// Find the first sample in the time window using binary search (inclusive)
+		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime >= windowStartTime
+		})
+
+		// Find the last sample (including `nextEvaluationTime`)
+		lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
+			return sortedTimeSeries[j].downsampledTime > nextEvaluationTime
+		}) - 1
+
+		// If there are not atleast two samples within the time window, continue to the next evaluation time
+		if lastIndex < preIndex || lastIndex-preIndex < 1 {
+			nextEvaluationTime += step
+			continue
+		}
+
+		firstSample := sortedTimeSeries[preIndex]
+		lastSample := sortedTimeSeries[lastIndex]
+
+		// Compute the value difference between the first and last sample
+		dx = lastSample.dpVal - firstSample.dpVal
+		prevValue := firstSample.dpVal
+		for i := preIndex + 1; i <= lastIndex; i++ {
+			if sortedTimeSeries[i].dpVal < prevValue {
+				// Counter reset detected, adjust the value difference
+				dx += prevValue
+			}
+			prevValue = sortedTimeSeries[i].dpVal
+		}
+
+		// Calculate the time between the first and last sample
+		totalSampleDuration := float64(lastSample.downsampledTime - firstSample.downsampledTime)
+		avgDurationBetweenSamples := totalSampleDuration / float64(lastIndex-preIndex)
+
+		// The extrapolation limit is set to 10% above the avgDurationBetweenSamples
+		// This is taken from Prometheus' extrapolatedRate function
+		extrapolationDurationLimit := avgDurationBetweenSamples * 1.1
+
+		// Adjust durationToStart based on sample distribution
+		durationToStart := float64(firstSample.downsampledTime - windowStartTime)
+		if durationToStart >= extrapolationDurationLimit {
+			durationToStart = avgDurationBetweenSamples / 2
+		}
+
+		if dx > 0 && firstSample.dpVal >= 0 {
+			// Ensure counter extrapolation does not assume negative values.
+			// If the counter is increasing (dx > 0) and starts from a non-negative value (firstSample.dpVal >= 0),
+			// we estimate when the counter would have been zero using linear interpolation.
+			// If this estimated time to zero is shorter than durationToStart, we update durationToStart.
+			// This prevents excessive extrapolation into the past where the counter may not have existed yet.
+			estimatedZeroTime := totalSampleDuration * (firstSample.dpVal / dx)
+			if estimatedZeroTime < durationToStart {
+				durationToStart = estimatedZeroTime
+			}
+		}
+
+		durationToEnd := float64(nextEvaluationTime - lastSample.downsampledTime)
+		if durationToEnd >= extrapolationDurationLimit {
+			durationToEnd = avgDurationBetweenSamples / 2
+		}
+
+		totalExtrapolatedDuration := totalSampleDuration + durationToStart + durationToEnd
+
+		// Calculate the extrapolated rate
+		finalDx := dx * (totalExtrapolatedDuration / totalSampleDuration)
+		if isRate {
+			finalDx /= float64(timeWindow)
+		}
+
+		ts[nextEvaluationTime] = finalDx
+		nextEvaluationTime += step
+	}
+
+	return ts, nil
 }
 
 func evaluateClamp(ts map[uint32]float64, minVal float64, maxVal float64) {

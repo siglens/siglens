@@ -19,6 +19,8 @@ package utils
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -224,4 +226,12 @@ func IsRPCUnavailableError(err error) bool {
 	}
 
 	return false
+}
+
+func IsNotExistError(err error) bool {
+	if ewc, ok := err.(*ErrorWithCode); ok {
+		return ewc.code == fs.ErrNotExist.Error()
+	}
+
+	return os.IsNotExist(err)
 }

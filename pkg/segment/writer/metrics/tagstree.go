@@ -29,11 +29,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bits-and-blooms/bloom/v3"
 	jp "github.com/buger/jsonparser"
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/config"
-	. "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/structs"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -67,9 +67,11 @@ type TagsTreeHolder struct {
 	mid          string
 	suffix       uint64
 	allTrees     map[string]*TagTree // maps tagKey to the corresponding tagTree
-	tagBloom     *bloom.BloomFilter  // bloom filter for all tsids that exist across allTrees
 	rwLock       *sync.RWMutex
 	createdTime  time.Time
+	// a quick lookup to see if this tsid has already been seen in the past
+	// if yes then we don't need to search through all trees in this mseg's holder
+	tsidLookup map[uint64]struct{}
 }
 
 // for a given tag value, store all tsids that match
@@ -78,6 +80,16 @@ type tagInfo struct {
 	tagHashValue  uint64
 	tagValueType  jp.ValueType
 	matchingtsids []uint64
+}
+
+type UnrotatedItrInterface interface {
+	Next()
+}
+
+type UnrotatedItr struct {
+	tt     *TagTree
+	offset int
+	mName  uint64
 }
 
 func InitTagsTree(name string) *TagTree {
@@ -101,47 +113,45 @@ func InitTagsTreeHolder(mid string) (*TagsTreeHolder, error) {
 		mid:          mid,
 		suffix:       suffix,
 		allTrees:     make(map[string]*TagTree),
-		tagBloom:     bloom.NewWithEstimates(10_000, 0.001), // TODO: dynamic sizing
 		rwLock:       &sync.RWMutex{},
 		createdTime:  time.Now(),
+		tsidLookup:   make(map[uint64]struct{}),
 	}, nil
 }
 
 /*
-Returns a bool indicating if this tsid is new
-
 # Adds the inputed tags into corresponding tagsTree
-
-Internally, will use the internal bloom to check if the tsid has already been added or not
 */
-func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, tags *TagsHolder, tsid uint64) error {
+func (tth *TagsTreeHolder) AddTagsForTSID(mName []byte, th *TagsHolder, tsid uint64) error {
+
+	// if we have seen this tsid in the past, that means we have already added it in
+	// the corresponding trees
+	tth.rwLock.RLock()
+	_, ok := tth.tsidLookup[tsid]
+	if ok {
+		tth.rwLock.RUnlock()
+		return nil
+	}
+	tth.rwLock.RUnlock()
+
+	// if not then lets go ahead and add it
 	tth.rwLock.Lock()
 	defer tth.rwLock.Unlock()
 
-	err := tth.addTags(mName, tags, tsid)
-	if err != nil {
-		log.Errorf("TagsTreeHolder.AddTagsForTSID: failed to add tags to tree. mName: %v, tsid: %v, tags holder: %+v; err=%v", mName, tsid, tags, err)
-		return err
-	}
-
-	return nil
-}
-
-// Add tag keys and values to the tree. If inserted into a tree, sets the updated flag.
-func (tth *TagsTreeHolder) addTags(mName []byte, tags *TagsHolder, tsid uint64) error {
-	finaltags := tags.GetEntries()
-	for _, tag := range finaltags {
-		currKey := tag.tagKey
-		currTree, ok := tth.allTrees[currKey]
+	allTagEntries := th.GetEntries()
+	for _, tagEntry := range allTagEntries {
+		currTree, ok := tth.allTrees[tagEntry.tagKey]
 		if !ok {
-			currTree = InitTagsTree(currKey)
-			tth.allTrees[currKey] = currTree
+			currTree = InitTagsTree(tagEntry.tagKey)
+			tth.allTrees[tagEntry.tagKey] = currTree
 		}
-		if err := currTree.AddTagValue(mName, tag.tagValue, tag.tagValueType, tsid); err != nil {
-			log.Errorf("TagsTreeHolder.addTags: failed to add tag value to tree. mName: %v, tsid: %v, tag: %+v; err=%v", mName, tsid, tag, err)
+		if err := currTree.AddTagValue(mName, tagEntry.tagValue,
+			tagEntry.tagValueType, tsid); err != nil {
+			log.Errorf("TagsTreeHolder.addTags: failed to add tag value to tree. mName: %v, tsid: %v, tagEntry: %+v; err=%v", mName, tsid, tagEntry, err)
 			return err
 		}
 	}
+	tth.tsidLookup[tsid] = struct{}{}
 	return nil
 }
 
@@ -343,8 +353,8 @@ func (tt *TagsTreeHolder) rotateTagsTree(forceRotate bool) error {
 		tt.tagstreeBase = tagsTreePath
 		tt.suffix = nextSuffix
 		tt.allTrees = make(map[string]*TagTree)
-		tt.tagBloom = bloom.NewWithEstimates(10_000, 0.001) // TODO: dynamic sizing
 		tt.createdTime = time.Now()
+		tt.tsidLookup = make(map[uint64]struct{})
 	}
 	return nil
 }
@@ -411,7 +421,7 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	dataBuf := make([]byte, metadataSize)
 	totalBytesWritten := 0
 	startOff := metadataSize
-	copy(metadataBuf[:1], VERSION_TAGSTREE) // Write version byte as 0x01
+	copy(metadataBuf[:1], segutils.VERSION_TAGSTREE) // Write version byte as 0x01
 	utils.Uint32ToBytesLittleEndianInplace(metadataSize, metadataBuf[1:5])
 	idx := uint32(5)
 	for hashedMName, tagInfo := range tree.rawValues {
@@ -430,9 +440,9 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 					log.Errorf("TagTree.encodeTagsTree: Failed to parse %v as string for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
 					return nil, err
 				}
-				if _, err = tagBuf.Write(VALTYPE_ENC_SMALL_STRING[:]); err != nil {
+				if _, err = tagBuf.Write(segutils.VALTYPE_ENC_SMALL_STRING[:]); err != nil {
 					log.Errorf("TagTree.encodeTagsTree: Failed to write tag value type: %+v to buffer for tag tree %v. Error: %v",
-						VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
+						segutils.VALTYPE_ENC_SMALL_STRING[:], tree.name, err)
 					return nil, err
 				}
 				id += 1
@@ -459,10 +469,10 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 						log.Errorf("TagTree.encodeTagsTree: Failed to parse tag value %v as int or float for tag tree %v. Error: %v", tInfo.tagValue, tree.name, err)
 						return nil, err
 					}
-					valueType = VALTYPE_ENC_FLOAT64
+					valueType = segutils.VALTYPE_ENC_FLOAT64
 					valueInBytes = utils.Float64ToBytesLittleEndian(value.(float64))
 				} else {
-					valueType = VALTYPE_ENC_INT64
+					valueType = segutils.VALTYPE_ENC_INT64
 					valueInBytes = utils.Int64ToBytesLittleEndian(value.(int64))
 				}
 
@@ -520,4 +530,180 @@ func (tree *TagTree) encodeTagsTree() ([]byte, error) {
 	}
 	copy(dataBuf[0:metadataSize], metadataBuf)
 	return dataBuf, nil
+}
+
+func (tt *TagTree) countTSIDsForTagkey(tsidCard *utils.GobbableHll) {
+	tt.rwLock.RLock()
+	defer tt.rwLock.RUnlock()
+
+	for _, allTi := range tt.rawValues {
+		for _, ti := range allTi {
+			for _, tsid := range ti.matchingtsids {
+				tsidCard.AddRaw(tsid)
+			}
+		}
+	}
+}
+
+func (tt *TagTree) countTSIDsForTagPairs(tvaluesMap map[string]*utils.GobbableHll) {
+	tt.rwLock.RLock()
+	defer tt.rwLock.RUnlock()
+
+	for _, allTi := range tt.rawValues {
+		for _, ti := range allTi {
+			for _, tsid := range ti.matchingtsids {
+				tv := string(ti.tagValue)
+				tsidCard, ok := tvaluesMap[tv]
+				if !ok || tsidCard == nil {
+					tsidCard = structs.CreateNewHll()
+					tvaluesMap[tv] = tsidCard
+				}
+				tsidCard.AddRaw(tsid)
+			}
+		}
+	}
+}
+
+func (tth *TagsTreeHolder) GetValueIteratorForMetric(mName uint64,
+	tagkey string) (*UnrotatedItr, bool, error) {
+	tth.rwLock.RLock()
+	defer tth.rwLock.RUnlock()
+
+	tt, ok := tth.allTrees[tagkey]
+	if !ok {
+		return nil, false, nil
+	}
+
+	_, ok = tt.rawValues[mName]
+	if !ok {
+		return nil, false, nil
+	}
+
+	return &UnrotatedItr{
+		tt:     tt,
+		offset: 0,
+		mName:  mName,
+	}, true, nil
+}
+
+func (uitr *UnrotatedItr) Next() (uint64, []byte, []uint64, []byte, bool) {
+
+	uitr.tt.rwLock.RLock()
+	defer uitr.tt.rwLock.RUnlock()
+
+	allTis := uitr.tt.rawValues[uitr.mName]
+	if uitr.offset >= len(allTis) {
+		return 0, nil, nil, nil, false
+	}
+
+	ti := allTis[uitr.offset]
+	uitr.offset++
+
+	var valueType []byte
+	switch ti.tagValueType {
+	case jp.String:
+		valueType = segutils.VALTYPE_ENC_SMALL_STRING
+	case jp.Number:
+		_, err := jp.ParseInt(ti.tagValue)
+		if err != nil {
+			valueType = segutils.VALTYPE_ENC_FLOAT64
+		} else {
+			valueType = segutils.VALTYPE_ENC_INT64
+		}
+	default:
+		valueType = segutils.VALTYPE_ENC_SMALL_STRING
+	}
+
+	return ti.tagHashValue, ti.tagValue, ti.matchingtsids, valueType, true
+}
+
+// This Function will either return matchind TSIDs or HLL Counts
+// if tsidCard is nil :
+//
+//	then return the TSIDs
+//
+// else :
+//
+//	then return the count of matching TSIDs (via HLL method)
+//
+// The return values are (mNameFound, tagValueFound, rawTagValueToTSIDs, error)
+func (tth *TagsTreeHolder) GetOrInsertMatchingTSIDs(mName uint64, tagKey string,
+	tagHashValue uint64,
+	tagOperator segutils.TagOperator,
+	tsidCard *utils.GobbableHll) (bool, bool, map[string]map[uint64]struct{}, error) {
+
+	tth.rwLock.RLock()
+	defer tth.rwLock.RUnlock()
+
+	tt, ok := tth.allTrees[tagKey]
+	if !ok {
+		return false, false, nil, utils.NewErrorWithCode(os.ErrNotExist.Error(), fmt.Errorf("GetOrInsertMatchingTSIDs: unrotated tagtree not present for tagkey: %s", tagKey))
+	}
+
+	allTis, ok := tt.rawValues[mName]
+	if !ok {
+		return false, false, nil, nil
+	}
+
+	matchedSomething := false
+	rawTagValueToTSIDs := make(map[string]map[uint64]struct{})
+	for _, tInfo := range allTis {
+
+		matchesThis, mightMatchOtherValue := TagValueMatches(tInfo.tagHashValue,
+			tagHashValue, tagOperator)
+
+		if matchesThis {
+			matchedSomething = true
+			valueAsStr := string(tInfo.tagValue)
+			rawTagValueToTSIDs[valueAsStr] = make(map[uint64]struct{})
+
+			for _, tsid := range tInfo.matchingtsids {
+				if tsidCard != nil {
+					tsidCard.AddRaw(tsid)
+				} else {
+					rawTagValueToTSIDs[valueAsStr][tsid] = struct{}{}
+				}
+			}
+		}
+		if !mightMatchOtherValue {
+			break
+		}
+	}
+
+	return true, matchedSomething, rawTagValueToTSIDs, nil
+}
+
+// Returns two bools; first is true if it matches this value, second is true if it might match a different value.
+func TagValueMatches(actualValue uint64, pattern uint64, tagOperator segutils.TagOperator) (matchesThis bool, mightMatchOtherValue bool) {
+	switch tagOperator {
+	case segutils.Equal:
+		matchesThis = (actualValue == pattern)
+		mightMatchOtherValue = !matchesThis
+	case segutils.NotEqual:
+		matchesThis = (actualValue != pattern)
+		mightMatchOtherValue = true
+	default:
+		log.Errorf("tagValueMatches: unsupported tagOperator: %v", tagOperator)
+		matchesThis = false
+		mightMatchOtherValue = false
+	}
+
+	return matchesThis, mightMatchOtherValue
+}
+
+func CheckAndGetUnrotatedTth(tthBaseDir string, mid string, orgid int64) *TagsTreeHolder {
+
+	tth := GetTagsTreeHolder(orgid, mid)
+	if tth == nil {
+		return nil
+	}
+
+	tth.rwLock.RLock()
+	defer tth.rwLock.RUnlock()
+	// the tagtreeholder may have rotated
+	if tth.tagstreeBase != tthBaseDir {
+		return nil
+	}
+
+	return tth
 }

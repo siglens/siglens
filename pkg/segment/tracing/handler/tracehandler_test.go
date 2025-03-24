@@ -137,3 +137,34 @@ func TestGetUniqueTraceIds(t *testing.T) {
 	traceIds = GetUniqueTraceIds(pipeSearchResponseOuter, 0, 0, 1)
 	assert.Equal(t, []string{}, traceIds)
 }
+
+func TestConvertTimeToUint64(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     interface{}
+		want      uint64
+		shouldErr bool
+	}{
+		{"Float64 input", float64(1616161616.0), 1616161616, false},
+		{"Int input", int(1616161616), 1616161616, false},
+		{"Int64 input", int64(1616161616), 1616161616, false},
+		{"Uint64 input", uint64(1616161616), 1616161616, false},
+		{"Valid string input", "1616161616", 1616161616, false},
+		{"Invalid string input", "notanumber", 0, true},
+		{"Unsupported type input", struct{}{}, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := convertTimeToUint64(tt.input)
+			if tt.shouldErr {
+				assert.Error(t, err)
+				assert.Equal(t, uint64(0), got)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+
+}

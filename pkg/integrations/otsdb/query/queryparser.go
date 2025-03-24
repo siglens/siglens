@@ -100,7 +100,7 @@ func ParseRequest(startStr string, endStr string, m string, myid int64) (*struct
 			MetricName:      metricName,
 			HashedMName:     hashedMName,
 			TagsFilters:     tags,
-			FirstAggregator: structs.Aggregation{AggregatorFunction: aggregator},
+			FirstAggregator: structs.Aggregation{AggregatorFunction: aggregator, Without: true},
 			Downsampler:     downsampler,
 			OrgId:           myid,
 		},

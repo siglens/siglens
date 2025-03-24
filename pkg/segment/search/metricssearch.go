@@ -18,6 +18,7 @@
 package search
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ import (
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
 )
@@ -41,11 +43,11 @@ func init() {
 	// This can be set to runtime.GoMaxProcs(0)/2 to use half the number of cores. Previously it was set to 5.
 	// But we are setting it to 1 to avoid high memory usage.
 	max := 1
-	metricSearch = semaphore.NewWeightedSemaphore(int64(max), "metricsearch.limiter", time.Minute)
+	metricSearch = semaphore.NewWeightedSemaphore(int64(max), "metricsearch.limiter", 10*time.Second)
 }
 
 func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker.AllMatchedTSIDs, req *structs.MetricsSearchRequest, res *mresults.MetricsResult,
-	timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
+	bytesBuffer *bytes.Buffer, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 
 	if req == nil {
 		log.Errorf("qid=%d, RawSearchMetricsSegment: received a nil search request", qid)
@@ -57,7 +59,12 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		return
 	}
 
-	err := metricSearch.TryAcquireWithBackoff(1, 5, fmt.Sprintf("qid.%d", qid))
+	if req.QueryType == structs.UNROTATED_METRICS_SEARCH {
+		// If the search req is unrotated, then there will one unrotated block that needs to be searched.
+		metrics.SearchUnrotatedMetricsBlock(mQuery, tsidInfo, req, res, bytesBuffer, timeRange, qid, querySummary)
+	}
+
+	err := metricSearch.TryAcquireWithBackoff(1, 12, fmt.Sprintf("qid=%d", qid))
 	if err != nil {
 		log.Errorf("qid=%d RawSearchMetricsSegment: Failed to Acquire resources for raw search! error %+v", qid, err)
 		res.AddError(err)

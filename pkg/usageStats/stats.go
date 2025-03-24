@@ -33,7 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/hooks"
 	"github.com/siglens/siglens/pkg/instrumentation"
-	. "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/language"
@@ -66,6 +66,7 @@ type Stats struct {
 	TraceBytesCount             uint64
 	TraceSpanCount              uint64
 	TotalTraceSpanCount         uint64
+	ActiveSeriesCount           uint64
 }
 
 var ustats = make(map[int64]*Stats)
@@ -92,6 +93,7 @@ type ReadStats struct {
 	MetricsBytesCount      uint64
 	TraceBytesCount        uint64
 	TraceSpanCount         uint64
+	ActiveSeriesCount      uint64
 }
 
 func StartUsageStats() {
@@ -189,8 +191,8 @@ func getBaseQueryStatsDir(orgid int64) string {
 }
 
 func getBaseStatsDirs(startTime, endTime time.Time, orgid int64) []string {
-	startTOD := (startTime.UnixMilli() / MS_IN_DAY) * MS_IN_DAY
-	endTOD := (endTime.UnixMilli() / MS_IN_DAY) * MS_IN_DAY
+	startTOD := (startTime.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
+	endTOD := (endTime.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
 	ingestDir := config.GetIngestNodeBaseDir()
 	// read all files in dir
 
@@ -229,7 +231,7 @@ func getBaseStatsDirs(startTime, endTime time.Time, orgid int64) []string {
 			sb.WriteString(t1.UTC().Format("2006/01/02"))
 			sb.WriteString("/")
 			statsDirs = append(statsDirs, sb.String())
-			fileStartTOD = fileStartTOD + MS_IN_DAY
+			fileStartTOD = fileStartTOD + segutils.MS_IN_DAY
 			fileStartTime = fileStartTime.AddDate(0, 0, 1)
 		}
 
@@ -289,11 +291,6 @@ func writeUsageStats() {
 				if err != nil {
 					log.Errorf("WriteUsageStats failed:%v\n", err)
 				}
-				errC := flushCompressedStatsToFile(0)
-				if errC != nil {
-					log.Errorf("WriteUsageStats failed:%v\n", errC)
-				}
-
 			}()
 
 			if hook := hooks.GlobalHooks.WriteUsageStatsElseExtraLogicHook; hook != nil {
@@ -321,12 +318,13 @@ func ForceFlushStatstoFile() {
 
 func logStatSummary(myid int64) {
 	if _, ok := ustats[myid]; ok {
-		log.Infof("Ingest stats: past minute : myid=%v, events=%v, metrics=%v, traces=%v, bytes=%v",
+		log.Infof("Ingest stats: past minute : myid=%v, events=%v, metrics=%v, traces=%v, bytes=%v, activeSeriesCount=%v",
 			myid,
 			msgPrinter.Sprintf("%v", ustats[myid].LogLinesCount),
 			msgPrinter.Sprintf("%v", ustats[myid].MetricsDatapointsCount),
 			msgPrinter.Sprintf("%v", ustats[myid].TraceSpanCount),
-			msgPrinter.Sprintf("%v", ustats[myid].BytesCount))
+			msgPrinter.Sprintf("%v", ustats[myid].BytesCount),
+			msgPrinter.Sprintf("%v", ustats[myid].ActiveSeriesCount))
 
 		log.Infof("Ingest stats: total so far: myid=%v, events=%v, metrics=%v, traces=%v, bytes=%v",
 			myid,
@@ -367,6 +365,7 @@ func FlushStatsToFile(orgid int64) error {
 	if _, ok := ustats[orgid]; ok {
 		logStatSummary(orgid)
 		instrumentation.SetPastMinuteNumDataPoints(int64(ustats[orgid].MetricsDatapointsCount))
+		instrumentation.SetPastMinuteActiveSeriesCount(int64(ustats[orgid].ActiveSeriesCount))
 
 		if ustats[orgid].BytesCount > 0 {
 			filename := getStatsFilename(GetBaseStatsDir(orgid))
@@ -386,7 +385,12 @@ func FlushStatsToFile(orgid int64) error {
 			metricsBytesAsString := strconv.FormatUint(ustats[orgid].MetricsBytesCount, 10)
 			traceBytesAsString := strconv.FormatUint(ustats[orgid].TraceBytesCount, 10)
 			traceSpanCountAsString := strconv.FormatUint(ustats[orgid].TraceSpanCount, 10)
-			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString, logsBytesAsString, metricsBytesAsString, traceBytesAsString, traceSpanCountAsString}
+			activeSeriesCountAsString := strconv.FormatUint(ustats[orgid].ActiveSeriesCount, 10)
+
+			record = []string{bytesAsString, logLinesAsString, metricCountAsString, epochAsString,
+				logsBytesAsString, metricsBytesAsString, traceBytesAsString,
+				traceSpanCountAsString, activeSeriesCountAsString}
+
 			records = append(records, record)
 			err = w.WriteAll(records)
 			if err != nil {
@@ -442,6 +446,13 @@ func UpdateMetricsStats(metricsBytesCount uint64, incomingMetrics uint64, orgid 
 	atomic.AddUint64(&ustats[orgid].MetricsBytesCount, metricsBytesCount)
 }
 
+func UpdateActiveSeriesCount(orgid int64, activeSeriesCount uint64) {
+	if _, ok := ustats[orgid]; !ok {
+		ustats[orgid] = &Stats{}
+	}
+	atomic.StoreUint64(&ustats[orgid].ActiveSeriesCount, activeSeriesCount)
+}
+
 func GetQueryStats(orgid int64) (uint64, float64, float64, uint64) {
 	if _, ok := QueryStatsMap[orgid]; !ok {
 		return 0, 0, 0, 0
@@ -474,50 +485,11 @@ func UpdateQueryStats(queryCount uint64, respTime float64, orgid int64) {
 	qs.mu.Unlock()
 }
 
-// Calculate total bytesCount,linesCount and return hourly / daily / minute count
-func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64) (map[string]ReadStats, error) {
-	endEpoch := time.Now()
-	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
-	startTOD := (startEpoch.UnixMilli() / MS_IN_DAY) * MS_IN_DAY
-	endTOD := (endEpoch.UnixMilli() / MS_IN_DAY) * MS_IN_DAY
-	startTOH := (startEpoch.UnixMilli() / MS_IN_HOUR) * MS_IN_HOUR
-	endTOH := (endEpoch.UnixMilli() / MS_IN_HOUR) * MS_IN_HOUR
-	statsFnames := getBaseStatsDirs(startEpoch, endEpoch, orgid) // usageStats
+func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, error) {
 
-	allStatsMap := make([]ReadStats, 0)
-	resultMap := make(map[string]ReadStats)
-	var bucketInterval string
-	var intervalMinutes uint32
-	var err error
-	runningTs := startEpoch
-	if granularity == ByMinute {
-		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
-		if err != nil {
-			return nil, err
-		}
+	allStatsMap := make([]*ReadStats, 0)
 
-		for runningTs.Before(endEpoch) {
-			// Truncate runningTs to the nearest intervalMinutes
-			truncatedTs := runningTs.Truncate(time.Duration(intervalMinutes) * time.Minute)
-			bucketInterval = truncatedTs.Format("2006-01-02T15:04")
-			resultMap[bucketInterval] = ReadStats{} // Initialize the bucket if not already present
-			runningTs = runningTs.Add(time.Duration(intervalMinutes) * time.Minute)
-		}
-	} else if granularity == Daily {
-		for endTOD >= startTOD {
-			bucketInterval = runningTs.Format("2006-01-02")
-			runningTs = runningTs.Add(24 * time.Hour)
-			startTOD = startTOD + MS_IN_DAY
-			resultMap[bucketInterval] = ReadStats{}
-		}
-	} else if granularity == Hourly {
-		for endTOH >= startTOH {
-			bucketInterval = runningTs.Format("2006-01-02T15")
-			runningTs = runningTs.Add(1 * time.Hour)
-			startTOH = startTOH + MS_IN_HOUR
-			resultMap[bucketInterval] = ReadStats{}
-		}
-	}
+	statsFnames := getBaseStatsDirs(startEpoch, endEpoch, orgid)
 
 	for _, statsFile := range statsFnames {
 		filename := getStatsFilename(statsFile)
@@ -556,6 +528,59 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 		}
 	}
 
+	return allStatsMap, nil
+}
+
+// Calculate total bytesCount,linesCount and return hourly / daily / minute count
+func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64) (map[string]*ReadStats, error) {
+
+	endEpoch := time.Now()
+	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
+	startTOD := (startEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
+	endTOD := (endEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
+	startTOH := (startEpoch.UnixMilli() / segutils.MS_IN_HOUR) * segutils.MS_IN_HOUR
+	endTOH := (endEpoch.UnixMilli() / segutils.MS_IN_HOUR) * segutils.MS_IN_HOUR
+
+	resultMap := make(map[string]*ReadStats)
+	var bucketInterval string
+	var intervalMinutes uint32
+	var err error
+	runningTs := startEpoch
+	if granularity == ByMinute {
+		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
+		if err != nil {
+			return nil, err
+		}
+
+		for runningTs.Before(endEpoch) {
+			// Truncate runningTs to the nearest intervalMinutes
+			truncatedTs := runningTs.Truncate(time.Duration(intervalMinutes) * time.Minute)
+			bucketInterval = truncatedTs.Format("2006-01-02T15:04")
+			resultMap[bucketInterval] = &ReadStats{} // Initialize the bucket if not already present
+			runningTs = runningTs.Add(time.Duration(intervalMinutes) * time.Minute)
+		}
+	} else if granularity == Daily {
+		for endTOD >= startTOD {
+			bucketInterval = runningTs.Format("2006-01-02")
+			runningTs = runningTs.Add(24 * time.Hour)
+			startTOD = startTOD + segutils.MS_IN_DAY
+			resultMap[bucketInterval] = &ReadStats{}
+		}
+	} else if granularity == Hourly {
+		for endTOH >= startTOH {
+			bucketInterval = runningTs.Format("2006-01-02T15")
+			runningTs = runningTs.Add(1 * time.Hour)
+			startTOH = startTOH + segutils.MS_IN_HOUR
+			resultMap[bucketInterval] = &ReadStats{}
+		}
+	}
+
+	allStatsMap, err := readUsageStats(startEpoch, endEpoch, orgid)
+	if err != nil {
+		return nil, err
+	}
+
+	ascBuckets := map[string][]uint64{}
 	for _, rStat := range allStatsMap {
 		if granularity == Daily {
 			bucketInterval = rStat.TimeStamp.Format("2006-01-02")
@@ -567,18 +592,40 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			// it will truncate the time to "20:40" and format it as "2006-01-02T20:40" to store in the resultMap.
 			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
 		}
-		if entry, ok := resultMap[bucketInterval]; ok {
-			entry.EventCount += rStat.EventCount
-			entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
-			entry.TotalBytesCount += rStat.TotalBytesCount
-			entry.LogsBytesCount += rStat.LogsBytesCount
-			entry.MetricsBytesCount += rStat.MetricsBytesCount
-			entry.TimeStamp = rStat.TimeStamp
-			entry.TraceBytesCount += rStat.TraceBytesCount
-			entry.TraceSpanCount += rStat.TraceSpanCount
-			resultMap[bucketInterval] = entry
-		} else {
-			resultMap[bucketInterval] = rStat
+		entry, ok := resultMap[bucketInterval]
+		if !ok {
+			resultMap[bucketInterval] = &ReadStats{}
+			entry = resultMap[bucketInterval]
+		}
+		entry.EventCount += rStat.EventCount
+		entry.MetricsDatapointsCount += rStat.MetricsDatapointsCount
+		entry.TotalBytesCount += rStat.TotalBytesCount
+		entry.LogsBytesCount += rStat.LogsBytesCount
+		entry.MetricsBytesCount += rStat.MetricsBytesCount
+		entry.TimeStamp = rStat.TimeStamp
+		entry.TraceBytesCount += rStat.TraceBytesCount
+		entry.TraceSpanCount += rStat.TraceSpanCount
+
+		// for ActiveSeriesCount we cannot keep adding them, but rather we want to accumulate all the values
+		// for each bucket, then the average of that specific bucket, since it is a gauge
+		// here we just accumulate them, and below we will do the averaging, once all buckets have been created
+		curBucket, ok := ascBuckets[bucketInterval]
+		if !ok {
+			curBucket = make([]uint64, 0)
+		}
+		curBucket = append(curBucket, rStat.ActiveSeriesCount)
+		ascBuckets[bucketInterval] = curBucket
+	}
+
+	for buckInterval, entry := range resultMap {
+		allAscValues, ok := ascBuckets[buckInterval]
+		if ok && len(allAscValues) > 0 {
+			aggVal := uint64(0)
+			for _, val := range allAscValues {
+				aggVal += val
+			}
+			aggVal /= uint64(len(allAscValues))
+			entry.ActiveSeriesCount = aggVal
 		}
 	}
 	return resultMap, nil
@@ -588,9 +635,12 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 // - Initially, it was: bytes, eventCount, time
 // - Then, metrics were added: bytes, eventCount, metricCount, time
 // - Later, logsBytesCount and metricsBytesCount were added: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount
-// The current format is bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount. However, the new format is backward compatible with the old formats.
-func parseStatsRecord(record []string) (ReadStats, error) {
-	var readStats ReadStats
+// - Later: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount.
+// Current format: bytes, eventCount, metricCount, time, logsBytesCount, metricsBytesCount, traceBytesAsCount, traceCount, activeSeriesCount
+//
+//	However, the new format is backward compatible with the old formats.
+func parseStatsRecord(record []string) (*ReadStats, error) {
+	readStats := &ReadStats{}
 	var err error
 
 	if len(record) < 3 {
@@ -673,6 +723,36 @@ func parseStatsRecord(record []string) (ReadStats, error) {
 			return readStats, fmt.Errorf("parseStatsRecord: could not parse TracesCount field '%v': %w", record[7], err)
 		}
 		readStats.TimeStamp = time.Unix(tsString, 0)
+	case 9:
+		readStats.MetricsDatapointsCount, err = strconv.ParseUint(record[2], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsDatapointsCount field '%v': %w", record[2], err)
+		}
+		tsString, err := strconv.ParseInt(record[3], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse timestamp field '%v': %w", record[3], err)
+		}
+		readStats.TimeStamp = time.Unix(tsString, 0)
+		readStats.LogsBytesCount, err = strconv.ParseUint(record[4], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse LogsBytesCount field '%v': %w", record[4], err)
+		}
+		readStats.MetricsBytesCount, err = strconv.ParseUint(record[5], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse MetricsBytesCount field '%v': %w", record[5], err)
+		}
+		readStats.TraceBytesCount, err = strconv.ParseUint(record[6], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse TraceBytesCount field '%v': %w", record[6], err)
+		}
+		readStats.TraceSpanCount, err = strconv.ParseUint(record[7], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse TracesCount field '%v': %w", record[7], err)
+		}
+		readStats.ActiveSeriesCount, err = strconv.ParseUint(record[8], 10, 64)
+		if err != nil {
+			return readStats, fmt.Errorf("parseStatsRecord: could not parse ActiveSeriesCount field '%v': %w", record[8], err)
+		}
 	default:
 		err = fmt.Errorf("parseStatsRecord: invalid record length: %d", len(record))
 		return readStats, err
@@ -690,4 +770,21 @@ func CalculateIntervalForStatsByMinute(timerangeMinutes uint32) (uint32, error) 
 
 	// If no suitable step is found, return an error
 	return 0, errors.New("no suitable step found")
+}
+
+func GetActiveSeriesCounts(pastXhours uint64, orgid int64) ([]uint64, error) {
+
+	endEpoch := time.Now()
+	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
+
+	allStatsMap, err := readUsageStats(startEpoch, endEpoch, orgid)
+	if err != nil {
+		return nil, err
+	}
+
+	retVal := make([]uint64, len(allStatsMap))
+	for i, rstat := range allStatsMap {
+		retVal[i] = rstat.ActiveSeriesCount
+	}
+	return retVal, nil
 }

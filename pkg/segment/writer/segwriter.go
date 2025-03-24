@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,6 +82,7 @@ func InitKibanaInternalData() {
 type SegfileRotateInfo struct {
 	FinalName   string
 	TimeRotated uint64
+	tableName   string
 }
 
 type DeData struct {
@@ -277,7 +277,7 @@ func InitWriterNode() {
 	go idleWipFlushToFile()
 	go maxWaitWipFlushToFile()
 
-	go timeBasedRotateSegment()
+	go removeStaleSegmentsLoop()
 	go cleanRecentlyRotatedInfo()
 	go timeBasedUploadIngestNodeDir()
 	HostnameDir()
@@ -287,7 +287,7 @@ func InitWriterNode() {
 // TODO: this should be pushed based & we should have checks in uploadingestnode function to prevent uploading unupdated files.
 func timeBasedUploadIngestNodeDir() {
 	for {
-		time.Sleep(UPLOAD_INGESTNODE_DIR)
+		time.Sleep(UPLOAD_INGESTNODE_DIR_SLEEP)
 		err := blob.UploadIngestNodeDir()
 		if err != nil {
 			log.Errorf("timeBasedUploadIngestNodeDir: failed to upload ingestnode dir: err=%v", err)
@@ -538,12 +538,6 @@ func AddTimeSeriesEntryToInMemBuf(rawJson []byte, signalType SIGNAL_TYPE, orgid 
 		if err != nil {
 			return fmt.Errorf("entry rejected for metric %s %v because of error: %v", mName, tagsHolder, err)
 		}
-	case SIGNAL_METRICS_INFLUX:
-		tagsHolder := metrics.GetTagsHolder()
-		ingestedCount, errors := metrics.ExtractInfluxPayloadAndInsertDp(rawJson, tagsHolder, orgid)
-		if ingestedCount == 0 {
-			return fmt.Errorf("influx entry rejected because of errors: %v", errors)
-		}
 
 	case SIGNAL_METRICS_OTLP:
 		tagsHolder := metrics.GetTagsHolder()
@@ -605,48 +599,20 @@ func (ss *SegStore) isSegstoreUnusedSinceTime(timeDuration time.Duration) bool {
 	return time.Since(ss.lastUpdated) > timeDuration && ss.RecordCount == 0
 }
 
-func rotateSegmentOnTime() {
-	segRotateDuration := time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
+func removeStaleSegments() {
 
 	segStoresToDeleteChan := make(chan string, len(allSegStores))
 
 	allSegStoresLock.RLock()
-	wg := sync.WaitGroup{}
-	for sid, ss := range allSegStores {
+	for streamid, segstore := range allSegStores {
 
-		if ss.firstTime {
-			// we want random rotation time check for each seg so that we don't lock up the system
-			// however we give N + randInt(N) so that we don't rotate too early on the first
-			// iteration when the system starts up
-			rnm := rand.Intn(SEGMENT_ROTATE_DURATION_SECONDS) + SEGMENT_ROTATE_DURATION_SECONDS
-			segRotateDuration = time.Duration(rnm) * time.Second
-		} else {
-			segRotateDuration = time.Duration(SEGMENT_ROTATE_DURATION_SECONDS) * time.Second
+		segstore.Lock.Lock()
+		// remove unused segstores
+		if segstore.isSegstoreUnusedSinceTime(STALE_SEGMENT_DELETION_SECONDS) {
+			segStoresToDeleteChan <- streamid
 		}
-
-		if time.Since(ss.timeCreated) < segRotateDuration {
-			continue
-		}
-		wg.Add(1)
-		go func(streamid string, segstore *SegStore) {
-			defer wg.Done()
-			segstore.Lock.Lock()
-			segstore.firstTime = false
-			err := segstore.AppendWipToSegfile(streamid, false, false, true)
-			if err != nil {
-				log.Errorf("rotateSegmentOnTime: failed to append, segkey: %v err: %v",
-					segstore.SegmentKey, err)
-			} else {
-				// remove unused segstores if its has been twice
-				// the segrotation time since we last updated it
-				if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
-					segStoresToDeleteChan <- streamid
-				}
-			}
-			segstore.Lock.Unlock()
-		}(sid, ss)
+		segstore.Lock.Unlock()
 	}
-	wg.Wait()
 	allSegStoresLock.RUnlock()
 
 	close(segStoresToDeleteChan)
@@ -658,7 +624,7 @@ func rotateSegmentOnTime() {
 			continue
 		}
 		// Check again here to make sure we are not deleting a segstore that was updated
-		if segstore.isSegstoreUnusedSinceTime(segRotateDuration * 2) {
+		if segstore.isSegstoreUnusedSinceTime(STALE_SEGMENT_DELETION_SECONDS) {
 			log.Infof("Deleting unused segstore for segkey: %v", segstore.SegmentKey)
 			delete(allSegStores, streamid)
 		}
@@ -681,10 +647,10 @@ func ForceRotateSegmentsForTest() {
 	allSegStoresLock.Unlock()
 }
 
-func timeBasedRotateSegment() {
+func removeStaleSegmentsLoop() {
 	for {
-		time.Sleep(SEGMENT_ROTATE_SLEEP_DURATION_SECONDS * time.Second)
-		rotateSegmentOnTime()
+		time.Sleep(STALE_SEGMENT_DELETION_SLEEP_SECONDS * time.Second)
+		removeStaleSegments()
 	}
 
 }

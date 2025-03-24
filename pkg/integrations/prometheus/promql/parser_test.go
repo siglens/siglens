@@ -74,7 +74,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "testmetric3", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -336,7 +336,7 @@ func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeMatrix, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -1239,6 +1239,37 @@ func Test_parsePromQLQuery_Label_Replace(t *testing.T) {
 	assert.Equal(t, tagKeys, actualTagKeys)
 }
 
+func Test_parsePromQLQuery_HistogramQunatile(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := int64(0)
+
+	query := `histogram_quantile(0.9, rate(http_request_duration_seconds_bucket[5m]))`
+
+	metricName := "http_request_duration_seconds_bucket"
+	mHashedMName := xxhash.Sum64String(metricName)
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mQueryReqs))
+	assert.Equal(t, 0, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, metricName, mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
+	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggBlockType)
+	assert.Equal(t, segutils.Rate, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, float64(300), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.TimeWindow)
+	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next)
+	assert.Equal(t, structs.FunctionBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggBlockType)
+	assert.Equal(t, segutils.HistogramQuantile, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.FunctionBlock.HistogramFunction.Function)
+	assert.Equal(t, float64(0.9), mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.FunctionBlock.HistogramFunction.Quantile)
+}
+
 func Test_parsePromQLQuery_Without(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
@@ -1390,9 +1421,11 @@ func Test_parsePromQLQuery_Parse_Promql_Test_CSV(t *testing.T) {
 
 func Test_GetAllLabels(t *testing.T) {
 	assertGetAllLabels(t, true, `allocated_bytes`)
-	assertGetAllLabels(t, false, `allocated_bytes{app="foo"}`)
+	assertGetAllLabels(t, true, `allocated_bytes{app="foo"}`)
 	assertGetAllLabels(t, false, `avg(allocated_bytes)`)
 	assertGetAllLabels(t, false, `group by (app) (allocated_bytes)`)
+	assertGetAllLabels(t, true, `count(allocated_bytes{instance="foo"})`)
+	assertGetAllLabels(t, true, `count by (app) (allocated_bytes{instance="foo"})`)
 }
 
 func assertGetAllLabels(t *testing.T, expected bool, query string) {
@@ -1400,6 +1433,24 @@ func assertGetAllLabels(t *testing.T, expected bool, query string) {
 
 	mQuery := parsePromQLForTest(t, query)
 	assert.Equal(t, expected, mQuery.GetAllLabels)
+}
+
+func Test_SelectAllSeries(t *testing.T) {
+	assertSelectAllSeries(t, true, `allocated_bytes`)
+	assertSelectAllSeries(t, true, `allocated_bytes{app="foo"}`)
+	assertSelectAllSeries(t, true, `avg(allocated_bytes)`)
+	assertSelectAllSeries(t, false, `group by (app) (allocated_bytes)`)
+	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"})`)
+	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"}) by (app)`)
+	assertSelectAllSeries(t, true, `count(allocated_bytes{instance="foo"})`)
+	assertSelectAllSeries(t, false, `count by (app) (allocated_bytes{instance="foo"})`)
+}
+
+func assertSelectAllSeries(t *testing.T, expected bool, query string) {
+	t.Helper()
+
+	mQuery := parsePromQLForTest(t, query)
+	assert.Equal(t, expected, mQuery.SelectAllSeries)
 }
 
 func parsePromQLForTest(t *testing.T, query string) structs.MetricsQuery {

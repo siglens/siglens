@@ -356,7 +356,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyWithLock(key string) {
 	}
 	delete(hm.segmentMetadataReverseIndex, key)
 	if tName == "" {
-		log.Errorf("deleteSegmentKeyWithLock: key %+v was not found in allSegmentMicroIndex", key)
+		log.Infof("deleteSegmentKeyWithLock: key %+v not found in inmem allSegmentMicroIndex, and thats ok since Rebalance thread could have removed it", key)
 		return
 	}
 	sortedTableSlice, ok := hm.tableSortedMetadata[tName]

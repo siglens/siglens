@@ -115,11 +115,10 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	tagValue = xxhash.Sum64String("yellow")
 	tagKeyFileExists := attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, tagHashValue, err := attr.GetMatchingTSIDsOrCount(metricName, tagKey, tagValue, segutils.Equal, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err := attr.getOrInsertMatchingTSIDs(metricName, tagKey, tagValue, segutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
-	assert.Equal(t, tagValue, tagHashValue)
 	assert.Len(t, rawTagValueToTSIDs, 1)
 	assert.Greater(t, len(rawTagValueToTSIDs["yellow"]), 0)
 
@@ -128,12 +127,12 @@ func Test_ReadWriteTagsTree(t *testing.T) {
 	expectedtagValues := []string{"group 0", "group 1"}
 	tagKeyFileExists = attr.tagTreeFileExists(tagKey)
 	assert.True(t, tagKeyFileExists)
-	itr, found, err := attr.GetValueIteratorForMetric(metricName, tagKey)
+	itr, found, err := attr.getValueIteratorForMetric(metricName, tagKey)
 	assert.Nil(t, err)
 	assert.True(t, found)
 	count := 0
 	for {
-		_, filterByteSlice, _, _, more := itr.Next()
+		_, filterByteSlice, _, _, more := itr.next()
 		if !more {
 			break
 		}
@@ -180,7 +179,7 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 	// Test selecting for key = value
 	colorTagKeyFileExists := attr.tagTreeFileExists("color")
 	assert.True(t, colorTagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, _, err := attr.GetMatchingTSIDsOrCount(metric1, "color", xxhash.Sum64String("blue"), segutils.Equal, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err := attr.getOrInsertMatchingTSIDs(metric1, "color", xxhash.Sum64String("blue"), segutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
@@ -188,26 +187,26 @@ func Test_SelectOneTagKeyValuePair(t *testing.T) {
 
 	fruitTagKeyFileExists := attr.tagTreeFileExists("fruit")
 	assert.True(t, fruitTagKeyFileExists)
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDsOrCount(metric1, "fruit", xxhash.Sum64String("pear"), segutils.Equal, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.Equal, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 3)
 
 	// Test selecting for key != value
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDsOrCount(metric1, "color", xxhash.Sum64String("green"), segutils.NotEqual, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "color", xxhash.Sum64String("green"), segutils.NotEqual, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 4)
 
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDsOrCount(metric1, "fruit", xxhash.Sum64String("pear"), segutils.NotEqual, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("pear"), segutils.NotEqual, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)
 	assert.Equal(t, numTSIDs(rawTagValueToTSIDs), 2)
 
-	exists, tagValExists, rawTagValueToTSIDs, _, err = attr.GetMatchingTSIDsOrCount(metric1, "fruit", xxhash.Sum64String("this-doesn't-match-anything"), segutils.NotEqual, nil)
+	exists, tagValExists, rawTagValueToTSIDs, err = attr.getOrInsertMatchingTSIDs(metric1, "fruit", xxhash.Sum64String("this-doesn't-match-anything"), segutils.NotEqual, nil)
 	assert.Nil(t, err)
 	assert.True(t, exists)
 	assert.True(t, tagValExists)

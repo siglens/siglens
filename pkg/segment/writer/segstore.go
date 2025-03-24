@@ -44,7 +44,6 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
-	"github.com/siglens/siglens/pkg/usageStats"
 	toputils "github.com/siglens/siglens/pkg/utils"
 
 	"github.com/siglens/siglens/pkg/segment/pqmr"
@@ -89,7 +88,6 @@ type SegStore struct {
 	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
 	stbHolder             *STBHolder
 	OrgId                 int64
-	firstTime             bool
 	stbDictEncWorkBuf     [][]string
 	segStatsWorkBuf       []byte
 	SegmentErrors         map[string]*structs.SearchErrorInfo
@@ -137,7 +135,6 @@ func NewSegStore(orgId int64) *SegStore {
 		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
-		firstTime:          true,
 		stbDictEncWorkBuf:  make([][]string, 0),
 		segStatsWorkBuf:    make([]byte, utils.WIP_SIZE),
 	}
@@ -689,7 +686,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		if err != nil {
 			return err
 		}
-		usageStats.UpdateCompressedStats(int64(totalBytesWritten), segmeta.OrgId)
 		segstore.numBlocks += 1
 	}
 	if segstore.numBlocks > 0 && !isKibana {
@@ -816,7 +812,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			}
 		}
 
-		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
+		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, segstore.VirtualTableName)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
 		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)

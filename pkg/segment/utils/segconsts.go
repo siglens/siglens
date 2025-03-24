@@ -213,10 +213,11 @@ func ValTypeToSSDType(valtype byte) SS_DTYPE {
 	}
 }
 
-const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
-const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
-var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
+const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000 // one minute
+const STALE_SEGMENT_DELETION_SECONDS = 15 * 60 // 15 mins
+// todo : once the blindly uploading thing is fixed, we should change this timer back to 1 min
+var UPLOAD_INGESTNODE_DIR_SLEEP = time.Duration(10 * time.Minute) // 10 minutes
+const STALE_SEGMENT_DELETION_SLEEP_SECONDS = 120
 
 const QUERY_EARLY_EXIT_LIMIT = uint64(100)
 const QUERY_MAX_BUCKETS = uint64(10_000)
@@ -452,6 +453,12 @@ type LabelFunctions int
 const (
 	LabelJoin LabelFunctions = iota + 1
 	LabelReplace
+)
+
+type HistogramFunctions int
+
+const (
+	HistogramQuantile HistogramFunctions = iota + 1
 )
 
 // For columns used by aggs with eval statements, we should keep their raw values because we need to evaluate them
@@ -1594,7 +1601,6 @@ const (
 	SIGNAL_METRICS_OTSDB      = 1
 	SIGNAL_EVENTS             = 2
 	SIGNAL_JAEGER_TRACES      = 3
-	SIGNAL_METRICS_INFLUX     = 4
 	SIGNAL_METRICS_PROMETHEUS = 5
 	SIGNAL_METRICS_OTLP       = 6
 )
