@@ -181,10 +181,13 @@ type WaitingQueryInfo struct {
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
+var arqMapLock *sync.RWMutex = &sync.RWMutex{} // All running queries lock
 var waitingQueries = []*WaitStateData{}
 var waitingQueriesLock = &sync.Mutex{}
 
-var arqMapLock *sync.RWMutex = &sync.RWMutex{}
+func init() {
+	go logQueueSizesForever(5 * time.Minute)
+}
 
 func (rQuery *RunningQueryState) IsAsync() bool {
 	rQuery.rqsLock.Lock()
@@ -234,6 +237,19 @@ func GetActiveQueryCount() int {
 	arqMapLock.RLock()
 	defer arqMapLock.RUnlock()
 	return len(allRunningQueries)
+}
+
+func getWaitingQueryCount() int {
+	waitingQueriesLock.Lock()
+	defer waitingQueriesLock.Unlock()
+	return len(waitingQueries)
+}
+
+func logQueueSizesForever(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	for range ticker.C {
+		log.Infof("ActiveQueryCount=%d, WaitingQueryCount=%d", GetActiveQueryCount(), getWaitingQueryCount())
+	}
 }
 
 func withLockInitializeQuery(qid uint64, async bool, cleanupCallback func(), stateChan chan *QueryStateChanData) (*RunningQueryState, error) {

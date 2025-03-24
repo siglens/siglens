@@ -1,6 +1,9 @@
 name: Format the JS code
 
-on: [push]
+on:
+  push:
+    branches-ignore:
+      - main
 
 jobs:
   check-changed-files:
