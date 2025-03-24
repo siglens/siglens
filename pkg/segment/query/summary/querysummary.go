@@ -102,7 +102,11 @@ type QuerySummary struct {
 	numBuckets                  int
 	remainingDistributedQueries uint64
 	totalDistributedQueries     uint64
+	tickCount                   uint32
 }
+
+var numQsForLogs int64
+var numQsForMetrics int64
 
 // InitQuerySummary returns a struct to store query level search stats.
 // This function starts a ticker to log info about long running queries.
@@ -130,7 +134,14 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 			allTimes: make([]time.Duration, 0),
 		},
 		remainingDistributedQueries: 0,
+		tickCount:                   0,
 	}
+	if queryType == METRICS {
+		atomic.AddInt64(&numQsForMetrics, 1)
+	} else {
+		atomic.AddInt64(&numQsForLogs, 1)
+	}
+
 	qs.startTicker()
 	return qs
 }
@@ -157,30 +168,56 @@ func (qs *QuerySummary) tickWatcher() {
 	for {
 		select {
 		case <-qs.tickerStopChan:
+			if qs.queryType == METRICS {
+				atomic.AddInt64(&numQsForMetrics, ^int64(0))
+			} else {
+				atomic.AddInt64(&numQsForLogs, ^int64(0))
+			}
 			return
 		case <-qs.ticker.C:
-			if qs.queryType == LOGS {
-				remainingDQsString := ""
-				var addDistributedInfo bool
-				if hook := hooks.GlobalHooks.ShouldAddDistributedInfoHook; hook != nil {
-					addDistributedInfo = hook()
-				}
-
-				if addDistributedInfo {
-					remainingDQsString = fmt.Sprintf(", remaining distributed queries: %v", qs.remainingDistributedQueries)
-				}
-
-				log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v", qs.qid, time.Since(qs.startTime),
-					len(qs.allQuerySummaries[PQS].searchTimeHistory),
-					len(qs.allQuerySummaries[RAW].searchTimeHistory),
-					len(qs.allQuerySummaries[STREE].searchTimeHistory),
-					remainingDQsString)
-			} else if qs.queryType == METRICS {
-				log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v",
-					qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
-					qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded())
-			}
+			qs.tickCount++
+			qs.processTick()
 		}
+	}
+}
+
+func (qs *QuerySummary) processTick() {
+
+	logit := false
+	if qs.tickCount < 30 {
+		// we log only the first 30 iterations (aka 5 minutes) with the 10 sec granularity
+		logit = true
+	} else if qs.tickCount%12 == 0 {
+		// after the first 5 mins, we will log only every 2 minutes
+		logit = true
+	}
+
+	if !logit {
+		return
+	}
+
+	if qs.queryType == LOGS {
+		remainingDQsString := ""
+		var addDistributedInfo bool
+		if hook := hooks.GlobalHooks.ShouldAddDistributedInfoHook; hook != nil {
+			addDistributedInfo = hook()
+		}
+
+		if addDistributedInfo {
+			remainingDQsString = fmt.Sprintf(", remaining distributed queries: %v", qs.remainingDistributedQueries)
+		}
+
+		log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v, numQsForLogs: %v",
+			qs.qid, time.Since(qs.startTime),
+			len(qs.allQuerySummaries[PQS].searchTimeHistory),
+			len(qs.allQuerySummaries[RAW].searchTimeHistory),
+			len(qs.allQuerySummaries[STREE].searchTimeHistory),
+			remainingDQsString,
+			numQsForLogs)
+	} else if qs.queryType == METRICS {
+		log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, numQsForMetrics: %v",
+			qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
+			qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), numQsForMetrics)
 	}
 }
 
