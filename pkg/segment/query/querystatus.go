@@ -181,10 +181,9 @@ type WaitingQueryInfo struct {
 }
 
 var allRunningQueries = map[uint64]*RunningQueryState{}
+var arqMapLock *sync.RWMutex = &sync.RWMutex{} // All running queries lock
 var waitingQueries = []*WaitStateData{}
 var waitingQueriesLock = &sync.Mutex{}
-
-var arqMapLock *sync.RWMutex = &sync.RWMutex{}
 
 func init() {
 	go logQueueSizesForever(5 * time.Minute)
