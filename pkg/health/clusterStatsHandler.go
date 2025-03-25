@@ -355,18 +355,18 @@ func parseGranularity(value interface{}) usageStats.UsageStatsGranularity {
 }
 
 func intToGranularity(value int) usageStats.UsageStatsGranularity {
-    switch value {
-    case int(usageStats.Hourly):
-        return usageStats.Hourly
-    case int(usageStats.Daily):
-        return usageStats.Daily
-    case int(usageStats.ByMinute):
-        return usageStats.ByMinute
-    case int(usageStats.Monthly):
-        return usageStats.Monthly
-    default:
-        return usageStats.Daily
-    }
+	switch value {
+	case int(usageStats.Hourly):
+		return usageStats.Hourly
+	case int(usageStats.Daily):
+		return usageStats.Daily
+	case int(usageStats.ByMinute):
+		return usageStats.ByMinute
+	case int(usageStats.Monthly):
+		return usageStats.Monthly
+	default:
+		return usageStats.Daily
+	}
 }
 
 func parseAlphaNumTime(inp string, defValue uint64) (uint64, usageStats.UsageStatsGranularity) {
