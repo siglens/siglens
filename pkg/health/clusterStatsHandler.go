@@ -279,8 +279,11 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 		return defaultPastHours, determineGranularity(defaultPastHours)
 	}
 
-	// Handle relative time format (now-Xh)
-	if startStr, ok := startEpoch.(string); ok && strings.Contains(startStr, "now-") {
+	// Handle relative time format
+	startStr, startIsString := startEpoch.(string)
+	endStr, endIsString := endEpoch.(string)
+
+	if startIsString && endIsString && strings.Contains(startStr, "now-") && endStr == "now" {
 		pastHours, _ := parseAlphaNumTime(startStr, defaultPastHours)
 		if hasGranularity {
 			return pastHours, parseGranularity(granularity)
