@@ -236,10 +236,12 @@ func Test_GetSegKeyFromFilename(t *testing.T) {
 	filename = fmt.Sprintf("%s/", expectedKey)
 	segkey, err = GetSegKeyFromFilename(filename)
 	assert.NoError(t, err)
+	assert.Equal(t, expectedKey, segkey)
 
-	filename = fmt.Sprintf("%s", expectedKey)
+	filename = expectedKey
 	segkey, err = GetSegKeyFromFilename(filename)
 	assert.NoError(t, err)
+	assert.Equal(t, expectedKey, segkey)
 
 	filename = filepath.Join(expectedKey, "subdir", "abc.txt")
 	segkey, err = GetSegKeyFromFilename(filename)
