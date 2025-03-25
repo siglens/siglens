@@ -744,6 +744,24 @@
     font-style: normal;
 }
 
+/* Dark Theme Scrollbar Color Customization */
+[data-theme='dark'] ::-webkit-scrollbar-track {
+    background: var(--black-3);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+    background: var(--black-5);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+    background: var(--black-6);
+}
+
+/* Firefox support */
+[data-theme='dark'] {
+    scrollbar-color: var(--black-5) var(--black-3);
+}
+
 html {
     font-size: 12px;
     height: 100%;

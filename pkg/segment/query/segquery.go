@@ -236,6 +236,7 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 	pqid := querytracker.GetHashForQuery(searchNode)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
 	if err != nil {
+		querySummary.Cleanup()
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitSearchResults! error %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
@@ -251,11 +252,13 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
 		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll, containsKibana)
 	if err != nil {
+		querySummary.Cleanup()
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitQueryInformation! error %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
 	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType, qc.RawQuery)
 	if err != nil {
+		querySummary.Cleanup()
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to associate search results with qid! Error: %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
