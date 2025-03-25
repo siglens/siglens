@@ -171,14 +171,16 @@ func ingestLogs(request *collogpb.ExportLogsServiceRequest, myid int64) (int, in
 				numTotalRecords++
 				record, logIndexName, err := extractLogRecord(logRecord, resource, scope, indexName)
 				if err != nil {
-					log.Errorf("ingestLogs: failed to extract log record: %v", err)
+					// we don't want to flood
+					log.Debugf("ingestLogs: failed to extract log record: %v", err)
 					numFailedRecords++
 					continue
 				}
 
 				jsonBytes, err := json.Marshal(record)
 				if err != nil {
-					log.Errorf("ingestLogs: failed to marshal log record; err=%v", err)
+					// we don't want to flood
+					log.Debugf("ingestLogs: failed to marshal log record; err=%v", err)
 					numFailedRecords++
 					continue
 				}
