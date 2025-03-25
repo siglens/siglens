@@ -153,11 +153,13 @@ type MetricsBlock struct {
 	mBlockSummary   *structs.MBlockSummary
 	blkEncodedSize  uint64 // total encoded size of the block
 	currentWal      *wal.WAL
-	walDPBuffer     []wal.WalDatapoint
-	allWALFD        []*wal.WAL
+	allWALs         []*wal.WAL
+	dpsInWalMem     []wal.WalDatapoint
+	dpIdx           uint64
 	currentWALIndex uint64
 	segID           uint64
-	shardID         string
+	mId             string
+	lock            sync.Mutex
 }
 
 // Represents a single timeseries
@@ -377,7 +379,9 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 			sortedTsids:     make([]uint64, 0),
 			currentWALIndex: 0,
 			segID:           suffix,
-			shardID:         mId,
+			mId:             mId,
+			dpIdx:           0,
+			dpsInWalMem:     make([]wal.WalDatapoint, utils.WAL_BLOCK_FLUSH_SIZE),
 			mBlockSummary: &structs.MBlockSummary{
 				Blknum: 0,
 				HighTs: 0,
@@ -508,12 +512,6 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	// as a result, we will check again while holding the write lock
 	// In addition, we need to always write at least one datapoint to the series to avoid panics on time based flushing
 
-	walDataPoint := wal.WalDatapoint{
-		Timestamp: uint64(timestamp),
-		DpVal:     dp,
-		Tsid:      tsid,
-	}
-
 	if !seriesExists {
 		ts, bytesWritten, err = initTimeSeries(tsid, dp, timestamp)
 		if err != nil {
@@ -554,9 +552,8 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 			return err
 		}
 	}
-	err = mSeg.mBlock.appendToWALBuffer(walDataPoint)
+	err = mSeg.mBlock.appendToWALBuffer(uint64(timestamp), dp, tsid)
 	if err != nil {
-		log.Errorf("EncodeDatapoint : Failed to buffer WAL datapoint: %v", err)
 		return err
 	}
 
@@ -1206,8 +1203,8 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 
 func (mb *MetricsBlock) cleanAndInitNewWal() error {
 	mb.deleteWALFiles()
-	mb.walDPBuffer = mb.walDPBuffer[:0]
-	mb.allWALFD = mb.allWALFD[:0]
+	mb.dpIdx = 0
+	mb.allWALs = mb.allWALs[:0]
 	mb.currentWALIndex = 0
 	err := mb.initNewWAL()
 	if err != nil {
@@ -1754,27 +1751,32 @@ func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.Metric
 	return nil
 }
 
-func (mb *MetricsBlock) appendToWALBuffer(dp wal.WalDatapoint) error {
-	mb.walDPBuffer = append(mb.walDPBuffer, dp)
-	if len(mb.walDPBuffer) > utils.MAX_WALDATPOINT_SIZE_TO_FLUSH {
-		err := mb.currentWal.AppendToWAL(mb.walDPBuffer)
+func (mb *MetricsBlock) appendToWALBuffer(timestamp uint64, dp float64, tsid uint64) error {
+	mb.lock.Lock()
+	defer mb.lock.Unlock()
+	mb.dpsInWalMem[mb.dpIdx].Timestamp = timestamp
+	mb.dpsInWalMem[mb.dpIdx].DpVal = dp
+	mb.dpsInWalMem[mb.dpIdx].Tsid = tsid
+	mb.dpIdx++
+	if len(mb.dpsInWalMem) >= utils.WAL_BLOCK_FLUSH_SIZE {
+		err := mb.currentWal.AppendToWAL(mb.dpsInWalMem)
 		if err != nil {
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
 		}
 		_, _, totalEncodedSize := mb.currentWal.GetWALStats()
-		if totalEncodedSize > utils.MAX_BYTES_WAL_FILE {
-			if err := mb.RotateWAL(); err != nil {
+		if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
+			if err := mb.rotateWAL(); err != nil {
 				log.Errorf("AppendWalDataPoint : Failed to rotate WAL file: %v", err)
 				return err
 			}
 		}
-		mb.walDPBuffer = mb.walDPBuffer[:0]
+		mb.dpIdx = 0
 	}
 	return nil
 }
 
-func (mb *MetricsBlock) RotateWAL() error {
+func (mb *MetricsBlock) rotateWAL() error {
 	mb.currentWALIndex++
 	return mb.initNewWAL()
 }
@@ -1792,19 +1794,19 @@ func (mb *MetricsBlock) initNewWAL() error {
 	sb.WriteString(config.GetHostID())
 	sb.WriteString("/wal-ts/")
 	basedir := sb.String()
-	fileName := "shardID_" + mb.shardID + "_segID_" + strconv.FormatUint(mb.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.currentWALIndex, 10) + ".wal"
+	fileName := "shardID_" + mb.mId + "_segID_" + strconv.FormatUint(mb.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.currentWALIndex, 10) + ".wal"
 	var err error
 	mb.currentWal, err = wal.NewWAL(basedir, fileName)
 	if err != nil {
 		log.Errorf("initNewWAL : Failed to create new WAL file %s in %s: %v", fileName, basedir, err)
 		return err
 	}
-	mb.allWALFD = append(mb.allWALFD, mb.currentWal)
+	mb.allWALs = append(mb.allWALs, mb.currentWal)
 	return nil
 }
 
 func (mb *MetricsBlock) deleteWALFiles() {
-	for _, walFd := range mb.allWALFD {
+	for _, walFd := range mb.allWALs {
 		if walFd != nil {
 			err := walFd.DeleteWAL()
 			if err != nil {
