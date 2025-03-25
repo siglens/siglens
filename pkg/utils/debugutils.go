@@ -107,3 +107,18 @@ func GetGobSize(v interface{}) int {
 
 	return buffer.Len()
 }
+
+func GetNCallers(n int) []string {
+	var callers []string
+	for i := 0; i < n; i++ {
+		programCounter, file, line, ok := runtime.Caller(i + 1) // Skip this function.
+		if !ok {
+			break
+		}
+		funcName := extractFuncName(runtime.FuncForPC(programCounter).Name())
+		fileName := filepath.Base(file)
+		callers = append(callers, fmt.Sprintf("%s(%s:%d)", funcName, fileName, line))
+	}
+
+	return callers
+}
