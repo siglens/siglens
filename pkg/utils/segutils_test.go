@@ -225,6 +225,28 @@ func Test_GetSegBaseDirFromFilename(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func Test_GetSegKeyFromFilename(t *testing.T) {
+	expectedKey := "data/admins-MacBook-Air.local.ckrkh9bzWSR6B6BniNyjsV/final/ind-0/0-0-3544697602014606120/3/3"
+
+	filename := filepath.Join(expectedKey, "abc.txt")
+	segkey, err := GetSegKeyFromFilename(filename)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedKey, segkey)
+
+	filename = fmt.Sprintf("%s/", expectedKey)
+	segkey, err = GetSegKeyFromFilename(filename)
+	assert.NoError(t, err)
+
+	filename = fmt.Sprintf("%s", expectedKey)
+	segkey, err = GetSegKeyFromFilename(filename)
+	assert.NoError(t, err)
+
+	filename = filepath.Join(expectedKey, "subdir", "abc.txt")
+	segkey, err = GetSegKeyFromFilename(filename)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedKey, segkey)
+}
+
 func Test_SegmentValidityFile_SimpleBase(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll("data") })
 
