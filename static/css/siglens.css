@@ -6039,10 +6039,30 @@ p#versionInfo {
     margin-bottom: 10px;
 }
 
-#data-ingestion p {
+.sub-heading {
+    font-size: 20px;
+    font-weight: 500;
+    color: #333;
+    margin: 15px 0 10px;
+}
+#data-ingestion p,
+.description-after {
     font-size: 16px;
     line-height: 1.6;
     margin-bottom: 15px;
+}
+
+.inline-code-box {
+    display: inline-block;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: 0 2px;
+    font-family: monospace;
+    font-size: 0.9em;
+    line-height: 1.4;
+    white-space: nowrap;
 }
 
 .code-container {
@@ -6165,6 +6185,40 @@ p#versionInfo {
 .code-container::-webkit-scrollbar-thumb:hover {
     background: #b2bec3;
 }
+
+
+.ingestion-notes {
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 4px solid #6347D9;
+    margin-top: 20px;
+}
+
+.ingestion-notes .notes-heading {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+}
+
+.ingestion-notes ul {
+    padding-left: 20px;
+    margin: 0;
+}
+
+.ingestion-notes li {
+    font-size: 16px;
+    color: #333;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.ingestion-notes li:last-child {
+    margin-bottom: 0;
+}
+
+
 
 #verify-command {
     font-family: monospace;
