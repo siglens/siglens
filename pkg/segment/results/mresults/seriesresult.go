@@ -122,20 +122,22 @@ func (s *Series) GetIdx() int {
 
 func (s *Series) AddEntry(ts uint32, dp float64) {
 	if s.isInstantQuery {
+		idx := s.idx
+
 		// if instant query, we only need the latest value per series
-		if s.idx > 0 {
+		if idx > 0 {
 			// Decrement the index to overwrite the previous entry
-			s.idx--
-		}
-		if ts == s.entries[s.idx].downsampledTime {
-			fmt.Println("AddEntry: duplicate timestamp found", ts, "dp:", dp, "series:", s.grpID.String(), "s.entries[s.idx].dpVal:", s.entries[s.idx].dpVal)
-		}
-		if ts > s.entries[s.idx].downsampledTime {
-			s.entries[s.idx].downsampledTime = ts
-			s.entries[s.idx].dpVal = dp
+			idx--
+		} else if idx == 0 {
+			// Increment the index to the next entry
+			s.idx++
 		}
 
-		s.idx++
+		if ts > s.entries[idx].downsampledTime {
+			s.entries[idx].downsampledTime = ts
+			s.entries[idx].dpVal = dp
+		}
+
 		return
 	}
 
@@ -173,19 +175,15 @@ func (s *Series) Merge(toJoin *Series) error {
 		}
 
 		// Decrement the index to overwrite the previous entry, since for instant only one entry is allowed
-		s.idx--
-		toJoin.idx--
+		sIdx := s.idx - 1
+		toJoinIdx := toJoin.idx - 1
 
-		maxTsEntry := s.entries[s.idx]
-		if maxTsEntry.downsampledTime < toJoin.entries[toJoin.idx].downsampledTime {
-			maxTsEntry = toJoin.entries[toJoin.idx]
+		maxTsEntry := s.entries[sIdx]
+		if maxTsEntry.downsampledTime < toJoin.entries[toJoinIdx].downsampledTime {
+			maxTsEntry = toJoin.entries[toJoinIdx]
 		}
 
 		s.entries[s.idx] = maxTsEntry
-
-		// Increment the index back
-		s.idx++
-		toJoin.idx++
 
 		return nil
 	}
