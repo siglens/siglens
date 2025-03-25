@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 let selectedLogSource = "";
 let iToken = "";
 
@@ -114,18 +115,47 @@ $(document).ready(async function () {
                 {
                     heading: 'Pull OTEL Collector Docker Image',
                     description: 'Pull the latest Docker image for OpenTelemetry Collector Contrib:',
-                    code: 'docker pull otel/opentelemetry-collector-contrib:latest'
+                    code: 'docker pull otel/opentelemetry-collector-contrib:latest',
+                    language: 'bash'
                 },
                 {
                     heading: 'Configure OTEL Collector',
                     description: 'Download the 2kevents.json file if you are looking for a sample log file:',
-                    code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz'
+                    code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz',
+                    language: 'bash'
                 },
                 {
                     heading: 'Create a Config File',
                     description: 'Create a configuration file for the OTEL Collector to send logs to SigLens.',
-                    code: '' // Add config file example if needed
-                }
+                    code:  `otelconfig.yaml
+
+                    receivers:
+                    filelog:
+                        include: [ /var/log/*.log ]  # replace with your log file path
+
+                    processors:
+                    batch:
+
+                    exporters:
+                    elasticsearch:
+                        endpoints: ["http://host.docker.internal:8081/elastic"]
+                        logs_index: "logs-%{+yyyy.MM.dd}"
+
+                    service:
+                    pipelines:
+                        logs:
+                        receivers: [filelog]
+                        processors: [batch]
+                        exporters: [elasticsearch]`,
+                    language: 'yaml'
+                },
+                {
+                    heading: 'Run OTEL Collector',
+                    description: '',
+                    code: `docker run -v <path_to_your_otel_config_directory>:/etc/otel -v <path_to_your_log_directory>:/var/log -p 4317:4317 -p 8888:8888 otel/opentelemetry-collector-contrib:latest --config /etc/otel/<your_config_file>`,
+                    code: `docker run -v $HOME/otel:/etc/otel -v /var/log:/var/log -p 4317:4317 -p 8888:8888 otel/opentelemetry-collector-contrib:latest --config /etc/otel/otelconfig.yaml`,
+                    language: 'yaml'
+                },
             ],
             curlCommand: `curl -X POST "${baseUrl}/v1/logs" \\\n` +
                 '-H \'Content-Type: application/json\' \\\n' +
@@ -423,7 +453,7 @@ $(document).ready(async function () {
                     ${step.code ? `
                         <div class="code-container">
                             <div class="code-wrapper">
-                                <pre class="language-yaml"><code>${step.code}</code></pre>
+                                <pre class="language-${step.language}"><code>${step.code}</code></pre>
                             </div>
                             <button class="expand-btn" title="Expand/Collapse" style="display: none;">
                                 <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -451,7 +481,7 @@ $(document).ready(async function () {
             <p class="subtitle">${method.subtitle}</p>
             ${stepsHtml}
             <div class="ingestion-step">
-                <h5 class="step-heading">Verify Data Collection</h5>
+                <h5 class="step-heading"></h5>
                 <p>Test your ${source} setup by running this sample curl command in your terminal:</p>
                 <div class="code-container">
                     <div class="code-wrapper">
@@ -552,45 +582,3 @@ $(document).ready(async function () {
 
     {{ .Button1Function }}
 });
-
-// function sendTestData() {
-//     sendTestDataWithoutBearerToken().then((_res) => {
-//         showToast('Sent Test Data Successfully', 'success');
-//         let testDataBtn = document.getElementById("test-data-btn");
-//         testDataBtn.disabled = false;
-//     })
-//     .catch((err) => {
-//         console.log(err);
-//         showToast('Error Sending Test Data', 'error');
-//         let testDataBtn = document.getElementById("test-data-btn");
-//         testDataBtn.disabled = false;
-//     });
-// }
-
-// function sendTestDataWithoutBearerToken() {
-//     return new Promise((resolve, reject) => {
-//         $.ajax({
-//             method: 'post',
-//             url: '/api/sampledataset_bulk',
-//             crossDomain: true,
-//             dataType: 'json',
-//             credentials: 'include'
-//         }).then((res) => {
-//             resolve(res);
-//         })
-//         .catch((err) => {
-//             console.log(err);
-//             reject(err);
-//         });
-//     });
-// }
-
-// function myOrgSendTestData(_token) {
-//     $('#test-data-btn').on('click', (_e) => {
-//         if (selectedLogSource === 'Send Test Data') {
-//             var testDataBtn = document.getElementById("test-data-btn");
-//             testDataBtn.disabled = true;
-//             sendTestData();
-//         }
-//     });
-// }

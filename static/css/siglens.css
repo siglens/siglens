@@ -6056,7 +6056,7 @@ p#versionInfo {
 
 .code-container .expand-btn,
 .code-container .copy-btn {
-    display: none;
+    display: none; /* Hide buttons by default */
     position: absolute;
     top: 10px;
     background-color: #6347D9 !important;
@@ -6069,17 +6069,9 @@ p#versionInfo {
 
 .code-container:hover .expand-btn,
 .code-container:hover .copy-btn {
-    display: flex;
+    display: flex; /* Show buttons on hover */
     align-items: center;
     justify-content: center;
-}
-
-.expand-btn svg, .copy-btn svg {
-    stroke: #fff;
-}
-
-.copy-btn.success {
-    background-color: green !important;
 }
 
 .code-wrapper {
@@ -6091,9 +6083,9 @@ p#versionInfo {
 
 .code-wrapper.expanded {
     max-height: 500px;
-    max-width: none;
-    /* overflow: auto;
-    width: auto; */
+    /* max-width: none; */
+    overflow: auto;
+    width: auto;
 }
 
 .code-wrapper pre {
@@ -6101,11 +6093,11 @@ p#versionInfo {
     word-wrap: normal;
 }
 
-/* .code-wrapper.expanded pre {
+.code-wrapper.expanded pre {
     white-space: pre !important;
     display: inline-block;
     min-width: 100%;
-} */
+}
 
 .overflow-available {
     display: none;
@@ -6115,7 +6107,23 @@ p#versionInfo {
     display: flex;
 }
 
-/* .code-container pre {
+.expand-btn {
+    right: 50px;
+}
+
+.copy-btn {
+    right: 10px;
+}
+
+.expand-btn svg, .copy-btn svg {
+    stroke: #fff;
+}
+
+.copy-btn.success {
+    background: #28a745;
+}
+
+.code-container pre {
     background-color: transparent;
     border: none;
     margin: 0;
@@ -6125,7 +6133,7 @@ p#versionInfo {
 }
 
 .code-container pre::-webkit-scrollbar {
-    width: 8px;
+    width: 2px;
 }
 
 .code-container pre::-webkit-scrollbar-track {
@@ -6140,7 +6148,25 @@ p#versionInfo {
 
 .code-container pre::-webkit-scrollbar-thumb:hover {
     background: #b2bec3;
-} */
+}
+
+.code-container::-webkit-scrollbar {
+    width: 2px;
+}
+
+.code-container::-webkit-scrollbar-track {
+    background: #2d3436;
+    border-radius: 4px;
+}
+
+.code-container::-webkit-scrollbar-thumb {
+    background: #636e72;
+    border-radius: 4px;
+}
+
+.code-container::-webkit-scrollbar-thumb:hover {
+    background: #b2bec3;
+}
 
 #verify-command {
     font-family: monospace;
