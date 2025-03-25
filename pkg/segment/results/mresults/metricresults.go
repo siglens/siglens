@@ -803,9 +803,7 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 					result.Value = []interface{}{timestamp, fmt.Sprintf("%v", val)}
 					pqlData.VectorResult = append(pqlData.VectorResult, result)
 				}
-			}
-
-			if len(results) >= 2 {
+			} else if len(results) > 1 {
 				// If the results have more than 1 timestamp, then return an error
 				log.Errorf("GetResultsPromQlInstantQuery: More than 1 timestamp found in the results for seriesId: %v", seriesId)
 				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
