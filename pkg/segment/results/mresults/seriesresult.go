@@ -128,14 +128,17 @@ func (s *Series) AddEntry(ts uint32, dp float64) {
 		if idx > 0 {
 			// Decrement the index to overwrite the previous entry
 			idx--
-		} else if idx == 0 {
-			// Increment the index to the next entry
-			s.idx++
 		}
 
 		if ts > s.entries[idx].downsampledTime {
 			s.entries[idx].downsampledTime = ts
 			s.entries[idx].dpVal = dp
+		}
+
+		if s.idx == 0 {
+			// Since Instant query uses only one value, when the idx is 0, Increment the index to the next entry
+			// indicating that there is a valid entry in the series
+			s.idx++
 		}
 
 		return
@@ -175,15 +178,19 @@ func (s *Series) Merge(toJoin *Series) error {
 		}
 
 		// Decrement the index to overwrite the previous entry, since for instant only one entry is allowed
-		sIdx := s.idx - 1
-		toJoinIdx := toJoin.idx - 1
+		s.idx--
+		toJoin.idx--
 
-		maxTsEntry := s.entries[sIdx]
-		if maxTsEntry.downsampledTime < toJoin.entries[toJoinIdx].downsampledTime {
-			maxTsEntry = toJoin.entries[toJoinIdx]
+		maxTsEntry := s.entries[s.idx]
+		if maxTsEntry.downsampledTime < toJoin.entries[toJoin.idx].downsampledTime {
+			maxTsEntry = toJoin.entries[toJoin.idx]
 		}
 
 		s.entries[s.idx] = maxTsEntry
+
+		// Increment the index back
+		s.idx++
+		toJoin.idx++
 
 		return nil
 	}
