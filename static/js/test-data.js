@@ -115,96 +115,106 @@ $(document).ready(async function () {
                 {
                     heading: 'Pull OTEL Collector Docker Image',
                     description: 'Pull the latest Docker image for OpenTelemetry Collector Contrib:',
-                    code: 'docker pull otel/opentelemetry-collector-contrib:latest',
-                    language: 'bash'
+                    code: 'docker pull otel/opentelemetry-collector-contrib:latest'
                 },
                 {
                     heading: 'Configure OTEL Collector',
-                    description: 'Download the 2kevents.json file if you are looking for a sample log file:',
-                    code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz',
-                    language: 'bash'
+                    description: 'Download the sample log file:',
+                    code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz && tar -xvf 2kevents.json.tar.gz'
                 },
                 {
-                    heading: 'Create a Config File',
-                    description: 'Create a configuration file for the OTEL Collector to send logs to SigLens.',
-                    code:  `otelconfig.yaml
+                    heading: 'Create OpenTelemetry Configuration',
+                    description: 'Create an <code>otelconfig.yaml</code> file with the following configuration:',
+                    code: `receivers:
+        filelog:
+            include: [ /var/log/*.log ]  # replace with your log file path
 
-                    receivers:
-                    filelog:
-                        include: [ /var/log/*.log ]  # replace with your log file path
+        processors:
+        batch:
 
-                    processors:
-                    batch:
+        exporters:
+        elasticsearch:
+            endpoints: ["http://host.docker.internal:8081/elastic"]
+            logs_index: "logs-%{+yyyy.MM.dd}"
 
-                    exporters:
-                    elasticsearch:
-                        endpoints: ["http://host.docker.internal:8081/elastic"]
-                        logs_index: "logs-%{+yyyy.MM.dd}"
-
-                    service:
-                    pipelines:
-                        logs:
-                        receivers: [filelog]
-                        processors: [batch]
-                        exporters: [elasticsearch]`,
-                    language: 'yaml'
+        service:
+        pipelines:
+            logs:
+            receivers: [filelog]
+            processors: [batch]
+            exporters: [elasticsearch]`
                 },
                 {
                     heading: 'Run OTEL Collector',
-                    description: '',
-                    code: `docker run -v <path_to_your_otel_config_directory>:/etc/otel -v <path_to_your_log_directory>:/var/log -p 4317:4317 -p 8888:8888 otel/opentelemetry-collector-contrib:latest --config /etc/otel/<your_config_file>`,
-                    code: `docker run -v $HOME/otel:/etc/otel -v /var/log:/var/log -p 4317:4317 -p 8888:8888 otel/opentelemetry-collector-contrib:latest --config /etc/otel/otelconfig.yaml`,
-                    language: 'yaml'
-                },
-            ],
-            curlCommand: `curl -X POST "${baseUrl}/v1/logs" \\\n` +
-                '-H \'Content-Type: application/json\' \\\n' +
-                '-H \'Accept: application/json\' \\\n' +
-                '{{ if .IngestDataCmd }}{{ .IngestDataCmd }}{{ end }}' +
-                '-d \'{\n' +
-                '  "resourceLogs": [{\n' +
-                '    "resource": {\n' +
-                '      "attributes": [{\n' +
-                '        "key": "service.name",\n' +
-                '        "value": { "stringValue": "test-service" }\n' +
-                '      }]\n' +
-                '    },\n' +
-                '    "scopeLogs": [{\n' +
-                '      "logRecords": [{\n' +
-                '        "timeUnixNano": "1234567890000000000",\n' +
-                '        "severityText": "INFO",\n' +
-                '        "body": { "stringValue": "This is a test log" }\n' +
-                '      }]\n' +
-                '    }]\n' +
-                '  }]\n' +
-                '}\''
-        },
-        'Vector': {
-            title: 'Vector',
-            subtitle: 'Ingesting logs into SigLens using Vector',
-            setupLink: 'https://www.siglens.com/siglens-docs/log-ingestion/vector',
-            steps: [
-                {
-                    heading: 'Install Vector',
-                    description: 'Install Vector on your system.',
-                    code: ''
+                    description: 'Run the OpenTelemetry Collector with your configuration:',
+                    code: 'docker run -v <path_to_your_otel_config_directory>:/etc/otel -v <path_to_your_log_directory>:/var/log -p 4317:4317 -p 8888:8888 otel/opentelemetry-collector-contrib:latest --config /etc/otel/<your_config_file>'
                 },
                 {
-                    heading: 'Configure Vector',
-                    description: `Configure Vector to send logs to <code>${baseUrl}/elastic/_bulk</code>.`,
-                    code: ''
-                },
-                {
-                    heading: 'Start Vector',
-                    description: 'Start the Vector service to begin log collection.',
-                    code: ''
+                    heading: 'Example Command',
+                    description: 'A sample command to run the OTEL Collector:',
+                    code: 'docker run -v $HOME/otel:/etc/otel -v /var/log:/var/log -p 4317:4317 -p 8888:8888 otel/opentelemetry-collector-contrib:latest --config /etc/otel/otelconfig.yaml'
                 }
             ],
-            curlCommand: `curl -X POST "${baseUrl}/elastic/_bulk" \\\n` +
-                '-H \'Content-Type: application/json\' \\\n' +
-                '{{ if .IngestDataCmd }}{{ .IngestDataCmd }}{{ end }}' +
-                '-d \'{ "index" : { "_index" : "test" } }\n' +
-                '{ "name" : "john", "age":"23" }\''
+            notes: [
+                'Port 4317 is the default port for the OTLP gRPC receiver.',
+                'Port 8888 is used for metrics exposition.',
+                'Replace ports if your setup uses different configurations.'
+            ]
+        },
+        'Vector': {
+    title: 'Vector',
+    subtitle: 'Ingesting logs into SigLens using Vector',
+    setupLink: 'https://www.siglens.com/siglens-docs/log-ingestion/vector',
+    steps: [
+        {
+            heading: 'Install Vector',
+            description: 'Install Vector on your system. Options include Linux, macOS, Windows, and other platforms.',
+            code: `# For Linux (Debian/Ubuntu)
+curl -O https://packages.timber.io/vector/0.X.X/vector_0.X.X-1_amd64.deb
+sudo dpkg -i vector_0.X.X-1_amd64.deb
+
+# For Linux (CentOS/RHEL/Amazon Linux)
+curl -O https://packages.timber.io/vector/0.X.X/vector-0.X.X-1.x86_64.rpm
+sudo rpm -i vector-0.X.X-1.x86_64.rpm`
+        },
+        {
+            heading: 'Download Sample Events',
+            description: 'Download the sample events file:',
+            code: `curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz && tar -xvf 2kevents.json.tar.gz`
+        },
+        {
+            heading: 'Configure Vector',
+            description: 'Create a <code>vector.yaml</code> configuration file:',
+            code: `data_dir: /var/lib/vector
+
+        sources:
+        read_from_file:
+            type: file
+            include:
+            - 2kevents.json # Path to the log file
+
+        sinks:
+        siglens:
+            type: elasticsearch
+            inputs:
+            - read_from_file
+            endpoints:
+            - http://localhost:8081/elastic/
+            mode: bulk
+            healthcheck:
+            enabled: false`
+                },
+                {
+                    heading: 'Run Vector',
+                    description: 'Start Vector with your configuration:',
+                    code: `vector --config vector.yaml`
+                }
+            ],
+            notes: [
+                'You might need to add transforms to your Vector configuration based on your data structure.',
+                'Refer to the official Vector documentation for advanced configuration details.',
+                'Ensure you replace paths and endpoints with your specific environment settings.'
+            ]
         },
         'Logstash': {
             title: 'Logstash',
@@ -446,6 +456,9 @@ $(document).ready(async function () {
 
         let stepsHtml = '';
         method.steps.forEach((step, index) => {
+            const isYaml = step.heading.toLowerCase().includes('configuration');
+            const languageClass = isYaml ? 'language-yaml' : 'language-bash';
+
             stepsHtml += `
                 <div class="ingestion-step">
                     <h5 class="step-heading">${index + 1}. ${step.heading}</h5>
@@ -453,69 +466,66 @@ $(document).ready(async function () {
                     ${step.code ? `
                         <div class="code-container">
                             <div class="code-wrapper">
-                                <pre class="language-${step.language}"><code>${step.code}</code></pre>
+                                <div class="code-actions">
+                                    <button class="expand-btn" title="Expand/Collapse">
+                                        <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M15 3h6v6"></path>
+                                            <path d="M9 21H3v-6"></path>
+                                            <path d="M21 3l-7 7"></path>
+                                            <path d="M3 21l7-7"></path>
+                                        </svg>
+                                        <span class="sr-only">Expand</span>
+                                    </button>
+                                    <button class="copy-btn" title="Copy">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <pre class="line-numbers language-${isYaml ? 'yaml' : 'bash'}"><code class="language-${isYaml ? 'yaml' : 'bash'}">${step.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
                             </div>
-                            <button class="expand-btn" title="Expand/Collapse" style="display: none;">
-                                <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M15 3h6v6"></path>
-                                    <path d="M9 21H3v-6"></path>
-                                    <path d="M21 3l-7 7"></path>
-                                    <path d="M3 21l7-7"></path>
-                                </svg>
-                                <span class="sr-only">Expand</span>
-                            </button>
-                            <button class="copy-btn" title="Copy">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                            </button>
                         </div>
                     ` : ''}
                 </div>
             `;
         });
 
+        // Add notes section if available
+        let notesHtml = '';
+        if (method.notes && method.notes.length > 0) {
+            notesHtml = `
+                <div class="ingestion-notes">
+                    <h5 class="notes-heading">Important Notes</h5>
+                    <ul>
+                        ${method.notes.map(note => `<li>${note}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
         $('#data-ingestion').html(`
             <h2 class="main-heading">${method.title}</h2>
             <p class="subtitle">${method.subtitle}</p>
             ${stepsHtml}
-            <div class="ingestion-step">
-                <h5 class="step-heading"></h5>
-                <p>Test your ${source} setup by running this sample curl command in your terminal:</p>
-                <div class="code-container">
-                    <div class="code-wrapper">
-                        <pre class="language-yaml"><code>${method.curlCommand}</code></pre>
-                    </div>
-                    <button class="expand-btn" title="Expand/Collapse" style="display: none;">
-                        <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 3h6v6"></path>
-                            <path d="M9 21H3v-6"></path>
-                            <path d="M21 3l-7 7"></path>
-                            <path d="M3 21l7-7"></path>
-                        </svg>
-                        <span class="sr-only">Expand</span>
-                    </button>
-                    <button class="copy-btn" title="Copy">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            ${notesHtml}
         `);
 
-        Prism.highlightAll();
-        setCodeBlockContainerBackground();
+        // Ensure Prism is fully loaded and applied
+        if (window.Prism) {
+            Prism.highlightAll();
+        }
+
+        // Initialize buttons and other functionality
         initializeCodeBlockButtons();
+        setCodeBlockContainerBackground();
         checkCodeOverflow();
     }
 
     function initializeCodeBlockButtons() {
-        // Copy button logic (unchanged)
+        // Copy button logic
         $('.copy-btn').off('click').on('click', function() {
-            const codeText = $(this).siblings('.code-wrapper').find('code').text();
+            const codeText = $(this).closest('.code-wrapper').find('code').text();
 
             // Create a temporary element for copying
             const tempElement = document.createElement('textarea');
@@ -537,9 +547,9 @@ $(document).ready(async function () {
             }, 1000);
         });
 
-        // Updated expand button logic
+        // Expand button logic
         $('.expand-btn').off('click').on('click', function() {
-            const codeWrapper = $(this).siblings('.code-wrapper');
+            const codeWrapper = $(this).closest('.code-wrapper');
             const isExpanded = codeWrapper.hasClass('expanded');
 
             if (isExpanded) {
@@ -556,7 +566,7 @@ $(document).ready(async function () {
         $('.code-wrapper').each(function() {
             const codeWrapper = $(this);
             const preElement = codeWrapper.find('pre');
-            const expandBtn = codeWrapper.siblings('.expand-btn');
+            const expandBtn = codeWrapper.find('.expand-btn');
 
             // Check if content overflows (vertical or horizontal)
             const isVerticalOverflow = preElement[0].scrollHeight > codeWrapper.height();
@@ -565,12 +575,8 @@ $(document).ready(async function () {
             // Show or hide expand button based on overflow
             if (isVerticalOverflow || isHorizontalOverflow) {
                 expandBtn.addClass('overflow-available');
-                // Remove the inline style that's overriding the CSS
-                expandBtn.removeAttr('style');
             } else {
                 expandBtn.removeClass('overflow-available');
-                // Hide permanently if no overflow
-                expandBtn.css('display', 'none');
             }
         });
     }
