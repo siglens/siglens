@@ -81,6 +81,7 @@ type QuerySummary struct {
 	qid                         uint64
 	ticker                      *time.Ticker
 	tickerStopChan              chan bool
+	stoppedTicker               bool
 	startTime                   time.Time
 	rawSearchTime               time.Duration
 	queryTotalTime              time.Duration
@@ -162,21 +163,17 @@ func (qs *QuerySummary) startTicker() {
 }
 
 func (qs *QuerySummary) stopTicker() {
-	if qs.ticker != nil {
-		qs.ticker.Stop()
+	if !qs.stoppedTicker {
+		qs.stoppedTicker = true
+
+		if qs.ticker != nil {
+			qs.ticker.Stop()
+		}
 		close(qs.tickerStopChan)
-		qs.ticker = nil
 	}
 }
 
 func (qs *QuerySummary) tickWatcher() {
-	defer func() {
-		if qs.ticker != nil {
-			qs.ticker.Stop()
-			qs.ticker = nil
-		}
-		qs.tickerStopChan = nil
-	}()
 	for {
 		select {
 		case <-qs.tickerStopChan:
@@ -185,6 +182,13 @@ func (qs *QuerySummary) tickWatcher() {
 			} else {
 				atomic.AddInt64(&activeQSCountForLogs, ^int64(0))
 			}
+
+			if qs.ticker != nil {
+				qs.ticker.Stop()
+				qs.ticker = nil
+			}
+			qs.tickerStopChan = nil
+
 			return
 		case <-qs.ticker.C:
 			qs.tickCount++

@@ -17,7 +17,9 @@
 
 package summary
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_IdempotentCleanup(t *testing.T) {
 	qs := InitQuerySummary(LOGS, 0)
