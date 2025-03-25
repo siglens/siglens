@@ -50,6 +50,8 @@ type Series struct {
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
+
+	isInstantQuery bool
 }
 
 type DownsampleSeries struct {
@@ -104,6 +106,7 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 		convertedDownsampleAggFn: convertedDownsampleAggFn,
 		aggregationConstant:      aggregationConstant,
 		grpID:                    tsGroupId,
+		isInstantQuery:           mQuery.IsInstantQuery,
 	}
 }
 
@@ -118,6 +121,24 @@ func (s *Series) GetIdx() int {
 }
 
 func (s *Series) AddEntry(ts uint32, dp float64) {
+	if s.isInstantQuery {
+		// if instant query, we only need the latest value per series
+		if s.idx > 0 {
+			// Decrement the index to overwrite the previous entry
+			s.idx--
+		}
+		if ts == s.entries[s.idx].downsampledTime {
+			fmt.Println("AddEntry: duplicate timestamp found", ts, "dp:", dp, "series:", s.grpID.String(), "s.entries[s.idx].dpVal:", s.entries[s.idx].dpVal)
+		}
+		if ts > s.entries[s.idx].downsampledTime {
+			s.entries[s.idx].downsampledTime = ts
+			s.entries[s.idx].dpVal = dp
+		}
+
+		s.idx++
+		return
+	}
+
 	s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
 	s.entries[s.idx].dpVal = dp
 	s.idx++
@@ -145,7 +166,30 @@ func (s *Series) sortEntries() {
 	s.sorted = true
 }
 
-func (s *Series) Merge(toJoin *Series) {
+func (s *Series) Merge(toJoin *Series) error {
+	if s.isInstantQuery {
+		if s.idx != 1 || s.idx != toJoin.idx {
+			return fmt.Errorf("Merge: instant query series should have only one entry, but got %v and %v", s.idx, toJoin.idx)
+		}
+
+		// Decrement the index to overwrite the previous entry, since for instant only one entry is allowed
+		s.idx--
+		toJoin.idx--
+
+		maxTsEntry := s.entries[s.idx]
+		if maxTsEntry.downsampledTime < toJoin.entries[toJoin.idx].downsampledTime {
+			maxTsEntry = toJoin.entries[toJoin.idx]
+		}
+
+		s.entries[s.idx] = maxTsEntry
+
+		// Increment the index back
+		s.idx++
+		toJoin.idx++
+
+		return nil
+	}
+
 	toJoinEntries := toJoin.entries[:toJoin.idx]
 	s.entries = s.entries[:s.idx]
 	s.len = s.idx
@@ -153,6 +197,8 @@ func (s *Series) Merge(toJoin *Series) {
 	s.idx += toJoin.idx
 	s.sorted = false
 	s.len += toJoin.idx
+
+	return nil
 }
 
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {

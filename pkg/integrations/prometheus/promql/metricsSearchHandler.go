@@ -54,6 +54,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const DEFAULT_LOOKBACK uint32 = 5 * 60 // 5 mins
+
 func parseSearchBody(jsonSource map[string]interface{}) (string, uint32, uint32, time.Duration, usageStats.UsageStatsGranularity, error) {
 	searchText := ""
 	var err error
@@ -180,7 +182,9 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, endTime-1, endTime, myid)
+	startTime := endTime - DEFAULT_LOOKBACK
+	log.Infof("qid=%v, ProcessPromqlMetricsSearchRequest: InstantQuery; searchString=[%v] startEpochs=[%v] endEpochs=[%v]", qid, searchText, startTime, endTime)
+	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
@@ -195,6 +199,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	var timeRange *dtu.MetricsTimeRange
 	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
+		metricQueryRequest[i].MetricsQuery.IsInstantQuery = true
 		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
 		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
