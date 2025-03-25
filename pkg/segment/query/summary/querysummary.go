@@ -115,7 +115,7 @@ var activeQSCountForMetrics int64
 
 // InitQuerySummary returns a struct to store query level search stats.
 // This function starts a ticker to log info about long running queries.
-// Caller is responsible for calling LogSummary() function to stop the ticker.
+// The caller must eventually call Cleanup() to avoid a goroutine leak.
 func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 	lock := &sync.Mutex{}
 	rawSearchTypeSummary := &searchTypeSummary{}
@@ -643,7 +643,7 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 	}
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)
-	qs.stopTicker()
+	qs.Cleanup()
 }
 
 func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
@@ -662,7 +662,7 @@ func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
 	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSG Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)", qs.qid, qs.getNumTSGFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), avgTimeLoadingTSGFiles, getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSGFiles))
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)
-	qs.stopTicker()
+	qs.Cleanup()
 }
 
 func (qs *QuerySummary) UpdateRemainingDistributedQueries(remainingDistributedQueries uint64) {
