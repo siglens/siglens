@@ -171,8 +171,10 @@ func (qs *QuerySummary) stopTicker() {
 
 func (qs *QuerySummary) tickWatcher() {
 	defer func() {
-		qs.ticker.Stop()
-		qs.ticker = nil
+		if qs.ticker != nil {
+			qs.ticker.Stop()
+			qs.ticker = nil
+		}
 		qs.tickerStopChan = nil
 	}()
 	for {
