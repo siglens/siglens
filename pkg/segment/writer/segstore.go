@@ -88,7 +88,6 @@ type SegStore struct {
 	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
 	stbHolder             *STBHolder
 	OrgId                 int64
-	firstTime             bool
 	stbDictEncWorkBuf     [][]string
 	segStatsWorkBuf       []byte
 	SegmentErrors         map[string]*structs.SearchErrorInfo
@@ -136,7 +135,6 @@ func NewSegStore(orgId int64) *SegStore {
 		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
-		firstTime:          true,
 		stbDictEncWorkBuf:  make([][]string, 0),
 		segStatsWorkBuf:    make([]byte, utils.WIP_SIZE),
 	}
@@ -814,7 +812,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			}
 		}
 
-		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
+		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, segstore.VirtualTableName)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
 		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)

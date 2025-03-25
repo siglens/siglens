@@ -98,7 +98,7 @@ func GetSegFullMetaFnameFromSegkey(segkey string) string {
 
 func ReadSegmeta(smFilename string) []*structs.SegMeta {
 	smrLock.RLock()
-	segMetas, err := getAllSegmetas(smFilename)
+	segMetas, err := readSegMetaEntries(smFilename)
 	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadSegmeta: getallsegmetas err=%v ", err)
@@ -109,7 +109,7 @@ func ReadSegmeta(smFilename string) []*structs.SegMeta {
 
 func ReadSegFullMetas(smFilename string) []*structs.SegMeta {
 	smrLock.RLock()
-	segMetas, err := getAllSegmetas(smFilename)
+	segMetas, err := readSegMetaEntries(smFilename)
 	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadSegFullMetas: getallsegmetas err=%v ", err)
@@ -153,7 +153,7 @@ func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 
 	smrLock.RLock()
-	segMetas, err := getAllSegmetas(localSegmetaFname)
+	segMetas, err := readSegMetaEntries(localSegmetaFname)
 	smrLock.RUnlock()
 	if err != nil {
 		log.Errorf("ReadLocalSegmeta: getallsegmetas err=%v ", err)
@@ -178,27 +178,22 @@ func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 	sfmBytes, err := os.ReadFile(sfmFname)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Errorf("readSfm: Cannot read sfm File: %v, err: %v", sfmFname, err)
 			return sfm, err
 		}
 
 		// check from blob
 		err = blob.DownloadSegmentBlob(sfmFname, true)
 		if err != nil {
-			log.Errorf("readSfm: Cannot read sfm File from blob: %v, err: %v", sfmFname, err)
 			return sfm, err
 		}
 
 		sfmBytes, err = os.ReadFile(sfmFname)
 		if err != nil {
-			log.Errorf("readSfm: Cannot read sfm File after download: %v, err: %v", sfmFname, err)
 			return sfm, err
 		}
 	}
 
 	if err := json.Unmarshal(sfmBytes, sfm); err != nil {
-		log.Errorf("readSfm: Error unmarshalling sfm file: %v, data: %v err: %v",
-			sfmFname, string(sfmBytes), err)
 		return sfm, err
 	}
 	return sfm, nil
@@ -316,7 +311,7 @@ func GetAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, er
 	return allSegMetaMap, nil
 }
 
-func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
+func readSegMetaEntries(segMetaFilename string) ([]*structs.SegMeta, error) {
 
 	allSegMetas := make([]*structs.SegMeta, 0)
 
@@ -325,7 +320,7 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return []*structs.SegMeta{}, nil
 		}
-		log.Errorf("getAllSegmetas: Cannot read input Segmeta File = %v, err= %v", segMetaFilename, err)
+		log.Errorf("readSegMetaEntries: Cannot read input Segmeta File = %v, err= %v", segMetaFilename, err)
 		return allSegMetas, err
 	}
 	defer fd.Close()
@@ -338,7 +333,7 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 		var segmeta structs.SegMeta
 		err := json.Unmarshal(rawbytes, &segmeta)
 		if err != nil {
-			log.Errorf("getAllSegmetas: Cannot unmarshal data = %v, err= %v", string(rawbytes), err)
+			log.Errorf("readSegMetaEntries: Cannot unmarshal data = %v, err= %v", string(rawbytes), err)
 			continue
 		}
 		allSegMetas = append(allSegMetas, &segmeta)
@@ -346,7 +341,7 @@ func getAllSegmetas(segMetaFilename string) ([]*structs.SegMeta, error) {
 
 	err = scanner.Err()
 	if err != nil {
-		log.Errorf("getAllSegmetas: scanning err: %v", err)
+		log.Errorf("readSegMetaEntries: scanning err: %v", err)
 		return allSegMetas, err
 	}
 
@@ -706,7 +701,7 @@ func DeletePQSData() error {
 
 	foundPqsidsInSegMeta := false
 	smrLock.Lock()
-	segmetaEntries, err := getAllSegmetas(localSegmetaFname)
+	segmetaEntries, err := readSegMetaEntries(localSegmetaFname)
 	if err != nil {
 		log.Errorf("DeletePQSData: failed to get segmeta data from %v, err: %v",
 			localSegmetaFname, err)

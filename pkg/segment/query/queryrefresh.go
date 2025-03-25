@@ -172,12 +172,15 @@ func RefreshGlobalMetadata(fnMyids func() []int64, ownedSegments map[string]stru
 
 	wg.Wait()
 
+	log.Infof("RefreshGlobalMetadata: got all vtables and segmetas from all nodes")
 	// Add all vtable names to the global map
 	err = virtualtable.BulkAddVirtualTableNames(myIdToVTableMap)
 	if err != nil {
 		log.Errorf("RefreshGlobalMetadata: Error in adding virtual table names, err:%v", err)
 		return err
 	}
+
+	log.Infof("RefreshGlobalMetadata: done bulk adding of vtablenames, len: %v", len(myIdToVTableMap))
 
 	// Populate all segmeta files
 	for _, smfname := range allSfmFiles {
@@ -266,6 +269,7 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 	}
 
 	allSegMetas := writer.ReadSegFullMetas(smFile)
+	log.Infof("populateGlobalMicroIndices: completed ReadSegFullMetas for segmetaentries: %v", len(allSegMetas))
 	if ownedSegments != nil {
 		ownedSegMetas := make([]*structs.SegMeta, 0)
 		for _, segMeta := range allSegMetas {
@@ -281,6 +285,8 @@ func populateGlobalMicroIndices(smFile string, ownedSegments map[string]struct{}
 	for idx, segMetaInfo := range allSegMetas {
 		allSmi[idx] = segmetadata.ProcessSegmetaInfo(segMetaInfo)
 	}
+
+	log.Infof("populateGlobalMicroIndices: completed ProcessSegmetaInfo for allSmis len: %v", len(allSmi))
 
 	// Segmeta entries inside segmeta.json are added in increasing time order.
 	// we just reverse this and we get the latest segmeta entry first.
@@ -362,7 +368,7 @@ func syncSegMetaWithSegFullMeta(myId int64, allSegKeys map[string]struct{}) int 
 func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {
 	sfmData, err := writer.ReadSfm(segKey)
 	if err != nil {
-		return nil, fmt.Errorf("readSegFullMetaFileAndPopulate: Error in reading segfullmeta file, err:%v", err)
+		return nil, fmt.Errorf("readSegFullMetaFileAndPopulate: Error in reading segfullmeta file: %v, err: %v", segKey, err)
 	}
 
 	segMeta := sfmData.SegMeta

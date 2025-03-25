@@ -633,7 +633,6 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 		queryStateData, ok := <-stateChan
 		if !ok {
 			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
-			query.LogGlobalSearchErrors(qid)
 			query.DeleteQuery(qid)
 			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
 		}
@@ -770,7 +769,6 @@ func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync b
 		select {
 		case queryStateData, ok := <-rQuery.StateChan:
 			if !ok {
-				query.LogGlobalSearchErrors(qid)
 				query.DeleteQuery(qid)
 				return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: Got non ok, state: %v", qid, queryStateData.StateName)
 			}
