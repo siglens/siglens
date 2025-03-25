@@ -1732,7 +1732,7 @@ func Test_SimpleMetricInstantQuery(t *testing.T) {
 	err = initializeMetricsMetaData()
 	assert.Nil(t, err)
 
-	endTime := startTimestamp + 3601
+	endTime := startTimestamp + 3600
 	query := `(testmetric0)`
 
 	fastCtx := &fasthttp.RequestCtx{}
@@ -1744,7 +1744,6 @@ func Test_SimpleMetricInstantQuery(t *testing.T) {
 
 	resp := fastCtx.Response.Body()
 	assert.NotNil(t, resp)
-	fmt.Println(string(resp))
 
 	expectedPromQLResp := &structs.MetricsPromQLInstantQueryResponse{
 		Status: "success",
@@ -1768,6 +1767,27 @@ func Test_SimpleMetricInstantQuery(t *testing.T) {
 	marshalExpectedResp, err := json.Marshal(expectedPromQLResp)
 	assert.Nil(t, err)
 	assert.JSONEq(t, string(marshalExpectedResp), string(resp))
+
+	// Now since this is more than the DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES(5m), the query will not return any results.
+	endTime = startTimestamp + 4600
+
+	fastCtx = &fasthttp.RequestCtx{}
+	fastCtx.Request.PostArgs().Add("query", query)
+	fastCtx.Request.PostArgs().Add("time", strconv.Itoa(int(endTime)))
+
+	promql.ProcessPromqlMetricsSearchRequest(fastCtx, 0)
+	assert.Equal(t, 200, fastCtx.Response.StatusCode())
+
+	expectedPromQLResp = &structs.MetricsPromQLInstantQueryResponse{
+		Status: "success",
+		Data: &structs.PromQLInstantData{
+			ResultType: parser.ValueTypeVector,
+		},
+	}
+
+	marshalExpectedResp, err = json.Marshal(expectedPromQLResp)
+	assert.Nil(t, err)
+	assert.JSONEq(t, string(marshalExpectedResp), string(fastCtx.Response.Body()))
 }
 
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {
