@@ -176,13 +176,13 @@ $(document).ready(async function () {
                 {
                     heading: 'Install Vector',
                     description: 'Install Vector for Linux',
-                    code: `# For Debian and Ubuntu
-                            curl -O https://packages.timber.io/vector/0.X.X/vector_0.X.X-1_amd64.deb
-                            sudo dpkg -i vector_0.X.X-1_amd64.deb
+                    code:`# For Debian and Ubuntu
+curl -O https://packages.timber.io/vector/0.X.X/vector_0.X.X-1_amd64.deb
+sudo dpkg -i vector_0.X.X-1_amd64.deb
 
-                            # For CentOS, Redhat, and Amazon Linux
-                            curl -O https://packages.timber.io/vector/0.X.X/vector-0.X.X-1.x86_64.rpm
-                            sudo rpm -i vector-0.X.X-1.x86_64.rpm`,
+# For CentOS, Redhat, and Amazon Linux
+curl -O https://packages.timber.io/vector/0.X.X/vector-0.X.X-1.x86_64.rpm
+sudo rpm -i vector-0.X.X-1.x86_64.rpm`,
                     sub_heading: '',
                     code_second: '',
                     description_after: ''
@@ -198,24 +198,24 @@ $(document).ready(async function () {
                 {
                     heading: 'Vector Configuration',
                     description: 'Create a Vector configuration file:',
-                    code: `data_dir: /var/lib/vector
+                    code:`data_dir: /var/lib/vector
 
-        sources:
-        read_from_file:
-            type: file
-            includes:
-            - 2kevents.json  # Path to the log file
+sources:
+read_from_file:
+    type: file
+    includes:
+    - 2kevents.json  # Path to the log file
 
-        sinks:
-        siglens:
-            type: elasticsearch
-            inputs:
-            - read_from_file
-            endpoints:
-            - http://localhost:8081/elastic/
-            mode: bulk
-            healthcheck:
-            enabled: false`,
+sinks:
+siglens:
+    type: elasticsearch
+    inputs:
+    - read_from_file
+    endpoints:
+    - http://localhost:8081/elastic/
+    mode: bulk
+    healthcheck:
+    enabled: false`,
                     sub_heading: '',
                     code_second: '',
                     description_after: `Please note that you might need to add transforms to your Vector configuration according to the structure of your data to ensure it is processed correctly.
@@ -245,22 +245,22 @@ $(document).ready(async function () {
                     description: 'Install Logstash on your system.',
                     code: `#For Debian and Ubuntu > Install Logstash using APT:
 
-                        wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
-                        echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
-                        sudo apt-get update && sudo apt-get install logstash
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | sudo tee -a /etc/apt/sources.list.d/elastic-7.x.list
+sudo apt-get update && sudo apt-get install logstash
 
-                        #For CentOS, Redhat, and Amazon Linux > Install Logstash using YUM:
+#For CentOS, Redhat, and Amazon Linux > Install Logstash using YUM:
 
-                        sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
-                        echo "[logstash-7.x]
-                        name=Elastic repository for 7.x packages
-                        baseurl=https://artifacts.elastic.co/packages/7.x/yum
-                        gpgcheck=1
-                        gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-                        enabled=1
-                        autorefresh=1
-                        type=rpm-md" | sudo tee /etc/yum.repos.d/logstash.repo
-                        sudo yum install logstash`,
+sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+echo "[logstash-7.x]
+name=Elastic repository for 7.x packages
+baseurl=https://artifacts.elastic.co/packages/7.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md" | sudo tee /etc/yum.repos.d/logstash.repo
+sudo yum install logstash`,
                     sub_heading: '',
                     code_second: '',
                     description_after: ''
@@ -271,34 +271,34 @@ $(document).ready(async function () {
                     code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz && tar -xvf 2kevents.json.tar.gz',
                     sub_heading: 'Create a config file <code>logstash.conf</code>',
                     code_second: `input {
-                                        file {
-                                            path => "/Users/username/logstash/2kevents.json" # Path to the log file
-                                            start_position => "beginning"
-                                        }
-                                        }
+file {
+    path => "/Users/username/logstash/2kevents.json" # Path to the log file
+    start_position => "beginning"
+}
+}
 
-                                        filter {
-                                        json {
-                                            source => "message"
-                                            remove_field => ["message", "file", "source_type", "path"]
-                                        }
-                                        mutate {
-                                            add_field => { "index" => "logstash_http" }
-                                        }
-                                        if ![first_name] {
-                                            drop { }
-                                        }
-                                        }
+filter {
+json {
+    source => "message"
+    remove_field => ["message", "file", "source_type", "path"]
+}
+mutate {
+    add_field => { "index" => "logstash_http" }
+}
+if ![first_name] {
+    drop { }
+}
+}
 
-                                        output {
-                                        http {
-                                            format => "json"
-                                            content_type => "application/json"
-                                            http_method => "post"
-                                            url => "http://localhost:8081/services/collector/event"
-                                            headers => ['Authorization', 'A94A8FE5CCB19BA61C4C08']
-                                        }
-                                        }`,
+output {
+http {
+    format => "json"
+    content_type => "application/json"
+    http_method => "post"
+    url => "http://localhost:8081/services/collector/event"
+    headers => ['Authorization', 'A94A8FE5CCB19BA61C4C08']
+}
+}`,
                     description_after: 'For more information on customizing your <span class="inline-code-box">logstash.conf</span> file according to your logs, refer to the Logstash documentation'
                 },
                 {
@@ -330,44 +330,44 @@ $(document).ready(async function () {
                     code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz && tar -xvf 2kevents.json.tar.gz',
                     sub_heading: 'Create a fluentd.conf file: <code>fluentd.conf</code>',
                     code_second: `<source>
-                                    @type tail
-                                    path /Users/username/logstash/2kevents.json # Path to the log file
-                                    pos_file /Users/username/logstash/2kevents.json.pos  # Path to the position file
-                                    tag my.logs
-                                    read_from_head true
-                                    <parse>
-                                        @type json
-                                    </parse>
-                                    </source>
+@type tail
+path /Users/username/logstash/2kevents.json # Path to the log file
+pos_file /Users/username/logstash/2kevents.json.pos  # Path to the position file
+tag my.logs
+read_from_head true
+<parse>
+    @type json
+</parse>
+</source>
 
-                                    <filter my.logs>
-                                    @type record_transformer
-                                    <record>
-                                        index "fluentd_http"
-                                    </record>
-                                    </filter>
+<filter my.logs>
+@type record_transformer
+<record>
+    index "fluentd_http"
+</record>
+</filter>
 
-                                    <filter my.logs>
-                                    @type grep
-                                    <regexp>
-                                        key first_name
-                                        pattern /.+/
-                                    </regexp>
-                                    </filter>
+<filter my.logs>
+@type grep
+<regexp>
+    key first_name
+    pattern /.+/
+</regexp>
+</filter>
 
-                                    <match my.logs>
-                                    @type http
+<match my.logs>
+@type http
 
-                                    endpoint http://127.0.0.1:8081/services/collector/event?source=fluentd_source
-                                    open_timeout 2
-                                    <format>
-                                        @type json
-                                    </format>
-                                    <buffer>
-                                        chunk_limit_records 1
-                                        flush_interval 10s
-                                    </buffer>
-                                    </match>`,
+endpoint http://127.0.0.1:8081/services/collector/event?source=fluentd_source
+open_timeout 2
+<format>
+    @type json
+</format>
+<buffer>
+    chunk_limit_records 1
+    flush_interval 10s
+</buffer>
+</match>`,
                     description_after: 'For more information on customizing your <span class="inline-code-box">fluentd.conf</span> file according to your logs, refer to the Fluentd documentation.'
                 },
                 {
@@ -388,16 +388,15 @@ $(document).ready(async function () {
                 {
                     heading: 'Install Filebeat',
                     description: '',
-                    code: `
-                    # Install Filebeat on Debian and Ubuntu:
+                    code: `# Install Filebeat on Debian and Ubuntu:
 
-                    wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-oss-7.9.3-amd64.deb
-                    sudo dpkg -i filebeat-oss-7.9.3-amd64.deb
+wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-oss-7.9.3-amd64.deb
+sudo dpkg -i filebeat-oss-7.9.3-amd64.deb
 
-                    # Install Filebeat on CentOS, Redhat, and Amazon Linux:
+# Install Filebeat on CentOS, Redhat, and Amazon Linux:
 
-                    wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-oss-7.9.3-x86_64.rpm
-                    sudo rpm -ivh filebeat-oss-7.9.3-x86_64.rpm`,
+wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-oss-7.9.3-x86_64.rpm
+sudo rpm -ivh filebeat-oss-7.9.3-x86_64.rpm`,
                     sub_heading: '',
                     code_second: '',
                     description_after: ''
@@ -407,26 +406,25 @@ $(document).ready(async function () {
                     description: `Download the sample events file using the following command:`,
                     code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz && tar -xvf 2kevents.json.tar.gz',
                     sub_heading: 'Create a config file: <code>filebeat.yml</code>',
-                    code_second: `
-                    filebeat.inputs:
-                    - type: log
-                        enabled: true
-                        paths:
-                        - /Users/username/logstash/2kevents.json # Path to the log file
-                        json.keys_under_root: true
-                        json.add_error_key: true
-                        processors:
-                        - drop_event: # Drop events missing first_name
-                            when:
-                                not:
-                                has_fields: ['first_name']
+                    code_second: `filebeat.inputs:
+- type: log
+    enabled: true
+    paths:
+    - /Users/username/logstash/2kevents.json # Path to the log file
+    json.keys_under_root: true
+    json.add_error_key: true
+    processors:
+    - drop_event: # Drop events missing first_name
+        when:
+            not:
+            has_fields: ['first_name']
 
-                    output.elasticsearch:
-                    hosts: ['http://localhost:8081/elastic/']
-                    index: 'filebeat-ind-0'
+output.elasticsearch:
+hosts: ['http://localhost:8081/elastic/']
+index: 'filebeat-ind-0'
 
-                    setup.template.enabled: false
-                    setup.ilm.enabled: false`,
+setup.template.enabled: false
+setup.ilm.enabled: false`,
                     description_after: 'For more information on customizing your <span class="inline-code-box">filebeat.yml</span> file according to your logs, refer to the Filebeat documentation'
                 },
                 {
@@ -447,20 +445,19 @@ $(document).ready(async function () {
                 {
                     heading: 'Install Promtail',
                     description: '',
-                    code: `
-                    #Debian and Ubuntu > Download and install the Promtail binary:
+                    code: `#Debian and Ubuntu > Download and install the Promtail binary:
 
-                    curl -O -L "https://github.com/grafana/loki/releases/download/v2.9.5/promtail-linux-amd64.zip"
-                    sudo apt install unzip
-                    unzip "promtail-linux-amd64.zip"
-                    sudo chmod a+x "promtail-linux-amd64"
+curl -O -L "https://github.com/grafana/loki/releases/download/v2.9.5/promtail-linux-amd64.zip"
+sudo apt install unzip
+unzip "promtail-linux-amd64.zip"
+sudo chmod a+x "promtail-linux-amd64"
 
-                    #CentOS, Redhat, and Amazon Linux > Download and install the Promtail binary:
+#CentOS, Redhat, and Amazon Linux > Download and install the Promtail binary:
 
-                    curl -O -L "https://github.com/grafana/loki/releases/download/v2.9.5/promtail-linux-amd64.zip"
-                    sudo yum install unzip
-                    unzip "promtail-linux-amd64.zip"
-                    sudo chmod a+x "promtail-linux-amd64"`,
+curl -O -L "https://github.com/grafana/loki/releases/download/v2.9.5/promtail-linux-amd64.zip"
+sudo yum install unzip
+unzip "promtail-linux-amd64.zip"
+sudo chmod a+x "promtail-linux-amd64"`,
                     sub_heading: '',
                     code_second: '',
                     description_after: ''
@@ -470,24 +467,23 @@ $(document).ready(async function () {
                     description: `Download the sample events file using the following command:`,
                     code: 'curl -s -L https://github.com/siglens/pub-datasets/releases/download/v1.0.0/2kevents.json.tar.gz -o 2kevents.json.tar.gz && tar -xvf 2kevents.json.tar.gz',
                     sub_heading: 'Create a config file: <code>promtail.yaml</code>',
-                    code_second: `
-                    server:
-                        http_listen_port: 9080
-                        grpc_listen_port: 0
+                    code_second:`server:
+http_listen_port: 9080
+grpc_listen_port: 0
 
-                        positions:
-                        filename: /tmp/positions.yaml
+positions:
+filename: /tmp/positions.yaml
 
-                        clients:
-                        - url: http://localhost:8081/loki/api/v1/push
-                        scrape_configs:
-                        - job_name: system
-                        static_configs:
-                        - targets:
-                            - localhost
-                            labels:
-                            job: varlogs
-                            __path__: /var/log/*log # Path to the log file`,
+clients:
+- url: http://localhost:8081/loki/api/v1/push
+scrape_configs:
+- job_name: system
+static_configs:
+- targets:
+    - localhost
+    labels:
+    job: varlogs
+    __path__: /var/log/*log # Path to the log file`,
                     description_after: 'For more information on customizing your <span class="inline-code-box">promtail.yaml<span/> file according to your logs, refer to the Promtail documentation.'
                 },
                 {
