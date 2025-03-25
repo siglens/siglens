@@ -17,7 +17,7 @@ import (
 )
 
 type WalDatapoint struct {
-	Timestamp uint64
+	Timestamp uint32
 	DpVal     float64
 	Tsid      uint64
 }
