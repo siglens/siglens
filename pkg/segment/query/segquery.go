@@ -260,9 +260,6 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 		return nil, nil, "", false, nil, nil, 0, err
 	}
 
-	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
-		qid, searchNode.NodeType, parallelismPerFile)
-
 	return queryInfo, querySummary, pqid, containsKibana, kibanaIndices, allSegFileResults, parallelismPerFile, nil
 }
 
