@@ -587,6 +587,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 
 			runningTs = time.Date(runningTs.Year(), runningTs.Month()+1, 1, 0, 0, 0, 0, runningTs.Location())
 		}
+	} else {
+		return nil, fmt.Errorf("GetUsageStats: unknown granularity value: %v", granularity)
 	}
 
 	allStatsMap, err := readUsageStats(startEpoch, endEpoch, orgid)
@@ -607,6 +609,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
 		} else if granularity == Monthly {
 			bucketInterval = rStat.TimeStamp.Format("2006-01")
+		} else {
+			return nil, fmt.Errorf("GetUsageStats: unexpected unknown granularity value: %v", granularity)
 		}
 		entry, ok := resultMap[bucketInterval]
 		if !ok {
