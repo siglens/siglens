@@ -151,6 +151,10 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 	return qs
 }
 
+func (qs *QuerySummary) Cleanup() {
+	qs.stopTicker()
+}
+
 func (qs *QuerySummary) startTicker() {
 	qs.ticker = time.NewTicker(TICK_DURATION_SECS * time.Second)
 	qs.tickerStopChan = make(chan bool)
@@ -161,6 +165,7 @@ func (qs *QuerySummary) stopTicker() {
 	if qs.ticker != nil {
 		qs.ticker.Stop()
 		close(qs.tickerStopChan)
+		qs.ticker = nil
 	}
 }
 
