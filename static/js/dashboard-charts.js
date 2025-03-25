@@ -380,34 +380,37 @@ function findSmallestGreaterOne(number) {
 
 //eslint-disable-next-line no-unused-vars
 function displayBigNumber(value, panelId, dataType, panelIndex) {
-    if (panelId === -1) {
-        $('.panelDisplay .panEdit-panel').hide();
-        $(`.panelDisplay .big-number-display-container`).show();
-        $(`.panelDisplay .big-number-display-container`).empty();
-    } else {
-        $(`#panel${panelId} .panEdit-panel`).hide();
-        $(`#panel${panelId} .big-number-display-container`).show();
-        $(`#panel${panelId} .big-number-display-container`).empty();
-    }
-
     let panelChartEl;
 
+    // First get the container reference
     if (panelId == -1) {
         panelChartEl = $('.panelDisplay .big-number-display-container');
+        $('.panelDisplay .panEdit-panel').hide();
     } else {
         panelChartEl = $(`#panel${panelId} .big-number-display-container`);
         $(`#panel${panelId} .panEdit-panel`).hide();
-        panelChartEl = $(`#panel${panelId} .big-number-display-container`);
+    }
+
+    // Clear existing content and ensure container is ready
+    panelChartEl.empty().show();
+
+    // Set container dimensions
+    if (panelId !== -1) {
         panelChartEl.css('width', '100%').css('height', '100%');
     }
 
-    if (!value) {
-        panelChartEl.append(`<div class="big-number">NA</div> `);
-    } else {
-        if (dataType != null && dataType != undefined && dataType != '') {
-            var bigNum = [];
-            let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
-            let number = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : parseFloat(value);
+    // Handle the value display
+    if (!value || value === 'undefined' || value === 'null') {
+        panelChartEl.append(`<div class="big-number">NA</div>`);
+        return;
+    }
+
+    if (dataType != null && dataType !== undefined && dataType !== '') {
+        var bigNum = [];
+        let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
+        let number = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : parseFloat(value);
+
+        if (!isNaN(number)) {
             let dataTypeAbbrevCap = dataTypeAbbrev.substring(0, 2).toUpperCase();
             if (['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].includes(dataTypeAbbrevCap)) {
                 dataTypeAbbrev = dataTypeAbbrev.substring(1);
@@ -451,21 +454,24 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
             } else {
                 bigNum = addSuffix(number);
             }
-            panelChartEl.append(`<div class="big-number">${bigNum[0]} </div> <div class="unit">${bigNum[1] + dataTypeAbbrev} </div> `);
+            panelChartEl.append(`<div class="big-number">${bigNum[0]}</div> <div class="unit">${bigNum[1]}${dataTypeAbbrev}</div>`);
         } else {
-            panelChartEl.append(`<div class="big-number">${value} </div> `);
+            panelChartEl.append(`<div class="big-number">NA</div>`);
         }
+    } else {
+        // For values without a data type, just display the raw value
+        panelChartEl.append(`<div class="big-number">${value}</div>`);
     }
 
+    // Handle font sizing
     if (panelId === -1) {
         let parentWidth = $('.panelDisplay').width();
-        let numWidth = $('.panelDisplay .big-number-display-container').width();
+        let numWidth = panelChartEl.width();
         if (numWidth > parentWidth) {
             $('.big-number').css('font-size', '5.5em');
             $('.unit').css('font-size', '55px');
         }
-    }
-    if (panelId !== -1) {
+    } else {
         var newSize = $('#' + panelId).width() / 8;
         $('#' + panelId)
             .find('.big-number, .unit')
