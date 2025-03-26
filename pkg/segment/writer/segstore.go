@@ -670,7 +670,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		WriteRunningSegMeta(segstore.SegmentKey, &segmeta)
+		WriteRunningSegMeta(&segmeta)
 
 		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()

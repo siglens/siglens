@@ -199,7 +199,18 @@ func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 	return sfm, nil
 }
 
-func WriteSfm(segkey string, sfmData *structs.SegFullMeta) {
+func WriteSfm(sfmData *structs.SegFullMeta) {
+	if sfmData == nil {
+		log.Warnf("WriteSfm: sfmData is nil")
+		return
+	}
+
+	if sfmData.SegMeta == nil {
+		log.Warnf("WriteSfm: sfmData.SegMeta is nil")
+		return
+	}
+
+	segkey := sfmData.SegMeta.SegmentKey
 
 	// create a separate individual file for SegFullMeta
 	sfmFname := GetSegFullMetaFnameFromSegkey(segkey)
@@ -396,7 +407,7 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 				UploadedSeg: false,
 			}
 
-			WriteSfm(segmeta.SegmentKey, sfmData)
+			WriteSfm(sfmData)
 		}
 	}
 
@@ -569,7 +580,7 @@ func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
 
 	utils.MergeMapsRetainingFirst(sfmData.AllPQIDs, pqidMap)
 
-	WriteSfm(segkey, sfmData)
+	WriteSfm(sfmData)
 }
 
 func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
@@ -741,7 +752,7 @@ func DeletePQSData() error {
 		}
 
 		sfmData.AllPQIDs = nil
-		WriteSfm(smEntry.SegmentKey, sfmData)
+		WriteSfm(sfmData)
 	}
 
 	// Delete PQS meta directory
