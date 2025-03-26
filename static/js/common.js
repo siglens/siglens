@@ -567,6 +567,13 @@ function runPanelAggsQuery(data, panelId, chartType, dataType, panelIndex, query
 }
 
 async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
+    console.log('runMetricsQuery called with:', {
+        chartType: currentPanel.chartType,
+        data: data
+    });
+
+    console.log('Current chart type in handleQueryAndVisualize:', currentPanel.chartType);
+
     $('body').css('cursor', 'progress');
     if (panelId == -1) {
         // for panel on the editPanelScreen page
@@ -692,6 +699,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         return;
     }
 }
+
 
 function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
     if (queryType === 'logs') {

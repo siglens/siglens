@@ -288,6 +288,7 @@ $(document).ready(function () {
     }
 });
 function checkChartType(currentPanel) {
+    console.log('checkChartType called');
     if (currentPanel.chartType === 'Line Chart' || currentPanel.chartType === 'Line chart') {
         $('#visualization-options').addClass('d-flex');
         $('#visualization-options').show();
@@ -298,6 +299,7 @@ function checkChartType(currentPanel) {
 }
 //eslint-disable-next-line no-unused-vars
 async function editPanelInit(redirectedFromViewScreen) {
+    console.log('editPanelInit called');
     queries = {};
     formulas = {};
     if (redirectedFromViewScreen === -1) {
@@ -569,6 +571,7 @@ $('#nestedTimeDropDown').on('click', handleNestedTimeDropDownClick);
 $('#nestedDataRateDropDown').on('click', handleNestedDataRateDropDownClick);
 
 function handleSourceDropDownClick() {
+    console.log('handleSourceDropDownClick called');
     $('.dropDown-dataSource').toggleClass('active');
     $('.editPanelMenu-dataSource').slideToggle();
     $('.dropDown-dataSource .caret').css('rotate', '180deg');
@@ -576,6 +579,7 @@ function handleSourceDropDownClick() {
 }
 
 function handleUnitDropDownClick(_e) {
+    console.log('handleUnitDropDownClick called');
     $('.dropDown-unit').toggleClass('active');
     //to close the inner dropdown when unit menu is clicked
     $('.editPanelMenu-inner-options').hide();
@@ -585,6 +589,7 @@ function handleUnitDropDownClick(_e) {
 }
 
 function handleLogLinesViewDropDownClick(_e) {
+    console.log('handleLogLinesViewDropDownClick called');
     $('.dropDown-logLinesView').toggleClass('active');
     $('.editPanelMenu-logLinesView').slideToggle();
     $('.dropDown-logLinesView .caret').css('rotate', '180deg');
@@ -592,6 +597,7 @@ function handleLogLinesViewDropDownClick(_e) {
 }
 
 function handleNestedMiscDropDownClick(e) {
+    console.log('handleNestedMiscDropDownClick called');
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
 
@@ -625,6 +631,7 @@ function handleNestedMiscDropDownClick(e) {
 }
 
 function handleNestedDataDropDownClick(e) {
+    console.log('handleNestedDataDropDownClick called');
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
@@ -638,7 +645,6 @@ function handleNestedDataDropDownClick(e) {
     $('#nestedDataDropDown').toggleClass('active');
     $('#dataOptionsDropDown').slideToggle();
     $('#nestedDataDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedDataDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -657,6 +663,7 @@ function handleNestedDataDropDownClick(e) {
 }
 
 function handleNestedTptDropDownClick(e) {
+    console.log('handleNestedTptDropDownClick called');
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
 
@@ -670,7 +677,6 @@ function handleNestedTptDropDownClick(e) {
     $('#nestedThroughputDropDown').toggleClass('active');
     $('#throughputOptionsDropDown').slideToggle();
     $('#nestedThroughputDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedThroughputDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -690,6 +696,7 @@ function handleNestedTptDropDownClick(e) {
 }
 
 function handleNestedPercentDropDownClick(e) {
+    console.log('handleNestedPercentDropDownClick called');
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
@@ -702,7 +709,6 @@ function handleNestedPercentDropDownClick(e) {
     $('#nestedPercentDropDown').toggleClass('active');
     $('#percentOptionsDropDown').slideToggle();
     $('#nestedPercentDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedPercentDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -722,6 +728,7 @@ function handleNestedPercentDropDownClick(e) {
 }
 
 function handleNestedTimeDropDownClick(e) {
+    console.log('handleNestedTimeDropDownClick called');
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
@@ -734,7 +741,6 @@ function handleNestedTimeDropDownClick(e) {
     $('#nestedTimeDropDown').toggleClass('active');
     $('#timeOptionsDropDown').slideToggle();
     $('#nestedTimeDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedTimeDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -754,6 +760,7 @@ function handleNestedTimeDropDownClick(e) {
 }
 
 function handleNestedDataRateDropDownClick(e) {
+    console.log('handleNestedDataRateDropDownClick called');
     let selectedUnitMenuItem = $('.editPanelMenu-unit .editPanelMenu-unit-options.selected');
     selectedUnitMenuItem.removeClass('selected');
     if (parseInt(selectedUnitMenuItem.attr('data-index')) !== $(this).data('index')) resetNestedUnitMenuOptions(selectedUnitTypeIndex);
@@ -766,7 +773,6 @@ function handleNestedDataRateDropDownClick(e) {
     $('#nestedDataRateDropDown').toggleClass('active');
     $('#dataRateOptionsDropDown').slideToggle();
     $('#nestedDataRateDropDown .horizontalCaret').css('rotate', '90deg');
-    $('#nestedDataRateDropDown.active .horizontalCaret').css('rotate', '270deg');
     if (e) e.stopPropagation();
     selectedUnitTypeIndex = $(this).data('index');
     currentPanel.unit = mapIndexToUnitType.get(selectedUnitTypeIndex);
@@ -884,6 +890,7 @@ $('.misc-options').on('click', function () {
 });
 
 function refreshNestedMiscMenuOptions() {
+    console.log('refreshNestedMiscMenuOptions called');
     let dataType = mapIndexToMiscOptions.get(selectedDataTypeIndex);
     dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
     $('.dropDown-misc-options span').html(dataType);
@@ -914,6 +921,7 @@ $('.data-options').on('click', function () {
 });
 
 function refreshNestedDataMenuOptions() {
+    console.log('refreshNestedDataMenuOptions called');
     let dataType = mapIndexToDataType.get(selectedDataTypeIndex);
     dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
     $('.dropDown-data-options span').html(dataType);
@@ -943,6 +951,7 @@ $('.throughput-options').on('click', function () {
 });
 
 function refreshNestedTptMenuOptions() {
+    console.log('refreshNestedTptMenuOptions called');
     let dataType = mapIndexToThroughputOptions.get(selectedDataTypeIndex);
     dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
     $('.dropDown-throughput-options span').html(dataType);
@@ -972,6 +981,7 @@ $('.percent-options').on('click', function () {
 });
 
 function refreshNestedPercentMenuOptions() {
+    console.log('refreshNestedPercentMenuOptions called');
     // let dataType = mapIndexToPercentOption.get(selectedDataTypeIndex);
     // dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
     // $('.dropDown-percent-options span').html(dataType);
@@ -1001,6 +1011,7 @@ $('.time-options').on('click', function () {
 });
 
 function refreshNestedTimeMenuOptions() {
+    console.log('refreshNestedTimeMenuOptions called');
     let dataType = mapIndexToTimeOptions.get(selectedDataTypeIndex);
     dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
     $('.dropDown-time-options span').html(dataType);
@@ -1030,6 +1041,7 @@ $('.data-rate-options').on('click', function () {
 });
 
 function refreshNestedDataRateMenuOptions() {
+    console.log('refreshNestedDataRateMenuOptions called');
     let dataType = mapIndexToDataRateType.get(selectedDataTypeIndex);
     dataType = dataType.charAt(0).toUpperCase() + dataType.slice(1);
     $('.dropDown-data-rate-options span').html(dataType);
@@ -1038,6 +1050,7 @@ function refreshNestedDataRateMenuOptions() {
 
 // common function to reset all unit dropdowns
 function resetNestedUnitMenuOptions(selectedUnitTypeIndex) {
+    console.log('resetNestedUnitMenuOptions called');
     if (selectedUnitTypeIndex !== -1 && selectedUnitTypeIndex !== undefined) {
         $('.editPanelMenu-unit .editPanelMenu-unit-options').each(function (index, item) {
             item.classList.remove('active');
@@ -1079,17 +1092,20 @@ $('.queryInput').on('input', function (e) {
 });
 
 function updatePanelName() {
+    console.log('updatePanelName called');
     let nameEl = $('#panEdit-nameChangeInput');
     currentPanel.name = nameEl.val();
     $('.panEdit-navBar .panelTitle').html(nameEl.val());
 }
 
 function updatePanelDescr() {
+    console.log('updatePanelDescr called');
     let descrEl = $('#panEdit-descrChangeInput');
     currentPanel.description = descrEl.val();
 }
 
 function refreshDataSourceMenuOptions() {
+    console.log('refreshDataSourceMenuOptions called');
     let dataSourceTypeMenuItems = $('.editPanelMenu-dataSource .editPanelMenu-options');
     dataSourceTypeMenuItems.each(function (index, item) {
         item.classList.remove('selected');
@@ -1101,6 +1117,7 @@ function refreshDataSourceMenuOptions() {
 }
 
 function refreshChartMenuOptions() {
+    console.log('refreshChartMenuOptions called');
     let chartTypeMenuItems = $('.editPanelMenu-chart #chart-type-options');
     chartTypeMenuItems.each(function (_index, item) {
         item.classList.remove('selected');
@@ -1109,6 +1126,7 @@ function refreshChartMenuOptions() {
 }
 
 function refreshUnitMenuOptions() {
+    console.log('refreshUnitMenuOptions called');
     let unitTypeMenuItems = $('.editPanelMenu-unit .editPanelMenu-unit-options');
     unitTypeMenuItems.each(function (index, item) {
         item.classList.remove('selected');
@@ -1121,6 +1139,7 @@ function refreshUnitMenuOptions() {
 }
 
 function refreshLogLinesViewMenuOptions() {
+    console.log('refreshLogLinesViewMenuOptions called');
     let viewTypeMenuItems = $('.editPanelMenu-logLinesView .editPanelMenu-options');
     viewTypeMenuItems.each(function (index, item) {
         item.classList.remove('selected');
@@ -1132,6 +1151,7 @@ function refreshLogLinesViewMenuOptions() {
 }
 
 function goToDashboard() {
+    console.log('goToDashboard called');
     // Don't add panel if cancel is clicked.
     let serverPanel = JSON.parse(JSON.stringify(localPanels[panelIndex]));
     if (!flagDBSaved) {
@@ -1158,6 +1178,7 @@ function goToDashboard() {
 }
 //eslint-disable-next-line no-unused-vars
 function resetPanelTimeRanges() {
+    console.log('resetPanelTimeRanges called');
     for (let i = 0; i < localPanels.length; i++) {
         if (localPanels[i].queryData) {
             (localPanels[i].chartType === 'Line Chart' || localPanels[i].chartType === 'number') && localPanels[i].queryType === 'metrics' ? (localPanels[i].queryData.start = filterStartDate) : (localPanels[i].queryData.startEpoch = filterStartDate);
@@ -1166,6 +1187,7 @@ function resetPanelTimeRanges() {
 }
 
 function resetEditPanelScreen() {
+    console.log('resetEditPanelScreen called');
     resetEditPanel();
     panelGridDiv = null;
     $('.dropDown-dataSource span').html('Data Source');
@@ -1180,11 +1202,13 @@ function resetEditPanelScreen() {
 }
 
 function resetEditPanel() {
+    console.log('resetEditPanel called');
     $('.panelDisplay .panEdit-panel').remove();
     const panEditEl = `<div id="panEdit-panel" class="panEdit-panel"></div>`;
     $('.panelDisplay').append(panEditEl);
 }
 function resetOptions() {
+    console.log('resetOptions called');
     selectedChartTypeIndex = -1;
     selectedDataSourceTypeIndex = -1;
     selectedLogLinesViewTypeIndex = -1;
@@ -1234,6 +1258,7 @@ function resetOptions() {
 }
 
 function displayQueryToolTip(selectedDataSourceTypeIndex) {
+    console.log('displayQueryToolTip called');
     $('#info-icon-metrics, #info-icon-sql, #info-icon-logQL, #info-icon-spl').hide();
     let queryLanguage = $('.panelEditor-container .queryInput-container #query-language-btn span').html();
     if (selectedDataSourceTypeIndex === 0) {
@@ -1248,6 +1273,8 @@ function displayQueryToolTip(selectedDataSourceTypeIndex) {
 }
 
 async function runQueryBtnHandler() {
+    console.log('runQueryBtnHandler called');
+
     // reset the current panel's queryRes attribute
     delete currentPanel.queryRes;
     resetEditPanel();
@@ -1306,6 +1333,7 @@ const toggleSwitch = document.getElementById('toggle-switch');
 toggleSwitch.addEventListener('change', toggleTableView);
 
 function toggleTableView() {
+    console.log('toggleTableView called');
     const chartType = currentPanel.chartType;
     const cornerPopup = $('.panelDisplay #corner-popup');
     const emptyResponse = $('.panelDisplay #empty-response');
@@ -1349,6 +1377,7 @@ function toggleTableView() {
 }
 
 function displayPanelView(panelIndex) {
+    console.log('displayPanelView called');
     if (isDefaultDashboard) {
         $('.button-section, #edit-button').hide();
     }

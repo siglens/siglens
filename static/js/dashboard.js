@@ -129,12 +129,14 @@ $(document).ready(async function () {
 });
 
 function enableJsonEditing() {
+    console.log('enableJsonEditing called');
     $('.dbSet-jsonModelData').prop('disabled', false);
     $('#dbSet-edit-json').hide();
     $('#dbSet-save-json').show();
 }
 
 function saveJsonChanges() {
+    console.log('saveJsonChanges called');
     const jsonText = $('.dbSet-jsonModelData').val();
     try {
         const updatedData = JSON.parse(jsonText); // Parse the JSON to ensure its validity
@@ -245,6 +247,7 @@ $('.dbSet-goToDB').on('click', discardDbSetting);
 $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 async function updateDashboard() {
+    console.log('updateDashboard called');
     timeRange = $('#date-picker-btn').text().trim().replace(/\s+/g, ' ');
     resetPanelTimeRanges();
     flagDBSaved = true;
@@ -295,6 +298,7 @@ async function updateDashboard() {
 }
 
 function refreshDashboardHandler() {
+    console.log('refreshDashboardHandler called');
     if ($('#viewPanel-container').css('display') !== 'none') {
         displayPanelView(panelIndex);
     } else {
@@ -306,6 +310,7 @@ function refreshDashboardHandler() {
 }
 
 function handlePanelView() {
+    console.log('handlePanelView called');
     $('.panel-view-li').unbind('click');
     $('.panel-view-li').on('click', function () {
         panelIndex = $(this).closest('.panel').attr('panel-index');
@@ -316,6 +321,7 @@ function handlePanelView() {
 }
 
 function viewPanelInit() {
+    console.log('viewPanelInit called');
     $('.panelEditor-container').css('display', 'flex');
     $('.panelDisplay #panelLogResultsGrid').empty();
     $('.panelDisplay .big-number-display-container').hide();
@@ -325,6 +331,7 @@ function viewPanelInit() {
 }
 
 function handlePanelEdit() {
+    console.log('handlePanelEdit called');
     $('.panel-edit-li').unbind('click');
     $('.panel-edit-li').on('click', function () {
         panelIndex = $(this).closest('.panel').attr('panel-index');
@@ -353,6 +360,7 @@ function handlePanelEdit() {
     });
 }
 function handlePanelRemove(panelId) {
+    console.log('handlePanelRemove called');
     $(`#panel${panelId} .panel-remove-li`).unbind('click');
     $(`#panel${panelId} .panel-remove-li`).on('click', function () {
         showPrompt(panelId);
@@ -393,6 +401,7 @@ function handlePanelRemove(panelId) {
 }
 
 function handleDescriptionTooltip(panelId, description, searchText) {
+    console.log('handleDescriptionTooltip called');
     const panelInfoCorner = $(`#panel${panelId} .panel-info-corner`);
     const panelDescIcon = $(`#panel${panelId} .panel-info-corner #panel-desc-info`);
     panelInfoCorner.show();
@@ -430,6 +439,7 @@ function handleDescriptionTooltip(panelId, description, searchText) {
 }
 
 function handlePanelDuplicate() {
+    console.log('handlePanelDuplicate called');
     $('.panel-dupl-li').unbind('click');
     $('.panel-dupl-li').on('click', async function () {
         flagDBSaved = false;
@@ -441,6 +451,7 @@ function handlePanelDuplicate() {
 }
 
 function renderDuplicatePanel(duplicatedPanelIndex) {
+    console.log('renderDuplicatePanel called');
     let localPanel = localPanels[localPanels.length - 1];
     let panelId = localPanels[localPanels.length - 1].panelId;
     // only render the duplicated panel
@@ -488,12 +499,14 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
 }
 
 function resetPanelIndices() {
+    console.log('resetPanelIndices called');
     for (let i = 0; i < localPanels.length; i++) {
         localPanels[i].panelIndex = i;
     }
 }
 
 async function getDashboardData() {
+    console.log('getDashboardData called');
     await fetch(`/api/dashboards/${dbId}`)
         .then((res) => {
             return res.json();
@@ -547,6 +560,7 @@ async function getDashboardData() {
 }
 
 function setTimePickerValue(timeRange) {
+    console.log('setTimePickerValue called');
     let start, end;
     if (localPanels.length > 0) {
         localPanels.some((panel) => {
@@ -583,6 +597,7 @@ function setTimePickerValue(timeRange) {
 }
 //eslint-disable-next-line no-unused-vars
 function updateTimeRangeForAllPanels(filterStartDate, filterEndDate) {
+    console.log('updateTimeRangeForAllPanels called');
     localPanels.forEach((panel) => {
         delete panel.queryRes;
 
@@ -683,6 +698,7 @@ grid.on('resizestop', function (_event, ui) {
 });
 
 async function displayPanels() {
+    console.log('displayPanels called');
     allResultsDisplayed = localPanels.length;
     grid.removeAll();
     let panelContainerMinHeight = 0;
@@ -844,6 +860,7 @@ async function displayPanels() {
 }
 
 function getDashboardId() {
+    console.log('getDashboardId called');
     let queryString = decodeURIComponent(window.location.search); //parsing
     queryString = queryString.substring(1).split('=');
     let uniq = queryString[1];
@@ -890,6 +907,7 @@ var defaultPanelLayout =
 `;
 
 function addPanel(chartIndex) {
+    console.log('addPanel called');
     flagDBSaved = false;
     panelIndex = localPanels.length;
     var defaultWidget = $('.default-item').get(0); // Get the DOM element
@@ -1056,6 +1074,7 @@ function addPanel(chartIndex) {
 }
 
 function addDuplicatePanel(panelToDuplicate) {
+    console.log('addDuplicatePanel called');
     flagDBSaved = false;
     panelIndex = localPanels.length;
 
@@ -1114,6 +1133,7 @@ function addDuplicatePanel(panelToDuplicate) {
 }
 
 function addDefaultPanel() {
+    console.log('addDefaultPanel called');
     grid.addWidget(
         `<div class="grid-stack-item default-item"><div class="add-panel-div">
     <div class="plus-icon">+</div>
@@ -1126,6 +1146,7 @@ function addDefaultPanel() {
 // DASHBOARD SETTINGS PAGE
 let editPanelFlag = false;
 function handleDbSettings() {
+    console.log('handleDbSettings called');
     if ($('.panelEditor-container').css('display') !== 'none') {
         $('.panelEditor-container').hide();
         $('#app-container').hide();
@@ -1209,6 +1230,7 @@ function handleDbSettings() {
 }
 
 function showGeneralDbSettings() {
+    console.log('showGeneralDbSettings called');
     $('.dbSet-general').addClass('selected');
     $('.dbSet-generalHTML').removeClass('hide');
 
@@ -1217,6 +1239,7 @@ function showGeneralDbSettings() {
 }
 
 function showJsonModelDbSettings() {
+    console.log('showJsonModelDbSettings called');
     $('.dbSet-general').removeClass('selected');
     $('.dbSet-generalHTML').addClass('hide');
 
@@ -1225,11 +1248,13 @@ function showJsonModelDbSettings() {
 }
 
 function addDbSettingsEventListeners() {
+    console.log('addDbSettingsEventListeners called');
     $('.dbSet-general').on('click', showGeneralDbSettings);
     $('.dbSet-jsonModel').on('click', showJsonModelDbSettings);
 }
 
 function saveDbSetting() {
+    console.log('saveDbSetting called');
     if ($('.dbSet-generalHTML').is(':visible')) {
         let trimmedDbName = $('.dbSet-dbName').val().trim();
         let trimmedDbDescription = $('.dbSet-dbDescr').val().trim();
@@ -1279,6 +1304,7 @@ $('#error-ok-btn').click(function () {
 });
 
 function discardDbSetting() {
+    console.log('discardDbSetting called');
     if (editPanelFlag) {
         $('.panelEditor-container').css('display', 'flex');
         $('.popupOverlay').addClass('active');
@@ -1297,6 +1323,7 @@ function discardDbSetting() {
 // Refresh handler
 
 function setRefreshItemHandler() {
+    console.log('setRefreshItemHandler called');
     $('.refresh-range-item').removeClass('active');
     if (dbRefresh) {
         $(`.refresh-range-item:contains('${dbRefresh}')`).addClass('active');
@@ -1309,6 +1336,7 @@ function setRefreshItemHandler() {
 }
 
 function refreshRangeItemHandler(evt) {
+    console.log('refreshRangeItemHandler called');
     $.each($('.refresh-range-item.active'), function () {
         $(this).removeClass('active');
     });
@@ -1327,6 +1355,7 @@ function refreshRangeItemHandler(evt) {
 let intervalId;
 
 function startRefreshInterval(refreshInterval) {
+    console.log('startRefreshInterval called');
     let parsedRefreshInterval = parseInterval(refreshInterval);
     clearInterval(intervalId);
     if (parsedRefreshInterval > 0) {
@@ -1339,11 +1368,13 @@ function startRefreshInterval(refreshInterval) {
 }
 
 function pauseRefreshInterval() {
+    console.log('pauseRefreshInterval called');
     clearInterval(intervalId);
     return 0;
 }
 
 function parseInterval(interval) {
+    console.log('parseInterval called');
     if (interval === '0') {
         pauseRefreshInterval();
         return;
@@ -1367,6 +1398,7 @@ function parseInterval(interval) {
 
 // Favorite Handler
 function toggleFavorite() {
+    console.log('toggleFavorite called');
     $.ajax({
         method: 'put',
         url: 'api/dashboards/favorite/' + dbId,
@@ -1381,6 +1413,7 @@ function toggleFavorite() {
 }
 
 function setFavoriteValue(isFavorite) {
+    console.log('setFavoriteValue called');
     if (isFavorite) {
         $('#favbutton').addClass('active');
     } else {
@@ -1406,6 +1439,7 @@ $(window).on('resize', function () {
 });
 
 function resizeCharts() {
+    console.log('resizeCharts called');
     $('.grid-stack-item-content .panEdit-panel').each(function () {
         var echartsInstanceId = $(this).attr('_echarts_instance_');
         if (echartsInstanceId) {
@@ -1463,6 +1497,7 @@ $('#run-dashboard-fliter').on('click', function () {
 });
 
 function validateFilterInput(input) {
+    console.log('validateFilterInput called');
     input = input.trim();
 
     const disallowedPatterns = [
@@ -1483,6 +1518,7 @@ function validateFilterInput(input) {
 }
 
 function applyDashboardFilter(filterValue) {
+    console.log('applyDashboardFilter called');
     if (!filterValue.trim()) {
         // Empty string
         resetToOriginalQueries();
@@ -1502,6 +1538,7 @@ function applyDashboardFilter(filterValue) {
 }
 
 function updatePanelQuery(panel, filterInput, panelIndex) {
+    console.log('updatePanelQuery called');
     let originalQuery = panel.queryData.searchText;
     let newQuery;
 

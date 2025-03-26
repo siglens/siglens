@@ -6025,6 +6025,55 @@ p#versionInfo {
     font-size: 18px;
 }
 
+[data-theme='dark'] .ingestion-card{
+    background: var(--drop-down-btn-bg-regular);
+}
+
+[data-theme='dark'] .card-header{
+    background: var(--drop-down-btn-bg-regular);
+    border-bottom: 1px solid #ffffff;
+}
+
+[data-theme='dark'] .card-header h3{
+    color: var(--text-color, #ffffff);
+}
+
+[data-theme='dark'] .card-description{
+    color:  #919292;
+}
+
+[data-theme='dark'] .card-footer{
+    background: var(--drop-down-btn-bg-regular);
+}
+
+[data-theme='dark'] .configure-btn{
+    background-color: var(--primary-color-dark, #5038B3);
+    color: #ffffff;
+    border: 2px solid #5038B3;
+}
+
+[data-theme='dark'] .configure-btn:hover {
+    background-color: var(--drop-down-btn-bg-regular);
+    color: #5038B3;
+    border: 2px solid #5038B3;
+}
+
+[data-theme='dark'] #test-data-btn {
+    background-color: var(--primary-color-dark, #5038B3);
+    color: #ffffff;
+    border: 2px solid #5038B3;
+}
+
+[data-theme='dark'] #test-data-btn:hover {
+    background-color: var(--drop-down-btn-bg-regular);
+    color: #5038B3;
+    border: 2px solid #5038B3;
+}
+
+[data-theme='dark'] .card-description{
+    color: var(--text-color, #ffffff);
+}
+
 #data-ingestion {
     max-width: 800px;
     margin: 0 auto;
@@ -6156,7 +6205,7 @@ p#versionInfo {
 }
 
 .copy-btn.success {
-    background: #28a745;
+    background-color: #28a745;
 }
 
 .code-container pre {

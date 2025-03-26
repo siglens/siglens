@@ -19,6 +19,7 @@
 
 var lineChart;
 function loadBarOptions(xAxisData, yAxisData) {
+    console.log('loadBarOptions called');
     // colors for dark & light modes
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
@@ -122,6 +123,7 @@ function loadBarOptions(xAxisData, yAxisData) {
     return barOptions;
 }
 function loadPieOptions(xAxisData, yAxisData) {
+    console.log('loadPieOptions called');
     let pieDataMapList = [];
     // loop
     for (let i = 0; i < xAxisData.length; i++) {
@@ -187,6 +189,7 @@ function loadPieOptions(xAxisData, yAxisData) {
 
 //eslint-disable-next-line no-unused-vars
 function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) {
+    console.log('renderBarChart called');
     $('.panelDisplay #panelLogResultsGrid').hide();
     $('.panelDisplay #empty-response').empty();
     $('.panelDisplay #corner-popup').hide();
@@ -322,6 +325,7 @@ let mapIndexToAbbrev = new Map([
 ]);
 
 function addSuffix(number) {
+    console.log('addSuffix called');
     let suffix = '';
     if (number >= 1e24) {
         suffix = 'Y';
@@ -350,6 +354,7 @@ function addSuffix(number) {
 }
 
 function findSmallestGreaterOne(number) {
+    console.log('findSmallestGreaterOne called');
     const hours = number / 3600; // Convert seconds to hours
     const minutes = number / 60; // Convert seconds to minutes
     const years = number / (3600 * 24 * 365); // Convert seconds to years
@@ -380,6 +385,7 @@ function findSmallestGreaterOne(number) {
 
 //eslint-disable-next-line no-unused-vars
 function displayBigNumber(value, panelId, dataType, panelIndex) {
+    console.log('displayBigNumber called');
     if (panelId === -1) {
         $('.panelDisplay .panEdit-panel').hide();
         $(`.panelDisplay .big-number-display-container`).show();
@@ -475,6 +481,7 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
 
 //eslint-disable-next-line no-unused-vars
 function createColorsArray() {
+    console.log('createColorsArray called');
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
     let colorArray = [];
@@ -486,6 +493,7 @@ function createColorsArray() {
 
 //eslint-disable-next-line no-unused-vars
 function renderLineChart(seriesData, panelId) {
+    console.log('renderLineChart called');
     let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);

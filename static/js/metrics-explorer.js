@@ -60,6 +60,7 @@ let currentSearchTerm = '';
 
 // Function to check if CSV can be downloaded
 function canDownloadCSV() {
+    console.log('canDownloadCSV called');
     for (let key in chartDataCollection) {
         if (Object.prototype.hasOwnProperty.call(chartDataCollection, key) && chartDataCollection[key].datasets) {
             return true; // If any data is present, enable download
@@ -158,6 +159,8 @@ $(document).ready(async function () {
 });
 
 function getUrlParameter(name) {
+    console.log("getUrlParameter");
+
     //eslint-disable-next-line no-useless-escape
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     let regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -1906,11 +1909,17 @@ function addVisualizationContainer(queryName, seriesData, queryString, panelId) 
         // For metrics explorer page
         var container = getOrCreateVisualizationContainer(queryName, queryString);
 
-        var canvas = $('<canvas></canvas>');
-        container.find('.graph-canvas').append(canvas);
+        if (panelChartType === 'number') {
+            // If chart type is number, display big number
+            displayBigNumber(seriesData[0].values[seriesData[0].values.length - 1].toString(), -1, currentPanel.dataType);
+        }else{
+            var canvas = $('<canvas></canvas>');
+            container.find('.graph-canvas').append(canvas);
 
-        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-        lineCharts[queryName] = lineChart;
+            var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
+            lineCharts[queryName] = lineChart;
+
+        }
 
         updateGraphWidth();
         mergeGraphs(chartType);
@@ -2874,23 +2883,132 @@ function getTagKeyValue(metricName) {
 }
 
 async function handleQueryAndVisualize(queryName, queryDetails) {
+    console.log('handleQueryAndVisualize called with chart type:', chartType);
+    console.log('Query details:', queryDetails);
+
     const queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
 
     if (!isAlertScreen && !isDashboardScreen) {
         getOrCreateVisualizationContainer(queryName, queryString);
     }
     try {
-        const queryString = queryDetails.state === 'builder' ? createQueryString(queryDetails) : queryDetails.rawQueryInput;
-
         await getMetricsData(queryName, queryString, queryDetails.state);
         const chartData = await convertDataForChart(rawTimeSeriesData);
 
-        if (isAlertScreen) {
-            addVisualizationContainerToAlerts(queryName, chartData, queryString);
+        if (chartType === 'number') {
+            // Number chart specific logic
+            let bigNumVal = null;
+            const dataType = currentPanel ? currentPanel.dataType : null;
+
+            // Find the maximum value from the chart data
+            for (const series of chartData) {
+                const values = Object.values(series.values);
+                const maxSeriesValue = Math.max(...values);
+                bigNumVal = bigNumVal === null ? maxSeriesValue : Math.max(bigNumVal, maxSeriesValue);
+            }
+
+            // Display the big number if a value is found
+            if (bigNumVal !== null) {
+                const panelId = isDashboardScreen ? panelId : -1;
+
+                // Direct number display logic instead of calling displayBigNumber
+                const panelChartEl = panelId === -1
+                    ? $('.panelDisplay .big-number-display-container')
+                    : $(`#panel${panelId} .big-number-display-container`);
+
+                // Clear previous content
+                panelChartEl.empty();
+
+                if (!bigNumVal) {
+                    panelChartEl.append(`<div class="big-number">NA</div>`);
+                } else {
+                    let formattedValue = bigNumVal;
+                    let unit = '';
+
+                    // Reuse the existing formatting logic from displayBigNumber
+                    if (dataType != null && dataType != undefined && dataType != '') {
+                        let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
+                        let number = typeof bigNumVal === 'string' ? parseFloat(bigNumVal.replace(/,/g, '')) : parseFloat(bigNumVal);
+                        let dataTypeAbbrevCap = dataTypeAbbrev.substring(0, 2).toUpperCase();
+
+                        // Existing conversion logic for different data types
+                        if (['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].includes(dataTypeAbbrevCap)) {
+                            const conversionFactors = {
+                                'KB': 1000,
+                                'MB': 1e6,
+                                'GB': 1e9,
+                                'TB': 1e12,
+                                'PB': 1e15,
+                                'EB': 1e18,
+                                'ZB': 1e21,
+                                'YB': 1e24
+                            };
+                            number = number * (conversionFactors[dataTypeAbbrevCap] || 1);
+                            const result = addSuffix(number);
+                            formattedValue = result[0];
+                            unit = result[1] + dataTypeAbbrev;
+                        } else if (['ns', 'µs', 'ms', 'd', 'm', 's', 'h'].includes(dataTypeAbbrev)) {
+                            const conversionFactors = {
+                                'ns': 1e-9,
+                                'µs': 1e-6,
+                                'ms': 1e-3,
+                                'd': 24 * 60 * 60,
+                                'm': 60,
+                                'h': 3600
+                            };
+                            number = number * (conversionFactors[dataTypeAbbrev] || 1);
+                            const result = findSmallestGreaterOne(number);
+                            formattedValue = result[0];
+                            unit = result[1];
+                            dataTypeAbbrev = '';
+                        } else if (dataTypeAbbrev === '' || dataTypeAbbrev === '%') {
+                            unit = '';
+                            formattedValue = number;
+                        } else {
+                            const result = addSuffix(number);
+                            formattedValue = result[0];
+                            unit = result[1] + dataTypeAbbrev;
+                        }
+                    }
+
+                    // Append formatted value and unit
+                    panelChartEl.append(`
+                        <div class="big-number">${formattedValue} </div>
+                        <div class="unit">${unit}</div>
+                    `);
+
+                    // Adjust font size if needed (similar to original displayBigNumber logic)
+                    if (panelId === -1) {
+                        let parentWidth = $('.panelDisplay').width();
+                        let numWidth = $('.panelDisplay .big-number-display-container').width();
+                        if (numWidth > parentWidth) {
+                            $('.big-number').css('font-size', '5.5em');
+                            $('.unit').css('font-size', '55px');
+                        }
+                    }
+                    if (panelId !== -1) {
+                        var newSize = $(`#${panelId}`).width() / 8;
+                        $(`#${panelId}`)
+                            .find('.big-number, .unit')
+                            .css('font-size', newSize + 'px');
+                    }
+                }
+
+                // Show the container
+                panelChartEl.show();
+            } else {
+                panelProcessEmptyQueryResults('', panelId);
+            }
         } else {
-            addVisualizationContainer(queryName, chartData, queryString);
+            // Existing line chart logic
+            if (isAlertScreen) {
+                addVisualizationContainerToAlerts(queryName, chartData, queryString);
+            } else {
+                addVisualizationContainer(queryName, chartData, queryString);
+            }
         }
     } catch (error) {
+        // Existing error handling logic remains the same
         let container, mergedContainer, panelEditContainer;
 
         if (isAlertScreen) {
@@ -2918,7 +3036,6 @@ async function handleQueryAndVisualize(queryName, queryDetails) {
         displayErrorMessage(errorContainer, errorMessage);
     }
 }
-
 async function getQueryDetails(queryName, queryDetails) {
     if (isAlertScreen) {
         let isActive = $('#metrics-queries .metrics-query:first').find(`.query-name:contains('${queryName}')`).hasClass('active');
