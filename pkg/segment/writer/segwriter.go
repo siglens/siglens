@@ -968,7 +968,7 @@ func WriteRunningSegMeta(segKey string, rsm *structs.SegMeta) {
 		UploadedSeg: false,
 	}
 
-	writeSfm(segKey, segFullMeta)
+	WriteSfm(segKey, segFullMeta)
 }
 
 func GetUnrotatedVTableCounts(vtable string, orgid int64) (uint64, int, uint64, map[string]struct{}) {

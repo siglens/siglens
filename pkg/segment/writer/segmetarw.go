@@ -199,31 +199,31 @@ func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
 	return sfm, nil
 }
 
-func writeSfm(segkey string, sfmData *structs.SegFullMeta) {
+func WriteSfm(segkey string, sfmData *structs.SegFullMeta) {
 
 	// create a separate individual file for SegFullMeta
 	sfmFname := GetSegFullMetaFnameFromSegkey(segkey)
 	sfmFd, err := os.OpenFile(sfmFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("writeSfm: failed to open a sfm filename=%v: err=%v", sfmFname, err)
+		log.Errorf("WriteSfm: failed to open a sfm filename=%v: err=%v", sfmFname, err)
 		return
 	}
 	defer sfmFd.Close()
 
 	sfmJson, err := json.Marshal(*sfmData)
 	if err != nil {
-		log.Errorf("writeSfm: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
+		log.Errorf("WriteSfm: failed to Marshal sfmData: %v, sfmFname: %v, err: %v",
 			sfmData, sfmFname, err)
 		return
 	}
 	if _, err := sfmFd.Write(sfmJson); err != nil {
-		log.Errorf("writeSfm: failed to write sfm: %v: err: %v", sfmFname, err)
+		log.Errorf("WriteSfm: failed to write sfm: %v: err: %v", sfmFname, err)
 		return
 	}
 
 	err = sfmFd.Sync()
 	if err != nil {
-		log.Errorf("writeSfm: failed to sync sfm: %v: err: %v", sfmFname, err)
+		log.Errorf("WriteSfm: failed to sync sfm: %v: err: %v", sfmFname, err)
 		return
 	}
 }
@@ -396,7 +396,7 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 				UploadedSeg: false,
 			}
 
-			writeSfm(segmeta.SegmentKey, sfmData)
+			WriteSfm(segmeta.SegmentKey, sfmData)
 		}
 	}
 
@@ -569,7 +569,7 @@ func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
 
 	utils.MergeMapsRetainingFirst(sfmData.AllPQIDs, pqidMap)
 
-	writeSfm(segkey, sfmData)
+	WriteSfm(segkey, sfmData)
 }
 
 func BackFillPQSSegmetaEntry(segkey string, newpqid string) {
@@ -741,7 +741,7 @@ func DeletePQSData() error {
 		}
 
 		sfmData.AllPQIDs = nil
-		writeSfm(smEntry.SegmentKey, sfmData)
+		WriteSfm(smEntry.SegmentKey, sfmData)
 	}
 
 	// Delete PQS meta directory
