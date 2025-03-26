@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 let chart;
 let currList = [];
 let returnResTotal = [],
@@ -28,16 +27,35 @@ let limitation = -1;
 let hasLoaded = false;
 let allResultsFetched = false;
 let totalTraces = 0;
+
 $(document).ready(() => {
     allResultsFetched = false;
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', showScatterPlot);
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasInitialState = urlParams.toString().length > 0;
+
     initPage();
+
+    if (!hasInitialState) {
+        $('#service-dropdown').singleBox('setValue', 'All');
+        $('#operation-dropdown').singleBox('setValue', 'All');
+    }
+
+    loadSearchStateFromUrl();
+
+    window.addEventListener('popstate', function() {
+        loadSearchStateFromUrl();
+    });
+
+    addInputUrlUpdateListeners();
 });
+
 window.onload = function () {
     hasLoaded = true;
 };
+
 function initPage() {
     initChart();
     getValuesOfColumn('service', 'Service');
@@ -46,6 +64,31 @@ function initPage() {
     handleDownload();
     handleTimePicker();
     $('#search-trace-btn').on('click', searchTraceHandler);
+}
+
+function addInputUrlUpdateListeners() {
+    const inputFieldsToTrack = [
+        { selector: '#tags-input', paramName: 'tags' },
+        { selector: '#max-duration-input', paramName: 'maxDuration' },
+        { selector: '#min-duration-input', paramName: 'minDuration' },
+        { selector: '#limit-result-input', paramName: 'limit' }
+    ];
+
+    inputFieldsToTrack.forEach(field => {
+        $(field.selector).on('input change', function() {
+            const value = $(this).val().trim();
+            const urlParams = new URLSearchParams(window.location.search);
+
+            if (value) {
+                urlParams.set(field.paramName, value);
+            } else {
+                urlParams.delete(field.paramName);
+            }
+
+            const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+            window.history.replaceState({}, '', newUrl);
+        });
+    });
 }
 
 function getValuesOfColumn(chooseColumn, spanName) {
@@ -59,6 +102,12 @@ function getValuesOfColumn(chooseColumn, spanName) {
         queryLanguage: 'SQL',
         from: 0,
     };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlValue = chooseColumn === 'service' ?
+        urlParams.get('service') :
+        urlParams.get('operation');
+
     $.ajax({
         method: 'post',
         url: 'api/search',
@@ -80,18 +129,34 @@ function getValuesOfColumn(chooseColumn, spanName) {
             }
         }
         currList = Array.from(valuesOfColumn);
+
         $(`#${chooseColumn}-dropdown`).singleBox({
             spanName: spanName,
             dataList: currList,
-            defaultValue: 'All',
+            defaultValue: urlValue || 'All',
             dataUpdate: true,
             clickedHead: async function () {
                 await fetchData(chooseColumn);
                 return currList;
             },
+            clicked: function(value) {
+                const urlParams = new URLSearchParams(window.location.search);
+
+                // Always set the parameter, even for 'All'
+                if (chooseColumn === 'service') {
+                    urlParams.set('service', value);
+                } else {
+                    urlParams.set('operation', value);
+                }
+
+                const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+                window.history.pushState({}, '', newUrl);
+                $('#search-trace-btn').trigger('click');
+            }
         });
     });
 }
+
 function fetchData(chooseColumn) {
     return new Promise((resolve, reject) => {
         let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
@@ -138,6 +203,7 @@ function fetchData(chooseColumn) {
             });
     });
 }
+
 function handleTimePicker() {
     Cookies.set('startEpoch', 'now-1h');
     Cookies.set('endEpoch', 'now');
@@ -145,6 +211,7 @@ function handleTimePicker() {
         spanName: 'Last 1 Hr',
     });
 }
+
 function handleSort() {
     let currList = ['Most Recent', 'Longest First', 'Shortest First', 'Most Spans', 'Least Spans'];
     $('#sort-dropdown').singleBox({
@@ -167,6 +234,7 @@ function handleSort() {
         },
     });
 }
+
 function compareDuration(method) {
     return function (object1, object2) {
         let value1 = object1['end_time'] - object1['start_time'];
@@ -175,6 +243,7 @@ function compareDuration(method) {
         else return value1 - value2;
     };
 }
+
 function compare(property, method) {
     return function (object1, object2) {
         let value1 = object1[property];
@@ -218,7 +287,6 @@ function handleDownload() {
 
 let requestFlag = 0;
 
-// Function to convert duration string to nanoseconds
 function durationToNanoseconds(durationStr) {
     if (!durationStr) return null;
 
@@ -249,6 +317,30 @@ function durationToNanoseconds(durationStr) {
 function searchTraceHandler(e) {
     e.stopPropagation();
     e.preventDefault();
+
+    let serviceValue = $('#service-span-name').text();
+    let operationValue = $('#operation-span-name').text();
+    let tagValue = $('#tags-input').val();
+    let maxDurationValueStr = $('#max-duration-input').val();
+    let minDurationValueStr = $('#min-duration-input').val();
+    let limitResValue = $('#limit-result-input').val();
+
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if(serviceValue) urlParams.set('service', serviceValue);
+    if(operationValue) urlParams.set('operation', operationValue);
+
+    if (tagValue) urlParams.set('tags', tagValue);
+    if (maxDurationValueStr) urlParams.set('maxDuration', maxDurationValueStr);
+    if (minDurationValueStr) urlParams.set('minDuration', minDurationValueStr);
+    if (limitResValue) urlParams.set('limit', limitResValue);
+
+    urlParams.set('startEpoch', Cookies.get('startEpoch') || 'now-1h');
+    urlParams.set('endEpoch', Cookies.get('endEpoch') || 'now');
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+    window.history.pushState({}, '', newUrl);
+
     returnResTotal = [];
     scatterData = [];
     pageNumber = 1;
@@ -256,14 +348,7 @@ function searchTraceHandler(e) {
     params = {};
     $('.warn-box').remove();
     $('#traces-number').text('');
-    let serviceValue = $('#service-span-name').text();
-    let operationValue = $('#operation-span-name').text();
-    let tagValue = $('#tags-input').val();
 
-    let maxDurationValueStr = $('#max-duration-input').val();
-    let minDurationValueStr = $('#min-duration-input').val();
-    
-    // Convert min and max duration to nanoseconds
     let maxDurationValue = durationToNanoseconds(maxDurationValueStr);
     let minDurationValue = durationToNanoseconds(minDurationValueStr);
 
@@ -277,7 +362,6 @@ function searchTraceHandler(e) {
         return;
     }
 
-    let limitResValue = $('#limit-result-input').val();
     if (limitResValue) limitation = parseInt(limitResValue);
     else limitation = -1;
     if (limitation > 0 && limitation < 50) {
@@ -292,14 +376,11 @@ function searchTraceHandler(e) {
     if (tagValue) searchText += tagValue;
     if (searchText == '') searchText = '*';
     else searchText = searchText.trim();
-    let queryParams = new URLSearchParams(window.location.search);
-    let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-3h';
-    let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
     pageNumber = 1;
     params = {
         searchText: searchText,
-        startEpoch: stDate,
-        endEpoch: endDate,
+        startEpoch: Cookies.get('startEpoch') || 'now-1h',
+        endEpoch: Cookies.get('endEpoch') || 'now',
         queryLanguage: 'Splunk QL',
         page: pageNumber,
     };
@@ -313,6 +394,7 @@ function searchTraceHandler(e) {
     handleSort();
     return false;
 }
+
 function initChart() {
     $('#graph-show').removeClass('empty-result-show');
     pageNumber = 1;
@@ -329,6 +411,7 @@ function initChart() {
     };
     searchTrace(params);
 }
+
 async function getTotalTraces(params) {
     return $.ajax({
         method: 'post',
@@ -346,6 +429,7 @@ async function getTotalTraces(params) {
         $('#traces-number').text(res.toLocaleString('en-US') + ' Traces');
     });
 }
+
 function searchTrace(params) {
     $.ajax({
         method: 'post',
@@ -421,6 +505,7 @@ function searchTrace(params) {
             isLoading = false;
         });
 }
+
 const resizeObserver = new ResizeObserver((_entries) => {
     if (chart != null && chart != '' && chart != undefined) chart.resize();
 });
@@ -527,12 +612,10 @@ function showScatterPlot() {
                     // Use logarithmic scaling for span count to prevent extremely large bubbles
                     let spanCount = val[2] || 0;
                     let baseSize = Math.max(5, Math.log10(spanCount + 1) * 10);
-
                     // For traces with errors
                     if (val[3] > 0) {
                         return baseSize + 2;
                     }
-
                     return baseSize;
                 },
                 itemStyle: {
@@ -545,11 +628,10 @@ function showScatterPlot() {
         ],
     });
 
-    // Open Gantt Chart when click on Scatter Chart
     chart.on('click', function (params) {
         const traceId = params.data[6];
         const traceTimestamp = params.data[7]; // nanoseconds
-        window.location.href = `trace.html?trace_id=${traceId}&timestamp=${traceTimestamp}`;
+        window.location.href = `trace.html?trace_id=${traceId}×tamp=${traceTimestamp}`;
     });
 }
 
@@ -557,7 +639,7 @@ function reSort() {
     $('.warn-box').remove();
     for (let i = 0; i < returnResTotal.length; i++) {
         let json = returnResTotal[i];
-        $('#warn-bottom').append(`<a href="../trace.html?trace_id=${json.trace_id}&timestamp=${json.start_time}" class="warn-box-anchor">
+        $('#warn-bottom').append(`<a href="../trace.html?trace_id=${json.trace_id}×tamp=${json.start_time}" class="warn-box-anchor">
       <div class="warn-box warn-box-${i}"><div class="warn-head">
                               <div><span id="span-id-head-${i}"></span><span class="span-id-text" id="span-id-${i}"></span></div>
                               <span class = "duration-time" id  = "duration-time-${i}"></span>
@@ -629,6 +711,7 @@ function calculateTimeToNow(startTime) {
         days: days,
     };
 }
+
 let lastScrollPosition = 0;
 let isLoading = false; // Flag to indicate whether an API call is in progress
 
@@ -640,12 +723,11 @@ $('#dashboard .scrollable-container').on('scroll', function () {
     if (!isLoading && hasLoaded && !allResultsFetched && scrollPosition / scrollHeight >= 0.6) {
         isLoading = true;
         lastScrollPosition = container.scrollTop();
-
         getData();
-
         container.scrollTop(lastScrollPosition);
     }
 });
+
 function getData() {
     //users did not set limitation
     if (limitation == -1) {
@@ -660,5 +742,81 @@ function getData() {
             params.page = params.page + 1;
             searchTrace(params);
         }
+    }
+}
+
+function loadSearchStateFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Handle Service dropdown
+    const serviceValue = urlParams.get('service');
+    if (serviceValue) {
+        $('#service-dropdown').singleBox('setValue', serviceValue);
+        $('#service-span-name').text(serviceValue);
+    } else {
+        $('#service-dropdown').singleBox('setValue', 'All');
+        $('#service-span-name').text('All');
+    }
+
+    // Handle Operation dropdown
+    const operationValue = urlParams.get('operation');
+    if (operationValue) {
+        $('#operation-dropdown').singleBox('setValue', operationValue);
+        $('#operation-span-name').text(operationValue);
+    } else {
+        $('#operation-dropdown').singleBox('setValue', 'All');
+        $('#operation-span-name').text('All');
+    }
+
+    // Handle input fields
+    const inputFieldsToPreserve = [
+        { selector: '#tags-input', paramName: 'tags' },
+        { selector: '#max-duration-input', paramName: 'maxDuration' },
+        { selector: '#min-duration-input', paramName: 'minDuration' },
+        { selector: '#limit-result-input', paramName: 'limit' }
+    ];
+
+    inputFieldsToPreserve.forEach(field => {
+        const value = urlParams.get(field.paramName);
+        if (value !== null) {
+            $(field.selector).val(value);
+        } else {
+            // Clear the input if no value in URL
+            $(field.selector).val('');
+        }
+    });
+
+    // Handle time range
+    const startEpoch = urlParams.get('startEpoch') || 'now-1h';
+    const endEpoch = urlParams.get('endEpoch') || 'now';
+    Cookies.set('startEpoch', startEpoch);
+    Cookies.set('endEpoch', endEpoch);
+
+    let lookbackLabel = 'Last 1 Hr';
+    const lookbackMappings = {
+        'now-15m': 'Last 15 Mins',
+        'now-30m': 'Last 30 Mins',
+        'now-1h': 'Last 1 Hr',
+        'now-2h': 'Last 2 Hrs',
+        'now-3h': 'Last 3 Hrs',
+        'now-6h': 'Last 6 Hrs',
+        'now-12h': 'Last 12 Hrs',
+        'now-24h': 'Last 24 Hrs',
+        'now-2d': 'Last 2 Days',
+        'now-7d': 'Last 7 Days',
+        'now-30d': 'Last 30 Days',
+        'now-90d': 'Last 90 Days',
+        'now-180d': 'Last 180 Days',
+        'now-365d': 'Last 1 Year'
+    };
+
+    lookbackLabel = lookbackMappings[startEpoch] || 'Custom';
+
+    // Use datePickerHandler to set the correct time range
+    datePickerHandler(startEpoch, endEpoch, lookbackLabel);
+
+    // Trigger search if there are any parameters
+    if (urlParams.toString()) {
+        $('#search-trace-btn').trigger('click');
     }
 }
