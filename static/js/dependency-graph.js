@@ -136,9 +136,12 @@ const darkStyles = {
 };
 
 $(document).ready(() => {
-    let stDate = 'now-1h';
-    let endDate = 'now';
-    datePickerHandler(stDate, endDate, stDate);
+    // Get saved time range from cookies if available, specific to dependency graph
+    let stDate = Cookies.get('dependency_startEpoch') || 'now-1h';
+    let endDate = Cookies.get('dependency_endEpoch') || 'now';
+    let label = Cookies.get('dependency_timeRangeLabel') || stDate;
+
+    datePickerHandler(stDate, endDate, label);
     setupDependencyEventHandlers();
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -174,6 +177,12 @@ function rangeItemHandler(evt) {
     const start = $(this).attr('id');
     const end = 'now';
     const label = $(this).attr('id');
+
+    // Save selected range to cookies with dependency-specific names
+    Cookies.set('dependency_startEpoch', start);
+    Cookies.set('dependency_endEpoch', end);
+    Cookies.set('dependency_timeRangeLabel', label);
+
     datePickerHandler(start, end, label);
     getServiceDependencyData(start, end);
 }
@@ -373,4 +382,14 @@ function updateGraphStyles() {
             },
         ])
         .update();
+}
+
+// Add this new function to handle custom range persistence
+function customRangeHandler() {
+    // Save custom range to cookies
+    Cookies.set('dependency_startEpoch', filterStartDate);
+    Cookies.set('dependency_endEpoch', filterEndDate);
+    Cookies.set('dependency_timeRangeLabel', 'custom');
+
+    getServiceDependencyData(filterStartDate, filterEndDate);
 }
