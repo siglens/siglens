@@ -610,7 +610,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 		} else if granularity == Monthly {
 			bucketInterval = rStat.TimeStamp.Format("2006-01")
 		} else {
-			return nil, fmt.Errorf("GetUsageStats: unexpected unknown granularity value: %v", granularity)
+			return nil, fmt.Errorf("GetUsageStats: unknown granularity value: %v", granularity)
 		}
 		entry, ok := resultMap[bucketInterval]
 		if !ok {
