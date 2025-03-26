@@ -685,6 +685,10 @@ func RecoverWALData() error {
 				return err
 			}
 			err = deleteWalFile(baseDir, walFileName)
+			if err != nil {
+				log.Errorf("RecoverWALData : Failed to delete wal file %s: %v", walFileName, err)
+				return err
+			}
 		}
 
 		if !isWalFileEmpty {
@@ -708,6 +712,10 @@ func (mb *MetricsBlock) encodeDatapoint(timestamp uint32, dpVal float64, tsid ui
 	var err error
 
 	ts, seriesExists, err = mb.GetTimeSeries(tsid)
+	if err != nil {
+		log.Errorf("encodeDatapoint: failed to get time series for tsid=%v, err=%v", tsid, err)
+		return err
+	}
 
 	if !seriesExists {
 		ts, _, err = initTimeSeries(tsid, dpVal, timestamp)
