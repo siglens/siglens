@@ -68,7 +68,7 @@ var tags_separator = []byte("__")
 
 var TAGS_TREE_FLUSH_SLEEP_DURATION = 60 // 1 min
 
-const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
+const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 // 2 hours
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
@@ -575,7 +575,7 @@ type walFilesInfo struct {
 	walFiles []string
 }
 
-func collectWALFileInfo(baseDir string) (map[string]*walFilesInfo, error) {
+func extractWALFileInfo(baseDir string) (map[string]*walFilesInfo, error) {
 	files, err := os.ReadDir(baseDir)
 	if err != nil {
 		return nil, err
@@ -650,13 +650,14 @@ func initMetricsBlock(shardID string, segID uint64, blockNo uint64) *MetricsBloc
 
 func RecoverWALData() error {
 	baseDir := getWALBaseDir()
-	walFilesData, err := collectWALFileInfo(baseDir)
+	walFilesData, err := extractWALFileInfo(baseDir)
 	if err != nil {
 		return err
 	}
 
 	for _, fileData := range walFilesData {
 		mBlock := initMetricsBlock(fileData.mId, fileData.segID, fileData.blockNo)
+		isWalFileEmpty := true
 		for _, walFileName := range fileData.walFiles {
 			walIterator, err := wal.NewReaderWAL(baseDir, walFileName)
 			if err != nil {
@@ -665,19 +666,19 @@ func RecoverWALData() error {
 			}
 			for {
 				walDataPoint, ok, err := walIterator.Next()
-				if !ok {
-					break
-				}
-
 				if err != nil {
 					log.Errorf("RecoverWALData : Error reading next WAL entry from file %s: %v", walFileName, err)
 					return err
+				}
+				if !ok {
+					break
 				}
 				err = mBlock.encodeDatapoint(walDataPoint.Timestamp, walDataPoint.DpVal, walDataPoint.Tsid)
 				if err != nil {
 					log.Errorf("RecoverWALData : Failed to process WAL datapoint from file %s: %v", walFileName, err)
 					return err
 				}
+				isWalFileEmpty = false
 			}
 			err = walIterator.Close()
 			if err != nil {
@@ -686,12 +687,14 @@ func RecoverWALData() error {
 			err = deleteWalFile(baseDir, walFileName)
 		}
 
-		metricsKey, _ := getBaseMetricsKey(fileData.segID, fileData.mId)
-		err := mBlock.flushBlock(metricsKey, fileData.segID, uint16(fileData.blockNo))
-		if err != nil {
-			log.Errorf("RecoverWALData :Failed to flush block for shardID=%s, segID=%d, blockNo=%d: %v",
-				fileData.mId, fileData.segID, fileData.blockNo, err)
-			return err
+		if !isWalFileEmpty {
+			metricsKey, _ := getBaseMetricsKey(fileData.segID, fileData.mId)
+			err := mBlock.flushBlock(metricsKey, fileData.segID, uint16(fileData.blockNo))
+			if err != nil {
+				log.Errorf("RecoverWALData :Failed to flush block for shardID=%s, segID=%d, blockNo=%d: %v",
+					fileData.mId, fileData.segID, fileData.blockNo, err)
+				return err
+			}
 		}
 
 	}

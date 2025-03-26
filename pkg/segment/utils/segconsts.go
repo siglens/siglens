@@ -140,6 +140,7 @@ var VERSION_TSOFILE_V1 = []byte{0x01}
 var VERSION_TSOFILE_V2 = []byte{0x02} // Current version
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
+var VERSION_WALFILE = []byte{0x01}
 
 var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
 var VERSION_SEGSTATS_LEGACY = []byte{1}

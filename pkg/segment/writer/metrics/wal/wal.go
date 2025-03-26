@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
 
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 
 	"github.com/klauspost/compress/zstd"
@@ -53,6 +55,12 @@ func NewWAL(baseDir, filename string) (*WAL, error) {
 		return nil, err
 	}
 
+	_, err = f.Write(segutils.VERSION_WALFILE)
+	if err != nil {
+		log.Infof("NewWAL: Could not write version byte to file %v. Err %v", filename, err)
+		return nil, err
+	}
+
 	return &WAL{
 		fNameWithPath: filePath,
 		totalDps:      0,
@@ -67,13 +75,14 @@ func NewWAL(baseDir, filename string) (*WAL, error) {
 This function appends the block to the file, a new block is added.
 
 File Format:
-BlockLen:               4 Bytes
-Checksum:				4 Bytes
-ZstdEncoding of following block:
-    NumOfDatapoints (N): 4 Bytes
-    BinaryEncodedAllTimestamps
-    BinaryEncodedAllDpVals
-    BinaryEncodedAllTsid
+version:					1 Bytes
+	BlockLen:               4 Bytes
+	Checksum:				4 Bytes
+	ZstdEncoding of following block:
+		NumOfDatapoints (N): 4 Bytes
+		BinaryEncodedAllTimestamps
+		BinaryEncodedAllDpVals
+		BinaryEncodedAllTsid
 
 Multiple such blocks are appended continuously.
 */
@@ -153,6 +162,19 @@ func NewReaderWAL(baseDir, filename string) (*WalIterator, error) {
 		log.Errorf("NewReaderWAL: failed to open WAL file at path %s: %v", filePath, err)
 		return nil, err
 	}
+
+	versionBuf := make([]byte, 1)
+	_, err = f.Read(versionBuf)
+	if err != nil {
+		log.Errorf("NewReaderWAL: failed to read WAL file version: %v", err)
+		return nil, err
+	}
+
+	if versionBuf[0] != segutils.VERSION_WALFILE[0] {
+		log.Errorf("NewReaderWAL: Unexpected WAL file version: %+v", versionBuf[0])
+		return nil, fmt.Errorf("unexpected WAL file version: %+v", versionBuf[0])
+	}
+
 	return &WalIterator{
 		fd:      f,
 		readBuf: make([]byte, 0),
