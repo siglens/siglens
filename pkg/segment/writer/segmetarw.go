@@ -393,6 +393,7 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 				SegMeta:     segmeta,
 				ColumnNames: segmeta.ColumnNames,
 				AllPQIDs:    segmeta.AllPQIDs,
+				UploadedSeg: false,
 			}
 
 			writeSfm(segmeta.SegmentKey, sfmData)
@@ -734,11 +735,12 @@ func DeletePQSData() error {
 			return err
 		}
 
-		sfmData := &structs.SegFullMeta{
-			SegMeta:     smEntry,
-			ColumnNames: smEntry.ColumnNames,
-			AllPQIDs:    nil,
+		sfmData, err := ReadSfm(smEntry.SegmentKey)
+		if err != nil {
+			return fmt.Errorf("DeletePQSData: failed to read sfm for segment %s: %v", smEntry.SegmentKey, err)
 		}
+
+		sfmData.AllPQIDs = nil
 		writeSfm(smEntry.SegmentKey, sfmData)
 	}
 

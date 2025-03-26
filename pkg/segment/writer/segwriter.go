@@ -965,6 +965,7 @@ func WriteRunningSegMeta(segKey string, rsm *structs.SegMeta) {
 		SegMeta:     rsm,
 		ColumnNames: rsm.ColumnNames,
 		AllPQIDs:    rsm.AllPQIDs,
+		UploadedSeg: false,
 	}
 
 	writeSfm(segKey, segFullMeta)
