@@ -659,18 +659,18 @@ func RecoverWALData() error {
 		mBlock := initMetricsBlock(fileData.mId, fileData.segID, fileData.blockNo)
 		isWalFileEmpty := true
 		for _, walFileName := range fileData.walFiles {
-			walIterator, err := wal.NewReaderWAL(baseDir, walFileName)
+			walIterator, err := wal.NewWALReader(baseDir, walFileName)
 			if err != nil {
 				log.Errorf("RecoverWALData :Failed to create WAL reader for file %s: %v", walFileName, err)
 				return err
 			}
 			for {
-				walDataPoint, ok, err := walIterator.Next()
+				walDataPoint, err := walIterator.Next()
 				if err != nil {
 					log.Errorf("RecoverWALData : Error reading next WAL entry from file %s: %v", walFileName, err)
 					return err
 				}
-				if !ok {
+				if walDataPoint == nil {
 					break
 				}
 				err = mBlock.encodeDatapoint(walDataPoint.Timestamp, walDataPoint.DpVal, walDataPoint.Tsid)
@@ -1948,7 +1948,7 @@ func (mb *MetricsBlock) appendToWALBuffer(timestamp uint32, dp float64, tsid uin
 	mb.dpsInWalMem[mb.dpIdx].Tsid = tsid
 	mb.dpIdx++
 	if int(mb.dpIdx) >= utils.WAL_BLOCK_FLUSH_SIZE {
-		err := mb.currentWal.AppendToWAL(mb.dpsInWalMem[0:mb.dpIdx])
+		err := mb.currentWal.Append(mb.dpsInWalMem[0:mb.dpIdx])
 		if err != nil {
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
@@ -1980,8 +1980,9 @@ func (mb *MetricsBlock) initNewWAL() error {
 
 	basedir := getWALBaseDir()
 	fileName := "shardID_" + mb.mId + "_segID_" + strconv.FormatUint(mb.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.currentWALIndex, 10) + ".wal"
+	filePath := filepath.Join(basedir, fileName)
 	var err error
-	mb.currentWal, err = wal.NewWAL(basedir, fileName)
+	mb.currentWal, err = wal.NewWAL(filePath)
 	if err != nil {
 		log.Errorf("initNewWAL : Failed to create new WAL file %s in %s: %v", fileName, basedir, err)
 		return err

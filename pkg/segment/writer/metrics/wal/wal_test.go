@@ -12,8 +12,9 @@ import (
 func TestWALAppendAndRead(t *testing.T) {
 	filename := "testwal.wal"
 	dirPath := t.TempDir()
+	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(dirPath, filename)
+	wal, err := NewWAL(filePath)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -21,18 +22,18 @@ func TestWALAppendAndRead(t *testing.T) {
 
 	datapoints := generateRandomDatapoints(numDatapoints)
 
-	err = wal.AppendToWAL(datapoints)
+	err = wal.Append(datapoints)
 	assert.NoError(t, err)
 
-	it, err := NewReaderWAL(dirPath, filename)
+	it, err := NewWALReader(dirPath, filename)
 	assert.NoError(t, err)
 	defer it.Close()
 
 	var readDatapoints []WalDatapoint
 	for {
-		dp, ok, err := it.Next()
+		dp, err := it.Next()
 		assert.NoError(t, err)
-		if !ok {
+		if dp == nil {
 			break
 		}
 		readDatapoints = append(readDatapoints, *dp)
@@ -47,9 +48,9 @@ func TestWALAppendAndRead(t *testing.T) {
 
 func TestDeleteWALFile(t *testing.T) {
 	dir := t.TempDir()
-	filename := "deletewaltest.wal"
+	filename := "testwal.wal"
 	filePath := filepath.Join(dir, filename)
-	wal, err := NewWAL(dir, filename)
+	wal, err := NewWAL(filePath)
 	assert.NoError(t, err)
 	_, err = os.Stat(filePath)
 	assert.False(t, os.IsNotExist(err))
@@ -65,18 +66,20 @@ func TestDeleteWALFile(t *testing.T) {
 
 func TestWALStats(t *testing.T) {
 	dir := t.TempDir()
-	filename := "testwal4.wal"
+	filename := "testwal.wal"
 
-	w, err := NewWAL(dir, filename)
+	filePath := filepath.Join(dir, filename)
+
+	w, err := NewWAL(filePath)
 	assert.NoError(t, err)
 	defer w.Close()
 
 	dps := generateRandomDatapoints(500)
-	err = w.AppendToWAL(dps)
+	err = w.Append(dps)
 	assert.NoError(t, err)
 
 	fname, totalDps, encodedSize := w.GetWALStats()
-	assert.Contains(t, fname, filepath.Join(dir, filename))
+	assert.Equal(t, fname, filepath.Join(dir, filename))
 	assert.Equal(t, uint32(500), totalDps)
 	assert.True(t, encodedSize > 0)
 }
@@ -87,7 +90,7 @@ func generateRandomDatapoints(n int) []WalDatapoint {
 	for i := 0; i < n; i++ {
 		dp := WalDatapoint{
 			Timestamp: uint32(currentMillis + int64(i*1000)),
-			DpVal:     float64(10 + i),
+			DpVal:     float64(i + 10),
 			Tsid:      uint64(i + 1),
 		}
 		dps = append(dps, dp)
@@ -98,26 +101,27 @@ func generateRandomDatapoints(n int) []WalDatapoint {
 func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	filename := "testwal.wal"
 	dirPath := t.TempDir()
+	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(dirPath, filename)
+	wal, err := NewWAL(filePath)
 	assert.NoError(t, err)
 	defer wal.Close()
 
 	numDatapoints1 := 500
 	datapoints1 := generateRandomDatapoints(numDatapoints1)
 
-	err = wal.AppendToWAL(datapoints1)
+	err = wal.Append(datapoints1)
 	assert.NoError(t, err)
 
-	it, err := NewReaderWAL(dirPath, filename)
+	it, err := NewWALReader(dirPath, filename)
 	assert.NoError(t, err)
 	defer it.Close()
 
 	var readDatapoints1 []WalDatapoint
 	for {
-		dp, ok, err := it.Next()
+		dp, err := it.Next()
 		assert.NoError(t, err)
-		if !ok {
+		if dp == nil {
 			break
 		}
 		readDatapoints1 = append(readDatapoints1, *dp)
@@ -131,18 +135,18 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	numDatapoints2 := 1000
 	datapoints2 := generateRandomDatapoints(numDatapoints2)
 
-	err = wal.AppendToWAL(datapoints2)
+	err = wal.Append(datapoints2)
 	assert.NoError(t, err)
 
-	it2, err := NewReaderWAL(dirPath, filename)
+	it2, err := NewWALReader(dirPath, filename)
 	assert.NoError(t, err)
 	defer it2.Close()
 
 	var totalReadDatapoints []WalDatapoint
 	for {
-		dp, ok, err := it2.Next()
+		dp, err := it2.Next()
 		assert.NoError(t, err)
-		if !ok {
+		if dp == nil {
 			break
 		}
 		totalReadDatapoints = append(totalReadDatapoints, *dp)

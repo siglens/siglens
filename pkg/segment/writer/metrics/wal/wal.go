@@ -29,7 +29,7 @@ type WAL struct {
 	fNameWithPath string
 	totalDps      uint32
 	encodedSize   uint64
-	encodeBuf     []byte
+	encodedBuf    []byte
 	rawBlockBuf   *bytes.Buffer
 	checksumBuf   []byte
 }
@@ -39,10 +39,8 @@ var decoder, _ = zstd.NewReader(nil)
 
 const UINT32_SIZE = 4
 
-func NewWAL(baseDir, filename string) (*WAL, error) {
-	filePath := filepath.Join(baseDir, filename)
-
-	dir := filepath.Dir(baseDir)
+func NewWAL(filePath string) (*WAL, error) {
+	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		log.Errorf("NewWAL : Failed to create directories for path %s: %v", dir, err)
@@ -57,7 +55,7 @@ func NewWAL(baseDir, filename string) (*WAL, error) {
 
 	_, err = f.Write(segutils.VERSION_WALFILE)
 	if err != nil {
-		log.Infof("NewWAL: Could not write version byte to file %v. Err %v", filename, err)
+		log.Infof("NewWAL: Could not write version byte to file %v. Err %v", filePath, err)
 		return nil, err
 	}
 
@@ -72,31 +70,35 @@ func NewWAL(baseDir, filename string) (*WAL, error) {
 }
 
 /*
-This function appends the block to the file, a new block is added.
+This function appends a new block to the file.
 
 File Format:
-version:					1 Bytes
-	BlockLen:               4 Bytes
-	Checksum:				4 Bytes
-	ZstdEncoding of following block:
-		NumOfDatapoints (N): 4 Bytes
-		BinaryEncodedAllTimestamps
-		BinaryEncodedAllDpVals
-		BinaryEncodedAllTsid
+	Version:                1 Byte  // File format version
 
-Multiple such blocks are appended continuously.
+	// Repeating Blocks Structure
+	[Block] {
+		BlockLen:               4 Bytes  // Size of this block (excluding this field)
+		Checksum:               4 Bytes  // CRC32 checksum for data integrity
+		ZstdEncoded Block:
+			NumOfDatapoints (N): 4 Bytes  // Number of datapoints in this block
+			BinaryEncodedAllTimestamps   // Encoded timestamps for all datapoints
+			BinaryEncodedAllDpVals       // Encoded values for all datapoints
+			BinaryEncodedAllTsid         // Encoded Time-Series IDs
+	}
+
+	Multiple such blocks are appended continuously.
 */
 
-func (w *WAL) AppendToWAL(dps []WalDatapoint) error {
+func (w *WAL) Append(dps []WalDatapoint) error {
 	err := w.encodeWALBlock(dps)
 	if err != nil {
 		log.Errorf("AppendToWAL: dataCompression failed: %v", err)
 		return err
 	}
 
-	checksum := crc32.ChecksumIEEE(w.encodeBuf)
+	checksum := crc32.ChecksumIEEE(w.encodedBuf)
 
-	blockSize := uint32(len(w.encodeBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
+	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
 	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
 	if err != nil {
 		log.Errorf("AppendToWAL : failed to write block size: %v", err)
@@ -110,14 +112,14 @@ func (w *WAL) AppendToWAL(dps []WalDatapoint) error {
 		return err
 	}
 
-	_, err = w.fd.Write(w.encodeBuf)
+	_, err = w.fd.Write(w.encodedBuf)
 	if err != nil {
-		log.Errorf("AppendToWAL: failed to write block content of size %d to WAL file: %v", len(w.encodeBuf), err)
+		log.Errorf("AppendToWAL: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
 		return err
 	}
 
 	w.totalDps += uint32(len(dps))
-	w.encodedSize += uint64(UINT32_SIZE + blockSize) //UINT32_SIZE : 4 bytes for storing block size prefix
+	w.encodedSize += uint64(UINT32_SIZE + blockSize) // Adding 4-byte UINT32 (blockSize field) size to encodedSize, excluded from blockSize.
 
 	return nil
 }
@@ -155,7 +157,7 @@ func (w *WAL) GetWALStats() (string, uint32, uint64) {
 	return w.fNameWithPath, w.totalDps, w.encodedSize
 }
 
-func NewReaderWAL(baseDir, filename string) (*WalIterator, error) {
+func NewWALReader(baseDir, filename string) (*WalIterator, error) {
 	filePath := filepath.Join(baseDir, filename)
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -182,44 +184,44 @@ func NewReaderWAL(baseDir, filename string) (*WalIterator, error) {
 	}, nil
 }
 
-func (it *WalIterator) Next() (*WalDatapoint, bool, error) {
+func (it *WalIterator) Next() (*WalDatapoint, error) {
 	if it.currentIndex < len(it.readDps) {
 		it.currentIndex++
-		return &it.readDps[it.currentIndex-1], true, nil
+		return &it.readDps[it.currentIndex-1], nil
 	}
 
 	var blockSize uint32
 	err := binary.Read(it.fd, binary.LittleEndian, &blockSize)
 	if errors.Is(err, io.EOF) {
-		return nil, false, nil
+		return nil, nil
 	} else if err != nil {
 		log.Errorf("WalIterator Next: failed to read block size from WAL file: %v", it.fd.Name())
-		return nil, false, err
+		return nil, err
 	}
 
 	if blockSize < UINT32_SIZE { // Checking if block size is less than checksum size (4 bytes)
 		log.Errorf("WalIterator Next: invalid block size (%d), less than checksum size", blockSize)
-		return nil, false, errors.New("invalid block size")
+		return nil, errors.New("invalid block size")
 	}
 
 	var checksum uint32
 	err = binary.Read(it.fd, binary.LittleEndian, &checksum)
 	if err != nil {
 		log.Errorf("WalIterator Next: failed to read checksum: %v", err)
-		return nil, false, err
+		return nil, err
 	}
 
 	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize-UINT32_SIZE)) // remove checksum length and read the actual data block
 	_, err = io.ReadFull(it.fd, it.readBuf)
 	if err != nil {
 		log.Errorf("WalIterator Next: failed to read block data of size %d from file %s: %v", blockSize, it.fd.Name(), err)
-		return nil, false, err
+		return nil, err
 	}
 
 	calculatedChecksum := crc32.ChecksumIEEE(it.readBuf)
 	if calculatedChecksum != checksum {
 		log.Errorf("WalIterator Next: checksum mismatch! Calculated: %v, Expected: %v", calculatedChecksum, checksum)
-		return nil, false, errors.New("checksum mismatch")
+		return nil, errors.New("checksum mismatch")
 	}
 
 	blockBuf := bytes.NewReader(it.readBuf)
@@ -227,10 +229,10 @@ func (it *WalIterator) Next() (*WalDatapoint, bool, error) {
 
 	if err != nil {
 		log.Errorf("WalIterator Next: dataDecompression failed: %v", err)
-		return nil, false, err
+		return nil, err
 	}
 	it.currentIndex = 1
-	return &it.readDps[0], true, nil
+	return &it.readDps[0], nil
 }
 
 func (it *WalIterator) Close() error {
@@ -275,7 +277,7 @@ func (w *WAL) encodeWALBlock(dps []WalDatapoint) error {
 		}
 	}
 
-	w.encodeBuf = encoder.EncodeAll(w.rawBlockBuf.Bytes(), w.encodeBuf[:0])
+	w.encodedBuf = encoder.EncodeAll(w.rawBlockBuf.Bytes(), w.encodedBuf[:0])
 	return nil
 }
 
