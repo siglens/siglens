@@ -79,6 +79,7 @@ type MetricsQuery struct {
 	Groupby             bool // flag to group by tags
 	GroupByMetricName   bool // flag to group by metric name
 	AggWithoutGroupBy   bool // flag that indicates aggregation without group by anywhere in the query
+	IsInstantQuery      bool // flag that indicates if the query is an instant query
 }
 
 // This is used to aggregate multiple things into fewer things. Currently, two

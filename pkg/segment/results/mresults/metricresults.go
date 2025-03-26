@@ -73,6 +73,8 @@ type MetricsResult struct {
 	IsScalar    bool
 	ScalarValue float64
 
+	IsInstantQuery bool
+
 	State bucketState
 
 	rwLock               *sync.RWMutex
@@ -93,6 +95,7 @@ func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult 
 		rwLock:               &sync.RWMutex{},
 		ErrList:              make([]error, 0),
 		AllSeriesTagsOnlyMap: make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0),
+		IsInstantQuery:       mQuery.IsInstantQuery,
 	}
 }
 
@@ -108,7 +111,10 @@ func (r *MetricsResult) AddSeries(series *Series, tsid uint64, tsGroupId *bytebu
 		r.AllSeries[tsid] = series
 		return
 	}
-	currSeries.Merge(series)
+	err := currSeries.Merge(series)
+	if err != nil {
+		r.AddError(err)
+	}
 }
 
 func (r *MetricsResult) AddAllSeriesTagsOnlyMap(tsidInfoMap map[uint64]*tsidtracker.AllMatchedTSIDsInfo) {
@@ -677,7 +683,10 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 			r.AllSeries[tsid] = series
 			continue
 		}
-		currSeries.Merge(series)
+		err := currSeries.Merge(series)
+		if err != nil {
+			r.AddError(err)
+		}
 	}
 	return nil
 }
@@ -788,35 +797,17 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 				Metric: metricSeries,
 			}
 
-			floatValue, ok := results[timestamp]
-			if ok {
-				result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
-				pqlData.VectorResult = append(pqlData.VectorResult, result)
-				continue
-			}
-
-			// TODO: Inspect on whether we should ensure that the timestamp is present in the results?
-
-			// In the case where the timestamp is not present in the results
-			if len(results) > 2 {
-				// If the results have more than 2 timestamps, this should not happen.
-				// As the startTime = timestamp - 1 and endTime = timestamp, and intervalSeconds = 1
-				// So, the results should have only 2 timestamps
-				log.Errorf("GetResultsPromQlInstantQuery: More than 2 timestamps found in the results for seriesId: %v", seriesId)
+			if len(results) == 1 {
+				// Instant Query is expected to have only one timestamp
+				for _, val := range results {
+					result.Value = []interface{}{timestamp, fmt.Sprintf("%v", val)}
+					pqlData.VectorResult = append(pqlData.VectorResult, result)
+				}
+			} else if len(results) > 1 {
+				// If the results have more than 1 timestamp, then return an error
+				log.Errorf("GetResultsPromQlInstantQuery: More than 1 timestamp found in the results for seriesId: %v", seriesId)
 				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
 			}
-
-			maxTimestamp := uint32(0)
-			floatValue = 0
-			for ts, val := range results {
-				if ts > maxTimestamp {
-					maxTimestamp = ts
-					floatValue = val
-				}
-			}
-
-			result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
-			pqlData.VectorResult = append(pqlData.VectorResult, result)
 		}
 	case parser.ValueTypeMatrix:
 		return nil, errors.New("ValueTypeMatrix is not supported for Instant Queries")
