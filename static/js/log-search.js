@@ -32,7 +32,7 @@ $(document).ready(async () => {
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
-    createTooltip('#query-builder-btn', 'Run Query');
+    createTooltip('#query-builder-btn', 'Run Query (Shift + Enter)');
     createTooltip('#logs-settings', 'Settings');
     createTooltip('#saveq-btn', 'Save Query');
     createTooltip('#add-logs-to-db-btn', 'Add to Dashboards');
@@ -47,7 +47,7 @@ $(document).ready(async () => {
 
     function updateTooltip(element) {
         if (element && element._tippy) {
-            const newContent = element.classList.contains('cancel-search') ? 'Cancel Query' : 'Run Query';
+            const newContent = element.classList.contains('cancel-search') ? 'Cancel Query' : 'Run Query (Shift + Enter)';
             element._tippy.setContent(newContent);
         }
     }

@@ -25,7 +25,7 @@ const VIEW_TYPES = {
 
 //eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
-    $('#filter-input').on('keyup', filterInputHandler);
+    $('#filter-input').on('keydown', filterInputHandler);
 
     $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
@@ -473,8 +473,8 @@ function runFilterBtnHandler(evt) {
 }
 
 function filterInputHandler(evt) {
-    evt.preventDefault();
-    if (evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
+    if (evt.shiftKey && evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
+        evt.preventDefault();
         resetDashboard();
         logsRowData = [];
         accumulatedRecords = [];
