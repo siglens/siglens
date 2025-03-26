@@ -28,11 +28,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
@@ -41,6 +43,7 @@ import (
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
@@ -48,6 +51,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 )
 
 /*
@@ -853,7 +857,6 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter(t *testing.T) {
 		assert.Greater(t, len(seriesDp), 0)
 
 		assert.True(t, strings.Contains(seriesId, "*{"))
-		assert.True(t, strings.Contains(seriesId, "color:red"))
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1049,7 +1052,7 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 	assert.Nil(t, err)
 	assert.Equal(t, uint32(20), intervalSeconds)
 
-	query := `avg ({__name__=~"testmetric.*", radius="10"}) by (__name__)`
+	query := `avg ({__name__=~"testmetric.*", radius=~".+"}) by (__name__)`
 	metricQueryRequest, _, _, err := promql.ConvertPromQLToMetricsQuery(query, timeRange.StartEpochSec, timeRange.EndEpochSec, 0)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(metricQueryRequest))
@@ -1074,7 +1077,6 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_v3(t *
 		assert.Greater(t, len(seriesDp), 0)
 
 		assert.True(t, strings.Contains(seriesId, "testmetric0{"))
-		assert.True(t, strings.Contains(seriesId, "radius:10"))
 
 		seriesDpValues := make([]float64, 0)
 		for _, dp := range seriesDp {
@@ -1705,6 +1707,87 @@ func Test_SimpleMetricQueryUnrotatedBlockData(t *testing.T) {
 	}
 
 	assert.Equal(t, 0, len(expectedResults))
+}
+
+func Test_SimpleMetricInstantQuery(t *testing.T) {
+	defer cleanUp(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go query.PullQueriesToRun(ctx)
+	defer cancel()
+
+	startTimestamp := dataStartTimestamp
+	allTimeSeries, _, _, _ := GetTestMetricsData(startTimestamp)
+
+	err := initTestConfig(t)
+	assert.Nil(t, err)
+
+	err = ingestTestMetricsData(allTimeSeries)
+	assert.Nil(t, err)
+
+	mSegs, err := rotateMetricsDataAndClearSegStore(true)
+	assert.Nil(t, err)
+	assert.Greater(t, len(mSegs), 0)
+
+	err = initializeMetricsMetaData()
+	assert.Nil(t, err)
+
+	endTime := startTimestamp + 3600
+	query := `(testmetric0)`
+
+	fastCtx := &fasthttp.RequestCtx{}
+	fastCtx.Request.PostArgs().Add("query", query)
+	fastCtx.Request.PostArgs().Add("time", strconv.Itoa(int(endTime)))
+
+	promql.ProcessPromqlMetricsSearchRequest(fastCtx, 0)
+	assert.Equal(t, 200, fastCtx.Response.StatusCode())
+
+	resp := fastCtx.Response.Body()
+	assert.NotNil(t, resp)
+
+	expectedPromQLResp := &structs.MetricsPromQLInstantQueryResponse{
+		Status: "success",
+		Data: &structs.PromQLInstantData{
+			ResultType: parser.ValueTypeVector,
+			VectorResult: []structs.InstantVectorResult{
+				{
+					Metric: map[string]string{
+						"__name__": "testmetric0",
+						"color":    "red",
+						"shape":    "circle",
+						"size":     "small",
+						"type":     "solid",
+					},
+					Value: []interface{}{endTime, "70"},
+				},
+			},
+		},
+	}
+
+	marshalExpectedResp, err := json.Marshal(expectedPromQLResp)
+	assert.Nil(t, err)
+	assert.JSONEq(t, string(marshalExpectedResp), string(resp))
+
+	// Now since this is more than the DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES(5m), the query will not return any results.
+	endTime = startTimestamp + 3600 + promql.DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES + 1
+
+	fastCtx = &fasthttp.RequestCtx{}
+	fastCtx.Request.PostArgs().Add("query", query)
+	fastCtx.Request.PostArgs().Add("time", strconv.Itoa(int(endTime)))
+
+	promql.ProcessPromqlMetricsSearchRequest(fastCtx, 0)
+	assert.Equal(t, 200, fastCtx.Response.StatusCode())
+
+	expectedPromQLResp = &structs.MetricsPromQLInstantQueryResponse{
+		Status: "success",
+		Data: &structs.PromQLInstantData{
+			ResultType: parser.ValueTypeVector,
+		},
+	}
+
+	marshalExpectedResp, err = json.Marshal(expectedPromQLResp)
+	assert.Nil(t, err)
+	assert.JSONEq(t, string(marshalExpectedResp), string(fastCtx.Response.Body()))
 }
 
 func Test_metricsPersistAfterGracefulRestart(t *testing.T) {

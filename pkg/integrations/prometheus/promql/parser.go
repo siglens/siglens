@@ -193,7 +193,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 	if mQuery.SubsequentAggs == nil {
 		mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 			AggBlockType:    structs.AggregatorBlock,
-			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
 		}
 		if len(mQuery.TagsFilters) == 0 {
 			mQuery.GetAllLabels = true
@@ -205,7 +205,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		if mQuery.SubsequentAggs.AggBlockType != structs.AggregatorBlock {
 			mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 				AggBlockType:    structs.AggregatorBlock,
-				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
 				Next:            mQuery.SubsequentAggs,
 			}
 			mQueryReqs[0].MetricsQuery = mQuery
@@ -299,6 +299,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
+		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
@@ -344,6 +345,9 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	if len(expr.Grouping) > 0 {
 		mQuery.Groupby = true
+	} else {
+		mQuery.AggWithoutGroupBy = true
+		mQuery.SelectAllSeries = mQuery.GetAllLabels
 	}
 
 	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
@@ -734,8 +738,26 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
-	if len(mQuery.TagsFilters) == 0 {
+	if !mQuery.SelectAllSeries {
 		mQuery.SelectAllSeries = true
+
+		// If the query has a group by (metricname or tags) or has an aggregation function, with tags,
+		// then we do not need to search all the series. We can search only the series that match the tags.
+		if (mQuery.AggWithoutGroupBy || mQuery.GroupByMetricName) && len(mQuery.TagsFilters) > 0 {
+			mQuery.SelectAllSeries = false
+		} else {
+			for _, tag := range mQuery.TagsFilters {
+				if tag.IsGroupByKey && !tag.NotInitialGroup {
+					mQuery.SelectAllSeries = false
+					break
+				}
+			}
+		}
+
+		// For the queries without group by and without an aggregation function, we need to get all the labels
+		if mQuery.SelectAllSeries && !mQuery.Groupby && !mQuery.AggWithoutGroupBy {
+			mQuery.GetAllLabels = true
+		}
 	}
 
 	return mQueryReqs, nil

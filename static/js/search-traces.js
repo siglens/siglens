@@ -217,6 +217,35 @@ function handleDownload() {
 }
 
 let requestFlag = 0;
+
+// Function to convert duration string to nanoseconds
+function durationToNanoseconds(durationStr) {
+    if (!durationStr) return null;
+
+    const durationRegex = /([\d.]+)\s*(s|ms|µs|us|µ|u)?/i;
+    const match = durationStr.match(durationRegex);
+
+    if (!match) return null;
+
+    const value = parseFloat(match[1]);
+    let unit = match[2] ? match[2].toLowerCase() : 's'; // Default to seconds if no unit is specified
+
+    switch (unit) {
+        case 's':
+            return value * 1e9; // seconds to nanoseconds
+        case 'ms':
+            return value * 1e6; // milliseconds to nanoseconds
+        case 'µs':
+        case 'us':
+        case 'µ':
+        case 'u':
+            return value * 1e3; // microseconds to nanoseconds
+        default:
+            console.warn("No unit provided for duration. Assuming seconds.");
+            return value * 1e9; // Assuming seconds if no unit is specified.
+    }
+}
+
 function searchTraceHandler(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -230,8 +259,24 @@ function searchTraceHandler(e) {
     let serviceValue = $('#service-span-name').text();
     let operationValue = $('#operation-span-name').text();
     let tagValue = $('#tags-input').val();
-    let maxDurationValue = $('#max-duration-input').val();
-    let minDurationValue = $('#min-duration-input').val();
+
+    let maxDurationValueStr = $('#max-duration-input').val();
+    let minDurationValueStr = $('#min-duration-input').val();
+    
+    // Convert min and max duration to nanoseconds
+    let maxDurationValue = durationToNanoseconds(maxDurationValueStr);
+    let minDurationValue = durationToNanoseconds(minDurationValueStr);
+
+    if (maxDurationValue === null && maxDurationValueStr) {
+        showToast("Invalid format for Max Duration.  Examples: 1.2s, 100ms, 500µs", 'error');
+        return;
+    }
+
+    if (minDurationValue === null && minDurationValueStr) {
+        showToast("Invalid format for Min Duration. Examples: 1.2s, 100ms, 500µs", 'error');
+        return;
+    }
+
     let limitResValue = $('#limit-result-input').val();
     if (limitResValue) limitation = parseInt(limitResValue);
     else limitation = -1;
@@ -393,6 +438,9 @@ function showScatterPlot() {
     let errorColor = theme == 'light' ? 'rgba(233, 49, 37, 0.6)' : 'rgba(233, 49, 37, 1)';
     let axisLineColor = theme == 'light' ? '#DCDBDF' : '#383148';
     let axisLabelColor = theme == 'light' ? '#160F29' : '#FFFFFF';
+
+    scatterData.sort((a, b) => a[7] - b[7]);
+
     chart.setOption({
         xAxis: {
             type: 'category',
@@ -408,6 +456,9 @@ function showScatterPlot() {
             },
             axisLabel: {
                 color: axisLabelColor,
+                formatter: function (value) {
+                    return value.split(' ')[1];
+                },
             },
             splitLine: { show: false },
         },
@@ -433,20 +484,22 @@ function showScatterPlot() {
             show: true,
             className: 'tooltip-design',
             formatter: function (param) {
-                var green = param.value[4];
-                var red = param.value[5];
+                var service = param.value[4];
+                var operation = param.value[5];
                 var duration = param.value[1];
                 var spans = param.value[2];
                 var errors = param.value[3];
                 var traceId = param.value[6] ? param.value[6] : '';
                 var traceTimestamp = param.value[7];
+                var date = new Date(traceTimestamp / 1000000).toLocaleString();
 
                 return `<div class="custom-tooltip">
                     <div class="tooltip-content">
-                        <div class="trace-name">${green}: ${red}</div>
+                        <div class="trace-name">${service}: ${operation}</div>
                         <div class="trace-id">Trace ID: ${traceId.substring(0, 7)}</div>
+                        <div class="trace-time">Time: ${date}</div>
                         <hr>
-                        <div>Duration: ${duration}ms</div>
+                        <div>Duration: ${duration.toFixed(2)}ms</div>
                         <div>No. of Spans: ${spans}</div>
                         <div>No. of Error Spans: ${errors}</div>
                     </div>
@@ -467,32 +520,31 @@ function showScatterPlot() {
                 type: 'effectScatter',
                 showEffectOn: 'emphasis',
                 rippleEffect: {
-                    scale: 1,
+                    scale: 1.2,
                 },
-                data: scatterData.filter((data) => data[3] == 0),
+                data: scatterData,
                 symbolSize: function (val) {
-                    return val[2] < 5 ? 5 : val[2];
+                    // Use logarithmic scaling for span count to prevent extremely large bubbles
+                    let spanCount = val[2] || 0;
+                    let baseSize = Math.max(5, Math.log10(spanCount + 1) * 10);
+
+                    // For traces with errors
+                    if (val[3] > 0) {
+                        return baseSize + 2;
+                    }
+
+                    return baseSize;
                 },
                 itemStyle: {
-                    color: normalColor,
-                },
-            },
-            {
-                type: 'effectScatter',
-                showEffectOn: 'emphasis',
-                rippleEffect: {
-                    scale: 1,
-                },
-                data: scatterData.filter((data) => data[3] > 0),
-                symbolSize: function (val) {
-                    return val[3] < 5 ? 5 : val[3];
-                },
-                itemStyle: {
-                    color: errorColor,
+                    color: function (params) {
+                        // Color based on whether there are errors
+                        return params.data[3] > 0 ? errorColor : normalColor;
+                    },
                 },
             },
         ],
     });
+
     // Open Gantt Chart when click on Scatter Chart
     chart.on('click', function (params) {
         const traceId = params.data[6];
@@ -500,6 +552,7 @@ function showScatterPlot() {
         window.location.href = `trace.html?trace_id=${traceId}&timestamp=${traceTimestamp}`;
     });
 }
+
 function reSort() {
     $('.warn-box').remove();
     for (let i = 0; i < returnResTotal.length; i++) {

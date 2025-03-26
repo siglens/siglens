@@ -744,6 +744,24 @@
     font-style: normal;
 }
 
+/* Dark Theme Scrollbar Color Customization */
+[data-theme='dark'] ::-webkit-scrollbar-track {
+    background: var(--black-3);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+    background: var(--black-5);
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+    background: var(--black-6);
+}
+
+/* Firefox support */
+[data-theme='dark'] {
+    scrollbar-color: var(--black-5) var(--black-3);
+}
+
 html {
     font-size: 12px;
     height: 100%;
@@ -2951,8 +2969,75 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     outline: none;
 }
 
-#LogResultsGrid .ag-cell-wrapper {
-    margin-left: -10px !important;
+.expand-svg-container {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+}
+
+.expand-svg-container.before-tabs {
+    margin-right: 10px;
+    padding: 0;
+}
+
+.expand-svg-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expand-svg-button {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+}
+
+.expand-svg-button svg {
+    height: 18px;
+    width: 18px;
+    transition: transform 0.3s ease;
+}
+
+/* Base styles for SVG elements */
+.expand-svg-button svg rect {
+    fill: none;
+    stroke: var(--icon-border-color, #303030);
+    stroke-width: 1;
+}
+
+.expand-svg-button svg path {
+    fill: none;
+    stroke: var(--icon-arrow-color, #303030);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Light theme - Keep current color (#ccc) */
+[data-theme='light'] .expand-svg-button .lucide-panel-left-open rect,
+[data-theme='light'] .expand-svg-button .lucide-panel-left-close rect {
+    stroke: var(--icon-border-color, #303030);
+}
+
+[data-theme='light'] .expand-svg-button .lucide-panel-left-open path,
+[data-theme='light'] .expand-svg-button .lucide-panel-left-close path {
+    stroke: var(--icon-arrow-color, #303030);
+}
+
+/* Dark theme - Set color to white */
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-open rect,
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-close rect {
+    stroke: var(--icon-border-color, white);
+}
+
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-open path,
+[data-theme='dark'] .expand-svg-button .lucide-panel-left-close path {
+    stroke: var(--icon-arrow-color, white);
 }
 
 .odd-popup-textarea {
@@ -6588,6 +6673,14 @@ p#versionInfo {
     overflow: hidden;
 }
 
+.custom-chart-tab.expanded {
+    width: 100%;
+}
+
+.custom-chart-container.full-width {
+    padding-left: 0;
+}
+
 .json-popup {
     width: 0;
     background-color: var(--black1-to-white0);
@@ -6847,6 +6940,10 @@ p#versionInfo {
     overflow-y: auto;
     margin-right: 5px;
     border-radius: 4px;
+}
+
+.fields-sidebar.hidden {
+    display: none !important;
 }
 
 .fields-section {

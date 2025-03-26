@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -64,12 +63,12 @@ func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 
 type filterQueryValidator struct {
 	basicValidator
-	key             string
-	value           stringOrRegex
-	sortCol         string
-	head            int
-	reversedResults []map[string]interface{}
-	lock            sync.Mutex
+	key     string
+	value   stringOrRegex
+	sortCol string
+	head    int
+	results []map[string]interface{} // Sorted descending by sortCol.
+	lock    sync.Mutex
 }
 
 type stringOrRegex struct {
@@ -131,11 +130,11 @@ func NewFilterQueryValidator(key string, value string, numericSortCol string, he
 			endEpoch:   endEpoch,
 			query:      query,
 		},
-		key:             key,
-		value:           finalValue,
-		sortCol:         numericSortCol,
-		head:            head,
-		reversedResults: make([]map[string]interface{}, 0),
+		key:     key,
+		value:   finalValue,
+		sortCol: numericSortCol,
+		head:    head,
+		results: make([]map[string]interface{}, 0),
 	}, nil
 }
 
@@ -146,17 +145,17 @@ func (f *filterQueryValidator) Copy() queryValidator {
 			endEpoch:   f.endEpoch,
 			query:      f.query,
 		},
-		key:             f.key,
-		value:           f.value,
-		sortCol:         f.sortCol,
-		head:            f.head,
-		reversedResults: make([]map[string]interface{}, 0),
+		key:     f.key,
+		value:   f.value,
+		sortCol: f.sortCol,
+		head:    f.head,
+		results: make([]map[string]interface{}, 0),
 	}
 }
 
 func (f *filterQueryValidator) Info() string {
 	duration := time.Duration(f.endEpoch-f.startEpoch) * time.Millisecond
-	numResults := min(len(f.reversedResults), f.head)
+	numResults := min(len(f.results), f.head)
 
 	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
 		f.query, duration, f.startEpoch, f.endEpoch, numResults)
@@ -176,33 +175,33 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
-	f.reversedResults = append(f.reversedResults, log)
-	sort.Slice(f.reversedResults, func(i, j int) bool {
-		iSortVal, ok := f.reversedResults[i][f.sortCol]
-		if !ok {
-			return true
-		}
-
-		jSortVal, ok := f.reversedResults[j][f.sortCol]
+	f.results = append(f.results, log)
+	sort.Slice(f.results, func(i, j int) bool {
+		iSortVal, ok := f.results[i][f.sortCol]
 		if !ok {
 			return false
+		}
+
+		jSortVal, ok := f.results[j][f.sortCol]
+		if !ok {
+			return true
 		}
 
 		iFloat, ok := utils.AsFloat64(iSortVal)
 		if !ok {
-			return true
+			return false
 		}
 
 		jFloat, ok := utils.AsFloat64(jSortVal)
 		if !ok {
-			return false
+			return true
 		}
 
-		return iFloat < jFloat
+		return iFloat > jFloat
 	})
 
-	if len(f.reversedResults) > f.head {
-		lastKeptLog := f.reversedResults[len(f.reversedResults)-f.head]
+	if len(f.results) > f.head {
+		lastKeptLog := f.results[f.head-1]
 		var lastKeptVal float64
 		var lastOk bool
 		if sortVal, ok := lastKeptLog[f.sortCol]; !ok {
@@ -214,10 +213,10 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 		}
 
 		numToDelete := 0
-		for i := range f.reversedResults[:len(f.reversedResults)-f.head] {
+		for i := f.head; i < len(f.results); i++ {
 			var thisSortVal float64
 			var thisOk bool
-			if sortVal, ok := f.reversedResults[i][f.sortCol]; !ok {
+			if sortVal, ok := f.results[i][f.sortCol]; !ok {
 				thisOk = false
 			} else if thisSortVal, ok = utils.AsFloat64(sortVal); !ok {
 				return fmt.Errorf("FQV.HandleLog: invalid type in sort column %v: %T", f.sortCol, sortVal)
@@ -230,7 +229,7 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 			}
 		}
 
-		f.reversedResults = f.reversedResults[numToDelete:]
+		f.results = f.results[:len(f.results)-numToDelete]
 	}
 
 	return nil
@@ -269,7 +268,7 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
 	}
 
-	numExpectedLogs := min(len(f.reversedResults), f.head)
+	numExpectedLogs := min(len(f.results), f.head)
 	if response.Hits.TotalMatched.Value != numExpectedLogs {
 		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
 			numExpectedLogs, response.Hits.TotalMatched.Value)
@@ -286,16 +285,12 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	}
 
 	// Parsing json treats all numbers as float64, so we need to convert the logs.
-	for i := range f.reversedResults {
-		f.reversedResults[i] = copyLogWithFloats(f.reversedResults[i])
+	for i := range f.results {
+		f.results[i] = copyLogWithFloats(f.results[i])
 	}
 
 	// Compare the logs.
-	slices.Reverse(f.reversedResults)       // Reverse it to match the order of the response.
-	defer slices.Reverse(f.reversedResults) // Revert to the original order, so subsequent calls work.
-	expectedLogs := f.reversedResults
-
-	err := logsMatch(expectedLogs, response.Hits.Records, f.sortCol)
+	err := logsMatch(f.results, response.Hits.Records, f.sortCol)
 	if err != nil {
 		return err
 	}
@@ -436,15 +431,26 @@ type countQueryValidator struct {
 func NewCountQueryValidator(key string, value string, startEpoch uint64,
 	endEpoch uint64) (queryValidator, error) {
 
-	if strings.Contains(value, "*") {
-		return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+	var query string
+	if key == "*" {
+		if value == "*" {
+			query = `* | stats count`
+		} else {
+			return nil, fmt.Errorf("NewCountQueryValidator: value must be * if key is *")
+		}
+	} else {
+		if strings.Contains(value, "*") {
+			return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
+		}
+
+		query = fmt.Sprintf(`%v="%v" | stats count`, key, value)
 	}
 
 	return &countQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | stats count", key, value),
+			query:      query,
 		},
 		key:        key,
 		value:      value,
@@ -477,9 +483,11 @@ func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
 		return nil
 	}
 
-	value, ok := log[c.key]
-	if !ok || value != fmt.Sprintf("%v", c.value) {
-		return nil
+	if c.key != "*" {
+		value, ok := log[c.key]
+		if !ok || value != fmt.Sprintf("%v", c.value) {
+			return nil
+		}
 	}
 
 	c.lock.Lock()

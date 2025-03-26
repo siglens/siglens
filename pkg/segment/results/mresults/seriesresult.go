@@ -50,6 +50,8 @@ type Series struct {
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
+
+	isInstantQuery bool
 }
 
 type DownsampleSeries struct {
@@ -104,6 +106,7 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 		convertedDownsampleAggFn: convertedDownsampleAggFn,
 		aggregationConstant:      aggregationConstant,
 		grpID:                    tsGroupId,
+		isInstantQuery:           mQuery.IsInstantQuery,
 	}
 }
 
@@ -118,6 +121,29 @@ func (s *Series) GetIdx() int {
 }
 
 func (s *Series) AddEntry(ts uint32, dp float64) {
+	if s.isInstantQuery {
+		idx := s.idx
+
+		// if instant query, we only need the latest value per series
+		if idx > 0 {
+			// Decrement the index to overwrite the previous entry
+			idx--
+		}
+
+		if ts > s.entries[idx].downsampledTime {
+			s.entries[idx].downsampledTime = ts
+			s.entries[idx].dpVal = dp
+		}
+
+		if s.idx == 0 {
+			// Since Instant query uses only one value, when the idx is 0, Increment the index to the next entry
+			// indicating that there is a valid entry in the series
+			s.idx++
+		}
+
+		return
+	}
+
 	s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
 	s.entries[s.idx].dpVal = dp
 	s.idx++
@@ -145,7 +171,30 @@ func (s *Series) sortEntries() {
 	s.sorted = true
 }
 
-func (s *Series) Merge(toJoin *Series) {
+func (s *Series) Merge(toJoin *Series) error {
+	if s.isInstantQuery {
+		if s.idx != 1 || s.idx != toJoin.idx {
+			return fmt.Errorf("Merge: instant query series should have only one entry, but got %v and %v", s.idx, toJoin.idx)
+		}
+
+		// Decrement the index to overwrite the previous entry, since for instant only one entry is allowed
+		s.idx--
+		toJoin.idx--
+
+		maxTsEntry := s.entries[s.idx]
+		if maxTsEntry.downsampledTime < toJoin.entries[toJoin.idx].downsampledTime {
+			maxTsEntry = toJoin.entries[toJoin.idx]
+		}
+
+		s.entries[s.idx] = maxTsEntry
+
+		// Increment the index back
+		s.idx++
+		toJoin.idx++
+
+		return nil
+	}
+
 	toJoinEntries := toJoin.entries[:toJoin.idx]
 	s.entries = s.entries[:s.idx]
 	s.len = s.idx
@@ -153,6 +202,8 @@ func (s *Series) Merge(toJoin *Series) {
 	s.idx += toJoin.idx
 	s.sorted = false
 	s.len += toJoin.idx
+
+	return nil
 }
 
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {
@@ -342,7 +393,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Abs:
 		evaluate(ts, math.Abs)
 	case segutils.Sqrt:
-		err = applyFuncToNonNegativeValues(ts, math.Sqrt)
+		applyFuncToNonNegativeValues(ts, math.Sqrt)
 	case segutils.Ceil:
 		evaluate(ts, math.Ceil)
 	case segutils.Floor:
@@ -356,11 +407,11 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Exp:
 		evaluate(ts, math.Exp)
 	case segutils.Ln:
-		err = applyFuncToNonNegativeValues(ts, math.Log)
+		applyFuncToNonNegativeValues(ts, math.Log)
 	case segutils.Log2:
-		err = applyFuncToNonNegativeValues(ts, math.Log2)
+		applyFuncToNonNegativeValues(ts, math.Log2)
 	case segutils.Log10:
-		err = applyFuncToNonNegativeValues(ts, math.Log10)
+		applyFuncToNonNegativeValues(ts, math.Log10)
 	case segutils.Sgn:
 		evaluate(ts, calculateSgn)
 	case segutils.Deg:
@@ -1061,14 +1112,14 @@ func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
 	return nil
 }
 
-func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
+func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		if val < 0 {
-			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
+			ts[key] = math.NaN()
+			continue
 		}
 		ts[key] = mathFunc(val)
 	}
-	return nil
 }
 
 func calculateSgn(val float64) float64 {
