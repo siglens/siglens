@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"time"
 
@@ -170,6 +171,9 @@ func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
 }
 
 func ReadSfm(segkey string) (*structs.SegFullMeta, error) {
+	if strings.HasSuffix(segkey, ".sfm") {
+		return nil, fmt.Errorf("ReadSfm: segkey should not have .sfm suffix: %v", segkey)
+	}
 
 	sfm := &structs.SegFullMeta{}
 
