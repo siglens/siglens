@@ -259,7 +259,6 @@ func (qi *QueryInformation) GetSegEncToKeyBaseValue() uint32 {
 // Returns error if qsr.blkTracker is nil
 func (qsr *QuerySegmentRequest) GetMicroIndexFilter() (map[string]map[string]*structs.BlockTracker, error) {
 	if qsr.blkTracker == nil {
-		log.Errorf("GetMicroIndexFilter: qsr.blkTracker is nil! Cannot construct keys & blocks to filter")
 		return nil, fmt.Errorf("GetMicroIndexFilter: qsr.blkTracker is nil! Cannot construct keys & blocks to filter")
 	}
 	retVal := make(map[string]map[string]*structs.BlockTracker)

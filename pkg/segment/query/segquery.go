@@ -897,7 +897,8 @@ func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.Quer
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := segReq.GetMicroIndexFilter()
 	if err != nil {
-		log.Errorf("qid=%d, computeSegStatsFromRawRecords: failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", segReq.qid, segReq.segKey)
+		log.Errorf("qid=%d, computeSegStatsFromRawRecords: failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v, err: %v",
+			segReq.qid, segReq.segKey, err)
 		blocksToRawSearch = segReq.GetEntireFileMicroIndexFilter()
 	}
 	sTime := time.Now()
@@ -1139,7 +1140,8 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
 	if err != nil {
-		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", qsr.qid, qsr.segKey)
+		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v, err: %v",
+			qsr.qid, qsr.segKey, err)
 		blocksToRawSearch = qsr.GetEntireFileMicroIndexFilter()
 	}
 
@@ -1214,7 +1216,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
 	if err != nil {
-		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", qsr.qid, qsr.segKey)
+		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v, err: %v", qsr.qid, qsr.segKey, err)
 		blocksToRawSearch = qsr.GetEntireFileMicroIndexFilter()
 	}
 	sTime := time.Now()
