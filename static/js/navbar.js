@@ -101,9 +101,31 @@ let navbarComponent = `
             <a href="./lookups.html" class="nav-links link-lookups"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
         </div>
-        <div class="menu nav-infrastructure">
-            <a href="./infrastructure.html" class="nav-links link-infrastructure"><span class="icon-infrastructure"></span><span
-                    class="nav-link-text">Infrastructure</span></a>
+        <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
+                <div class="menu-header">
+                    <a class="nav-links" href="./infrastructure.html">
+                        <span class="icon-infrastructure"></span>
+                        <span class="nav-link-text-drpdwn">Infrastructure</span>
+                    </a>
+                    <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                </div>
+                <ul class="nav-kubernetes infrastructure-dropdown">
+                <li class="infrastructure-section-dropdown">
+                    <div class="infrastructure-section-header">
+                        <span class="nav-link-text-drpdwn">Kubernetes</span>
+                        <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                    </div>
+                    <ul class="kubernetes-submenu">
+                        <a href="./kubernetes-overview.html"><li class="infrastructure-link">Overview</li></a>
+                        <a href="./kubernetes-clusters.html"><li class="infrastructure-link">Clusters</li></a>
+                        <a href="./kubernetes-namespaces.html"><li class="infrastructure-link">Namespaces</li></a>
+                        <a href="./kubernetes-workloads.html"><li class="infrastructure-link">Workloads</li></a>
+                        <a href="./kubernetes-nodes.html"><li class="infrastructure-link">Nodes</li></a>
+                        <a href="./kubernetes-events.html"><li class="infrastructure-link">Events</li></a>
+                        <a href="./kubernetes-configuration.html"><li class="infrastructure-link">Configuration</li></a>
+                    </ul>
+                </li>
+            </ul>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
             <div class="menu-header">
@@ -380,16 +402,127 @@ $(document).ready(function () {
 
     setupHamburgerBehavior();
 
-    $('.navbar-submenu').hide();
+    // $('.navbar-submenu').hide();
     $('.help-options').hide();
 
     const dropdownConfigs = [
         { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
         { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
-        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' }
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' },
+        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
+        // { menuClass: 'nav', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'}
+        {
+            menuClass: 'nav-infrastructure',
+            dropdownClass: 'infrastructure-dropdown',
+            name: 'Infrastructure',
+            iconClass: 'icon-infrastructure',
+            subDropdowns: [
+                { submenuClass: 'infrastructure-section-dropdown', dropdownClass: 'kubernetes-submenu', name: 'Kubernetes' }
+            ]
+        }
     ];
 
+    // Add event listener for infrastructure section dropdown
+    // $('.nav-infrastructure .infrastructure-section-header').on('click', function(e) {
+    //     e.preventDefault();
+    //     e.stopPropagation();
+
+    //     const $submenu = $(this).siblings('.kubernetes-submenu');
+    //     const $arrow = $(this).find('.nav-dropdown-icon');
+    //     const isVisible = $submenu.is(':visible');
+
+    //     // First ensure parent dropdown is visible
+    //     const $parentDropdown = $(this).closest('.infrastructure-dropdown');
+    //     if (!$parentDropdown.is(':visible')) {
+    //         $parentDropdown.stop(true, true).slideDown(200);
+    //     }
+
+    //     // Then toggle submenu
+    //     $submenu.stop(true, true).slideToggle(200);
+    //     $arrow.toggleClass('kubernetes-rotated', !isVisible);
+
+    //     // Store state in local storage
+    //     let infrastructureDropdownStates = JSON.parse(localStorage.getItem('infrastructureDropdownStates')) || {};
+    //     infrastructureDropdownStates['Kubernetes'] = !isVisible;
+    //     localStorage.setItem('infrastructureDropdownStates', JSON.stringify(infrastructureDropdownStates));
+    // });
+
+    // function restoreInfrastructureDropdownState() {
+    //     const infrastructureDropdownStates = JSON.parse(localStorage.getItem('infrastructureDropdownStates')) || {};
+    //     const isKubernetesOpen = infrastructureDropdownStates['Kubernetes'] === true;
+
+    //     // First ensure parent dropdown is visible if submenu should be open
+    //     if (isKubernetesOpen) {
+    //         $('.nav-infrastructure .infrastructure-dropdown').show();
+    //         $('.nav-infrastructure .nav-dropdown-icon').addClass('rotated');
+    //     }
+
+    //     // Then set submenu state
+    //     if (isKubernetesOpen) {
+    //         $('.nav-infrastructure .kubernetes-submenu').show();
+    //         $('.nav-infrastructure .infrastructure-section-header .nav-dropdown-icon').addClass('kubernetes-rotated');
+    //     } else {
+    //         $('.nav-infrastructure .kubernetes-submenu').hide();
+    //         $('.nav-infrastructure .infrastructure-section-header .nav-dropdown-icon').removeClass('kubernetes-rotated');
+    //     }
+    // }
+
+    // function updateInfrastructureActiveHighlighting() {
+    //     $('.kubernetes-submenu li').removeClass('active');
+
+    //     const currentPath = window.location.pathname.split('/').pop();
+
+    //     $('.kubernetes-submenu a').each(function() {
+    //         const href = $(this).attr('href');
+    //         const hrefPath = href.split('/').pop();
+
+    //         if (currentPath === hrefPath) {
+    //             const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
+    //             $li.addClass('active');
+
+    //             // Ensure parent dropdown is open
+    //             $li.closest('.kubernetes-submenu').show();
+    //             $li.closest('.nav-infrastructure').find('.infrastructure-section-header .nav-dropdown-icon').addClass('kubernetes-rotated');
+    //         }
+    //     });
+    // }
+
+    // // Modify existing methods to include new highlighting
+    // function updateActiveHighlighting() {
+    //     // Existing dropdown configs highlighting
+    //     dropdownConfigs.forEach(config => {
+    //         $(`.${config.menuClass}`).removeClass('active');
+    //         $(`.${config.iconClass}`).removeClass('active');
+    //         $(`.${config.dropdownClass} li`).removeClass('active');
+    //     });
+
+    //     const currentPath = window.location.pathname.split('/').pop();
+
+    //     dropdownConfigs.forEach(config => {
+    //         $(`.${config.dropdownClass} a`).each(function() {
+    //             const href = $(this).attr('href');
+    //             const hrefPath = href.split('/').pop();
+
+    //             if (currentPath === hrefPath) {
+    //                 const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
+    //                 $li.addClass('active');
+
+    //                 const $menu = $li.closest(`.${config.menuClass}`);
+    //                 const $icon = $menu.find(`.${config.iconClass}`);
+
+    //                 $menu.addClass('active');
+    //                 $icon.addClass('active');
+    //             }
+    //         });
+    //     });
+
+    //     // Add infrastructure-specific highlighting
+    //     updateInfrastructureActiveHighlighting();
+    // }
+
+
     dropdownConfigs.forEach(config => {
+        // Toggle first-level dropdown
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -405,6 +538,27 @@ $(document).ready(function () {
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
         });
+
+        // Handle second-level dropdowns if they exist
+        if (config.subDropdowns) {
+            config.subDropdowns.forEach(subConfig => {
+                $(`.${subConfig.submenuClass} .infrastructure-section-header`).on('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSubDropdown($(this).closest('.infrastructure-section-dropdown'), subConfig.name, subConfig.dropdownClass);
+                });
+
+                $(`.${subConfig.submenuClass} .nav-dropdown-icon`).on('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSubDropdown($(this).closest('.infrastructure-section-dropdown'), subConfig.name, subConfig.dropdownClass);
+                });
+
+                $(`.${subConfig.dropdownClass} a`).on('click', function(e) {
+                    e.stopPropagation();
+                });
+            });
+        }
     });
 
     window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
@@ -414,7 +568,6 @@ $(document).ready(function () {
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
-
         $menu.toggleClass('dropdown-open', !isVisible);
 
         if ($arrow.length) {
@@ -424,6 +577,34 @@ $(document).ready(function () {
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+    };
+
+    window.toggleSubDropdown = function(submenuElement, dropdownName, dropdownClass) {
+        const $submenu = $(submenuElement);
+        const $dropdown = $submenu.find(`.${dropdownClass}`);
+        const $arrow = $submenu.find('.nav-dropdown-icon');
+        const isVisible = $dropdown.is(':visible');
+
+        // Ensure parent dropdown is open
+        const $parentDropdown = $submenu.closest('.infrastructure-dropdown');
+        if (!$parentDropdown.is(':visible')) {
+            $parentDropdown.stop(true, true).slideDown(200);
+            $parentDropdown.closest('.menu').find('.nav-dropdown-icon').addClass('rotated');
+            let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+            dropdownStates['Infrastructure'] = true;
+            localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+        }
+
+        $dropdown.stop(true, true).slideToggle(200);
+        $submenu.toggleClass('dropdown-open', !isVisible);
+
+        if ($arrow.length) {
+            $arrow.toggleClass('kubernetes-rotated', !isVisible);
+        }
+
+        let infrastructureDropdownStates = JSON.parse(localStorage.getItem('infrastructureDropdownStates')) || {};
+        infrastructureDropdownStates[dropdownName] = !isVisible;
+        localStorage.setItem('infrastructureDropdownStates', JSON.stringify(infrastructureDropdownStates));
     };
 
     function restoreDropdownState() {
@@ -442,6 +623,31 @@ $(document).ready(function () {
                 $menu.find(`.${config.dropdownClass}`).hide();
                 $menu.find('.nav-dropdown-icon').removeClass('rotated');
             }
+
+            if (config.subDropdowns) {
+                config.subDropdowns.forEach(subConfig => {
+                    const $submenu = $(`.${subConfig.submenuClass}`);
+                    const infrastructureDropdownStates = JSON.parse(localStorage.getItem('infrastructureDropdownStates')) || {};
+                    const isSubOpen = infrastructureDropdownStates[subConfig.name] === true;
+
+                    if (isSubOpen) {
+                        // Ensure parent dropdown is open
+                        const $parentDropdown = $submenu.closest(`.${config.dropdownClass}`);
+                        $parentDropdown.show();
+                        $parentDropdown.closest('.menu').find('.nav-dropdown-icon').addClass('rotated');
+                        dropdownStates[config.name] = true;
+                        localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+
+                        $submenu.addClass('dropdown-open');
+                        $submenu.find(`.${subConfig.dropdownClass}`).show();
+                        $submenu.find('.nav-dropdown-icon').addClass('kubernetes-rotated');
+                    } else {
+                        $submenu.removeClass('dropdown-open');
+                        $submenu.find(`.${subConfig.dropdownClass}`).hide();
+                        $submenu.find('.nav-dropdown-icon').removeClass('kubernetes-rotated');
+                    }
+                });
+            }
         });
     }
 
@@ -450,12 +656,19 @@ $(document).ready(function () {
             $(`.${config.menuClass}`).removeClass('active');
             $(`.${config.iconClass}`).removeClass('active');
             $(`.${config.dropdownClass} li`).removeClass('active');
+
+            if (config.subDropdowns) {
+                config.subDropdowns.forEach(subConfig => {
+                    $(`.${subConfig.dropdownClass} li`).removeClass('active');
+                });
+            }
         });
 
         const currentPath = window.location.pathname.split('/').pop();
 
         dropdownConfigs.forEach(config => {
-            $(`.${config.dropdownClass} a`).each(function() {
+            // Check first-level dropdown items
+            $(`.${config.dropdownClass} > a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
 
@@ -470,17 +683,54 @@ $(document).ready(function () {
                     $icon.addClass('active');
                 }
             });
+
+            // Check second-level dropdown items
+            if (config.subDropdowns) {
+                config.subDropdowns.forEach(subConfig => {
+                    $(`.${subConfig.dropdownClass} a`).each(function() {
+                        const href = $(this).attr('href');
+                        const hrefPath = href.split('/').pop();
+
+                        if (currentPath === hrefPath) {
+                            const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
+                            $li.addClass('active');
+
+                            const $submenu = $li.closest(`.${subConfig.submenuClass}`);
+                            $submenu.addClass('dropdown-open');
+                            $submenu.find(`.${subConfig.dropdownClass}`).show();
+                            $submenu.find('.nav-dropdown-icon').addClass('kubernetes-rotated');
+
+                            const $menu = $submenu.closest(`.${config.menuClass}`);
+                            const $icon = $menu.find(`.${config.iconClass}`);
+                            $menu.addClass('active');
+                            $menu.addClass('dropdown-open');
+                            $menu.find(`.${config.dropdownClass}`).show();
+                            $menu.find('.nav-dropdown-icon').addClass('rotated');
+                            $icon.addClass('active');
+
+                            // Update localStorage to reflect the open state
+                            let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+                            let infrastructureDropdownStates = JSON.parse(localStorage.getItem('infrastructureDropdownStates')) || {};
+                            dropdownStates[config.name] = true;
+                            infrastructureDropdownStates[subConfig.name] = true;
+                            localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+                            localStorage.setItem('infrastructureDropdownStates', JSON.stringify(infrastructureDropdownStates));
+                        }
+                    });
+                });
+            }
         });
     }
-
 
     restoreDropdownState();
     updateActiveHighlighting();
 
+    // Fix the Kubernetes submenu
+  fixKubernetesSubmenu()
+
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
     });
-
 });
 
 function setupNavigationState() {
@@ -673,3 +923,31 @@ function initializeBreadcrumbs(breadcrumbConfig) {
         });
     }
 }
+
+function fixKubernetesSubmenu() {
+    // Make sure the kubernetes submenu toggle works correctly
+    jQuery(".infrastructure-section-header")
+      .off("click")
+      .on("click", function (e) {
+        e.preventDefault()
+        e.stopPropagation()
+
+        const $submenu = jQuery(this).closest(".infrastructure-section-dropdown")
+        const $dropdown = $submenu.find(".kubernetes-submenu")
+        const $arrow = jQuery(this).find(".nav-dropdown-icon")
+        const isVisible = $dropdown.is(":visible")
+
+        // Toggle the submenu with slide animation
+        $dropdown.stop(true, true).slideToggle(200)
+
+        // Toggle the arrow rotation
+        if ($arrow.length) {
+          $arrow.toggleClass("kubernetes-rotated", !isVisible)
+        }
+
+        // Store state in localStorage
+        const infrastructureDropdownStates = JSON.parse(localStorage.getItem("infrastructureDropdownStates")) || {}
+        infrastructureDropdownStates["Kubernetes"] = !isVisible
+        localStorage.setItem("infrastructureDropdownStates", JSON.stringify(infrastructureDropdownStates))
+      })
+  }
