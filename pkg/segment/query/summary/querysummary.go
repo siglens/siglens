@@ -169,7 +169,9 @@ func (qs *QuerySummary) stopTicker() {
 		if qs.ticker != nil {
 			qs.ticker.Stop()
 		}
-		close(qs.tickerStopChan)
+		if qs.tickerStopChan != nil {
+			close(qs.tickerStopChan)
+		}
 	}
 }
 
