@@ -25,7 +25,7 @@ func TestWALAppendAndRead(t *testing.T) {
 	err = wal.Append(datapoints)
 	assert.NoError(t, err)
 
-	it, err := NewWALReader(dirPath, filename)
+	it, err := NewWALReader(filePath)
 	assert.NoError(t, err)
 	defer it.Close()
 
@@ -113,7 +113,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	err = wal.Append(datapoints1)
 	assert.NoError(t, err)
 
-	it, err := NewWALReader(dirPath, filename)
+	it, err := NewWALReader(filePath)
 	assert.NoError(t, err)
 	defer it.Close()
 
@@ -138,7 +138,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	err = wal.Append(datapoints2)
 	assert.NoError(t, err)
 
-	it2, err := NewWALReader(dirPath, filename)
+	it2, err := NewWALReader(filePath)
 	assert.NoError(t, err)
 	defer it2.Close()
 

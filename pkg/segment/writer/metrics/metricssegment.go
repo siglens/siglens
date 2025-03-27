@@ -73,6 +73,7 @@ const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
 const METRICS_INSTRUMENTATION_FLUSH_DURATION = 60 // 60 seconds
+const WAL_DPS_FLUSH_SLEEP_DURATION = 1            // 1 sec
 
 var dateTimeLayouts = []string{
 	time.RFC3339,
@@ -148,18 +149,22 @@ Every 5s, this metrics buffer should persist to disk and will create / update tw
  2. TSID offset file. Format [tsid][soff]
 */
 type MetricsBlock struct {
-	tsidLookup      map[uint64]int
-	allSeries       []*TimeSeries
-	sortedTsids     []uint64
-	mBlockSummary   *structs.MBlockSummary
-	blkEncodedSize  uint64     // total encoded size of the block
+	tsidLookup     map[uint64]int
+	allSeries      []*TimeSeries
+	sortedTsids    []uint64
+	mBlockSummary  *structs.MBlockSummary
+	blkEncodedSize uint64 // total encoded size of the block
+	walState       WALState
+}
+
+type WALState struct {
+	segID           uint64
+	mId             string
 	currentWal      *wal.WAL   // Active WAL file
 	allWALs         []*wal.WAL // List of WAL files
 	dpsInWalMem     []wal.WalDatapoint
 	dpIdx           uint64 // Next write position in dpsInWalMem
 	currentWALIndex uint64
-	segID           uint64
-	mId             string
 	lock            sync.Mutex
 }
 
@@ -201,6 +206,7 @@ func InitMetricsSegStore() {
 	go timeBasedRotate()
 	go timeBasedTagsTreeFlush()
 	go timeBasedInstruFlush()
+	go timeBasedWalDPSFlush()
 }
 
 func initOrgMetrics(orgid int64) error {
@@ -375,14 +381,16 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 		mNamesMap:    make(map[string]bool, 0),
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
-			tsidLookup:      make(map[uint64]int),
-			allSeries:       make([]*TimeSeries, 0),
-			sortedTsids:     make([]uint64, 0),
-			currentWALIndex: 0,
-			segID:           suffix,
-			mId:             mId,
-			dpIdx:           0,
-			dpsInWalMem:     make([]wal.WalDatapoint, utils.WAL_BLOCK_FLUSH_SIZE),
+			tsidLookup:  make(map[uint64]int),
+			allSeries:   make([]*TimeSeries, 0),
+			sortedTsids: make([]uint64, 0),
+			walState: WALState{
+				currentWALIndex: 0,
+				segID:           suffix,
+				mId:             mId,
+				dpIdx:           0,
+				dpsInWalMem:     make([]wal.WalDatapoint, utils.WAL_BLOCK_FLUSH_SIZE),
+			},
 			mBlockSummary: &structs.MBlockSummary{
 				Blknum: 0,
 				HighTs: 0,
@@ -590,6 +598,7 @@ func extractWALFileInfo(baseDir string) (map[string]*walFilesInfo, error) {
 
 		fileName := file.Name()
 
+		// Expected WAL filename format: "shardId_<shard>_segId_<segID>_blockId_<blockNo>_<walFileIndex>.wal"
 		parts := strings.Split(fileName, "_")
 		if len(parts) < 6 {
 			continue
@@ -632,12 +641,14 @@ func deleteWalFile(dirPath, fileName string) error {
 
 func initMetricsBlock(shardID string, segID uint64, blockNo uint64) *MetricsBlock {
 	mBlock := &MetricsBlock{
-		tsidLookup:      make(map[uint64]int),
-		allSeries:       make([]*TimeSeries, 0),
-		sortedTsids:     make([]uint64, 0),
-		currentWALIndex: 0,
-		segID:           segID,
-		mId:             shardID,
+		tsidLookup:  make(map[uint64]int),
+		allSeries:   make([]*TimeSeries, 0),
+		sortedTsids: make([]uint64, 0),
+		walState: WALState{
+			currentWALIndex: 0,
+			segID:           segID,
+			mId:             shardID,
+		},
 		mBlockSummary: &structs.MBlockSummary{
 			Blknum: uint16(blockNo),
 			HighTs: 0,
@@ -659,35 +670,32 @@ func RecoverWALData() error {
 		mBlock := initMetricsBlock(fileData.mId, fileData.segID, fileData.blockNo)
 		isWalFileEmpty := true
 		for _, walFileName := range fileData.walFiles {
-			walIterator, err := wal.NewWALReader(baseDir, walFileName)
+			filePath := filepath.Join(baseDir, walFileName)
+			walIterator, err := wal.NewWALReader(filePath)
 			if err != nil {
-				log.Errorf("RecoverWALData :Failed to create WAL reader for file %s: %v", walFileName, err)
-				return err
+				log.Warnf("RecoverWALData :Failed to create WAL reader for file %s: %v", walFileName, err)
+				continue
 			}
 			for {
 				walDataPoint, err := walIterator.Next()
 				if err != nil {
-					log.Errorf("RecoverWALData : Error reading next WAL entry from file %s: %v", walFileName, err)
-					return err
+					log.Warnf("RecoverWALData : Error reading next WAL entry from file %s: %v", walFileName, err)
+					break
 				}
 				if walDataPoint == nil {
 					break
 				}
 				err = mBlock.encodeDatapoint(walDataPoint.Timestamp, walDataPoint.DpVal, walDataPoint.Tsid)
 				if err != nil {
-					log.Errorf("RecoverWALData : Failed to process WAL datapoint from file %s: %v", walFileName, err)
-					return err
+					log.Warnf("RecoverWALData : Failed to process WAL datapoint from file %s: %v", walFileName, err)
+					break
 				}
 				isWalFileEmpty = false
 			}
-			err = walIterator.Close()
-			if err != nil {
-				return err
-			}
+			_ = walIterator.Close()
 			err = deleteWalFile(baseDir, walFileName)
 			if err != nil {
-				log.Errorf("RecoverWALData : Failed to delete wal file %s: %v", walFileName, err)
-				return err
+				log.Warnf("RecoverWALData : Failed to delete wal file %s: %v", walFileName, err)
 			}
 		}
 
@@ -695,9 +703,8 @@ func RecoverWALData() error {
 			metricsKey, _ := getBaseMetricsKey(fileData.segID, fileData.mId)
 			err := mBlock.flushBlock(metricsKey, fileData.segID, uint16(fileData.blockNo))
 			if err != nil {
-				log.Errorf("RecoverWALData :Failed to flush block for shardID=%s, segID=%d, blockNo=%d: %v",
+				log.Warnf("RecoverWALData :Failed to flush block for shardID=%s, segID=%d, blockNo=%d: %v",
 					fileData.mId, fileData.segID, fileData.blockNo, err)
-				return err
 			}
 		}
 
@@ -1392,9 +1399,9 @@ func (mb *MetricsBlock) rotateBlock(basePath string, suffix uint64, bufId uint16
 
 func (mb *MetricsBlock) cleanAndInitNewWal() error {
 	mb.deleteWALFiles()
-	mb.dpIdx = 0
-	mb.allWALs = mb.allWALs[:0]
-	mb.currentWALIndex = 0
+	mb.walState.dpIdx = 0
+	mb.walState.allWALs = mb.walState.allWALs[:0]
+	mb.walState.currentWALIndex = 0
 	err := mb.initNewWAL()
 	if err != nil {
 		log.Errorf("cleanAndInitNewWal : Failed to initialize new WAL: %v", err)
@@ -1941,53 +1948,81 @@ func FindTagValuesUnrotated(tRange *dtu.MetricsTimeRange, mQuery *structs.Metric
 }
 
 func (mb *MetricsBlock) appendToWALBuffer(timestamp uint32, dp float64, tsid uint64) error {
-	mb.lock.Lock()
-	defer mb.lock.Unlock()
-	mb.dpsInWalMem[mb.dpIdx].Timestamp = timestamp
-	mb.dpsInWalMem[mb.dpIdx].DpVal = dp
-	mb.dpsInWalMem[mb.dpIdx].Tsid = tsid
-	mb.dpIdx++
-	if int(mb.dpIdx) >= utils.WAL_BLOCK_FLUSH_SIZE {
-		err := mb.currentWal.Append(mb.dpsInWalMem[0:mb.dpIdx])
+	mb.walState.lock.Lock()
+	defer mb.walState.lock.Unlock()
+
+	if int(mb.walState.dpIdx) >= utils.WAL_BLOCK_FLUSH_SIZE {
+		err := mb.walState.currentWal.Append(mb.walState.dpsInWalMem[0:mb.walState.dpIdx])
 		if err != nil {
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
 		}
-		_, _, totalEncodedSize := mb.currentWal.GetWALStats()
+		_, _, totalEncodedSize := mb.walState.currentWal.GetWALStats()
 		if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
 			if err := mb.rotateWAL(); err != nil {
 				log.Errorf("AppendWalDataPoint : Failed to rotate WAL file: %v", err)
 				return err
 			}
 		}
-		mb.dpIdx = 0
+		mb.walState.dpIdx = 0
 	}
+
+	mb.walState.dpsInWalMem[mb.walState.dpIdx].Timestamp = timestamp
+	mb.walState.dpsInWalMem[mb.walState.dpIdx].DpVal = dp
+	mb.walState.dpsInWalMem[mb.walState.dpIdx].Tsid = tsid
+	mb.walState.dpIdx++
+
 	return nil
 }
 
+func timeBasedWalDPSFlush() {
+	for {
+		time.Sleep(WAL_DPS_FLUSH_SLEEP_DURATION * time.Second)
+		for _, ms := range GetAllMetricsSegments() {
+			if ms.mBlock.walState.dpIdx > 0 {
+				ms.mBlock.walState.lock.Lock()
+				err := ms.mBlock.walState.currentWal.Append(ms.mBlock.walState.dpsInWalMem[0:ms.mBlock.walState.dpIdx])
+				if err != nil {
+					log.Warnf("timeBasedWalDPSFlush : Failed to append datapoints to WAL: %v", err)
+				}
+				_, _, totalEncodedSize := ms.mBlock.walState.currentWal.GetWALStats()
+				if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
+					if err := ms.mBlock.rotateWAL(); err != nil {
+						log.Warnf("timeBasedWalDPSFlush : Failed to rotate WAL file: %v", err)
+					}
+				}
+
+				ms.mBlock.walState.dpIdx = 0
+				ms.mBlock.walState.lock.Unlock()
+
+			}
+		}
+	}
+}
+
 func (mb *MetricsBlock) rotateWAL() error {
-	mb.currentWALIndex++
+	mb.walState.currentWALIndex++
 	return mb.initNewWAL()
 }
 
 func (mb *MetricsBlock) initNewWAL() error {
-	if mb.currentWal != nil {
-		err := mb.currentWal.Close()
+	if mb.walState.currentWal != nil {
+		err := mb.walState.currentWal.Close()
 		if err != nil {
-			log.Errorf("initNewWAL : Failed to close current WAL: %v", err)
+			log.Warnf("initNewWAL : Failed to close current WAL: %v", err)
 		}
 	}
 
 	basedir := getWALBaseDir()
-	fileName := "shardID_" + mb.mId + "_segID_" + strconv.FormatUint(mb.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.currentWALIndex, 10) + ".wal"
+	fileName := "shardID_" + mb.walState.mId + "_segID_" + strconv.FormatUint(mb.walState.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.walState.currentWALIndex, 10) + ".wal"
 	filePath := filepath.Join(basedir, fileName)
 	var err error
-	mb.currentWal, err = wal.NewWAL(filePath)
+	mb.walState.currentWal, err = wal.NewWAL(filePath)
 	if err != nil {
 		log.Errorf("initNewWAL : Failed to create new WAL file %s in %s: %v", fileName, basedir, err)
 		return err
 	}
-	mb.allWALs = append(mb.allWALs, mb.currentWal)
+	mb.walState.allWALs = append(mb.walState.allWALs, mb.walState.currentWal)
 	return nil
 }
 
@@ -2000,7 +2035,7 @@ func getWALBaseDir() string {
 }
 
 func (mb *MetricsBlock) deleteWALFiles() {
-	for _, walFd := range mb.allWALs {
+	for _, walFd := range mb.walState.allWALs {
 		if walFd != nil {
 			err := walFd.DeleteWAL()
 			if err != nil {

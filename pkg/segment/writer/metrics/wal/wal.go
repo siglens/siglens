@@ -157,8 +157,7 @@ func (w *WAL) GetWALStats() (string, uint32, uint64) {
 	return w.fNameWithPath, w.totalDps, w.encodedSize
 }
 
-func NewWALReader(baseDir, filename string) (*WalIterator, error) {
-	filePath := filepath.Join(baseDir, filename)
+func NewWALReader(filePath string) (*WalIterator, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		log.Errorf("NewReaderWAL: failed to open WAL file at path %s: %v", filePath, err)
