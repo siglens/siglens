@@ -417,9 +417,11 @@ func BulkAddRotatedSegmetas(finalSegmetas []*structs.SegMeta, shouldWriteSfm boo
 
 	var allSegmetaJson []byte
 	for _, segmeta := range finalSegmetas {
-		err := uploadFilesToBlob(segmeta.SegbaseDir)
-		if err != nil {
-			log.Errorf("BulkAddRotatedSegmetas: failed to upload files to blob: err=%v", err)
+		if !SkipUploadOnRotate {
+			err := uploadFilesToBlob(segmeta.SegbaseDir)
+			if err != nil {
+				log.Errorf("BulkAddRotatedSegmetas: failed to upload files to blob: err=%v", err)
+			}
 		}
 
 		segmetaJson, err := json.Marshal(segmeta)
