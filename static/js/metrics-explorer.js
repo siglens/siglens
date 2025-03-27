@@ -39,7 +39,7 @@ let isAlertScreen, isMetricsURL, isDashboardScreen;
 //eslint-disable-next-line no-unused-vars
 let metricsQueryParams;
 let funcApplied = false;
-let selectedTheme = 'Classic';
+let selectedTheme = 'Palette';
 let selectedLineStyle = 'Solid';
 let selectedStroke = 'Normal';
 var colorPalette = {
@@ -50,7 +50,7 @@ var colorPalette = {
     Warm: ['#f7e288', '#fadb84', '#f1b65d', '#ec954d', '#f65630', '#cf3926', '#aa2827', '#761727'],
     Orange: ['#f8ddbd', '#f4d2a9', '#f0b077', '#ec934f', '#e0722f', '#c85621', '#9b4116', '#72300e'],
     Gray: ['#c6ccd1', '#adb1b9', '#8d8c96', '#93969e', '#7d7c87', '#656571', '#62636a', '#4c4d57'],
-    Palette: ['#5596c8', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
+    Palette: ['#5795e4', '#9c86cd', '#f9d038', '#66bfa1', '#c160c9', '#dd905a', '#4476c9', '#c5d741', '#9246b7', '#65d1d5', '#7975da', '#659d33', '#cf777e', '#f2ba46', '#59baee', '#cd92d8', '#508260', '#cf5081', '#a65c93', '#b0be4f'],
 };
 
 let cachedMetrics = [];
@@ -1493,8 +1493,8 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
             return {
                 label: series.seriesName,
                 data: series.values,
-                borderColor: colorPalette.Classic[index % colorPalette.Classic.length],
-                backgroundColor: colorPalette.Classic[index % colorPalette.Classic.length] + '70',
+                borderColor: colorPalette.Palette[index % colorPalette.Palette.length],
+                backgroundColor: colorPalette.Palette[index % colorPalette.Palette.length] + '70',
                 borderWidth: 2,
                 fill: false,
             };
@@ -1512,6 +1512,7 @@ function prepareChartData(seriesData, chartDataCollection, queryName) {
     return chartData;
 }
 
+// Shared Chart Utilities Module
 const ChartUtils = (function () {
     // Variables to track active tooltip state
     let activeTooltip = {
@@ -1519,9 +1520,6 @@ const ChartUtils = (function () {
         pointIndex: -1,
         distance: Infinity
     };
-
-    let lastUpdateTime = 0;
-    const throttleDelay = 20;
 
     // Create crosshair plugin
     const crosshairPlugin = {
@@ -1557,112 +1555,11 @@ const ChartUtils = (function () {
         }
     };
 
-    const horizontalProximityThreshold = 15; // X-axis (horizontal) proximity in pixels
-    const verticalProximityThreshold = 10;   // Y-axis (vertical) proximity in pixels
-
-    const strictProximityPlugin = {
-        id: 'strictProximity',
-        beforeEvent: (chart, args) => {
-            const event = args.event;
-            if (event.type !== 'mousemove') return;
-
-            const { x, y } = event;
-            const { chartArea } = chart;
-            const currentTime = Date.now();
-
-            chart.crosshair = { x, y };
-
-            if (currentTime - lastUpdateTime < throttleDelay) {
-                chart.draw();
-                return;
-            }
-
-            lastUpdateTime = currentTime;
-
-            if (x < chartArea.left || x > chartArea.right || y < chartArea.top || y > chartArea.bottom) {
-                chart.tooltip.setActiveElements([]);
-                chart.update('none');
-                activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
-                return;
-            }
-
-            let nearestPoint = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
-            let foundPointInProximity = false;
-
-            chart.data.datasets.forEach((dataset, datasetIndex) => {
-                if (!dataset.data || dataset.hidden) return;
-
-                const meta = chart.getDatasetMeta(datasetIndex);
-                if (!meta.visible) return;
-
-                meta.data.forEach((element, index) => {
-                    if (!element || typeof element.getCenterPoint !== 'function') return;
-
-                    try {
-                        const centerPoint = element.getCenterPoint();
-
-                        const dx = Math.abs(centerPoint.x - x);
-                        const dy = Math.abs(centerPoint.y - y);
-
-                        if (dx <= horizontalProximityThreshold && dy <= verticalProximityThreshold) {
-                            foundPointInProximity = true;
-
-                            const weightedDistance = Math.sqrt(dx * dx + dy * dy);
-
-                            if (weightedDistance < nearestPoint.distance) {
-                                nearestPoint = {
-                                    datasetIndex,
-                                    pointIndex: index,
-                                    distance: weightedDistance
-                                };
-                            }
-                        }
-                    } catch (error) {
-                        console.log("Error processing data point:", error);
-                    }
-                });
-            });
-
-            let needsUpdate = false;
-
-            if (foundPointInProximity && nearestPoint.datasetIndex !== -1) {
-                if (nearestPoint.datasetIndex !== activeTooltip.datasetIndex ||
-                    nearestPoint.pointIndex !== activeTooltip.pointIndex) {
-
-                    activeTooltip = nearestPoint;
-
-                    chart.tooltip.setActiveElements([{
-                        datasetIndex: nearestPoint.datasetIndex,
-                        index: nearestPoint.pointIndex
-                    }]);
-
-                    needsUpdate = true;
-                }
-            } else if (activeTooltip.datasetIndex !== -1) {
-                chart.tooltip.setActiveElements([]);
-                activeTooltip = { datasetIndex: -1, pointIndex: -1, distance: Infinity };
-                needsUpdate = true;
-            }
-
-            if (needsUpdate) {
-                chart.update('none');
-            } else {
-                chart.draw();
-            }
-        }
-    };
-
     // Public API
     return {
         getActiveTooltip: () => activeTooltip,
         setActiveTooltip: (newTooltip) => { activeTooltip = newTooltip; },
-        getLastUpdateTime: () => lastUpdateTime,
-        setLastUpdateTime: (time) => { lastUpdateTime = time; },
-        getThrottleDelay: () => throttleDelay,
-        getCrosshairPlugin: () => crosshairPlugin,
-        getStrictProximityPlugin: () => strictProximityPlugin,
-        getHorizontalProximityThreshold: () => horizontalProximityThreshold,
-        getVerticalProximityThreshold: () => verticalProximityThreshold
+        getCrosshairPlugin: () => crosshairPlugin
     };
 })();
 
@@ -1670,7 +1567,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
     var ctx = canvas[0].getContext('2d');
     let chartData = prepareChartData(seriesData, chartDataCollection, queryName);
     const { gridLineColor, tickColor } = getGraphGridColors();
-    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Palette;
 
     // Calculate max value from data
     const maxDataValue = Math.max(...chartData.datasets.flatMap((d) => Object.values(d.data).filter((v) => v !== null)));
@@ -1763,6 +1660,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     intersect: true,
                     callbacks: {
                         title: function (tooltipItems) {
+                            if (!tooltipItems || tooltipItems.length === 0) return '';
                             const date = new Date(tooltipItems[0].parsed.x);
                             const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
                             return formattedDate;
@@ -1852,17 +1750,24 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 intersect: false,
             },
         },
-        plugins: [ChartUtils.getCrosshairPlugin(), ChartUtils.getStrictProximityPlugin()]
+        plugins: [ChartUtils.getCrosshairPlugin()]
     });
 
-    // Add mouseout event listener to clear crosshair and tooltip
+    // mouseout event listener to clear crosshair
     canvas[0].addEventListener('mouseout', (event) => {
         if (!event.relatedTarget || !canvas[0].contains(event.relatedTarget)) {
             lineChart.crosshair = null;
-            lineChart.tooltip.setActiveElements([]);
-            ChartUtils.setActiveTooltip({ datasetIndex: -1, pointIndex: -1, distance: Infinity });
             lineChart.draw();
         }
+    });
+
+    // mousemove event listener to update crosshair position
+    canvas[0].addEventListener('mousemove', (event) => {
+        const rect = canvas[0].getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        lineChart.crosshair = { x, y };
+        lineChart.draw();
     });
 
     // Update threshold line if threshold value or condition is changed
@@ -2140,7 +2045,7 @@ $('#color-input')
 
 function updateChartTheme(theme) {
     selectedTheme = theme; // Store the selected theme
-    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Classic;
+    var selectedPalette = colorPalette[selectedTheme] || colorPalette.Palette;
 
     // Loop through each chart data
     for (var queryName in chartDataCollection) {
@@ -2452,6 +2357,7 @@ function mergeGraphs(chartType, panelId = -1) {
                     intersect: true,
                     callbacks: {
                         title: function (tooltipItems) {
+                            if (!tooltipItems || tooltipItems.length === 0) return '';
                             // Display formatted timestamp in the title
                             const date = new Date(tooltipItems[0].parsed.x);
                             const formattedDate = date.toLocaleString('default', { month: 'short', day: 'numeric' }) + ', ' + date.toLocaleTimeString();
@@ -2525,7 +2431,7 @@ function mergeGraphs(chartType, panelId = -1) {
                 intersect: false,
             },
         },
-        plugins: [ChartUtils.getCrosshairPlugin(), ChartUtils.getStrictProximityPlugin()]
+        plugins: [ChartUtils.getCrosshairPlugin()]
     });
 
     // Add mouseout event listener to clear crosshair and tooltip with flickering fix
@@ -2539,8 +2445,6 @@ function mergeGraphs(chartType, panelId = -1) {
             timeoutId = setTimeout(() => {
                 if (isMouseOut) {
                     mergedLineChart.crosshair = null;
-                    mergedLineChart.tooltip.setActiveElements([]);
-                    ChartUtils.setActiveTooltip({ datasetIndex: -1, pointIndex: -1, distance: Infinity });
                     mergedLineChart.draw();
                 }
             }, 50);
@@ -2555,6 +2459,7 @@ function mergeGraphs(chartType, panelId = -1) {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         mergedLineChart.crosshair = { x, y };
+        mergedLineChart.draw();
     };
 
     canvasElement.addEventListener('mouseout', handleMouseOut);

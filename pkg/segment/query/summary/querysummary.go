@@ -81,6 +81,7 @@ type QuerySummary struct {
 	qid                         uint64
 	ticker                      *time.Ticker
 	tickerStopChan              chan bool
+	stoppedTicker               bool
 	startTime                   time.Time
 	rawSearchTime               time.Duration
 	queryTotalTime              time.Duration
@@ -102,11 +103,20 @@ type QuerySummary struct {
 	numBuckets                  int
 	remainingDistributedQueries uint64
 	totalDistributedQueries     uint64
+	tickCount                   uint32
 }
+
+const TICK_DURATION_SECS = 10
+
+var numTicksInFiveMins = uint32(5 * 60 / TICK_DURATION_SECS)
+var numTicksInTwoMins = uint32(2 * 60 / TICK_DURATION_SECS)
+
+var activeQSCountForLogs int64
+var activeQSCountForMetrics int64
 
 // InitQuerySummary returns a struct to store query level search stats.
 // This function starts a ticker to log info about long running queries.
-// Caller is responsible for calling LogSummary() function to stop the ticker.
+// The caller must eventually call Cleanup() to avoid a goroutine leak.
 func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 	lock := &sync.Mutex{}
 	rawSearchTypeSummary := &searchTypeSummary{}
@@ -130,57 +140,102 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 			allTimes: make([]time.Duration, 0),
 		},
 		remainingDistributedQueries: 0,
+		tickCount:                   0,
 	}
+	if queryType == METRICS {
+		atomic.AddInt64(&activeQSCountForMetrics, 1)
+	} else {
+		atomic.AddInt64(&activeQSCountForLogs, 1)
+	}
+
 	qs.startTicker()
 	return qs
 }
 
+func (qs *QuerySummary) Cleanup() {
+	qs.stopTicker()
+}
+
 func (qs *QuerySummary) startTicker() {
-	qs.ticker = time.NewTicker(10 * time.Second)
+	qs.ticker = time.NewTicker(TICK_DURATION_SECS * time.Second)
 	qs.tickerStopChan = make(chan bool)
 	go qs.tickWatcher()
 }
 
 func (qs *QuerySummary) stopTicker() {
-	if qs.ticker != nil {
-		qs.ticker.Stop()
-		close(qs.tickerStopChan)
+	if !qs.stoppedTicker {
+		qs.stoppedTicker = true
+
+		if qs.ticker != nil {
+			qs.ticker.Stop()
+		}
+		if qs.tickerStopChan != nil {
+			close(qs.tickerStopChan)
+		}
 	}
 }
 
 func (qs *QuerySummary) tickWatcher() {
-	defer func() {
-		qs.ticker.Stop()
-		qs.ticker = nil
-		qs.tickerStopChan = nil
-	}()
 	for {
 		select {
 		case <-qs.tickerStopChan:
+			if qs.queryType == METRICS {
+				atomic.AddInt64(&activeQSCountForMetrics, ^int64(0))
+			} else {
+				atomic.AddInt64(&activeQSCountForLogs, ^int64(0))
+			}
+
+			if qs.ticker != nil {
+				qs.ticker.Stop()
+				qs.ticker = nil
+			}
+			qs.tickerStopChan = nil
+
 			return
 		case <-qs.ticker.C:
-			if qs.queryType == LOGS {
-				remainingDQsString := ""
-				var addDistributedInfo bool
-				if hook := hooks.GlobalHooks.ShouldAddDistributedInfoHook; hook != nil {
-					addDistributedInfo = hook()
-				}
-
-				if addDistributedInfo {
-					remainingDQsString = fmt.Sprintf(", remaining distributed queries: %v", qs.remainingDistributedQueries)
-				}
-
-				log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v", qs.qid, time.Since(qs.startTime),
-					len(qs.allQuerySummaries[PQS].searchTimeHistory),
-					len(qs.allQuerySummaries[RAW].searchTimeHistory),
-					len(qs.allQuerySummaries[STREE].searchTimeHistory),
-					remainingDQsString)
-			} else if qs.queryType == METRICS {
-				log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v",
-					qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
-					qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded())
-			}
+			qs.tickCount++
+			qs.processTick()
 		}
+	}
+}
+
+func (qs *QuerySummary) processTick() {
+
+	logIt := false
+	if qs.tickCount < numTicksInFiveMins {
+		// we log only in the first 5 minutes with the TICK_DURATION_SECS granularity
+		logIt = true
+	} else if qs.tickCount%numTicksInTwoMins == 0 {
+		// after the first 5 mins, we will log only every 2 minutes
+		logIt = true
+	}
+
+	if !logIt {
+		return
+	}
+
+	if qs.queryType == LOGS {
+		remainingDQsString := ""
+		var addDistributedInfo bool
+		if hook := hooks.GlobalHooks.ShouldAddDistributedInfoHook; hook != nil {
+			addDistributedInfo = hook()
+		}
+
+		if addDistributedInfo {
+			remainingDQsString = fmt.Sprintf(", remaining distributed queries: %v", qs.remainingDistributedQueries)
+		}
+
+		log.Infof("qid=%d, still executing. Time Elapsed (%v), files so far: PQS: %v, RAW: %v, STREE: %v%v, activeQSCountForLogs: %v",
+			qs.qid, time.Since(qs.startTime),
+			len(qs.allQuerySummaries[PQS].searchTimeHistory),
+			len(qs.allQuerySummaries[RAW].searchTimeHistory),
+			len(qs.allQuerySummaries[STREE].searchTimeHistory),
+			remainingDQsString,
+			activeQSCountForLogs)
+	} else if qs.queryType == METRICS {
+		log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
+			qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
+			qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), activeQSCountForMetrics)
 	}
 }
 
@@ -596,7 +651,7 @@ func (qs *QuerySummary) LogSummaryAndEmitMetrics(qid uint64, pqid string, contai
 	}
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)
-	qs.stopTicker()
+	qs.Cleanup()
 }
 
 func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
@@ -615,7 +670,7 @@ func (qs *QuerySummary) LogMetricsQuerySummary(orgid int64) {
 	log.Warnf("qid=%d, MetricsQuerySummary: Across %d TSG Files: min (%.3fms) max (%.3fms) avg (%.3fms) p95(%.3fms)", qs.qid, qs.getNumTSGFilesLoaded(), getMinSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), getMaxSearchTimeFromArr(qs.metricsQuerySummary.timeLoadingTSGFiles), avgTimeLoadingTSGFiles, getPercentileTimeFromArr(95, qs.metricsQuerySummary.timeLoadingTSGFiles))
 
 	uStats.UpdateQueryStats(1, float64(qs.getQueryTotalTime().Milliseconds()), orgid)
-	qs.stopTicker()
+	qs.Cleanup()
 }
 
 func (qs *QuerySummary) UpdateRemainingDistributedQueries(remainingDistributedQueries uint64) {

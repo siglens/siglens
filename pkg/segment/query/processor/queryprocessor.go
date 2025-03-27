@@ -70,6 +70,8 @@ func (qp *QueryProcessor) Cleanup() {
 	for _, dp := range qp.chain {
 		go dp.Cleanup()
 	}
+
+	qp.querySummary.Cleanup()
 }
 
 func (qp *QueryProcessor) GetChainedDataProcessors() []*DataProcessor {

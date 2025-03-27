@@ -959,15 +959,16 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32
 	return compressed, compLen, nil
 }
 
-func WriteRunningSegMeta(segKey string, rsm *structs.SegMeta) {
+func WriteRunningSegMeta(rsm *structs.SegMeta) {
 
 	segFullMeta := &structs.SegFullMeta{
 		SegMeta:     rsm,
 		ColumnNames: rsm.ColumnNames,
 		AllPQIDs:    rsm.AllPQIDs,
+		UploadedSeg: false,
 	}
 
-	writeSfm(segKey, segFullMeta)
+	WriteSfm(segFullMeta)
 }
 
 func GetUnrotatedVTableCounts(vtable string, orgid int64) (uint64, int, uint64, map[string]struct{}) {
