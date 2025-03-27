@@ -189,8 +189,6 @@ func (qs *QuerySummary) tickWatcher() {
 				qs.ticker.Stop()
 				qs.ticker = nil
 			}
-			qs.tickerStopChan = nil
-
 			return
 		case <-qs.ticker.C:
 			qs.tickCount++
