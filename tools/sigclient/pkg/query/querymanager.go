@@ -195,7 +195,7 @@ func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
 
 	for _, template := range qm.templates {
 		seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
-		seconds = max(seconds, 1) // Ensure at least 1 second spacing to avoid burst of queries.
+		seconds = max(seconds, 1)
 
 		for i := 0; i < template.maxInProgress; i++ {
 			validator := template.validator.Copy()
