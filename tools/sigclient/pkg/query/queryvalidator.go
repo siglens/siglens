@@ -42,6 +42,67 @@ type queryValidator interface {
 	Info() string
 }
 
+type filter interface {
+	Matches(map[string]interface{}) bool
+	String() string
+}
+
+type kvFilter struct {
+	key   string
+	value stringOrRegex
+}
+
+func Filter(key string, value string) (filter, error) {
+	// Don't allow matching literal asterisks.
+	if strings.Contains(value, "\\*") {
+		return nil, fmt.Errorf("Filter: matching literal asterisks is not implemented")
+	}
+
+	finalValue := stringOrRegex{isRegex: false, rawString: value}
+	if strings.Contains(finalValue.rawString, "*") {
+		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
+		s = fmt.Sprintf("^%v$", s)
+		regex, err := regexp.Compile(s)
+		if err != nil {
+			return nil, fmt.Errorf("Filter: invalid regex %v; err=%v", finalValue.rawString, err)
+		}
+
+		finalValue.isRegex = true
+		finalValue.regex = *regex
+	}
+	return &kvFilter{
+		key:   key,
+		value: finalValue,
+	}, nil
+}
+
+func (kv *kvFilter) Matches(log map[string]interface{}) bool {
+	value, ok := log[kv.key]
+	if !ok {
+		return false
+	}
+
+	return kv.value.Matches(fmt.Sprintf("%v", value))
+}
+
+func (kv kvFilter) String() string {
+	return fmt.Sprintf(`%v="%v"`, kv.key, kv.value)
+}
+
+type matchAllFilter struct{}
+
+func MatchAll() filter {
+	return &matchAllFilter{}
+}
+
+func (m *matchAllFilter) Matches(log map[string]interface{}) bool {
+	return true
+}
+
+func (m matchAllFilter) String() string {
+	return "*"
+}
+
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
@@ -63,8 +124,7 @@ func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 
 type filterQueryValidator struct {
 	basicValidator
-	key     string
-	value   stringOrRegex
+	filter  filter
 	sortCol string
 	head    int
 	results []map[string]interface{} // Sorted descending by sortCol.
@@ -77,6 +137,10 @@ type stringOrRegex struct {
 	regex     regexp.Regexp
 }
 
+func (s stringOrRegex) String() string {
+	return s.rawString
+}
+
 func (s *stringOrRegex) Matches(value string) bool {
 	if s.isRegex {
 		return s.regex.MatchString(value)
@@ -85,7 +149,7 @@ func (s *stringOrRegex) Matches(value string) bool {
 	return value == s.rawString
 }
 
-func NewFilterQueryValidator(key string, value string, numericSortCol string, head int,
+func NewFilterQueryValidator(filter filter, numericSortCol string, head int,
 	startEpoch uint64, endEpoch uint64) (queryValidator, error) {
 
 	if head < 1 || head > 99 {
@@ -96,32 +160,14 @@ func NewFilterQueryValidator(key string, value string, numericSortCol string, he
 		return nil, fmt.Errorf("NewFilterQueryValidator: head must be between 1 and 99 inclusive")
 	}
 
-	// Don't allow matching literal asterisks.
-	if strings.Contains(value, "\\*") {
-		return nil, fmt.Errorf("NewFilterQueryValidator: matching literal asterisks is not implemented")
-	}
-
-	finalValue := stringOrRegex{isRegex: false, rawString: value}
-	if strings.Contains(finalValue.rawString, "*") {
-		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
-		s = fmt.Sprintf("^%v$", s)
-		regex, err := regexp.Compile(s)
-		if err != nil {
-			return nil, fmt.Errorf("NewFilterQueryValidator: invalid regex %v; err=%v",
-				finalValue.rawString, err)
-		}
-
-		finalValue = stringOrRegex{isRegex: true, regex: *regex}
-	}
-
 	var query string
 	if numericSortCol == "" {
 		numericSortCol = timestampCol
-		query = fmt.Sprintf(`%v="%v" | head %v`, key, value, head)
+		query = fmt.Sprintf(`%v | head %v`, filter, head)
 	} else {
 		// Only sorting by numeric columns is supported for now.
 		// Sort so the highest values are first.
-		query = fmt.Sprintf(`%v="%v" | sort %v -num(%v)`, key, value, head, numericSortCol)
+		query = fmt.Sprintf(`%v | sort %v -num(%v)`, filter, head, numericSortCol)
 	}
 
 	return &filterQueryValidator{
@@ -130,8 +176,7 @@ func NewFilterQueryValidator(key string, value string, numericSortCol string, he
 			endEpoch:   endEpoch,
 			query:      query,
 		},
-		key:     key,
-		value:   finalValue,
+		filter:  filter,
 		sortCol: numericSortCol,
 		head:    head,
 		results: make([]map[string]interface{}, 0),
@@ -145,8 +190,7 @@ func (f *filterQueryValidator) Copy() queryValidator {
 			endEpoch:   f.endEpoch,
 			query:      f.query,
 		},
-		key:     f.key,
-		value:   f.value,
+		filter:  f.filter,
 		sortCol: f.sortCol,
 		head:    f.head,
 		results: make([]map[string]interface{}, 0),
@@ -167,8 +211,7 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 		return nil
 	}
 
-	value, ok := log[f.key]
-	if !ok || !f.value.Matches(fmt.Sprintf("%v", value)) {
+	if !f.filter.Matches(log) {
 		return nil
 	}
 
@@ -422,38 +465,21 @@ func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
 
 type countQueryValidator struct {
 	basicValidator
-	key        string
-	value      string
+	filter     filter
 	numMatches int
 	lock       sync.Mutex
 }
 
-func NewCountQueryValidator(key string, value string, startEpoch uint64,
+func NewCountQueryValidator(filter filter, startEpoch uint64,
 	endEpoch uint64) (queryValidator, error) {
-
-	var query string
-	if key == "*" {
-		if value == "*" {
-			query = `* | stats count`
-		} else {
-			return nil, fmt.Errorf("NewCountQueryValidator: value must be * if key is *")
-		}
-	} else {
-		if strings.Contains(value, "*") {
-			return nil, fmt.Errorf("NewCountQueryValidator: wildcards are not supported")
-		}
-
-		query = fmt.Sprintf(`%v="%v" | stats count`, key, value)
-	}
 
 	return &countQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      query,
+			query:      fmt.Sprintf("%v | stats count", filter),
 		},
-		key:        key,
-		value:      value,
+		filter:     filter,
 		numMatches: 0,
 	}, nil
 }
@@ -465,8 +491,7 @@ func (c *countQueryValidator) Copy() queryValidator {
 			endEpoch:   c.endEpoch,
 			query:      c.query,
 		},
-		key:        c.key,
-		value:      c.value,
+		filter:     c.filter,
 		numMatches: c.numMatches,
 	}
 }
@@ -483,11 +508,8 @@ func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
 		return nil
 	}
 
-	if c.key != "*" {
-		value, ok := log[c.key]
-		if !ok || value != fmt.Sprintf("%v", c.value) {
-			return nil
-		}
+	if !c.filter.Matches(log) {
+		return nil
 	}
 
 	c.lock.Lock()
