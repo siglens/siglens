@@ -132,6 +132,9 @@ func (df *dynamicFilter) Matches(log map[string]interface{}) bool {
 }
 
 func (df *dynamicFilter) setFrom(log map[string]interface{}) {
+	// Choose a random key=value pair from the log to filter on. Currently,
+	// the validator only supports string values. Map iterations in Go are
+	// nondeterministic, so we should get a variety of keys over time.
 	for key, value := range log {
 		switch v := value.(type) {
 		case string:
