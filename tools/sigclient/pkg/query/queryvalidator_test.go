@@ -644,6 +644,70 @@ func Test_dynamicFilter_setFrom(t *testing.T) {
 	assert.Equal(t, `*`, fmt.Sprintf("%v", df))
 }
 
+func Test_dynamicFilter_query(t *testing.T) {
+	logs := []map[string]interface{}{
+		{"city": "Boston", "timestamp": uint64(1), "age": 30},
+		{"city": "Boston", "timestamp": uint64(2), "age": 36},
+		{"city": "New York", "timestamp": uint64(3), "age": 22},
+		{"city": "Boston", "timestamp": uint64(4), "age": 22},
+		{"city": "Boston", "timestamp": uint64(5), "latency": 100},
+	}
+
+	t.Run("RawLogs", func(t *testing.T) {
+		head, startEpoch, endEpoch := 10, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator(&dynamicFilter{}, "", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// Based on the logs above, the only valid concrete filter for the
+		// dynamic filter is city=Boston.
+		query, _, _ := validator.GetQuery()
+		assert.Equal(t, `city="Boston" | head 10`, query)
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
+	})
+
+	t.Run("Count", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator(&dynamicFilter{}, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// Based on the logs above, the only valid concrete filter for the
+		// dynamic filter is city=Boston.
+		query, _, _ := validator.GetQuery()
+		assert.Equal(t, `city="Boston" | stats count`, query) // The count query should not have a head in it.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+				"GroupByValues": ["*"],
+				"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+	})
+
+}
+
 func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
 	t.Helper()
 
