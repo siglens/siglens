@@ -339,6 +339,11 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 		return seriesId, fmt.Errorf("applyLabelReplace: labelFunction is nil")
 	}
 
+	if labelFunction.SourceLabel == "" {
+		seriesId = fmt.Sprintf("%s,%s:%s", seriesId, labelFunction.DestinationLabel, labelFunction.Replacement.NameBasedVal)
+		return seriesId, nil
+	}
+
 	_, values := ExtractGroupByFieldsFromSeriesId(seriesId, []string{labelFunction.SourceLabel})
 	if len(values) == 0 {
 		return seriesId, nil
