@@ -40,6 +40,8 @@ type queryValidator interface {
 	MatchesResult(jsonResult []byte) error
 	PastEndTime(timestamp uint64) bool
 	Info() string
+	WithAllowAllStartTimes() queryValidator
+	AllowsAllStartTimes() bool
 }
 
 type filter interface {
@@ -169,6 +171,11 @@ func (df *dynamicFilter) Copy() filter {
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
+
+	// If true, the start time may be before the test was started. So
+	// validation should be less strict because the system may have preexisting
+	// data that this validator doesn't know about.
+	allowAllStartTimes bool
 }
 
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
@@ -178,6 +185,10 @@ func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
 
 func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 	return timestamp > b.endEpoch
+}
+
+func (b *basicValidator) AllowsAllStartTimes() bool {
+	return b.allowAllStartTimes
 }
 
 type filterQueryValidator struct {
@@ -340,6 +351,11 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+func (f *filterQueryValidator) WithAllowAllStartTimes() queryValidator {
+	f.allowAllStartTimes = true
+	return f
 }
 
 type logsResponse struct {
@@ -569,6 +585,11 @@ func (c *countQueryValidator) Info() string {
 
 	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
 		query, duration, startEpoch, endEpoch, c.numMatches)
+}
+
+func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
+	c.allowAllStartTimes = true
+	return c
 }
 
 func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
