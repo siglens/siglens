@@ -37,6 +37,7 @@ type QueryTemplate struct {
 
 type queryManager struct {
 	templates         []*QueryTemplate
+	setupOnce         sync.Once
 	inProgressQueries []queryValidator
 	runnableQueries   []queryValidator
 	runnableLock      sync.Mutex
@@ -121,6 +122,7 @@ func (qm *queryManager) logStatsOnInterval(interval time.Duration) {
 }
 
 func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}) {
+	qm.setupOnce.Do(func() { qm.addInitialQueries(logs) })
 	qm.addInProgessQueries()
 	qm.sendToValidators(logs)
 
@@ -180,6 +182,43 @@ func (qm *queryManager) moveToRunnable(epoch uint64) {
 			}(validator)
 		}
 	}
+}
+
+func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
+	firstEpoch, ok := qm.getFirstEpoch(logs)
+	if !ok {
+		log.Warnf("queryManager.addInitialQueries: no logs found to determine first epoch")
+		return
+	}
+
+	startEpochMs := firstEpoch
+
+	for _, template := range qm.templates {
+		seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
+		seconds = max(seconds, 1) // Ensure at least 1 second spacing to avoid burst of queries.
+
+		for i := 0; i < template.maxInProgress; i++ {
+			validator := template.validator.Copy()
+			endEpochMs := startEpochMs + uint64((i+1)*int(seconds)*1000)
+			validator.SetTimeRange(startEpochMs, endEpochMs)
+
+			qm.inProgressQueries = append(qm.inProgressQueries, validator)
+		}
+	}
+}
+
+func (qm *queryManager) getFirstEpoch(logs []map[string]interface{}) (uint64, bool) {
+	if len(logs) == 0 {
+		return 0, false
+	}
+
+	firstLog := logs[0]
+	timestamp, ok := firstLog[timestampCol]
+	if !ok {
+		return 0, false
+	}
+
+	return utils.AsUint64(timestamp)
 }
 
 func (qm *queryManager) getLastEpoch(logs []map[string]interface{}) (uint64, bool) {
