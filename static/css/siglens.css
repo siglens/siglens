@@ -5641,8 +5641,7 @@ p#versionInfo {
 #app-side-nav .menu:hover .link-usq,
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
-#app-side-nav .menu:hover .link-lookups
-/* #app-side-nav .menu:hover .link-infrastructure  */{
+#app-side-nav .menu:hover .link-lookups{
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -5652,8 +5651,7 @@ p#versionInfo {
 #app-side-nav .menu.active .link-usq,
 #app-side-nav .menu.active .link-myorg,
 #app-side-nav .menu.active .link-ldb,
-#app-side-nav .menu.active .link-lookups
-/* #app-side-nav .menu.active .link-infrastructure*/ {
+#app-side-nav .menu.active .link-lookups {
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     background-color: var(--side-nav-bg-color-selected);
 }
@@ -5714,7 +5712,6 @@ p#versionInfo {
 .ingestion-dropdown,
 .alerts-dropdown,
 .infrastructure-dropdown{
-/* .kubernetes-dropdown { */
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -5733,7 +5730,6 @@ p#versionInfo {
 .ingestion-dropdown a,
 .alerts-dropdown a,
 .infrastructure-dropdown a{
-/* .kubernetes-dropdown a { */
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -5745,7 +5741,6 @@ p#versionInfo {
 .ingestion-dropdown li,
 .alerts-dropdown li,
 .infrastructure-dropdown li{
-/* .kubernetes-dropdown li { */
     margin-bottom: 2px;
     margin-bottom: 2px;
     font-weight: 500;
@@ -5763,7 +5758,6 @@ p#versionInfo {
 .ingestion-dropdown li:hover,
 .alerts-dropdown li:hover,
 .infrastructure-dropdown li:hover{
-/* .kubernetes-dropdown li:hover { */
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
@@ -5776,7 +5770,6 @@ p#versionInfo {
 .ingestion-dropdown li.active,
 .alerts-dropdown li.active,
 .infrastructure-dropdown li.active{
-/* .kubernetes-dropdown li.active { */
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -5792,89 +5785,6 @@ p#versionInfo {
 .nav-dropdown-icon.rotated {
     transform: rotate(180deg) !important;
 }
-
-/* Infrastructure dropdown styles */
-/* #app-side-nav .nav-infrastructure .infrastructure-section-dropdown {
-    position: relative;
-} */
-
-#app-side-nav .nav-infrastructure .infrastructure-section-dropdown {
-    position: static; /* Change from relative to static */
-}
-
-#app-side-nav .nav-infrastructure .infrastructure-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    min-height: 28px;
-    cursor: pointer;
-}
-
-#app-side-nav .nav-infrastructure .infrastructure-section-header:hover {
-    background-color: var(--side-nav-bg-color-selected);
-}
-
-.kubernetes-submenu {
-    display: none;
-    padding-left: 16px;
-    position: relative;
-    width: 100%;
-    margin-top: 4px;
-    background: inherit;
-}
-
-.kubernetes-submenu {
-    display: none;
-    padding-left: 0; /* Remove left padding */
-    position: static; /* Change from relative to static */
-    width: 100%;
-    margin-top: 4px;
-    background: inherit;
-}
-
-.nav-dropdown-icon.kubernetes-rotated {
-    transform: rotate(90deg);
-    transition: transform 0.2s ease;
-}
-
-.kubernetes-submenu a {
-    color: var(--navbar-link-text) !important;
-    text-decoration: none;
-    /* display: block; */
-    /* padding-left: 10px; */
-}
-
-.kubernetes-submenu li {
-    padding: 8px 12px 8px 24px;
-    margin-bottom: 2px;
-    font-weight: 500;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    border-left: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-}
-
-
-.kubernetes-submenu li:hover {
-    color: white !important;
-    border-right: 5px solid var(--side-nav-bg-color-selected);
-    background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-}
-
-.kubernetes-submenu li.active {
-    color: white !important;
-    border-left: 5px solid var(--side-nav-selected-border-color) !important;
-    background-color: var(--side-nav-bg-color-selected) !important;
-    border-radius: 0 5px 5px 0 !important;
-}
-
-.nav-dropdown-icon.kubernetes-rotated {
-    transform: rotate(180deg) !important;
-}
-
 
 .help-options .help-links:hover {
     background-color: var(--purple-1);
