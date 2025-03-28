@@ -5794,8 +5794,12 @@ p#versionInfo {
 }
 
 /* Infrastructure dropdown styles */
-#app-side-nav .nav-infrastructure .infrastructure-section-dropdown {
+/* #app-side-nav .nav-infrastructure .infrastructure-section-dropdown {
     position: relative;
+} */
+
+#app-side-nav .nav-infrastructure .infrastructure-section-dropdown {
+    position: static; /* Change from relative to static */
 }
 
 #app-side-nav .nav-infrastructure .infrastructure-section-header {
@@ -5820,6 +5824,15 @@ p#versionInfo {
     background: inherit;
 }
 
+.kubernetes-submenu {
+    display: none;
+    padding-left: 0; /* Remove left padding */
+    position: static; /* Change from relative to static */
+    width: 100%;
+    margin-top: 4px;
+    background: inherit;
+}
+
 .nav-dropdown-icon.kubernetes-rotated {
     transform: rotate(90deg);
     transition: transform 0.2s ease;
@@ -5829,7 +5842,7 @@ p#versionInfo {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     /* display: block; */
-    padding-left: 10px;
+    /* padding-left: 10px; */
 }
 
 .kubernetes-submenu li {
@@ -5842,6 +5855,7 @@ p#versionInfo {
     border-left: 5px solid transparent;
     border-radius: 0 5px 5px 0;
 }
+
 
 .kubernetes-submenu li:hover {
     color: white !important;
