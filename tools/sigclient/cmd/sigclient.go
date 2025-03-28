@@ -583,9 +583,9 @@ var longevityCmd = &cobra.Command{
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)), 3600, 10),
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)), 6*3600, 100),
 			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 10, 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 100, 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 100, 0, 0)), 3600, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 100, 0, 0)), 6*3600, 100),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 50, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 50, 0, 0)), 3600, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "latency_c1", 50, 0, 0)), 6*3600, 100),
 		}
 		maxConcurrentQueries := int32(1)
 		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl, failOnError)
