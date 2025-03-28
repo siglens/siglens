@@ -136,12 +136,20 @@ const darkStyles = {
 };
 
 $(document).ready(() => {
-    // Get saved time range from cookies if available, specific to dependency graph
-    let stDate = Cookies.get('dependency_startEpoch') || 'now-1h';
-    let endDate = Cookies.get('dependency_endEpoch') || 'now';
-    let label = Cookies.get('dependency_timeRangeLabel') || stDate;
+    // Get time range from URL parameters or default to 1 hour
+    const urlParams = new URLSearchParams(window.location.search);
+    let stDate = urlParams.get('startEpoch') || 'now-1h';
+    let endDate = urlParams.get('endEpoch') || 'now';
 
-    datePickerHandler(stDate, endDate, label);
+    // Update URL with default parameters if not present
+    if (!urlParams.has('startEpoch') || !urlParams.has('endEpoch')) {
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('startEpoch', stDate);
+        newUrl.searchParams.set('endEpoch', endDate);
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    datePickerHandler(stDate, endDate, stDate);
     setupDependencyEventHandlers();
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -176,14 +184,14 @@ function rangeItemHandler(evt) {
     $(evt.currentTarget).addClass('active');
     const start = $(this).attr('id');
     const end = 'now';
-    const label = $(this).attr('id');
 
-    // Save selected range to cookies with dependency-specific names
-    Cookies.set('dependency_startEpoch', start);
-    Cookies.set('dependency_endEpoch', end);
-    Cookies.set('dependency_timeRangeLabel', label);
+    // Update URL parameters when time range changes
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('startEpoch', start);
+    newUrl.searchParams.set('endEpoch', end);
+    window.history.pushState({}, '', newUrl);
 
-    datePickerHandler(start, end, label);
+    datePickerHandler(start, end, start);
     getServiceDependencyData(start, end);
 }
 
