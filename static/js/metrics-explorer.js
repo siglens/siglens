@@ -3608,6 +3608,7 @@ function setupRawQueryKeyboardHandlers() {
     $(document).off('keydown.rawQuerySearch', '.raw-query-input');
     
     $(document).on('keydown.rawQuerySearch', '.raw-query-input', function(event) {
+        // Check if Enter key is pressed
         if (event.key === 'Enter') {
             // If Shift key is also pressed (new line)
             if (event.shiftKey) {
