@@ -45,6 +45,7 @@ type queryValidator interface {
 type filter interface {
 	Matches(map[string]interface{}) bool
 	String() string
+	Copy() filter
 }
 
 type kvFilter struct {
@@ -89,6 +90,13 @@ func (kv kvFilter) String() string {
 	return fmt.Sprintf(`%v="%v"`, kv.key, kv.value)
 }
 
+func (kv *kvFilter) Copy() filter {
+	return &kvFilter{
+		key:   kv.key,
+		value: kv.value,
+	}
+}
+
 type matchAllFilter struct{}
 
 func MatchAll() filter {
@@ -101,6 +109,10 @@ func (m *matchAllFilter) Matches(log map[string]interface{}) bool {
 
 func (m matchAllFilter) String() string {
 	return "*"
+}
+
+func (m *matchAllFilter) Copy() filter {
+	return &matchAllFilter{}
 }
 
 type dynamicFilter struct {
@@ -141,6 +153,14 @@ func (df *dynamicFilter) String() string {
 	}
 
 	return df.filter.String()
+}
+
+func (df *dynamicFilter) Copy() filter {
+	if df.filter != nil {
+		return df.filter.Copy()
+	}
+
+	return &dynamicFilter{}
 }
 
 type basicValidator struct {
@@ -230,7 +250,7 @@ func (f *filterQueryValidator) Copy() queryValidator {
 			startEpoch: f.startEpoch,
 			endEpoch:   f.endEpoch,
 		},
-		filter:  f.filter,
+		filter:  f.filter.Copy(),
 		sortCol: f.sortCol,
 		head:    f.head,
 		results: make([]map[string]interface{}, 0),
@@ -535,7 +555,7 @@ func (c *countQueryValidator) Copy() queryValidator {
 			startEpoch: c.startEpoch,
 			endEpoch:   c.endEpoch,
 		},
-		filter:     c.filter,
+		filter:     c.filter.Copy(),
 		numMatches: c.numMatches,
 	}
 }
