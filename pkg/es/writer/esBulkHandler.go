@@ -20,6 +20,7 @@ package writer
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +28,7 @@ import (
 	jp "github.com/buger/jsonparser"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
@@ -469,6 +471,29 @@ func ProcessDeleteIndex(ctx *fasthttp.RequestCtx, myid int64) {
 		ctx.SetStatusCode(fasthttp.StatusOK)
 		responseBody["message"] = "Index deleted successfully"
 		utils.WriteJsonResponse(ctx, responseBody)
+	}
+
+	// Audit log
+	username := "No-user" // TODO: Add logged in user when user auth is implemented
+	var orgId int64
+	var err error
+	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
+		orgId, err = hook(ctx)
+		if err != nil {
+			log.Errorf("ProcessDeleteIndex: failed to extract orgId from context. Err=%+v", err)
+			utils.SetBadMsg(ctx, "")
+			return
+		}
+	}
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Deleted index"
+	extraMsg := fmt.Sprintf("Index Name: %s", inIndexName)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	if err != nil {
+		log.Errorf("ProcessDeleteIndex: failed to create audit event. Err=%+v", err)
+		utils.SetBadMsg(ctx, "")
+		return
 	}
 }
 
