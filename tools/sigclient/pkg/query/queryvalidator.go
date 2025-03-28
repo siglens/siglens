@@ -103,6 +103,46 @@ func (m matchAllFilter) String() string {
 	return "*"
 }
 
+type dynamicFilter struct {
+	filter filter
+}
+
+func DynamicFilter() filter {
+	return &dynamicFilter{}
+}
+
+func (df *dynamicFilter) Matches(log map[string]interface{}) bool {
+	if df.filter == nil {
+		df.setFrom(log)
+	}
+
+	return df.filter.Matches(log)
+}
+
+func (df *dynamicFilter) setFrom(log map[string]interface{}) {
+	for key, value := range log {
+		switch v := value.(type) {
+		case string:
+			df.filter = &kvFilter{
+				key:   key,
+				value: stringOrRegex{isRegex: false, rawString: v},
+			}
+
+			return
+		}
+	}
+
+	df.filter = MatchAll()
+}
+
+func (df *dynamicFilter) String() string {
+	if df.filter == nil {
+		return "unset"
+	}
+
+	return df.filter.String()
+}
+
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64

@@ -634,6 +634,16 @@ func Test_filterToString(t *testing.T) {
 	assert.Equal(t, `*`, fmt.Sprintf("%v", filter))
 }
 
+func Test_dynamicFilter_setFrom(t *testing.T) {
+	df := &dynamicFilter{}
+
+	df.setFrom(map[string]interface{}{"city": "New York"})
+	assert.Equal(t, `city="New York"`, fmt.Sprintf("%v", df))
+
+	df.setFrom(map[string]interface{}{"city": 123}) // No string values.
+	assert.Equal(t, `*`, fmt.Sprintf("%v", df))
+}
+
 func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
 	t.Helper()
 
