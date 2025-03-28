@@ -198,13 +198,13 @@ func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
 			continue
 		}
 
-		startEpochMs := firstEpoch
 		seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
 		seconds = max(seconds, 1)
 
 		for i := 0; i < template.maxInProgress; i++ {
 			validator := template.validator.Copy()
 
+			startEpochMs := firstEpoch
 			endEpochMs := startEpochMs + uint64((i+1)*int(seconds)*1000)
 			if validator.AllowsAllStartTimes() {
 				startEpochMs = endEpochMs - uint64(template.timeRangeSeconds*1000)
