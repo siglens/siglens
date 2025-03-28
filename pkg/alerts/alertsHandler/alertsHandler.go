@@ -27,6 +27,7 @@ import (
 	"github.com/google/uuid"
 	alertsqlite "github.com/siglens/siglens/pkg/alerts/alertsqlite"
 	"github.com/siglens/siglens/pkg/ast/pipesearch"
+	"github.com/siglens/siglens/pkg/audit"
 	"github.com/siglens/siglens/pkg/integrations/prometheus/promql"
 	"gorm.io/gorm"
 
@@ -178,6 +179,15 @@ func ProcessCreateAlertRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 		utils.SendError(ctx, fmt.Sprintf("Failed to add CronJob for alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertDataObj.AlertName), err)
 		return
 	}
+
+	username := "DummyUsername"
+	var orgId int64
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Create the alert"
+	extraMsg := fmt.Sprintf("Alert Name: %s, Alert ID: %s", alertToBeCreated.AlertName, alertDataObj.AlertId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	checkError(err)
 
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully created an alert"
@@ -453,6 +463,14 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	username := "DummyUsername"
+	var orgId int64
+	epochTimestampSec := time.Now().Unix()
+	actionString := " Update the alert"
+	extraMsg := fmt.Sprintf("Alert Name: %s, Alert ID: %s", alertToBeUpdated.AlertName, alertToBeUpdated.AlertId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	checkError(err)
 	responseBody["message"] = "Alert updated successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -522,6 +540,15 @@ func ProcessDeleteAlertRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	username := "DummyUsername"
+	var orgId int64
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Delete the alert"
+	extraMsg := fmt.Sprintf("Alert Name: %s, Alert ID: %s", alertToBeRemoved.AlertName, alertToBeRemoved.AlertId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	checkError(err)
+
 	responseBody["message"] = "Alert deleted successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -551,6 +578,16 @@ func ProcessCreateContactRequest(ctx *fasthttp.RequestCtx, org_id int64) {
 		utils.SendError(ctx, fmt.Sprintf("Failed to create contact. Error=%v", err), fmt.Sprintf("contact name: %v", contactToBeCreated.ContactName), err)
 		return
 	}
+
+	username := "DummyUsername"
+	var orgId int64
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Create the contact"
+	extraMsg := fmt.Sprintf("Contact Name: %s, Contact ID: %s", contactToBeCreated.ContactName, contactToBeCreated.ContactId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	checkError(err)
+
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	responseBody["message"] = "Successfully created a contact point"
 	utils.WriteJsonResponse(ctx, responseBody)
@@ -597,6 +634,16 @@ func ProcessUpdateContactRequest(ctx *fasthttp.RequestCtx) {
 		utils.SendError(ctx, fmt.Sprintf("Failed to update contact. Error=%v", err), fmt.Sprintf("contact name: %v", contactToBeUpdated.ContactName), err)
 		return
 	}
+
+	username := "DummyUsername"
+	var orgId int64
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Update the contact"
+	extraMsg := fmt.Sprintf("Contact Name: %s, Contact ID: %s", contactToBeUpdated.ContactName, contactToBeUpdated.ContactId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	checkError(err)
+
 	responseBody["message"] = "Contact details updated successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
 	ctx.SetStatusCode(fasthttp.StatusOK)
@@ -627,6 +674,15 @@ func ProcessDeleteContactRequest(ctx *fasthttp.RequestCtx) {
 		utils.SendError(ctx, fmt.Sprintf("Failed to delete contact. Error=%v", err), fmt.Sprintf("contact ID: %v", contact.ContactId), err)
 		return
 	}
+
+	username := "DummyUsername"
+	var orgId int64
+	epochTimestampSec := time.Now().Unix()
+	actionString := "Delete the contact"
+	extraMsg := fmt.Sprintf("Contact Name: %s, Contact ID: %s", contact.ContactName, contact.ContactId)
+
+	err = audit.CreateAuditEvent(username, actionString, extraMsg, epochTimestampSec, orgId)
+	checkError(err)
 
 	responseBody["message"] = "Contact point deleted successfully"
 	utils.WriteJsonResponse(ctx, responseBody)
@@ -777,4 +833,10 @@ func ProcessGetMinionSearchRequest(ctx *fasthttp.RequestCtx) {
 	responseBody["minionsearch"] = msearch
 	ctx.SetStatusCode(fasthttp.StatusOK)
 	utils.WriteJsonResponse(ctx, responseBody)
+}
+
+func checkError(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
