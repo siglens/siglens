@@ -276,8 +276,13 @@ func (f *filterQueryValidator) Info() string {
 	numResults := min(len(f.results), f.head)
 	query, startEpoch, endEpoch := f.GetQuery()
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
-		query, duration, startEpoch, endEpoch, numResults)
+	validation := "strict"
+	if f.allowAllStartTimes {
+		validation = "minimal"
+	}
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), validation=%v, got %v matches",
+		query, duration, startEpoch, endEpoch, validation, numResults)
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
@@ -589,8 +594,13 @@ func (c *countQueryValidator) Info() string {
 	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
 	query, startEpoch, endEpoch := c.GetQuery()
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
-		query, duration, startEpoch, endEpoch, c.numMatches)
+	validation := "strict"
+	if c.allowAllStartTimes {
+		validation = "minimal"
+	}
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), validation=%v, got %v matches",
+		query, duration, startEpoch, endEpoch, validation, c.numMatches)
 }
 
 func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
