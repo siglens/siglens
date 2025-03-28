@@ -191,8 +191,6 @@ func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
 		return
 	}
 
-	startEpochMs := firstEpoch
-
 	for _, template := range qm.templates {
 		if template.maxInProgress <= 0 {
 			log.Warnf("queryManager.addInitialQueries: maxInProgress is 0 for template %v; skipping",
@@ -200,12 +198,17 @@ func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
 			continue
 		}
 
+		startEpochMs := firstEpoch
 		seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
 		seconds = max(seconds, 1)
 
 		for i := 0; i < template.maxInProgress; i++ {
 			validator := template.validator.Copy()
+
 			endEpochMs := startEpochMs + uint64((i+1)*int(seconds)*1000)
+			if validator.AllowsAllStartTimes() {
+				startEpochMs = endEpochMs - uint64(template.timeRangeSeconds*1000)
+			}
 			validator.SetTimeRange(startEpochMs, endEpochMs)
 
 			qm.inProgressQueries = append(qm.inProgressQueries, validator)

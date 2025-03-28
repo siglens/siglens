@@ -391,6 +391,12 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
 	}
 
+	if f.allowAllStartTimes {
+		// Skip the rest of the validation, since we're not sure what the
+		// expected result is.
+		return nil
+	}
+
 	numExpectedLogs := min(len(f.results), f.head)
 	if response.Hits.TotalMatched.Value != numExpectedLogs {
 		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
@@ -616,6 +622,12 @@ func (c *countQueryValidator) MatchesResult(result []byte) error {
 	response := logsResponse{}
 	if err := json.Unmarshal(result, &response); err != nil {
 		return fmt.Errorf("CQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
+	}
+
+	if c.allowAllStartTimes {
+		// Skip the rest of the validation, since we're not sure what the
+		// expected result is.
+		return nil
 	}
 
 	if response.Hits.TotalMatched.Value != c.numMatches {
