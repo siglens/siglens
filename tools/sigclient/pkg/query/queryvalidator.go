@@ -146,11 +146,6 @@ func (df *dynamicFilter) String() string {
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
-	query      string
-}
-
-func (b *basicValidator) GetQuery() (string, uint64, uint64) {
-	return b.query, b.startEpoch, b.endEpoch
 }
 
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
@@ -200,21 +195,14 @@ func NewFilterQueryValidator(filter filter, numericSortCol string, head int,
 		return nil, fmt.Errorf("NewFilterQueryValidator: head must be between 1 and 99 inclusive")
 	}
 
-	var query string
 	if numericSortCol == "" {
 		numericSortCol = timestampCol
-		query = fmt.Sprintf(`%v | head %v`, filter, head)
-	} else {
-		// Only sorting by numeric columns is supported for now.
-		// Sort so the highest values are first.
-		query = fmt.Sprintf(`%v | sort %v -num(%v)`, filter, head, numericSortCol)
 	}
 
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      query,
 		},
 		filter:  filter,
 		sortCol: numericSortCol,
@@ -223,12 +211,24 @@ func NewFilterQueryValidator(filter filter, numericSortCol string, head int,
 	}, nil
 }
 
+func (f *filterQueryValidator) GetQuery() (string, uint64, uint64) {
+	var query string
+	if f.sortCol == timestampCol {
+		query = fmt.Sprintf(`%v | head %v`, f.filter, f.head)
+	} else {
+		// Only sorting by numeric columns is supported for now.
+		// Sort so the highest values are first.
+		query = fmt.Sprintf(`%v | sort %v -num(%v)`, f.filter, f.head, f.sortCol)
+	}
+
+	return query, f.startEpoch, f.endEpoch
+}
+
 func (f *filterQueryValidator) Copy() queryValidator {
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: f.startEpoch,
 			endEpoch:   f.endEpoch,
-			query:      f.query,
 		},
 		filter:  f.filter,
 		sortCol: f.sortCol,
@@ -240,9 +240,10 @@ func (f *filterQueryValidator) Copy() queryValidator {
 func (f *filterQueryValidator) Info() string {
 	duration := time.Duration(f.endEpoch-f.startEpoch) * time.Millisecond
 	numResults := min(len(f.results), f.head)
+	query, startEpoch, endEpoch := f.GetQuery()
 
 	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
-		f.query, duration, f.startEpoch, f.endEpoch, numResults)
+		query, duration, startEpoch, endEpoch, numResults)
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
@@ -517,11 +518,15 @@ func NewCountQueryValidator(filter filter, startEpoch uint64,
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v | stats count", filter),
 		},
 		filter:     filter,
 		numMatches: 0,
 	}, nil
+}
+
+func (c *countQueryValidator) GetQuery() (string, uint64, uint64) {
+	query := fmt.Sprintf("%v | stats count", c.filter)
+	return query, c.startEpoch, c.endEpoch
 }
 
 func (c *countQueryValidator) Copy() queryValidator {
@@ -529,7 +534,6 @@ func (c *countQueryValidator) Copy() queryValidator {
 		basicValidator: basicValidator{
 			startEpoch: c.startEpoch,
 			endEpoch:   c.endEpoch,
-			query:      c.query,
 		},
 		filter:     c.filter,
 		numMatches: c.numMatches,
@@ -538,9 +542,10 @@ func (c *countQueryValidator) Copy() queryValidator {
 
 func (c *countQueryValidator) Info() string {
 	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
+	query, startEpoch, endEpoch := c.GetQuery()
 
 	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
-		c.query, duration, c.startEpoch, c.endEpoch, c.numMatches)
+		query, duration, startEpoch, endEpoch, c.numMatches)
 }
 
 func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
