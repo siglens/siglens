@@ -296,6 +296,12 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 		return nil
 	}
 
+	if f.allowAllStartTimes {
+		// We're doing minimal validation, so don't update our expected
+		// results, to avoid unneeded computation.
+		return nil
+	}
+
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
