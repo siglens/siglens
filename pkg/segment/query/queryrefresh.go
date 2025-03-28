@@ -368,7 +368,7 @@ func syncSegMetaWithSegFullMeta(myId int64, allSegKeys map[string]struct{}) int 
 func readSegFullMetaFileAndPopulate(segKey string) (*segmetadata.SegmentMicroIndex, error) {
 	sfmData, err := writer.ReadSfm(segKey)
 	if err != nil {
-		return nil, fmt.Errorf("readSegFullMetaFileAndPopulate: Error in reading segfullmeta file, err:%v", err)
+		return nil, fmt.Errorf("readSegFullMetaFileAndPopulate: Error in reading segfullmeta file: %v, err: %v", segKey, err)
 	}
 
 	segMeta := sfmData.SegMeta

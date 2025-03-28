@@ -657,11 +657,13 @@ func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime, true)
 	if err != nil {
+		querySummary.Cleanup()
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
+		querySummary.Cleanup()
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
 	}
 

@@ -236,6 +236,7 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 	pqid := querytracker.GetHashForQuery(searchNode)
 	allSegFileResults, err := segresults.InitSearchResults(qc.SizeLimit, aggs, qType, qid)
 	if err != nil {
+		querySummary.Cleanup()
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitSearchResults! error %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
@@ -251,17 +252,16 @@ func InitQueryInfoAndSummary(searchNode *structs.SearchNode, timeRange *dtu.Time
 	queryInfo, err := InitQueryInformation(searchNode, aggs, timeRange, qc.TableInfo,
 		qc.SizeLimit, parallelismPerFile, qid, dqs, qc.Orgid, qc.Scroll, containsKibana)
 	if err != nil {
+		querySummary.Cleanup()
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to InitQueryInformation! error %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
 	err = AssociateSearchInfoWithQid(qid, allSegFileResults, aggs, dqs, qType, qc.RawQuery)
 	if err != nil {
+		querySummary.Cleanup()
 		log.Errorf("qid=%d, InitQueryInfoAndSummary: Failed to associate search results with qid! Error: %+v", qid, err)
 		return nil, nil, "", false, nil, nil, 0, err
 	}
-
-	log.Infof("qid=%d, Extracted node type %v for query. ParallelismPerFile=%v. Starting search...",
-		qid, searchNode.NodeType, parallelismPerFile)
 
 	return queryInfo, querySummary, pqid, containsKibana, kibanaIndices, allSegFileResults, parallelismPerFile, nil
 }
@@ -897,7 +897,8 @@ func computeSegStatsFromRawRecords(segReq *QuerySegmentRequest, qs *summary.Quer
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := segReq.GetMicroIndexFilter()
 	if err != nil {
-		log.Errorf("qid=%d, computeSegStatsFromRawRecords: failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", segReq.qid, segReq.segKey)
+		log.Errorf("qid=%d, computeSegStatsFromRawRecords: failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v, err: %v",
+			segReq.qid, segReq.segKey, err)
 		blocksToRawSearch = segReq.GetEntireFileMicroIndexFilter()
 	}
 	sTime := time.Now()
@@ -1139,7 +1140,8 @@ func GetSSRsFromQSR(qsr *QuerySegmentRequest, querySummary *summary.QuerySummary
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
 	if err != nil {
-		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", qsr.qid, qsr.segKey)
+		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v, err: %v",
+			qsr.qid, qsr.segKey, err)
 		blocksToRawSearch = qsr.GetEntireFileMicroIndexFilter()
 	}
 
@@ -1214,7 +1216,7 @@ func applyFilterOperatorUnrotatedRawSearchRequest(qsr *QuerySegmentRequest, allS
 	// run through micro index check for block tracker & generate SSR
 	blocksToRawSearch, err := qsr.GetMicroIndexFilter()
 	if err != nil {
-		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v", qsr.qid, qsr.segKey)
+		log.Errorf("qid=%d, failed to get blocks to raw search! Defaulting to searching all blocks. SegKey %+v, err: %v", qsr.qid, qsr.segKey, err)
 		blocksToRawSearch = qsr.GetEntireFileMicroIndexFilter()
 	}
 	sTime := time.Now()
