@@ -61,13 +61,13 @@ let navbarComponent = `
                     <span class="nav-link-text-drpdwn">Metrics</span>
                 </a>
                 <img class="nav-dropdown-icon orange"
-                     src="assets/arrow-btn.svg"
-                     alt="Dropdown Arrow">
+                    src="assets/arrow-btn.svg"
+                    alt="Dropdown Arrow">
             </div>
             <ul class="metrics-dropdown">
-                <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
-                <a href="./metric-summary.html"><li class="metrics-summary-metrics-link">Summary</li></a>
-                <a href="./metric-cardinality.html"><li class="metrics-summary-metrics-link">Cardinality</li></a>
+                <a href="./metrics-explorer.html"><li class="metrics-link">Explorer</li></a>
+                <a href="./metric-summary.html"><li class="-metrics-link">Summary</li></a>
+                <a href="./metric-cardinality.html"><li class="metrics-link">Cardinality</li></a>
             </ul>
         </div>
         {{ if .ShowSLO }}
@@ -76,8 +76,20 @@ let navbarComponent = `
                     class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
-        <div class="menu nav-alerts">
-            <a href="./all-alerts.html" class="nav-links link-alerts"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+        <div class="menu nav-alerts alerts-dropdown-toggle">
+            <div class="menu-header">
+                <a class="nav-links link-alerts" href="./all-alerts.html" >
+                    <span class="icon-alerts"></span>
+                    <span class="nav-link-text-drpdwn">Alerting</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                    src="assets/arrow-btn.svg"
+                    alt="Dropdown Arrow">
+            </div>
+            <ul class="alerts-dropdown">
+                <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>
+                <a href="./contacts.html"><li class="alerts-link">Contact Points</li></a>
+            </ul>
         </div>
         <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links link-ldb">
@@ -409,8 +421,9 @@ $(document).ready(function () {
         { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
         { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
         { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' },
-        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
-        // { menuClass: 'nav', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'}
+        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts' },
+        // { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
+        { menuClass: 'nav', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
         {
             menuClass: 'nav-infrastructure',
             dropdownClass: 'infrastructure-dropdown',
@@ -487,39 +500,6 @@ $(document).ready(function () {
     //     });
     // }
 
-    // // Modify existing methods to include new highlighting
-    // function updateActiveHighlighting() {
-    //     // Existing dropdown configs highlighting
-    //     dropdownConfigs.forEach(config => {
-    //         $(`.${config.menuClass}`).removeClass('active');
-    //         $(`.${config.iconClass}`).removeClass('active');
-    //         $(`.${config.dropdownClass} li`).removeClass('active');
-    //     });
-
-    //     const currentPath = window.location.pathname.split('/').pop();
-
-    //     dropdownConfigs.forEach(config => {
-    //         $(`.${config.dropdownClass} a`).each(function() {
-    //             const href = $(this).attr('href');
-    //             const hrefPath = href.split('/').pop();
-
-    //             if (currentPath === hrefPath) {
-    //                 const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
-    //                 $li.addClass('active');
-
-    //                 const $menu = $li.closest(`.${config.menuClass}`);
-    //                 const $icon = $menu.find(`.${config.iconClass}`);
-
-    //                 $menu.addClass('active');
-    //                 $icon.addClass('active');
-    //             }
-    //         });
-    //     });
-
-    //     // Add infrastructure-specific highlighting
-    //     updateInfrastructureActiveHighlighting();
-    // }
-
 
     dropdownConfigs.forEach(config => {
         // Toggle first-level dropdown
@@ -564,16 +544,20 @@ $(document).ready(function () {
     window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        const $arrow = $menu.find('.nav-dropdown-icon');
+        const $arrow = $menu.find('> .menu-header .nav-dropdown-icon');
         const isVisible = $dropdown.is(':visible');
 
-        $dropdown.stop(true, true).slideToggle(200);
-        $menu.toggleClass('dropdown-open', !isVisible);
+        // Close other dropdowns first
+        $('.infrastructure-dropdown, .kubernetes-submenu').not($dropdown).slideUp(200);
+        $('.nav-dropdown-icon').not($arrow).removeClass('rotated kubernetes-rotated');
 
+        // Toggle current dropdown
+        $dropdown.stop(true, true).slideToggle(200);
         if ($arrow.length) {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
+        // Store state
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
@@ -585,23 +569,22 @@ $(document).ready(function () {
         const $arrow = $submenu.find('.nav-dropdown-icon');
         const isVisible = $dropdown.is(':visible');
 
-        // Ensure parent dropdown is open
+        // Important: Make sure parent dropdown is visible first
         const $parentDropdown = $submenu.closest('.infrastructure-dropdown');
         if (!$parentDropdown.is(':visible')) {
             $parentDropdown.stop(true, true).slideDown(200);
-            $parentDropdown.closest('.menu').find('.nav-dropdown-icon').addClass('rotated');
-            let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
-            dropdownStates['Infrastructure'] = true;
-            localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+            $parentDropdown.closest('.menu').find('> .menu-header .nav-dropdown-icon').addClass('rotated');
         }
 
+        // Toggle submenu
         $dropdown.stop(true, true).slideToggle(200);
-        $submenu.toggleClass('dropdown-open', !isVisible);
 
+        // Rotate arrow for submenu
         if ($arrow.length) {
             $arrow.toggleClass('kubernetes-rotated', !isVisible);
         }
 
+        // Store state
         let infrastructureDropdownStates = JSON.parse(localStorage.getItem('infrastructureDropdownStates')) || {};
         infrastructureDropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('infrastructureDropdownStates', JSON.stringify(infrastructureDropdownStates));
@@ -722,11 +705,14 @@ $(document).ready(function () {
         });
     }
 
+    // Fix the Kubernetes submenu
+    fixKubernetesSubmenu();
+
     restoreDropdownState();
     updateActiveHighlighting();
 
-    // Fix the Kubernetes submenu
-  fixKubernetesSubmenu()
+
+
 
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
