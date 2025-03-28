@@ -40,6 +40,8 @@ type queryValidator interface {
 	MatchesResult(jsonResult []byte) error
 	PastEndTime(timestamp uint64) bool
 	Info() string
+	WithAllowAllStartTimes() queryValidator
+	AllowsAllStartTimes() bool
 }
 
 type filter interface {
@@ -169,6 +171,11 @@ func (df *dynamicFilter) Copy() filter {
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
+
+	// If true, the start time may be before the test was started. So
+	// validation should be less strict because the system may have preexisting
+	// data that this validator doesn't know about.
+	allowAllStartTimes bool
 }
 
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
@@ -178,6 +185,10 @@ func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
 
 func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 	return timestamp > b.endEpoch
+}
+
+func (b *basicValidator) AllowsAllStartTimes() bool {
+	return b.allowAllStartTimes
 }
 
 type filterQueryValidator struct {
@@ -250,8 +261,9 @@ func (f *filterQueryValidator) GetQuery() (string, uint64, uint64) {
 func (f *filterQueryValidator) Copy() queryValidator {
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
-			startEpoch: f.startEpoch,
-			endEpoch:   f.endEpoch,
+			startEpoch:         f.startEpoch,
+			endEpoch:           f.endEpoch,
+			allowAllStartTimes: f.allowAllStartTimes,
 		},
 		filter:  f.filter.Copy(),
 		sortCol: f.sortCol,
@@ -265,8 +277,13 @@ func (f *filterQueryValidator) Info() string {
 	numResults := min(len(f.results), f.head)
 	query, startEpoch, endEpoch := f.GetQuery()
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
-		query, duration, startEpoch, endEpoch, numResults)
+	validation := "strict"
+	if f.allowAllStartTimes {
+		validation = "minimal"
+	}
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), validation=%v, got %v matches",
+		query, duration, startEpoch, endEpoch, validation, numResults)
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
@@ -276,6 +293,12 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	}
 
 	if !f.filter.Matches(log) {
+		return nil
+	}
+
+	if f.allowAllStartTimes {
+		// We're doing minimal validation, so don't update our expected
+		// results, to avoid unneeded computation.
 		return nil
 	}
 
@@ -342,6 +365,11 @@ func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
 	return nil
 }
 
+func (f *filterQueryValidator) WithAllowAllStartTimes() queryValidator {
+	f.allowAllStartTimes = true
+	return f
+}
+
 type logsResponse struct {
 	Hits       hits     `json:"hits"`
 	AllColumns []string `json:"allColumns"`
@@ -373,6 +401,12 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	response := logsResponse{}
 	if err := json.Unmarshal(result, &response); err != nil {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
+	}
+
+	if f.allowAllStartTimes {
+		// Skip the rest of the validation, since we're not sure what the
+		// expected result is.
+		return nil
 	}
 
 	numExpectedLogs := min(len(f.results), f.head)
@@ -555,8 +589,9 @@ func (c *countQueryValidator) GetQuery() (string, uint64, uint64) {
 func (c *countQueryValidator) Copy() queryValidator {
 	return &countQueryValidator{
 		basicValidator: basicValidator{
-			startEpoch: c.startEpoch,
-			endEpoch:   c.endEpoch,
+			startEpoch:         c.startEpoch,
+			endEpoch:           c.endEpoch,
+			allowAllStartTimes: c.allowAllStartTimes,
 		},
 		filter:     c.filter.Copy(),
 		numMatches: c.numMatches,
@@ -567,8 +602,18 @@ func (c *countQueryValidator) Info() string {
 	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
 	query, startEpoch, endEpoch := c.GetQuery()
 
-	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), got %v matches",
-		query, duration, startEpoch, endEpoch, c.numMatches)
+	validation := "strict"
+	if c.allowAllStartTimes {
+		validation = "minimal"
+	}
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), validation=%v, got %v matches",
+		query, duration, startEpoch, endEpoch, validation, c.numMatches)
+}
+
+func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
+	c.allowAllStartTimes = true
+	return c
 }
 
 func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
@@ -595,6 +640,12 @@ func (c *countQueryValidator) MatchesResult(result []byte) error {
 	response := logsResponse{}
 	if err := json.Unmarshal(result, &response); err != nil {
 		return fmt.Errorf("CQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
+	}
+
+	if c.allowAllStartTimes {
+		// Skip the rest of the validation, since we're not sure what the
+		// expected result is.
+		return nil
 	}
 
 	if response.Hits.TotalMatched.Value != c.numMatches {
