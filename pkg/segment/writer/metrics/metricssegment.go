@@ -1979,8 +1979,8 @@ func timeBasedWalDPSFlush() {
 	for {
 		time.Sleep(WAL_DPS_FLUSH_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
+			ms.mBlock.walState.lock.Lock()
 			if ms.mBlock.walState.dpIdx > 0 {
-				ms.mBlock.walState.lock.Lock()
 				err := ms.mBlock.walState.currentWal.Append(ms.mBlock.walState.dpsInWalMem[0:ms.mBlock.walState.dpIdx])
 				if err != nil {
 					log.Warnf("timeBasedWalDPSFlush : Failed to append datapoints to WAL: %v", err)
@@ -1993,9 +1993,8 @@ func timeBasedWalDPSFlush() {
 				}
 
 				ms.mBlock.walState.dpIdx = 0
-				ms.mBlock.walState.lock.Unlock()
-
 			}
+			ms.mBlock.walState.lock.Unlock()
 		}
 	}
 }
