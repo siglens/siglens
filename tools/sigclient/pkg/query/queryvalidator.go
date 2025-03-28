@@ -261,8 +261,9 @@ func (f *filterQueryValidator) GetQuery() (string, uint64, uint64) {
 func (f *filterQueryValidator) Copy() queryValidator {
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
-			startEpoch: f.startEpoch,
-			endEpoch:   f.endEpoch,
+			startEpoch:         f.startEpoch,
+			endEpoch:           f.endEpoch,
+			allowAllStartTimes: f.allowAllStartTimes,
 		},
 		filter:  f.filter.Copy(),
 		sortCol: f.sortCol,
@@ -582,8 +583,9 @@ func (c *countQueryValidator) GetQuery() (string, uint64, uint64) {
 func (c *countQueryValidator) Copy() queryValidator {
 	return &countQueryValidator{
 		basicValidator: basicValidator{
-			startEpoch: c.startEpoch,
-			endEpoch:   c.endEpoch,
+			startEpoch:         c.startEpoch,
+			endEpoch:           c.endEpoch,
+			allowAllStartTimes: c.allowAllStartTimes,
 		},
 		filter:     c.filter.Copy(),
 		numMatches: c.numMatches,
