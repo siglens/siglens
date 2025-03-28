@@ -411,6 +411,38 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("AllowAllStartTimes", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		validator = validator.WithAllowAllStartTimes()
+		addLogsWithoutError(t, validator, logs[3:])
+
+		// Malformed JSON.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+		`)))
+
+		// A potentially valid response.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 5,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30},
+					{"city": "Boston", "timestamp": 3, "age": 22}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
 		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
@@ -526,7 +558,36 @@ func Test_CountQueryValidator(t *testing.T) {
 				"MeasureVal": {"count(*)": 5}
 			}]
 		}`)))
+	})
 
+	t.Run("AllowAllStartTimes", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator(bostonFilter, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		validator = validator.WithAllowAllStartTimes()
+		addLogsWithoutError(t, validator, logs[3:])
+
+		// Malformed JSON.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+		`)))
+
+		// A potentially valid response.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 5,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+				"GroupByValues": ["*"],
+				"MeasureVal": {"count(*)": 5}
+			}]
+		}`)))
 	})
 
 	t.Run("BadResponse", func(t *testing.T) {
