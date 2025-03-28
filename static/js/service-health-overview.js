@@ -51,6 +51,26 @@ $(document).ready(() => {
     $('.service-health-text').click(function () {
         window.location.href = '../service-health.html';
     });
+
+    // Add popstate event listener for browser back/forward navigation
+    window.addEventListener('popstate', function() {
+        const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
+        const endDate = getParameterFromUrl('endEpoch') || 'now';
+
+        // Update active range item
+        $('.range-item').removeClass('active');
+        $('.inner-range #' + stDate).addClass('active');
+
+        // Update date picker display
+        datePickerHandler(stDate, endDate, stDate);
+
+        // Update the filter dates
+        filterStartDate = stDate;
+        filterEndDate = endDate;
+
+        // Refresh visualizations
+        getOneServiceOverview();
+    });
 });
 
 function isGraphsDatePickerHandler(evt) {
@@ -68,6 +88,10 @@ function isGraphsDatePickerHandler(evt) {
             startEpoch: selectedRange,
             endEpoch: 'now'
         };
+
+        // Update active state of range items
+        $('.range-item').removeClass('active');
+        $(evt.currentTarget).addClass('active');
     } else {
         data = getTimeRange();
     }
@@ -77,6 +101,9 @@ function isGraphsDatePickerHandler(evt) {
     url.searchParams.set('startEpoch', data.startEpoch);
     url.searchParams.set('endEpoch', data.endEpoch);
     window.history.pushState({ path: url.href }, '', url.href);
+
+    // Update date picker display
+    datePickerHandler(data.startEpoch, data.endEpoch, data.startEpoch);
 
     getOneServiceOverview();
     $('#daterangepicker').hide();
