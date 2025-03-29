@@ -180,7 +180,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 			}
 		}
 	default:
-		log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
+		log.Debugf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
 	}
 
 	// Logical ops can only been used between 2 vectors
@@ -193,7 +193,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 		case utils.LetUnless:
 			finalResult[groupID][timestamp] = valueLHS
 		default:
-			log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
+			log.Debugf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
 		}
 	}
 }

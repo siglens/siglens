@@ -830,21 +830,17 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	binaryOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &binaryOperation)
 
-	if lhsIsVector && (mQueryReqs[0].MetricsQuery.SubsequentAggs == nil || mQueryReqs[0].MetricsQuery.HashedMName == uint64(0)) {
-		// This means that lhs is a vector and this is either the starting point of the query or inside of an aggregation or function
-		mQueryReqs = lhsRequest
-	} else if !lhsIsVector && !rhsIsVector && mQueryReqs[0].MetricsQuery.HashedMName == uint64(0) {
-		// No MQueryReqs, this means that the query is a binary operation between two constants
-		mQueryReqs = lhsRequest
-	} else {
+	if mQueryReqs[0].MetricsQuery.HashedMName > 0 || mQueryReqs[0].MetricsQuery.SubsequentAggs != nil {
+		// This means that the current MQueryReqs is not empty and we need to append the new request
 		mQueryReqs = append(mQueryReqs, lhsRequest...)
+	} else {
+		mQueryReqs = lhsRequest
 	}
+
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
 
 	if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
-		// if putils.IsLogicalOperator(arithmeticOperation.Operation) {
-		// 	return []*structs.MetricsQueryRequest{}, []*structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
-		// }
+		// TODO: Fix for Logical operators
 
 		binaryOperation.VectorMatching = &structs.VectorMatching{
 			Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
