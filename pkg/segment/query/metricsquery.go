@@ -206,42 +206,48 @@ func ApplyMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeR
 		return mRes
 	}
 
+	ProcessMQueryAggsChain(mQuery, timeRange, mRes, qid)
+
+	return mRes
+}
+
+func ProcessMQueryAggsChain(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTimeRange, mRes *mresults.MetricsResult, qid uint64) {
+	parallelism := int(config.GetParallelism()) * 2
+
 	for mQuery.SubsequentAggs != nil {
 		if mQuery.IsQueryCancelled() {
 			mRes.AddError(fmt.Errorf("query cancelled"))
-			return mRes
+			return
 		}
 
 		if mQuery.SubsequentAggs.AggBlockType == structs.FunctionBlock {
 			mQuery.Function = *mQuery.SubsequentAggs.FunctionBlock
-			errors = mRes.ApplyFunctionsToResults(parallelism, mQuery.Function, timeRange)
+			errors := mRes.ApplyFunctionsToResults(parallelism, mQuery.Function, timeRange)
 			if errors != nil {
 				for _, err := range errors {
 					mRes.AddError(err)
 				}
 
-				return mRes
+				return
 			}
 		} else if mQuery.SubsequentAggs.AggBlockType == structs.AggregatorBlock {
 			mQuery.FirstAggregator = *mQuery.SubsequentAggs.AggregatorBlock
-			errors = mRes.ApplyAggregationToResults(parallelism, mQuery.FirstAggregator)
+			errors := mRes.ApplyAggregationToResults(parallelism, mQuery.FirstAggregator)
 			if errors != nil {
 				for _, err := range errors {
 					mRes.AddError(err)
 				}
 
-				return mRes
+				return
 			}
 		} else {
 			log.Errorf("ApplyMetricsQuery: Invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType)
 			mRes.AddError(fmt.Errorf("invalid AggBlockType: %v", mQuery.SubsequentAggs.AggBlockType))
-			return mRes
+			return
 		}
 
 		mQuery.SubsequentAggs = mQuery.SubsequentAggs.Next
 	}
-
-	return mRes
 }
 
 func mergeMetricSearchRequests(unrotatedMSegments map[string][]*structs.MetricsSearchRequest, mSegments map[string][]*structs.MetricsSearchRequest) map[string][]*structs.MetricsSearchRequest {

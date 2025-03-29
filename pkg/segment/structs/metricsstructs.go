@@ -246,9 +246,10 @@ type QueryArithmetic struct {
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
-	Results        map[string]map[uint32]float64
-	OperatedState  bool //true if operation has been executed
-	VectorMatching *VectorMatching
+	Results         map[string]map[uint32]float64
+	OperatedState   bool //true if operation has been executed
+	VectorMatching  *VectorMatching
+	MQueryAggsChain *MetricQueryAgg
 }
 
 // VectorMatching describes how elements from two Vectors in a binary
