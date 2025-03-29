@@ -295,7 +295,6 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 	qm.stats.numSuccess++
 	qm.stats.lock.Unlock()
 
-	log.Infof("queryManager.runQuery: successfully ran %v", queryInfo)
 	qm.numRunningQueries.Add(-1)
 
 }
