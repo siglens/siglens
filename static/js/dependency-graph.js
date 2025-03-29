@@ -136,8 +136,19 @@ const darkStyles = {
 };
 
 $(document).ready(() => {
-    let stDate = 'now-1h';
-    let endDate = 'now';
+    // Get time range from URL parameters or default to 1 hour
+    const urlParams = new URLSearchParams(window.location.search);
+    let stDate = urlParams.get('startEpoch') || 'now-1h';
+    let endDate = urlParams.get('endEpoch') || 'now';
+
+    // Update URL with default parameters if not present
+    if (!urlParams.has('startEpoch') || !urlParams.has('endEpoch')) {
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('startEpoch', stDate);
+        newUrl.searchParams.set('endEpoch', endDate);
+        window.history.replaceState({}, '', newUrl);
+    }
+
     datePickerHandler(stDate, endDate, stDate);
     setupDependencyEventHandlers();
 
@@ -173,8 +184,14 @@ function rangeItemHandler(evt) {
     $(evt.currentTarget).addClass('active');
     const start = $(this).attr('id');
     const end = 'now';
-    const label = $(this).attr('id');
-    datePickerHandler(start, end, label);
+
+    // Update URL parameters when time range changes
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('startEpoch', start);
+    newUrl.searchParams.set('endEpoch', end);
+    window.history.pushState({}, '', newUrl);
+
+    datePickerHandler(start, end, start);
     getServiceDependencyData(start, end);
 }
 
@@ -373,4 +390,14 @@ function updateGraphStyles() {
             },
         ])
         .update();
+}
+
+// Add this new function to handle custom range persistence
+function customRangeHandler() {
+    // Save custom range to cookies
+    Cookies.set('dependency_startEpoch', filterStartDate);
+    Cookies.set('dependency_endEpoch', filterEndDate);
+    Cookies.set('dependency_timeRangeLabel', 'custom');
+
+    getServiceDependencyData(filterStartDate, filterEndDate);
 }
