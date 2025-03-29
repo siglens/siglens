@@ -718,7 +718,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time:
+	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time, segutils.Last_Over_Time:
 		return evaluateAggregationOverTime(sortedTimeSeries, ts, function, timeRange)
 	case segutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
@@ -730,9 +730,6 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		return ts, nil
 	case segutils.Mad_Over_Time:
 		return evaluateMADOverTime(sortedTimeSeries, ts, timeWindow), nil
-	case segutils.Last_Over_Time:
-		// If we take the very last sample from every element of a range vector, the resulting vector will be identical to a regular instant vector query.
-		return ts, nil
 	case segutils.Present_Over_Time:
 		for key := range ts {
 			ts[key] = 1
@@ -836,6 +833,9 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 				max = math.Max(max, sortedTimeSeries[j].dpVal)
 			}
 			ts[nextEvaluationTime] = max
+		case segutils.Last_Over_Time:
+			// the most recent point value in the specified interval
+			ts[nextEvaluationTime] = sortedTimeSeries[lastIndex].dpVal
 		default:
 			return ts, fmt.Errorf("evaluateAggregationOverTime: unsupported function type %v", function.RangeFunction)
 		}

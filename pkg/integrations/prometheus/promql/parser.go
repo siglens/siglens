@@ -515,20 +515,20 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	case "count_over_time":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "stdvar_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "stddev_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "last_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "present_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "mad_over_time":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "quantile_over_time":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}, Step: step}
 	case "changes":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow, Step: step}
 	case "resets":
