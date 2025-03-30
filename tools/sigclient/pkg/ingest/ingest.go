@@ -38,10 +38,9 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
-	"github.com/valyala/fastrand"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
-
+	"github.com/valyala/fastrand"
 )
 
 type IngestType int
@@ -76,7 +75,6 @@ var (
 	corsAllowMethods = "HEAD, GET, POST, PUT, DELETE, OPTIONS"
 	corsAllowOrigin  = "*"
 )
-
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
@@ -582,7 +580,6 @@ readChannel:
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
 	}
 }
-
 
 func startProfilingServer(serverAddr string) {
 	go func() {
