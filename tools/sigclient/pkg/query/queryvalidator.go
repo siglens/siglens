@@ -85,7 +85,12 @@ func (kv *kvFilter) Matches(log map[string]interface{}) bool {
 		return false
 	}
 
-	return kv.value.Matches(fmt.Sprintf("%v", value))
+	switch val := value.(type) {
+	case string:
+		return kv.value.Matches(val)
+	default:
+		return kv.value.Matches(fmt.Sprintf("%v", value))
+	}
 }
 
 func (kv kvFilter) String() string {

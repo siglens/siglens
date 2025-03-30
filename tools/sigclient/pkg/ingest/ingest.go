@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -29,6 +30,7 @@ import (
 	"time"
 	"verifier/pkg/utils"
 
+	"github.com/fasthttp/router"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/prompb"
@@ -37,6 +39,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fastrand"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/pprofhandler"
+
 )
 
 type IngestType int
@@ -63,6 +68,15 @@ func (q IngestType) String() string {
 }
 
 const PRINT_FREQ = 100_000
+
+const SERVER_ADDR = "0.0.0.0:9122"
+
+var (
+	corsAllowHeaders = "Access-Control-Allow-Origin, Access-Control-Allow-Methods, Access-Control-Max-Age, Access-Control-Allow-Credentials, Content-Type, Authorization, Origin, X-Requested-With , Accept"
+	corsAllowMethods = "HEAD, GET, POST, PUT, DELETE, OPTIONS"
+	corsAllowOrigin  = "*"
+)
+
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
@@ -510,6 +524,8 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 		readers[i] = reader
 	}
 
+	startProfilingServer(SERVER_ADDR)
+
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
 		go runIngestion(iType, readers[i], &wg, url, totalEventsPerProcess, continuous, batchSize, i+1, indexPrefix,
@@ -564,5 +580,43 @@ readChannel:
 			humanize.Comma(eventsPerSecond),
 			humanize.Comma(mbPerSec))
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
+	}
+}
+
+
+func startProfilingServer(serverAddr string) {
+	go func() {
+
+		rtr := router.New()
+
+		rtr.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
+
+		s := &fasthttp.Server{
+			Handler:            cors(rtr.Handler),
+			Name:               "sigClient",
+			ReadBufferSize:     4096,
+			MaxConnsPerIP:      3000,
+			MaxRequestsPerConn: 1000,
+			MaxRequestBodySize: 512 * 1000 * 1000,
+			Concurrency:        3000,
+		}
+
+		ln, err := net.Listen("tcp", serverAddr)
+		if err != nil {
+			log.Fatalf("startProfilingServer: failed to listen on addr: %v, err: %v",
+				serverAddr, err)
+		}
+
+		s.Serve(ln)
+	}()
+}
+
+func cors(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Set("Access-Control-Allow-Headers", corsAllowHeaders)
+		ctx.Response.Header.Set("Access-Control-Allow-Methods", corsAllowMethods)
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", corsAllowOrigin)
+		ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
+		next(ctx)
 	}
 }
