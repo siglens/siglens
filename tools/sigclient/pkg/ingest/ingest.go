@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -29,6 +30,7 @@ import (
 	"time"
 	"verifier/pkg/utils"
 
+	"github.com/fasthttp/router"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/prompb"
@@ -36,6 +38,8 @@ import (
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/pprofhandler"
 	"github.com/valyala/fastrand"
 )
 
@@ -63,6 +67,14 @@ func (q IngestType) String() string {
 }
 
 const PRINT_FREQ = 100_000
+
+const SERVER_ADDR = "0.0.0.0:9122"
+
+var (
+	corsAllowHeaders = "Access-Control-Allow-Origin, Access-Control-Allow-Methods, Access-Control-Max-Age, Access-Control-Allow-Credentials, Content-Type, Authorization, Origin, X-Requested-With , Accept"
+	corsAllowMethods = "HEAD, GET, POST, PUT, DELETE, OPTIONS"
+	corsAllowOrigin  = "*"
+)
 
 // returns any errors encountered. It is the caller's responsibility to attempt retries
 func sendRequest(iType IngestType, client *http.Client, lines []byte, url string, bearerToken string) error {
@@ -122,7 +134,7 @@ func sendRequest(iType IngestType, client *http.Client, lines []byte, url string
 }
 
 func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
-	actLines []string, bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, error) {
+	actLines []string, bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, []uint64, error) {
 
 	switch iType {
 	case ESBulk:
@@ -131,22 +143,23 @@ func generateBody(iType IngestType, recs int, i int, rdr utils.Generator,
 	case OpenTSDB:
 		// TODO: make generateOpenTSDBBody return the raw logs as well
 		payload, err := generateOpenTSDBBody(recs, rdr)
-		return nil, payload, err
+		return nil, payload, nil, err
 	default:
 		log.Fatalf("Unsupported ingest type %s", iType.String())
 	}
-	return nil, nil, fmt.Errorf("unsupported ingest type %s", iType.String())
+	return nil, nil, nil, fmt.Errorf("unsupported ingest type %s", iType.String())
 }
 
 func generateESBody(recs int, actionLine string, rdr utils.Generator,
-	bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, error) {
+	bb *bytebufferpool.ByteBuffer) ([]map[string]interface{}, []byte, []uint64, error) {
 
 	allLogs := make([]map[string]interface{}, 0, recs)
+	allTs := make([]uint64, recs)
 	for i := 0; i < recs; i++ {
 		_, _ = bb.WriteString(actionLine)
-		rawLog, err := rdr.GetRawLog()
+		rawLog, ts, err := rdr.GetRawLog()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		logCopy := make(map[string]interface{}, len(rawLog))
@@ -154,23 +167,24 @@ func generateESBody(recs int, actionLine string, rdr utils.Generator,
 			logCopy[k] = v
 		}
 		allLogs = append(allLogs, logCopy)
+		allTs[i] = ts
 
 		logline, err := json.Marshal(rawLog)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		_, _ = bb.Write(logline)
 		_, _ = bb.WriteString("\n")
 	}
 
 	payLoad := bb.Bytes()
-	return allLogs, payLoad, nil
+	return allLogs, payLoad, allTs, nil
 }
 
 func generateOpenTSDBBody(recs int, rdr utils.Generator) ([]byte, error) {
 	finalPayLoad := make([]interface{}, recs)
 	for i := 0; i < recs; i++ {
-		currPayload, err := rdr.GetRawLog()
+		currPayload, _, err := rdr.GetRawLog()
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +205,7 @@ func generateUniquePayload(rdr *utils.MetricsGenerator) (map[string]interface{},
 	var currPayload map[string]interface{}
 	var err error
 	for {
-		currPayload, err = rdr.GetRawLog()
+		currPayload, _, err = rdr.GetRawLog()
 		if err != nil {
 			log.Errorf("generateUniquePayload: failed to get raw log: %+v", err)
 			return nil, err
@@ -286,7 +300,8 @@ func generatePrometheusRemoteWriteBody(recs int, preGeneratedSeriesLength uint64
 
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
 	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
-	eventsPerDayPerProcess int, totalBytes *uint64, callback func([]map[string]interface{})) {
+	eventsPerDayPerProcess int, totalBytes *uint64,
+	callback func([]map[string]interface{}, []uint64)) {
 
 	defer wg.Done()
 	eventCounter := 0
@@ -307,6 +322,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 	i := 0
 	var bb *bytebufferpool.ByteBuffer
 	var rawLogs []map[string]interface{}
+	var allTs []uint64
 	var payload []byte
 	var err error
 	maxDuration := 2 * time.Hour
@@ -331,7 +347,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			payload, err = generatePrometheusRemoteWriteBody(recsInBatch, uint64(len(preGeneratedSeries)))
 			seriesId += uint64(recsInBatch)
 		} else {
-			rawLogs, payload, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
+			rawLogs, payload, allTs, err = generateBody(iType, recsInBatch, i, rdr, actLines, bb)
 		}
 		if err != nil {
 			log.Errorf("Error generating bulk body!: %v", err)
@@ -360,7 +376,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		}
 
 		if callback != nil {
-			callback(rawLogs)
+			callback(rawLogs, allTs)
 		}
 
 		SendPerformanceData(rdr)
@@ -473,7 +489,7 @@ func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int,
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
 	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{},
-	callback func(logs []map[string]interface{})) {
+	callback func(logs []map[string]interface{}, allTs []uint64)) {
 
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB || iType == PrometheusRemoteWrite {
@@ -509,6 +525,8 @@ func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvent
 		}
 		readers[i] = reader
 	}
+
+	startProfilingServer(SERVER_ADDR)
 
 	for i := 0; i < processCount; i++ {
 		wg.Add(1)
@@ -564,5 +582,42 @@ readChannel:
 			humanize.Comma(eventsPerSecond),
 			humanize.Comma(mbPerSec))
 		log.Infof("Total HLL Approx of unique timeseries:%+v", humanize.Comma(int64(utils.GetMetricsHLL())))
+	}
+}
+
+func startProfilingServer(serverAddr string) {
+	go func() {
+
+		rtr := router.New()
+
+		rtr.GET("/debug/pprof/{profile:*}", pprofhandler.PprofHandler)
+
+		s := &fasthttp.Server{
+			Handler:            cors(rtr.Handler),
+			Name:               "sigClient",
+			ReadBufferSize:     4096,
+			MaxConnsPerIP:      3000,
+			MaxRequestsPerConn: 1000,
+			MaxRequestBodySize: 512 * 1000 * 1000,
+			Concurrency:        3000,
+		}
+
+		ln, err := net.Listen("tcp", serverAddr)
+		if err != nil {
+			log.Fatalf("startProfilingServer: failed to listen on addr: %v, err: %v",
+				serverAddr, err)
+		}
+
+		s.Serve(ln)
+	}()
+}
+
+func cors(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Set("Access-Control-Allow-Headers", corsAllowHeaders)
+		ctx.Response.Header.Set("Access-Control-Allow-Methods", corsAllowMethods)
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", corsAllowOrigin)
+		ctx.Response.Header.Set("Access-Control-Allow-Credentials", "true")
+		next(ctx)
 	}
 }

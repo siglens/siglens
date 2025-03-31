@@ -104,6 +104,7 @@ type QuerySummary struct {
 	remainingDistributedQueries uint64
 	totalDistributedQueries     uint64
 	tickCount                   uint32
+	closeOnce                   sync.Once
 }
 
 const TICK_DURATION_SECS = 10
@@ -159,6 +160,7 @@ func (qs *QuerySummary) Cleanup() {
 func (qs *QuerySummary) startTicker() {
 	qs.ticker = time.NewTicker(TICK_DURATION_SECS * time.Second)
 	qs.tickerStopChan = make(chan bool)
+	qs.closeOnce = sync.Once{}
 	go qs.tickWatcher()
 }
 
@@ -170,7 +172,9 @@ func (qs *QuerySummary) stopTicker() {
 			qs.ticker.Stop()
 		}
 		if qs.tickerStopChan != nil {
-			close(qs.tickerStopChan)
+			qs.closeOnce.Do(func() {
+				close(qs.tickerStopChan)
+			})
 		}
 	}
 }
@@ -189,7 +193,6 @@ func (qs *QuerySummary) tickWatcher() {
 				qs.ticker.Stop()
 				qs.ticker = nil
 			}
-			qs.tickerStopChan = nil
 
 			return
 		case <-qs.ticker.C:
