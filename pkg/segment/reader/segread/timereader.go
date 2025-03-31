@@ -369,7 +369,6 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 
 	retVal := make(map[uint16][]uint64)
 	var retLock sync.Mutex
-	minIdx := 0
 	allReadJob := make(chan *timeBlockRequest)
 	var readerWG sync.WaitGroup
 	for i := int64(0); i < parallelism; i++ {
@@ -378,12 +377,12 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	}
 
 	var retErr error
-	for minIdx < len(allBlocks) {
+	for minIdx, maxIdx := 0, 0; minIdx < len(allBlocks); minIdx = maxIdx + 1 {
 		minBlkNum := allBlocks[minIdx]
 		lastBlkNum := minBlkNum
 		firstBlkOff := blks[minBlkNum].ColumnBlockOffset[tsKey]
 		blkLen := blks[minBlkNum].ColumnBlockLen[tsKey]
-		maxIdx := minIdx
+		maxIdx = minIdx
 		for {
 			nextIdx := maxIdx + 1
 			if nextIdx >= len(allBlocks) {
@@ -413,7 +412,6 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}
 		}
-		minIdx = maxIdx + 1
 	}
 	close(allReadJob)
 	readerWG.Wait()
