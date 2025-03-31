@@ -644,6 +644,8 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 		}
 
 		switch queryStateData.StateName {
+		case query.WAITING:
+			// do nothing
 		case query.READY:
 			switch queryStateData.ChannelIndex {
 			case multiplexer.MainIndex:
