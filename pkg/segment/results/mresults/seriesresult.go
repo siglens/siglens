@@ -798,14 +798,18 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 	for nextEvaluationTime <= timeRange.EndEpochSec {
 		timeWindowStartTime := nextEvaluationTime - timeWindow
 
-		// Find index of the first point within the time window using binary search (Inclusive)
+		// In Prometheus, the time window is left-open and right-closed, meaning
+		// that the start time is exclusive and the end time is inclusive.
+		// refer to: https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors
+
+		// Find index of the first point within the time window using binary search (Exclusive)
 		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			return sortedTimeSeries[j].downsampledTime > timeWindowStartTime
 		})
 
-		// Find index of the last point within the time window using binary search (Exclusive)
+		// Find index of the last point within the time window using binary search (Inclusive)
 		lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
+			return sortedTimeSeries[j].downsampledTime > nextEvaluationTime
 		}) - 1
 
 		if lastIndex < preIndex {
