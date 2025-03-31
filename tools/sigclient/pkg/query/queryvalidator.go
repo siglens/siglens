@@ -291,7 +291,7 @@ func (f *filterQueryValidator) Info() string {
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
 func (f *filterQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
-	if !withinTimeRange(log, f.startEpoch, f.endEpoch, recTs) {
+	if !withinTimeRange(f.startEpoch, f.endEpoch, recTs) {
 		return nil
 	}
 
@@ -513,7 +513,7 @@ func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]ma
 	return groups, nil
 }
 
-func withinTimeRange(record map[string]interface{}, startEpoch uint64,
+func withinTimeRange(startEpoch uint64,
 	endEpoch uint64, recTs uint64) bool {
 
 	return recTs >= startEpoch && recTs <= endEpoch
@@ -609,7 +609,7 @@ func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
 }
 
 func (c *countQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
-	if !withinTimeRange(log, c.startEpoch, c.endEpoch, recTs) {
+	if !withinTimeRange(c.startEpoch, c.endEpoch, recTs) {
 		return nil
 	}
 
