@@ -643,6 +643,8 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			continue
 		}
 
+		rQuery.SetLatestQueryState(queryStateData.StateName)
+
 		switch queryStateData.StateName {
 		case query.WAITING:
 			// do nothing
