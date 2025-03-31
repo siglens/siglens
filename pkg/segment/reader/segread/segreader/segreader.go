@@ -176,9 +176,8 @@ func (sfr *SegmentFileReader) ReturnBuffers() {
 func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	validBlock, err := sfr.loadBlockUsingBuffer(blockNum)
 	if err != nil {
-		log.Errorf("SegmentFileReader.readBlock: error trying to read block %v in file %s. Error: %+v",
+		return true, fmt.Errorf("SegmentFileReader.readBlock: error trying to read block %v in file %s. Error: %+v",
 			blockNum, sfr.fileName, err)
-		return true, err
 	}
 	if !validBlock {
 		return false, fmt.Errorf("SegmentFileReader.readBlock: column does not exist in block: %v", blockNum)
@@ -212,8 +211,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(colBlockLen))
 	_, err := sfr.currFD.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
 	if err != nil {
-		log.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", colBlockOffset, err)
-		return true, err
+		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", colBlockOffset, err)
 	}
 	oPtr := uint32(0)
 	sfr.encType = sfr.currFileBuffer[oPtr]
@@ -226,8 +224,6 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		err := sfr.ReadDictEnc(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
 		return true, err
 	} else {
-		log.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
-			sfr.ColName, sfr.encType)
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",
 			sfr.ColName, sfr.encType)
 	}
@@ -347,8 +343,7 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 		reclen = 3 + uint32(toputils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
 
 	default:
-		log.Errorf("SegmentFileReader.getCurrentRecordLength: Received an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
-		return 0, errors.New("received an unknown encoding type")
+		return 0, fmt.Errorf("SegmentFileReader.getCurrentRecordLength: Received an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
 	}
 	return reclen, nil
 }
@@ -361,8 +356,7 @@ func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
 			return false, err
 		}
 		if err != nil {
-			log.Errorf("SegmentFileReader.IsBlkDictEncoded: error loading blockNum: %v. Error: %+v", blockNum, err)
-			return false, err
+			return false, fmt.Errorf("SegmentFileReader.IsBlkDictEncoded: error loading blockNum: %v. Error: %+v", blockNum, err)
 		}
 	}
 

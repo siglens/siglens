@@ -70,7 +70,7 @@ func (mg *MetricsGenerator) GetLogLine() ([]byte, error) {
 	return nil, fmt.Errorf("metrics generator can only be used with GetRawLog")
 }
 
-func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
+func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, uint64, error) {
 	retVal := make(map[string]interface{})
 	mName := fmt.Sprintf("testmetric%d", mg.f.Rand.Intn(int(mg.nMetrics)))
 	retVal["metric"] = mName
@@ -120,7 +120,7 @@ func (mg *MetricsGenerator) GetRawLog() (map[string]interface{}, error) {
 	finalStr := str.String()
 	metricsHLL.AddString(finalStr)
 
-	return retVal, nil
+	return retVal, uint64(curTime), nil
 }
 
 func GetMetricsHLL() uint64 {

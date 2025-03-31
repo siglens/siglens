@@ -26,15 +26,13 @@ import (
 	"sync"
 	"time"
 	"verifier/pkg/utils"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const timestampCol = "timestamp"
 
 type queryValidator interface {
 	Copy() queryValidator
-	HandleLog(map[string]interface{}) error
+	HandleLog(map[string]interface{}, uint64) error
 	GetQuery() (string, uint64, uint64) // Query, start epoch, end epoch.
 	SetTimeRange(startEpoch uint64, endEpoch uint64)
 	MatchesResult(jsonResult []byte) error
@@ -85,7 +83,12 @@ func (kv *kvFilter) Matches(log map[string]interface{}) bool {
 		return false
 	}
 
-	return kv.value.Matches(fmt.Sprintf("%v", value))
+	switch val := value.(type) {
+	case string:
+		return kv.value.Matches(val)
+	default:
+		return kv.value.Matches(fmt.Sprintf("%v", value))
+	}
 }
 
 func (kv kvFilter) String() string {
@@ -287,8 +290,8 @@ func (f *filterQueryValidator) Info() string {
 }
 
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
-func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
-	if !withinTimeRange(log, f.startEpoch, f.endEpoch) {
+func (f *filterQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
+	if !withinTimeRange(f.startEpoch, f.endEpoch, recTs) {
 		return nil
 	}
 
@@ -510,21 +513,10 @@ func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]ma
 	return groups, nil
 }
 
-func withinTimeRange(record map[string]interface{}, startEpoch uint64, endEpoch uint64) bool {
-	timestamp, ok := record[timestampCol]
-	if !ok {
-		log.Errorf("withinTimeRange: missing timestamp column")
-		return false
-	}
+func withinTimeRange(startEpoch uint64,
+	endEpoch uint64, recTs uint64) bool {
 
-	switch timestamp := timestamp.(type) {
-	case uint64:
-		return timestamp >= startEpoch && timestamp <= endEpoch
-	}
-
-	log.Errorf("withinTimeRange: invalid timestamp type %T", timestamp)
-
-	return false
+	return recTs >= startEpoch && recTs <= endEpoch
 }
 
 func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
@@ -616,8 +608,8 @@ func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
 	return c
 }
 
-func (c *countQueryValidator) HandleLog(log map[string]interface{}) error {
-	if !withinTimeRange(log, c.startEpoch, c.endEpoch) {
+func (c *countQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
+	if !withinTimeRange(c.startEpoch, c.endEpoch, recTs) {
 		return nil
 	}
 
