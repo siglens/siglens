@@ -245,9 +245,7 @@ func (qs *QuerySummary) processTick() {
 	} else if qs.queryType == METRICS {
 		queryState := "executing"
 		if qs.fetchQueryStateFn != nil {
-			fmt.Println("fetchQueryStateFn is not nil, calling it: ")
 			queryState = qs.fetchQueryStateFn()
-			fmt.Println("queryState: ", queryState)
 		}
 		log.Infof("qid=%d, Query is in %v State. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
 			qs.qid, queryState, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
