@@ -121,10 +121,10 @@ func (qm *queryManager) logStatsOnInterval(interval time.Duration) {
 	}
 }
 
-func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}) {
+func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs []uint64) {
 	qm.setupOnce.Do(func() { qm.addInitialQueries(logs) })
 	qm.addInProgessQueries()
-	qm.sendToValidators(logs)
+	qm.sendToValidators(logs, allTs)
 
 	if lastEpoch, ok := qm.getLastEpoch(logs); ok {
 		qm.lastLogEpochMs = int64(lastEpoch)
@@ -152,14 +152,14 @@ func (qm *queryManager) addInProgessQueries() {
 	}
 }
 
-func (qm *queryManager) sendToValidators(logs []map[string]interface{}) {
+func (qm *queryManager) sendToValidators(logs []map[string]interface{}, allTs []uint64) {
 	// Just forward to the in progress queries. We don't need to send the logs
 	// to the runnable queries because they don't get marked as runnable until
 	// we've reached an epoch where the time filtering means they won't accept
 	// any more logs.
 	for _, validator := range qm.inProgressQueries {
-		for _, log := range logs {
-			validator.HandleLog(log)
+		for i, log := range logs {
+			validator.HandleLog(log, allTs[i])
 		}
 	}
 }
@@ -295,7 +295,6 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 	qm.stats.numSuccess++
 	qm.stats.lock.Unlock()
 
-	log.Infof("queryManager.runQuery: successfully ran %v", queryInfo)
 	qm.numRunningQueries.Add(-1)
 
 }

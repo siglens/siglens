@@ -597,8 +597,8 @@ var longevityCmd = &cobra.Command{
 		maxConcurrentQueries := int32(1)
 		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl, failOnError)
 
-		callback := func(logs []map[string]interface{}) {
-			queryManager.HandleIngestedLogs(logs)
+		callback := func(logs []map[string]interface{}, allTs []uint64) {
+			queryManager.HandleIngestedLogs(logs, allTs)
 		}
 
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile,
