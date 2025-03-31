@@ -306,8 +306,6 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 	buf = buf[:blkLen]
 	_, err := fd.ReadAt(buf, blkOff)
 	if err != nil {
-		log.Errorf("readChunkFromFile: failed to read timestamp file! %+v bytes at offset %+v, err: %+v",
-			blkLen, blkOff, err)
 		return nil, err
 	}
 	return buf, nil
@@ -371,7 +369,6 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 
 	retVal := make(map[uint16][]uint64)
 	var retLock sync.Mutex
-	minIdx := 0
 	allReadJob := make(chan *timeBlockRequest)
 	var readerWG sync.WaitGroup
 	for i := int64(0); i < parallelism; i++ {
@@ -379,12 +376,13 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 		go processTimeBlocks(allReadJob, &readerWG, retVal, &retLock)
 	}
 
-	for minIdx < len(allBlocks) {
+	var retErr error
+	for minIdx, maxIdx := 0, 0; minIdx < len(allBlocks); minIdx = maxIdx + 1 {
 		minBlkNum := allBlocks[minIdx]
 		lastBlkNum := minBlkNum
 		firstBlkOff := blks[minBlkNum].ColumnBlockOffset[tsKey]
 		blkLen := blks[minBlkNum].ColumnBlockLen[tsKey]
-		maxIdx := minIdx
+		maxIdx = minIdx
 		for {
 			nextIdx := maxIdx + 1
 			if nextIdx >= len(allBlocks) {
@@ -403,7 +401,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 		rawChunk, err := readChunkFromFile(fd, buffer, blkLen, firstBlkOff)
 		defer segreader.UncompressedReadBufferPool.Put(&rawChunk)
 		if err != nil {
-			log.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
+			retErr = fmt.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
 			continue
 		}
 
@@ -414,11 +412,10 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}
 		}
-		minIdx = maxIdx + 1
 	}
 	close(allReadJob)
 	readerWG.Wait()
-	return retVal, nil
+	return retVal, retErr
 }
 
 func ReturnTimeBuffers(og map[uint16][]uint64) {
