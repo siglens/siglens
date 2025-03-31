@@ -76,20 +76,8 @@ let navbarComponent = `
                     class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
-        <div class="menu nav-alerts alerts-dropdown-toggle">
-            <div class="menu-header">
-                <a class="nav-links link-alerts" href="./all-alerts.html" >
-                    <span class="icon-alerts"></span>
-                    <span class="nav-link-text-drpdwn">Alerting</span>
-                </a>
-                <img class="nav-dropdown-icon orange"
-                    src="assets/arrow-btn.svg"
-                    alt="Dropdown Arrow">
-            </div>
-            <ul class="alerts-dropdown">
-                <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>
-                <a href="./contacts.html"><li class="alerts-link">Contact Points</li></a>
-            </ul>
+        <div class="menu nav-alerts">
+            <a href="./all-alerts.html" class="nav-links link-alerts"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
         </div>
         <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links link-ldb">
@@ -126,7 +114,23 @@ let navbarComponent = `
                     <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
                 </div>
                 <ul class="infrastructure-dropdown">
-                   <a href="./kubernetes-overview.html"><li class="infrastructure-link">Kubernetes</li></a>
+                   <li class="menu nav-kubernetes kubernetes-dropdown-toggle">
+                        <div class="menu-header">
+                            <a class="nav-links" href="./kubernetes-view.html">
+                                <span class="nav-link-text-drpdwn">Kubernetes</span>
+                            </a>
+                            <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                        </div>
+                        <ul class="kubernetes-dropdown">
+                            <a href="./kubernetes-overview.html"><li class="kubernetes-link">Overview</li></a>
+                            <a href="./kubernetes-view.html?type=clusters"><li class="kubernetes-link">Cluster</li></a>
+                            <a href="./kubernetes-view.html?type=namespaces"><li class="kubernetes-link">Namespaces</li></a>
+                            <a href="./kubernetes-view.html?type=workloads"><li class="kubernetes-link">Workloads</li></a>
+                            <a href="./kubernetes-view.html?type=nodes"><li class="kubernetes-link">Nodes</li></a>
+                            <a href="./kubernetes-view.html?type=events"><li class="kubernetes-link">Events</li></a>
+                            <a href="./kubernetes-view.html?type=configuration&"><li class="kubernetes-link">Configuration</li></a>
+                        </ul>
+                    </li>
                 </ul>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
@@ -415,8 +419,8 @@ $(document).ready(function () {
         { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
         { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
         { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' },
-        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts' },
-        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'}
+        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
+        { menuClass: 'kubernetes-dropdown-toggle', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', parentClass: 'nav-infrastructure' }
     ];
 
     dropdownConfigs.forEach(config => {

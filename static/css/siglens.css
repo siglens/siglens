@@ -18,7 +18,7 @@
  */
 
 
-:root {
+ :root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -5721,7 +5721,8 @@ p#versionInfo {
 #app-side-nav .nav-metrics .menu-header,
 #app-side-nav .nav-ingest .menu-header,
 #app-side-nav .nav-alerts .menu-header,
-#app-side-nav .nav-infrastructure .menu-header {
+#app-side-nav .nav-infrastructure .menu-header,
+#app-side-nav .nav-kubernetes .menu-header{
     display: flex;
     align-items: center;
     width: 100%;
@@ -5733,7 +5734,8 @@ p#versionInfo {
 #app-side-nav .nav-metrics.active,
 #app-side-nav .nav-ingest.active,
 #app-side-nav .nav-alerts.active,
-#app-side-nav .nav-infrastructure.active {
+#app-side-nav .nav-infrastructure.active,
+#app-side-nav .nav-kubernetes.active {
     border-left: none !important;
     border-right: none !important;
     background-color: transparent !important;
@@ -5743,7 +5745,8 @@ p#versionInfo {
 #app-side-nav .nav-traces.active .nav-link-text-drpdwn,
 #app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
 #app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
-#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn {
+#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
+#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
     color: white !important;
 }
 
@@ -5751,7 +5754,8 @@ p#versionInfo {
 #app-side-nav .nav-metrics .menu-header:hover,
 #app-side-nav .nav-ingest .menu-header:hover,
 #app-side-nav .nav-alerts .menu-header:hover
-#app-side-nav .nav-infrastructure .menu-header:hover {
+#app-side-nav .nav-infrastructure .menu-header:hover,
+#app-side-nav .nav-kubernetes .menu-header:hover {
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
     cursor: pointer;
@@ -5761,7 +5765,8 @@ p#versionInfo {
 #app-side-nav .nav-metrics.active .metrics-dropdown,
 #app-side-nav .nav-ingest.active .ingestion-dropdown,
 #app-side-nav .nav-alerts.active .alerts-dropdown,
-#app-side-nav .nav-infrastructure.active .infrastructure-dropdown {
+#app-side-nav .nav-infrastructure.active .infrastructure-dropdown,
+#app-side-nav .nav-kubernetes.active .kubernetes-dropdown {
     border-left: none !important;
     border-right: none !important;
     background-color: var(--side-nav-bg-color-regular) !important;
@@ -5788,8 +5793,7 @@ p#versionInfo {
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
-.alerts-dropdown a,
-.infrastructure-dropdown a{
+.alerts-dropdown a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -5799,8 +5803,7 @@ p#versionInfo {
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
-.alerts-dropdown li,
-.infrastructure-dropdown li{
+.alerts-dropdown li{
     margin-bottom: 2px;
     margin-bottom: 2px;
     font-weight: 500;
@@ -5812,12 +5815,10 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
-.alerts-dropdown li:hover,
-.infrastructure-dropdown li:hover{
+.alerts-dropdown li:hover{
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
@@ -5828,8 +5829,66 @@ p#versionInfo {
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
-.alerts-dropdown li.active,
-.infrastructure-dropdown li.active{
+.alerts-dropdown li.active{
+    color: white !important;
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    /* Orange bar for submenu */
+    background-color: var(--side-nav-bg-color-selected) !important;
+    border-radius: 0 5px 5px 0 !important;
+}
+
+/* .infrastructure-dropdown li .kubernetes-dropdown-toggle{
+    margin-bottom: 2px;
+    margin-bottom: 2px;
+    font-weight: 500;
+    height: 28px;
+    align-items: center;
+    padding-left: 20px;
+    border-left: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+} */
+
+.kubernetes-dropdown{
+    display: none;
+    background-color: var(--side-nav-bg-color-regular);
+    padding: 0 0 6px 0;
+    margin: 0;
+    font-size: 11px;
+    color: var(--navbar-link-text) !important;
+    list-style-type: none;
+    border-radius: 0 0 5px 5px;
+    position: static;
+    width: 100%;
+    cursor: pointer;
+}
+
+.kubernetes-dropdown a{
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+    display: block;
+    padding-left: 20px;
+}
+
+.kubernetes-dropdown li{
+    margin-bottom: 2px;
+    margin-bottom: 2px;
+    font-weight: 500;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    border-left: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+}
+
+.kubernetes-dropdown li:hover{
+    color: white !important;
+    border-right: 5px solid var(--side-nav-bg-color-selected);
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+}
+
+.kubernetes-dropdown li.active{
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -5844,6 +5903,12 @@ p#versionInfo {
 
 .nav-dropdown-icon.rotated {
     transform: rotate(180deg) !important;
+}
+
+.help-options .help-links:hover {
+    background-color: var(--purple-1);
+    color: rgb(255, 255, 255);
+    border-radius: 5px;
 }
 
 .metric-summary {
