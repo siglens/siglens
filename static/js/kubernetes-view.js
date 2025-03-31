@@ -25,10 +25,37 @@ class KubernetesView {
         this.gridOptions = null;
         this.filters = {};
         this.currentFrom = 0;
+        this.queryResults = {};
+
+        this.initializeQueries();
         this.init();
 
         datePickerHandler(this.startTime, this.endTime, this.startTime);
         setupEventHandlers();
+    }
+
+    initializeQueries() {
+        const config = {
+            timeRange: '1h',
+            rateInterval: '5m',
+        };
+
+        switch (this.type) {
+            case 'clusters':
+                this.queries = getClusterMonitoringQueries(config);
+                break;
+            case 'namespaces':
+                this.queries = getNamespaceMonitoringQueries(config);
+                break;
+            case 'nodes':
+                this.queries = getNodeMonitoringQueries(config);
+                break;
+            case 'workloads':
+                this.queries = getWorkloadMonitoringQueries(config);
+                break;
+            default:
+                this.queries = getClusterMonitoringQueries(config);
+        }
     }
 
     init() {
@@ -140,6 +167,7 @@ class KubernetesView {
             console.error('Error loading events data:', error);
         }
     }
+
     initMainView() {
         $('.kubernetes-view-page').show();
         $('.configuration-page').hide();
@@ -274,82 +302,347 @@ class KubernetesView {
         }
 
         const columnConfigs = {
-            clusters: [{ field: 'CLUSTER' }, { field: 'PROVIDER' }, { field: 'NODES' }, { field: 'CPU_AVG', headerName: 'CPU AVG' }, { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_MAX', headerName: 'MEM MAX' }, { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' }],
-            namespaces: [{ field: 'NAMESPACE' }, { field: 'CLUSTER' }, { field: 'WORKLOADS' }, { field: 'CPU_AVG', headerName: 'CPU AVG' }, { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_MAX', headerName: 'MEM MAX' }, { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' }],
-            workloads: [{ field: 'WORKLOAD' }, { field: 'TYPE' }, { field: 'NAMESPACE' }, { field: 'CLUSTER' }, { field: 'PODS' }],
-            nodes: [{ field: 'NODE' }, { field: 'CLUSTER' }, { field: 'CPU_AVG', headerName: 'CPU AVG' }, { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_AVG', headerName: 'MEM AVG' }, { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' }, { field: 'MEM_MAX', headerName: 'MEM MAX' }, { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' }],
+            clusters: [
+                { field: 'CLUSTER', headerName: 'CLUSTER' },
+                { field: 'CPU_AVG', headerName: 'CPU AVG' },
+                { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' },
+                { field: 'CPU_MAX', headerName: 'CPU MAX' },
+                { field: 'CPU_MAX_PERCENT', headerName: 'CPU MAX %' },
+                { field: 'MEM_AVG', headerName: 'MEM AVG' },
+                { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' },
+                { field: 'MEM_MAX', headerName: 'MEM MAX' },
+                { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' },
+            ],
+            namespaces: [
+                { field: 'NAMESPACE', headerName: 'NAMESPACE' },
+                { field: 'CLUSTER', headerName: 'CLUSTER' },
+                { field: 'CPU_AVG', headerName: 'CPU AVG' },
+                { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' },
+                { field: 'CPU_MAX', headerName: 'CPU MAX' },
+                { field: 'CPU_MAX_PERCENT', headerName: 'CPU MAX %' },
+                { field: 'MEM_AVG', headerName: 'MEM AVG' },
+                { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' },
+                { field: 'MEM_MAX', headerName: 'MEM MAX' },
+                { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' },
+            ],
+            workloads: [
+                { field: 'WORKLOAD', headerName: 'WORKLOAD' },
+                { field: 'TYPE', headerName: 'TYPE' },
+                { field: 'NAMESPACE', headerName: 'NAMESPACE' },
+                { field: 'CLUSTER', headerName: 'CLUSTER' },
+                { field: 'CPU_AVG', headerName: 'CPU AVG' },
+                { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' },
+                { field: 'CPU_MAX', headerName: 'CPU MAX' },
+                { field: 'CPU_MAX_PERCENT', headerName: 'CPU MAX %' },
+                { field: 'MEM_AVG', headerName: 'MEM AVG' },
+                { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' },
+                { field: 'MEM_MAX', headerName: 'MEM MAX' },
+                { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' },
+            ],
+            nodes: [
+                { field: 'NODE', headerName: 'NODE' },
+                { field: 'CLUSTER', headerName: 'CLUSTER' },
+                { field: 'CPU_AVG', headerName: 'CPU AVG' },
+                { field: 'CPU_AVG_PERCENT', headerName: 'CPU AVG %' },
+                { field: 'CPU_MAX', headerName: 'CPU MAX' },
+                { field: 'CPU_MAX_PERCENT', headerName: 'CPU MAX %' },
+                { field: 'MEM_AVG', headerName: 'MEM AVG' },
+                { field: 'MEM_AVG_PERCENT', headerName: 'MEM AVG %' },
+                { field: 'MEM_MAX', headerName: 'MEM MAX' },
+                { field: 'MEM_MAX_PERCENT', headerName: 'MEM MAX %' },
+            ],
         };
 
         return columnConfigs[this.type] || [];
     }
 
-    // TODO: Implement retrieving actual data and display that in table
-    loadData() {
-        const dummyData = {
-            clusters: [
-                {
-                    CLUSTER: 'production-cluster',
-                    PROVIDER: 'AWS',
-                    NODES: '5',
-                    CPU_AVG: '2.5 cores',
-                    CPU_AVG_PERCENT: '62.5%',
-                    MEM_AVG: '8.2 GB',
-                    MEM_AVG_PERCENT: '75.3%',
-                    MEM_MAX: '16 GB',
-                    MEM_MAX_PERCENT: '92.1%',
-                },
-            ],
-            namespaces: [
-                {
-                    NAMESPACE: 'default',
-                    CLUSTER: 'production-cluster',
-                    WORKLOADS: '12',
-                    CPU_AVG: '1.8 cores',
-                    CPU_AVG_PERCENT: '45.0%',
-                    MEM_AVG: '4.5 GB',
-                    MEM_AVG_PERCENT: '56.2%',
-                    MEM_MAX: '8 GB',
-                    MEM_MAX_PERCENT: '78.4%',
-                },
-            ],
-            workloads: [
-                {
-                    WORKLOAD: 'nginx-deployment',
-                    TYPE: 'Deployment',
-                    NAMESPACE: 'default',
-                    CLUSTER: 'production-cluster',
-                    PODS: '3',
-                },
-            ],
-            nodes: [
-                {
-                    NODE: 'worker-node-1',
-                    CLUSTER: 'production-cluster',
-                    CPU_AVG: '3.2 cores',
-                    CPU_AVG_PERCENT: '80.0%',
-                    MEM_AVG: '12.8 GB',
-                    MEM_AVG_PERCENT: '80.0%',
-                    MEM_MAX: '14.4 GB',
-                    MEM_MAX_PERCENT: '90.0%',
-                },
-            ],
-        };
+    formatCPUValue(value) {
+        if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+        return `${value.toFixed(2)} cores`;
+    }
 
-        if (this.gridOptions && dummyData[this.type]) {
-            const rowData = dummyData[this.type];
+    formatMemoryValue(value) {
+        if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+
+        // Convert bytes to appropriate unit
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = value;
+        let unitIndex = 0;
+
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+    }
+
+    formatPercentage(value) {
+        if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+        return `${(value * 100).toFixed(2)}%`;
+    }
+
+    async loadData() {
+        if (this.type === 'events') return;
+
+        this.gridOptions.api.showLoadingOverlay();
+
+        try {
+            const results = await this.executeQueries(this.queries);
+            this.queryResults = results;
+
+            const rowData = this.processQueryResults();
+
             this.gridOptions.api.setRowData(rowData);
 
-            const columnFields = this.gridOptions.columnDefs.map((col) => col.field);
-            const pinnedRow = {};
+            this.setSummaryRow(rowData);
 
-            pinnedRow[columnFields[0]] = 'Count';
-            pinnedRow[columnFields[1]] = rowData.length.toString();
-            for (let i = 2; i < columnFields.length; i++) {
-                pinnedRow[columnFields[i]] = '';
-            }
-
-            this.gridOptions.api.setPinnedBottomRowData([pinnedRow]);
+            this.gridOptions.api.hideOverlay();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            this.gridOptions.api.hideOverlay();
+            this.gridOptions.api.showNoRowsOverlay();
         }
+    }
+
+    async executeQueries(queries) {
+        const results = {};
+        const promises = [];
+        const currentTime = Math.floor(Date.now() / 1000);
+
+        // Prepare all query requests
+        Object.entries(queries).forEach(([queryName, query]) => {
+            const request = this.executePromQLQuery(query, currentTime);
+            promises.push(
+                request
+                    .then((response) => {
+                        results[queryName] = response;
+                    })
+                    .catch((error) => {
+                        console.error(`Error executing query ${queryName}:`, error);
+                        results[queryName] = null;
+                    })
+            );
+        });
+
+        // Wait for all queries to complete
+        await Promise.all(promises);
+        return results;
+    }
+
+    async executePromQLQuery(query, timestamp) {
+        return await $.ajax({
+            url: '/promql/api/v1/query',
+            type: 'GET',
+            data: {
+                time: timestamp,
+                query: query,
+            },
+            headers: {
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+        });
+    }
+
+    processQueryResults() {
+        switch (this.type) {
+            case 'clusters':
+                return this.processClusterResults();
+            case 'nodes':
+                return this.processNodeResults();
+            case 'namespaces':
+                return this.processNamespaceResults();
+            case 'workloads':
+                return this.processWorkloadResults();
+            default:
+                return [];
+        }
+    }
+
+    COMMON_METRICS = [
+        { query: 'CPU_USAGE_AVG', field: 'CPU_AVG', formatter: 'formatCPUValue' },
+        { query: 'CPU_USAGE_AVG_PERCENT', field: 'CPU_AVG_PERCENT', formatter: 'formatPercentage' },
+        { query: 'CPU_USAGE_MAX', field: 'CPU_MAX', formatter: 'formatCPUValue' },
+        { query: 'CPU_USAGE_MAX_PERCENT', field: 'CPU_MAX_PERCENT', formatter: 'formatPercentage' },
+        { query: 'MEMORY_USAGE_AVG', field: 'MEM_AVG', formatter: 'formatMemoryValue' },
+        { query: 'MEMORY_USAGE_AVG_PERCENT', field: 'MEM_AVG_PERCENT', formatter: 'formatPercentage' },
+        { query: 'MEMORY_USAGE_MAX', field: 'MEM_MAX', formatter: 'formatMemoryValue' },
+        { query: 'MEMORY_USAGE_MAX_PERCENT', field: 'MEM_MAX_PERCENT', formatter: 'formatPercentage' },
+    ];
+
+    createEmptyMetricsObject() {
+        return {
+            CPU_AVG: 'No data',
+            CPU_AVG_PERCENT: 'No data',
+            CPU_MAX: 'No data',
+            CPU_MAX_PERCENT: 'No data',
+            MEM_AVG: 'No data',
+            MEM_AVG_PERCENT: 'No data',
+            MEM_MAX: 'No data',
+            MEM_MAX_PERCENT: 'No data',
+        };
+    }
+
+    processClusterResults() {
+        const clusterData = {};
+
+        this.COMMON_METRICS.forEach((metric) => {
+            this.processClusterMetric(metric.query, clusterData, metric.field, this[metric.formatter]);
+        });
+
+        return Object.values(clusterData);
+    }
+
+    processClusterMetric(queryKey, clusterData, fieldName, formatter) {
+        if (this.queryResults[queryKey]?.data?.result) {
+            this.queryResults[queryKey].data.result.forEach((item) => {
+                if (item.metric?.cluster && item.value) {
+                    const cluster = item.metric.cluster;
+                    const value = parseFloat(item.value[1]);
+
+                    if (!clusterData[cluster]) {
+                        clusterData[cluster] = {
+                            CLUSTER: cluster,
+                            ...this.createEmptyMetricsObject(),
+                        };
+                    }
+
+                    if (!isNaN(value)) {
+                        clusterData[cluster][fieldName] = formatter(value);
+                    }
+                }
+            });
+        }
+    }
+
+    processNamespaceResults() {
+        const namespaceData = {};
+
+        this.COMMON_METRICS.forEach((metric) => {
+            this.processNamespaceMetric(metric.query, namespaceData, metric.field, this[metric.formatter]);
+        });
+
+        return Object.values(namespaceData);
+    }
+
+    processNamespaceMetric(queryKey, namespaceData, fieldName, formatter) {
+        if (this.queryResults[queryKey]?.data?.result) {
+            this.queryResults[queryKey].data.result.forEach((item) => {
+                if (item.metric?.namespace && item.metric?.cluster && item.value) {
+                    const namespace = item.metric.namespace;
+                    const cluster = item.metric.cluster;
+                    const key = `${cluster}:${namespace}`;
+                    const value = parseFloat(item.value[1]);
+
+                    if (!namespaceData[key]) {
+                        namespaceData[key] = {
+                            NAMESPACE: namespace,
+                            CLUSTER: cluster,
+                            ...this.createEmptyMetricsObject(),
+                        };
+                    }
+
+                    if (!isNaN(value)) {
+                        namespaceData[key][fieldName] = formatter(value);
+                    }
+                }
+            });
+        }
+    }
+
+    processWorkloadResults() {
+        const workloadData = {};
+
+        this.COMMON_METRICS.forEach((metric) => {
+            this.processWorkloadMetric(metric.query, workloadData, metric.field, this[metric.formatter]);
+        });
+
+        return Object.values(workloadData);
+    }
+
+    processWorkloadMetric(queryKey, workloadData, fieldName, formatter) {
+        if (this.queryResults[queryKey]?.data?.result) {
+            this.queryResults[queryKey].data.result.forEach((item) => {
+                if (item.metric && item.value) {
+                    const workload = item.metric.workload || '';
+                    const type = item.metric.workload_type || '';
+                    const namespace = item.metric.namespace || '';
+                    const cluster = item.metric.cluster || '';
+
+                    if (workload && namespace && cluster) {
+                        const key = `${cluster}:${namespace}:${workload}`;
+                        const value = parseFloat(item.value[1]);
+
+                        if (!workloadData[key]) {
+                            workloadData[key] = {
+                                WORKLOAD: workload,
+                                TYPE: type,
+                                NAMESPACE: namespace,
+                                CLUSTER: cluster,
+                                ...this.createEmptyMetricsObject(),
+                            };
+                        }
+
+                        if (!isNaN(value)) {
+                            workloadData[key][fieldName] = formatter(value);
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    processNodeResults() {
+        const nodeData = {};
+
+        this.COMMON_METRICS.forEach((metric) => {
+            this.processNodeMetric(metric.query, nodeData, metric.field, this[metric.formatter]);
+        });
+
+        return Object.values(nodeData);
+    }
+
+    processNodeMetric(queryKey, nodeData, fieldName, formatter) {
+        if (this.queryResults[queryKey]?.data?.result) {
+            this.queryResults[queryKey].data.result.forEach((item) => {
+                if (item.metric?.node && item.metric?.cluster && item.value) {
+                    const node = item.metric.node;
+                    const cluster = item.metric.cluster;
+                    const key = `${cluster}:${node}`;
+                    const value = parseFloat(item.value[1]);
+
+                    if (!nodeData[key]) {
+                        nodeData[key] = {
+                            NODE: node,
+                            CLUSTER: cluster,
+                            ...this.createEmptyMetricsObject(),
+                        };
+                    }
+
+                    if (!isNaN(value)) {
+                        nodeData[key][fieldName] = formatter(value);
+                    }
+                }
+            });
+        }
+    }
+
+    setSummaryRow(rowData) {
+        if (!this.gridOptions || !rowData || rowData.length === 0) return;
+
+        const columnFields = this.gridOptions.columnDefs.map((col) => col.field);
+        const pinnedRow = {};
+
+        pinnedRow[columnFields[0]] = 'Count';
+        pinnedRow[columnFields[1]] = rowData.length.toString();
+
+        for (let i = 2; i < columnFields.length; i++) {
+            pinnedRow[columnFields[i]] = '';
+        }
+
+        this.gridOptions.api.setPinnedBottomRowData([pinnedRow]);
     }
 }
 
