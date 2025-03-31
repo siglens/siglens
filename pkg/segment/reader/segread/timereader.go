@@ -264,35 +264,45 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 	lowTs := toputils.BytesToUint64LittleEndian(rawRec[oPtr:])
 	oPtr += 8
 
+	numValidRecs := numRecs
 	switch tsType {
 	case structs.TS_Type8:
+		numValidRecs = min(numRecs, uint16(len(rawRec)-int(oPtr)))
 		var tsVal uint8
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = uint8(rawRec[oPtr])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 1
 		}
 	case structs.TS_Type16:
+		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/2))
 		var tsVal uint16
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = toputils.BytesToUint16LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 2
 		}
 	case structs.TS_Type32:
+		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/4))
 		var tsVal uint32
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = toputils.BytesToUint32LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 4
 		}
 	case structs.TS_Type64:
+		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/8))
 		var tsVal uint64
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = toputils.BytesToUint64LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 8
 		}
+	}
+
+	if numValidRecs != numRecs {
+		return bufToUse, fmt.Errorf("convertRawRecordsToTimestamps: expected %d records, but rawRec only had %d records",
+			numRecs, numValidRecs)
 	}
 
 	return bufToUse, nil
