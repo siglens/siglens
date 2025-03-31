@@ -830,7 +830,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	binaryOperation.ReturnBool = expr.ReturnBool
 	queryArithmetic = append(queryArithmetic, &binaryOperation)
 
-	if mQueryReqs[0].MetricsQuery.HashedMName > 0 || mQueryReqs[0].MetricsQuery.SubsequentAggs != nil {
+	if mQueryReqs[0].MetricsQuery.HashedMName != 0 || mQueryReqs[0].MetricsQuery.SubsequentAggs != nil {
 		// This means that the current MQueryReqs is not empty and we need to append the new request
 		mQueryReqs = append(mQueryReqs, lhsRequest...)
 	} else {
@@ -840,7 +840,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
 
 	if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
-		// TODO: Fix for Logical operators
+		// TODO: Fix for Logical operators. The Logical Operators can also have vector matching on labels.
 
 		binaryOperation.VectorMatching = &structs.VectorMatching{
 			Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),

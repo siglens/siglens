@@ -246,11 +246,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 
 	var referenceMetricRes *mresults.MetricsResult
 
-	returnfunc := func(scalarValuePt *float64, err error) (map[string]map[uint32]float64, *float64, error) {
-		if err != nil {
-			return nil, nil, err
-		}
-
+	returnFunc := func() (map[string]map[uint32]float64, *float64, error) {
 		if queryOp.MQueryAggsChain != nil && finalResult != nil && referenceMetricRes != nil {
 			referenceMetricRes.Results = finalResult
 			query.ProcessMQueryAggsChain(&structs.MetricsQuery{
@@ -261,7 +257,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 			finalResult = referenceMetricRes.Results
 		}
 
-		return finalResult, scalarValuePt, nil
+		return finalResult, nil, nil
 	}
 
 	if queryOp.ConstantOp {
@@ -347,7 +343,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				}
 			}
 
-			return returnfunc(nil, nil)
+			return returnFunc()
 		}
 
 		// Since each grpID is unique and contains label set information, we can map lGrpID to labelSet and labelSet to rGrpID.
@@ -493,7 +489,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 
 	}
 
-	return returnfunc(nil, nil)
+	return returnFunc()
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
