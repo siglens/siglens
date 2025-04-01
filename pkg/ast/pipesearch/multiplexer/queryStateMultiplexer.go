@@ -123,6 +123,8 @@ func (q *QueryStateMultiplexer) handleMessage(data *query.QueryStateChanData, ok
 
 func (q *QueryStateMultiplexer) handleData(data *query.QueryStateChanData, chanIndex channelIndex) {
 	switch data.StateName {
+	case query.WAITING:
+		// do nothing
 	case query.READY, query.RUNNING, query.QUERY_RESTART:
 		q.output <- &QueryStateEnvelope{
 			QueryStateChanData: data,

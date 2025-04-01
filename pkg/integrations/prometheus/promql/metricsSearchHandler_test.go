@@ -401,7 +401,7 @@ func Test_ProcessQueryArithmeticAndLogical_v1(t *testing.T) {
 	queryResultsMap[queryHash2] = queryResult2
 	queryResultsMap[queryHash3] = queryResult3
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, false)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, false, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 1, len(mResult.Results))
 
@@ -486,7 +486,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v1(t *testing.T) {
 	queryResultsMap[queryHash1] = queryResult1
 	queryResultsMap[queryHash2] = queryResult2
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 1, len(mResult.Results))
 
@@ -586,7 +586,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v2(t *testing.T) {
 	queryResultsMap[queryHash2] = queryResult2
 	queryResultsMap[queryHash3] = queryResult3
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 1, len(mResult.Results))
 
@@ -678,7 +678,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v3(t *testing.T) {
 	queryResultsMap[queryHash1] = queryResult1
 	queryResultsMap[queryHash2] = queryResult2
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 2, len(mResult.Results))
 
@@ -748,7 +748,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v4(t *testing.T) {
 
 	queryResultsMap := getQueryResultMapForThreeTestQueries("node_cpu_seconds_total", "node_memory_MemTotal_bytes", "node_disk_reads_completed_total")
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 2, len(mResult.Results))
 
@@ -844,7 +844,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_v5(t *testing.T) {
 	queryResultsMap[xxhash.Sum64String("node_disk_reads_completed_total")] = queryResult3
 
 	opLabelsDoNotNeedToMatch := false // Since there are multiple results that have more than one series, the labels need to match.
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, opLabelsDoNotNeedToMatch)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, opLabelsDoNotNeedToMatch, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 1, len(mResult.Results))
 	fmt.Println(mResult.Results)
@@ -1036,7 +1036,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v1(t *testing.T)
 			queryResultsMap[queryTest.Hash] = &queryTest.QueryResult
 		}
 
-		mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+		mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true, nil, 0)
 		assert.NotNil(t, mResult, "At index: %v, mResult is nil", i)
 
 		len_mResults := 1
@@ -1092,7 +1092,7 @@ func Test_ProcessQueryArithmeticAndLogical_TimeSeries_Scalar_OP_v2(t *testing.T)
 
 	queryResultsMap := getQueryResultMapForThreeTestQueries("node_cpu_seconds_total", "node_memory_MemTotal_bytes", "node_disk_reads_completed_total")
 
-	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true)
+	mResult := segment.ProcessQueryArithmeticAndLogical(queryArithmetic, queryResultsMap, true, nil, 0)
 	assert.NotNil(t, mResult)
 	assert.Equal(t, 2, len(mResult.Results))
 

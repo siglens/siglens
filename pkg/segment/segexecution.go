@@ -43,6 +43,8 @@ func manageStateForMetricsQuery(qid uint64, rQuery *query.RunningQueryState, mQu
 	}
 
 	for stateData := range rQuery.StateChan {
+		rQuery.SetLatestQueryState(stateData.StateName)
+
 		switch stateData.StateName {
 		case query.CANCELLED, query.TIMEOUT:
 			mQuery.SetQueryIsCancelled()
@@ -68,6 +70,8 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
 		}
 	}
+
+	querySummary.SetFetchQueryStateFn(rQuery.GetLatestQueryState)
 
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
@@ -102,6 +106,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 				ErrList: []error{toputils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
 			}
 		}
+		querySummary.SetFetchQueryStateFn(rQuery.GetLatestQueryState)
 
 		signal := <-rQuery.StateChan
 		if signal.StateName != query.READY {
@@ -139,10 +144,11 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 		opLabelsDoNotNeedToMatch = false
 	}
 
-	return ProcessQueryArithmeticAndLogical(queryOps, resMap, opLabelsDoNotNeedToMatch)
+	return ProcessQueryArithmeticAndLogical(queryOps, resMap, opLabelsDoNotNeedToMatch, timeRange, qid)
 }
 
-func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) *mresults.MetricsResult {
+func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool,
+	timeRange *dtu.MetricsTimeRange, qid uint64) *mresults.MetricsResult {
 
 	if len(queryOps) > 1 {
 		log.Errorf("processQueryArithmeticAndLogical: len(queryOps) should be 1, but got %d", len(queryOps))
@@ -153,7 +159,7 @@ func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap
 	IsScalar := false
 	var scalarValue float64
 
-	finalResult, scalarValuePtr, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter, opLabelsDoNotNeedToMatch)
+	finalResult, scalarValuePtr, err := processQueryArithmeticNodeOp(&queryOps[0], resMap, &operationCounter, opLabelsDoNotNeedToMatch, timeRange, qid)
 	if err != nil {
 		log.Errorf("ProcessQueryArithmeticAndLogical: Error processing query arithmetic node operation: %v", err)
 		return &mresults.MetricsResult{
@@ -174,7 +180,8 @@ func ProcessQueryArithmeticAndLogical(queryOps []structs.QueryArithmetic, resMap
 	return &mresults.MetricsResult{Results: finalResult, State: mresults.AGGREGATED, ScalarValue: scalarValue, IsScalar: IsScalar}
 }
 
-func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, *float64, error) {
+func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, operationCounter *int,
+	opLabelsDoNotNeedToMatch bool, timeRange *dtu.MetricsTimeRange, qid uint64) (map[string]map[uint32]float64, *float64, error) {
 	if queryOp == nil {
 		return nil, nil, fmt.Errorf("processQueryArithmeticNodeOp: queryOp is nil")
 	}
@@ -188,7 +195,7 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 		var scalarValue float64
 		isScalar := false
 
-		result, scalarValuePtr, err := processQueryArithmeticNodeOp(expr, resMap, operationCounter, opLabelsDoNotNeedToMatch)
+		result, scalarValuePtr, err := processQueryArithmeticNodeOp(expr, resMap, operationCounter, opLabelsDoNotNeedToMatch, timeRange, qid)
 		if err != nil {
 			return err
 		}
@@ -230,16 +237,33 @@ func processQueryArithmeticNodeOp(queryOp *structs.QueryArithmetic, resMap map[u
 
 	*operationCounter++
 
-	return HelperQueryArithmeticAndLogical(queryOp, resMap, opLabelsDoNotNeedToMatch)
+	return HelperQueryArithmeticAndLogical(queryOp, resMap, opLabelsDoNotNeedToMatch, timeRange, qid)
 }
 
-func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool) (map[string]map[uint32]float64, *float64, error) {
+func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap map[uint64]*mresults.MetricsResult, opLabelsDoNotNeedToMatch bool,
+	timeRange *dtu.MetricsTimeRange, qid uint64) (map[string]map[uint32]float64, *float64, error) {
 
 	finalResult := make(map[string]map[uint32]float64)
 
 	resultLHS, leftOk := resMap[queryOp.LHS]
 	resultRHS, rightOk := resMap[queryOp.RHS]
 	swapped := false
+
+	var referenceMetricRes *mresults.MetricsResult
+
+	returnFunc := func() (map[string]map[uint32]float64, *float64, error) {
+		if queryOp.MQueryAggsChain != nil && finalResult != nil && referenceMetricRes != nil {
+			referenceMetricRes.Results = finalResult
+			query.ProcessMQueryAggsChain(&structs.MetricsQuery{
+				IsInstantQuery: referenceMetricRes.IsInstantQuery,
+				SubsequentAggs: queryOp.MQueryAggsChain,
+			}, timeRange, referenceMetricRes, qid)
+
+			finalResult = referenceMetricRes.Results
+		}
+
+		return finalResult, nil, nil
+	}
 
 	if queryOp.ConstantOp {
 		resultLHS, ok := resMap[queryOp.LHS]
@@ -314,6 +338,8 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 			scalarValuePtr = &resultRHS.ScalarValue
 		}
 
+		referenceMetricRes = resultLHS
+
 		if scalarValuePtr != nil {
 			for groupID, tsLHS := range resultLHS.Results {
 				finalResult[groupID] = make(map[uint32]float64)
@@ -322,7 +348,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 				}
 			}
 
-			return finalResult, nil, nil
+			return returnFunc()
 		}
 
 		// Since each grpID is unique and contains label set information, we can map lGrpID to labelSet and labelSet to rGrpID.
@@ -468,7 +494,7 @@ func HelperQueryArithmeticAndLogical(queryOp *structs.QueryArithmetic, resMap ma
 
 	}
 
-	return finalResult, nil, nil
+	return returnFunc()
 }
 
 func ExecuteQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qid uint64, qc *structs.QueryContext) *structs.NodeResult {
@@ -657,11 +683,13 @@ func SetupPipeResQuery(root *structs.ASTNode, aggs *structs.QueryAggregators, qi
 
 	queryProcessor, err := processor.NewQueryProcessor(aggs, queryInfo, querySummary, scrollFrom, qc.IncludeNulls, *startTime, true)
 	if err != nil {
+		querySummary.Cleanup()
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to create query processor, err: %v", qid, err)
 	}
 
 	err = query.SetCleanupCallback(qid, queryProcessor.Cleanup)
 	if err != nil {
+		querySummary.Cleanup()
 		return nil, toputils.TeeErrorf("qid=%v, ExecutePipeResQuery: failed to set cleanup callback, err: %v", qid, err)
 	}
 

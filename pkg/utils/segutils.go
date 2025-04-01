@@ -149,6 +149,17 @@ func GetSegBaseDirFromFilename(filename string) (string, error) {
 	return filename[:pos], nil
 }
 
+func GetSegKeyFromFilename(filename string) (string, error) {
+	segbaseDir, err := GetSegBaseDirFromFilename(filename)
+	if err != nil {
+		return "", err
+	}
+
+	// The segkey is the segbase dir, but with the suffix repeated.
+	suffix := filepath.Base(segbaseDir)
+	return filepath.Join(segbaseDir, suffix), nil
+}
+
 func WriteValidityFile(segBaseDir string) error {
 	err := os.MkdirAll(segBaseDir, 0755)
 	if err != nil {

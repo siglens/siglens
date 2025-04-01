@@ -109,7 +109,7 @@ func initMockColumnarMetadataStoreInternal(myid int64, indexName string, count i
 		segMetadata := metadata.InitSegmentMicroIndex(sInfo, false)
 		metadata.BulkAddSegmentMicroIndex([]*metadata.SegmentMicroIndex{segMetadata})
 
-		writer.WriteRunningSegMeta(segkey, sInfo)
+		writer.WriteRunningSegMeta(sInfo)
 
 		segKeys[i] = segkey
 	}
