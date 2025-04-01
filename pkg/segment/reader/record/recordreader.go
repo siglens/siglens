@@ -331,7 +331,7 @@ func getRecordsFromSegmentHelperOldPipeline(segKey string, vTable string, blkRec
 	numOpenFds := int64(len(allCols))
 	err = fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(numOpenFds, 10, fmt.Sprintf("GetRecordsFromSegment.qid=%d", qid))
 	if err != nil {
-		log.Errorf("qid=%d getRecordsFromSegmentHelper failed to acquire lock for opening %+v file descriptors. err %+v", qid, numOpenFds, err)
+		log.Errorf("qid=%d getRecordsFromSegmentHelperOldPipeline failed to acquire lock for opening %+v file descriptors. err %+v", qid, numOpenFds, err)
 		return nil, map[string]bool{}, err
 	}
 	defer fileutils.GLOBAL_FD_LIMITER.Release(numOpenFds)
@@ -345,21 +345,21 @@ func getRecordsFromSegmentHelperOldPipeline(segKey string, vTable string, blkRec
 	}
 	err = blob.BulkDownloadSegmentBlob(bulkDownloadFiles, true)
 	if err != nil {
-		log.Errorf("qid=%d, getRecordsFromSegmentHelper failed to download col file. err=%v", qid, err)
+		log.Errorf("qid=%d, getRecordsFromSegmentHelperOldPipeline failed to download col file. err=%v", qid, err)
 		return nil, map[string]bool{}, err
 	}
 
 	defer func() {
 		err = blob.SetSegSetFilesAsNotInUse(allFiles)
 		if err != nil {
-			log.Errorf("qid=%d, getRecordsFromSegmentHelper failed to set segset files as not in use. err=%v", qid, err)
+			log.Errorf("qid=%d, getRecordsFromSegmentHelperOldPipeline failed to set segset files as not in use. err=%v", qid, err)
 		}
 	}()
 
 	for ssFile := range bulkDownloadFiles {
 		fd, err := os.Open(ssFile)
 		if err != nil {
-			log.Errorf("qid=%d, getRecordsFromSegmentHelper failed to open col file. Tried to open file=%v, err=%v", qid, ssFile, err)
+			log.Errorf("qid=%d, getRecordsFromSegmentHelperOldPipeline failed to open col file. Tried to open file=%v, err=%v", qid, ssFile, err)
 			return nil, map[string]bool{}, err
 		}
 		defer fd.Close()
@@ -370,18 +370,18 @@ func getRecordsFromSegmentHelperOldPipeline(segKey string, vTable string, blkRec
 	if writer.IsSegKeyUnrotated(segKey) {
 		blockMetadata, err = writer.GetBlockSearchInfoForKey(segKey)
 		if err != nil {
-			log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
+			log.Errorf("qid=%d getRecordsFromSegmentHelperOldPipeline failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
 			return nil, map[string]bool{}, err
 		}
 		blockSum, err = writer.GetBlockSummaryForKey(segKey)
 		if err != nil {
-			log.Errorf("qid=%d getRecordsFromSegmentHelper failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
+			log.Errorf("qid=%d getRecordsFromSegmentHelperOldPipeline failed to get block search info for unrotated key %s table %s", qid, segKey, vTable)
 			return nil, map[string]bool{}, err
 		}
 	} else {
 		blockMetadata, blockSum, err = segmetadata.GetSearchInfoAndSummary(segKey)
 		if err != nil {
-			log.Errorf("getRecordsFromSegmentHelper: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
+			log.Errorf("getRecordsFromSegmentHelperOldPipeline: failed to get blocksearchinfo for segkey=%v, err=%v", segKey, err)
 			return nil, map[string]bool{}, err
 		}
 	}
@@ -389,7 +389,7 @@ func getRecordsFromSegmentHelperOldPipeline(segKey string, vTable string, blkRec
 	result := make(map[string]map[string]interface{})
 	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, allCols, blockMetadata, blockSum, 1, consistentCValLen, qid, nodeRes)
 	if err != nil {
-		log.Errorf("getRecordsFromSegmentHelper: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
+		log.Errorf("getRecordsFromSegmentHelperOldPipeline: failed to initialize shared readers for segkey=%v, err=%v", segKey, err)
 		return nil, map[string]bool{}, err
 	}
 	defer sharedReader.Close()
@@ -482,10 +482,8 @@ func readColsForRecords(segReader *segread.MultiColSegmentReader, blockNum uint1
 		results[cname] = make([]utils.CValueEnclosure, len(orderedRecNums))
 	}
 
-	readAllRawRecords(orderedRecNums, blockNum, segReader,
+	return results, readAllRawRecords(orderedRecNums, blockNum, segReader,
 		allMatchedColumns, esQuery, qid, aggs, nodeRes, results)
-
-	return results, nil
 }
 
 func isDictCol(col string, esQuery bool) bool {
@@ -503,7 +501,7 @@ func isDictCol(col string, esQuery bool) bool {
 func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segread.MultiColSegmentReader,
 	allMatchedColumns map[string]bool, esQuery bool, qid uint64, aggs *structs.QueryAggregators,
 	nodeRes *structs.NodeResult,
-	results map[string][]utils.CValueEnclosure) {
+	results map[string][]utils.CValueEnclosure) error {
 
 	dictEncCols := make(map[string]bool)
 	allColKeyIndices := make(map[int]string)
@@ -550,8 +548,8 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 
 	err := segReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 	if err != nil {
-		log.Errorf("qid=%d, readAllRawRecords: failed to validate and read block: %d, err: %v", qid, blockNum, err)
-		return
+		return fmt.Errorf("qid=%d, readAllRawRecords: failed to validate and read block, err: %v",
+			qid, err)
 	}
 
 	var isTsCol bool
@@ -582,7 +580,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 						fieldToValue[mathOp.MathCol] = cValEnc
 						valueFloat, err := mathOp.ValueColRequest.EvaluateToFloat(fieldToValue)
 						if err != nil {
-							log.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)
+							return fmt.Errorf("qid=%d, failed to evaluate math operation for col %s, err=%v", qid, cname, err)
 						} else {
 							cValEnc.CVal = valueFloat
 						}
@@ -595,6 +593,7 @@ func readAllRawRecords(orderedRecNums []uint16, blockNum uint16, segReader *segr
 			}
 		}
 	}
+	return nil
 }
 
 // TODO: remove calls to this function so that only readColsForRecords calls
