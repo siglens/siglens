@@ -232,7 +232,7 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 			return nil, nil
 		}
 
-		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid), nil
+		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
 	}
 
 	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
@@ -240,12 +240,12 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 }
 
 func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
-	rrcs []*utils.RecordResultContainer, qid uint64) []utils.CValueEnclosure {
+	rrcs []*utils.RecordResultContainer, qid uint64) ([]utils.CValueEnclosure, error) {
 
 	sortFunc := func(rrc1, rrc2 *utils.RecordResultContainer) bool {
 		return rrc1.RecordNum < rrc2.RecordNum
 	}
-	operation := func(rrcs []*utils.RecordResultContainer) []utils.CValueEnclosure {
+	operation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
 		allRecNums := make([]uint16, len(rrcs))
 		for i, rrc := range rrcs {
 			allRecNums[i] = rrc.RecordNum
@@ -253,21 +253,18 @@ func handleBlock(multiReader *segread.MultiColSegmentReader, blockNum uint16,
 
 		colToValues, err := readColsForRecords(multiReader, blockNum, allRecNums, qid)
 		if err != nil {
-			log.Errorf("handleBlock: failed to read columns for records; err=%v", err)
-			return nil
+			return nil, fmt.Errorf("handleBlock: failed to read columns for records; err=%v", err)
 		}
 
 		if len(colToValues) != 1 {
-			log.Errorf("handleBlock: expected 1 column, got %v", len(colToValues))
-			return nil
+			return nil, fmt.Errorf("handleBlock: expected 1 column, got %v", len(colToValues))
 		}
 
 		for _, values := range colToValues {
-			return values
+			return values, nil
 		}
 
-		log.Errorf("handleBlock: should not reach here")
-		return nil
+		return nil, fmt.Errorf("handleBlock: should not reach here")
 	}
 
 	return toputils.SortThenProcessThenUnsort(rrcs, sortFunc, operation)
