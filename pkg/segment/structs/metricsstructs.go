@@ -515,10 +515,10 @@ Format of block summary file
 [version - 1 byte][blk num - 2 bytes][high ts - 4 bytes][low ts - 4 bytes]
 */
 func (mbs *MBlockSummary) FlushSummary(fName string) error {
-	var flag bool = false
+	var isFirstBlock bool = false
 	if _, err := os.Stat(fName); os.IsNotExist(err) {
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
-		flag = true
+		isFirstBlock = true
 		if err != nil {
 			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
 			return err
@@ -536,7 +536,7 @@ func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	// todo bug here, the highTs/lowTs are of 4bytes, but we do 8 here
 	// once the version is updated, change here and on the reader side to
 	// read both types of version files
-	if flag {
+	if isFirstBlock {
 		mBlkSum = make([]byte, 19)
 		copy(mBlkSum[idx:], utils.VERSION_MBLOCKSUMMARY)
 		idx += 1
