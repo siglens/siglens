@@ -274,10 +274,10 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	return &runningSegStat.Max, nil
 }
 
-func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValueEnclosure {
+func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) (*utils.CValueEnclosure, error) {
 	result := utils.CValueEnclosure{}
 	if !max.IsNumeric() && !min.IsNumeric() {
-		return &utils.CValueEnclosure{}
+		return nil, fmt.Errorf("getRange: both max and min are non-numeric")
 	}
 	switch max.Dtype {
 	case utils.SS_DT_FLOAT:
@@ -288,7 +288,7 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 		case utils.SS_DT_SIGNED_NUM:
 			result.CVal = max.CVal.(float64) - float64(min.CVal.(int64))
 		default:
-			return &utils.CValueEnclosure{}
+			return nil, fmt.Errorf("getRange: unsupported dtype: %v", min.Dtype)
 		}
 	case utils.SS_DT_SIGNED_NUM:
 		switch min.Dtype {
@@ -299,13 +299,13 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 			result.Dtype = utils.SS_DT_SIGNED_NUM
 			result.CVal = max.CVal.(int64) - min.CVal.(int64)
 		default:
-			return &utils.CValueEnclosure{}
+			return nil, fmt.Errorf("getRange: unsupported dtype: %v", min.Dtype)
 		}
 	default:
-		log.Debugf("getRange: unsupported dtype: %v", max.Dtype)
+		return nil, fmt.Errorf("getRange: unsupported dtype: %v", max.Dtype)
 	}
 
-	return &result
+	return &result, nil
 }
 
 func GetSegRange(runningSegStat *structs.SegStats,
@@ -324,13 +324,13 @@ func GetSegRange(runningSegStat *structs.SegStats,
 			return &result, nil
 		}
 
-		return getRange(currSegStat.Max, currSegStat.Min), nil
+		return getRange(currSegStat.Max, currSegStat.Min)
 	}
 
 	structs.UpdateMinMax(runningSegStat, currSegStat.Min)
 	structs.UpdateMinMax(runningSegStat, currSegStat.Max)
 
-	return getRange(runningSegStat.Max, runningSegStat.Min), nil
+	return getRange(runningSegStat.Max, runningSegStat.Min)
 }
 
 func GetSegSum(runningSegStat *structs.SegStats,
