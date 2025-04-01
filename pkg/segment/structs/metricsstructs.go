@@ -79,6 +79,7 @@ type MetricsQuery struct {
 	Groupby             bool // flag to group by tags
 	GroupByMetricName   bool // flag to group by metric name
 	AggWithoutGroupBy   bool // flag that indicates aggregation without group by anywhere in the query
+	IsInstantQuery      bool // flag that indicates if the query is an instant query
 }
 
 // This is used to aggregate multiple things into fewer things. Currently, two
@@ -245,9 +246,10 @@ type QueryArithmetic struct {
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
-	Results        map[string]map[uint32]float64
-	OperatedState  bool //true if operation has been executed
-	VectorMatching *VectorMatching
+	Results         map[string]map[uint32]float64
+	OperatedState   bool //true if operation has been executed
+	VectorMatching  *VectorMatching
+	MQueryAggsChain *MetricQueryAgg
 }
 
 // VectorMatching describes how elements from two Vectors in a binary

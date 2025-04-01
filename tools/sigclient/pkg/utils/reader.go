@@ -51,7 +51,7 @@ var allFixedColumns = []string{}
 type Generator interface {
 	Init(fName ...string) error
 	GetLogLine() ([]byte, error)
-	GetRawLog() (map[string]interface{}, error)
+	GetRawLog() (map[string]interface{}, uint64, error)
 }
 
 // file reader loads chunks from the file. Each request will get a sequential entry from the chunk.
@@ -378,7 +378,11 @@ func randomizeBody(f *gofakeit.Faker, m map[string]interface{}, addts bool, acco
 	}
 }
 
-func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bool, config *GeneratorDataConfig) {
+func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bool,
+	config *GeneratorDataConfig) uint64 {
+
+	var ts uint64
+
 	for col := range m {
 		delete(m, col)
 	}
@@ -450,8 +454,10 @@ func randomizeBody_dynamic(f *gofakeit.Faker, m map[string]interface{}, addts bo
 	}
 
 	if addts {
-		m["timestamp"] = uint64(time.Now().UnixMilli())
+		ts = uint64(time.Now().UnixMilli())
+		m["timestamp"] = ts
 	}
+	return ts
 }
 
 type Data struct {
@@ -637,18 +643,20 @@ func randomizeBody_perfTest(f *gofakeit.Faker, m map[string]interface{}, addts b
 	config.perfTestConfig.LogToSend = logToSend
 }
 
-func (r *DynamicUserGenerator) generateRandomBody() {
+func (r *DynamicUserGenerator) generateRandomBody() uint64 {
 	if r.DataConfig != nil {
 		if r.DataConfig.ConfigType == PerformanceTest {
 			randomizeBody_perfTest(r.faker, r.baseBody, r.ts, r.DataConfig, r.accountFaker)
 		} else if r.DataConfig.ConfigType == FunctionalTest {
 			randomizeBody_functionalTest(r.faker, r.baseBody, r.ts, r.DataConfig.functionalTest, r.accountFaker)
 		} else {
-			randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
+			// for longevity test we return the ts
+			return randomizeBody_dynamic(r.faker, r.baseBody, r.ts, r.DataConfig)
 		}
 	} else {
 		randomizeBody(r.faker, r.baseBody, r.ts, r.accountFaker)
 	}
+	return 0
 }
 
 func (r *K8sGenerator) createK8sBody() {
@@ -690,7 +698,7 @@ func (r *DynamicUserGenerator) Init(fName ...string) error {
 	r.accountFaker = gofakeit.NewUnlocked(r.accFakerSeed)
 	rand.Seed(r.seed)
 	r.baseBody = make(map[string]interface{})
-	r.generateRandomBody()
+	_ = r.generateRandomBody()
 	body, err := json.Marshal(r.baseBody)
 	if err != nil {
 		return err
@@ -711,18 +719,18 @@ func (r *K8sGenerator) GetLogLine() ([]byte, error) {
 }
 
 func (r *DynamicUserGenerator) GetLogLine() ([]byte, error) {
-	r.generateRandomBody()
+	_ = r.generateRandomBody()
 	return json.Marshal(r.baseBody)
 }
 
-func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, error) {
-	r.generateRandomBody()
-	return r.baseBody, nil
+func (r *DynamicUserGenerator) GetRawLog() (map[string]interface{}, uint64, error) {
+	ts := r.generateRandomBody()
+	return r.baseBody, ts, nil
 }
 
-func (r *K8sGenerator) GetRawLog() (map[string]interface{}, error) {
+func (r *K8sGenerator) GetRawLog() (map[string]interface{}, uint64, error) {
 	r.createK8sBody()
-	return r.baseBody, nil
+	return r.baseBody, 0, nil
 }
 
 func (r *StaticGenerator) Init(fName ...string) error {
@@ -743,13 +751,13 @@ func (sr *StaticGenerator) GetLogLine() ([]byte, error) {
 	return sr.logLine, nil
 }
 
-func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, error) {
+func (sr *StaticGenerator) GetRawLog() (map[string]interface{}, uint64, error) {
 	final := make(map[string]interface{})
 	err := json.Unmarshal(sr.logLine, &final)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return final, nil
+	return final, 0, nil
 }
 
 var chunkSize int = 10000
@@ -793,17 +801,17 @@ func (fr *FileReader) GetLogLine() ([]byte, error) {
 	return retVal, nil
 }
 
-func (fr *FileReader) GetRawLog() (map[string]interface{}, error) {
+func (fr *FileReader) GetRawLog() (map[string]interface{}, uint64, error) {
 	rawLog, err := fr.GetLogLine()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	final := make(map[string]interface{})
 	err = json.Unmarshal(rawLog, &final)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return final, nil
+	return final, 0, nil
 }
 
 func (fr *FileReader) swapChunks() error {

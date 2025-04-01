@@ -50,6 +50,8 @@ type Series struct {
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
+
+	isInstantQuery bool
 }
 
 type DownsampleSeries struct {
@@ -104,6 +106,7 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 		convertedDownsampleAggFn: convertedDownsampleAggFn,
 		aggregationConstant:      aggregationConstant,
 		grpID:                    tsGroupId,
+		isInstantQuery:           mQuery.IsInstantQuery,
 	}
 }
 
@@ -118,6 +121,29 @@ func (s *Series) GetIdx() int {
 }
 
 func (s *Series) AddEntry(ts uint32, dp float64) {
+	if s.isInstantQuery {
+		idx := s.idx
+
+		// if instant query, we only need the latest value per series
+		if idx > 0 {
+			// Decrement the index to overwrite the previous entry
+			idx--
+		}
+
+		if ts > s.entries[idx].downsampledTime {
+			s.entries[idx].downsampledTime = ts
+			s.entries[idx].dpVal = dp
+		}
+
+		if s.idx == 0 {
+			// Since Instant query uses only one value, when the idx is 0, Increment the index to the next entry
+			// indicating that there is a valid entry in the series
+			s.idx++
+		}
+
+		return
+	}
+
 	s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
 	s.entries[s.idx].dpVal = dp
 	s.idx++
@@ -145,7 +171,30 @@ func (s *Series) sortEntries() {
 	s.sorted = true
 }
 
-func (s *Series) Merge(toJoin *Series) {
+func (s *Series) Merge(toJoin *Series) error {
+	if s.isInstantQuery {
+		if s.idx != 1 || s.idx != toJoin.idx {
+			return fmt.Errorf("Merge: instant query series should have only one entry, but got %v and %v", s.idx, toJoin.idx)
+		}
+
+		// Decrement the index to overwrite the previous entry, since for instant only one entry is allowed
+		s.idx--
+		toJoin.idx--
+
+		maxTsEntry := s.entries[s.idx]
+		if maxTsEntry.downsampledTime < toJoin.entries[toJoin.idx].downsampledTime {
+			maxTsEntry = toJoin.entries[toJoin.idx]
+		}
+
+		s.entries[s.idx] = maxTsEntry
+
+		// Increment the index back
+		s.idx++
+		toJoin.idx++
+
+		return nil
+	}
+
 	toJoinEntries := toJoin.entries[:toJoin.idx]
 	s.entries = s.entries[:s.idx]
 	s.len = s.idx
@@ -153,6 +202,8 @@ func (s *Series) Merge(toJoin *Series) {
 	s.idx += toJoin.idx
 	s.sorted = false
 	s.len += toJoin.idx
+
+	return nil
 }
 
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {
@@ -286,6 +337,11 @@ func ApplyLabelFunction(seriesId string, labelFunction *structs.LabelFunctionExp
 func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr) (string, error) {
 	if labelFunction == nil {
 		return seriesId, fmt.Errorf("applyLabelReplace: labelFunction is nil")
+	}
+
+	if labelFunction.SourceLabel == "" {
+		seriesId = fmt.Sprintf("%s,%s:%s", seriesId, labelFunction.DestinationLabel, labelFunction.Replacement.NameBasedVal)
+		return seriesId, nil
 	}
 
 	_, values := ExtractGroupByFieldsFromSeriesId(seriesId, []string{labelFunction.SourceLabel})
@@ -662,7 +718,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time:
+	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time, segutils.Last_Over_Time:
 		return evaluateAggregationOverTime(sortedTimeSeries, ts, function, timeRange)
 	case segutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
@@ -674,9 +730,6 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		return ts, nil
 	case segutils.Mad_Over_Time:
 		return evaluateMADOverTime(sortedTimeSeries, ts, timeWindow), nil
-	case segutils.Last_Over_Time:
-		// If we take the very last sample from every element of a range vector, the resulting vector will be identical to a regular instant vector query.
-		return ts, nil
 	case segutils.Present_Over_Time:
 		for key := range ts {
 			ts[key] = 1
@@ -745,14 +798,18 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 	for nextEvaluationTime <= timeRange.EndEpochSec {
 		timeWindowStartTime := nextEvaluationTime - timeWindow
 
-		// Find index of the first point within the time window using binary search (Inclusive)
+		// In Prometheus, the time window is left-open and right-closed, meaning
+		// that the start time is exclusive and the end time is inclusive.
+		// refer to: https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors
+
+		// Find index of the first point within the time window using binary search (Exclusive)
 		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			return sortedTimeSeries[j].downsampledTime > timeWindowStartTime
 		})
 
-		// Find index of the last point within the time window using binary search (Exclusive)
+		// Find index of the last point within the time window using binary search (Inclusive)
 		lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
+			return sortedTimeSeries[j].downsampledTime > nextEvaluationTime
 		}) - 1
 
 		if lastIndex < preIndex {
@@ -780,6 +837,9 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 				max = math.Max(max, sortedTimeSeries[j].dpVal)
 			}
 			ts[nextEvaluationTime] = max
+		case segutils.Last_Over_Time:
+			// the most recent point value in the specified interval
+			ts[nextEvaluationTime] = sortedTimeSeries[lastIndex].dpVal
 		default:
 			return ts, fmt.Errorf("evaluateAggregationOverTime: unsupported function type %v", function.RangeFunction)
 		}

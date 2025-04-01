@@ -52,6 +52,7 @@ const (
 	Hourly UsageStatsGranularity = iota + 1
 	Daily
 	ByMinute
+	Monthly
 )
 
 type Stats struct {
@@ -546,6 +547,7 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 	var intervalMinutes uint32
 	var err error
 	runningTs := startEpoch
+
 	if granularity == ByMinute {
 		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
 		if err != nil {
@@ -573,6 +575,20 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			startTOH = startTOH + segutils.MS_IN_HOUR
 			resultMap[bucketInterval] = &ReadStats{}
 		}
+	} else if granularity == Monthly {
+		startOfMonth := time.Date(startEpoch.Year(), startEpoch.Month(), 1, 0, 0, 0, 0, startEpoch.Location())
+		runningTs = startOfMonth
+
+		endMonth := time.Date(endEpoch.Year(), endEpoch.Month(), 1, 0, 0, 0, 0, endEpoch.Location())
+
+		for !runningTs.After(endMonth) {
+			bucketInterval = runningTs.Format("2006-01")
+			resultMap[bucketInterval] = &ReadStats{}
+
+			runningTs = time.Date(runningTs.Year(), runningTs.Month()+1, 1, 0, 0, 0, 0, runningTs.Location())
+		}
+	} else {
+		return nil, fmt.Errorf("GetUsageStats: unknown granularity value: %v", granularity)
 	}
 
 	allStatsMap, err := readUsageStats(startEpoch, endEpoch, orgid)
@@ -591,6 +607,10 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 			// For example, if rStat.TimeStamp is "20:47" and intervalMinutes is 10,
 			// it will truncate the time to "20:40" and format it as "2006-01-02T20:40" to store in the resultMap.
 			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
+		} else if granularity == Monthly {
+			bucketInterval = rStat.TimeStamp.Format("2006-01")
+		} else {
+			return nil, fmt.Errorf("GetUsageStats: unknown granularity value: %v", granularity)
 		}
 		entry, ok := resultMap[bucketInterval]
 		if !ok {
