@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
@@ -36,6 +37,7 @@ type WAL struct {
 
 var encoder, _ = zstd.NewWriter(nil)
 var decoder, _ = zstd.NewReader(nil)
+var encoderLock sync.Mutex
 
 const UINT32_SIZE = 4
 
@@ -276,7 +278,9 @@ func (w *WAL) encodeWALBlock(dps []WalDatapoint) error {
 		}
 	}
 
+	encoderLock.Lock()
 	w.encodedBuf = encoder.EncodeAll(w.rawBlockBuf.Bytes(), w.encodedBuf[:0])
+	encoderLock.Unlock()
 	return nil
 }
 
@@ -329,6 +333,205 @@ func (it *WalIterator) decodeWALBlock(blockBuf *bytes.Reader) error {
 			log.Errorf("decodeWALBlock: failed to read tsid at index %d: %v", i, err)
 			return err
 		}
+	}
+
+	return nil
+}
+
+/*
+Write-Ahead Logging (WAL) for Metrics Names
+*/
+
+type MNameWalIterator struct {
+	fd               *os.File
+	readBuf          []byte
+	readMetricsNames []string
+	currentIndex     int
+}
+
+func (it *MNameWalIterator) Close() error {
+	if it.fd != nil {
+		return it.fd.Close()
+	}
+	return errors.New("file descriptor is nil")
+}
+
+/*
+This function appends a new block to the file.
+
+File Format:
+	Version:                1 Byte  // File format version
+
+	// Repeating Blocks Structure
+	[Block] {
+		BlockLen:               4 Bytes  // Size of this block (excluding this field)
+		Checksum:               4 Bytes  // CRC32 checksum for data integrity
+		ZstdEncoded Block:
+			Metrics Names:  	[] 		 // List of metric names stored in the block
+				|-- [Metric Name] {
+					StringLength:  2 Bytes   // Length of the metric name (uint16)
+					StringData:    Variable  // Actual metric name (UTF-8 encoded)
+				}
+	}
+
+	Multiple such blocks are appended continuously.
+*/
+
+func (w *WAL) AppendMName(mName []string) error {
+	w.encodedBuf = w.encodedBuf[:0]
+	err := w.compressMetricNames(mName)
+	if err != nil {
+		log.Errorf("AppendMName: Failed to compress metric names: %v", err)
+		return err
+	}
+	checksum := crc32.ChecksumIEEE(w.encodedBuf)
+
+	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
+	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
+	if err != nil {
+		log.Errorf("AppendMName : failed to write block size: %v", err)
+		return err
+	}
+
+	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
+	_, err = w.fd.Write(w.checksumBuf)
+	if err != nil {
+		log.Errorf("AppendMName: failed to write checksum: %v", err)
+		return err
+	}
+
+	_, err = w.fd.Write(w.encodedBuf)
+	if err != nil {
+		log.Errorf("AppendMName: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
+		return err
+	}
+
+	w.totalDps += uint32(len(mName))
+	w.encodedSize += uint64(UINT32_SIZE + blockSize) // Adding 4-byte UINT32 (blockSize field) size to encodedSize, excluded from blockSize.
+	return nil
+}
+
+func NewMNameWalReader(filePath string) (*MNameWalIterator, error) {
+	fd, err := os.Open(filePath)
+	if err != nil {
+		log.Errorf("NewMNameWalReader: failed to open WAL file at path %s: %v", filePath, err)
+		return nil, err
+	}
+
+	versionBuf := make([]byte, 1)
+	_, err = fd.Read(versionBuf)
+	if err != nil {
+		log.Errorf("NewMNameWalReader: failed to read WAL file version: %v", err)
+		return nil, err
+	}
+
+	if versionBuf[0] != segutils.VERSION_WALFILE[0] {
+		log.Errorf("NewMNameWalReader: Unexpected WAL file version: %+v", versionBuf[0])
+		return nil, fmt.Errorf("unexpected WAL file version: %+v", versionBuf[0])
+	}
+
+	return &MNameWalIterator{
+		fd:               fd,
+		readBuf:          make([]byte, 0),
+		readMetricsNames: make([]string, 0),
+		currentIndex:     0,
+	}, nil
+}
+
+func (it *MNameWalIterator) Next() (*string, error) {
+	if it.currentIndex < len(it.readMetricsNames) {
+		it.currentIndex++
+		return &it.readMetricsNames[it.currentIndex-1], nil
+	}
+
+	var blockSize uint32
+	err := binary.Read(it.fd, binary.LittleEndian, &blockSize)
+	if errors.Is(err, io.EOF) {
+		return nil, nil
+	} else if err != nil {
+		log.Printf("MNameWalIterator Next: failed to read block size from WAL file: %v", err)
+		return nil, err
+	}
+
+	if blockSize < UINT32_SIZE { // Checking if block size is less than checksum size (4 bytes)
+		log.Printf("MNameWalIterator Next: invalid block size (%d), less than checksum size", blockSize)
+		return nil, errors.New("invalid block size")
+	}
+
+	var checksum uint32
+	err = binary.Read(it.fd, binary.LittleEndian, &checksum)
+	if err != nil {
+		log.Printf("MNameWalIterator Next: failed to read checksum: %v", err)
+		return nil, err
+	}
+
+	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize-UINT32_SIZE)) // remove checksum length and read the actual data block
+	_, err = io.ReadFull(it.fd, it.readBuf)
+	if err != nil {
+		log.Printf("MNameWalIterator Next: failed to read block data of size %d: %v", blockSize, err)
+		return nil, err
+	}
+
+	calculatedChecksum := crc32.ChecksumIEEE(it.readBuf)
+	if calculatedChecksum != checksum {
+		log.Printf("MNameWalIterator Next: checksum mismatch! Calculated: %v, Expected: %v", calculatedChecksum, checksum)
+		return nil, errors.New("checksum mismatch")
+	}
+
+	it.readMetricsNames = it.readMetricsNames[:0]
+	err = it.decompressMetricNames()
+	if err != nil {
+		log.Errorf("MNameWalIterator Next: Failed to decompress block: %v", err)
+		return nil, err
+	}
+	it.currentIndex = 1
+	if len(it.readMetricsNames) == 0 {
+		log.Warnf("MNameWalIterator Next: No metrics found in decompressed data")
+		return nil, nil
+	}
+	return &it.readMetricsNames[0], nil
+}
+
+func (w *WAL) compressMetricNames(mNames []string) error {
+	var buf bytes.Buffer
+	for _, str := range mNames {
+		length := uint16(len(str))
+		err := binary.Write(&buf, binary.LittleEndian, length)
+		if err != nil {
+			log.Errorf("compressMetricNames: Failed to write length of metric '%s': %v", str, err)
+			return err
+		}
+		buf.WriteString(str)
+	}
+	encoderLock.Lock()
+	w.encodedBuf = encoder.EncodeAll(buf.Bytes(), w.encodedBuf[:0])
+	encoderLock.Unlock()
+	return nil
+}
+
+func (it *MNameWalIterator) decompressMetricNames() error {
+	var err error
+	it.readBuf, err = decoder.DecodeAll(it.readBuf, nil)
+	if err != nil {
+		log.Errorf("decompressMetricNames: Failed to decompress data: %v", err)
+		return err
+	}
+
+	buf := bytes.NewReader(it.readBuf)
+	for buf.Len() > 0 {
+		var length uint16
+		err := binary.Read(buf, binary.LittleEndian, &length)
+		if err != nil {
+			log.Errorf("decompressMetricNames: Failed to read string length: %v", err)
+			return err
+		}
+		strBytes := make([]byte, length)
+		_, err = buf.Read(strBytes)
+		if err != nil {
+			log.Errorf("decompressMetricNames: Failed to read string data: %v", err)
+			return err
+		}
+		it.readMetricsNames = append(it.readMetricsNames, string(strBytes))
 	}
 
 	return nil
