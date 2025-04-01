@@ -34,14 +34,12 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	fName := fmt.Sprintf("%v.sst", segkey)
 	err := blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, ReadSegStats: failed to download sst file: %+v, err: %v", qid, fName, err)
-		return retVal, err
+		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to download sst file: %+v, err: %v", qid, fName, err)
 	}
 
 	fdata, err := os.ReadFile(fName)
 	if err != nil {
-		log.Errorf("qid=%d, ReadSegStats: failed to read sst file: %+v, err: %v", qid, fName, err)
-		return retVal, err
+		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to read sst file: %+v, err: %v", qid, fName, err)
 	}
 
 	defer func() {
@@ -52,7 +50,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	}()
 
 	if len(fdata) == 0 {
-		return nil, toputils.TeeErrorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
+		return nil, fmt.Errorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
 	}
 
 	rIdx := uint32(0)
@@ -61,6 +59,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	version := fdata[rIdx]
 	rIdx++
 
+	var retErr error
 	for rIdx < uint32(len(fdata)) {
 
 		// cnamelen
@@ -81,20 +80,20 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 			sstlen = uint32(toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2]))
 			rIdx += 2
 		default:
-			log.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
+			retErr = fmt.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
 			continue
 		}
 
 		// actual sst
 		sst, err := readSingleSst(fdata[rIdx:rIdx+sstlen], qid)
 		if err != nil {
-			return retVal, toputils.TeeErrorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
+			return retVal, fmt.Errorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
 				qid, cname, err)
 		}
 		rIdx += uint32(sstlen)
 		retVal[cname] = sst
 	}
-	return retVal, nil
+	return retVal, retErr
 }
 
 func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
@@ -303,7 +302,7 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 			return &utils.CValueEnclosure{}
 		}
 	default:
-		log.Errorf("getRange: unsupported dtype: %v", max.Dtype)
+		log.Debugf("getRange: unsupported dtype: %v", max.Dtype)
 	}
 
 	return &result
