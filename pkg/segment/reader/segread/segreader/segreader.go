@@ -243,9 +243,8 @@ func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
 		sfr.currOffset = 0
 		currRecLen, err := sfr.getCurrentRecordLength()
 		if err != nil {
-			log.Errorf("SegmentFileReader.ReadRecord: error resetting SegmentFileReader %s. Error: %+v",
+			return nil, fmt.Errorf("SegmentFileReader.ReadRecord: error resetting SegmentFileReader %s. Error: %+v",
 				sfr.fileName, err)
-			return nil, err
 		}
 		sfr.currRecLen = currRecLen
 		sfr.currRecordNum = 0
@@ -270,7 +269,6 @@ func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
 			recordNum, sfr.currRecordNum, sfr.currBlockNum, sfr.fileName, sfr.ColName, sfr.currOffset,
 			sfr.currRecLen, sfr.currUncompressedBlockLen)
 
-		log.Error(errStr)
 		return nil, errors.New(errStr)
 	}
 
@@ -284,7 +282,7 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 	nextOff := sfr.currOffset + sfr.currRecLen
 	if nextOff >= sfr.currUncompressedBlockLen {
 		if !sfr.someBlksAbsent {
-			log.Errorf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
+			log.Debugf("SegmentFileReader.iterateNextRecord: reached end of block, next Offset: %+v, curr uncompressed blklen: %+v", nextOff, sfr.currUncompressedBlockLen)
 		}
 		// we don't log an error, but we are returning err so that, the caller does not
 		// get stuck an loop
@@ -293,7 +291,6 @@ func (sfr *SegmentFileReader) iterateNextRecord() error {
 	sfr.currOffset = nextOff
 	currRecLen, err := sfr.getCurrentRecordLength()
 	if err != nil {
-		log.Errorf("SegmentFileReader.iterateNextRecord: an error occurred while iterating to the next record at offset: %v Skipping..., err:  %+v", sfr.currOffset, err)
 		sfr.currOffset -= sfr.currRecLen
 		return err
 	}
@@ -417,8 +414,7 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 	uncompressed, err := decoder.DecodeAll(buf[0:], sfr.currRawBlockBuffer[:0])
 	if err != nil {
-		log.Errorf("SegmentFileReader.unpackRawCsg: decompress error: %+v", err)
-		return err
+		return fmt.Errorf("SegmentFileReader.unpackRawCsg: decompress error: %+v", err)
 	}
 
 	sfr.currRawBlockBuffer = uncompressed
@@ -426,9 +422,8 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 
 	currRecLen, err := sfr.getCurrentRecordLength()
 	if err != nil {
-		log.Errorf("SegmentFileReader.unpackRawCsg: error getting record length for the first record in block %v in file %s. Error: %+v",
-			blockNum, sfr.fileName, err)
-		return err
+		return fmt.Errorf("SegmentFileReader.unpackRawCsg: error getting record length for the first record in file %s. Error: %+v",
+			sfr.fileName, err)
 	}
 	sfr.currRecLen = currRecLen
 	sfr.currRecordNum = 0
@@ -528,7 +523,7 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BACKFILL
 		default:
-			log.Errorf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
+			log.Debugf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
 			return false
 		}
 	}
