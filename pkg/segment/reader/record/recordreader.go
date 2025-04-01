@@ -752,9 +752,11 @@ func applyColNameTransform(allCols map[string]bool, aggs *structs.QueryAggregato
 			}
 		}
 	}
-	if aggs.OutputTransforms.OutputColumns.RenameColumns != nil {
-		log.Info("handle aggs.OutputTransforms.OutputColumns.RenameColumn")
-		//todo handle rename
-	}
+	//todo handle rename
+	/*
+		if aggs.OutputTransforms.OutputColumns.RenameColumns != nil {
+		}
+	*/
+
 	return retCols
 }
