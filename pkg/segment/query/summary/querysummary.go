@@ -105,6 +105,7 @@ type QuerySummary struct {
 	totalDistributedQueries     uint64
 	tickCount                   uint32
 	closeOnce                   sync.Once
+	fetchQueryStateFn           func() string
 }
 
 const TICK_DURATION_SECS = 10
@@ -155,6 +156,12 @@ func InitQuerySummary(queryType QueryType, qid uint64) *QuerySummary {
 
 func (qs *QuerySummary) Cleanup() {
 	qs.stopTicker()
+}
+
+func (qs *QuerySummary) SetFetchQueryStateFn(fetchQueryStateFn func() string) {
+	qs.updateLock.Lock()
+	defer qs.updateLock.Unlock()
+	qs.fetchQueryStateFn = fetchQueryStateFn
 }
 
 func (qs *QuerySummary) startTicker() {
@@ -236,8 +243,12 @@ func (qs *QuerySummary) processTick() {
 			remainingDQsString,
 			activeQSCountForLogs)
 	} else if qs.queryType == METRICS {
-		log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
-			qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
+		queryState := "executing"
+		if qs.fetchQueryStateFn != nil {
+			queryState = qs.fetchQueryStateFn()
+		}
+		log.Infof("qid=%d, Query is in %v State. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
+			qs.qid, queryState, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
 			qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), activeQSCountForMetrics)
 	}
 }
