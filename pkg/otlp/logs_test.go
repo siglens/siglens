@@ -18,7 +18,6 @@
 package otlp
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
@@ -388,8 +387,6 @@ func Test_extractLogRecord_K8seventsIndex(t *testing.T) {
 	recordInfo, actualIndexName, err := extractLogRecord(protobuf.ResourceLogs[0].ScopeLogs[0].LogRecords[0], nil, nil, indexName)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedInexName, actualIndexName)
-
-	fmt.Println("recordInfo.attributes: ", recordInfo.Attributes)
 
 	assert.Equal(t, uint64(1234567890), recordInfo.TimeUnixNano)
 	assert.Equal(t, "INFO", recordInfo.SeverityText)

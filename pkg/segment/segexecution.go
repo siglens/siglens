@@ -43,6 +43,8 @@ func manageStateForMetricsQuery(qid uint64, rQuery *query.RunningQueryState, mQu
 	}
 
 	for stateData := range rQuery.StateChan {
+		rQuery.SetLatestQueryState(stateData.StateName)
+
 		switch stateData.StateName {
 		case query.CANCELLED, query.TIMEOUT:
 			mQuery.SetQueryIsCancelled()
@@ -68,6 +70,8 @@ func ExecuteMetricsQuery(mQuery *structs.MetricsQuery, timeRange *dtu.MetricsTim
 			ErrList: []error{toputils.TeeErrorf("qid=%v ExecuteMetricsQuery: Error initializing query status! %+v", qid, err)},
 		}
 	}
+
+	querySummary.SetFetchQueryStateFn(rQuery.GetLatestQueryState)
 
 	signal := <-rQuery.StateChan
 	if signal.StateName != query.READY {
@@ -102,6 +106,7 @@ func ExecuteMultipleMetricsQuery(hashList []uint64, mQueries []*structs.MetricsQ
 				ErrList: []error{toputils.TeeErrorf("ExecuteMultipleMetricsQuery: Error initializing query status! %v", err)},
 			}
 		}
+		querySummary.SetFetchQueryStateFn(rQuery.GetLatestQueryState)
 
 		signal := <-rQuery.StateChan
 		if signal.StateName != query.READY {
