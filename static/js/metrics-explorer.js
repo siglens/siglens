@@ -42,6 +42,7 @@ let funcApplied = false;
 let selectedTheme = 'Palette';
 let selectedLineStyle = 'Solid';
 let selectedStroke = 'Normal';
+let selectedQueryType = 'Range';
 var colorPalette = {
     Classic: ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'],
     Purple: ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'],
@@ -132,7 +133,19 @@ $(document).ready(async function () {
         let jsonString = decodeURIComponent(dataParam);
         let obj = JSON.parse(jsonString);
         isMetricsURL = true;
+
+        if (obj.type) {
+            selectedQueryType = obj.type; // e.g., "Instant" from Kubernetes
+            $('#query-type-input').val(selectedQueryType);
+        }
+        // Populate metrics query element and set initial time range
         populateMetricsQueryElement(obj);
+        filterStartDate = obj.start; // Could be "now-1h" or timestamp
+        filterEndDate = obj.end;
+
+        // Trigger initial query execution with the parsed query
+        const initialQuery = obj.queries[0];
+        getMetricsData(initialQuery.name, initialQuery.query, initialQuery.state);
     }
 
     if (!isAlertScreen && !isMetricsURL && !isDashboardScreen) {
@@ -1902,20 +1915,26 @@ function getOrCreateVisualizationContainer(queryName, queryString) {
 function addVisualizationContainer(queryName, seriesData, queryString, panelId) {
     if (isDashboardScreen) {
         // For dashboard page
-        prepareChartData(seriesData, chartDataCollection, queryName);
+        prepareChartData(seriesData.data, chartDataCollection, queryName);
         mergeGraphs(chartType, panelId);
     } else {
         // For metrics explorer page
         var container = getOrCreateVisualizationContainer(queryName, queryString);
 
-        var canvas = $('<canvas></canvas>');
-        container.find('.graph-canvas').append(canvas);
+        if (seriesData.type === 'instant') {
+            // Display instant query results as numbers/table
+            displayInstantQueryResults(container, seriesData);
+        } else {
+            // Render chart for range queries
+            var canvas = $('<canvas></canvas>');
+            container.find('.graph-canvas').append(canvas);
 
-        var lineChart = initializeChart(canvas, seriesData, queryName, chartType);
-        lineCharts[queryName] = lineChart;
+            var lineChart = initializeChart(canvas, seriesData.data, queryName, chartType);
+            lineCharts[queryName] = lineChart;
 
-        updateGraphWidth();
-        mergeGraphs(chartType);
+            updateGraphWidth();
+            mergeGraphs(chartType);
+        }
     }
 
     addOrUpdateFormulaCache(queryName, queryString);
@@ -2131,6 +2150,29 @@ $('#stroke-input')
     .on('click', function () {
         $(this).select();
     });
+
+var queryTypeOptions = ['Range', 'Instant'];
+
+$('#query-type-input')
+    .autocomplete({
+        source: queryTypeOptions,
+        minLength: 0,
+        select: function(event, ui) {
+            handleQueryTypeChange(ui.item.value);
+            $(this).blur();
+        }
+    })
+    .on('click', function() {
+        if ($(this).autocomplete('widget').is(':visible')) {
+            $(this).autocomplete('close');
+        } else {
+            $(this).autocomplete('search', '');
+        }
+    })
+    .on('click', function() {
+        $(this).select();
+    })
+    .val(selectedQueryType);
 
 // Function to update all line charts based on selected line style and stroke
 function updateLineCharts(lineStyle, stroke) {
@@ -2479,78 +2521,77 @@ function mergeGraphs(chartType, panelId = -1) {
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
+    if (selectedQueryType === 'Instant') {
+        // Handle instant query response
+        return {
+            type: 'instant',
+            data: data,  // Pass through the entire response
+            queryType: data.queryType
+        };
+    }
+
+    // Existing code for range queries
     let seriesArray = [];
+    let chartStartTime, chartEndTime;
 
-    if (data.series && data.timestamps && data.values) {
-        let chartStartTime, chartEndTime;
+    if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
+        chartStartTime = Math.floor(filterStartDate / 1000);
+        chartEndTime = Math.floor(filterEndDate / 1000);
+    } else {
+        chartStartTime = data.startTime;
+        chartEndTime = Math.floor(Date.now() / 1000);
 
-        // If using custom date range
-        if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
-            chartStartTime = Math.floor(filterStartDate / 1000);
-            chartEndTime = Math.floor(filterEndDate / 1000);
+        if (data.timestamps && data.timestamps.length > 0) {
+            chartEndTime = Math.max(chartEndTime, data.timestamps[data.timestamps.length - 1]);
+        }
+    }
+
+    const timeRange = chartEndTime - chartStartTime;
+    timeUnit = determineTimeUnit(timeRange);
+    let calculatedInterval = data.intervalSec;
+
+    for (let i = 0; i < data.series.length; i++) {
+        let series = {
+            seriesName: data.series[i],
+            values: {},
+        };
+
+        const isNumericExpression = /^[\d+\-*/() ]+$/.test(data.series[i]);
+
+        if (isNumericExpression) {
+            const constantValue = data.values[i][0];
+            for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
+                const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
+                series.values[formattedDate] = constantValue;
+            }
         } else {
-            chartStartTime = data.startTime;
-            chartEndTime = Math.floor(Date.now() / 1000); // now
+            for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
+                const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
+                series.values[formattedDate] = null;
+            }
 
-            if (data.timestamps && data.timestamps.length > 0) {
-                chartEndTime = Math.max(chartEndTime, data.timestamps[data.timestamps.length - 1]);
+            for (let j = 0; j < data.timestamps.length; j++) {
+                const timestampInMilliseconds = data.timestamps[j] * 1000;
+                const formattedDate = moment(timestampInMilliseconds).format('YYYY-MM-DDTHH:mm:ss');
+                series.values[formattedDate] = data.values[i][j];
             }
         }
 
-        const timeRange = chartEndTime - chartStartTime;
-
-        // Determine the best time unit based on the time range
-        timeUnit = determineTimeUnit(timeRange);
-
-        let calculatedInterval = data.intervalSec;
-
-        for (let i = 0; i < data.series.length; i++) {
-            let series = {
-                seriesName: data.series[i],
-                values: {},
-            };
-
-            const isNumericExpression = /^[\d+\-*/() ]+$/.test(data.series[i]);
-
-            if (isNumericExpression) {
-                // For numeric expressions, use the same value for all timestamps
-                const constantValue = data.values[i][0];
-                for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
-                    const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
-                    series.values[formattedDate] = constantValue;
-                }
-            } else {
-                // For regular metrics, add null values for all timestamps in the range
-                for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
-                    const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
-                    series.values[formattedDate] = null;
-                }
-
-                // Add actual values only for timestamps present in the data
-                for (let j = 0; j < data.timestamps.length; j++) {
-                    const timestampInMilliseconds = data.timestamps[j] * 1000;
-                    const formattedDate = moment(timestampInMilliseconds).format('YYYY-MM-DDTHH:mm:ss');
-                    series.values[formattedDate] = data.values[i][j];
-                }
-            }
-
-            seriesArray.push(series);
-        }
+        seriesArray.push(series);
     }
 
     if (seriesArray.length === 0) {
         let startTime, endTime;
 
-        // For custom time range
         if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
             startTime = Math.floor(filterStartDate / 1000);
             endTime = Math.floor(filterEndDate / 1000);
         } else {
-            startTime = data.startTime;
+            startTime = data.startTime || (Date.now() / 1000 - 3600);
             endTime = Math.floor(Date.now() / 1000);
         }
 
-        const labels = generateEmptyChartLabels(timeUnit, startTime, endTime);
+        const labels = generateEmptyChartLabels(timeUnit || 'minute', startTime, endTime);
         seriesArray.push({
             seriesName: 'No Data',
             values: labels.reduce((acc, label) => {
@@ -2560,7 +2601,10 @@ async function convertDataForChart(data) {
         });
     }
 
-    return seriesArray;
+    return {
+        type: 'range',
+        data: seriesArray
+    };
 }
 
 function determineTimeUnit(timeRange) {
@@ -2685,40 +2729,105 @@ function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, q
     return errorMessage;
 }
 
-async function getMetricsData(queryName, metricName, state) {
-    // Show loading indicators
-    const container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
-    const mergedContainer = $('#merged-graph-container').find('.merged-graph');
 
-    mergedContainer.append('<div id="panel-loading"></div>');
-    container.append('<div id="panel-loading"></div>');
+    async function getMetricsData(queryName, metricName, state) {
+        // Show loading indicators
+        const container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"]`);
+        const graphCanvas = container.find('.graph-canvas');
+        const mergedContainer = $('#merged-graph-container').find('.merged-graph');
 
-    let panelEditContainer;
-    if (isDashboardScreen) {
-        panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
-        panelEditContainer.append('<div id="panel-loading"></div>');
+        if (mergedContainer.length) {
+            mergedContainer.append('<div id="panel-loading"></div>');
+        }
+        if (graphCanvas.length) {
+            graphCanvas.append('<div id="panel-loading"></div>');
+        }
+
+        let panelEditContainer;
+        if (isDashboardScreen) {
+            panelEditContainer = $('.panelDisplay').find('#panEdit-panel');
+            panelEditContainer.append('<div id="panel-loading"></div>');
+        }
+
+        try {
+            // Prepare query object
+            const query = { name: queryName, query: `${metricName}`, qlType: 'promql', state };
+            let result;
+
+            if (selectedQueryType === 'Instant') {
+                // Instant query using /promql/api/v1/query
+                const timestamp = (typeof filterEndDate === 'number' ? filterEndDate : 'now');
+                const queryString = createSingleQueryString([query], [{ formula: queryName }]);
+
+                try {
+                    result = await executePromQLQuery(queryString, timestamp);
+
+                    if (!result || typeof result !== 'object') {
+                        throw new Error('Invalid response format');
+                    }
+
+                    if (result.status !== 'success') {
+                        throw new Error(result.error || 'Query failed');
+                    }
+
+                    if (!result.data || !result.data.result) {
+                        throw new Error('No data in response');
+                    }
+
+                    result.queryType = 'Instant';
+
+                    // Display instant query results
+                    if (container && container.length) {
+                        displayInstantQueryResults(container, result);
+                    }
+
+                } catch (error) {
+                    const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
+                    if (container.length) {
+                        displayErrorMessage(container, errorMessage);
+                    }
+                    throw error;
+                }
+            } else {
+                // Range query using metrics-explorer/api/v1/timeseries
+                const data = {
+                    start: filterStartDate ? filterStartDate : 'now-1h',
+                    end: filterEndDate ? filterEndDate : 'now',
+                    queries: [query],
+                    formulas: [{ formula: queryName }],
+                };
+
+                try {
+                    result = await fetchTimeSeriesData(data);
+                    result.queryType = selectedQueryType;
+                } catch (error) {
+                    const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
+                    if (container.length) {
+                        displayErrorMessage(container, errorMessage);
+                    }
+                    throw error;
+                }
+            }
+
+            // Update global state if successful
+            rawTimeSeriesData = result;
+            updateDownloadButtons();
+            updateMetricsQueryParamsInUrl();
+            metricsQueryParams = { queries: [query], formulas: [{ formula: queryName }] };
+
+            return result;
+        } catch (error) {
+            console.error('Error in getMetricsData:', error);
+            const errorMessage = error.responseText || error.message || 'Failed to fetch metrics data';
+            if (container && container.length) {
+                displayErrorMessage(container, errorMessage);
+            }
+            throw error;
+        } finally {
+            // Clean up loading indicators
+            $('#panel-loading').remove();
+        }
     }
-
-    // Prepare data for the API call
-    const query = { name: queryName, query: `${metricName}`, qlType: 'promql', state };
-    const data = {
-        start: filterStartDate,
-        end: filterEndDate,
-        queries: [query],
-        formulas: [{ formula: queryName }],
-    };
-
-    // Return the result to be handled by the caller
-    const result = await fetchTimeSeriesData(data);
-
-    // Update global state if successful
-    rawTimeSeriesData = result;
-    updateDownloadButtons();
-    updateMetricsQueryParamsInUrl();
-    metricsQueryParams = data; // For alerts page
-
-    return result;
-}
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
     let queriesData = [];
@@ -2825,6 +2934,86 @@ async function fetchTimeSeriesData(data) {
     } finally {
         // Reset cursor to default
         $('body').css('cursor', 'default');
+    }
+}
+
+// Import executePromQLQuery for instant queries
+async function executePromQLQuery(query, timestamp) {
+    try {
+        console.log('Sending PromQL query:', {
+            query: query,
+            timestamp: timestamp,
+            url: '/promql/api/v1/query'
+        });
+
+        const response = await $.ajax({
+            url: '/promql/api/v1/query',
+            method: 'GET',
+            data: {
+                query: query,
+                time: timestamp
+            },
+            dataType: 'json',
+            success: function(data) {
+                console.log('PromQL response:', data);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                console.error('PromQL error:', {
+                    status: jqXHR.status,
+                    statusText: jqXHR.statusText,
+                    responseText: jqXHR.responseText,
+                    error: errorThrown
+                });
+            }
+        });
+
+        console.log('Raw response:', response);
+
+        // Check if response is a string (sometimes happens with JSON parsing issues)
+        if (typeof response === 'string') {
+            try {
+                response = JSON.parse(response);
+            } catch (e) {
+                console.error('Failed to parse response as JSON:', e);
+                throw new Error('Invalid JSON response from server');
+            }
+        }
+
+        if (!response) {
+            throw new Error('Empty response from server');
+        }
+
+        // Handle both direct response and wrapped response formats
+        if (response.data && response.data.result) {
+            // Response is already in the correct format
+            return response;
+        } else if (Array.isArray(response) || (response.value && Array.isArray(response.value))) {
+            // Response is a direct result, wrap it in the expected format
+            return {
+                status: 'success',
+                data: {
+                    resultType: Array.isArray(response) ? 'vector' : 'scalar',
+                    result: response
+                }
+            };
+        } else if (typeof response === 'object') {
+            // Check if response needs to be restructured
+            const restructured = {
+                status: 'success',
+                data: {
+                    resultType: Array.isArray(response.result) ? 'vector' : 'scalar',
+                    result: response.result || response
+                }
+            };
+            console.log('Restructured response:', restructured);
+            return restructured;
+        }
+
+        console.error('Unhandled response format:', response);
+        throw new Error('Unexpected response format from server');
+    } catch (error) {
+        console.error('Error executing PromQL query:', error);
+        throw error;
     }
 }
 
@@ -2979,6 +3168,32 @@ function createQueryString(queryObject) {
     return queryString;
 }
 
+function createSingleQueryString(queries, formulas) {
+    let queryString = '';
+
+    if (queries && queries.length > 0) {
+        const baseQuery = queries[0].state === 'builder'
+            ? createQueryString(queries[0])
+            : queries[0].query;
+        queryString = baseQuery;
+
+        if (queries.length > 1) {
+            console.warn('Multiple queries detected; only the first will be used for instant query');
+        }
+    }
+
+    if (formulas && formulas.length > 0) {
+        let formulaString = formulas[0].formula;
+        queries.forEach(q => {
+            formulaString = formulaString.replace(new RegExp(`\\b${q.name}\\b`, 'g'),
+                q.state === 'builder' ? createQueryString(q) : q.query);
+        });
+        queryString = formulaString;
+    }
+
+    return queryString;
+}
+
 async function getFunctions() {
     const res = await $.ajax({
         method: 'get',
@@ -2991,6 +3206,26 @@ async function getFunctions() {
         dataType: 'json',
     });
     if (res) return res;
+}
+
+// Handle query type change
+function handleQueryTypeChange(queryType) {
+    selectedQueryType = queryType;
+    refreshAllQueries();
+}
+
+// Refresh all queries when type changes
+async function refreshAllQueries() {
+    for (let queryName in queries) {
+        if (Object.prototype.hasOwnProperty.call(queries, queryName)) {
+            await getMetricsData(queryName, queries[queryName].query, queries[queryName].state);
+        }
+    }
+    for (let formulaId in formulas) {
+        if (Object.prototype.hasOwnProperty.call(formulas, formulaId)) {
+            await getMetricsDataForFormula(formulaId, formulas[formulaId]);
+        }
+    }
 }
 
 async function refreshMetricsGraphs() {
@@ -3606,7 +3841,7 @@ document.addEventListener('DOMContentLoaded', resizeAllTextareas);
 
 function setupRawQueryKeyboardHandlers() {
     $(document).off('keydown.rawQuerySearch', '.raw-query-input');
-    
+
     $(document).on('keydown.rawQuerySearch', '.raw-query-input', function(event) {
         // Check if Enter key is pressed
         if (event.key === 'Enter') {
@@ -3618,13 +3853,76 @@ function setupRawQueryKeyboardHandlers() {
                 return true;
             } else {
                 event.preventDefault();
-                
+
                 // Run Query
                 const runButton = $(this).closest('.raw-query').find('#run-filter-btn');
                 runButton.click();
-                
+
                 return false;
             }
         }
     });
+}
+
+function displayInstantQueryResults(container, data) {
+    if (!container || !container.length) {
+        console.error('No container provided to display instant query results');
+        return;
+    }
+
+    // Clear existing content
+    container.find('.graph-canvas').empty();
+
+    // Create container for instant query results
+    const resultsContainer = $('<div class="instant-query-results"></div>');
+
+    if (!data || !data.data || !data.data.result) {
+        resultsContainer.html('<div class="error-message">No data available</div>');
+        container.find('.graph-canvas').append(resultsContainer);
+        return;
+    }
+
+    const result = data.data.result;
+    let value, timestamp;
+
+    try {
+        if (Array.isArray(result) && result.length > 0) {
+            // Vector result - take the first result
+            const firstResult = result[0];
+            value = firstResult.value[1];
+            timestamp = moment.unix(firstResult.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        } else if (Array.isArray(result) && result.length === 0) {
+            resultsContainer.html('<div class="error-message">No data available</div>');
+            container.find('.graph-canvas').append(resultsContainer);
+            return;
+        } else if (Array.isArray(result.value)) {
+            // Scalar result
+            value = result.value[1];
+            timestamp = moment.unix(result.value[0]).format('YYYY-MM-DD HH:mm:ss');
+        } else {
+            throw new Error('Invalid data format');
+        }
+
+        // Format the value
+        const formattedValue = parseFloat(value).toLocaleString(undefined, {
+            maximumFractionDigits: 4
+        });
+
+        // Create scalar result display
+        const scalarResult = $('<div class="scalar-result"></div>');
+        scalarResult.html(`
+            <div class="value">${formattedValue}</div>
+            <div class="timestamp">${timestamp}</div>
+        `);
+        resultsContainer.append(scalarResult);
+
+        // Append to container and hide legend
+        container.find('.graph-canvas').append(resultsContainer);
+        container.find('.legend-container').hide();
+
+    } catch (error) {
+        console.error('Error processing instant query results:', error);
+        resultsContainer.html('<div class="error-message">Error processing data</div>');
+        container.find('.graph-canvas').append(resultsContainer);
+    }
 }

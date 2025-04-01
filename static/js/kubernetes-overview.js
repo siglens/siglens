@@ -20,8 +20,8 @@
 const QUERIES = {
     CPU_USAGE: `sum by (cluster) (
         max by (cluster, instance, cpu, core) (1 - rate(node_cpu_seconds_total{cluster=~".+", mode="idle"}[5m]))
-    ) 
-    / on (cluster) 
+    )
+    / on (cluster)
     sum by (cluster) (
         max by (cluster, node) (kube_node_status_capacity{cluster=~".+", resource="cpu"})
     )`,
@@ -36,8 +36,8 @@ const QUERIES = {
                     "node", "$1", "instance", "(.+)"
                 )
             )
-        ) 
-        / on (cluster) 
+        )
+        / on (cluster)
         sum by (cluster) (
             max by (cluster, node) (
                 kube_node_status_capacity{cluster=~".+", resource="memory"}
@@ -53,6 +53,10 @@ const MetricsUtils = {
         const startTime = urlParams.get('startEpoch') || 'now-1h';
         const endTime = urlParams.get('endEpoch') || 'now';
 
+        // Modify the query for instant queries by removing rate
+        const instantQuery = query.replace(/rate\([^)]+\)\[5m\]/g, '$1');
+        console.log('Modified query for instant:', instantQuery);
+
         const metricsQueryParamsData = {
             start: startTime,
             end: endTime,
@@ -65,6 +69,7 @@ const MetricsUtils = {
                 },
             ],
             formulas: [],
+            type: 'Instant', // Indicate instant query type
         };
 
         const transformedMetricsQueryParams = JSON.stringify(metricsQueryParamsData);

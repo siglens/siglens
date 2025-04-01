@@ -636,3 +636,72 @@ input:checked+.slider:before {
     background-color: var(--input-box-bg-color);
     color: var(--text-color);
 }
+
+/* Instant Query Results Styles */
+.instant-query-results {
+    padding: 15px;
+    height: calc(100% - 30px);
+    overflow: auto;
+    background-color: var(--bg-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.instant-query-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 13px;
+    background-color: var(--bg-color);
+}
+
+.instant-query-table th,
+.instant-query-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--border-color-regular);
+}
+
+.instant-query-table th {
+    background-color: var(--db-options-bg-color);
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.instant-query-table td {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.instant-query-table td.numeric-value {
+    text-align: right;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.scalar-result {
+    text-align: center;
+    padding: 20px;
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.scalar-result .value {
+    font-size: 64px;
+    font-weight: 500;
+    margin-bottom: 15px;
+    font-family: monospace;
+    color: var(--text-color);
+    line-height: 1;
+}
+
+.scalar-result .timestamp {
+    font-size: 14px;
+    color: var(--text-color-secondary);
+    opacity: 0.8;
+}
