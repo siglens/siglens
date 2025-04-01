@@ -377,6 +377,8 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 
 	var numRecs uint16
 	var soffW uint32
+	var err error
+	numErrors := 0
 	for w := uint16(0); w < numWords; w++ {
 
 		soffW = idx
@@ -403,12 +405,27 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 
 		for i := uint16(0); i < numRecs; i++ {
 			// at this recNum's position in the array store the idx of the TLV byte slice
-			sfr.deRecToTlv[toputils.BytesToUint16LittleEndian(buf[idx:idx+2])] = w
+			recNum := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
 			idx += 2
+
+			if int(recNum) >= len(sfr.deRecToTlv) {
+				numErrors++
+				if err == nil {
+					err = fmt.Errorf("recNum %+v exceeds the number of records %+v in block %+v",
+						recNum, sfr.blockSummaries[blockNum].RecCount, blockNum)
+				}
+
+				continue
+			}
+			sfr.deRecToTlv[recNum] = w
 		}
 	}
 
-	return nil
+	if err != nil {
+		log.Errorf("SegmentFileReader.ReadDictEnc: got %v errors like: %v", numErrors, err)
+	}
+
+	return err
 }
 
 func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
