@@ -104,6 +104,8 @@ type QuerySummary struct {
 	remainingDistributedQueries uint64
 	totalDistributedQueries     uint64
 	tickCount                   uint32
+	closeOnce                   sync.Once
+	fetchQueryStateFn           func() string
 }
 
 const TICK_DURATION_SECS = 10
@@ -156,9 +158,16 @@ func (qs *QuerySummary) Cleanup() {
 	qs.stopTicker()
 }
 
+func (qs *QuerySummary) SetFetchQueryStateFn(fetchQueryStateFn func() string) {
+	qs.updateLock.Lock()
+	defer qs.updateLock.Unlock()
+	qs.fetchQueryStateFn = fetchQueryStateFn
+}
+
 func (qs *QuerySummary) startTicker() {
 	qs.ticker = time.NewTicker(TICK_DURATION_SECS * time.Second)
 	qs.tickerStopChan = make(chan bool)
+	qs.closeOnce = sync.Once{}
 	go qs.tickWatcher()
 }
 
@@ -170,7 +179,9 @@ func (qs *QuerySummary) stopTicker() {
 			qs.ticker.Stop()
 		}
 		if qs.tickerStopChan != nil {
-			close(qs.tickerStopChan)
+			qs.closeOnce.Do(func() {
+				close(qs.tickerStopChan)
+			})
 		}
 	}
 }
@@ -189,7 +200,6 @@ func (qs *QuerySummary) tickWatcher() {
 				qs.ticker.Stop()
 				qs.ticker = nil
 			}
-			qs.tickerStopChan = nil
 
 			return
 		case <-qs.ticker.C:
@@ -233,8 +243,12 @@ func (qs *QuerySummary) processTick() {
 			remainingDQsString,
 			activeQSCountForLogs)
 	} else if qs.queryType == METRICS {
-		log.Infof("qid=%d, still executing. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
-			qs.qid, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
+		queryState := "executing"
+		if qs.fetchQueryStateFn != nil {
+			queryState = qs.fetchQueryStateFn()
+		}
+		log.Infof("qid=%d, Query is in %v State. Time Elapsed (%v). searched numMetricSegs=%+v, numTSIDMatched=%+v numTagTreesSearched=%+v, numTSOsTSGs loaded=%+v, activeQSCountForMetrics: %v",
+			qs.qid, queryState, time.Since(qs.startTime), qs.getNumMetricsSegmentsSearched(), qs.getNumTSIDsMatched(),
 			qs.getNumTagsTreesSearched(), qs.getNumTSOFilesLoaded(), activeQSCountForMetrics)
 	}
 }

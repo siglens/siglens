@@ -246,9 +246,10 @@ type QueryArithmetic struct {
 	ReturnBool  bool // If a comparison operator, return 0/1 rather than filtering.
 	Constant    float64
 	// maps groupid to a map of ts to value. This aggregates DsResults based on the aggregation function
-	Results        map[string]map[uint32]float64
-	OperatedState  bool //true if operation has been executed
-	VectorMatching *VectorMatching
+	Results         map[string]map[uint32]float64
+	OperatedState   bool //true if operation has been executed
+	VectorMatching  *VectorMatching
+	MQueryAggsChain *MetricQueryAgg
 }
 
 // VectorMatching describes how elements from two Vectors in a binary
@@ -514,15 +515,20 @@ Format of block summary file
 [version - 1 byte][blk num - 2 bytes][high ts - 4 bytes][low ts - 4 bytes]
 */
 func (mbs *MBlockSummary) FlushSummary(fName string) error {
-	var flag bool = false
-	if _, err := os.Stat(fName); os.IsNotExist(err) {
+	var isFirstBlock bool = false
+	if fInfo, err := os.Stat(fName); os.IsNotExist(err) {
+		isFirstBlock = true
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
-		flag = true
 		if err != nil {
 			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
 			return err
 		}
+	} else if err != nil {
+		return fmt.Errorf("MBlockSummary.FlushSummary: Failed to stat %v, err: %v", fName, err)
+	} else if fInfo.Size() == 0 {
+		isFirstBlock = true
 	}
+
 	fd, err := os.OpenFile(fName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to open file: %v, err: %v", fName, err)
@@ -535,7 +541,7 @@ func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	// todo bug here, the highTs/lowTs are of 4bytes, but we do 8 here
 	// once the version is updated, change here and on the reader side to
 	// read both types of version files
-	if flag {
+	if isFirstBlock {
 		mBlkSum = make([]byte, 19)
 		copy(mBlkSum[idx:], utils.VERSION_MBLOCKSUMMARY)
 		idx += 1
