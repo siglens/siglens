@@ -244,9 +244,14 @@ func initOrgMetrics(orgid int64) error {
 			return err
 		}
 		err = mSeg.mBlock.initNewDpWal()
+		if err != nil {
+			log.Errorf("initOrgMetrics : Failed to initialize new datapoint WAL in mSeg.mBlock: %v", err)
+			return err
+		}
+
 		err = mSeg.initNewMNameWAL()
 		if err != nil {
-			log.Errorf("initOrgMetrics : Failed to initialize new WAL in mSeg.mBlock: %v", err)
+			log.Errorf("initOrgMetrics : Failed to initialize new Metrics Name WAL in mSeg: %v", err)
 			return err
 		}
 
