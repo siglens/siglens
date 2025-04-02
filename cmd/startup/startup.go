@@ -196,7 +196,7 @@ func Main() {
 		hook()
 	}
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1)
 
 	switch <-ch {
 	case os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGINT:
