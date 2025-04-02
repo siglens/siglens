@@ -212,6 +212,7 @@ func (qm *queryManager) moveToRunnable(epoch uint64) {
 			}
 
 			// Move it to runnable, since no future logs will affect the results.
+			qm.inProgressQueries[i].counter.Add(-1)
 			qm.inProgressQueries = append(qm.inProgressQueries[:i], qm.inProgressQueries[i+1:]...)
 
 			go func(validator queryValidator) {
