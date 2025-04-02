@@ -457,7 +457,7 @@ $(document).ready(function () {
     window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        const $arrow = $menu.find(`.nav-dropdown-icon${dropdownClass === 'kubernetes-dropdown' ? '.kubernetes' : ''}`);
+        const $arrow = $menu.find(`.nav-dropdown-icon`);
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
@@ -484,11 +484,11 @@ $(document).ready(function () {
             if (isOpen) {
                 $menu.addClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).show();
-                $menu.find(`.nav-dropdown-icon${config.dropdownClass === 'kubernetes-dropdown' ? '.kubernetes' : ''}`).addClass('rotated');
+                $menu.find('.nav-dropdown-icon').addClass('rotated');
             } else {
                 $menu.removeClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).hide();
-                $menu.find(`.nav-dropdown-icon${config.dropdownClass === 'kubernetes-dropdown' ? '.kubernetes' : ''}`).removeClass('rotated');
+                $menu.find('.nav-dropdown-icon').removeClass('rotated');
             }
         });
     }
