@@ -5907,12 +5907,14 @@ p#versionInfo {
     border-radius: 0 5px 5px 0 !important;
 }
 
-.nav-dropdown-icon {
+.nav-dropdown-icon,
+.kubernetes-arrow {
     margin-right: 10px;
     transition: transform 0.3s ease;
 }
 
-.nav-dropdown-icon.rotated {
+.nav-dropdown-icon.rotated,
+.kubernetes-arrow.rotated {
     transform: rotate(180deg) !important;
 }
 

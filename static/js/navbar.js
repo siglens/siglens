@@ -131,7 +131,7 @@ let navbarComponent = `
                             <a class="nav-links" href="./kubernetes-overview.html">
                                 <span class="nav-link-text-drpdwn">Kubernetes</span>
                             </a>
-                            <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                            <img class="nav-dropdown-icon kubernetes-arrow orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
                         </div>
                         <ul class="kubernetes-dropdown">
                             <a href="./kubernetes-overview.html"><li class="kubernetes-link">Overview</li></a>
@@ -428,25 +428,25 @@ $(document).ready(function () {
     $('.help-options').hide();
 
     const dropdownConfigs = [
-        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
-        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
-        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' },
-        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts' },
-        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
-        { menuClass: 'kubernetes-dropdown-toggle', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', parentClass: 'nav-infrastructure' }
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure', arrowClass: 'nav-dropdown-icon'},
+        { menuClass: 'kubernetes-dropdown-toggle', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', parentClass: 'nav-infrastructure', arrowClass: 'kubernetes-arrow' }
     ];
 
     dropdownConfigs.forEach(config => {
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
-        $(`.${config.menuClass} .nav-dropdown-icon`, `.${config.menuClass} .nav-dropdown-icon.kubernetes`).on('click', function(e) {
+        $(`.${config.menuClass} .${config.arrowClass}`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
         $(`.${config.dropdownClass} a`).on('click', function(e) {
@@ -454,10 +454,11 @@ $(document).ready(function () {
         });
     });
 
-    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
+    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass, arrowClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        const $arrow = $menu.find(`.nav-dropdown-icon`);
+        // Target only the specific arrow for this dropdown
+        const $arrow = $menu.find(`.${arrowClass}`).first();
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
@@ -471,8 +472,23 @@ $(document).ready(function () {
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
-    };
 
+        // If toggling Kubernetes dropdown, ensure Infrastructure is open
+        if (dropdownName === 'Kubernetes' && !isVisible) {
+            const $parentMenu = $menu.closest('.nav-infrastructure');
+            const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+            const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+            if (!$parentDropdown.is(':visible')) {
+                $parentDropdown.stop(true, true).slideDown(200);
+                $parentMenu.addClass('dropdown-open');
+                $parentArrow.addClass('rotated');
+                dropdownStates['Infrastructure'] = true;
+                localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+
+            }
+
+        }
+    };
 
     function restoreDropdownState() {
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
@@ -484,11 +500,25 @@ $(document).ready(function () {
             if (isOpen) {
                 $menu.addClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).show();
-                $menu.find('.nav-dropdown-icon').addClass('rotated');
+                $menu.find(`.${config.arrowClass}`).first().addClass('rotated');
+
+                // If Kubernetes is open, ensure Infrastructure is open
+                if (config.name === 'Kubernetes') {
+                    const $parentMenu = $menu.closest('.nav-infrastructure');
+                    const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+                    const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+                    if (!$parentDropdown.is(':visible')) {
+                        $parentDropdown.show();
+                        $parentMenu.addClass('dropdown-open');
+                        $parentArrow.addClass('rotated');
+                        dropdownStates['Infrastructure'] = true;
+                        localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+                    }
+                }
             } else {
                 $menu.removeClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).hide();
-                $menu.find('.nav-dropdown-icon').removeClass('rotated');
+                $menu.find(`.${config.arrowClass}`).first().removeClass('rotated');
             }
         });
     }
