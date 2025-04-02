@@ -76,8 +76,20 @@ let navbarComponent = `
                     class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
-        <div class="menu nav-alerts">
-            <a href="./all-alerts.html" class="nav-links link-alerts"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+        <div class="menu nav-alerts alerts-dropdown-toggle">
+            <div class="menu-header">
+                <a class="nav-links link-alerts" href="./all-alerts.html" >
+                    <span class="icon-alerts"></span>
+                    <span class="nav-link-text-drpdwn">Alerting</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                    src="assets/arrow-btn.svg"
+                    alt="Dropdown Arrow">
+            </div>
+            <ul class="alerts-dropdown">
+                <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>
+                <a href="./contacts.html"><li class="alerts-link">Contact Points</li></a>
+            </ul>
         </div>
         <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links link-ldb">
@@ -419,6 +431,7 @@ $(document).ready(function () {
         { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
         { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
         { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' },
+        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts' },
         { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure'},
         { menuClass: 'kubernetes-dropdown-toggle', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', parentClass: 'nav-infrastructure' }
     ];

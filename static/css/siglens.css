@@ -5755,7 +5755,7 @@ p#versionInfo {
 #app-side-nav .nav-traces .menu-header:hover,
 #app-side-nav .nav-metrics .menu-header:hover,
 #app-side-nav .nav-ingest .menu-header:hover,
-#app-side-nav .nav-alerts .menu-header:hover
+#app-side-nav .nav-alerts .menu-header:hover,
 #app-side-nav .nav-infrastructure .menu-header:hover,
 #app-side-nav .nav-kubernetes .menu-header:hover {
     background-color: var(--side-nav-bg-color-selected);
@@ -5843,6 +5843,7 @@ p#versionInfo {
 }
 
 .infrastructure-dropdown div.menu-header {
+    margin-bottom: 0px !important;
     font-weight: 500;
     height: 28px;
     align-items: center;
@@ -5863,7 +5864,7 @@ p#versionInfo {
 
 .kubernetes-dropdown{
     display: none;
-    padding: 0 0 6px 0;
+    padding: 0 0 0 0 !important;
     margin: 0;
     font-size: 11px;
     color: var(--navbar-link-text) !important;
@@ -5882,7 +5883,6 @@ p#versionInfo {
 }
 
 .kubernetes-dropdown li{
-    margin-bottom: 2px;
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
