@@ -119,7 +119,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
                 <div class="menu-header">
-                    <a class="nav-links" href="./infrastructure.html">
+                    <a class="nav-links" href="./kubernetes-overview.html">
                         <span class="icon-infrastructure"></span>
                         <span class="nav-link-text-drpdwn">Infrastructure</span>
                     </a>
@@ -128,7 +128,7 @@ let navbarComponent = `
                 <ul class="infrastructure-dropdown">
                    <div class="menu nav-kubernetes kubernetes-dropdown-toggle">
                         <div class="menu-header">
-                            <a class="nav-links" href="./kubernetes-view.html">
+                            <a class="nav-links" href="./kubernetes-overview.html">
                                 <span class="nav-link-text-drpdwn">Kubernetes</span>
                             </a>
                             <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
