@@ -8,6 +8,7 @@
  * @param {string} config.workloadPattern - Regex pattern for workload selection (default: ".+")
  */
 
+/* eslint-disable  no-unused-vars */
 const getClusterMonitoringQueries = (config = {}) => {
     const timeRange = config.timeRange || '1h';
     const rateInterval = config.rateInterval || '5m';

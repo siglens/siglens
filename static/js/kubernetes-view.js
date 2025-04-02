@@ -34,6 +34,7 @@ class KubernetesView {
         setupEventHandlers();
     }
 
+    /* eslint-disable no-undef */
     initializeQueries() {
         const config = {
             timeRange: '1h',
@@ -57,6 +58,7 @@ class KubernetesView {
                 this.queries = getClusterMonitoringQueries(config);
         }
     }
+    /* eslint-enable no-undef */
 
     init() {
         if (this.type === 'configuration') {
