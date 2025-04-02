@@ -516,14 +516,19 @@ Format of block summary file
 */
 func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	var isFirstBlock bool = false
-	if _, err := os.Stat(fName); os.IsNotExist(err) {
+	if fInfo, err := os.Stat(fName); os.IsNotExist(err) {
 		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		isFirstBlock = true
 		if err != nil {
 			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
 			return err
 		}
+	} else if err != nil {
+		return fmt.Errorf("MBlockSummary.FlushSummary: Failed to stat %v, err: %v", fName, err)
+	} else if fInfo.Size() == 0 {
+		isFirstBlock = true
 	}
+
 	fd, err := os.OpenFile(fName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("MBlockSummary.FlushSummary: Failed to open file: %v, err: %v", fName, err)
