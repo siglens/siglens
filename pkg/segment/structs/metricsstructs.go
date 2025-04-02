@@ -517,8 +517,8 @@ Format of block summary file
 func (mbs *MBlockSummary) FlushSummary(fName string) error {
 	var isFirstBlock bool = false
 	if fInfo, err := os.Stat(fName); os.IsNotExist(err) {
-		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		isFirstBlock = true
+		err := os.MkdirAll(path.Dir(fName), os.FileMode(0764))
 		if err != nil {
 			log.Errorf("MBlockSummary.FlushSummary: Failed to create directory at %s, err: %v", path.Dir(fName), err)
 			return err
