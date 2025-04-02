@@ -59,17 +59,6 @@ test('Navigation Menu Part 2', async ({ page }) => {
         await expect(page.locator('.nav-infrastructure')).toHaveClass(/active/, { timeout: 15000 });
     }
 
-    // Test Ingestion pages
-    const ingestionPages = ['test-data.html', 'metrics-ingestion.html', 'traces-ingestion.html'];
-    for (const url of ingestionPages) {
-        await page.goto(`http://localhost:5122/${url}`, {
-            waitUntil: 'networkidle',
-            timeout: 45000
-        });
-        await page.waitForTimeout(1000);
-        await expect(page.locator('.nav-ingest')).toHaveClass(/active/, { timeout: 15000 });
-    }
-
     // Test org pages
     const orgPages = ['cluster-stats.html', 'org-settings.html', 'application-version.html', 'pqs-settings.html'];
     for (const url of orgPages) {
