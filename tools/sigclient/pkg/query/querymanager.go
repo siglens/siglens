@@ -52,6 +52,8 @@ type queryManager struct {
 
 	failOnError bool
 	stats       queryStats
+
+	logChan chan struct{}
 }
 
 type queryStats struct {
@@ -92,10 +94,16 @@ func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url
 		maxConcurrentQueries: maxConcurrentQueries,
 		url:                  url,
 		failOnError:          failOnError,
+		logChan:              make(chan struct{}),
 	}
 
 	manager.spawnTemplateAdders()
 	go manager.logStatsOnInterval(1 * time.Minute)
+	go func() {
+		for range time.Tick(10 * time.Second) {
+			manager.logChan <- struct{}{}
+		}
+	}()
 
 	return manager
 }
@@ -133,6 +141,13 @@ func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs 
 
 	if qm.canRunMore() {
 		qm.startQueries()
+	}
+
+	select {
+	case <-qm.logChan:
+		log.Infof("QueryManager: %d running, %d runnable, %d in progress",
+			qm.numRunningQueries.Load(), len(qm.runnableQueries), len(qm.inProgressQueries))
+	default:
 	}
 }
 
