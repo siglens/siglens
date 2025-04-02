@@ -5701,6 +5701,7 @@ p#versionInfo {
 #app-side-nav .menu:hover .link-usq,
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
+#app-side-nav .menu:hover .link-usage-stats,
 #app-side-nav .menu:hover .link-lookups{
     background-color: var(--side-nav-bg-color-selected);
 }
@@ -5711,6 +5712,7 @@ p#versionInfo {
 #app-side-nav .menu.active .link-usq,
 #app-side-nav .menu.active .link-myorg,
 #app-side-nav .menu.active .link-ldb,
+#app-side-nav .menu.active .link-usage-stats,
 #app-side-nav .menu.active .link-lookups {
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     background-color: var(--side-nav-bg-color-selected);
@@ -5805,7 +5807,6 @@ p#versionInfo {
 .ingestion-dropdown li,
 .alerts-dropdown li{
     margin-bottom: 2px;
-    margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
     display: flex;
@@ -5837,20 +5838,31 @@ p#versionInfo {
     border-radius: 0 5px 5px 0 !important;
 }
 
-/* .infrastructure-dropdown li .kubernetes-dropdown-toggle{
-    margin-bottom: 2px;
-    margin-bottom: 2px;
+.infrastructure-dropdown div {
+    padding: 0px 0px 0px 20px !important;
+}
+
+.infrastructure-dropdown div.menu-header {
     font-weight: 500;
     height: 28px;
     align-items: center;
-    padding-left: 20px;
     border-left: 5px solid transparent;
     border-radius: 0 5px 5px 0;
-} */
+}
+
+.infrastructure-dropdown div.menu-header:hover {
+    color: white !important;
+    border-right: 5px solid var(--side-nav-bg-color-selected);
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+}
+
+.infrastructure-dropdown div.menu-header.active{
+    color: white !important;
+}
 
 .kubernetes-dropdown{
     display: none;
-    background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
     margin: 0;
     font-size: 11px;
@@ -6025,7 +6037,6 @@ p#versionInfo {
     background-image: none;
 
 }
-
 
 #error-popup .fas {
     font-size: 16px;

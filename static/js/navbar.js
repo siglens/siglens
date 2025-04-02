@@ -114,7 +114,7 @@ let navbarComponent = `
                     <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
                 </div>
                 <ul class="infrastructure-dropdown">
-                   <li class="menu nav-kubernetes kubernetes-dropdown-toggle">
+                   <div class="menu nav-kubernetes kubernetes-dropdown-toggle">
                         <div class="menu-header">
                             <a class="nav-links" href="./kubernetes-view.html">
                                 <span class="nav-link-text-drpdwn">Kubernetes</span>
@@ -130,7 +130,7 @@ let navbarComponent = `
                             <a href="./kubernetes-view.html?type=events"><li class="kubernetes-link">Events</li></a>
                             <a href="./kubernetes-view.html?type=configuration&"><li class="kubernetes-link">Configuration</li></a>
                         </ul>
-                    </li>
+                    </div>
                 </ul>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
@@ -430,7 +430,7 @@ $(document).ready(function () {
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
         });
 
-        $(`.${config.menuClass} .nav-dropdown-icon`).on('click', function(e) {
+        $(`.${config.menuClass} .nav-dropdown-icon`, `.${config.menuClass} .nav-dropdown-icon.kubernetes`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
@@ -444,7 +444,7 @@ $(document).ready(function () {
     window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        const $arrow = $menu.find('.nav-dropdown-icon');
+        const $arrow = $menu.find(`.nav-dropdown-icon${dropdownClass === 'kubernetes-dropdown' ? '.kubernetes' : ''}`);
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
@@ -460,6 +460,7 @@ $(document).ready(function () {
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
     };
 
+
     function restoreDropdownState() {
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
 
@@ -470,16 +471,17 @@ $(document).ready(function () {
             if (isOpen) {
                 $menu.addClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).show();
-                $menu.find('.nav-dropdown-icon').addClass('rotated');
+                $menu.find(`.nav-dropdown-icon${config.dropdownClass === 'kubernetes-dropdown' ? '.kubernetes' : ''}`).addClass('rotated');
             } else {
                 $menu.removeClass('dropdown-open');
                 $menu.find(`.${config.dropdownClass}`).hide();
-                $menu.find('.nav-dropdown-icon').removeClass('rotated');
+                $menu.find(`.nav-dropdown-icon${config.dropdownClass === 'kubernetes-dropdown' ? '.kubernetes' : ''}`).removeClass('rotated');
             }
         });
     }
 
     function updateActiveHighlighting() {
+        // Clear all active states first
         dropdownConfigs.forEach(config => {
             $(`.${config.menuClass}`).removeClass('active');
             $(`.${config.iconClass}`).removeClass('active');
@@ -487,24 +489,50 @@ $(document).ready(function () {
         });
 
         const currentPath = window.location.pathname.split('/').pop();
+        const currentUrl = currentPath + window.location.search;
 
         dropdownConfigs.forEach(config => {
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
 
-                if (currentPath === hrefPath) {
+                // Check if base paths match OR if full URL (with params) matches
+                if (currentPath === hrefPath || currentUrl === hrefPath) {
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
 
-                    const $menu = $li.closest(`.${config.menuClass}`);
-                    const $icon = $menu.find(`.${config.iconClass}`);
-
+                    // Find the menu and add active class to it
+                    const $menu = config.parentClass ?
+                        $li.closest(`.${config.menuClass}`).closest(`.${config.parentClass}`) :
+                        $li.closest(`.${config.menuClass}`);
                     $menu.addClass('active');
-                    $icon.addClass('active');
+
+                    // Add active class to the icon if it exists
+                    $menu.find(`.${config.iconClass}`).addClass('active');
+
+                    // If this is a nested dropdown, make sure parent dropdown is open
+                    if (config.parentClass) {
+                        $(`.${config.parentClass}`).addClass('active');
+                    }
                 }
             });
         });
+
+        // Special handling for kubernetes view with URL parameters
+        if (currentPath === 'kubernetes-view.html') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const type = urlParams.get('type');
+
+            if (type) {
+                $(`.kubernetes-dropdown a[href*="type=${type}"]`).each(function() {
+                    $(this).find('li').addClass('active');
+
+                    // Activate parent menus
+                    $(this).closest('.nav-kubernetes').addClass('active');
+                    $(this).closest('.nav-infrastructure').addClass('active');
+                });
+            }
+        }
     }
 
 
