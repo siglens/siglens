@@ -15,7 +15,7 @@ func TestWALAppendAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(filePath)
+	wal, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -23,7 +23,7 @@ func TestWALAppendAndRead(t *testing.T) {
 
 	datapoints := generateRandomDatapoints(numDatapoints)
 
-	err = wal.Append(datapoints)
+	err = wal.AppendDataPoints(datapoints)
 	assert.NoError(t, err)
 
 	it, err := NewWALReader(filePath)
@@ -51,7 +51,7 @@ func TestDeleteWALFile(t *testing.T) {
 	dir := t.TempDir()
 	filename := "testwal.wal"
 	filePath := filepath.Join(dir, filename)
-	wal, err := NewWAL(filePath)
+	wal, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	_, err = os.Stat(filePath)
 	assert.False(t, os.IsNotExist(err))
@@ -71,12 +71,12 @@ func TestWALStats(t *testing.T) {
 
 	filePath := filepath.Join(dir, filename)
 
-	w, err := NewWAL(filePath)
+	w, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	defer w.Close()
 
 	dps := generateRandomDatapoints(500)
-	err = w.Append(dps)
+	err = w.AppendDataPoints(dps)
 	assert.NoError(t, err)
 
 	fname, totalDps, encodedSize := w.GetWALStats()
@@ -104,14 +104,14 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(filePath)
+	wal, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	defer wal.Close()
 
 	numDatapoints1 := 500
 	datapoints1 := generateRandomDatapoints(numDatapoints1)
 
-	err = wal.Append(datapoints1)
+	err = wal.AppendDataPoints(datapoints1)
 	assert.NoError(t, err)
 
 	it, err := NewWALReader(filePath)
@@ -136,7 +136,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	numDatapoints2 := 1000
 	datapoints2 := generateRandomDatapoints(numDatapoints2)
 
-	err = wal.Append(datapoints2)
+	err = wal.AppendDataPoints(datapoints2)
 	assert.NoError(t, err)
 
 	it2, err := NewWALReader(filePath)
@@ -166,7 +166,7 @@ func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(filePath)
+	wal, err := NewMNameWal(filePath)
 	assert.NoError(t, err)
 
 	totalAppends := 5
@@ -176,7 +176,7 @@ func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
 	for i := 0; i < totalAppends; i++ {
 		metrics := generateMetricNames(metricsPerAppend)
 		expectedMetrics = append(expectedMetrics, metrics...)
-		err = wal.AppendMName(metrics)
+		err = wal.AppendMNames(metrics)
 		assert.NoError(t, err)
 	}
 

@@ -25,14 +25,22 @@ type WalDatapoint struct {
 	Tsid      uint64
 }
 
-type WAL struct {
+type wal struct {
 	fd            *os.File
 	fNameWithPath string
-	totalDps      uint32
-	encodedSize   uint64
 	encodedBuf    []byte
-	rawBlockBuf   *bytes.Buffer
 	checksumBuf   []byte
+}
+
+type DataPointWal struct {
+	wal
+	totalDps    uint32
+	encodedSize uint64
+	rawBlockBuf *bytes.Buffer
+}
+
+type MetricNameWal struct {
+	wal
 }
 
 var encoder, _ = zstd.NewWriter(nil)
@@ -41,33 +49,35 @@ var encoderLock sync.Mutex
 
 const UINT32_SIZE = 4
 
-func NewWAL(filePath string) (*WAL, error) {
+func NewDataPointWal(filePath string) (*DataPointWal, error) {
 	dir := filepath.Dir(filePath)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
-		log.Errorf("NewWAL : Failed to create directories for path %s: %v", dir, err)
+		log.Errorf("NewDataPointWal : Failed to create directories for path %s: %v", dir, err)
 		return nil, err
 	}
 
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("NewWAL : Failed to open WAL file at path %s: %v", filePath, err)
+		log.Errorf("NewDataPointWal : Failed to open WAL file at path %s: %v", filePath, err)
 		return nil, err
 	}
 
 	_, err = f.Write(segutils.VERSION_WALFILE)
 	if err != nil {
-		log.Infof("NewWAL: Could not write version byte to file %v. Err %v", filePath, err)
+		log.Infof("NewDataPointWal: Could not write version byte to file %v. Err %v", filePath, err)
 		return nil, err
 	}
 
-	return &WAL{
-		fNameWithPath: filePath,
-		totalDps:      0,
-		encodedSize:   0,
-		fd:            f,
-		rawBlockBuf:   &bytes.Buffer{},
-		checksumBuf:   make([]byte, 4),
+	return &DataPointWal{
+		wal: wal{
+			fd:            f,
+			fNameWithPath: filePath,
+			checksumBuf:   make([]byte, 4),
+		},
+		totalDps:    0,
+		encodedSize: 0,
+		rawBlockBuf: &bytes.Buffer{},
 	}, nil
 }
 
@@ -91,10 +101,10 @@ File Format:
 	Multiple such blocks are appended continuously.
 */
 
-func (w *WAL) Append(dps []WalDatapoint) error {
+func (w *DataPointWal) AppendDataPoints(dps []WalDatapoint) error {
 	err := w.encodeWALBlock(dps)
 	if err != nil {
-		log.Errorf("AppendToWAL: dataCompression failed: %v", err)
+		log.Errorf("AppendDataPoints: dataCompression failed: %v", err)
 		return err
 	}
 
@@ -103,20 +113,20 @@ func (w *WAL) Append(dps []WalDatapoint) error {
 	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
 	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
 	if err != nil {
-		log.Errorf("AppendToWAL : failed to write block size: %v", err)
+		log.Errorf("AppendDataPoints : failed to write block size: %v", err)
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
 	_, err = w.fd.Write(w.checksumBuf)
 	if err != nil {
-		log.Errorf("AppendToWAL: failed to write checksum: %v", err)
+		log.Errorf("AppendDataPoints: failed to write checksum: %v", err)
 		return err
 	}
 
 	_, err = w.fd.Write(w.encodedBuf)
 	if err != nil {
-		log.Errorf("AppendToWAL: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
+		log.Errorf("AppendDataPoints: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
 		return err
 	}
 
@@ -126,14 +136,14 @@ func (w *WAL) Append(dps []WalDatapoint) error {
 	return nil
 }
 
-func (w *WAL) Close() error {
+func (w *DataPointWal) Close() error {
 	if w.fd != nil {
 		return w.fd.Close()
 	}
 	return errors.New("file descriptor is nil")
 }
 
-func (w *WAL) DeleteWAL() error {
+func (w *DataPointWal) DeleteWAL() error {
 	if w.fd != nil {
 		_ = w.fd.Close()
 	}
@@ -155,7 +165,7 @@ type WalIterator struct {
 	readDps      []WalDatapoint
 }
 
-func (w *WAL) GetWALStats() (string, uint32, uint64) {
+func (w *DataPointWal) GetWALStats() (string, uint32, uint64) {
 	return w.fNameWithPath, w.totalDps, w.encodedSize
 }
 
@@ -243,7 +253,7 @@ func (it *WalIterator) Close() error {
 	return errors.New("file descriptor is nil")
 }
 
-func (w *WAL) encodeWALBlock(dps []WalDatapoint) error {
+func (w *DataPointWal) encodeWALBlock(dps []WalDatapoint) error {
 	N := uint32(len(dps))
 	if N == 0 {
 		log.Warn("EncodeWALBlock: received empty data points slice")
@@ -356,6 +366,35 @@ func (it *MNameWalIterator) Close() error {
 	return errors.New("file descriptor is nil")
 }
 
+func NewMNameWal(filePath string) (*MetricNameWal, error) {
+	dir := filepath.Dir(filePath)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		log.Errorf("NewMNameWal : Failed to create directories for path %s: %v", dir, err)
+		return nil, err
+	}
+
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Errorf("NewMNameWal : Failed to open WAL file at path %s: %v", filePath, err)
+		return nil, err
+	}
+
+	_, err = f.Write(segutils.VERSION_WALFILE)
+	if err != nil {
+		log.Infof("NewMNameWal: Could not write version byte to file %v. Err %v", filePath, err)
+		return nil, err
+	}
+
+	return &MetricNameWal{
+		wal: wal{
+			fd:            f,
+			fNameWithPath: filePath,
+			checksumBuf:   make([]byte, 4),
+		},
+	}, nil
+}
+
 /*
 This function appends a new block to the file.
 
@@ -377,11 +416,11 @@ File Format:
 	Multiple such blocks are appended continuously.
 */
 
-func (w *WAL) AppendMName(mName []string) error {
+func (w *MetricNameWal) AppendMNames(mName []string) error {
 	w.encodedBuf = w.encodedBuf[:0]
 	err := w.compressMetricNames(mName)
 	if err != nil {
-		log.Errorf("AppendMName: Failed to compress metric names: %v", err)
+		log.Errorf("AppendMNames: Failed to compress metric names: %v", err)
 		return err
 	}
 	checksum := crc32.ChecksumIEEE(w.encodedBuf)
@@ -389,26 +428,45 @@ func (w *WAL) AppendMName(mName []string) error {
 	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
 	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
 	if err != nil {
-		log.Errorf("AppendMName : failed to write block size: %v", err)
+		log.Errorf("AppendMNames : failed to write block size: %v", err)
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
 	_, err = w.fd.Write(w.checksumBuf)
 	if err != nil {
-		log.Errorf("AppendMName: failed to write checksum: %v", err)
+		log.Errorf("AppendMNames: failed to write checksum: %v", err)
 		return err
 	}
 
 	_, err = w.fd.Write(w.encodedBuf)
 	if err != nil {
-		log.Errorf("AppendMName: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
+		log.Errorf("AppendMNames: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
 		return err
 	}
 
-	w.totalDps += uint32(len(mName))
-	w.encodedSize += uint64(UINT32_SIZE + blockSize) // Adding 4-byte UINT32 (blockSize field) size to encodedSize, excluded from blockSize.
 	return nil
+}
+
+func (w *MetricNameWal) Close() error {
+	if w.fd != nil {
+		return w.fd.Close()
+	}
+	return errors.New("file descriptor is nil")
+}
+
+func (w *MetricNameWal) DeleteWAL() error {
+	if w.fd != nil {
+		_ = w.fd.Close()
+	}
+
+	if err := os.Remove(w.fNameWithPath); err != nil {
+		log.Errorf("DeleteWAL : failed to delete WAL file: %v", err)
+		return err
+	}
+
+	return nil
+
 }
 
 func NewMNameWalReader(filePath string) (*MNameWalIterator, error) {
@@ -449,32 +507,32 @@ func (it *MNameWalIterator) Next() (*string, error) {
 	if errors.Is(err, io.EOF) {
 		return nil, nil
 	} else if err != nil {
-		log.Printf("MNameWalIterator Next: failed to read block size from WAL file: %v", err)
+		log.Errorf("MNameWalIterator Next: failed to read block size from WAL file: %v", err)
 		return nil, err
 	}
 
 	if blockSize < UINT32_SIZE { // Checking if block size is less than checksum size (4 bytes)
-		log.Printf("MNameWalIterator Next: invalid block size (%d), less than checksum size", blockSize)
+		log.Errorf("MNameWalIterator Next: invalid block size (%d), less than checksum size", blockSize)
 		return nil, errors.New("invalid block size")
 	}
 
 	var checksum uint32
 	err = binary.Read(it.fd, binary.LittleEndian, &checksum)
 	if err != nil {
-		log.Printf("MNameWalIterator Next: failed to read checksum: %v", err)
+		log.Errorf("MNameWalIterator Next: failed to read checksum: %v", err)
 		return nil, err
 	}
 
 	it.readBuf = toputils.ResizeSlice(it.readBuf, int(blockSize-UINT32_SIZE)) // remove checksum length and read the actual data block
 	_, err = io.ReadFull(it.fd, it.readBuf)
 	if err != nil {
-		log.Printf("MNameWalIterator Next: failed to read block data of size %d: %v", blockSize, err)
+		log.Errorf("MNameWalIterator Next: failed to read block data of size %d: %v", blockSize, err)
 		return nil, err
 	}
 
 	calculatedChecksum := crc32.ChecksumIEEE(it.readBuf)
 	if calculatedChecksum != checksum {
-		log.Printf("MNameWalIterator Next: checksum mismatch! Calculated: %v, Expected: %v", calculatedChecksum, checksum)
+		log.Errorf("MNameWalIterator Next: checksum mismatch! Calculated: %v, Expected: %v", calculatedChecksum, checksum)
 		return nil, errors.New("checksum mismatch")
 	}
 
@@ -492,7 +550,7 @@ func (it *MNameWalIterator) Next() (*string, error) {
 	return &it.readMetricsNames[0], nil
 }
 
-func (w *WAL) compressMetricNames(mNames []string) error {
+func (w *MetricNameWal) compressMetricNames(mNames []string) error {
 	var buf bytes.Buffer
 	for _, str := range mNames {
 		length := uint16(len(str))
