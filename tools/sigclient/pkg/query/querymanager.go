@@ -47,8 +47,12 @@ type queryManager struct {
 	setupOnce         sync.Once
 	inProgressQueries []*validatorWithCounter
 	runnableQueries   []queryValidator
-	runnableLock      sync.Mutex
-	templateChan      chan *QueryTemplate
+
+	// If both locks are needed, acquire inProgressLock first.
+	inProgressLock sync.Mutex
+	runnableLock   sync.Mutex
+
+	templateChan chan *QueryTemplate
 
 	maxConcurrentQueries int32
 	maxRunnable          int
@@ -60,8 +64,6 @@ type queryManager struct {
 
 	failOnError bool
 	stats       queryStats
-
-	logChan chan struct{}
 }
 
 type queryStats struct {
@@ -103,16 +105,10 @@ func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url
 		maxRunnable:          defaultMaxRunnableQueries,
 		url:                  url,
 		failOnError:          failOnError,
-		logChan:              make(chan struct{}),
 	}
 
 	manager.spawnTemplateAdders()
 	go manager.logStatsOnInterval(1 * time.Minute)
-	go func() {
-		for range time.Tick(10 * time.Second) {
-			manager.logChan <- struct{}{}
-		}
-	}()
 
 	return manager
 }
@@ -143,10 +139,20 @@ func (qm *queryManager) logStatsOnInterval(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
 		qm.stats.Log()
+
+		qm.inProgressLock.Lock()
+		qm.runnableLock.Lock()
+		log.Infof("QueryManager: %d running, %d runnable, %d in progress",
+			qm.numRunningQueries.Load(), len(qm.runnableQueries), len(qm.inProgressQueries))
+		qm.runnableLock.Unlock()
+		qm.inProgressLock.Unlock()
 	}
 }
 
 func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs []uint64) {
+	qm.inProgressLock.Lock()
+	defer qm.inProgressLock.Unlock()
+
 	qm.setupOnce.Do(func() { qm.addInitialQueries(logs) })
 	qm.addInProgessQueries()
 	qm.sendToValidators(logs, allTs)
@@ -158,13 +164,6 @@ func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs 
 
 	if qm.canRunMore() {
 		qm.startQueries()
-	}
-
-	select {
-	case <-qm.logChan:
-		log.Infof("QueryManager: %d running, %d runnable, %d in progress",
-			qm.numRunningQueries.Load(), len(qm.runnableQueries), len(qm.inProgressQueries))
-	default:
 	}
 }
 
