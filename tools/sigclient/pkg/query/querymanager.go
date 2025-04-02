@@ -37,6 +37,7 @@ type QueryTemplate struct {
 
 type queryManager struct {
 	templates         []*QueryTemplate
+	setupOnce         sync.Once
 	inProgressQueries []queryValidator
 	runnableQueries   []queryValidator
 	runnableLock      sync.Mutex
@@ -120,9 +121,10 @@ func (qm *queryManager) logStatsOnInterval(interval time.Duration) {
 	}
 }
 
-func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}) {
+func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs []uint64) {
+	qm.setupOnce.Do(func() { qm.addInitialQueries(logs) })
 	qm.addInProgessQueries()
-	qm.sendToValidators(logs)
+	qm.sendToValidators(logs, allTs)
 
 	if lastEpoch, ok := qm.getLastEpoch(logs); ok {
 		qm.lastLogEpochMs = int64(lastEpoch)
@@ -150,14 +152,14 @@ func (qm *queryManager) addInProgessQueries() {
 	}
 }
 
-func (qm *queryManager) sendToValidators(logs []map[string]interface{}) {
+func (qm *queryManager) sendToValidators(logs []map[string]interface{}, allTs []uint64) {
 	// Just forward to the in progress queries. We don't need to send the logs
 	// to the runnable queries because they don't get marked as runnable until
 	// we've reached an epoch where the time filtering means they won't accept
 	// any more logs.
 	for _, validator := range qm.inProgressQueries {
-		for _, log := range logs {
-			validator.HandleLog(log)
+		for i, log := range logs {
+			validator.HandleLog(log, allTs[i])
 		}
 	}
 }
@@ -180,6 +182,52 @@ func (qm *queryManager) moveToRunnable(epoch uint64) {
 			}(validator)
 		}
 	}
+}
+
+func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
+	firstEpoch, ok := qm.getFirstEpoch(logs)
+	if !ok {
+		log.Warnf("queryManager.addInitialQueries: no logs found to determine first epoch")
+		return
+	}
+
+	for _, template := range qm.templates {
+		if template.maxInProgress <= 0 {
+			log.Warnf("queryManager.addInitialQueries: maxInProgress is 0 for template %v; skipping",
+				template.validator.Info())
+			continue
+		}
+
+		seconds := template.timeRangeSeconds / uint64(template.maxInProgress)
+		seconds = max(seconds, 1)
+
+		for i := 0; i < template.maxInProgress; i++ {
+			validator := template.validator.Copy()
+
+			startEpochMs := firstEpoch
+			endEpochMs := startEpochMs + uint64((i+1)*int(seconds)*1000)
+			if validator.AllowsAllStartTimes() {
+				startEpochMs = endEpochMs - uint64(template.timeRangeSeconds*1000)
+			}
+			validator.SetTimeRange(startEpochMs, endEpochMs)
+
+			qm.inProgressQueries = append(qm.inProgressQueries, validator)
+		}
+	}
+}
+
+func (qm *queryManager) getFirstEpoch(logs []map[string]interface{}) (uint64, bool) {
+	if len(logs) == 0 {
+		return 0, false
+	}
+
+	firstLog := logs[0]
+	timestamp, ok := firstLog[timestampCol]
+	if !ok {
+		return 0, false
+	}
+
+	return utils.AsUint64(timestamp)
 }
 
 func (qm *queryManager) getLastEpoch(logs []map[string]interface{}) (uint64, bool) {
@@ -247,7 +295,6 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 	qm.stats.numSuccess++
 	qm.stats.lock.Unlock()
 
-	log.Infof("queryManager.runQuery: successfully ran %v", queryInfo)
 	qm.numRunningQueries.Add(-1)
 
 }

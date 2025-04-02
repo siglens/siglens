@@ -18,6 +18,7 @@
 package search
 
 import (
+	"fmt"
 	"regexp"
 	"sync"
 
@@ -248,8 +249,8 @@ func filterRecordsFromSearchQuery(query *structs.SearchQuery, segmentSearch *Seg
 
 		err = multiColReader.ValidateAndReadBlock(colsToReadIndices, blockNum)
 		if err != nil {
-			log.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to validate and read block: %d, err: %v", qid, blockNum, err)
-			allSearchResults.AddError(err)
+			// we log without variable fieldnames, so that we don't overwhem the error collector
+			allSearchResults.AddError(fmt.Errorf("qid=%d, filterRecordsFromSearchQuery: failed to validate and read block", qid))
 			return
 		}
 

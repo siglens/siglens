@@ -565,26 +565,40 @@ var longevityCmd = &cobra.Command{
 		failOnError, _ := cmd.Flags().GetBool("failOnError")
 
 		templates := []*query.QueryTemplate{
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", "", 10, 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "Boston", "", 10, 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", "", 10, 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("city_c1", "New *", "", 10, 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("state_c1", "Texas", "latency_c1", 10, 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator("state_c1", "Texas", "latency_c1", 10, 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 3600, 10),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("app_version_c1", "1.2.3", 0, 0)), 6*3600, 100),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("state_c1", "Texas", 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("state_c1", "Texas", 0, 0)), 300, 10),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("*", "*", 0, 0)), 1, 1),
-			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator("*", "*", 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(unwrap(query.Filter("city_c1", "Boston")), "", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(unwrap(query.Filter("city_c1", "Boston")), "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(unwrap(query.Filter("city_c1", "New *")), "", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(unwrap(query.Filter("city_c1", "New *")), "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(unwrap(query.Filter("state_c1", "Texas")), "latency_c1", 10, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(unwrap(query.Filter("state_c1", "Texas")), "latency_c1", 10, 0, 0)), 1, 1),
+
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(unwrap(query.Filter("app_version_c1", "1.2.3")), 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(unwrap(query.Filter("app_version_c1", "1.2.3")), 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(unwrap(query.Filter("app_version_c1", "1.2.3")), 0, 0)), 3600, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(unwrap(query.Filter("app_version_c1", "1.2.3")), 0, 0)), 6*3600, 100),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(unwrap(query.Filter("state_c1", "Texas")), 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(unwrap(query.Filter("state_c1", "Texas")), 0, 0)), 300, 10),
+
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.MatchAll(), 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.MatchAll(), 0, 0)), 300, 10),
+
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)), 3600, 10),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)), 6*3600, 100),
+
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 10, 0, 0)), 1, 1),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 50, 0, 0)), 300, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 50, 0, 0)), 3600, 10),
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "latency_c1", 50, 0, 0)), 6*3600, 100),
+
+			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 10, 0, 0)).WithAllowAllStartTimes(), 30*24*3600, 10000),
+			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)).WithAllowAllStartTimes(), 30*24*3600, 10000),
 		}
 		maxConcurrentQueries := int32(1)
 		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl, failOnError)
 
-		callback := func(logs []map[string]interface{}) {
-			queryManager.HandleIngestedLogs(logs)
+		callback := func(logs []map[string]interface{}, allTs []uint64) {
+			queryManager.HandleIngestedLogs(logs, allTs)
 		}
 
 		ingest.StartIngestion(ingest.ESBulk, generatorType, dataFile,
