@@ -1532,7 +1532,7 @@ const ExpandableFieldsSidebarRenderer = () => {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-open">
         <rect width="16" height="16" x="4" y="4" rx="1.5"/>
         <path d="M8 4v16"/>
-        <path d="m12 9 2 2-2 2"/>
+        <path d="m14 13-2-2 2-2"/>
     </svg>
 `;
 
@@ -1540,7 +1540,7 @@ const getCollapseSvg = () => `
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close">
         <rect width="16" height="16" x="4" y="4" rx="1.5"/>
         <path d="M8 4v16"/>
-        <path d="m14 13-2-2 2-2"/>
+        <path d="m12 9 2 2-2 2"/>
     </svg>
 `;
 
