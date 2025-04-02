@@ -28,22 +28,30 @@ import (
 )
 
 const delayForFlush = 60 * time.Second
+const defaultMaxRunnableQueries = 100 // Kind of arbitrary.
 
 type QueryTemplate struct {
 	validator        queryValidator
 	timeRangeSeconds uint64
 	maxInProgress    int
+	numInProgress    atomic.Int32
+}
+
+type validatorWithCounter struct {
+	validator queryValidator
+	counter   *atomic.Int32
 }
 
 type queryManager struct {
 	templates         []*QueryTemplate
 	setupOnce         sync.Once
-	inProgressQueries []queryValidator
+	inProgressQueries []*validatorWithCounter
 	runnableQueries   []queryValidator
 	runnableLock      sync.Mutex
 	templateChan      chan *QueryTemplate
 
 	maxConcurrentQueries int32
+	maxRunnable          int
 	numRunningQueries    atomic.Int32
 
 	lastLogEpochMs int64
@@ -88,10 +96,11 @@ func NewQueryTemplate(validator queryValidator, timeRangeSeconds uint64, maxInPr
 func NewQueryManager(templates []*QueryTemplate, maxConcurrentQueries int32, url string, failOnError bool) *queryManager {
 	manager := &queryManager{
 		templates:            templates,
-		inProgressQueries:    make([]queryValidator, 0),
+		inProgressQueries:    make([]*validatorWithCounter, 0),
 		runnableQueries:      make([]queryValidator, 0),
 		templateChan:         make(chan *QueryTemplate),
 		maxConcurrentQueries: maxConcurrentQueries,
+		maxRunnable:          defaultMaxRunnableQueries,
 		url:                  url,
 		failOnError:          failOnError,
 		logChan:              make(chan struct{}),
@@ -116,7 +125,15 @@ func (qm *queryManager) spawnTemplateAdders() {
 			seconds = max(seconds, 1)
 			ticker := time.NewTicker(time.Duration(seconds) * time.Second)
 			for range ticker.C {
-				qm.templateChan <- template
+				if template.numInProgress.Load() < int32(template.maxInProgress) {
+					// Note: there is a race condition here (by the time we add
+					// to the atomic, the condition may be false); however,
+					// it's not a critical issue. This counter is used to make
+					// sure we don't overwhelm the system, and if we go over by
+					// 1 it shouldn't cause an issue.
+					template.numInProgress.Add(1)
+					qm.templateChan <- template
+				}
 			}
 		}(template)
 	}
@@ -160,7 +177,12 @@ func (qm *queryManager) addInProgessQueries() {
 			endEpochMs := startEpochMs + int64(template.timeRangeSeconds*1000)
 			validator.SetTimeRange(uint64(startEpochMs), uint64(endEpochMs))
 
-			qm.inProgressQueries = append(qm.inProgressQueries, validator)
+			// We don't need to increment the numInProgress counter here; it's
+			// incremented when the template is sent on the channel.
+			qm.inProgressQueries = append(qm.inProgressQueries, &validatorWithCounter{
+				validator: validator,
+				counter:   &template.numInProgress,
+			})
 		default:
 			return
 		}
@@ -172,9 +194,9 @@ func (qm *queryManager) sendToValidators(logs []map[string]interface{}, allTs []
 	// to the runnable queries because they don't get marked as runnable until
 	// we've reached an epoch where the time filtering means they won't accept
 	// any more logs.
-	for _, validator := range qm.inProgressQueries {
+	for _, query := range qm.inProgressQueries {
 		for i, log := range logs {
-			validator.HandleLog(log, allTs[i])
+			query.validator.HandleLog(log, allTs[i])
 		}
 	}
 }
@@ -182,9 +204,13 @@ func (qm *queryManager) sendToValidators(logs []map[string]interface{}, allTs []
 func (qm *queryManager) moveToRunnable(epoch uint64) {
 	// Iterate backwards so we can remove elements from the slice.
 	for i := len(qm.inProgressQueries) - 1; i >= 0; i-- {
-		validator := qm.inProgressQueries[i]
+		validator := qm.inProgressQueries[i].validator
 		_, _, endEpoch := validator.GetQuery()
 		if endEpoch < epoch {
+			if qm.runnableSlotsAreFull() {
+				return
+			}
+
 			// Move it to runnable, since no future logs will affect the results.
 			qm.inProgressQueries = append(qm.inProgressQueries[:i], qm.inProgressQueries[i+1:]...)
 
@@ -197,6 +223,13 @@ func (qm *queryManager) moveToRunnable(epoch uint64) {
 			}(validator)
 		}
 	}
+}
+
+func (qm *queryManager) runnableSlotsAreFull() bool {
+	qm.runnableLock.Lock()
+	defer qm.runnableLock.Unlock()
+
+	return len(qm.runnableQueries) >= qm.maxRunnable
 }
 
 func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
@@ -226,7 +259,11 @@ func (qm *queryManager) addInitialQueries(logs []map[string]interface{}) {
 			}
 			validator.SetTimeRange(startEpochMs, endEpochMs)
 
-			qm.inProgressQueries = append(qm.inProgressQueries, validator)
+			template.numInProgress.Add(1)
+			qm.inProgressQueries = append(qm.inProgressQueries, &validatorWithCounter{
+				validator: validator,
+				counter:   &template.numInProgress,
+			})
 		}
 	}
 }
