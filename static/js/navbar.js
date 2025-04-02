@@ -535,7 +535,6 @@ $(document).ready(function () {
         }
     }
 
-
     restoreDropdownState();
     updateActiveHighlighting();
 
