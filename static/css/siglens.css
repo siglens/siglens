@@ -5852,7 +5852,7 @@ p#versionInfo {
 
 .infrastructure-dropdown div.menu-header:hover {
     color: white !important;
-    border-right: 5px solid var(--side-nav-bg-color-selected);
+    border-right: 0px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
