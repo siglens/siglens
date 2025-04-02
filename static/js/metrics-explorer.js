@@ -42,7 +42,7 @@ let funcApplied = false;
 let selectedTheme = 'Palette';
 let selectedLineStyle = 'Solid';
 let selectedStroke = 'Normal';
-let selectedQueryType = 'Range';
+let selectedQueryType = 'Both';
 var colorPalette = {
     Classic: ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'],
     Purple: ['#dbcdfa', '#c8b3fb', '#a082fa', '#8862eb', '#764cd8', '#5f36ac', '#27064c'],
@@ -2151,7 +2151,7 @@ $('#stroke-input')
         $(this).select();
     });
 
-var queryTypeOptions = ['Range', 'Instant'];
+var queryTypeOptions = ['Both', 'Range', 'Instant'];
 
 $('#query-type-input')
     .autocomplete({
@@ -2521,90 +2521,134 @@ function mergeGraphs(chartType, panelId = -1) {
 
 // Converting the response in form to use to create graphs
 async function convertDataForChart(data) {
-    if (selectedQueryType === 'Instant') {
-        // Handle instant query response
-        return {
-            type: 'instant',
-            data: data,  // Pass through the entire response
-            queryType: data.queryType
-        };
+    if (!data || !data.result) {
+        return null;
     }
 
-    // Existing code for range queries
-    let seriesArray = [];
-    let chartStartTime, chartEndTime;
+    // Check if this is an instant query (scalar or vector)
+    const isInstantQuery = data.resultType === 'scalar' || data.resultType === 'vector';
 
-    if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
-        chartStartTime = Math.floor(filterStartDate / 1000);
-        chartEndTime = Math.floor(filterEndDate / 1000);
+    // Get or create the visualization container
+    const container = getOrCreateVisualizationContainer(data.queryName, data.queryString);
+    if (!container) {
+        console.error('Failed to create visualization container');
+        return null;
+    }
+
+    // Clear existing content
+    container.innerHTML = '';
+
+    if (isInstantQuery) {
+        // Handle instant query results
+        displayInstantQueryResults(container, data);
+        return null;
+    }
+
+    // Handle range query results (matrix)
+    if (data.resultType === 'matrix') {
+        const seriesData = data.result.map(series => ({
+            name: series.metric ? Object.entries(series.metric)
+                .map(([key, value]) => `${key}="${value}"`)
+                .join(', ') : 'value',
+            data: series.values.map(point => ({
+                x: point[0] * 1000, // Convert to milliseconds
+                y: parseFloat(point[1])
+            }))
+        }));
+
+        // Create chart
+        const canvas = document.createElement('canvas');
+        container.appendChild(canvas);
+        initializeChart(canvas, seriesData, data.queryName, 'line');
+        return seriesData;
+    }
+
+    return null;
+}
+
+function displayInstantQueryResults(container, data) {
+    if (!container) {
+        console.error('No container provided to display instant query results');
+        return;
+    }
+
+    // Handle both jQuery and vanilla JavaScript containers
+    const resultsContainer = document.createElement('div');
+    resultsContainer.className = 'instant-query-results';
+
+    if (container.jquery) {
+        // Handle jQuery container
+        container.find('.instant-query-results').remove();
+        container.append(resultsContainer);
     } else {
-        chartStartTime = data.startTime;
-        chartEndTime = Math.floor(Date.now() / 1000);
-
-        if (data.timestamps && data.timestamps.length > 0) {
-            chartEndTime = Math.max(chartEndTime, data.timestamps[data.timestamps.length - 1]);
+        // Handle vanilla JavaScript container
+        const existingResults = container.querySelector('.instant-query-results');
+        if (existingResults) {
+            existingResults.remove();
         }
+        container.appendChild(resultsContainer);
     }
 
-    const timeRange = chartEndTime - chartStartTime;
-    timeUnit = determineTimeUnit(timeRange);
-    let calculatedInterval = data.intervalSec;
-
-    for (let i = 0; i < data.series.length; i++) {
-        let series = {
-            seriesName: data.series[i],
-            values: {},
-        };
-
-        const isNumericExpression = /^[\d+\-*/() ]+$/.test(data.series[i]);
-
-        if (isNumericExpression) {
-            const constantValue = data.values[i][0];
-            for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
-                const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
-                series.values[formattedDate] = constantValue;
-            }
-        } else {
-            for (let t = chartStartTime; t <= chartEndTime; t += calculatedInterval) {
-                const formattedDate = moment(t * 1000).format('YYYY-MM-DDTHH:mm:ss');
-                series.values[formattedDate] = null;
-            }
-
-            for (let j = 0; j < data.timestamps.length; j++) {
-                const timestampInMilliseconds = data.timestamps[j] * 1000;
-                const formattedDate = moment(timestampInMilliseconds).format('YYYY-MM-DDTHH:mm:ss');
-                series.values[formattedDate] = data.values[i][j];
-            }
-        }
-
-        seriesArray.push(series);
+    if (!data.result || (Array.isArray(data.result) && data.result.length === 0)) {
+        displayErrorMessage(resultsContainer, 'No data available');
+        return;
     }
 
-    if (seriesArray.length === 0) {
-        let startTime, endTime;
+    let value, timestamp;
 
-        if (typeof filterStartDate === 'number' && typeof filterEndDate === 'number') {
-            startTime = Math.floor(filterStartDate / 1000);
-            endTime = Math.floor(filterEndDate / 1000);
-        } else {
-            startTime = data.startTime || (Date.now() / 1000 - 3600);
-            endTime = Math.floor(Date.now() / 1000);
-        }
-
-        const labels = generateEmptyChartLabels(timeUnit || 'minute', startTime, endTime);
-        seriesArray.push({
-            seriesName: 'No Data',
-            values: labels.reduce((acc, label) => {
-                acc[label] = null;
-                return acc;
-            }, {}),
-        });
+    if (data.resultType === 'vector') {
+        // For vector results, take the first result
+        const firstResult = data.result[0];
+        value = parseFloat(firstResult.value[1]);
+        timestamp = parseInt(firstResult.value[0]) * 1000; // Convert to milliseconds
+    } else if (data.resultType === 'scalar') {
+        // For scalar results
+        value = parseFloat(data.result[1]);
+        timestamp = parseInt(data.result[0]) * 1000; // Convert to milliseconds
     }
 
-    return {
-        type: 'range',
-        data: seriesArray
-    };
+    // Format the value (limit to 4 decimal places)
+    const formattedValue = value.toLocaleString(undefined, {
+        maximumFractionDigits: 4
+    });
+
+    // Format the timestamp
+    const formattedTime = moment(timestamp).format('YYYY-MM-DD HH:mm:ss');
+
+    // Create scalar result display
+    const scalarResult = document.createElement('div');
+    scalarResult.className = 'scalar-result';
+    scalarResult.innerHTML = `
+        <div class="value">${formattedValue}</div>
+        <div class="timestamp">${formattedTime}</div>
+    `;
+
+    resultsContainer.appendChild(scalarResult);
+}
+
+function displayErrorMessage(container, message) {
+    if (!container) {
+        console.error('No container provided to display error message');
+        return;
+    }
+
+    // Handle both jQuery and vanilla JavaScript containers
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+
+    if (container.jquery) {
+        // Handle jQuery container
+        container.find('.error-message').remove();
+        container.append(errorDiv);
+    } else {
+        // Handle vanilla JavaScript container
+        const existingError = container.querySelector('.error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        container.appendChild(errorDiv);
+    }
 }
 
 function determineTimeUnit(timeRange) {
@@ -2654,47 +2698,6 @@ async function getMetricNames() {
     }
 }
 
-function displayErrorMessage(container, message) {
-    // Early return if container is missing
-    if (!container || !container.length) {
-        console.error('Error: No container provided to display error message');
-        return;
-    }
-    //eslint-disable-next-line no-undef
-    if (isMetricsScreen) {
-        // Handle metrics screen errors
-        const mergedContainer = $('#merged-graph-container');
-
-        const graphCanvas = container.find('.graph-canvas');
-        graphCanvas.find('.error-message').remove();
-
-        const errorSpan = $('<span></span>').addClass('error-message').text(message);
-        graphCanvas.append(errorSpan);
-
-        const mergedGraph = mergedContainer.find('.merged-graph');
-        mergedGraph.find('.error-message').remove();
-        mergedGraph.empty();
-
-        const mergedErrorSpan = $('<span></span>').addClass('error-message').text(message);
-        mergedGraph.append(mergedErrorSpan);
-    } else if (isAlertScreen) {
-        // Handle alert screen errors
-        const graphCanvas = container.find('.graph-canvas');
-        graphCanvas.find('.error-message').remove();
-
-        const errorSpan = $('<span></span>').addClass('error-message').text(message);
-        graphCanvas.append(errorSpan);
-    } else if (isDashboardScreen) {
-        // Handle dashboard screen errors
-        const panelContainer = container.find('.panEdit-panel');
-        panelContainer.find('.error-message').remove();
-
-        const errorSpan = $('<span></span>').addClass('error-message').text(message);
-        panelContainer.append(errorSpan);
-    }
-    $('.legend-container').hide();
-}
-
 function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen) {
     const errorMessage = error;
     let errorCanvas;
@@ -2732,16 +2735,11 @@ function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, q
 
     async function getMetricsData(queryName, metricName, state) {
         // Show loading indicators
-        const container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"]`);
-        const graphCanvas = container.find('.graph-canvas');
+        const container = $('#metrics-graphs').find(`.metrics-graph[data-query="${queryName}"] .graph-canvas`);
         const mergedContainer = $('#merged-graph-container').find('.merged-graph');
 
-        if (mergedContainer.length) {
-            mergedContainer.append('<div id="panel-loading"></div>');
-        }
-        if (graphCanvas.length) {
-            graphCanvas.append('<div id="panel-loading"></div>');
-        }
+        mergedContainer.append('<div id="panel-loading"></div>');
+        container.append('<div id="panel-loading"></div>');
 
         let panelEditContainer;
         if (isDashboardScreen) {
@@ -2749,84 +2747,47 @@ function handleErrorAndCleanup(container, mergedContainer, panelEditContainer, q
             panelEditContainer.append('<div id="panel-loading"></div>');
         }
 
-        try {
-            // Prepare query object
-            const query = { name: queryName, query: `${metricName}`, qlType: 'promql', state };
-            let result;
+        // Prepare query object
+        const query = { name: queryName, query: `${metricName}`, qlType: 'promql', state };
+        let result;
 
-            if (selectedQueryType === 'Instant') {
-                // Instant query using /promql/api/v1/query
-                const timestamp = (typeof filterEndDate === 'number' ? filterEndDate : 'now');
-                const queryString = createSingleQueryString([query], [{ formula: queryName }]);
-
-                try {
-                    result = await executePromQLQuery(queryString, timestamp);
-
-                    if (!result || typeof result !== 'object') {
-                        throw new Error('Invalid response format');
-                    }
-
-                    if (result.status !== 'success') {
-                        throw new Error(result.error || 'Query failed');
-                    }
-
-                    if (!result.data || !result.data.result) {
-                        throw new Error('No data in response');
-                    }
-
-                    result.queryType = 'Instant';
-
-                    // Display instant query results
-                    if (container && container.length) {
-                        displayInstantQueryResults(container, result);
-                    }
-
-                } catch (error) {
-                    const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
-                    if (container.length) {
-                        displayErrorMessage(container, errorMessage);
-                    }
-                    throw error;
-                }
-            } else {
-                // Range query using metrics-explorer/api/v1/timeseries
-                const data = {
-                    start: filterStartDate ? filterStartDate : 'now-1h',
-                    end: filterEndDate ? filterEndDate : 'now',
-                    queries: [query],
-                    formulas: [{ formula: queryName }],
-                };
-
-                try {
-                    result = await fetchTimeSeriesData(data);
-                    result.queryType = selectedQueryType;
-                } catch (error) {
-                    const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
-                    if (container.length) {
-                        displayErrorMessage(container, errorMessage);
-                    }
-                    throw error;
-                }
+        if (selectedQueryType === 'Instant') {
+            // Instant query using /promql/api/v1/query
+            const timestamp = (typeof filterEndDate === 'number' ? filterEndDate : 'now');
+            const queryString = createSingleQueryString([query], [{ formula: queryName }]);
+            try {
+                result = await executePromQLQuery(queryString, timestamp);
+                result.queryType = 'Instant';
+            } catch (error) {
+                const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
+                displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
+                throw error;
             }
-
-            // Update global state if successful
-            rawTimeSeriesData = result;
-            updateDownloadButtons();
-            updateMetricsQueryParamsInUrl();
-            metricsQueryParams = { queries: [query], formulas: [{ formula: queryName }] };
-
-            return result;
-        } catch (error) {
-            console.error('Error in getMetricsData:', error);
-            const errorMessage = error.responseText || error.message || 'Failed to fetch metrics data';
-            if (container && container.length) {
-                displayErrorMessage(container, errorMessage);
+        } else {
+            // Range query using metrics-explorer/api/v1/timeseries
+            const data = {
+                start: filterStartDate ? filterStartDate : 'now-1h',
+                end: filterEndDate ? filterEndDate : 'now',
+                queries: [query],
+                formulas: [{ formula: queryName }],
+            };
+            try {
+                result = await fetchTimeSeriesData(data);
+                result.queryType = selectedQueryType;
+            } catch (error) {
+                const errorMessage = handleErrorAndCleanup(container, mergedContainer, panelEditContainer, queryName, error, isDashboardScreen);
+                displayErrorMessage(container.closest('.metrics-graph'), errorMessage);
+                throw error;
             }
-            throw error;
-        } finally {
-            // Clean up loading indicators
-            $('#panel-loading').remove();
         }
+
+        // Update global state if successful
+        rawTimeSeriesData = result;
+        updateDownloadButtons();
+        updateMetricsQueryParamsInUrl();
+        metricsQueryParams = { queries: [query], formulas: [{ formula: queryName }] };
+
+        return result;
     }
 
 async function getMetricsDataForFormula(formulaId, formulaDetails) {
@@ -2939,82 +2900,19 @@ async function fetchTimeSeriesData(data) {
 
 // Import executePromQLQuery for instant queries
 async function executePromQLQuery(query, timestamp) {
-    try {
-        console.log('Sending PromQL query:', {
+    return await $.ajax({
+        url: '/promql/api/v1/query',
+        type: 'GET',
+        data: {
+            time: timestamp,
             query: query,
-            timestamp: timestamp,
-            url: '/promql/api/v1/query'
-        });
-
-        const response = await $.ajax({
-            url: '/promql/api/v1/query',
-            method: 'GET',
-            data: {
-                query: query,
-                time: timestamp
-            },
-            dataType: 'json',
-            success: function(data) {
-                console.log('PromQL response:', data);
-            },
-            error: function(jqXHR, textStatus, errorThrown) {
-                console.error('PromQL error:', {
-                    status: jqXHR.status,
-                    statusText: jqXHR.statusText,
-                    responseText: jqXHR.responseText,
-                    error: errorThrown
-                });
-            }
-        });
-
-        console.log('Raw response:', response);
-
-        // Check if response is a string (sometimes happens with JSON parsing issues)
-        if (typeof response === 'string') {
-            try {
-                response = JSON.parse(response);
-            } catch (e) {
-                console.error('Failed to parse response as JSON:', e);
-                throw new Error('Invalid JSON response from server');
-            }
-        }
-
-        if (!response) {
-            throw new Error('Empty response from server');
-        }
-
-        // Handle both direct response and wrapped response formats
-        if (response.data && response.data.result) {
-            // Response is already in the correct format
-            return response;
-        } else if (Array.isArray(response) || (response.value && Array.isArray(response.value))) {
-            // Response is a direct result, wrap it in the expected format
-            return {
-                status: 'success',
-                data: {
-                    resultType: Array.isArray(response) ? 'vector' : 'scalar',
-                    result: response
-                }
-            };
-        } else if (typeof response === 'object') {
-            // Check if response needs to be restructured
-            const restructured = {
-                status: 'success',
-                data: {
-                    resultType: Array.isArray(response.result) ? 'vector' : 'scalar',
-                    result: response.result || response
-                }
-            };
-            console.log('Restructured response:', restructured);
-            return restructured;
-        }
-
-        console.error('Unhandled response format:', response);
-        throw new Error('Unexpected response format from server');
-    } catch (error) {
-        console.error('Error executing PromQL query:', error);
-        throw error;
-    }
+        },
+        headers: {
+            Accept: '*/*',
+        },
+        crossDomain: true,
+        dataType: 'json',
+    });
 }
 
 function getTagKeyValue(metricName) {
@@ -3862,67 +3760,4 @@ function setupRawQueryKeyboardHandlers() {
             }
         }
     });
-}
-
-function displayInstantQueryResults(container, data) {
-    if (!container || !container.length) {
-        console.error('No container provided to display instant query results');
-        return;
-    }
-
-    // Clear existing content
-    container.find('.graph-canvas').empty();
-
-    // Create container for instant query results
-    const resultsContainer = $('<div class="instant-query-results"></div>');
-
-    if (!data || !data.data || !data.data.result) {
-        resultsContainer.html('<div class="error-message">No data available</div>');
-        container.find('.graph-canvas').append(resultsContainer);
-        return;
-    }
-
-    const result = data.data.result;
-    let value, timestamp;
-
-    try {
-        if (Array.isArray(result) && result.length > 0) {
-            // Vector result - take the first result
-            const firstResult = result[0];
-            value = firstResult.value[1];
-            timestamp = moment.unix(firstResult.value[0]).format('YYYY-MM-DD HH:mm:ss');
-        } else if (Array.isArray(result) && result.length === 0) {
-            resultsContainer.html('<div class="error-message">No data available</div>');
-            container.find('.graph-canvas').append(resultsContainer);
-            return;
-        } else if (Array.isArray(result.value)) {
-            // Scalar result
-            value = result.value[1];
-            timestamp = moment.unix(result.value[0]).format('YYYY-MM-DD HH:mm:ss');
-        } else {
-            throw new Error('Invalid data format');
-        }
-
-        // Format the value
-        const formattedValue = parseFloat(value).toLocaleString(undefined, {
-            maximumFractionDigits: 4
-        });
-
-        // Create scalar result display
-        const scalarResult = $('<div class="scalar-result"></div>');
-        scalarResult.html(`
-            <div class="value">${formattedValue}</div>
-            <div class="timestamp">${timestamp}</div>
-        `);
-        resultsContainer.append(scalarResult);
-
-        // Append to container and hide legend
-        container.find('.graph-canvas').append(resultsContainer);
-        container.find('.legend-container').hide();
-
-    } catch (error) {
-        console.error('Error processing instant query results:', error);
-        resultsContainer.html('<div class="error-message">Error processing data</div>');
-        container.find('.graph-canvas').append(resultsContainer);
-    }
 }

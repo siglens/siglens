@@ -637,6 +637,40 @@ input:checked+.slider:before {
     color: var(--text-color);
 }
 
+/* #visualization-options {
+    gap: 20px;
+}
+
+#visualization-options input {
+    width: 100px;
+    height: 30px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0 8px;
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+#query-type-div input {
+    width: 100px;
+}
+
+#query-type-div .ui-autocomplete {
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 1000;
+}
+
+#query-type-div .ui-menu-item {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+#query-type-div .ui-menu-item:hover {
+    background-color: var(--hover-bg-color);
+} */
+
 /* Instant Query Results Styles */
 .instant-query-results {
     padding: 15px;
