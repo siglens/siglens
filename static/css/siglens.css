@@ -757,11 +757,6 @@
     background: var(--black-6);
 }
 
-/* Firefox support */
-[data-theme='dark'] {
-    scrollbar-color: var(--black-5) var(--black-3);
-}
-
 html {
     font-size: 12px;
     height: 100%;
@@ -892,6 +887,10 @@ body {
 }
 
 #app-side-nav::-webkit-scrollbar {
+    display: none;
+}
+
+[data-theme='dark'] #app-side-nav::-webkit-scrollbar {
     display: none;
 }
 
