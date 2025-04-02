@@ -101,10 +101,10 @@ File Format:
 	Multiple such blocks are appended continuously.
 */
 
-func (w *DataPointWal) AppendDataPoints(dps []WalDatapoint) error {
+func (w *DataPointWal) Append(dps []WalDatapoint) error {
 	err := w.encodeWALBlock(dps)
 	if err != nil {
-		log.Errorf("AppendDataPoints: dataCompression failed: %v", err)
+		log.Errorf("DataPointWal Append: dataCompression failed: %v", err)
 		return err
 	}
 
@@ -113,20 +113,20 @@ func (w *DataPointWal) AppendDataPoints(dps []WalDatapoint) error {
 	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
 	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
 	if err != nil {
-		log.Errorf("AppendDataPoints : failed to write block size: %v", err)
+		log.Errorf("DataPointWal Append : failed to write block size: %v", err)
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
 	_, err = w.fd.Write(w.checksumBuf)
 	if err != nil {
-		log.Errorf("AppendDataPoints: failed to write checksum: %v", err)
+		log.Errorf("DataPointWal Append: failed to write checksum: %v", err)
 		return err
 	}
 
 	_, err = w.fd.Write(w.encodedBuf)
 	if err != nil {
-		log.Errorf("AppendDataPoints: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
+		log.Errorf("DataPointWal Append: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
 		return err
 	}
 
@@ -416,11 +416,11 @@ File Format:
 	Multiple such blocks are appended continuously.
 */
 
-func (w *MetricNameWal) AppendMNames(mName []string) error {
+func (w *MetricNameWal) Append(mName []string) error {
 	w.encodedBuf = w.encodedBuf[:0]
 	err := w.compressMetricNames(mName)
 	if err != nil {
-		log.Errorf("AppendMNames: Failed to compress metric names: %v", err)
+		log.Errorf("MetricNameWal Append: Failed to compress metric names: %v", err)
 		return err
 	}
 	checksum := crc32.ChecksumIEEE(w.encodedBuf)
@@ -428,20 +428,20 @@ func (w *MetricNameWal) AppendMNames(mName []string) error {
 	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // UINT32_SIZE : 4 bytes for CRC32 checksum
 	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
 	if err != nil {
-		log.Errorf("AppendMNames : failed to write block size: %v", err)
+		log.Errorf("MetricNameWal Append : failed to write block size: %v", err)
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
 	_, err = w.fd.Write(w.checksumBuf)
 	if err != nil {
-		log.Errorf("AppendMNames: failed to write checksum: %v", err)
+		log.Errorf("MetricNameWal Append: failed to write checksum: %v", err)
 		return err
 	}
 
 	_, err = w.fd.Write(w.encodedBuf)
 	if err != nil {
-		log.Errorf("AppendMNames: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
+		log.Errorf("MetricNameWal Append: failed to write block content of size %d to WAL file: %v", len(w.encodedBuf), err)
 		return err
 	}
 

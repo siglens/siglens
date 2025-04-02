@@ -23,7 +23,7 @@ func TestWALAppendAndRead(t *testing.T) {
 
 	datapoints := generateRandomDatapoints(numDatapoints)
 
-	err = wal.AppendDataPoints(datapoints)
+	err = wal.Append(datapoints)
 	assert.NoError(t, err)
 
 	it, err := NewWALReader(filePath)
@@ -76,7 +76,7 @@ func TestWALStats(t *testing.T) {
 	defer w.Close()
 
 	dps := generateRandomDatapoints(500)
-	err = w.AppendDataPoints(dps)
+	err = w.Append(dps)
 	assert.NoError(t, err)
 
 	fname, totalDps, encodedSize := w.GetWALStats()
@@ -111,7 +111,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	numDatapoints1 := 500
 	datapoints1 := generateRandomDatapoints(numDatapoints1)
 
-	err = wal.AppendDataPoints(datapoints1)
+	err = wal.Append(datapoints1)
 	assert.NoError(t, err)
 
 	it, err := NewWALReader(filePath)
@@ -136,7 +136,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	numDatapoints2 := 1000
 	datapoints2 := generateRandomDatapoints(numDatapoints2)
 
-	err = wal.AppendDataPoints(datapoints2)
+	err = wal.Append(datapoints2)
 	assert.NoError(t, err)
 
 	it2, err := NewWALReader(filePath)
@@ -176,7 +176,7 @@ func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
 	for i := 0; i < totalAppends; i++ {
 		metrics := generateMetricNames(metricsPerAppend)
 		expectedMetrics = append(expectedMetrics, metrics...)
-		err = wal.AppendMNames(metrics)
+		err = wal.Append(metrics)
 		assert.NoError(t, err)
 	}
 

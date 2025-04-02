@@ -143,9 +143,9 @@ type MetricsSegment struct {
 }
 
 type mNameWalState struct {
-	metricsName []string           // metric names seen across segment
-	wal         *wal.MetricNameWal // Active WAL file
-	lock        sync.Mutex
+	metricsNames []string           // metric names seen across segment
+	wal          *wal.MetricNameWal // Active WAL file
+	lock         sync.Mutex
 }
 
 /*
@@ -391,7 +391,7 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 	return &MetricsSegment{
 		mNamesMap: make(map[string]bool, 0),
 		mNameWalState: mNameWalState{
-			metricsName: make([]string, 0),
+			metricsNames: make([]string, 0),
 		},
 		currBlockNum: 0,
 		mBlock: &MetricsBlock{
@@ -518,7 +518,7 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	if !mSeg.mNamesMap[string(mName)] {
 		mSeg.mNamesMap[string(mName)] = true
 		mSeg.mNameWalState.lock.Lock()
-		mSeg.mNameWalState.metricsName = append(mSeg.mNameWalState.metricsName, string(mName))
+		mSeg.mNameWalState.metricsNames = append(mSeg.mNameWalState.metricsNames, string(mName))
 		mSeg.mNameWalState.lock.Unlock()
 	}
 	mSeg.rwLock.Unlock()
@@ -1977,7 +1977,7 @@ func (mb *MetricsBlock) appendToWALBuffer(timestamp uint32, dp float64, tsid uin
 	defer mb.dpWalState.lock.Unlock()
 
 	if int(mb.dpWalState.dpIdx) >= utils.WAL_BLOCK_FLUSH_SIZE {
-		err := mb.dpWalState.currentWal.AppendDataPoints(mb.dpWalState.dpsInWalMem[0:mb.dpWalState.dpIdx])
+		err := mb.dpWalState.currentWal.Append(mb.dpWalState.dpsInWalMem[0:mb.dpWalState.dpIdx])
 		if err != nil {
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
@@ -2006,7 +2006,7 @@ func timeBasedWalDPSFlush() {
 		for _, ms := range GetAllMetricsSegments() {
 			ms.mBlock.dpWalState.lock.Lock()
 			if ms.mBlock.dpWalState.dpIdx > 0 {
-				err := ms.mBlock.dpWalState.currentWal.AppendDataPoints(ms.mBlock.dpWalState.dpsInWalMem[0:ms.mBlock.dpWalState.dpIdx])
+				err := ms.mBlock.dpWalState.currentWal.Append(ms.mBlock.dpWalState.dpsInWalMem[0:ms.mBlock.dpWalState.dpIdx])
 				if err != nil {
 					log.Warnf("timeBasedWalDPSFlush : Failed to append datapoints to WAL: %v", err)
 				}
@@ -2101,14 +2101,14 @@ func timeBasedMNameWalFlush() {
 		time.Sleep(METRICS_NAME_WAL_FLUSH_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
 			ms.mNameWalState.lock.Lock()
-			if len(ms.mNameWalState.metricsName) > 0 {
-				err := ms.mNameWalState.wal.AppendMNames(ms.mNameWalState.metricsName)
+			if len(ms.mNameWalState.metricsNames) > 0 {
+				err := ms.mNameWalState.wal.Append(ms.mNameWalState.metricsNames)
 				if err != nil {
 					log.Warnf("timeBasedMNameWalFlush : Failed to append datapoints to WAL: %v", err)
 					ms.mNameWalState.lock.Unlock()
 					continue
 				}
-				ms.mNameWalState.metricsName = ms.mNameWalState.metricsName[:0]
+				ms.mNameWalState.metricsNames = ms.mNameWalState.metricsNames[:0]
 			}
 			ms.mNameWalState.lock.Unlock()
 		}
@@ -2117,7 +2117,7 @@ func timeBasedMNameWalFlush() {
 
 func (ms *MetricsSegment) cleanAndInitNewMNameWal(forceRotate bool) error {
 	ms.deleteMNameWALFile()
-	ms.mNameWalState.metricsName = ms.mNameWalState.metricsName[:0]
+	ms.mNameWalState.metricsNames = ms.mNameWalState.metricsNames[:0]
 	if !forceRotate {
 		err := ms.initNewMNameWAL()
 		if err != nil {
