@@ -145,6 +145,7 @@ type MetricsSegment struct {
 type mNameWalState struct {
 	metricsName []string           // metric names seen across segment
 	wal         *wal.MetricNameWal // Active WAL file
+	lock        sync.Mutex
 }
 
 /*
@@ -516,7 +517,9 @@ func EncodeDatapoint(mName []byte, tags *TagsHolder, dp float64, timestamp uint3
 	mSeg.rwLock.Lock()
 	if !mSeg.mNamesMap[string(mName)] {
 		mSeg.mNamesMap[string(mName)] = true
+		mSeg.mNameWalState.lock.Lock()
 		mSeg.mNameWalState.metricsName = append(mSeg.mNameWalState.metricsName, string(mName))
+		mSeg.mNameWalState.lock.Unlock()
 	}
 	mSeg.rwLock.Unlock()
 
@@ -2097,14 +2100,17 @@ func timeBasedMNameWalFlush() {
 	for {
 		time.Sleep(METRICS_NAME_WAL_FLUSH_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
+			ms.mNameWalState.lock.Lock()
 			if len(ms.mNameWalState.metricsName) > 0 {
 				err := ms.mNameWalState.wal.AppendMNames(ms.mNameWalState.metricsName)
 				if err != nil {
 					log.Warnf("timeBasedMNameWalFlush : Failed to append datapoints to WAL: %v", err)
+					ms.mNameWalState.lock.Unlock()
 					continue
 				}
 				ms.mNameWalState.metricsName = ms.mNameWalState.metricsName[:0]
 			}
+			ms.mNameWalState.lock.Unlock()
 		}
 	}
 }
