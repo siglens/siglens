@@ -45,7 +45,7 @@ test('Navigation Menu Part 1', async ({ page }) => {
     const alertsPages = ['all-alerts.html', 'contacts.html'];
     for (const url of alertsPages) {
         await page.goto(`http://localhost:5122/${url}`, {
-            waitUntil: 'networkidle',
+            waitUntil: 'domcontentloaded',
             timeout: 45000
         });
         await page.waitForTimeout(1000);

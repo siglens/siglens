@@ -52,7 +52,7 @@ test('Navigation Menu Part 2', async ({ page }) => {
     ];
     for (const url of infrastructurePages) {
         await page.goto(`http://localhost:5122/${url}`, {
-            waitUntil: 'networkidle',
+            waitUntil: 'domcontentloaded',
             timeout: 45000
         });
         await page.waitForTimeout(1000);
