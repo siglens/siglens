@@ -462,7 +462,7 @@ a:visited.ui-button,
     text-decoration: none;
 }
 
-.ui-tabs .ui-tabs-nav li.ui-tabs-active{
+.ui-tabs .ui-tabs-nav li.ui-tabs-active {
     margin-bottom: 0px;
     padding-bottom: 0px;
 }
@@ -675,8 +675,8 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 .ag-row,
-.measureAggGrid .ag-row-even,
-.LogResultsGrid .ag-row-even {
+.measureAggGrid,
+.LogResultsGrid {
     background-color: var(--default-tab) !important;
 }
 
