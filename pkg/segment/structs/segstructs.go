@@ -504,7 +504,7 @@ type RecsAggResults struct {
 type NodeResult struct {
 	AllRecords                  []*utils.RecordResultContainer
 	ErrList                     []error                     // Need to eventually replace ErrList with GlobalSearchErrors to prevent duplicate errors
-	searchErrorsLock            sync.RWMutex                // lock for search errors
+	SearchErrorsLock            sync.RWMutex                // lock for search errors
 	GlobalSearchErrors          map[string]*SearchErrorInfo // maps global error from error message -> error info  (Deprecated: use toputils.BatchError)
 	Histogram                   map[string]*AggregationResult
 	TotalResults                *QueryCount
@@ -1719,8 +1719,8 @@ func (qa *QueryAggregators) GetAllMeasureAggsInChain() [][]*MeasureAggregator {
 
 // TODO: use toputils.BatchError instead
 func (nodeRes *NodeResult) StoreGlobalSearchError(errMsg string, logLevel log.Level, err error) {
-	nodeRes.searchErrorsLock.Lock()
-	defer nodeRes.searchErrorsLock.Unlock()
+	nodeRes.SearchErrorsLock.Lock()
+	defer nodeRes.SearchErrorsLock.Unlock()
 
 	nodeRes.GlobalSearchErrors = StoreError(nodeRes.GlobalSearchErrors, errMsg, logLevel, err)
 }
