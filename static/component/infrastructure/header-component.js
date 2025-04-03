@@ -35,16 +35,14 @@ class DashboardHeader {
             <div class="d-flex align-items-center justify-content-between mb-5">
                 <div class="header-left">
                     <div class="title-container">
-                        <div class="title-row d-flex align-items-center gap-3">
+                        <div class="title-row d-flex align-items-center">
                             <div class="kubernetes-img"></div>
-                            <div>
-                                <h1 class="myOrg-heading">${this.options.title}</h1>
-                            </div>
                             <div class="dropdown">
-                                <button class="btn" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                            <button class="btn p-0" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                    <h1 class="myOrg-heading mb-0 mx-4">${this.options.title}</h1>
                                     <img class="dropdown-arrow" src="assets/arrow-btn.svg" alt="expand" style="right:0px;">                
-                                </button>
-                                <div class="dropdown-menu" aria-labelledby="" style="width: 150px;">
+                            </button>
+                                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="" style="width: 150px;">
                                     <li class="${this.options.activeMenuItem === 'Kubernetes Overview' ? 'active' : ''}">Kubernetes Overview</li>
                                     <li class="${this.options.activeMenuItem === 'Clusters' ? 'active' : ''}">Clusters</li>
                                     <li class="${this.options.activeMenuItem === 'Namespaces' ? 'active' : ''}">Namespaces</li>
