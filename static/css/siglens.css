@@ -6935,6 +6935,7 @@ p#versionInfo {
     padding: 10px;
     display: none;
     border-radius: 4px;
+    padding-top: 0px;
 }
 
 .load-more-link {
