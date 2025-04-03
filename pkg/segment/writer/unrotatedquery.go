@@ -393,7 +393,7 @@ func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint
 
 	numUnrotatedBlks := uint16(len(usi.unrotatedBlockCmis))
 	for blkNum := range timeFilteredBlocks {
-		if blkNum > numUnrotatedBlks {
+		if blkNum >= numUnrotatedBlks {
 			log.Errorf("doBloomCheckForCols: tried to check a block that does not exist in unrotated info. blkNum %+v, numBlocks %+v",
 				blkNum, numUnrotatedBlks)
 			continue
