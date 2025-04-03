@@ -30,14 +30,16 @@ $(document).ready(() => {
     $('.theme-btn').on('click', getOneServiceOverview);
 
     const serviceName = getParameterFromUrl('service');
-    const stDate = getParameterFromUrl('startEpoch');
-    const endDate = getParameterFromUrl('endEpoch');
+    const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
+    const endDate = getParameterFromUrl('endEpoch') || 'now';
     redMetrics['searchText'] = 'service=' + serviceName + '';
     initializeBreadcrumbs([
         { name: 'APM', url: './service-health.html' },
         { name: 'Service Health', url: './service-health.html' },
         { name: serviceName},
     ]);
+
+    // Update active range item based on URL parameter
     $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
@@ -49,18 +51,72 @@ $(document).ready(() => {
     $('.service-health-text').click(function () {
         window.location.href = '../service-health.html';
     });
+
+    // Add popstate event listener for browser back/forward navigation
+    window.addEventListener('popstate', function() {
+        const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
+        const endDate = getParameterFromUrl('endEpoch') || 'now';
+
+        // Update active range item
+        $('.range-item').removeClass('active');
+        $('.inner-range #' + stDate).addClass('active');
+
+        // Update date picker display
+        datePickerHandler(stDate, endDate, stDate);
+
+        // Update the filter dates
+        filterStartDate = stDate;
+        filterEndDate = endDate;
+
+        // Refresh visualizations
+        getOneServiceOverview();
+    });
 });
 
 function isGraphsDatePickerHandler(evt) {
     evt.preventDefault();
+
+    // Get the selected time range
+    const selectedRange = $(evt.currentTarget).attr('id');
+    let data;
+
+    if (selectedRange) {
+        // Update filterStartDate and filterEndDate based on selection
+        filterStartDate = selectedRange;
+        filterEndDate = 'now';
+        data = {
+            startEpoch: selectedRange,
+            endEpoch: 'now'
+        };
+
+        // Update active state of range items
+        $('.range-item').removeClass('active');
+        $(evt.currentTarget).addClass('active');
+    } else {
+        data = getTimeRange();
+    }
+
+    // Update URL with new time range
+    const url = new URL(window.location);
+    url.searchParams.set('startEpoch', data.startEpoch);
+    url.searchParams.set('endEpoch', data.endEpoch);
+    window.history.pushState({ path: url.href }, '', url.href);
+
+    // Update date picker display
+    datePickerHandler(data.startEpoch, data.endEpoch, data.startEpoch);
+
     getOneServiceOverview();
     $('#daterangepicker').hide();
 }
 
 function getTimeRange() {
+    // First check URL parameters, then fall back to filterStart/EndDate, then defaults
+    const urlStartEpoch = getParameterFromUrl('startEpoch');
+    const urlEndEpoch = getParameterFromUrl('endEpoch');
+
     return {
-        startEpoch: filterStartDate || 'now-1h',
-        endEpoch: filterEndDate || 'now',
+        startEpoch: filterStartDate || urlStartEpoch || 'now-1h',
+        endEpoch: filterEndDate || urlEndEpoch || 'now',
     };
 }
 function getParameterFromUrl(param) {
