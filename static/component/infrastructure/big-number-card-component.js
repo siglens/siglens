@@ -48,65 +48,49 @@ class BigNumberCard {
 
     async fetchData() {
         const urlParams = new URLSearchParams(window.location.search);
-        const startTime = urlParams.get('startEpoch') || 'now-1h';
         const endTime = urlParams.get('endEpoch') || 'now';
-
         const query = this.getQueryForType();
         if (!query) return;
 
+        // Determine the timestamp for the instant query
+        const timestamp = endTime === 'now' ? Math.floor(Date.now() / 1000) : endTime;
+
         const requestData = {
-            start: startTime,
-            end: endTime,
-            queries: [
-                {
-                    name: 'a',
-                    query: query,
-                    qlType: 'promql',
-                    state: 'raw',
-                },
-            ],
-            formulas: [
-                {
-                    formula: 'a',
-                },
-            ],
+            time: timestamp,
+            query: query,
         };
 
         try {
-            const response = await this.fetchTimeSeriesData(requestData);
+            const response = await this.fetchInstantData(requestData);
             this.updateValue(response);
         } catch (error) {
             this.showError();
         }
     }
 
-    async fetchTimeSeriesData(data) {
+    async fetchInstantData(data) {
         return await $.ajax({
-            method: 'post',
-            url: 'metrics-explorer/api/v1/timeseries',
+            method: 'GET',
+            url: '/promql/api/v1/query',
+            data: data,
             headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                Accept: '*/*',
+                'Accept': '*/*',
             },
             crossDomain: true,
             dataType: 'json',
-            data: JSON.stringify(data),
         });
     }
 
     updateValue(response) {
         const contentDiv = this.container.find('.cluster-content');
 
-        if (!response || !response.values || response.values[0].length === 0) {
+        if (!response || !response.data || response.status !== 'success' || !response.data.result || response.data.result.length === 0) {
             contentDiv.html('<div class="big-number error">No data</div>');
             return;
         }
 
-        const latestTimestampIndex = response.timestamps.length - 1;
-
-        // Get the value at the latest timestamp
-        const latestValue = response.values[0][latestTimestampIndex];
-
+        // Instant query returns a single value per series; we expect one result for these count queries
+        const latestValue = parseFloat(response.data.result[0].value[1]);
         contentDiv.html(`<div class="big-number">${latestValue}</div>`);
     }
 
