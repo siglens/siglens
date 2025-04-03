@@ -59,6 +59,8 @@ import (
 const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 
+var SkipUploadOnRotate = false
+
 const BS_INITIAL_SIZE = uint32(1000)
 
 // SegStore Individual stream buffer
@@ -670,7 +672,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		WriteRunningSegMeta(segstore.SegmentKey, &segmeta)
+		WriteRunningSegMeta(&segmeta)
 
 		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()
@@ -817,13 +819,15 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 
 		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)
 
-		// upload ingest node dir to s3
-		err := blob.UploadIngestNodeDir()
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+		if !SkipUploadOnRotate {
+			// upload ingest node dir to s3
+			err := blob.UploadIngestNodeDir()
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+			}
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		err := CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err

@@ -18,6 +18,7 @@
 package query
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -37,6 +38,9 @@ func Test_FilterQueryValidator(t *testing.T) {
 		{"city": "Boston", "timestamp": uint64(4), "age": 22},
 		{"city": "Boston", "timestamp": uint64(5), "latency": 100},
 	}
+	bostonFilter, err := Filter("city", "Boston")
+	assert.NoError(t, err)
+
 	expectedJsonMatchingFirstTwo := []byte(`{
 		"hits": {
 			"totalMatched": {
@@ -53,7 +57,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("FewerThanHeadMatch", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:2])
 		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
@@ -61,7 +65,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("FilterByValue", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:3]) // The third log has a different city, so it should be ignored.
 		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
@@ -69,7 +73,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("FilterByTime", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(1), uint64(2)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 		assert.NoError(t, validator.MatchesResult(expectedJsonMatchingFirstTwo))
@@ -77,7 +81,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("MissingColumns", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[3:])
 
@@ -98,7 +102,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("MoreThanHeadMatch", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -120,7 +124,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("BadResponse", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:1])
 
@@ -182,7 +186,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 			{"city": "Boston", "timestamp": uint64(2), "age": 22},
 		}
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -243,7 +247,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 			{"city": "Boston", "timestamp": uint64(2), "age": 42},
 		}
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -298,7 +302,9 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("Wildcard", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "New *", "", head, startEpoch, endEpoch)
+		filter, err := Filter("city", "New *")
+		assert.NoError(t, err)
+		validator, err := NewFilterQueryValidator(filter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, []map[string]interface{}{
 			{"city": "New York", "timestamp": uint64(1), "age": 30},
@@ -324,14 +330,15 @@ func Test_FilterQueryValidator(t *testing.T) {
 	})
 
 	t.Run("MatchLiteralAsterisk", func(t *testing.T) {
-		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		_, err := NewFilterQueryValidator("city", "2 \\* 5", "", head, startEpoch, endEpoch)
+		_, err := Filter("city", "2 \\* 5")
 		assert.Error(t, err) // Change if we want to support this.
 	})
 
 	t.Run("ValueHasSpaces", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "New York", "", head, startEpoch, endEpoch)
+		filter, err := Filter("city", "New York")
+		assert.NoError(t, err)
+		validator, err := NewFilterQueryValidator(filter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		query, _, _ := validator.GetQuery()
 		assert.Equal(t, `city="New York" | head 3`, query)
@@ -339,7 +346,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("CustomSortColumn", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "age", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "age", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, []map[string]interface{}{
 			{"city": "Boston", "timestamp": uint64(1), "age": 30},
@@ -384,7 +391,7 @@ func Test_FilterQueryValidator(t *testing.T) {
 
 	t.Run("CustomSortMissingValues", func(t *testing.T) {
 		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "latency", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "latency", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -404,9 +411,41 @@ func Test_FilterQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("AllowAllStartTimes", func(t *testing.T) {
+		head, startEpoch, endEpoch := 3, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		validator = validator.WithAllowAllStartTimes()
+		addLogsWithoutError(t, validator, logs[3:])
+
+		// Malformed JSON.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+		`)))
+
+		// A potentially valid response.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 5,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30},
+					{"city": "Boston", "timestamp": 3, "age": 22}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
+	})
+
 	t.Run("Concurrency", func(t *testing.T) {
 		head, startEpoch, endEpoch := 1, uint64(0), uint64(10)
-		validator, err := NewFilterQueryValidator("city", "Boston", "", head, startEpoch, endEpoch)
+		validator, err := NewFilterQueryValidator(bostonFilter, "", head, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs[:1])
 
@@ -454,10 +493,12 @@ func Test_CountQueryValidator(t *testing.T) {
 		{"city": "Boston", "timestamp": uint64(4), "age": 22},
 		{"city": "Boston", "timestamp": uint64(5), "latency": 100},
 	}
+	bostonFilter, err := Filter("city", "Boston")
+	assert.NoError(t, err)
 
 	t.Run("NoMatches", func(t *testing.T) {
 		startEpoch, endEpoch := uint64(0), uint64(10)
-		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		validator, err := NewCountQueryValidator(bostonFilter, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		assert.NoError(t, validator.MatchesResult([]byte(`{
 			"hits": {
@@ -477,7 +518,7 @@ func Test_CountQueryValidator(t *testing.T) {
 
 	t.Run("SomeMatches", func(t *testing.T) {
 		startEpoch, endEpoch := uint64(0), uint64(10)
-		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		validator, err := NewCountQueryValidator(bostonFilter, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -499,7 +540,7 @@ func Test_CountQueryValidator(t *testing.T) {
 
 	t.Run("MatchAllQuery", func(t *testing.T) {
 		startEpoch, endEpoch := uint64(0), uint64(10)
-		validator, err := NewCountQueryValidator("*", "*", startEpoch, endEpoch)
+		validator, err := NewCountQueryValidator(MatchAll(), startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -517,12 +558,41 @@ func Test_CountQueryValidator(t *testing.T) {
 				"MeasureVal": {"count(*)": 5}
 			}]
 		}`)))
+	})
 
+	t.Run("AllowAllStartTimes", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator(bostonFilter, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		validator = validator.WithAllowAllStartTimes()
+		addLogsWithoutError(t, validator, logs[3:])
+
+		// Malformed JSON.
+		assert.Error(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+		`)))
+
+		// A potentially valid response.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 5,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+				"GroupByValues": ["*"],
+				"MeasureVal": {"count(*)": 5}
+			}]
+		}`)))
 	})
 
 	t.Run("BadResponse", func(t *testing.T) {
 		startEpoch, endEpoch := uint64(0), uint64(10)
-		validator, err := NewCountQueryValidator("city", "Boston", startEpoch, endEpoch)
+		validator, err := NewCountQueryValidator(bostonFilter, startEpoch, endEpoch)
 		assert.NoError(t, err)
 		addLogsWithoutError(t, validator, logs)
 
@@ -606,19 +676,104 @@ func Test_CountQueryValidator(t *testing.T) {
 			}]
 		}`)))
 	})
+}
 
-	t.Run("Wildcard", func(t *testing.T) {
-		startEpoch, endEpoch := uint64(0), uint64(10)
-		_, err := NewCountQueryValidator("city", "*", startEpoch, endEpoch)
-		assert.Error(t, err) // Change if we want to support this.
+func Test_filterToString(t *testing.T) {
+	filter, err := Filter("city", "Boston")
+	assert.NoError(t, err)
+	assert.Equal(t, `city="Boston"`, fmt.Sprintf("%v", filter))
+
+	filter, err = Filter("city", "New *")
+	assert.NoError(t, err)
+	assert.Equal(t, `city="New *"`, fmt.Sprintf("%v", filter))
+
+	filter, err = Filter("city", "*")
+	assert.NoError(t, err)
+	assert.Equal(t, `city="*"`, fmt.Sprintf("%v", filter))
+
+	filter = MatchAll()
+	assert.Equal(t, `*`, fmt.Sprintf("%v", filter))
+}
+
+func Test_dynamicFilter_setFrom(t *testing.T) {
+	df := &dynamicFilter{}
+
+	df.setFrom(map[string]interface{}{"city": "New York"})
+	assert.Equal(t, `city="New York"`, fmt.Sprintf("%v", df))
+
+	df.setFrom(map[string]interface{}{"city": 123}) // No string values.
+	assert.Equal(t, `*`, fmt.Sprintf("%v", df))
+}
+
+func Test_dynamicFilter_query(t *testing.T) {
+	logs := []map[string]interface{}{
+		{"city": "Boston", "timestamp": uint64(1), "age": 30},
+		{"city": "Boston", "timestamp": uint64(2), "age": 36},
+		{"city": "New York", "timestamp": uint64(3), "age": 22},
+		{"city": "Boston", "timestamp": uint64(4), "age": 22},
+		{"city": "Boston", "timestamp": uint64(5), "latency": 100},
+	}
+
+	t.Run("RawLogs", func(t *testing.T) {
+		head, startEpoch, endEpoch := 10, uint64(0), uint64(10)
+		validator, err := NewFilterQueryValidator(&dynamicFilter{}, "", head, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// Based on the logs above, the only valid concrete filter for the
+		// dynamic filter is city=Boston.
+		query, _, _ := validator.GetQuery()
+		assert.Equal(t, `city="Boston" | head 10`, query)
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				},
+				"records": [
+					{"city": "Boston", "timestamp": 5, "latency": 100},
+					{"city": "Boston", "timestamp": 4, "age": 22},
+					{"city": "Boston", "timestamp": 2, "age": 36},
+					{"city": "Boston", "timestamp": 1, "age": 30}
+				]
+			},
+			"allColumns": ["city", "timestamp", "age", "latency"]
+		}`)))
 	})
+
+	t.Run("Count", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator(&dynamicFilter{}, startEpoch, endEpoch)
+		assert.NoError(t, err)
+		addLogsWithoutError(t, validator, logs)
+
+		// Based on the logs above, the only valid concrete filter for the
+		// dynamic filter is city=Boston.
+		query, _, _ := validator.GetQuery()
+		assert.Equal(t, `city="Boston" | stats count`, query) // The count query should not have a head in it.
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+				"GroupByValues": ["*"],
+				"MeasureVal": {"count(*)": 4}
+			}]
+		}`)))
+	})
+
 }
 
 func addLogsWithoutError(t *testing.T, validator queryValidator, logs []map[string]interface{}) {
 	t.Helper()
 
 	for _, log := range logs {
-		err := validator.HandleLog(log)
+		err := validator.HandleLog(log, log["timestamp"].(uint64))
 		assert.NoError(t, err)
 	}
 }

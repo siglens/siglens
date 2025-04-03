@@ -858,6 +858,7 @@ body {
 .icon-live,
 .icon-traces,
 .icon-infrastructure,
+.icon-usage-stats,
 .icon-ingest,
 .icon-help {
     min-height: 28px;
@@ -1012,6 +1013,12 @@ body {
     width: 24px;
 }
 
+.icon-usage-stats {
+    background-image: url("../assets/usage-stats-regular.svg");
+    height: 24px;
+    width: 24px;
+}
+
 .icon-search:hover,
 .menu.nav-search.active .icon-search,
 .menu.nav-search:hover .icon-search {
@@ -1113,6 +1120,14 @@ body {
 .menu.nav-infrastructure.active .icon-infrastructure,
 .menu.nav-infrastructure:hover .icon-infrastructure {
     background-image: url("../assets/infrastructure-active.svg");
+    height: 24px;
+    width: 24px;
+}
+
+.icon-usage-stats:hover,
+.menu.nav-usage-stats.active .icon-usage-stats,
+.menu.nav-usage-stats:hover .icon-usage-stats {
+    background-image: url("../assets/usage-stats-active.svg");
     height: 24px;
     width: 24px;
 }
@@ -3863,7 +3878,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     font-weight: 500;
     font-size: 16px;
     color: var(--datatable-header-text-color);
-    margin-bottom: 0px;
+    margin-bottom: 4px;
 }
 
 .myOrg-inner-container label {
@@ -5686,6 +5701,7 @@ p#versionInfo {
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
 #app-side-nav .menu:hover .link-lookups,
+#app-side-nav .menu:hover .link-usage-stats,
 #app-side-nav .menu:hover .link-infrastructure {
     background-color: var(--side-nav-bg-color-selected);
 }
@@ -5698,6 +5714,7 @@ p#versionInfo {
 #app-side-nav .menu.active .link-myorg,
 #app-side-nav .menu.active .link-ldb,
 #app-side-nav .menu.active .link-lookups,
+#app-side-nav .menu.active .link-usage-stats,
 #app-side-nav .menu.active .link-infrastructure {
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     background-color: var(--side-nav-bg-color-selected);
@@ -6451,13 +6468,12 @@ p#versionInfo {
     height: 100%;
 }
 
-/* JSON Popup  */
-.nav-tabs {
+.config-container .nav-tabs {
     margin-bottom: 16px;
     border-bottom: 1px solid var(--alerting-table-line-color);
 }
 
-.tab {
+.config-container .tab {
     background: none;
     color: var(--white-4);
     padding: 4px 14px;
@@ -6467,7 +6483,7 @@ p#versionInfo {
     transition: all 0.3s;
 }
 
-.tab.active {
+.config-container .tab.active {
     color: var(--purple-1);
     border-bottom: 2px solid var(--purple-1);
     background: var(--purple-15p);
@@ -6475,7 +6491,7 @@ p#versionInfo {
     font-weight: bold;
 }
 
-[data-theme='dark'] .tab.active {
+.config-container [data-theme='dark'] .tab.active {
     color: var(--white);
 }
 
@@ -7137,4 +7153,59 @@ p#versionInfo {
     color: var(--text-color);
     cursor: text;
     font-weight: bold;
+}
+
+/* Usage Stats Screen  */
+.granularity-tabs {
+    display: flex;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--search-input-border);
+    height: 26px;
+}
+
+.granularity-tabs .tab {
+    flex: 1;
+    text-align: center;
+    background-color: var(--drop-down-btn-bg-regular);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-color);
+    border-right: 1px solid var(--search-input-border);
+    white-space: nowrap;
+    padding: 4px 14px;
+}
+
+.granularity-tabs .tab:last-child {
+    border-right: none;
+}
+
+.granularity-tabs .tab.active {
+    background-color: var(--purple-15p);
+    color: var(--purple-1);
+    font-weight: 500;
+}
+
+.granularity-tabs .tab-content.active {
+    display: block;
+}
+
+.stats-header {
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--search-input-border);
+    padding: 10px 16px;
+    background-color: var(--alerting-table-bg-color);
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.canvas-container {
+    height: calc(300px - 42px);
+    padding: 16px;
+}
+
+#stats-charts-container .dropdown-menu.daterangepicker.show {
+    height: 330px !important;
 }

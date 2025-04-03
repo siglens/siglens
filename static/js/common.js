@@ -1470,6 +1470,40 @@ function ExpandableJsonCellRenderer(type = 'events') {
         }
     }
 }
+
+function determineUnit(data) {
+    console.log(data)
+    let maxBytes = 0;
+    data.forEach(point => {
+        if (point.y > maxBytes) {
+            maxBytes = point.y;
+        }
+    });
+    
+    if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    
+    const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
+    
+    return {
+        unit: sizes[i],
+        divisor: Math.pow(k, i)
+    };
+}
+
+function formatByteSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    
+    // Format with 2 decimal places for larger units, round to integers for bytes
+    return i === 0 
+        ? bytes + ' ' + units[i]
+        : (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
+}
 //eslint-disable-next-line no-unused-vars
 const ExpandableFieldsSidebarRenderer = () => {
     const initialState = () => {
@@ -1498,7 +1532,7 @@ const ExpandableFieldsSidebarRenderer = () => {
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-open">
         <rect width="16" height="16" x="4" y="4" rx="1.5"/>
         <path d="M8 4v16"/>
-        <path d="m12 9 2 2-2 2"/>
+        <path d="m14 13-2-2 2-2"/>
     </svg>
 `;
 
@@ -1506,7 +1540,7 @@ const getCollapseSvg = () => `
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close">
         <rect width="16" height="16" x="4" y="4" rx="1.5"/>
         <path d="M8 4v16"/>
-        <path d="m14 13-2-2 2-2"/>
+        <path d="m12 9 2 2-2 2"/>
     </svg>
 `;
 

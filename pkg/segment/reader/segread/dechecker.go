@@ -19,13 +19,13 @@ package segread
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	log "github.com/sirupsen/logrus"
 )
 
 /*
@@ -51,8 +51,7 @@ func ApplySearchToMatchFilterDictCsg(sfr *segreader.SegmentFileReader, match *st
 	if match.MatchType == structs.MATCH_PHRASE {
 		compiledRegex, err = match.GetRegexp()
 		if err != nil {
-			log.Errorf("ApplySearchToMatchFilterDictCsg: error getting match regex: %v", err)
-			return false, err
+			return false, fmt.Errorf("ApplySearchToMatchFilterDictCsg: error getting match regex: %v", err)
 		}
 	}
 

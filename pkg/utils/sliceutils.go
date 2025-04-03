@@ -276,10 +276,14 @@ func (s sortable[T]) Swap(i, j int) {
 	s.order[i], s.order[j] = s.order[j], s.order[i]
 }
 
-func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool, operation func([]T) []R) []R {
+func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool,
+	operation func([]T) ([]R, error)) ([]R, error) {
 	sortableItems := newSortable(slice, less)
 	sort.Sort(sortableItems)
-	sortedResults := operation(sortableItems.items)
+	sortedResults, err := operation(sortableItems.items)
+	if err != nil {
+		return nil, err
+	}
 
 	// Now unsort to get the original order.
 	results := make([]R, len(slice))
@@ -287,7 +291,7 @@ func SortThenProcessThenUnsort[T any, R any](slice []T, less func(T, T) bool, op
 		results[sortableItems.order[i]] = result
 	}
 
-	return results
+	return results, nil
 }
 
 // idxsToRemove should contain only valid indexes in the array

@@ -79,13 +79,11 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 		err = fmt.Errorf("InitNewTimeReader: failed to download segsetfile due to unknown segset col, file: %+v", fName)
 	}
 	if err != nil {
-		log.Errorf("qid=%d, InitNewTimeReader: failed to download file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		return nil, fmt.Errorf("qid=%d, InitNewTimeReader: failed to download file: %+v, err: %v", qid, fName, err)
 	}
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewTimeReader: failed to open time column file: %s, err: %+v", qid, fName, err)
-		return &TimeRangeReader{}, err
+		return nil, fmt.Errorf("qid=%d, InitNewTimeReader: failed to open time column file: %s, err: %+v", qid, fName, err)
 	}
 	allInUseFiles = append(allInUseFiles, fName)
 
@@ -137,9 +135,7 @@ func (trr *TimeRangeReader) GetTimeStampForRecord(blockNum uint16, recordNum uin
 	}
 
 	if recordNum >= uint16(trr.numBlockReadTimestamps) {
-		log.Errorf("qid=%v, TimeRangeReader.GetTimeStampForRecord: failed to get timestamp for recNum %d blkNum %d. Number of read timestamps is %d",
-			qid, recordNum, blockNum, trr.numBlockReadTimestamps)
-		return 0, errors.New("record number is out of range")
+		return 0, fmt.Errorf("qid=%v, TimeRangeReader.GetTimeStampForRecord: record number is out of range", qid)
 	}
 	return trr.blockTimestamps[recordNum], nil
 }
@@ -159,26 +155,20 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 
 	err := trr.resizeSliceForBlock(blockNum)
 	if err != nil {
-		log.Errorf("TimeRangeReader.readAllTimestampsForBlock: failed to resize internal slice for block %d. Err: %+v", blockNum, err)
-		return errors.New("requested blockNum does not exist")
+		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to resize internal")
 	}
 
 	blockMeta, ok := trr.timeMetadata[blockNum]
 	if !ok || blockMeta == nil {
-		log.Errorf("TimeRangeReader.readAllTimestampsForBlock: failed to find block %d in all block metadata %+v", blockNum, trr.timeMetadata)
-		return errors.New("requested blockNum does not exist")
+		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block")
 	}
 	blkOff, ok := blockMeta.ColumnBlockOffset[trr.timestampKey]
 	if !ok {
-		log.Errorf("TimeRangeReader.readAllTimestampsForBlock: failed to find block offset for timestamp key %+v in block %d. All block offsets %+v",
-			trr.timestampKey, blockNum, blockMeta.ColumnBlockOffset)
-		return errors.New("requested blockNum does not exist")
+		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block offset for timestamp")
 	}
 	blkLen, ok := blockMeta.ColumnBlockLen[trr.timestampKey]
 	if !ok {
-		log.Errorf("TimeRangeReader.readAllTimestampsForBlock: failed to find block length for timestamp key %+v in block %d. All block offsets %+v",
-			trr.timestampKey, blockNum, blockMeta.ColumnBlockLen)
-		return errors.New("requested blockNum does not exist")
+		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block length")
 	}
 
 	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(blkLen))
@@ -186,8 +176,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	if err != nil {
 		if err != io.EOF {
 			trr.loadedBlock = false
-			log.Errorf("TimeRangeReader.readAllTimestampsForBlock: error reading file at blkLen: %+v blkOff: %+v error: %+v", blkLen, blkOff, err)
-			return err
+			return fmt.Errorf("TimeRangeReader.readAllTimestampsForBlock: error reading file at blk error: %+v", err)
 		}
 		return nil
 	}
@@ -196,8 +185,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	numRecs := trr.blockRecCount[blockNum]
 	decoded, err := convertRawRecordsToTimestamps(rawTSVal, numRecs, trr.blockTimestamps)
 	if err != nil {
-		log.Errorf("TimeRangeReader.readAllTimestampsForBlock: convertRawRecordsToTimestamps failed, err: %+v", err)
-		return err
+		return fmt.Errorf("TimeRangeReader.readAllTimestampsForBlock: convertRawRecordsToTimestamps failed, err: %+v", err)
 	}
 
 	trr.numBlockReadTimestamps = numRecs
@@ -212,8 +200,7 @@ func (trr *TimeRangeReader) resizeSliceForBlock(blockNum uint16) error {
 
 	numRecs, ok := trr.blockRecCount[blockNum]
 	if !ok {
-		log.Errorf("TimeRangeReader.resizeSliceForBlock: failed to find block %d in all blocks: %+v", blockNum, trr.blockRecCount)
-		return errors.New("blockNum not found")
+		return errors.New("TimeRangeReader.resizeSliceForBlock blockNum not found")
 	}
 
 	trr.blockTimestamps = toputils.ResizeSlice(trr.blockTimestamps, int(numRecs))
@@ -251,8 +238,6 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 
 	oPtr := uint32(0)
 	if rawRec[oPtr] != utils.TIMESTAMP_TOPDIFF_VARENC[0] {
-		log.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for typestamp column! expected %+v got %+v",
-			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for typestamp column! expected %+v got %+v",
 			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 	}
@@ -264,35 +249,45 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 	lowTs := toputils.BytesToUint64LittleEndian(rawRec[oPtr:])
 	oPtr += 8
 
+	numValidRecs := numRecs
 	switch tsType {
 	case structs.TS_Type8:
+		numValidRecs = min(numRecs, uint16(len(rawRec)-int(oPtr)))
 		var tsVal uint8
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = uint8(rawRec[oPtr])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 1
 		}
 	case structs.TS_Type16:
+		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/2))
 		var tsVal uint16
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = toputils.BytesToUint16LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 2
 		}
 	case structs.TS_Type32:
+		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/4))
 		var tsVal uint32
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = toputils.BytesToUint32LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 4
 		}
 	case structs.TS_Type64:
+		numValidRecs = min(numRecs, uint16((len(rawRec)-int(oPtr))/8))
 		var tsVal uint64
-		for i := uint16(0); i < numRecs; i++ {
+		for i := uint16(0); i < numValidRecs; i++ {
 			tsVal = toputils.BytesToUint64LittleEndian(rawRec[oPtr:])
 			bufToUse[i] = uint64(tsVal) + lowTs
 			oPtr += 8
 		}
+	}
+
+	if numValidRecs != numRecs {
+		return bufToUse, fmt.Errorf("convertRawRecordsToTimestamps: expected %d records, but rawRec only had %d records",
+			numRecs, numValidRecs)
 	}
 
 	return bufToUse, nil
@@ -306,8 +301,6 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 	buf = buf[:blkLen]
 	_, err := fd.ReadAt(buf, blkOff)
 	if err != nil {
-		log.Errorf("readChunkFromFile: failed to read timestamp file! %+v bytes at offset %+v, err: %+v",
-			blkLen, blkOff, err)
 		return nil, err
 	}
 	return buf, nil
@@ -318,16 +311,21 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, retVal map[uint16][]uint64,
 	retLock *sync.Mutex) {
 	defer wg.Done()
+	var err error
+	var decoded []uint64
 	for req := range allRequests {
 		bufToUse := *rawTimestampsBufferPool.Get().(*[]uint64)
-		decoded, err := convertRawRecordsToTimestamps(req.tsRec, req.numRecs, bufToUse)
+		decoded, err = convertRawRecordsToTimestamps(req.tsRec, req.numRecs, bufToUse)
 		if err != nil {
-			log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 			continue
 		}
 		retLock.Lock()
 		retVal[req.blkNum] = decoded
 		retLock.Unlock()
+	}
+
+	if err != nil {
+		log.Errorf("processTimeBlocks: convertRawRecordsToTimestamps failed, err: %+v", err)
 	}
 }
 
@@ -343,8 +341,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	fName := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(tsKey))
 	err := blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("ReadAllTimestampsForBlock: failed to download time column file %s. Error: %+v", fName, err)
-		return nil, err
+		return nil, fmt.Errorf("ReadAllTimestampsForBlock: failed to download time column file %s. Error: %+v", fName, err)
 	}
 
 	defer func() {
@@ -355,8 +352,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	}()
 	fd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("ReadAllTimestampsForBlock: failed to open time column file %s. Error: %+v", fName, err)
-		return nil, err
+		return nil, fmt.Errorf("ReadAllTimestampsForBlock: failed to open time column file %s. Error: %+v", fName, err)
 	}
 	defer fd.Close()
 
@@ -371,7 +367,6 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 
 	retVal := make(map[uint16][]uint64)
 	var retLock sync.Mutex
-	minIdx := 0
 	allReadJob := make(chan *timeBlockRequest)
 	var readerWG sync.WaitGroup
 	for i := int64(0); i < parallelism; i++ {
@@ -379,12 +374,13 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 		go processTimeBlocks(allReadJob, &readerWG, retVal, &retLock)
 	}
 
-	for minIdx < len(allBlocks) {
+	var retErr error
+	for minIdx, maxIdx := 0, 0; minIdx < len(allBlocks); minIdx = maxIdx + 1 {
 		minBlkNum := allBlocks[minIdx]
 		lastBlkNum := minBlkNum
 		firstBlkOff := blks[minBlkNum].ColumnBlockOffset[tsKey]
 		blkLen := blks[minBlkNum].ColumnBlockLen[tsKey]
-		maxIdx := minIdx
+		maxIdx = minIdx
 		for {
 			nextIdx := maxIdx + 1
 			if nextIdx >= len(allBlocks) {
@@ -403,7 +399,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 		rawChunk, err := readChunkFromFile(fd, buffer, blkLen, firstBlkOff)
 		defer segreader.UncompressedReadBufferPool.Put(&rawChunk)
 		if err != nil {
-			log.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
+			retErr = fmt.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
 			continue
 		}
 
@@ -414,11 +410,10 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}
 		}
-		minIdx = maxIdx + 1
 	}
 	close(allReadJob)
 	readerWG.Wait()
-	return retVal, nil
+	return retVal, retErr
 }
 
 func ReturnTimeBuffers(og map[uint16][]uint64) {

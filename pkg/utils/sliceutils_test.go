@@ -168,19 +168,20 @@ func Test_SortThenProcessThenUnsort(t *testing.T) {
 		return a < b
 	}
 	actualReceivedOrder := make([]int, 0)
-	operation := func(slice []int) []int {
+	operation := func(slice []int) ([]int, error) {
 		result := make([]int, 0, len(slice))
 		for _, i := range slice {
 			result = append(result, i+10)
 			actualReceivedOrder = append(actualReceivedOrder, i)
 		}
 
-		return result
+		return result, nil
 	}
 
 	expected := []int{11, 12, 13, 30, 52, 110, 57}
 	expectedReceivedOrder := []int{1, 2, 3, 20, 42, 47, 100}
-	actual := SortThenProcessThenUnsort(slice, less, operation)
+	actual, err := SortThenProcessThenUnsort(slice, less, operation)
+	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
 	assert.Equal(t, expectedReceivedOrder, actualReceivedOrder)
 }

@@ -34,14 +34,12 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	fName := fmt.Sprintf("%v.sst", segkey)
 	err := blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, ReadSegStats: failed to download sst file: %+v, err: %v", qid, fName, err)
-		return retVal, err
+		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to download sst file: %+v, err: %v", qid, fName, err)
 	}
 
 	fdata, err := os.ReadFile(fName)
 	if err != nil {
-		log.Errorf("qid=%d, ReadSegStats: failed to read sst file: %+v, err: %v", qid, fName, err)
-		return retVal, err
+		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to read sst file: %+v, err: %v", qid, fName, err)
 	}
 
 	defer func() {
@@ -52,7 +50,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	}()
 
 	if len(fdata) == 0 {
-		return nil, toputils.TeeErrorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
+		return nil, fmt.Errorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
 	}
 
 	rIdx := uint32(0)
@@ -61,6 +59,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	version := fdata[rIdx]
 	rIdx++
 
+	var retErr error
 	for rIdx < uint32(len(fdata)) {
 
 		// cnamelen
@@ -81,20 +80,20 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 			sstlen = uint32(toputils.BytesToUint16LittleEndian(fdata[rIdx : rIdx+2]))
 			rIdx += 2
 		default:
-			log.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
+			retErr = fmt.Errorf("qid=%d, ReadSegStats: unknown version: %v", qid, version)
 			continue
 		}
 
 		// actual sst
 		sst, err := readSingleSst(fdata[rIdx:rIdx+sstlen], qid)
 		if err != nil {
-			return retVal, toputils.TeeErrorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
+			return retVal, fmt.Errorf("qid=%d, ReadSegStats: error reading single sst for cname: %v, err: %v",
 				qid, cname, err)
 		}
 		rIdx += uint32(sstlen)
 		retVal[cname] = sst
 	}
-	return retVal, nil
+	return retVal, retErr
 }
 
 func readSingleSst(fdata []byte, qid uint64) (*structs.SegStats, error) {
@@ -275,10 +274,10 @@ func GetSegMax(runningSegStat *structs.SegStats,
 	return &runningSegStat.Max, nil
 }
 
-func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValueEnclosure {
+func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) (*utils.CValueEnclosure, error) {
 	result := utils.CValueEnclosure{}
 	if !max.IsNumeric() && !min.IsNumeric() {
-		return &utils.CValueEnclosure{}
+		return nil, fmt.Errorf("getRange: both max and min are non-numeric")
 	}
 	switch max.Dtype {
 	case utils.SS_DT_FLOAT:
@@ -289,7 +288,7 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 		case utils.SS_DT_SIGNED_NUM:
 			result.CVal = max.CVal.(float64) - float64(min.CVal.(int64))
 		default:
-			return &utils.CValueEnclosure{}
+			return nil, fmt.Errorf("getRange: unsupported dtype: %v", min.Dtype)
 		}
 	case utils.SS_DT_SIGNED_NUM:
 		switch min.Dtype {
@@ -300,13 +299,13 @@ func getRange(max utils.CValueEnclosure, min utils.CValueEnclosure) *utils.CValu
 			result.Dtype = utils.SS_DT_SIGNED_NUM
 			result.CVal = max.CVal.(int64) - min.CVal.(int64)
 		default:
-			return &utils.CValueEnclosure{}
+			return nil, fmt.Errorf("getRange: unsupported dtype: %v", min.Dtype)
 		}
 	default:
-		log.Errorf("getRange: unsupported dtype: %v", max.Dtype)
+		return nil, fmt.Errorf("getRange: unsupported dtype: %v", max.Dtype)
 	}
 
-	return &result
+	return &result, nil
 }
 
 func GetSegRange(runningSegStat *structs.SegStats,
@@ -325,13 +324,13 @@ func GetSegRange(runningSegStat *structs.SegStats,
 			return &result, nil
 		}
 
-		return getRange(currSegStat.Max, currSegStat.Min), nil
+		return getRange(currSegStat.Max, currSegStat.Min)
 	}
 
 	structs.UpdateMinMax(runningSegStat, currSegStat.Min)
 	structs.UpdateMinMax(runningSegStat, currSegStat.Max)
 
-	return getRange(runningSegStat.Max, runningSegStat.Min), nil
+	return getRange(runningSegStat.Max, runningSegStat.Min)
 }
 
 func GetSegSum(runningSegStat *structs.SegStats,

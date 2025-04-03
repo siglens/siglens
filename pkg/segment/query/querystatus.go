@@ -90,6 +90,7 @@ const (
 	TIMEOUT
 	ERROR
 	QUERY_RESTART
+	WAITING
 )
 
 func InitMaxRunningQueries() {
@@ -123,6 +124,8 @@ func (qs QueryState) String() string {
 		return "ERROR"
 	case QUERY_RESTART:
 		return "QUERY_RESTARTED"
+	case WAITING:
+		return "WAITING"
 	default:
 		return fmt.Sprintf("UNKNOWN_QUERYSTATE_%d", qs)
 	}
@@ -135,6 +138,7 @@ type RunningQueryState struct {
 	startTime                time.Time
 	timeoutCancelFunc        context.CancelFunc
 	StateChan                chan *QueryStateChanData // channel to send state changes of query
+	latestQueryState         QueryState
 	cleanupCallback          func()
 	qid                      uint64
 	orgid                    int64
@@ -148,7 +152,7 @@ type RunningQueryState struct {
 	aggs                     *structs.QueryAggregators
 	searchHistogram          map[string]*structs.AggregationResult
 	QType                    structs.QueryType
-	rqsLock                  *sync.Mutex
+	rqsLock                  *sync.RWMutex
 	dqs                      DistributedQueryServiceInterface
 	totalSegments            uint64
 	finishedSegments         uint64
@@ -201,6 +205,18 @@ func (rQuery *RunningQueryState) SendQueryStateComplete() {
 	if rQuery.cleanupCallback != nil {
 		rQuery.cleanupCallback()
 	}
+}
+
+func (rQuery *RunningQueryState) SetLatestQueryState(state QueryState) {
+	rQuery.rqsLock.Lock()
+	defer rQuery.rqsLock.Unlock()
+	rQuery.latestQueryState = state
+}
+
+func (rQuery *RunningQueryState) GetLatestQueryState() string {
+	rQuery.rqsLock.RLock()
+	defer rQuery.rqsLock.RUnlock()
+	return rQuery.latestQueryState.String()
 }
 
 func (rQuery *RunningQueryState) GetQueryBatchError() *putils.BatchError {
@@ -265,10 +281,11 @@ func withLockInitializeQuery(qid uint64, async bool, cleanupCallback func(), sta
 		startTime:         time.Now(),
 		StateChan:         stateChan,
 		cleanupCallback:   cleanupCallback,
-		rqsLock:           &sync.Mutex{},
+		rqsLock:           &sync.RWMutex{},
 		isAsync:           async,
 		timeoutCancelFunc: nil,
 		batchError:        putils.NewBatchErrorWithQid(qid),
+		latestQueryState:  WAITING,
 	}
 
 	return runningState, nil

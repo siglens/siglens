@@ -504,7 +504,7 @@ func Test_applyRangeFunctionAvg(t *testing.T) {
 	/**
 	 * The result will be:
 	 Evalution starts at 1000 and evaluates at every 15 seconds with 20 seconds lookback at each evaluation
-	 => 1000: 1000-20 = 980 => 1.0
+	 => 1000: 1000-20 = 980 => 1.0 + 2.0 = 3.0 => (1.0 + 2.0) / 2 = 1.5
 	 => 1015: 1015-20 = 995 => (2.0 + 3.0 + 4.0 + 18.0) / 4 = 6.75
 	 => 1030: 1030-20 = 1010 => (18.0 + 2.5) / 2 = 10.25
 	**/
@@ -516,7 +516,7 @@ func Test_applyRangeFunctionAvg(t *testing.T) {
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 1.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 1.5))
 
 	val, ok = res[1015]
 	assert.True(t, ok)
@@ -548,7 +548,7 @@ func Test_applyRangeFunctionMin(t *testing.T) {
 	/**
 	 * The result will be:
 	 Evalution starts at 1000 and evaluates at every 10 seconds with 10 seconds lookback at each evaluation
-	 => 1000: 1000-10 = 990 => 0.0 // since 1000 is not included
+	 => 1000: 1000-10 = 990 => 2.0
 	 => 1010: 1010-10 = 1000 => 1.0
 	 => 1020: 1020-10 = 1010 => 18.0
 	 => 1030: 1030-10 = 1020 => 2.5
@@ -561,7 +561,7 @@ func Test_applyRangeFunctionMin(t *testing.T) {
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 0.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
 
 	val, ok = res[1010]
 	assert.True(t, ok)
@@ -597,7 +597,7 @@ func Test_applyRangeFunctionMax(t *testing.T) {
 	/**
 	 * The result will be:
 	 Evalution starts at 1000 and evaluates at every 10 seconds with 10 seconds lookback at each evaluation
-	 => 1000: 1000-10 = 990 => 0.0 // since 1000 is not included
+	 => 1000: 1000-10 = 990 => 2.0
 	 => 1010: 1010-10 = 1000 => 3.0
 	 => 1020: 1020-10 = 1010 => 18.0
 	 => 1030: 1030-10 = 1020 => 6.5
@@ -610,7 +610,7 @@ func Test_applyRangeFunctionMax(t *testing.T) {
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 0.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
 
 	val, ok = res[1010]
 	assert.True(t, ok)
@@ -650,9 +650,9 @@ func Test_applyRangeFunctionSum(t *testing.T) {
 	/**
 	 * The result will be:
 	 Evalution starts at 1000 and evaluates at every 15 seconds with 20 seconds lookback at each evaluation
-	 => 1000: 1000-20 = 980 => 1.0 + 1.0 = 2.0
+	 => 1000: 1000-20 = 980 => 1.0 + 2.0 = 3.0
 	 => 1015: 1015-20 = 995 => 2.0 + 3.0 + 4.0 + 18.0 = 27.0
-	 => 1030: 1030-20 = 1010 => 18.0 + 2.5 + 6.5 = 27.0
+	 => 1030: 1030-20 = 1010 => 18.0 + 2.5 + 6.5 + 1.5 = 28.5
 	**/
 
 	assert.Len(t, res, 3)
@@ -662,7 +662,7 @@ func Test_applyRangeFunctionSum(t *testing.T) {
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 2.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 3.0))
 
 	val, ok = res[1015]
 	assert.True(t, ok)
@@ -670,7 +670,7 @@ func Test_applyRangeFunctionSum(t *testing.T) {
 
 	val, ok = res[1030]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 27.0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 28.5))
 }
 
 func Test_applyRangeFunctionCount(t *testing.T) {
@@ -694,9 +694,9 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 	/**
 	 * The result will be:
 	 Evalution starts at 1000 and evaluates at every 10 seconds with 10 seconds lookback at each evaluation
-	 => 1000: 1000-10 = 990 => 0
-	 => 1010: 1010-10 = 1000 => 3
-	 => 1020: 1020-10 = 1010 => 1
+	 => 1000: 1000-10 = 990 => 1
+	 => 1010: 1010-10 = 1000 => 2
+	 => 1020: 1020-10 = 1010 => 2
 	**/
 
 	assert.Len(t, res, 3)
@@ -706,15 +706,15 @@ func Test_applyRangeFunctionCount(t *testing.T) {
 
 	val, ok = res[1000]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 0))
+	assert.True(t, dtypeutils.AlmostEquals(val, 1))
 
 	val, ok = res[1010]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 3))
+	assert.True(t, dtypeutils.AlmostEquals(val, 2))
 
 	val, ok = res[1020]
 	assert.True(t, ok)
-	assert.True(t, dtypeutils.AlmostEquals(val, 1))
+	assert.True(t, dtypeutils.AlmostEquals(val, 2))
 }
 
 func Test_applyRangeFunctionStdvarOverTime(t *testing.T) {
@@ -895,18 +895,15 @@ func Test_applyRangeFunctionLastOverTime(t *testing.T) {
 
 	ans := map[uint32]float64{
 		1000: 0.1,
-		1001: 0.2,
-		1002: 0.3,
-		1013: 0.4,
-		1018: 0.5,
-		1019: 0.6,
+		1010: 0.3,
 		1020: 0.7,
 	}
 
-	function := structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: 10}
+	function := structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: 10, Step: 10}
 
 	err := metricsResults.ApplyFunctionsToResults(8, function, timeRange)
 	assert.Nil(t, err)
+
 	for _, timeSeries := range metricsResults.Results {
 		for key, val := range timeSeries {
 			expectedVal, exists := ans[key]

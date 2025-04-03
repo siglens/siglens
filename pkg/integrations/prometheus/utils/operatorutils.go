@@ -180,6 +180,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 			}
 		}
 	default:
+		// TODO: fix the flooding of this log
 		log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
 	}
 
@@ -193,6 +194,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 		case utils.LetUnless:
 			finalResult[groupID][timestamp] = valueLHS
 		default:
+			// TODO: fix the flooding of this log
 			log.Errorf("SetFinalResult: does not support using this operator: %v", queryOp.Operation)
 		}
 	}

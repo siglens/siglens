@@ -167,8 +167,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 
 	err := fileutils.GLOBAL_FD_LIMITER.TryAcquireWithBackoff(maxOpenFds, 10, fmt.Sprintf("InitSharedMultiColumnReaders.qid=%d", qid))
 	if err != nil {
-		log.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to acquire resources to be able to open %+v FDs. Error: %+v", qid, maxOpenFds, err)
-		return sharedReader, err
+		return sharedReader, fmt.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to acquire resources to be able to open %+v FDs. Error: %+v", qid, maxOpenFds, err)
 	}
 	csgFileToColNameMap := make(map[string]string)
 	bulkDownloadFiles := make(map[string]string)
@@ -229,7 +228,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 			sharedReader.Close()
 			err := blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)
 			if err != nil {
-				log.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to release needed segment files from local storage %+v! err: %+v", qid, allInUseSegSetFiles, err)
+				err = fmt.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to release needed segment files from local storage %+v! err: %+v", qid, allInUseSegSetFiles, err)
 			}
 			return sharedReader, err
 		}
@@ -275,8 +274,7 @@ func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, record
 func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]uint64, error) {
 
 	if mcsr.timeReader == nil {
-		log.Errorf("MultiColSegmentReader.GetAllTimeStampsForBlock: Tried to get all block timestamps using a multi reader wihout an initialized timeReader, blockNum: %v", blockNum)
-		return nil, errors.New("uninitialized timerange reader")
+		return nil, errors.New("MultiColSegmentReader.GetAllTimeStampsForBlock: uninitialized timerange reader")
 	}
 	return mcsr.timeReader.GetAllTimeStampsForBlock(blockNum)
 }

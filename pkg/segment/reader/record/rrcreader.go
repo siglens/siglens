@@ -52,18 +52,18 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nodeRes
 }
 
-func buildSegMap(allrrc []*utils.RecordResultContainer, segEncToKey map[uint32]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
+func buildSegMapOldPipeline(allrrc []*utils.RecordResultContainer, segEncToKey map[uint32]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
 	segmap := make(map[string]*utils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
 
 	for idx, rrc := range allrrc {
 		if rrc.SegKeyInfo.IsRemote {
-			log.Debugf("buildSegMap: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
+			log.Debugf("buildSegMapOldPipeline: skipping remote segment:%v", rrc.SegKeyInfo.RecordId)
 			continue
 		}
 		segkey, ok := segEncToKey[rrc.SegKeyInfo.SegKeyEnc]
 		if !ok {
-			log.Errorf("buildSegMap: could not find segenc:%v in map", rrc.SegKeyInfo.SegKeyEnc)
+			log.Errorf("buildSegMapOldPipeline: could not find segenc:%v in map", rrc.SegKeyInfo.SegKeyEnc)
 			continue
 		}
 		blkIdxsCtr, ok := segmap[segkey]
@@ -189,7 +189,7 @@ func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esRespo
 
 	sTime := time.Now()
 	nodeRes := GetOrCreateNodeRes(qid)
-	segmap, recordIndexInFinal := buildSegMap(allrrc, segEncToKey)
+	segmap, recordIndexInFinal := buildSegMapOldPipeline(allrrc, segEncToKey)
 	rawIncludeValuesIndicies, valuesToLabels, logfmtRequest, tableColumnsExist, hardcodedArray, renameHardcodedColumns := prepareOutputTransforms(aggs)
 
 	allRecords := make([]map[string]interface{}, len(allrrc))

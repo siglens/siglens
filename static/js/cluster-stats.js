@@ -137,28 +137,6 @@ function drawStatsChart(res, data, chartType) {
     });
 }
 
-function determineUnit(data) {
-    let maxBytes = 0;
-    data.forEach(point => {
-        if (point.y > maxBytes) {
-            maxBytes = point.y;
-        }
-    });
-    
-    if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
-    
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    
-    const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
-    
-    return {
-        unit: sizes[i],
-        divisor: Math.pow(k, i)
-    };
-}
-
-
 function renderBytesCountChart(BytesCountData, gridLineColor, tickColor, chartType) {
     var canvas = $('#bytesCountChart-' + chartType)
         .get(0)

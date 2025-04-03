@@ -105,6 +105,8 @@ func RecursivelyDeleteEmptyParentDirectories(filePath string) {
 	}
 }
 
+// Recursively finds and returns all files. Each returned file begins with the
+// provided `path`.
 func GetAllFilesInDirectory(path string) []string {
 	retVal := make([]string, 0)
 	files, err := os.ReadDir(path)
@@ -116,10 +118,10 @@ func GetAllFilesInDirectory(path string) []string {
 
 	for _, file := range files {
 		if file.IsDir() {
-			res := GetAllFilesInDirectory(path + file.Name() + "/")
+			res := GetAllFilesInDirectory(filepath.Join(path, file.Name()))
 			retVal = append(retVal, res...)
 		} else {
-			retVal = append(retVal, path+file.Name())
+			retVal = append(retVal, filepath.Join(path, file.Name()))
 		}
 	}
 	return retVal

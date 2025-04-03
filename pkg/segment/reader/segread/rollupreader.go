@@ -183,8 +183,8 @@ func readRollupFile(fd *os.File,
 		_, err := fd.ReadAt(bbBlkNum, offset)
 		if err != nil {
 			if err != io.EOF {
-				log.Errorf("qid=%d, readRollupFile: failed to read blkNum at offset: %v, err: %+v", qid, offset, err)
-				return err
+				return fmt.Errorf("qid=%d, readRollupFile: failed to read blkNum err: %+v",
+					qid, err)
 			}
 			break
 		}
@@ -197,8 +197,7 @@ func readRollupFile(fd *os.File,
 		_, err = fd.ReadAt(bbNumBucks, offset)
 		if err != nil {
 			if err != io.EOF {
-				log.Errorf("qid=%d, readRollupFile: failed to read num of buckets at offset: %v, err: %+v", qid, offset, err)
-				return err
+				return fmt.Errorf("qid=%d, readRollupFile: failed to read num of buckets, err: %+v", qid, err)
 			}
 			break
 		}
@@ -209,9 +208,8 @@ func readRollupFile(fd *os.File,
 			// read bucketKey timestamp
 			_, err = fd.ReadAt(bbBKey, offset)
 			if err != nil {
-				log.Errorf("qid=%d, readRollupFile: failed to read bKey for blkNum: %v, i: %v, offset: %v, err: %+v",
-					qid, blkNum, i, offset, err)
-				return err
+				return fmt.Errorf("qid=%d, readRollupFile: failed to read bKey err: %+v",
+					qid, err)
 			}
 			offset += 8
 			bKey = utils.BytesToUint64LittleEndian(bbBKey[:])
@@ -222,9 +220,8 @@ func readRollupFile(fd *os.File,
 			// read matched result bitset size
 			_, err = fd.ReadAt(bbMrSize, offset)
 			if err != nil {
-				log.Errorf("qid=%d, readRollupFile: failed to read mrsize for blkNum: %v, i: %v, offset: %v, err: %+v",
-					qid, blkNum, i, offset, err)
-				return err
+				return fmt.Errorf("qid=%d, readRollupFile: failed to read mrsize for blk, err: %+v",
+					qid, err)
 			}
 			offset += 2
 			mrSize = utils.BytesToUint16LittleEndian(bbMrSize[:])
@@ -235,8 +232,8 @@ func readRollupFile(fd *os.File,
 			_, err = fd.ReadAt(bsBlk[:mrSize], offset)
 			if err != nil {
 				if err != io.EOF {
-					log.Errorf("qid=%d, readRollupFile: failed to read bitset at offset: %v, err: %+v", qid, offset, err)
-					return err
+					return fmt.Errorf("qid=%d, readRollupFile: failed to read bitset, err: %+v",
+						qid, err)
 				}
 				break
 			}
@@ -245,8 +242,7 @@ func readRollupFile(fd *os.File,
 			bs := bitset.New(0)
 			err = bs.UnmarshalBinary(bsBlk[:mrSize])
 			if err != nil {
-				log.Errorf("qid=%d, readRollupFile: failed to unmarshall bitset, err: %+v", qid, err)
-				return err
+				return fmt.Errorf("qid=%d, readRollupFile: failed to unmarshall bitset, err: %+v", qid, err)
 			}
 
 			mr := pqmr.CreatePQMatchResultsFromBs(bs)

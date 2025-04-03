@@ -155,6 +155,8 @@ $(document).ready(async function () {
     $(document).on('input', '.raw-query-input', function () {
         autoResizeTextarea(this);
     });
+
+    setupRawQueryKeyboardHandlers();
 });
 
 function getUrlParameter(name) {
@@ -3601,3 +3603,28 @@ function resizeAllTextareas() {
 
 window.addEventListener('resize', resizeAllTextareas);
 document.addEventListener('DOMContentLoaded', resizeAllTextareas);
+
+function setupRawQueryKeyboardHandlers() {
+    $(document).off('keydown.rawQuerySearch', '.raw-query-input');
+    
+    $(document).on('keydown.rawQuerySearch', '.raw-query-input', function(event) {
+        // Check if Enter key is pressed
+        if (event.key === 'Enter') {
+            // If Shift key is also pressed (new line)
+            if (event.shiftKey) {
+                setTimeout(() => {
+                    autoResizeTextarea(this);
+                }, 0);
+                return true;
+            } else {
+                event.preventDefault();
+                
+                // Run Query
+                const runButton = $(this).closest('.raw-query').find('#run-filter-btn');
+                runButton.click();
+                
+                return false;
+            }
+        }
+    });
+}
