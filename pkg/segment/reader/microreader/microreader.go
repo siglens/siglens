@@ -107,7 +107,7 @@ func ReadBlockSummaries(fileName string, rbuf []byte) ([]*structs.BlockSummary,
 
 		for i := uint16(0); i < numCols; i++ {
 			if len(rbuf[offset:]) < 2 {
-				log.Errorf("ReadBlockSummaries: expected at least %d more bytes for column name, got %d more bytes; file=%v, offset=%d",
+				log.Errorf("ReadBlockSummaries: expected at least %d more bytes for column name length, got %d more bytes; file=%v, offset=%d",
 					2, len(rbuf[offset:]), fileName, offset)
 				return blockSummaries, allBmh, rbuf, errors.New("bad data")
 			}
@@ -115,7 +115,7 @@ func ReadBlockSummaries(fileName string, rbuf []byte) ([]*structs.BlockSummary,
 			offset += 2
 
 			if minLen := int(offset + int64(cnamelen) + 12); len(rbuf) < minLen {
-				log.Errorf("ReadBlockSummaries: Bad data; expected at least size %d, got %d for file %s; current offset=%d",
+				log.Errorf("ReadBlockSummaries: expected at least size %d, got %d; file=%v, offset=%d",
 					minLen, len(rbuf), fileName, offset)
 				return blockSummaries, allBmh, rbuf, errors.New("bad data")
 			}
