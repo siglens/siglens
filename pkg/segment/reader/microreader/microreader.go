@@ -74,6 +74,12 @@ func ReadBlockSummaries(fileName string, rbuf []byte) ([]*structs.BlockSummary,
 		// todo kunal do we need blksumlen ?
 		offset += 4 // for blkSumLen
 
+		if len(rbuf[offset:]) < 2+8+8+2+2 {
+			log.Errorf("ReadBlockSummaries: expected at least %d more bytes for block header, got %d more bytes; file=%v, offset=%d",
+				2+8+8+2+2, len(rbuf[offset:]), fileName, offset)
+			return blockSummaries, allBmh, rbuf, errors.New("bad data")
+		}
+
 		// read blknum
 		blkNum := toputils.BytesToUint16LittleEndian(rbuf[offset:])
 		offset += 2
@@ -100,6 +106,11 @@ func ReadBlockSummaries(fileName string, rbuf []byte) ([]*structs.BlockSummary,
 		}
 
 		for i := uint16(0); i < numCols; i++ {
+			if len(rbuf[offset:]) < 2 {
+				log.Errorf("ReadBlockSummaries: expected at least %d more bytes for column name, got %d more bytes; file=%v, offset=%d",
+					2, len(rbuf[offset:]), fileName, offset)
+				return blockSummaries, allBmh, rbuf, errors.New("bad data")
+			}
 			cnamelen := toputils.BytesToUint16LittleEndian(rbuf[offset:])
 			offset += 2
 
