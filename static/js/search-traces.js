@@ -343,7 +343,7 @@ function updateUrlWithSearchState(state) {
 }
 
 function handlePopState() {
-    const state = getInitialSearchState();
+    getInitialSearchState();
     // Perform search with current state
     searchTraceHandler(new Event('click'));
 }
