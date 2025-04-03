@@ -1297,7 +1297,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
             this.expandBtn = this.eGui.querySelector('.expand-icon-box');
             this.expandIcon = this.eGui.querySelector('.expand-icon-button i');
-            this.expandBtn.addEventListener('click', this.showJsonPanel.bind(this));
+            this.expandBtn.addEventListener('click', this.toggleJsonPanel.bind(this));
 
             document.addEventListener('jsonPanelClosed', () => {
                 if (state.currentExpandedCell === this) {
@@ -1318,8 +1318,25 @@ function ExpandableJsonCellRenderer(type = 'events') {
             }
         }
 
-        showJsonPanel(event) {
+        closeJsonPanel() {
+            const jsonPopup = document.querySelector('.json-popup');
+            jsonPopup.classList.remove('active');
+            this.isExpanded = false;
+            this.updateIcon();
+            state.currentExpandedCell = null;
+            document.dispatchEvent(new CustomEvent('jsonPanelClosed'));
+            this.params.api.sizeColumnsToFit();
+        }
+
+        toggleJsonPanel(event) {
             event.stopPropagation();
+            
+            // If already expanded, close the panel
+            if (this.isExpanded) {
+                this.closeJsonPanel();
+                return;
+            }
+            
             const jsonPopup = document.querySelector('.json-popup');
             const rowData = this.params.node.data;
             let trace_id = '';
@@ -1330,9 +1347,9 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 state.currentExpandedCell.updateIcon();
             }
 
-            this.isExpanded = !this.isExpanded;
+            this.isExpanded = true;
             this.updateIcon();
-            state.currentExpandedCell = this.isExpanded ? this : null;
+            state.currentExpandedCell = this;
 
             window.copyJsonToClipboard = function() {
                 const jsonContent = document.querySelector('#json-tab div').innerText;
@@ -1450,12 +1467,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
             const closeBtn = jsonPopup.querySelector('.json-popup-close');
             closeBtn.onclick = () => {
-                jsonPopup.classList.remove('active');
-                this.isExpanded = false;
-                this.updateIcon();
-                state.currentExpandedCell = null;
-                document.dispatchEvent(new CustomEvent('jsonPanelClosed'));
-                this.params.api.sizeColumnsToFit();
+                this.closeJsonPanel();
             };
 
             this.params.api.sizeColumnsToFit();

@@ -6700,10 +6700,13 @@ p#versionInfo {
 .json-popup {
     width: 0;
     background-color: var(--black1-to-white0);
-    transition: width 0.3s ease;
+    transition: width 0.3s ease, margin-left 0.3s ease, border 0.3s ease;
     overflow: hidden;
     border-top: 1px solid var(--panel-table-line-color);
     border-radius: 4px;
+    display: block !important;
+    opacity: 0;
+    visibility: hidden;
 }
 
 .json-popup.active {
@@ -6711,6 +6714,8 @@ p#versionInfo {
     margin-left: 5px;
     border-left: 1px solid var(--panel-table-line-color);
     border-bottom: 1px solid var(--panel-table-line-color);
+    opacity: 1;
+    visibility: visible;
 }
 
 .json-popup-header {
