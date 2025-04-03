@@ -745,6 +745,8 @@ div.show-record-popup .ui-dialog-buttonpane button {
 }
 
 #showTable {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-width: 0;
     min-height: 0;
