@@ -1281,6 +1281,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             this.eGui = document.createElement('div');
             this.eGui.style.display = 'flex';
             this.isExpanded = false;
+            this.rowElement = null;
 
             const displayValue = type === 'logs' && params.column.colId === 'timestamp'
                 ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
@@ -1323,6 +1324,11 @@ function ExpandableJsonCellRenderer(type = 'events') {
             jsonPopup.classList.remove('active');
             this.isExpanded = false;
             this.updateIcon();
+            
+            if (this.rowElement) {
+                this.rowElement.classList.remove('highlighted-row');
+            }
+            
             state.currentExpandedCell = null;
             document.dispatchEvent(new CustomEvent('jsonPanelClosed'));
             this.params.api.sizeColumnsToFit();
@@ -1330,6 +1336,10 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
         toggleJsonPanel(event) {
             event.stopPropagation();
+            
+            if (!this.rowElement) {
+                this.rowElement = this.findRowElement();
+            }
             
             // If already expanded, close the panel
             if (this.isExpanded) {
@@ -1341,10 +1351,18 @@ function ExpandableJsonCellRenderer(type = 'events') {
             const rowData = this.params.node.data;
             let trace_id = '';
             let time_stamp = '';
+            
+            if (this.rowElement) {
+                this.rowElement.classList.add('highlighted-row');
+            }
 
             if (state.currentExpandedCell && state.currentExpandedCell !== this) {
                 state.currentExpandedCell.isExpanded = false;
                 state.currentExpandedCell.updateIcon();
+                
+                if (state.currentExpandedCell.rowElement) {
+                    state.currentExpandedCell.rowElement.classList.remove('highlighted-row');
+                }
             }
 
             this.isExpanded = true;
@@ -1477,6 +1495,17 @@ function ExpandableJsonCellRenderer(type = 'events') {
             return this.eGui;
         }
 
+        findRowElement() {
+            let element = this.eGui;
+            while (element) {
+                if (element.classList && element.classList.contains('ag-row')) {
+                    return element;
+                }
+                element = element.parentElement;
+            }
+            return null;
+        }
+        
         refresh() {
             return false;
         }

@@ -2906,10 +2906,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--bg-color) !important;
 }
 
-#LogResultsGrid .ag-cell {
-    user-select: all;
-}
-
 .ag-cell {
     padding: 3px 15px !important;
     font-size: 12px;
@@ -2925,8 +2921,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .LogResultsGrid.ag-theme-mycustomtheme .ag-row:hover {
     background: var(--alerting-table-hover) !important;
-    border: 1px solid !important;
-    border-color: var(--purple-1) !important;
 }
 
 .ag-theme-mycustomtheme .ag-center-cols-container {
@@ -7213,4 +7207,10 @@ p#versionInfo {
 
 #stats-charts-container .dropdown-menu.daterangepicker.show {
     height: 330px !important;
+}
+
+.LogResultsGrid .highlighted-row {
+    background: rgba(255, 255, 0, 0.1) !important;
+    border: 1px solid !important;
+    border-color: var(--purple-1) !important;
 }
