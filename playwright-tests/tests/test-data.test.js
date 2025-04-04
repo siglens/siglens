@@ -37,15 +37,14 @@ test.describe('Test Data Ingestion Page Test', () => {
         await page.goto('http://localhost:5122/test-data.html');
         await page.waitForLoadState('networkidle');
 
-        // Click the "Send Test Data" card to make sample-data visible
+        // First click "Send Test Data" card to show sample-data
         await page.locator('.ingestion-card.logs-card[data-source="Send Test Data"]').click();
-
-        // Wait for sample-data with a longer timeout
         await page.waitForSelector('#sample-data', { state: 'visible', timeout: 60000 });
         await expect(page.locator('#sample-data')).toBeVisible();
         await expect(page.locator('#data-ingestion')).not.toBeVisible();
 
-        await page.locator('#option-2').click();
+        // Then click another card (e.g. OpenTelemetry) to show data-ingestion
+        await page.locator('.ingestion-card.logs-card[data-source="OpenTelemetry"]').click();
         await page.waitForSelector('#data-ingestion', { state: 'visible', timeout: 60000 });
         await expect(page.locator('#data-ingestion')).toBeVisible();
         await expect(page.locator('#sample-data')).not.toBeVisible();
