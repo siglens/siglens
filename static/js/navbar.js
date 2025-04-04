@@ -436,22 +436,26 @@ $(document).ready(function () {
         { menuClass: 'kubernetes-dropdown-toggle', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', parentClass: 'nav-infrastructure', arrowClass: 'kubernetes-arrow' }
     ];
 
+    // Attach click events to each dropdown toggle
     dropdownConfigs.forEach(config => {
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
+
+            // Only toggle the dropdown that was clicked
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
         $(`.${config.menuClass} .${config.arrowClass}`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
+
+            // Only toggle the dropdown whose arrow was clicked
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
-
             saveCurrentDropdownStates();
             sessionStorage.setItem('preserveDropdownStates', 'true');
         });
@@ -463,22 +467,25 @@ $(document).ready(function () {
         const $arrow = $menu.find(`.${arrowClass}`).first();
         const isVisible = $dropdown.is(':visible');
 
+        // Toggle only this dropdown
         $dropdown.stop(true, true).slideToggle(200);
-
         $menu.toggleClass('dropdown-open', !isVisible);
 
         if ($arrow.length) {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
+        // Update state for this dropdown only
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
 
+        // Special case for Kubernetes - ensure parent Infrastructure menu is open when opening Kubernetes
         if (dropdownName === 'Kubernetes' && !isVisible) {
             const $parentMenu = $menu.closest('.nav-infrastructure');
             const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
             const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+
             if (!$parentDropdown.is(':visible')) {
                 $parentDropdown.stop(true, true).slideDown(200);
                 $parentMenu.addClass('dropdown-open');
