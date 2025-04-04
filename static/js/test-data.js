@@ -44,7 +44,7 @@ $(document).ready(async function () {
         {{ if .TestDataSendData }}
             {{ .TestDataSendData }}
         {{ else }}
-            myOrgSendTestData(iToken);
+            myOrgSendTestData();
         {{ end }}
     } catch (err) {
         console.log(err);
@@ -235,6 +235,14 @@ $(document).ready(async function () {
         }, 1000);
     });
 
+    $('#test-data-btn').on('click', (_e) => {
+        if (selectedLogSource === 'Send Test Data') {
+            var testDataBtn = document.getElementById("test-data-btn");
+            testDataBtn.disabled = true;
+            sendTestData();
+        }
+    });
+
     {{ .Button1Function }}
 });
 
@@ -270,12 +278,10 @@ function sendTestDataWithoutBearerToken() {
     });
 }
 
-function myOrgSendTestData(_token) {
-    $('#test-data-btn').on('click', (_e) => {
-        if (selectedLogSource === 'Send Test Data') {
-            var testDataBtn = document.getElementById("test-data-btn");
-            testDataBtn.disabled = true;
-            sendTestData();
-        }
+function myOrgSendTestData() {
+    $('#test-data-btn').on('click', () => {
+        const testDataBtn = document.getElementById("test-data-btn");
+        testDataBtn.disabled = true;
+        sendTestData();
     });
 }
