@@ -279,7 +279,8 @@ function sendTestDataWithoutBearerToken() {
 }
 
 function myOrgSendTestData() {
-    $('#test-data-btn').on('click', () => {
+    // Remove any existing click handlers to prevent duplicates
+    $('#test-data-btn').off('click').on('click', () => {
         const testDataBtn = document.getElementById("test-data-btn");
         testDataBtn.disabled = true;
         sendTestData();

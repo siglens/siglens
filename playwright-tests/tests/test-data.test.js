@@ -9,6 +9,9 @@ test.describe('Test Data Ingestion Page Test', () => {
         // Wait for page to be fully loaded
         await page.waitForLoadState('networkidle');
 
+        // Click the "Send Test Data" card to make sample-data visible
+        await page.locator('.ingestion-card.logs-card[data-source="Send Test Data"]').click();
+
         // Wait for sample-data with a longer timeout
         await page.waitForSelector('#sample-data', { state: 'visible', timeout: 60000 });
         await expect(page.locator('#sample-data')).toBeVisible();
@@ -34,6 +37,9 @@ test.describe('Test Data Ingestion Page Test', () => {
         await page.goto('http://localhost:5122/test-data.html');
         await page.waitForLoadState('networkidle');
 
+        // Click the "Send Test Data" card to make sample-data visible
+        await page.locator('.ingestion-card.logs-card[data-source="Send Test Data"]').click();
+
         // Wait for sample-data with a longer timeout
         await page.waitForSelector('#sample-data', { state: 'visible', timeout: 60000 });
         await expect(page.locator('#sample-data')).toBeVisible();
@@ -48,6 +54,9 @@ test.describe('Test Data Ingestion Page Test', () => {
     test('should add test-data', async ({ page }) => {
         await page.goto('http://localhost:5122/test-data.html');
         await page.waitForLoadState('networkidle');
+
+        // Click the "Send Test Data" card to make test-data-btn visible
+        await page.locator('.ingestion-card.logs-card[data-source="Send Test Data"]').click();
 
         // Wait for test-data-btn with a longer timeout
         await page.waitForSelector('#test-data-btn', { state: 'visible', timeout: 60000 });
