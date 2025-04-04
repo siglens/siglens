@@ -420,8 +420,6 @@ $(document).ready(function () {
 
     setupNavigationState();
 
-    setupBreadcrumbNavigation();
-
     initializeDropdowns();
 
     setupHamburgerBehavior();
@@ -453,13 +451,15 @@ $(document).ready(function () {
 
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
+
+            saveCurrentDropdownStates();
+            sessionStorage.setItem('preserveDropdownStates', 'true');
         });
     });
 
     window.toggleDropdown = function(menuElement, dropdownName, dropdownClass, arrowClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        // Target only the specific arrow for this dropdown
         const $arrow = $menu.find(`.${arrowClass}`).first();
         const isVisible = $dropdown.is(':visible');
 
@@ -475,7 +475,6 @@ $(document).ready(function () {
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
 
-        // If toggling Kubernetes dropdown, ensure Infrastructure is open
         if (dropdownName === 'Kubernetes' && !isVisible) {
             const $parentMenu = $menu.closest('.nav-infrastructure');
             const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
@@ -486,55 +485,91 @@ $(document).ready(function () {
                 $parentArrow.addClass('rotated');
                 dropdownStates['Infrastructure'] = true;
                 localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
-
             }
-
         }
     };
 
-    function restoreDropdownState() {
-        // Check if we're coming from a breadcrumb navigation
-        const fromBreadcrumb = sessionStorage.getItem('fromBreadcrumbNav') === 'true';
-        if (fromBreadcrumb) {
-            // Clear the flag
-            sessionStorage.removeItem('fromBreadcrumbNav');
-            return; // Don't restore dropdown states
-        }
+    // Add click handler to breadcrumb links
+    $(document).on('click', '#sl-breadcrumb a', function() {
+        saveCurrentDropdownStates();
+        sessionStorage.setItem('preserveDropdownStates', 'true');
+    });
 
-        const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
-
+    function saveCurrentDropdownStates() {
+        const currentStates = {};
         dropdownConfigs.forEach(config => {
-            const $menu = $(`.${config.menuClass}`);
-            const isOpen = dropdownStates[config.name] === true;
-
-            if (isOpen) {
-                $menu.addClass('dropdown-open');
-                $menu.find(`.${config.dropdownClass}`).show();
-                $menu.find(`.${config.arrowClass}`).first().addClass('rotated');
-
-                // If Kubernetes is open, ensure Infrastructure is open
-                if (config.name === 'Kubernetes') {
-                    const $parentMenu = $menu.closest('.nav-infrastructure');
-                    const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
-                    const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
-                    if (!$parentDropdown.is(':visible')) {
-                        $parentDropdown.show();
-                        $parentMenu.addClass('dropdown-open');
-                        $parentArrow.addClass('rotated');
-                        dropdownStates['Infrastructure'] = true;
-                        localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
-                    }
-                }
-            } else {
-                $menu.removeClass('dropdown-open');
-                $menu.find(`.${config.dropdownClass}`).hide();
-                $menu.find(`.${config.arrowClass}`).first().removeClass('rotated');
-            }
+            const isOpen = $(`.${config.menuClass} .${config.dropdownClass}`).is(':visible');
+            currentStates[config.name] = isOpen;
         });
+        sessionStorage.setItem('currentDropdownStates', JSON.stringify(currentStates));
+    }
+
+    function restoreDropdownState() {
+        const shouldPreserveStates = sessionStorage.getItem('preserveDropdownStates') === 'true';
+
+        if (shouldPreserveStates) {
+            const savedStates = JSON.parse(sessionStorage.getItem('currentDropdownStates')) || {};
+
+            dropdownConfigs.forEach(config => {
+                const $menu = $(`.${config.menuClass}`);
+                const $dropdown = $menu.find(`.${config.dropdownClass}`);
+                const $arrow = $menu.find(`.${config.arrowClass}`).first();
+                const shouldBeOpen = savedStates[config.name] === true;
+
+                if (shouldBeOpen) {
+                    $menu.addClass('dropdown-open');
+                    $dropdown.show();
+                    $arrow.addClass('rotated');
+                } else {
+                    $menu.removeClass('dropdown-open');
+                    $dropdown.hide();
+                    $arrow.removeClass('rotated');
+                }
+            });
+
+            if (savedStates['Kubernetes'] === true && savedStates['Infrastructure'] !== false) {
+                const $infraMenu = $('.nav-infrastructure');
+                $infraMenu.addClass('dropdown-open');
+                $infraMenu.find('.infrastructure-dropdown').show();
+                $infraMenu.find('.nav-dropdown-icon').first().addClass('rotated');
+            }
+
+            sessionStorage.removeItem('preserveDropdownStates');
+            sessionStorage.removeItem('currentDropdownStates');
+        } else {
+            const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+
+            dropdownConfigs.forEach(config => {
+                const $menu = $(`.${config.menuClass}`);
+                const isOpen = dropdownStates[config.name] === true;
+
+                if (isOpen) {
+                    $menu.addClass('dropdown-open');
+                    $menu.find(`.${config.dropdownClass}`).show();
+                    $menu.find(`.${config.arrowClass}`).first().addClass('rotated');
+
+                    if (config.name === 'Kubernetes') {
+                        const $parentMenu = $menu.closest('.nav-infrastructure');
+                        const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+                        const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+                        if (!$parentDropdown.is(':visible')) {
+                            $parentDropdown.show();
+                            $parentMenu.addClass('dropdown-open');
+                            $parentArrow.addClass('rotated');
+                            dropdownStates['Infrastructure'] = true;
+                            localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+                        }
+                    }
+                } else {
+                    $menu.removeClass('dropdown-open');
+                    $menu.find(`.${config.dropdownClass}`).hide();
+                    $menu.find(`.${config.arrowClass}`).first().removeClass('rotated');
+                }
+            });
+        }
     }
 
     function updateActiveHighlighting() {
-        // Clear all active states first
         dropdownConfigs.forEach(config => {
             $(`.${config.menuClass}`).removeClass('active');
             $(`.${config.iconClass}`).removeClass('active');
@@ -549,21 +584,17 @@ $(document).ready(function () {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
 
-                // Check if base paths match OR if full URL (with params) matches
                 if (currentPath === hrefPath || currentUrl === hrefPath) {
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
 
-                    // Find the menu and add active class to it
                     const $menu = config.parentClass ?
                         $li.closest(`.${config.menuClass}`).closest(`.${config.parentClass}`) :
                         $li.closest(`.${config.menuClass}`);
                     $menu.addClass('active');
 
-                    // Add active class to the icon if it exists
                     $menu.find(`.${config.iconClass}`).addClass('active');
 
-                    // If this is a nested dropdown, make sure parent dropdown is open
                     if (config.parentClass) {
                         $(`.${config.parentClass}`).addClass('active');
                     }
@@ -580,7 +611,6 @@ $(document).ready(function () {
                 $(`.kubernetes-dropdown a[href*="type=${type}"]`).each(function() {
                     $(this).find('li').addClass('active');
 
-                    // Activate parent menus
                     $(this).closest('.nav-kubernetes').addClass('active');
                     $(this).closest('.nav-infrastructure').addClass('active');
                 });
@@ -594,7 +624,6 @@ $(document).ready(function () {
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
     });
-
 });
 
 function setupNavigationState() {
@@ -679,15 +708,8 @@ function setupNavigationState() {
     }
 }
 
-function setupBreadcrumbNavigation() {
-    // Add event listener to breadcrumb links
-    $('#sl-breadcrumb').on('click', 'a', function() {
-        // Clear dropdown states in localStorage when navigating via breadcrumbs
-        localStorage.removeItem('navbarDropdownStates');
-    });
-}
-
 function initializeDropdowns() {
+
     // Help dropdown behavior
     $('.nav-help').hover(
         function (event) {
@@ -781,11 +803,7 @@ function initializeBreadcrumbs(breadcrumbConfig) {
             } else {
                 a = $('<a>')
                     .attr('href', crumb.url || '#')
-                    .text(crumb.name)
-                    .on('click', function() {
-                        // Set flag to indicate we're navigating via breadcrumb
-                        sessionStorage.setItem('fromBreadcrumbNav', 'true');
-                    });
+                    .text(crumb.name);
             }
 
             li.append(a);
