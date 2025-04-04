@@ -538,6 +538,31 @@ func Test_CountQueryValidator(t *testing.T) {
 		}`)))
 	})
 
+	t.Run("LargeCount", func(t *testing.T) {
+		startEpoch, endEpoch := uint64(0), uint64(10)
+		validator, err := NewCountQueryValidator(bostonFilter, startEpoch, endEpoch)
+		assert.NoError(t, err)
+
+		for i := 0; i < 1_000_000; i++ {
+			addLogsWithoutError(t, validator, logs)
+		}
+
+		assert.NoError(t, validator.MatchesResult([]byte(`{
+			"hits": {
+				"totalMatched": {
+					"value": 4000000,
+					"relation": "eq"
+				}
+			},
+			"allColumns": ["count(*)"],
+			"measureFunctions": ["count(*)"],
+			"measure": [{
+					"GroupByValues": ["*"],
+					"MeasureVal": {"count(*)": 4000000}
+			}]
+		}`)))
+	})
+
 	t.Run("MatchAllQuery", func(t *testing.T) {
 		startEpoch, endEpoch := uint64(0), uint64(10)
 		validator, err := NewCountQueryValidator(MatchAll(), startEpoch, endEpoch)
