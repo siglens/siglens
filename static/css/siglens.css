@@ -6697,7 +6697,7 @@ p#versionInfo {
     transition: width 0.3s ease, margin-left 0.3s ease, border 0.3s ease;
     overflow: hidden;
     border-top: 1px solid var(--panel-table-line-color);
-    border-radius: 4px;
+    border-radius: 4px 0 0 0;
     display: block !important;
     opacity: 0;
     visibility: hidden;
@@ -6934,9 +6934,9 @@ p#versionInfo {
 .load-more-container {
     text-align: center;
     padding: 10px;
-    border: 1px solid var(--border-btn-color);
     display: none;
     border-radius: 4px;
+    padding-top: 0px;
 }
 
 .load-more-link {
@@ -6955,7 +6955,7 @@ p#versionInfo {
     flex-direction: column;
     overflow-y: auto;
     margin-right: 5px;
-    border-radius: 4px;
+    border-radius: 0 4px 0 0;
 }
 
 .fields-sidebar.hidden {
