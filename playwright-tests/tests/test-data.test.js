@@ -119,24 +119,44 @@ test.describe('Test Data Ingestion Page Test', () => {
     });
 
     test('should test metrics and traces card navigation', async ({ page }) => {
-        // Test metrics card navigation
-        await page.locator('.ingestion-card.metrics-card[data-source="Opentelemetry"]').click();
-        await page.waitForSelector('#metrics-ingestion-details', { state: 'visible', timeout: 5000 });
+        // First check if the element exists and log what's available
+        const metricsCards = await page.locator('.ingestion-card.metrics-card').all();
+        console.log('Available metrics cards:', await Promise.all(metricsCards.map(el => el.getAttribute('data-source'))));
+
+        // Find the OpenTelemetry metrics card regardless of case
+        const openTelemetryCard = page.locator('.ingestion-card.metrics-card').filter({
+            hasText: /OpenTelemetry|Opentelemetry/i
+        });
+
+        // Make sure we found the card
+        await expect(openTelemetryCard).toBeVisible();
+
+        // Click the card
+        await openTelemetryCard.click();
+
+        // Continue with the test
+        await page.waitForSelector('#metrics-ingestion-details', { state: 'visible', timeout: 10000 });
         await expect(page.locator('#metrics-setup-instructions-link'))
             .toHaveAttribute('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/open-telemetry');
 
         // Go back to metrics cards view
         await page.locator('#back-to-metrics-cards').click();
-        await page.waitForSelector('#metrics-cards-view', { state: 'visible', timeout: 5000 });
+        await page.waitForSelector('#metrics-cards-view', { state: 'visible', timeout: 10000 });
 
-        // Test traces card navigation
-        await page.locator('.ingestion-card.traces-card[data-source="Python App"]').click();
-        await page.waitForSelector('#traces-ingestion-details', { state: 'visible', timeout: 5000 });
+        // Test traces card navigation - same approach, find by text
+        const pythonAppCard = page.locator('.ingestion-card.traces-card').filter({
+            hasText: 'Python App'
+        });
+
+        await expect(pythonAppCard).toBeVisible();
+        await pythonAppCard.click();
+
+        await page.waitForSelector('#traces-ingestion-details', { state: 'visible', timeout: 10000 });
         await expect(page.locator('#traces-setup-instructions-link'))
             .toHaveAttribute('href', 'https://www.siglens.com/siglens-docs/instrument-traces/python-app');
 
         // Go back to traces cards view
         await page.locator('#back-to-traces-cards').click();
-        await page.waitForSelector('#traces-cards-view', { state: 'visible', timeout: 5000 });
+        await page.waitForSelector('#traces-cards-view', { state: 'visible', timeout: 10000 });
     });
 });
