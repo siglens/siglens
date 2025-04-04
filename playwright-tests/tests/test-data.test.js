@@ -5,6 +5,7 @@ test.describe('Test Data Ingestion Page Test', () => {
     test('should have sample-data div with message', async ({ page }) => {
         await page.goto('http://localhost:5122/test-data.html');
         await expect(page.locator('#app-side-nav')).toBeVisible();
+        await page.waitForSelector('#sample-data', { state: 'visible' });
         await expect(page.locator('#sample-data')).toBeVisible();
         const sampleDataDiv = page.locator('#sample-data');
         await expect(sampleDataDiv).toBeVisible();
@@ -18,20 +19,24 @@ test.describe('Test Data Ingestion Page Test', () => {
         await page.goto('http://localhost:5122/test-data.html');
         const listItems = page.locator('li.tab-li');
         const itemCount = await listItems.count();
-        expect(itemCount).toBe(8);
+        expect(itemCount).toBe(9);
     });
+
     test('should switch between ingestion methods tabs', async ({ page }) => {
         await page.goto('http://localhost:5122/test-data.html');
+        await page.waitForSelector('#sample-data', { state: 'visible' });
         await expect(page.locator('#sample-data')).toBeVisible();
         await expect(page.locator('#data-ingestion')).not.toBeVisible();
 
         await page.locator('#option-2').click();
+        await page.waitForSelector('#data-ingestion', { state: 'visible' });
         await expect(page.locator('#data-ingestion')).toBeVisible();
         await expect(page.locator('#sample-data')).not.toBeVisible();
     });
 
     test('should add test-data', async ({ page }) => {
         await page.goto('http://localhost:5122/test-data.html');
+        await page.waitForSelector('#test-data-btn', { state: 'visible' });
         await page.locator('#test-data-btn').click();
         await page.waitForTimeout(1000);
 

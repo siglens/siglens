@@ -24,6 +24,7 @@ let iToken = "";
 $(document).ready(async function () {
     // Initial setup for logs ingestion
     $('#data-ingestion').hide();
+    $('#sample-data').show();  // Show sample-data div by default
     $('.theme-btn').on('click', themePickerHandler);
     $(".custom-chart-tab").tabs();
     $(".custom-chart-tab").show();
