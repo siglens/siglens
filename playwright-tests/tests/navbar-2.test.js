@@ -42,6 +42,7 @@ test('Navigation Menu Part 2', async ({ page }) => {
 
     // Test Infrastructure pages
     const infrastructurePages = [
+        'infrastructure.html',
         'kubernetes-overview.html',
         'kubernetes-view.html?type=clusters',
         'kubernetes-view.html?type=namespaces',
