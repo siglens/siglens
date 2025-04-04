@@ -71,7 +71,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="ingestion-cards-container">
-                    <div class="ingestion-card" data-source="Go App">
+                    <div class="ingestion-card" data-source="Go App" onclick="window.location.href='#go-app'">
                         <div class="card-header">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
                                 <path fill="#00ADD8" d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64c11.2 0 21.7-2.9 30.8-7.9L48.4 55.3v36.6h-6.8V41.8h6.8l50.5 75.8C116.4 106.2 128 86.5 128 64c0-35.3-28.7-64-64-64zm22.1 84.6l-7.5-11.3V41.8h7.5v42.8z"/>
@@ -84,7 +84,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="card-footer">
                         </div>
                     </div>
-                    <div class="ingestion-card" data-source="Java App">
+                    <div class="ingestion-card" data-source="Java App" onclick="window.location.href='#java-app'">
                         <div class="card-header">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
                                 <path fill="#B07219" d="M47.617 98.12s-4.767 2.774 3.397 3.71c9.892 1.13 14.947.968 25.845-1.092 0 0 2.871 1.795 6.873 3.351-24.439 10.47-55.308-.607-36.115-5.969zm-2.988-13.665s-5.348 3.959 2.823 4.805c10.567 1.091 18.91 1.18 33.354-1.6 0 0 1.993 2.025 5.132 3.461-31.087 8.64-62.446.68-41.309-6.666z"/>
@@ -99,7 +99,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="card-footer">
                         </div>
                     </div>
-                    <div class="ingestion-card" data-source="Python App">
+                    <div class="ingestion-card" data-source="Python App" onclick="window.location.href='#python-app'">
                         <div class="card-header">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
                                 <path fill="#FFD43B" d="M63.391 1.988c-4.222.02-8.252.379-11.8 1.007-10.45 1.846-12.346 5.71-12.346 12.837v9.411h24.693v3.137H29.977c-7.176 0-13.46 4.313-15.426 12.521-2.268 9.405-2.368 15.275 0 25.096 1.755 7.311 5.947 12.519 13.124 12.519h8.491V67.234c0-8.151 7.051-15.34 15.426-15.34h24.665c6.866 0 12.346-5.654 12.346-12.548V15.833c0-6.693-5.646-11.72-12.346-12.837-4.244-.706-8.645-.911-13.091-.008zM50.037 9.557c2.55 0 4.634 2.117 4.634 4.721 0 2.593-2.083 4.69-4.634 4.69-2.56 0-4.633-2.097-4.633-4.69-.001-2.604 2.073-4.721 4.633-4.721z"/>
@@ -113,7 +113,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="card-footer">
                         </div>
                     </div>
-                    <div class="ingestion-card" data-source=".Net App">
+                    <div class="ingestion-card" data-source=".Net App" onclick="window.location.href='#net-app'">
                         <div class="card-header">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
                                 <path fill="#512BD4" d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64c35.3 0 64-28.7 64-64S99.3 0 64 0zm0 16c26.5 0 48 21.5 48 48s-21.5 48-48 48S16 90.5 16 64 37.5 16 64 16z"/>
@@ -128,7 +128,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="card-footer">
                         </div>
                     </div>
-                    <div class="ingestion-card" data-source="Javascript App">
+                    <div class="ingestion-card" data-source="Javascript App" onclick="window.location.href='#javascript-app'">
                         <div class="card-header">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
                                 <path fill="#F0DB4F" d="M1.408 1.408h125.184v125.185H1.408z"/>
@@ -161,8 +161,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
                     <div class="ingest-inner-container">
                         <div>
-                            <div id="go-app">
-
+                            <div id="go-app" style="display: none;">
                                 <div class="mt-4">
                                     <div class="d-flex mt-4">
                                         <h5 class="myOrg-heading">Setup instructions</h5>
@@ -175,8 +174,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                         </div>
-                        <div id="java-app">
-
+                        <div id="java-app" style="display: none;">
                             <div class="mt-4">
                                 <div class="d-flex mt-4">
                                     <h5 class="myOrg-heading">Setup instructions</h5>
@@ -188,7 +186,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                         </div>
-                        <div id="python-app">
+                        <div id="python-app" style="display: none;">
                             <div class="mt-4">
                                 <div class="d-flex mt-4">
                                     <h5 class="myOrg-heading">Setup instructions</h5>
@@ -200,7 +198,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                         </div>
-                        <div id="net-app">
+                        <div id="net-app" style="display: none;">
                             <div class="mt-4">
                                 <div class="d-flex mt-4">
                                     <h5 class="myOrg-heading">Setup instructions</h5>
@@ -212,8 +210,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                         </div>
-                        <div id="javascript-app">
-
+                        <div id="javascript-app" style="display: none;">
                             <div class="mt-4">
                                 <div class="d-flex mt-4">
                                     <h5 class="myOrg-heading">Setup instructions</h5>
@@ -225,8 +222,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                         </div>
-
-
                     </div>
                 </div>
             </div>
@@ -243,6 +238,36 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get all cards
+            const cards = document.querySelectorAll('.ingestion-card');
+
+            // Add click handler to each card
+            cards.forEach(card => {
+                card.addEventListener('click', function() {
+                    // Hide all content sections
+                    document.querySelectorAll('[id$="-app"]').forEach(section => {
+                        section.style.display = 'none';
+                    });
+
+                    // Show the selected content section
+                    const targetId = this.getAttribute('onclick').split('#')[1].split("'")[0];
+                    document.getElementById(targetId).style.display = 'block';
+
+                    // Remove active class from all cards
+                    cards.forEach(c => c.classList.remove('active'));
+
+                    // Add active class to clicked card
+                    this.classList.add('active');
+                });
+            });
+
+            // Show first card content by default
+            document.getElementById('go-app').style.display = 'block';
+            cards[0].classList.add('active');
+        });
+    </script>
 </body>
 
 </html>
