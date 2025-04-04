@@ -119,7 +119,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
                 <div class="menu-header">
-                    <a class="nav-links" href="./kubernetes-overview.html">
+                    <a class="nav-links" href="./infrastructure.html">
                         <span class="icon-infrastructure"></span>
                         <span class="nav-link-text-drpdwn">Infrastructure</span>
                     </a>
@@ -420,6 +420,8 @@ $(document).ready(function () {
 
     setupNavigationState();
 
+    setupBreadcrumbNavigation();
+
     initializeDropdowns();
 
     setupHamburgerBehavior();
@@ -491,6 +493,14 @@ $(document).ready(function () {
     };
 
     function restoreDropdownState() {
+        // Check if we're coming from a breadcrumb navigation
+        const fromBreadcrumb = sessionStorage.getItem('fromBreadcrumbNav') === 'true';
+        if (fromBreadcrumb) {
+            // Clear the flag
+            sessionStorage.removeItem('fromBreadcrumbNav');
+            return; // Don't restore dropdown states
+        }
+
         const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
 
         dropdownConfigs.forEach(config => {
@@ -669,8 +679,15 @@ function setupNavigationState() {
     }
 }
 
-function initializeDropdowns() {
+function setupBreadcrumbNavigation() {
+    // Add event listener to breadcrumb links
+    $('#sl-breadcrumb').on('click', 'a', function() {
+        // Clear dropdown states in localStorage when navigating via breadcrumbs
+        localStorage.removeItem('navbarDropdownStates');
+    });
+}
 
+function initializeDropdowns() {
     // Help dropdown behavior
     $('.nav-help').hover(
         function (event) {
@@ -764,7 +781,11 @@ function initializeBreadcrumbs(breadcrumbConfig) {
             } else {
                 a = $('<a>')
                     .attr('href', crumb.url || '#')
-                    .text(crumb.name);
+                    .text(crumb.name)
+                    .on('click', function() {
+                        // Set flag to indicate we're navigating via breadcrumb
+                        sessionStorage.setItem('fromBreadcrumbNav', 'true');
+                    });
             }
 
             li.append(a);
