@@ -1,5 +1,23 @@
+/*
+ * Copyright (c) 2021-2024 SigScalr, Inc.
+ *
+ * This file is part of SigLens Observability Solution
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 let selectedLogSource = "";
-let selectedMetricsSource = ""; // Separate variable for metrics source
+let selectedMetricsSource = "";
 let selectedTracesSource = "";
 let iToken = "";
 
@@ -34,8 +52,6 @@ $(document).ready(async function () {
     // Handle LOGS card clicks to navigate to details view
     $('.ingestion-card.logs-card').on('click', function () {
         selectedLogSource = $(this).data('source');
-
-        // Hide logs cards view and show logs details view
         $('#logs-cards-view').hide();
         $('#logs-ingestion-details').show();
 
@@ -117,7 +133,6 @@ $(document).ready(async function () {
         $('#logs-ingestion-details').hide();
         $('#logs-cards-view').show();
 
-        // Scroll to the top of the logs cards section
         $('html, body').animate({
             scrollTop: $("#logs-cards-view").offset().top
         }, 500);
@@ -126,17 +141,13 @@ $(document).ready(async function () {
     // Handle METRICS card clicks to navigate to details view
     $('.ingestion-card.metrics-card').on('click', function () {
         selectedMetricsSource = $(this).data('source');
-
-        // Hide metrics cards view and show metrics details view
         $('#metrics-cards-view').hide();
         $('#metrics-ingestion-details').show();
 
-        // Scroll to the top of the metrics details section
         $('html, body').animate({
             scrollTop: $("#metrics-ingestion-details").offset().top
         }, 500);
 
-        // Update setup instructions based on selected metrics source
         switch (selectedMetricsSource) {
             case 'VectorMetrics':
                 $('#metrics-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/vector-metrics');
@@ -149,12 +160,10 @@ $(document).ready(async function () {
         }
     });
 
-    // Handle back button to return to metrics cards view
     $('#back-to-metrics-cards').on('click', function () {
         $('#metrics-ingestion-details').hide();
         $('#metrics-cards-view').show();
 
-        // Scroll to the top of the metrics cards section
         $('html, body').animate({
             scrollTop: $("#metrics-cards-view").offset().top
         }, 500);
@@ -163,12 +172,9 @@ $(document).ready(async function () {
     // Handle TRACES card clicks to navigate to details view
     $('.ingestion-card.traces-card').on('click', function () {
         selectedTracesSource = $(this).data('source');
-
-        // Hide traces cards view and show traces details view
         $('#traces-cards-view').hide();
         $('#traces-ingestion-details').show();
 
-        // Scroll to the top of the traces details section
         $('html, body').animate({
             scrollTop: $("#traces-ingestion-details").offset().top
         }, 500);
@@ -195,12 +201,10 @@ $(document).ready(async function () {
         }
     });
 
-    // Handle back button to return to traces cards view
     $('#back-to-traces-cards').on('click', function () {
         $('#traces-ingestion-details').hide();
         $('#traces-cards-view').show();
 
-        // Scroll to the top of the traces cards section
         $('html, body').animate({
             scrollTop: $("#traces-cards-view").offset().top
         }, 500);
