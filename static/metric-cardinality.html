@@ -42,6 +42,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         {
             height: 300px;
             width: 100%;
+            position: relative;
         }
     </style>
 
@@ -128,13 +129,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
 
                     <p class="caption mt-4">Tag Keys with Most Series</p>
-                    <div id="tagKeysGrid" class="ag-theme-mycustomtheme"></div>
+                    <div id="tagKeysGrid" class="ag-theme-mycustomtheme">
+                        <div class="panel-loading"></div>
+                    </div>
                     
                     <p class="caption mt-4">Tag Pairs with Most Series</p>
-                    <div id="tagPairsGrid" class="ag-theme-mycustomtheme"></div>
+                    <div id="tagPairsGrid" class="ag-theme-mycustomtheme">
+                        <div class="panel-loading"></div>
+                    </div>
                     
                     <p class="caption mt-4">Tag Keys with Most Unique Values</p>
-                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>                                    
+                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme">
+                        <div class="panel-loading"></div>
+                    </div>                                    
                 </div>
             </div>
         </div>
