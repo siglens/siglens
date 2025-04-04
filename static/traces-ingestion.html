@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -46,7 +46,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
-    
+
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -70,6 +70,79 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div class="myOrg">
             <div class="myOrg-container">
+                <div class="ingestion-cards-container">
+                    <div class="ingestion-card" data-source="Go App">
+                        <div class="card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
+                                <path fill="#00ADD8" d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64c11.2 0 21.7-2.9 30.8-7.9L48.4 55.3v36.6h-6.8V41.8h6.8l50.5 75.8C116.4 106.2 128 86.5 128 64c0-35.3-28.7-64-64-64zm22.1 84.6l-7.5-11.3V41.8h7.5v42.8z"/>
+                            </svg>
+                            <h3>Go App</h3>
+                        </div>
+                        <div class="card-description">
+                            Instrument Go applications with OpenTelemetry
+                        </div>
+                        <div class="card-footer">
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Java App">
+                        <div class="card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
+                                <path fill="#B07219" d="M47.617 98.12s-4.767 2.774 3.397 3.71c9.892 1.13 14.947.968 25.845-1.092 0 0 2.871 1.795 6.873 3.351-24.439 10.47-55.308-.607-36.115-5.969zm-2.988-13.665s-5.348 3.959 2.823 4.805c10.567 1.091 18.91 1.18 33.354-1.6 0 0 1.993 2.025 5.132 3.461-31.087 8.64-62.446.68-41.309-6.666z"/>
+                                <path fill="#5382A1" d="M69.802 61.271c6.025 6.935-1.58 13.17-1.58 13.17s15.289-7.891 8.269-17.777c-6.559-9.215-11.587-13.792 15.635-29.777 0 .001-42.731 10.67-22.324 34.384z"/>
+                                <path fill="#5382A1" d="M102.123 108.229s3.529 2.89-3.888 5.159c-14.102 4.272-58.706 5.56-71.094.171-4.451-1.938 3.899-4.625 6.526-5.192 2.739-.593 4.303-.485 4.303-.485-4.953-3.487-32.013 6.85-13.743 9.815 49.821 8.076 90.817-3.637 77.896-9.468zM49.912 70.294s-22.686 5.589-8.033 7.768c6.188.965 18.518.638 30.011-.326 9.39-.789 18.813-2.474 18.813-2.474s-3.308 1.419-5.704 3.053c-23.042 6.061-67.544 3.238-54.731-2.905 5.434-2.645 19.644-5.116 19.644-5.116zM90.609 93.041c23.421-12.167 12.591-23.86 5.032-22.285-1.848.385-2.677.72-2.677.72s.688-1.079 2.247-1.543c14.371-4.355 26.159 11.215-4.823 23.725 0 0 .354-.327.221-.617z"/>
+                            </svg>
+                            <h3>Java App</h3>
+                        </div>
+                        <div class="card-description">
+                            Instrument Java applications with OpenTelemetry
+                        </div>
+                        <div class="card-footer">
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Python App">
+                        <div class="card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
+                                <path fill="#FFD43B" d="M63.391 1.988c-4.222.02-8.252.379-11.8 1.007-10.45 1.846-12.346 5.71-12.346 12.837v9.411h24.693v3.137H29.977c-7.176 0-13.46 4.313-15.426 12.521-2.268 9.405-2.368 15.275 0 25.096 1.755 7.311 5.947 12.519 13.124 12.519h8.491V67.234c0-8.151 7.051-15.34 15.426-15.34h24.665c6.866 0 12.346-5.654 12.346-12.548V15.833c0-6.693-5.646-11.72-12.346-12.837-4.244-.706-8.645-.911-13.091-.008zM50.037 9.557c2.55 0 4.634 2.117 4.634 4.721 0 2.593-2.083 4.69-4.634 4.69-2.56 0-4.633-2.097-4.633-4.69-.001-2.604 2.073-4.721 4.633-4.721z"/>
+                                <path fill="#FFD43B" d="M64.601 126.016c4.234 0 8.256-.379 11.804-1.006 10.452-1.848 12.346-5.71 12.346-12.838v-9.412H63.938v-3.137h24.699c7.176 0 13.46-4.313 15.426-12.522 2.268-9.404 2.368-15.275 0-25.096-1.755-7.311-5.948-12.519-13.124-12.519h-8.491v24.393c0 8.151-7.051 15.34-15.426 15.34H40.691c-6.866 0-12.346 5.654-12.346 12.548v24.722c0 6.694 5.646 11.719 12.346 12.837 4.244.706 8.645.911 13.091.008zM77.99 118.44c-2.56 0-4.634-2.116-4.634-4.72 0-2.595 2.074-4.691 4.634-4.691 2.55 0 4.633 2.096 4.633 4.69 0 2.605-2.083 4.721-4.633 4.721z"/>
+                            </svg>
+                            <h3>Python App</h3>
+                        </div>
+                        <div class="card-description">
+                            Instrument Python applications with OpenTelemetry
+                        </div>
+                        <div class="card-footer">
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source=".Net App">
+                        <div class="card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
+                                <path fill="#512BD4" d="M64 0C28.7 0 0 28.7 0 64s28.7 64 64 64c35.3 0 64-28.7 64-64S99.3 0 64 0zm0 16c26.5 0 48 21.5 48 48s-21.5 48-48 48S16 90.5 16 64 37.5 16 64 16z"/>
+                                <path fill="#512BD4" d="M64 24c-22.1 0-40 17.9-40 40s17.9 40 40 40 40-17.9 40-40-17.9-40-40-40zm0 8c17.7 0 32 14.3 32 32s-14.3 32-32 32-32-14.3-32-32 14.3-32 32-32z"/>
+                                <path fill="#512BD4" d="M64 40c-13.3 0-24 10.7-24 24s10.7 24 24 24 24-10.7 24-24-10.7-24-24-24zm0 8c8.8 0 16 7.2 16 16s-7.2 16-16 16-16-7.2-16-16 7.2-16 16-16z"/>
+                            </svg>
+                            <h3>.Net App</h3>
+                        </div>
+                        <div class="card-description">
+                            Instrument .Net applications with OpenTelemetry
+                        </div>
+                        <div class="card-footer">
+                        </div>
+                    </div>
+                    <div class="ingestion-card" data-source="Javascript App">
+                        <div class="card-header">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
+                                <path fill="#F0DB4F" d="M1.408 1.408h125.184v125.185H1.408z"/>
+                                <path fill="#323330" d="M116.347 96.736c-.917-5.711-4.641-10.508-15.672-14.981-3.832-1.761-8.104-3.022-9.377-5.926-.452-1.69-.512-2.642-.226-3.665.821-3.32 4.784-4.355 7.925-3.403 2.023.678 3.938 2.237 5.093 4.724 5.402-3.498 5.391-3.475 9.163-5.879-1.381-2.141-2.118-3.129-3.022-4.045-3.249-3.629-7.676-5.498-14.756-5.355l-3.688.477c-3.534.893-6.902 2.748-8.877 5.235-5.926 6.724-4.236 18.492 2.975 23.335 7.104 5.332 17.54 6.545 18.873 11.531 1.297 6.104-4.486 8.08-10.234 7.378-4.236-.881-6.592-3.034-9.139-6.949-4.688 2.713-4.688 2.713-9.508 5.485 1.143 2.499 2.344 3.63 4.26 5.795 9.068 9.198 31.76 8.746 35.83-5.176.165-.478 1.261-3.666.38-8.581zM69.462 58.943H57.753l-.048 30.272c0 6.438.333 12.34-.714 14.149-1.713 3.558-6.152 3.117-8.175 2.427-2.059-1.012-3.106-2.451-4.319-4.485-.333-.584-.583-1.036-.667-1.071l-9.52 5.83c1.583 3.249 3.915 6.069 6.902 7.901 4.462 2.678 10.459 3.499 16.731 2.059 4.082-1.189 7.604-3.652 9.448-7.401 2.666-4.915 2.094-10.864 2.07-17.444.06-10.735.001-21.468.001-32.237z"/>
+                            </svg>
+                            <h3>Javascript App</h3>
+                        </div>
+                        <div class="card-description">
+                            Instrument Javascript applications with OpenTelemetry
+                        </div>
+                        <div class="card-footer">
+                        </div>
+                    </div>
+                </div>
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                     <ul class="tab-chart-list">
                         <li class="tab-li" id="option-1"><a href="#go-app" class="custom-query-builder">Go App</a>
@@ -167,7 +240,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/test-data.js?cb={{ AppVersion }}"></script>
-    
+
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

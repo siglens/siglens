@@ -5370,6 +5370,79 @@ p#versionInfo {
     font-weight: bold;
 }
 
+.ingestion-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+.ingestion-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 10px;
+    padding: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.ingestion-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    background-color: #ffffff;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color, #2d3436);
+}
+
+.card-description {
+    color: var(--text-secondary, #636e72);
+    margin-bottom: 8px;
+    font-size: 13px;
+    flex-grow: 1;
+}
+
+.card-footer {
+    display: flex;
+    justify-content: flex-end;
+    background-color: #ffffff;
+    padding-top: 0;
+    border-top: none;
+}
+
+.configure-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    background-color: var(--primary-color, #ffffff);
+    color: #6347D9;
+    border: 2px solid #6347D9;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.configure-btn:hover {
+    background-color: var(--primary-color-dark, #5038B3);
+    color: #ffffff;
+}
+
+
 .help-options {
     display: none;
     position: fixed;
