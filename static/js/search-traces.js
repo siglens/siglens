@@ -287,8 +287,8 @@ function searchTraceHandler(e) {
     let searchText = '';
     if (serviceValue != 'All') searchText = 'service=' + serviceValue + ' ';
     if (operationValue != 'All') searchText += 'name=' + operationValue + ' ';
-    if (maxDurationValue) searchText += 'EndTimeUnixNano<=' + maxDurationValue + ' ';
-    if (minDurationValue) searchText += 'StartTimeUnixNano>=' + minDurationValue + ' ';
+    if (maxDurationValue) searchText += 'duration<=' + maxDurationValue + ' ';
+    if (minDurationValue) searchText += 'duration>=' + minDurationValue + ' ';
     if (tagValue) searchText += tagValue;
     if (searchText == '') searchText = '*';
     else searchText = searchText.trim();

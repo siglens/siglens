@@ -155,6 +155,12 @@ function getTraceInformation(traceId, timestampNano) {
 
     $('#timeline-container').empty();
 
+    $('#timeline-container').html(`
+        <div id="panel-loading"></div>
+    `);
+
+    $('body').css('cursor', 'wait');
+
     $.ajax({
         method: 'POST',
         url: 'api/traces/ganttchart',
@@ -173,10 +179,18 @@ function getTraceInformation(traceId, timestampNano) {
         crossDomain: true,
     })
         .then(function (res) {
+            $('#timeline-container').empty();
+
+            $('body').css('cursor', 'default');
+
             traceDetails(res);
             displayTimeline(res);
         })
         .fail(function (jqXHR) {
+            $('#timeline-container').empty();
+
+            $('body').css('cursor', 'default');
+
             let errorMessage;
 
             if (jqXHR.status === 504) {

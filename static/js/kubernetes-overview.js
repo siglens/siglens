@@ -20,8 +20,8 @@
 const QUERIES = {
     CPU_USAGE: `sum by (cluster) (
         max by (cluster, instance, cpu, core) (1 - rate(node_cpu_seconds_total{cluster=~".+", mode="idle"}[5m]))
-    ) 
-    / on (cluster) 
+    )
+    / on (cluster)
     sum by (cluster) (
         max by (cluster, node) (kube_node_status_capacity{cluster=~".+", resource="cpu"})
     )`,
@@ -36,8 +36,8 @@ const QUERIES = {
                     "node", "$1", "instance", "(.+)"
                 )
             )
-        ) 
-        / on (cluster) 
+        )
+        / on (cluster)
         sum by (cluster) (
             max by (cluster, node) (
                 kube_node_status_capacity{cluster=~".+", resource="memory"}
