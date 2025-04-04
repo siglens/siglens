@@ -6847,7 +6847,8 @@ p#versionInfo {
     margin-left: auto;
 }
 
-#panel-loading {
+#panel-loading,
+.panel-loading {
     border: 4px solid var(--purple-1);
     border-radius: 50%;
     border-top: 4px solid var(--lavender-1);
