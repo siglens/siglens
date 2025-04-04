@@ -18,32 +18,17 @@
 package utils
 
 import (
-	"fmt"
-	"strconv"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func AsUint64(x interface{}) (uint64, bool) {
-	s := fmt.Sprintf("%v", x)
-	result, err := strconv.ParseUint(s, 10, 64)
-	if err == nil {
-		return result, true
-	}
+func Test_AsUint64(t *testing.T) {
+	v, ok := AsUint64("123")
+	assert.True(t, ok)
+	assert.Equal(t, uint64(123), v)
 
-	// Try to parse as float.
-	f, ok := AsFloat64(x)
-	if !ok {
-		return 0, false
-	}
-
-	return uint64(f), true
-}
-
-func AsFloat64(x interface{}) (float64, bool) {
-	s := fmt.Sprintf("%v", x)
-	result, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, false
-	}
-
-	return result, true
+	v, ok = AsUint64("1.04475e+06")
+	assert.True(t, ok)
+	assert.Equal(t, uint64(1044750), v)
 }
