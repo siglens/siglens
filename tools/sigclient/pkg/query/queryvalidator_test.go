@@ -703,6 +703,14 @@ func Test_dynamicFilter_setFrom(t *testing.T) {
 
 	df.setFrom(map[string]interface{}{"city": 123}) // No string values.
 	assert.Equal(t, `*`, fmt.Sprintf("%v", df))
+
+	df.setFrom(map[string]interface{}{"country": "Åland Islands"}) // Non-ASCII value.
+	assert.Equal(t, `*`, fmt.Sprintf("%v", df))
+
+	for i := 0; i < 10; i++ {
+		df.setFrom(map[string]interface{}{"city": "Boston", "country": "Åland Islands"})
+		assert.Equal(t, `city="Boston"`, fmt.Sprintf("%v", df)) // Only the ASCII value is valid.
+	}
 }
 
 func Test_dynamicFilter_query(t *testing.T) {
