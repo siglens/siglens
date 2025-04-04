@@ -579,6 +579,18 @@ $(document).ready(function () {
         const currentPath = window.location.pathname.split('/').pop();
         const currentUrl = currentPath + window.location.search;
 
+        // Handle infrastructure pages
+        if (currentPath === 'infrastructure.html' || currentPath === 'kubernetes-overview.html' ||
+            (currentPath === 'kubernetes-view.html' && window.location.search)) {
+            $('.nav-infrastructure').addClass('active');
+            $('.icon-infrastructure').addClass('active');
+
+            if (currentPath === 'kubernetes-overview.html' || currentPath === 'kubernetes-view.html') {
+                $('.nav-kubernetes').addClass('active');
+                $('.kubernetes-dropdown-toggle').addClass('active');
+            }
+        }
+
         dropdownConfigs.forEach(config => {
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
@@ -610,7 +622,6 @@ $(document).ready(function () {
             if (type) {
                 $(`.kubernetes-dropdown a[href*="type=${type}"]`).each(function() {
                     $(this).find('li').addClass('active');
-
                     $(this).closest('.nav-kubernetes').addClass('active');
                     $(this).closest('.nav-infrastructure').addClass('active');
                 });
