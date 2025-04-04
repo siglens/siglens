@@ -262,7 +262,7 @@ function searchTraceHandler(e) {
 
     let maxDurationValueStr = $('#max-duration-input').val();
     let minDurationValueStr = $('#min-duration-input').val();
-    
+
     // Convert min and max duration to nanoseconds
     let maxDurationValue = durationToNanoseconds(maxDurationValueStr);
     let minDurationValue = durationToNanoseconds(minDurationValueStr);
