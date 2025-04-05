@@ -1304,8 +1304,13 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.P
 	for i, record := range cValRecords {
 		recordsAsAny[i] = make(map[string]interface{})
 		for key, value := range record {
-			if !includeNulls && value.IsNull() {
-				continue
+			if !includeNulls {
+				if value.IsNull() {
+					continue
+				}
+				if strValue, ok := value.CVal.(string); ok && strValue == "" {
+					continue
+				}
 			}
 			recordsAsAny[i][key] = value.CVal
 		}
