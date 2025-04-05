@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -16,11 +16,15 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 let selectedLogSource = "";
+let selectedMetricsSource = "";
+let selectedTracesSource = "";
 let iToken = "";
+
 $(document).ready(async function () {
-    $('#data-ingestion,#test-data-btn').hide();
+    // Initial setup for logs ingestion
+    $('#data-ingestion').hide();
+    $('#sample-data').show();  // Show sample-data div by default
     $('.theme-btn').on('click', themePickerHandler);
     $(".custom-chart-tab").tabs();
     $(".custom-chart-tab").show();
@@ -40,18 +44,33 @@ $(document).ready(async function () {
         {{ if .TestDataSendData }}
             {{ .TestDataSendData }}
         {{ else }}
-            myOrgSendTestData(iToken);
+            myOrgSendTestData();
         {{ end }}
     } catch (err) {
         console.log(err);
     }
 
-    $('#custom-chart-tab').on('click', '.tab-li', function () {
-        selectedLogSource = $(this).text().trim();
-        $('.tab-li').removeClass("active");
-        $(this).addClass("active");
+    // Handle LOGS card clicks to navigate to details view
+    $('.ingestion-card.logs-card').on('click', function () {
+        selectedLogSource = $(this).data('source');
+        $('#logs-cards-view').hide();
+        $('#logs-ingestion-details').show();
 
-        var ingestCmd = ""
+        // Scroll to the top of the logs details section
+        $('html, body').animate({
+            scrollTop: $("#logs-ingestion-details").offset().top
+        }, 500);
+
+        // Show/hide appropriate sections based on the selected logs card
+        if (selectedLogSource === 'Send Test Data') {
+            $('#data-ingestion').hide();
+            $('#sample-data').show();
+        } else {
+            $('#data-ingestion').show();
+            $('#sample-data').hide();
+        }
+
+        var ingestCmd = "";
         {{ if .IngestDataCmd }}
             {{ .IngestDataCmd }}
         {{ end }}
@@ -63,22 +82,39 @@ $(document).ready(async function () {
             '{ "name" : "john", "age":"23" }\'';
         $('#verify-command').text(curlCommand);
 
+        // Update setup instructions based on selected logs source
         switch (selectedLogSource) {
+            case 'OpenTelemetry':
+                $('#platform-input').val(selectedLogSource);
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/open-telemetry');
+                break;
             case 'Vector':
+                $('#platform-input').val(selectedLogSource);
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/vector');
+                break;
             case 'Logstash':
+                $('#platform-input').val(selectedLogSource);
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/logstash');
+                break;
             case 'Fluentd':
+                $('#platform-input').val(selectedLogSource);
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/fluentd');
+                break;
             case 'Filebeat':
+                $('#platform-input').val(selectedLogSource);
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/filebeat');
+                break;
             case 'Promtail':
                 $('#platform-input').val(selectedLogSource);
-                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/' + selectedLogSource.toLowerCase());
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/promtail');
                 break;
             case 'Elastic Bulk':
                 $('#platform-input').val(selectedLogSource);
-                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
                 break;
             case 'Splunk HEC':
                 $('#platform-input').val(selectedLogSource);
-                $('#setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
+                $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
                 curlCommand = 'curl -X POST "' + baseUrl + '/services/collector/event" \\\n' +
                     '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
                     ingestCmd +
@@ -86,16 +122,96 @@ $(document).ready(async function () {
                 $('#verify-command').text(curlCommand);
                 break;
             case 'Send Test Data':
-                $('#test-data-btn').show();
+                // No setup instructions for Test Data
                 break;
             default:
                 break;
         }
     });
 
-    $('.custom-chart-tab ul li:first a').click();
+    // Handle back button to return to logs cards view
+    $('#back-to-logs-cards').on('click', function () {
+        $('#logs-ingestion-details').hide();
+        $('#logs-cards-view').show();
 
-    //Copy Handler
+        $('html, body').animate({
+            scrollTop: $("#logs-cards-view").offset().top
+        }, 500);
+    });
+
+    // Handle METRICS card clicks to navigate to details view
+    $('.ingestion-card.metrics-card').on('click', function () {
+        selectedMetricsSource = $(this).data('source');
+        $('#metrics-cards-view').hide();
+        $('#metrics-ingestion-details').show();
+
+        $('html, body').animate({
+            scrollTop: $("#metrics-ingestion-details").offset().top
+        }, 500);
+
+        switch (selectedMetricsSource) {
+            case 'VectorMetrics':
+                $('#metrics-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/vector-metrics');
+                break;
+            case 'Opentelemetry':
+                $('#metrics-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/open-telemetry');
+                break;
+            default:
+                break;
+        }
+    });
+
+    $('#back-to-metrics-cards').on('click', function () {
+        $('#metrics-ingestion-details').hide();
+        $('#metrics-cards-view').show();
+
+        $('html, body').animate({
+            scrollTop: $("#metrics-cards-view").offset().top
+        }, 500);
+    });
+
+    // Handle TRACES card clicks to navigate to details view
+    $('.ingestion-card.traces-card').on('click', function () {
+        selectedTracesSource = $(this).data('source');
+        $('#traces-cards-view').hide();
+        $('#traces-ingestion-details').show();
+
+        $('html, body').animate({
+            scrollTop: $("#traces-ingestion-details").offset().top
+        }, 500);
+
+        // Update setup instructions based on selected traces source
+        switch (selectedTracesSource) {
+            case 'Go App':
+                $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/go-app');
+                break;
+            case 'Java App':
+                $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/java-app');
+                break;
+            case 'Python App':
+                $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/python-app');
+                break;
+            case '.Net App':
+                $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/dotnet-app');
+                break;
+            case 'Javascript App':
+                $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/js-app');
+                break;
+            default:
+                break;
+        }
+    });
+
+    $('#back-to-traces-cards').on('click', function () {
+        $('#traces-ingestion-details').hide();
+        $('#traces-cards-view').show();
+
+        $('html, body').animate({
+            scrollTop: $("#traces-cards-view").offset().top
+        }, 500);
+    });
+
+    // Copy Handler (used by both logs and metrics)
     $('.copyable').each(function () {
         var copyIcon = $('<span class="copy-icon"></span>');
         $(this).after(copyIcon);
@@ -119,9 +235,16 @@ $(document).ready(async function () {
         }, 1000);
     });
 
-    {{ .Button1Function }}
-})
+    $('#test-data-btn').on('click', (_e) => {
+        if (selectedLogSource === 'Send Test Data') {
+            var testDataBtn = document.getElementById("test-data-btn");
+            testDataBtn.disabled = true;
+            sendTestData();
+        }
+    });
 
+    {{ .Button1Function }}
+});
 
 function sendTestData() {
     sendTestDataWithoutBearerToken().then((_res) => {
@@ -130,7 +253,7 @@ function sendTestData() {
         testDataBtn.disabled = false;
     })
         .catch((err) => {
-            console.log(err)
+            console.log(err);
             showToast('Error Sending Test Data', 'error');
             let testDataBtn = document.getElementById("test-data-btn");
             testDataBtn.disabled = false;
@@ -155,13 +278,11 @@ function sendTestDataWithoutBearerToken() {
     });
 }
 
-
-function myOrgSendTestData(_token) {
-    $('#test-data-btn').on('click', (_e) => {
-        if (selectedLogSource === 'Send Test Data') {
-            var testDataBtn = document.getElementById("test-data-btn");
-            testDataBtn.disabled = true;
-            sendTestData();
-        }
-    })
+function myOrgSendTestData() {
+    // Remove any existing click handlers to prevent duplicates
+    $('#test-data-btn').off('click').on('click', () => {
+        const testDataBtn = document.getElementById("test-data-btn");
+        testDataBtn.disabled = true;
+        sendTestData();
+    });
 }
