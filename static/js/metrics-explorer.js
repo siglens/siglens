@@ -2269,17 +2269,15 @@ function mergeGraphs(chartType, panelId = -1) {
         currentPanel.queryData = data;
         const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
         const bigNumContainer = panelId === -1 ? $(`.panelDisplay .big-number-display-container`) : $(`#panel${panelId} .big-number-display-container`);
-        // Hide conflicting elements
         panelChartEl.hide();
 
         setTimeout(async () => {
             let bigNumVal = null;
             let dataType = currentPanel.dataType;
 
-            // Fetch and process data directly, mimicking runMetricsQuery
             if (currentPanel.queryData && currentPanel.queryData.queriesData && currentPanel.queryData.queriesData.length) {
                 const queryData = currentPanel.queryData.queriesData[0];
-                const rawTimeSeriesData = await fetchTimeSeriesData(queryData); // Fetch fresh data
+                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
                 if (rawTimeSeriesData && rawTimeSeriesData.values) {
                     $.each(rawTimeSeriesData.values, function (_index, valueArray) {
                         $.each(valueArray, function (_index, value) {
@@ -2294,13 +2292,13 @@ function mergeGraphs(chartType, panelId = -1) {
             if (bigNumVal === null || bigNumVal === undefined) {
                 panelProcessEmptyQueryResults('', panelId);
             } else {
-                bigNumContainer.empty(); // Clear for new valid data
+                bigNumContainer.empty();
                 displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
             }
-            bigNumContainer.show(); // Ensure it’s visible
+            bigNumContainer.show();
         }, 0);
 
-        return; // Exit early to avoid chart rendering for number type
+        return;
     }
 
     if (isDashboardScreen) {
