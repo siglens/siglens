@@ -2262,6 +2262,45 @@ function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     var colorIndex = 0;
     var mergedCanvas, legendContainer;
+
+    // Handle number chart type in dashboard mode
+    if (isDashboardScreen && currentPanel?.chartType === 'number') {
+        // Cache DOM selectors
+        const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
+        const bigNumContainer = panelId === -1 ? $(`.panelDisplay .big-number-display-container`) : $(`#panel${panelId} .big-number-display-container`);
+
+        // Early return if no data
+        if (!chartDataCollection || Object.keys(chartDataCollection).length === 0) {
+            bigNumContainer.empty().show().append('<div class="big-number">No data</div>');
+            panelChartEl.hide();
+            return;
+        }
+
+        // Get latest value efficiently
+        const queryName = Object.keys(chartDataCollection)[0];
+        const dataset = chartDataCollection[queryName]?.datasets?.[0];
+        if (!dataset || !dataset.data || Object.keys(dataset.data).length === 0) {
+            bigNumContainer.empty().show().append('<div class="big-number">No data</div>');
+            panelChartEl.hide();
+            return;
+        }
+
+        // Get latest value using more efficient method
+        const timestamps = Object.keys(dataset.data);
+        const latestTimestamp = timestamps[timestamps.length - 1];
+        const latestValue = dataset.data[latestTimestamp];
+
+        // Update display only if value changed
+        const currentValue = bigNumContainer.data('current-value');
+        if (currentValue !== latestValue) {
+            panelChartEl.hide();
+            bigNumContainer.show().empty();
+            bigNumContainer.data('current-value', latestValue);
+            displayBigNumber(latestValue.toString(), panelId, currentPanel.dataType, currentPanel.panelIndex);
+        }
+        return;
+    }
+
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
@@ -3606,7 +3645,7 @@ document.addEventListener('DOMContentLoaded', resizeAllTextareas);
 
 function setupRawQueryKeyboardHandlers() {
     $(document).off('keydown.rawQuerySearch', '.raw-query-input');
-    
+
     $(document).on('keydown.rawQuerySearch', '.raw-query-input', function(event) {
         // Check if Enter key is pressed
         if (event.key === 'Enter') {
@@ -3618,11 +3657,11 @@ function setupRawQueryKeyboardHandlers() {
                 return true;
             } else {
                 event.preventDefault();
-                
+
                 // Run Query
                 const runButton = $(this).closest('.raw-query').find('#run-filter-btn');
                 runButton.click();
-                
+
                 return false;
             }
         }
