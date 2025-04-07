@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
-    
+
 <head>
     <title>Saved Queries</title>
 
@@ -87,7 +87,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
         </div>
         <div id="app-footer">
-            2024 &copy; SigLens
         </div>
     </div>
 
@@ -96,7 +95,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/saved-query.js?cb={{ AppVersion }}"></script>
     <script src="./js/saved-queries.js?cb={{ AppVersion }}"></script>
     <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
-    
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
+
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>
