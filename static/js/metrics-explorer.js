@@ -2290,7 +2290,7 @@ function mergeGraphs(chartType, panelId = -1) {
             }
 
             if (bigNumVal === null || bigNumVal === undefined) {
-                panelProcessEmptyQueryResults('', panelId);
+                processEmptyQueryResults('', panelId);
             } else {
                 bigNumContainer.empty();
                 displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
@@ -3666,4 +3666,11 @@ function setupRawQueryKeyboardHandlers() {
             }
         }
     });
+}
+
+function processEmptyQueryResults(message, panelId) {
+    const panel = $(`#panel-${panelId}`);
+    const bigNumContainer = panel.find('.big-number-container');
+    bigNumContainer.empty();
+    bigNumContainer.append(`<div class="no-data-message">${message || 'No data available'}</div>`);
 }

@@ -379,121 +379,99 @@ function findSmallestGreaterOne(number) {
 }
 
 //eslint-disable-next-line no-unused-vars
+//eslint-disable-next-line no-unused-vars
 function displayBigNumber(value, panelId, dataType, panelIndex) {
-    // Cache DOM selectors
-    const container = panelId === -1 ? $('.panelDisplay') : $(`#panel${panelId}`);
-    const panelChartEl = container.find('.panEdit-panel');
-    const bigNumContainer = container.find('.big-number-display-container');
-
-    // Setup display
-    panelChartEl.hide();
-    bigNumContainer.show();
-
-    // Early return for invalid values
-    if (!value || value === 'undefined' || value === 'null') {
-        bigNumContainer.html('<div class="big-number">NA</div>');
-        return;
+    if (panelId === -1) {
+        $('.panelDisplay .panEdit-panel').hide();
+        $(`.panelDisplay .big-number-display-container`).show();
+        $(`.panelDisplay .big-number-display-container`).empty();
+    } else {
+        $(`#panel${panelId} .panEdit-panel`).hide();
+        $(`#panel${panelId} .big-number-display-container`).show();
+        $(`#panel${panelId} .big-number-display-container`).empty();
     }
 
-    try {
-        let displayValue = value;
-        let unit = '';
+    let panelChartEl;
 
-        if (dataType && dataType !== '') {
-            const number = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : parseFloat(value);
-            if (isNaN(number)) {
-                bigNumContainer.html('<div class="big-number">NA</div>');
-                return;
-            }
+    if (panelId == -1) {
+        panelChartEl = $('.panelDisplay .big-number-display-container');
+    } else {
+        panelChartEl = $(`#panel${panelId} .big-number-display-container`);
+        $(`#panel${panelId} .panEdit-panel`).hide();
+        panelChartEl = $(`#panel${panelId} .big-number-display-container`);
+        panelChartEl.css('width', '100%').css('height', '100%');
+    }
 
-            const dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
-            if (!dataTypeAbbrev) {
-                displayValue = number;
+    if (!value) {
+        panelChartEl.append(`<div class="big-number">NA</div> `);
+    } else {
+        if (dataType != null && dataType != undefined && dataType != '') {
+            var bigNum = [];
+            let dataTypeAbbrev = mapIndexToAbbrev.get(dataType);
+            let number = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : parseFloat(value);
+            let dataTypeAbbrevCap = dataTypeAbbrev.substring(0, 2).toUpperCase();
+            if (['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].includes(dataTypeAbbrevCap)) {
+                dataTypeAbbrev = dataTypeAbbrev.substring(1);
+                if (dataTypeAbbrevCap === 'KB') {
+                    number = number * 1000;
+                } else if (dataTypeAbbrevCap === 'MB') {
+                    number = number * 1e6;
+                } else if (dataTypeAbbrevCap === 'GB') {
+                    number = number * 1e9;
+                } else if (dataTypeAbbrevCap === 'TB') {
+                    number = number * 1e12;
+                } else if (dataTypeAbbrevCap === 'PB') {
+                    number = number * 1e15;
+                } else if (dataTypeAbbrevCap === 'EB') {
+                    number *= 1e18;
+                } else if (dataTypeAbbrevCap === 'ZB') {
+                    number *= 1e21;
+                } else if (dataTypeAbbrevCap === 'YB') {
+                    number *= 1e24;
+                }
+                bigNum = addSuffix(number);
+            } else if (['ns', 'µs', 'ms', 'd', 'm', 's', 'h'].includes(dataTypeAbbrev)) {
+                if (dataTypeAbbrev === 'ns') {
+                    number = number / 1e9;
+                } else if (dataTypeAbbrev === 'µs') {
+                    number = number / 1e6;
+                } else if (dataTypeAbbrev === 'ms') {
+                    number = number / 1e3;
+                } else if (dataTypeAbbrev === 'd') {
+                    number = number * 24 * 60 * 60;
+                } else if (dataTypeAbbrev === 'm') {
+                    number = number * 60;
+                } else if (dataTypeAbbrev === 'h') {
+                    number = number * 3600;
+                }
+                dataTypeAbbrev = '';
+                bigNum = findSmallestGreaterOne(number);
+            } else if (dataTypeAbbrev === '' || dataTypeAbbrev === '%') {
+                bigNum[1] = '';
+                bigNum[0] = number;
             } else {
-                const result = formatValueWithUnit(number, dataTypeAbbrev);
-                displayValue = result.value;
-                unit = result.unit;
+                bigNum = addSuffix(number);
             }
+            panelChartEl.append(`<div class="big-number">${bigNum[0]} </div> <div class="unit">${bigNum[1] + dataTypeAbbrev} </div> `);
+        } else {
+            panelChartEl.append(`<div class="big-number">${value} </div> `);
         }
+    }
 
-        // Use template literal for better performance
-        bigNumContainer.html(`<div class="big-number">${displayValue}</div>${unit ? `<div class="unit">${unit}</div>` : ''}`);
-
-        // Adjust font size based on container width
-        const parentWidth = container.width();
-        const numWidth = bigNumContainer.width();
-
+    if (panelId === -1) {
+        let parentWidth = $('.panelDisplay').width();
+        let numWidth = $('.panelDisplay .big-number-display-container').width();
         if (numWidth > parentWidth) {
-            const ratio = parentWidth / numWidth;
-            const newFontSize = Math.max(Math.floor(6 * ratio), 2); // Minimum 2em
-            container.find('.big-number').css('font-size', `${newFontSize}em`);
-            container.find('.unit').css('font-size', `${Math.max(newFontSize * 0.8, 1.5)}em`);
+            $('.big-number').css('font-size', '5.5em');
+            $('.unit').css('font-size', '55px');
         }
-
-    } catch (error) {
-        console.error('Error displaying big number:', error);
-        bigNumContainer.html('<div class="big-number">Error</div>');
     }
-}
-
-// Helper function to format value with unit
-function formatValueWithUnit(number, dataTypeAbbrev) {
-    const dataTypeAbbrevCap = dataTypeAbbrev.substring(0, 2).toUpperCase();
-
-    // Handle byte sizes
-    if (['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'].includes(dataTypeAbbrevCap)) {
-        const byteMultipliers = {
-            'KB': 1000,
-            'MB': 1e6,
-            'GB': 1e9,
-            'TB': 1e12,
-            'PB': 1e15,
-            'EB': 1e18,
-            'ZB': 1e21,
-            'YB': 1e24
-        };
-        number *= byteMultipliers[dataTypeAbbrevCap] || 1;
-        const result = addSuffix(number);
-        return {
-            value: result[0],
-            unit: result[1] + dataTypeAbbrev.substring(1)
-        };
+    if (panelId !== -1) {
+        var newSize = $('#' + panelId).width() / 8;
+        $('#' + panelId)
+            .find('.big-number, .unit')
+            .css('font-size', newSize + 'px');
     }
-
-    // Handle time units
-    const timeMultipliers = {
-        'ns': 1e-9,
-        'µs': 1e-6,
-        'ms': 1e-3,
-        's': 1,
-        'm': 60,
-        'h': 3600,
-        'd': 86400
-    };
-
-    if (timeMultipliers.hasOwnProperty(dataTypeAbbrev)) {
-        number *= timeMultipliers[dataTypeAbbrev];
-        const result = findSmallestGreaterOne(number);
-        return {
-            value: result[0],
-            unit: result[1]
-        };
-    }
-
-    // Handle percentages and other units
-    if (dataTypeAbbrev === '%') {
-        return {
-            value: number,
-            unit: '%'
-        };
-    }
-
-    // Default case
-    const result = addSuffix(number);
-    return {
-        value: result[0],
-        unit: result[1] + dataTypeAbbrev
-    };
 }
 
 //eslint-disable-next-line no-unused-vars
