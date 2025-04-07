@@ -2265,40 +2265,42 @@ function mergeGraphs(chartType, panelId = -1) {
 
     // Handle number chart type in dashboard mode
     if (isDashboardScreen && currentPanel?.chartType === 'number') {
-        // Cache DOM selectors
+        const data = getMetricsQData();
+        currentPanel.queryData = data;
         const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
         const bigNumContainer = panelId === -1 ? $(`.panelDisplay .big-number-display-container`) : $(`#panel${panelId} .big-number-display-container`);
+        // Hide conflicting elements
+        panelChartEl.hide();
 
-        // Early return if no data
-        if (!chartDataCollection || Object.keys(chartDataCollection).length === 0) {
-            bigNumContainer.empty().show().append('<div class="big-number">No data</div>');
-            panelChartEl.hide();
-            return;
-        }
+        setTimeout(async () => {
+            let bigNumVal = null;
+            let dataType = currentPanel.dataType;
 
-        // Get latest value efficiently
-        const queryName = Object.keys(chartDataCollection)[0];
-        const dataset = chartDataCollection[queryName]?.datasets?.[0];
-        if (!dataset || !dataset.data || Object.keys(dataset.data).length === 0) {
-            bigNumContainer.empty().show().append('<div class="big-number">No data</div>');
-            panelChartEl.hide();
-            return;
-        }
+            // Fetch and process data directly, mimicking runMetricsQuery
+            if (currentPanel.queryData && currentPanel.queryData.queriesData && currentPanel.queryData.queriesData.length) {
+                const queryData = currentPanel.queryData.queriesData[0];
+                const rawTimeSeriesData = await fetchTimeSeriesData(queryData); // Fetch fresh data
+                if (rawTimeSeriesData && rawTimeSeriesData.values) {
+                    $.each(rawTimeSeriesData.values, function (_index, valueArray) {
+                        $.each(valueArray, function (_index, value) {
+                            if (value > bigNumVal || bigNumVal === null) {
+                                bigNumVal = value;
+                            }
+                        });
+                    });
+                }
+            }
 
-        // Get latest value using more efficient method
-        const timestamps = Object.keys(dataset.data);
-        const latestTimestamp = timestamps[timestamps.length - 1];
-        const latestValue = dataset.data[latestTimestamp];
+            if (bigNumVal === null || bigNumVal === undefined) {
+                panelProcessEmptyQueryResults('', panelId);
+            } else {
+                bigNumContainer.empty(); // Clear for new valid data
+                displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
+            }
+            bigNumContainer.show(); // Ensure it’s visible
+        }, 0);
 
-        // Update display only if value changed
-        const currentValue = bigNumContainer.data('current-value');
-        if (currentValue !== latestValue) {
-            panelChartEl.hide();
-            bigNumContainer.show().empty();
-            bigNumContainer.data('current-value', latestValue);
-            displayBigNumber(latestValue.toString(), panelId, currentPanel.dataType, currentPanel.panelIndex);
-        }
-        return;
+        return; // Exit early to avoid chart rendering for number type
     }
 
     if (isDashboardScreen) {
