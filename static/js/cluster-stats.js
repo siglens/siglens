@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let EventCountChart;
 let TotalVolumeChartLogs;
 let TotalVolumeChartMetrics;
 let TotalVolumeChartTraces;
@@ -55,293 +54,7 @@ function getTimeRange() {
 }
 
 function renderChart() {
-    let data = getTimeRange();
-
-    $.ajax({
-        method: 'post',
-        url: 'api/clusterIngestStats',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data),
-    })
-        .then((res) => {
-            $('#app-content-area').show();
-            return Promise.all([drawStatsChart(res, data, 'logs'), drawStatsChart(res, data, 'metrics'), drawStatsChart(res, data, 'trace')]);
-        })
-        .catch(showCStatsError);
-}
-
-function drawStatsChart(res, data, chartType) {
-    return new Promise((resolve) => {
-        let gridLineColor;
-        let tickColor;
-        if ($('html').attr('data-theme') == 'light') {
-            gridLineColor = '#DCDBDF';
-            tickColor = '#160F29';
-        } else {
-            gridLineColor = '#383148';
-            tickColor = '#FFFFFF';
-        }
-        var BytesCountData = [];
-        var EventCountData = [];
-        _.forEach(res, (mvalue, key) => {
-            if (key === 'chartStats') {
-                _.forEach(mvalue, (val, bucketKey) => {
-                    if (chartType === 'logs') {
-                        BytesCountData.push({
-                            x: bucketKey,
-                            y: val.LogsBytesCount,
-                        }),
-                            EventCountData.push({
-                                x: bucketKey,
-                                y: val.LogsEventCount,
-                            });
-                    } else if (chartType === 'metrics') {
-                        BytesCountData.push({
-                            x: bucketKey,
-                            y: val.MetricsBytesCount,
-                        }),
-                            EventCountData.push({
-                                x: bucketKey,
-                                y: val.MetricsDatapointsCount,
-                            });
-                    } else if (chartType === 'trace') {
-                        BytesCountData.push({
-                            x: bucketKey,
-                            y: val.TraceBytesCount,
-                        }),
-                            EventCountData.push({
-                                x: bucketKey,
-                                y: val.TraceSpanCount,
-                            });
-                    }
-                });
-                // Destroy only the relevant charts to prevent overwriting
-                if (window[chartType + 'BytesCountChart'] !== undefined) {
-                    window[chartType + 'BytesCountChart'].destroy();
-                }
-                if (window[chartType + 'EventCountChart'] !== undefined) {
-                    window[chartType + 'EventCountChart'].destroy();
-                }
-
-                // Create charts and store in a global variable scoped by chart type
-                window[chartType + 'BytesCountChart'] = renderBytesCountChart(BytesCountData, gridLineColor, tickColor, chartType);
-                window[chartType + 'EventCountChart'] = renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType);
-            }
-        });
-        resolve();
-    });
-}
-
-function renderBytesCountChart(BytesCountData, gridLineColor, tickColor, chartType) {
-    var canvas = $('#bytesCountChart-' + chartType)
-        .get(0)
-        .getContext('2d');
-    
-    const scale = determineUnit(BytesCountData);
-    
-    const scaledData = BytesCountData.map(point => ({
-        x: point.x,
-        y: point.y / scale.divisor
-    }));
-
-    var chart = new Chart(canvas, {
-        type: 'line',
-        data: {
-            datasets: [
-                {
-                    label: 'Ingestion Volume',
-                    data: scaledData,
-                    borderColor: ['rgb(99,71,217)'],
-                    yAxisID: 'y',
-                    pointStyle: 'circle',
-                    pointRadius: 4,
-                    borderWidth: 2,
-                    pointBorderColor: ['rgb(99,71,217)'],
-                    fill: false,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            let label = context.dataset.label || '';
-                            if (context.parsed.y !== null) {
-                                let value = context.parsed.y;
-                                if (value >= 10) {
-                                    value = Number(value.toFixed()).toLocaleString('en-us');
-                                    label += ' ' + value + ' ' + scale.unit;
-                                } else {
-                                    label += ' ' + value.toFixed(3) + ' ' + scale.unit;
-                                }
-                            }
-                            return label;
-                        },
-                    },
-                },
-                legend: {
-                    display: false,
-                },
-            },
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function (value, _index, _ticks) {
-                            return value + ' ' + scale.unit;
-                        },
-                        color: tickColor,
-                    },
-                    beginAtZero: true,
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'Ingestion Volume',
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-                x: {
-                    ticks: {
-                        callback: function (val, _index, _ticks) {
-                            let value = this.getLabelForValue(val);
-                            if (value && value.indexOf('T') > -1) {
-                                let parts = value.split('T');
-                                let xVal = 'T' + parts[1];
-                                return xVal;
-                            } else {
-                                if (value) {
-                                    let parts = value.split('-');
-                                    let xVal = parts[1] + '-' + parts[2];
-                                    return xVal;
-                                }
-                            }
-                        },
-                        color: tickColor,
-                    },
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Time Period',
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-            },
-        },
-    });
-    return chart;
-}
-
-function renderEventCountChart(EventCountData, gridLineColor, tickColor, chartType) {
-    var EventCountCanvas = $('#EventCountChart-' + chartType)
-        .get(0)
-        .getContext('2d');
-
-    EventCountChart = new Chart(EventCountCanvas, {
-        type: 'line',
-        data: {
-            datasets: [
-                {
-                    label: chartType === 'metrics' ? 'Metrics datapoints count' : chartType === 'logs' ? 'Event Count' : 'Span Count',
-                    data: EventCountData,
-                    borderColor: ['rgb(99,71,217)'],
-                    yAxisID: 'y',
-                    pointStyle: 'circle',
-                    pointRadius: 4,
-                    borderWidth: 2,
-                    pointBorderColor: ['rgb(99,71,217)'],
-                    fill: false,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            let label = context.dataset.label || '';
-                            if (context.parsed.y !== null) {
-                                label += ' ' + parseInt(context.parsed.y).toLocaleString();
-                            }
-                            return label;
-                        },
-                    },
-                },
-                legend: {
-                    display: false,
-                },
-            },
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function (value, _index, _ticks) {
-                            return parseInt(value).toLocaleString();
-                        },
-                        color: tickColor,
-                    },
-                    beginAtZero: true,
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: chartType === 'metrics' ? 'Metrics datapoints count' : chartType === 'logs' ? 'Event Count' : 'Span Count',
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-                x: {
-                    ticks: {
-                        callback: function (val, _index, _ticks) {
-                            let value = this.getLabelForValue(val);
-                            if (value && value.indexOf('T') > -1) {
-                                let parts = value.split('T');
-                                let xVal = 'T' + parts[1];
-                                return xVal;
-                            } else {
-                                if (value) {
-                                    let parts = value.split('-');
-                                    let xVal = parts[1] + '-' + parts[2];
-                                    return xVal;
-                                }
-                            }
-                        },
-                        color: tickColor,
-                    },
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Time Period',
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-            },
-        },
-    });
-    return EventCountChart;
+    $('#app-content-area').show();
 }
 
 function drawTotalStatsChart(res) {
@@ -737,7 +450,7 @@ function processClusterStats(res) {
         if (e) e.stopPropagation();
         // Disable the delete button and show loading spinner
         $('#del-index-btn').attr('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
-        
+
         $.ajax({
             method: 'post',
             url: 'api/deleteIndex/' + indexName,
@@ -781,9 +494,9 @@ function processClusterStats(res) {
         $('#total-csg-size').text(indexData["csgSize"]);
         $('#num-index-files').text(indexData["numIndexFiles"]);
         $('#num-blocks').text(indexData["numBlocks"]);
-    
+
         $('.popupOverlay, #index-summary-prompt').addClass('active');
-    
+
         $('#index-summary-prompt .close-btn, #close-popup').off('click').on('click', function() {
             $('.popupOverlay, #index-summary-prompt').removeClass('active');
         });

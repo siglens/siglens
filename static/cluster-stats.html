@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -116,18 +116,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             </div>
                     </div>
                     <p class="index-stats-header">Logs Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Logs Event Count</div>
-                                <canvas id="EventCountChart-logs"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Logs Volume</div>
-                                <canvas id="bytesCountChart-logs"></canvas>
-                            </div>
-                        </div>
-                    </div>
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="index-data-table" class="index-data-table"></table>
@@ -181,19 +169,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <hr>
                     <p class="index-stats-header">Metrics Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Metrics Datapoints Count</div>
-                                <canvas id="EventCountChart-metrics"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Metrics Volume</div>
-                                <canvas id="bytesCountChart-metrics"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="metrics-data-table" class="index-data-table"></table>
@@ -212,19 +187,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <hr>
                     <p class="index-stats-header">Traces Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Trace Span Count</div>
-                                <canvas id="EventCountChart-trace"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Trace Volume</div>
-                                <canvas id="bytesCountChart-trace"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="trace-data-table" class="index-data-table"></table>
@@ -256,7 +218,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
-    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>    
+    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
