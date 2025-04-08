@@ -40,6 +40,17 @@ test('Navigation Menu Part 2', async ({ page }) => {
         await expect(page.locator('.nav-metrics')).toHaveClass(/active/, { timeout: 15000 });
     }
 
+    // Test org pages
+    const orgPages = ['cluster-stats.html', 'org-settings.html', 'application-version.html', 'pqs-settings.html'];
+    for (const url of orgPages) {
+        await page.goto(`http://localhost:5122/${url}`, {
+            waitUntil: 'domcontentloaded',
+            timeout: 45000
+        });
+        await page.waitForTimeout(1000);
+        await expect(page.locator('.nav-myorg')).toHaveClass(/active/, { timeout: 15000 });
+    }
+
     // Test Infrastructure pages
     const infrastructurePages = [
         'infrastructure.html',
@@ -59,17 +70,6 @@ test('Navigation Menu Part 2', async ({ page }) => {
         await page.waitForTimeout(1000);
         await expect(page.locator('.nav-infrastructure')).toHaveClass(/active/, { timeout: 15000 });
 
-    }
-
-    // Test org pages
-    const orgPages = ['cluster-stats.html', 'org-settings.html', 'application-version.html', 'pqs-settings.html'];
-    for (const url of orgPages) {
-        await page.goto(`http://localhost:5122/${url}`, {
-            waitUntil: 'domcontentloaded',
-            timeout: 45000
-        });
-        await page.waitForTimeout(1000);
-        await expect(page.locator('.nav-myorg')).toHaveClass(/active/, { timeout: 15000 });
     }
 
     // Theme button
