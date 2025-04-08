@@ -379,7 +379,6 @@ function findSmallestGreaterOne(number) {
 }
 
 //eslint-disable-next-line no-unused-vars
-//eslint-disable-next-line no-unused-vars
 function displayBigNumber(value, panelId, dataType, panelIndex) {
     if (panelId === -1) {
         $('.panelDisplay .panEdit-panel').hide();
