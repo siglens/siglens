@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -46,7 +46,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
-    
+
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -70,54 +70,89 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
         <div class="myOrg">
             <div class="myOrg-container">
-                    <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
-                        <ul class="tab-chart-list">
-                            <li class="tab-li" id="option-1"><a href="#vector-metrics-ingestion" class="custom-query-builder">Vector Metrics</a>
-                            </li>
-                            <li class="tab-li" id="option-2"><a href="#telemetry-ingestion" class="custom-query-builder">OpenTelemetry</a>
-                            </li>
-                        </ul>
-                    
-                        <div class="ingest-inner-container">
-                            <div>
-                                <div id="vector-metrics-ingestion">
-                            
-                                <div class="mt-4">
-                                    <div class="d-flex mt-4">
-                                        <h5 class="myOrg-heading">Setup instructions</h5>
-                                        <div class="ingestion-container">
-                                            <div>Follow the steps in <a href="https://www.siglens.com/siglens-docs/metric-ingestion/vector-metrics" id="setup-instructions-link" target="_blank">Quick start
-                                                    guide<span id="open-new-tab-icon"></span></a></div>
-                                        </div>
+                    <!-- Cards view for metric ingestion methods -->
+                    <div id="metrics-cards-view">
+                        <div class="ingestion-cards-container">
+                            <div class="ingestion-card metrics-card" data-source="VectorMetrics">
+                                <div class="card-header">
+                                    <div class="cards-svg-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 512 512" width="29" height="29">
+                                            <linearGradient id="a" x1="36.924" x2="475.076" y1="802.588" y2="549.62" gradientTransform="translate(0 -420.104)" gradientUnits="userSpaceOnUse">
+                                                <stop offset="0" style="stop-color:#10e7ff"/>
+                                                <stop offset=".103" style="stop-color:#33d5ff"/>
+                                                <stop offset=".255" style="stop-color:#60bdff"/>
+                                                <stop offset=".408" style="stop-color:#86aaff"/>
+                                                <stop offset=".56" style="stop-color:#a39aff"/>
+                                                <stop offset=".71" style="stop-color:#b790ff"/>
+                                                <stop offset=".858" style="stop-color:#c489ff"/>
+                                                <stop offset="1" style="stop-color:#c887ff"/>
+                                            </linearGradient>
+                                            <path d="M256 512 37.8 384V128L256 0l218.2 128v256zM68.3 366l187.3 110 187.3-110V146L256 36.1 68.3 146z" style="fill:url(#a)"/>
+                                            <linearGradient id="b" x1="172.52" x2="389.841" y1="714.582" y2="589.111" gradientTransform="translate(0 -420.104)" gradientUnits="userSpaceOnUse">
+                                                <stop offset="0" style="stop-color:#10e7ff"/>
+                                                <stop offset=".103" style="stop-color:#33d5ff"/>
+                                                <stop offset=".255" style="stop-color:#60bdff"/>
+                                                <stop offset=".408" style="stop-color:#86aaff"/>
+                                                <stop offset=".56" style="stop-color:#a39aff"/>
+                                                <stop offset=".71" style="stop-color:#b790ff"/>
+                                                <stop offset=".858" style="stop-color:#c489ff"/>
+                                                <stop offset="1" style="stop-color:#c887ff"/>
+                                            </linearGradient>
+                                            <path d="m350.1 186.4-76.5 134.4 24.9 43.8 101.4-178.3c0 .1-49.8.1-49.8.1m-85.5 0-76.5 134.4 24.9 43.8 101.4-178.3c0 .1-49.8.1-49.8.1m-152.5 0 101.4 178.3 24.9-43.8-76.5-134.4c0-.1-49.8-.1-49.8-.1m0 0 101.4 178.3 24.9-43.8-76.5-134.4c0-.1-49.8-.1-49.8-.1m152.5 0-76.5 134.4 24.9 43.8 101.4-178.3c0 .1-49.8.1-49.8.1" style="fill:url(#b)"/>
+                                        </svg>
                                     </div>
+                                    <h3>Vector Metrics</h3>
                                 </div>
-                            </div>                        
-                            <div id="telemetry-ingestion">
-                            
+                                <div class="card-description">
+                                </div>
+                            </div>
+                            <div class="ingestion-card metrics-card" data-source="Opentelemetry">
+                                <div class="card-header">
+                                    <div class="cards-svg-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="29" height="29">
+                                            <path fill="#f5a800" d="M67.648 69.797c-5.246 5.25-5.246 13.758 0 19.008 5.25 5.246 13.758 5.246 19.004 0 5.25-5.25 5.25-13.758 0-19.008-5.246-5.246-13.754-5.246-19.004 0Zm14.207 14.219a6.649 6.649 0 0 1-9.41 0 6.65 6.65 0 0 1 0-9.407 6.649 6.649 0 0 1 9.41 0c2.598 2.586 2.598 6.809 0 9.407ZM86.43 3.672l-8.235 8.234a4.17 4.17 0 0 0 0 5.875l32.149 32.149a4.17 4.17 0 0 0 5.875 0l8.234-8.235c1.61-1.61 1.61-4.261 0-5.87L92.29 3.671a4.159 4.159 0 0 0-5.86 0ZM28.738 108.895a3.763 3.763 0 0 0 0-5.31l-4.183-4.187a3.768 3.768 0 0 0-5.313 0l-8.644 8.649-.016.012-2.371-2.375c-1.313-1.313-3.45-1.313-4.75 0-1.313 1.312-1.313 3.449 0 4.75l14.246 14.242a3.353 3.353 0 0 0 4.746 0c1.3-1.313 1.313-3.45 0-4.746l-2.375-2.375.016-.012Zm0 0"/>
+                                            <path fill="#425cc7" d="M72.297 27.313 54.004 45.605c-1.625 1.625-1.625 4.301 0 5.926L65.3 62.824c7.984-5.746 19.18-5.035 26.363 2.153l9.148-9.149c1.622-1.625 1.622-4.297 0-5.922L78.22 27.313a4.185 4.185 0 0 0-5.922 0ZM60.55 67.585l-6.672-6.672c-1.563-1.562-4.125-1.562-5.684 0l-23.53 23.54a4.036 4.036 0 0 0 0 5.687l13.331 13.332a4.036 4.036 0 0 0 5.688 0l15.132-15.157c-3.199-6.609-2.625-14.593 1.735-20.73Zm0 0"/>
+                                        </svg>
+                                    </div>
+                                    <h3>Open Telemetry</h3>
+                                </div>
+                                <div class="card-description">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details view for metric ingestion -->
+                    <div class="ingest-inner-container" id="metrics-ingestion-details" style="display: none;">
+                        <div class="ingestion-content">
+
+                            <!-- Details section -->
+                            <div id="metrics-data-ingestion">
+
                                 <div class="mt-4">
                                     <div class="d-flex mt-4">
                                         <h5 class="myOrg-heading">Setup instructions</h5>
                                         <div class="ingestion-container">
-                                            <div>Follow the steps in <a href="https://www.siglens.com/siglens-docs/metric-ingestion/open-telemetry" id="setup-instructions-link" target="_blank">Quick start
-                                                    guide<span id="open-new-tab-icon"></span></a></div>
+                                            <div>Follow the steps in <a href="" id="metrics-setup-instructions-link" target="_blank">Quick start guide<span id="open-new-tab-icon"></span></a></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                        </div>
                     </div>
-                </div>                  
             </div>
         </div>
 
     <div id="app-footer">
-        2024 &copy; SigLens
     </div>
     </div>
     <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
-    <script src="./js/test-data.js?cb={{ AppVersion }}"></script>    
-    
+    <script src="./js/test-data.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
+
+
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

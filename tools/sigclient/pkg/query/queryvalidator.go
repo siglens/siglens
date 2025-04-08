@@ -143,6 +143,11 @@ func (df *dynamicFilter) setFrom(log map[string]interface{}) {
 	for key, value := range log {
 		switch v := value.(type) {
 		case string:
+			if !utils.IsAscii(v) {
+				// TODO: remove this once we support searching for non-ascii.
+				continue
+			}
+
 			df.filter = &kvFilter{
 				key:   key,
 				value: stringOrRegex{isRegex: false, rawString: v},

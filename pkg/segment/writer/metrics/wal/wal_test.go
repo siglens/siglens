@@ -1,6 +1,7 @@
 package wal
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,7 +15,7 @@ func TestWALAppendAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(filePath)
+	wal, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -50,7 +51,7 @@ func TestDeleteWALFile(t *testing.T) {
 	dir := t.TempDir()
 	filename := "testwal.wal"
 	filePath := filepath.Join(dir, filename)
-	wal, err := NewWAL(filePath)
+	wal, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	_, err = os.Stat(filePath)
 	assert.False(t, os.IsNotExist(err))
@@ -70,7 +71,7 @@ func TestWALStats(t *testing.T) {
 
 	filePath := filepath.Join(dir, filename)
 
-	w, err := NewWAL(filePath)
+	w, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	defer w.Close()
 
@@ -103,7 +104,7 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(filePath)
+	wal, err := NewDataPointWal(filePath)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -158,4 +159,51 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	for i := 0; i < len(expectedDatapoints); i++ {
 		assert.Equal(t, expectedDatapoints[i], totalReadDatapoints[i])
 	}
+}
+
+func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
+	filename := "testwal.wal"
+	dirPath := t.TempDir()
+	filePath := filepath.Join(dirPath, filename)
+
+	wal, err := NewMNameWal(filePath)
+	assert.NoError(t, err)
+
+	totalAppends := 5
+	metricsPerAppend := 50000
+	expectedMetrics := []string{}
+
+	for i := 0; i < totalAppends; i++ {
+		metrics := generateMetricNames(metricsPerAppend)
+		expectedMetrics = append(expectedMetrics, metrics...)
+		err = wal.Append(metrics)
+		assert.NoError(t, err)
+	}
+
+	assert.NoError(t, wal.fd.Close())
+
+	reader, err := NewMNameWalReader(filePath)
+	assert.NoError(t, err)
+
+	readMetrics := []string{}
+	for {
+		metric, err := reader.Next()
+		if err != nil {
+			break
+		}
+		if metric == nil {
+			break
+		}
+		readMetrics = append(readMetrics, *metric)
+	}
+
+	assert.ElementsMatch(t, expectedMetrics, readMetrics)
+}
+
+func generateMetricNames(n int) []string {
+	metrics := make([]string, n)
+	for i := 0; i < n; i++ {
+		metrics[i] = fmt.Sprintf("metric_%d", i+1)
+	}
+	return metrics
 }

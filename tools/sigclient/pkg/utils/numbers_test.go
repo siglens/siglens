@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 SigScalr, Inc.
+// Copyright (c) 2021-2025 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
 //
@@ -15,10 +15,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Note: the only changes to this file should be incrementing SigLensVersion.
-// You shouldn't add other things to this file as it's intended only for
-// tracking the SigLens version that gets packaged inside the Go binary.
+package utils
 
-package config
+import (
+	"testing"
 
-const SigLensVersion = "1.0.33"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_AsUint64(t *testing.T) {
+	v, ok := AsUint64("123")
+	assert.True(t, ok)
+	assert.Equal(t, uint64(123), v)
+
+	v, ok = AsUint64("1.04475e+06")
+	assert.True(t, ok)
+	assert.Equal(t, uint64(1044750), v)
+}
