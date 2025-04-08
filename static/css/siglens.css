@@ -5330,6 +5330,67 @@ p#versionInfo {
 }
 
 
+.ingestion-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 15px;
+    padding: 15px;
+}
+
+.ingestion-card {
+    background: var(--black1-to-white0);
+    border: 1px solid var(--search-input-border);
+    border-radius: 5px;
+    padding: 10px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 5px var(--border-shadow);
+    min-height: 60px;
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.ingestion-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px var(--border-shadow);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: var(--black1-to-white0);
+    border-bottom: none;
+}
+
+.card-header .cards-svg-icon{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    background-color: var(--drop-down-btn-bg-regular);
+    border-radius: 5px;
+}
+
+.card-header svg{
+    margin: 0 !important;
+}
+
+[data-theme="dark"]  .card-header .cards-svg-icon{
+    background-color: var(--bg-color);
+}
+
+.card-header h3 {
+    margin: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
 .ingest-inner-container .myOrg-heading {
     font-size: 14px;
     margin-top: 20px;
@@ -5366,6 +5427,26 @@ p#versionInfo {
 .ingestion-container a {
     color: var(--dashboard-title-color);
     font-weight: bold;
+}
+
+.btn.btn-primary.test-data-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    background-color: var(--purple-1);
+    color: white;
+    border: 2px solid var(--purple-1);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.btn.btn-primary.test-data-btn:hover {
+    background-color: var(--lavender-2);
+    box-shadow: 0 8px 20px var(--border-shadow);
+}
+
+.fa.fa-vial{
+    color: var(--purple-1);
 }
 
 .help-options {

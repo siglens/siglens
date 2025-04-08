@@ -246,6 +246,7 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
+
 const navigationStructure = {
     'index.html': {
         activeClass: 'nav-search',
