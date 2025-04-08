@@ -147,6 +147,16 @@ func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregat
 	return sNode.NodeType, structs.RRCCmd
 }
 
+func GetQueryTypes(firstAgg *structs.QueryAggregators) bool {
+	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
+		_, qType := GetNodeAndQueryTypes(&structs.SearchNode{}, curAgg)
+		if qType != structs.RRCCmd {
+			return false
+		}
+	}
+	return true
+}
+
 func ApplyVectorArithmetic(aggs *structs.QueryAggregators, qid uint64) *structs.NodeResult {
 	nodeRes := &structs.NodeResult{}
 

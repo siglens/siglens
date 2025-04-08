@@ -53,6 +53,7 @@ type QueryProcessor struct {
 	includeNulls bool
 	querySummary *summary.QuerySummary
 	queryInfo    *query.QueryInformation
+	isLogsQuery  bool
 	startTime    time.Time
 }
 
@@ -153,6 +154,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	firstProcessorAgg := firstAgg
 
+	isLogsQuery := query.GetQueryTypes(firstAgg)
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	if queryType != structs.RRCCmd {
@@ -231,6 +233,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	queryProcessor.startTime = startTime
 	queryProcessor.querySummary = querySummary
 	queryProcessor.queryInfo = queryInfo
+	queryProcessor.isLogsQuery = isLogsQuery
 
 	return queryProcessor, nil
 }
@@ -378,8 +381,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	if finalIQR == nil {
 		return createEmptyResponse(qp.queryType), nil
 	}
-
-	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls)
+	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls, qp.isLogsQuery)
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
@@ -440,7 +442,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
-			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls, qp.isLogsQuery)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
@@ -454,7 +456,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 	}
 
 	if qp.queryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls)
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls, qp.isLogsQuery)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
