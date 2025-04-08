@@ -5835,7 +5835,15 @@ p#versionInfo {
     color:  var(--navbar-link-text) !important;
 }
 
+#app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
+    color:  var(--navbar-link-text) !important;
+}
+
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
+    color:  white !important;
+}
+
+#app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
     color:  white !important;
 }
 
