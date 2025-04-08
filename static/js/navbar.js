@@ -119,7 +119,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
                 <div class="menu-header">
-                    <a class="nav-links" href="./kubernetes-overview.html">
+                    <a class="nav-links" href="./infrastructure.html">
                         <span class="icon-infrastructure"></span>
                         <span class="nav-link-text-drpdwn">Infrastructure</span>
                     </a>

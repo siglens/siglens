@@ -14,8 +14,11 @@ test('Navigation Menu Part 2', async ({ page }) => {
 
     for (const { selector, url } of navItems) {
         const navbarHamburger = page.locator('#navbar-toggle').first();
-        await navbarHamburger.hover();
-        await page.waitForTimeout(1000);
+
+        if (await navbarHamburger.isVisible()) {
+            await navbarHamburger.click();
+            await page.waitForTimeout(500);
+        }
 
         await Promise.all([
             page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
