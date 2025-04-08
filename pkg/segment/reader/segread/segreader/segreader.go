@@ -188,9 +188,12 @@ func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	return true, nil
 }
 
-// helper function to decompresses and loads block using passed buffers
-// returns the raw buffer, if the block is valid, and any error encountered
-// The block will not be valid if the column is not found in block metadata. This means that the column never existed for this block and only existed for other blocks
+// Helper function to decompresses and loads block using passed buffers.
+// Returns whether the block is valid, and any error encountered.
+//
+// The block will not be valid if the column is not found in block metadata.
+// This means that the column never existed for this block and only existed for
+// other blocks
 func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error) {
 	if sfr == nil {
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: SegmentFileReader is nil")
