@@ -18,7 +18,6 @@
  */
 
 $(document).ready(() => {
-    $('#app-content-area').hide();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', () => {
