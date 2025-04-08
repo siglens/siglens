@@ -236,6 +236,10 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 		bufToUse = append(bufToUse, newSlice...)
 	}
 
+	if len(rawRec) < 1+1+8 {
+		return nil, fmt.Errorf("rawRec is too small to contain a timestamp")
+	}
+
 	oPtr := uint32(0)
 	if rawRec[oPtr] != utils.TIMESTAMP_TOPDIFF_VARENC[0] {
 		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for typestamp column! expected %+v got %+v",
