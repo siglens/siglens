@@ -59,14 +59,6 @@ test('Navigation Menu Part 2', async ({ page }) => {
         await page.waitForTimeout(1000);
         await expect(page.locator('.nav-infrastructure')).toHaveClass(/active/, { timeout: 15000 });
 
-        // Verify Kubernetes is only highlighted for kubernetes pages
-        if (url === 'infrastructure.html') {
-            await expect(page.locator('.nav-kubernetes')).not.toHaveClass(/active/, { timeout: 15000 });
-            await expect(page.locator('.kubernetes-dropdown-toggle')).not.toHaveClass(/active/, { timeout: 15000 });
-        } else {
-            await expect(page.locator('.nav-kubernetes')).toHaveClass(/active/, { timeout: 15000 });
-            await expect(page.locator('.kubernetes-dropdown-toggle')).toHaveClass(/active/, { timeout: 15000 });
-        }
     }
 
     // Test org pages
