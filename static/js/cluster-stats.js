@@ -28,30 +28,12 @@ $(document).ready(() => {
     $('#empty-response').empty();
     $('#empty-response').hide();
 
-    let stDate = 'now-7d';
-    let endDate = 'now';
-    datePickerHandler(stDate, endDate, stDate);
-    $('.range-item').on('click', iStatsDatePickerHandler);
-
     // Make api call to get the cluster stats
     renderClusterStatsTables();
     renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
     {{ .Button1Function }}
 });
-
-function iStatsDatePickerHandler(evt) {
-    evt.preventDefault();
-    renderChart();
-    $('#daterangepicker').hide();
-}
-
-function getTimeRange() {
-    return {
-        startEpoch: filterStartDate || 'now-7d',
-        endEpoch: filterEndDate || 'now',
-    };
-}
 
 function renderChart() {
     $('#app-content-area').show();
