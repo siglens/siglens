@@ -602,7 +602,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             });
         });
         if (bigNumVal === undefined || bigNumVal === null) {
-            panelProcessEmptyQueryResults('', panelId);
+            console.log('No data found for the query');
         } else {
             displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
             allResultsDisplayed--;
@@ -1324,11 +1324,11 @@ function ExpandableJsonCellRenderer(type = 'events') {
             jsonPopup.classList.remove('active');
             this.isExpanded = false;
             this.updateIcon();
-            
+
             if (this.rowElement) {
                 this.rowElement.classList.remove('highlighted-row');
             }
-            
+
             state.currentExpandedCell = null;
             document.dispatchEvent(new CustomEvent('jsonPanelClosed'));
             this.params.api.sizeColumnsToFit();
@@ -1336,22 +1336,22 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
         toggleJsonPanel(event) {
             event.stopPropagation();
-            
+
             if (!this.rowElement) {
                 this.rowElement = this.findRowElement();
             }
-            
+
             // If already expanded, close the panel
             if (this.isExpanded) {
                 this.closeJsonPanel();
                 return;
             }
-            
+
             const jsonPopup = document.querySelector('.json-popup');
             const rowData = this.params.node.data;
             let trace_id = '';
             let time_stamp = '';
-            
+
             if (this.rowElement) {
                 this.rowElement.classList.add('highlighted-row');
             }
@@ -1359,7 +1359,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             if (state.currentExpandedCell && state.currentExpandedCell !== this) {
                 state.currentExpandedCell.isExpanded = false;
                 state.currentExpandedCell.updateIcon();
-                
+
                 if (state.currentExpandedCell.rowElement) {
                     state.currentExpandedCell.rowElement.classList.remove('highlighted-row');
                 }
@@ -1505,7 +1505,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             }
             return null;
         }
-        
+
         refresh() {
             return false;
         }
@@ -1520,14 +1520,14 @@ function determineUnit(data) {
             maxBytes = point.y;
         }
     });
-    
+
     if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
-    
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    
+
     const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
-    
+
     return {
         unit: sizes[i],
         divisor: Math.pow(k, i)
@@ -1536,12 +1536,12 @@ function determineUnit(data) {
 
 function formatByteSize(bytes) {
     if (bytes === 0) return '0 Bytes';
-    
+
     const units = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    
+
     // Format with 2 decimal places for larger units, round to integers for bytes
-    return i === 0 
+    return i === 0
         ? bytes + ' ' + units[i]
         : (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
 }

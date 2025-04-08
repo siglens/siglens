@@ -2264,48 +2264,43 @@ function mergeGraphs(chartType, panelId = -1) {
     var mergedCanvas, legendContainer;
 
     // Handle number chart type in dashboard mode
-    if (isDashboardScreen && currentPanel?.chartType === 'number') {
-        const data = getMetricsQData();
-        currentPanel.queryData = data;
-        const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
-        const bigNumContainer = panelId === -1 ? $(`.panelDisplay .big-number-display-container`) : $(`#panel${panelId} .big-number-display-container`);
-        panelChartEl.hide();
 
-        setTimeout(async () => {
-            let bigNumVal = null;
-            let dataType = currentPanel.dataType;
-
-            if (currentPanel.queryData && currentPanel.queryData.queriesData && currentPanel.queryData.queriesData.length) {
-                const queryData = currentPanel.queryData.queriesData[0];
-                const rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-                if (rawTimeSeriesData && rawTimeSeriesData.values) {
-                    $.each(rawTimeSeriesData.values, function (_index, valueArray) {
-                        $.each(valueArray, function (_index, value) {
-                            if (value > bigNumVal || bigNumVal === null) {
-                                bigNumVal = value;
-                            }
-                        });
-                    });
-                }
-            }
-
-            if (bigNumVal === null || bigNumVal === undefined) {
-                processEmptyQueryResults('', panelId);
-            } else {
-                bigNumContainer.empty();
-                displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
-            }
-            bigNumContainer.show();
-        }, 0);
-
-        return;
-    }
 
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
             const data = getMetricsQData();
             currentPanel.queryData = data;
+
+            if (currentPanel?.chartType === 'number') {
+                const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
+                panelChartEl.hide();
+
+                setTimeout(async () => {
+                    let bigNumVal = null;
+                    let dataType = currentPanel.dataType;
+
+                    if (currentPanel.queryData && currentPanel.queryData.queriesData && currentPanel.queryData.queriesData.length) {
+                        if (rawTimeSeriesData && rawTimeSeriesData.values) {
+                            $.each(rawTimeSeriesData.values, function (_index, valueArray) {
+                                $.each(valueArray, function (_index, value) {
+                                    if (value > bigNumVal || bigNumVal === null) {
+                                        bigNumVal = value;
+                                    }
+                                });
+                            });
+                        }
+                    }
+
+                    if (bigNumVal === null || bigNumVal === undefined) {
+                        panelProcessEmptyQueryResults('', panelId);
+                    } else {
+                        displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
+                    }
+                }, 0);
+
+                return;
+            }
         }
         var panelChartEl;
         if (panelId === -1) {
@@ -3666,11 +3661,4 @@ function setupRawQueryKeyboardHandlers() {
             }
         }
     });
-}
-
-function processEmptyQueryResults(message, panelId) {
-    const panel = $(`#panel-${panelId}`);
-    const bigNumContainer = panel.find('.big-number-container');
-    bigNumContainer.empty();
-    bigNumContainer.append(`<div class="no-data-message">${message || 'No data available'}</div>`);
 }
