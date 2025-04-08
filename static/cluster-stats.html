@@ -80,54 +80,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <div class="myOrg-inner-container" >
                     <div class="align-items-end justify-content-between d-flex">
                         <p class="caption">Track progress and performance </p>
-                        <div class="dropdown mt-1" id="cstats-time-picker">
-                            <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
-                                data-bs-toggle="dropdown" title="Pick the time window">
-                                <span>Time Picker</span>
-                                <i class="dropdown-arrow"></i>
-                            </button>
-                            <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
-                                id="daterangepicker ">
-                                <p class="dt-header">Ingestion Stats for the last</p>
-                                <div class="ranges">
-                                    <div class="inner-range">
-                                        <div id="now-1h" class="range-item">1 Hr</div>
-                                        <div id="now-7d" class="range-item active">7 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-3h" class="range-item">3 Hrs</div>
-                                        <div id="now-30d" class="range-item">30 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-6h" class="range-item">6 Hrs</div>
-                                        <div id="now-90d" class="range-item">90 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-12h" class="range-item">12 Hrs</div>
-                                        <div id="now-180d" class="range-item">180 Days</div>
-                                    </div>
-                                    <div class="inner-range">
-                                        <div id="now-24h" class="range-item">24 Hrs</div>
-                                        <div id="now-365d" class="range-item">1 Year</div>
-                                    </div>
-                                </div>
-                            </div>
-                            </div>
                     </div>
                     <p class="index-stats-header">Logs Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Logs Event Count</div>
-                                <canvas id="EventCountChart-logs"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Logs Volume</div>
-                                <canvas id="bytesCountChart-logs"></canvas>
-                            </div>
-                        </div>
-                    </div>
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="index-data-table" class="index-data-table"></table>
@@ -181,19 +135,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <hr>
                     <p class="index-stats-header">Metrics Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Metrics Datapoints Count</div>
-                                <canvas id="EventCountChart-metrics"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Metrics Volume</div>
-                                <canvas id="bytesCountChart-metrics"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="metrics-data-table" class="index-data-table"></table>
@@ -212,19 +153,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <hr>
                     <p class="index-stats-header">Traces Stats</p>
-                    <div class="chart-container">
-                        <div class="graph-container mt-2">
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Trace Span Count</div>
-                                <canvas id="EventCountChart-trace"></canvas>
-                            </div>
-                            <div class="chart_container">
-                                <div class="ingestion-stats-header">Incoming Trace Volume</div>
-                                <canvas id="bytesCountChart-trace"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="query-index-container">
                         <div class="index-stats">
                             <table id="trace-data-table" class="index-data-table"></table>
