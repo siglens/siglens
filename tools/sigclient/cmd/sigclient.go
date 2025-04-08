@@ -594,7 +594,7 @@ var longevityCmd = &cobra.Command{
 			query.NewQueryTemplate(unwrap(query.NewFilterQueryValidator(query.DynamicFilter(), "", 10, 0, 0)).WithAllowAllStartTimes(), 30*24*3600, 10000),
 			query.NewQueryTemplate(unwrap(query.NewCountQueryValidator(query.DynamicFilter(), 0, 0)).WithAllowAllStartTimes(), 30*24*3600, 10000),
 		}
-		maxConcurrentQueries := int32(1)
+		maxConcurrentQueries := int32(4)
 		queryManager := query.NewQueryManager(templates, maxConcurrentQueries, queryUrl, failOnError)
 
 		callback := func(logs []map[string]interface{}, allTs []uint64) {

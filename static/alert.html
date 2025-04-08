@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
-    
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -71,7 +71,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             margin: 0px;
             background-color: var(--bg-color);
         }
-    </style>   
+    </style>
     <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
@@ -109,7 +109,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                     <div class="add-alert-form">
                         <div id="metrics-graphs" class="metrics-graph-container">
-    
+
                         </div>
                         <div id="logs-explorer">
 
@@ -262,7 +262,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown">
                                         <span>Is above</span>
-                                        <i class="dropdown-arrow"></i>                                    
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu box-shadow alert-condition-options"
                                         aria-labelledby="index-btn">
@@ -290,7 +290,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <span style="margin-left: 10px;" id="for-span">
                                             for
                                         <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
-                                        id="info-evaluate-for" style="display: block;" title='Once condition is breached, alert will go into pending state. 
+                                        id="info-evaluate-for" style="display: block;" title='Once condition is breached, alert will go into pending state.
                                         If it is pending for longer than the "for" value, it will become a firing alert.'>
                                         </i>
                                     </span>
@@ -302,7 +302,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <i class="fas fa-exclamation"></i>
                                             </div>
                                         </div>
-                                        
+
                                     </div>
                                 </div>
                             </div>
@@ -321,7 +321,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                         data-bs-toggle="dropdown">
                                         <span>Choose</span>
-                                        <i class="dropdown-arrow"></i>                                    
+                                        <i class="dropdown-arrow"></i>
                                     </button>
                                     <div class="dropdown-menu box-shadow contact-points-options"
                                         aria-labelledby="index-btn">
@@ -366,7 +366,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="app-footer">
-            2024 &copy; SigLens
         </div>
 
     </div>
@@ -383,6 +382,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/alert.js?cb={{ AppVersion }}"></script>
     <script src="./js/dashboard-charts.js?cb={{ AppVersion }}"></script>
     <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
