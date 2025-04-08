@@ -154,7 +154,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	firstProcessorAgg := firstAgg
 
-	isLogsQuery := query.GetQueryTypes(firstAgg)
+	isLogsQuery := query.IsLogsQuery(firstAgg)
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
 
 	if queryType != structs.RRCCmd {
