@@ -47,7 +47,7 @@ type Hooks struct {
 	SigLensDBExtrasHook       func() error
 	StartSiglensExtrasHook    func(nodeID string) error
 	ShutdownSiglensExtrasHook func()
-	ShutdownSiglensPreHook    func()
+	ShutdownSiglensPreHook    func(bool)
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)

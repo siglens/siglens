@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -42,6 +42,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         {
             height: 300px;
             width: 100%;
+            position: relative;
         }
     </style>
 
@@ -128,20 +129,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
 
                     <p class="caption mt-4">Tag Keys with Most Series</p>
-                    <div id="tagKeysGrid" class="ag-theme-mycustomtheme"></div>
-                    
+                    <div id="tagKeysGrid" class="ag-theme-mycustomtheme">
+                        <div class="panel-loading"></div>
+                    </div>
+
                     <p class="caption mt-4">Tag Pairs with Most Series</p>
-                    <div id="tagPairsGrid" class="ag-theme-mycustomtheme"></div>
-                    
+                    <div id="tagPairsGrid" class="ag-theme-mycustomtheme">
+                        <div class="panel-loading"></div>
+                    </div>
+
                     <p class="caption mt-4">Tag Keys with Most Unique Values</p>
-                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme"></div>                                    
+                    <div id="tagKeysValuesGrid" class="ag-theme-mycustomtheme">
+                        <div class="panel-loading"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="app-footer">
-        2024 &copy; SigLens
     </div>
 
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
@@ -149,7 +155,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
     <script src="./js/metrics-cardinality.js?cb={{ AppVersion }}"></script>
-    
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
+
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

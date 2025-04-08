@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,10 +24,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
-    
+
 <head>
     <meta charset="UTF-8">
     <title>SigLens</title>
@@ -106,13 +106,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </div>
                 </div>
             </div>
-            <div id="dependency-graph-container" class="position-relative "> 
+            <div id="dependency-graph-container" class="position-relative ">
                 <div id="dependency-graph-canvas" class="m-0"></div>
                 <div class="position-absolute" style="bottom:11px; right:40px;">
                     Dependency Graph generated at:  <span id="last-run-timestamp"></span>
                 </div>
                 <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="dependency-info" style="bottom:12px; top:auto;"
-                title='The numbers on the edges in a dependency graph show 
+                title='The numbers on the edges in a dependency graph show
                 how frequently one service is calling another service.'>
                 </i>
             </div>
@@ -122,7 +122,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="app-footer">
-            2024 &copy; SigLens
         </div>
 
     </div>
@@ -132,7 +131,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
     <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
-    <script src="./js/dependency-graph.js?cb={{ AppVersion }}"></script>    
+    <script src="./js/dependency-graph.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

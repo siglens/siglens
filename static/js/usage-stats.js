@@ -18,7 +18,6 @@
  */
 
 $(document).ready(() => {
-    $('#app-content-area').hide();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', () => {
@@ -296,7 +295,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     borderWidth: 2,
                     tension: 0.3,
                     pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                     fill: false,
                 },
                 {
@@ -307,7 +306,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     borderWidth: 2,
                     tension: 0.3,
                     pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                     fill: false,
                 },
             ],
@@ -315,6 +314,10 @@ function renderStackedChart(data, gridLineColor, tickColor) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
                 tooltip: {
                     mode: 'index',

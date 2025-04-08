@@ -175,7 +175,7 @@ class linkCellRenderer {
             let href = 'metrics-explorer.html?queryString=' + encodeURIComponent(params.data.metricsQueryParams);
             this.eGui.innerHTML = '<a class="query-link" href="' + href + '" title="' + params.data.description + '" style="display:block;">' + params.data.qname + '</a>';
         } else {
-            href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
+            href = 'index.html?searchText=' + encodeURIComponent(params.data.searchText) + '&startEpoch=' + encodeURIComponent(params.data.startTime) + '&endEpoch=' + encodeURIComponent(params.data.endTime) + '&indexName=' + encodeURIComponent(params.data.indexName) + '&filterTab=' + encodeURIComponent(params.data.filterTab) + '&queryLanguage=' + encodeURIComponent(params.data.queryLanguage);
             this.eGui.innerHTML = '<a class="query-link" href=' + href + '" title="' + params.data.description + '"style="display:block;">' + params.data.qname + '</a>';
         }
     }
@@ -406,8 +406,8 @@ function displaySavedQueries(res, flag) {
             newRow.set('type', value.dataSource);
             newRow.set('dataSource', value.dataSource);
             newRow.set('metricsQueryParams', value.metricsQueryParams);
-            newRow.set('start', value.startTime);
-            newRow.set('end', value.endTime);
+            newRow.set('startTime', value.startTime);
+            newRow.set('endTime', value.endTime);
             sqRowData = _.concat(sqRowData, Object.fromEntries(newRow));
             idx = idx + 1;
         });

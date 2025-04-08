@@ -185,7 +185,7 @@ func Main() {
 
 	err = StartSiglensServer(nodeType, nodeID)
 	if err != nil {
-		ShutdownSiglensServer()
+		ShutdownSiglensServer(false)
 		if baseLogDir != "" {
 			StdOutLogger.Errorf("siglens main: Error in starting server:%v ", err)
 		}
@@ -196,17 +196,22 @@ func Main() {
 		hook()
 	}
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1)
 
 	switch <-ch {
 	case os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGINT:
 		log.Errorf("Interrupt signal received. Exiting server...")
-		ShutdownSiglensServer()
+		ShutdownSiglensServer(false)
+		log.Errorf("Server shutdown")
+		os.Exit(0)
+	case syscall.SIGUSR1:
+		log.Errorf("SIGUSR1 signal received. Exiting server...")
+		ShutdownSiglensServer(true)
 		log.Errorf("Server shutdown")
 		os.Exit(0)
 	default:
 		log.Errorf("Something went wrong. Exiting server...")
-		ShutdownSiglensServer()
+		ShutdownSiglensServer(false)
 		log.Errorf("Server shutdown")
 		os.Exit(1)
 	}
@@ -330,9 +335,9 @@ func StartSiglensServer(nodeType commonconfig.DeploymentType, nodeID string) err
 	return nil
 }
 
-func ShutdownSiglensServer() {
+func ShutdownSiglensServer(gotSigusr1 bool) {
 	if hook := hooks.GlobalHooks.ShutdownSiglensPreHook; hook != nil {
-		hook()
+		hook(gotSigusr1)
 	}
 
 	// force write unsaved data to segfile and flush bloom, range, updates to meta
@@ -384,6 +389,11 @@ func startIngestServer(serverAddr string) {
 	err := metrics.RecoverWALData()
 	if err != nil {
 		log.Errorf("startIngestServer: Failed to recover WAL files, err: %v", err)
+	}
+	err = metrics.RecoverMNameWALData()
+	if err != nil {
+		log.Errorf("startIngestServer: Failed to recover Metrics Name WAL files, err: %v", err)
+		return
 	}
 }
 

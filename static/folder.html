@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -76,7 +76,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <button class="btn dropdown-toggle btn-grey w-100" data-toggle="dropdown"
                             aria-haspopup="false" aria-expanded="false" data-bs-toggle="dropdown">
                             <span style="margin-right: 6px;">Folder Action</span>
-                            <i class="dropdown-arrow"></i>                        
+                            <i class="dropdown-arrow"></i>
                         </button>
                         <div class="dropdown-menu box-shadow dropdown-menu-style dd-width-150">
                             <li class="dropdown-option" id="move-folder">Move</li>
@@ -140,7 +140,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
 
             <div id="app-footer">
-                2024 &copy; SigLens
             </div>
         </div>
     </div>
@@ -153,7 +152,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./component/dashboard/add-new.js?cb={{ AppVersion }}"></script>
     <script src="./component/dashboard/dashboard-grid.js?cb={{ AppVersion }}"></script>
     <script src="./component/dashboard/sort-dropdown.js?cb={{ AppVersion }}"></script>
-    <script src="./component/dashboard/folders-dropdown.js?cb={{ AppVersion }}"></script>    
+    <script src="./component/dashboard/folders-dropdown.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

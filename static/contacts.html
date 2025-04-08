@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -98,7 +98,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <button type="button" id="cancel-btn" class="btn btn-primary">Cancel</button>
                     <button type="button" id="delete-btn" class="btn btn-secondary">Delete</button>
                 </div>
-            </div>                    
+            </div>
             <div class="delete-dialog">
                 <h3 class="header">Cannot delete contact point</h3>
                 <p>
@@ -121,7 +121,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="app-footer">
-            2024 &copy; SigLens
         </div>
 
     </div>
@@ -130,7 +129,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/contacts.js?cb={{ AppVersion }}"></script>
-    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>    
+    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

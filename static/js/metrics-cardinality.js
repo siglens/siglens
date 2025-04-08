@@ -126,6 +126,8 @@ document.addEventListener('DOMContentLoaded', function () {
     new agGrid.Grid(document.getElementById('tagKeysValuesGrid'), tagKeysValuesGridOptions);
 
     function fetchData(startEpoch, endEpoch) {
+        $('body').css('cursor', 'wait');
+
         // Fetch total unique series
         fetch('metrics-explorer/api/v1/series-cardinality', {
             method: 'POST',
@@ -137,6 +139,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .then((response) => response.json())
             .then((data) => {
                 totalUniqueSeries.textContent = data.seriesCardinality.toLocaleString('en-US');
+            })
+            .catch((error) => {
+                console.error('Error fetching series cardinality:', error);
             });
 
         // Fetch tag keys with most series
@@ -149,7 +154,12 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then((response) => response.json())
             .then((data) => {
+                hideLoadingIcon('tagKeysGrid');
                 tagKeysGridOptions.api.setRowData(data.tagKeys);
+            })
+            .catch((error) => {
+                hideLoadingIcon('tagKeysGrid');
+                console.error('Error fetching tag keys with most series:', error);
             });
 
         // Fetch tag pairs with most series
@@ -162,7 +172,12 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then((response) => response.json())
             .then((data) => {
+                hideLoadingIcon('tagPairsGrid');
                 tagPairsGridOptions.api.setRowData(data.tagPairs);
+            })
+            .catch((error) => {
+                hideLoadingIcon('tagPairsGrid');
+                console.error('Error fetching tag pairs with most series:', error);
             });
 
         // Fetch tag keys with most unique values
@@ -175,7 +190,16 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then((response) => response.json())
             .then((data) => {
+                hideLoadingIcon('tagKeysValuesGrid');
                 tagKeysValuesGridOptions.api.setRowData(data.tagKeys);
+
+                $('body').css('cursor', 'default');
+            })
+            .catch((error) => {
+                hideLoadingIcon('tagKeysValuesGrid');
+                console.error('Error fetching tag keys with most values:', error);
+
+                $('body').css('cursor', 'default');
             });
     }
 
@@ -210,3 +234,9 @@ document.addEventListener('DOMContentLoaded', function () {
     selectedTimeRange.textContent = '1 Hr';
     fetchData('now-1h', 'now');
 });
+
+// Function to hide loading icon
+function hideLoadingIcon(containerId) {
+    // Using jQuery to get the container and remove the loading icon
+    $('#' + containerId).find('.panel-loading').remove();
+}

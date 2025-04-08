@@ -1293,6 +1293,9 @@ func logGlobalSearchErrors(qid uint64) error {
 	if err != nil {
 		return fmt.Errorf("logGlobalSearchErrors: Error getting query search node result for qid=%v", qid)
 	}
+
+	nodeRes.SearchErrorsLock.RLock()
+	defer nodeRes.SearchErrorsLock.RUnlock()
 	for errMsg, errInfo := range nodeRes.GlobalSearchErrors {
 		if errInfo == nil {
 			continue
