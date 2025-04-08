@@ -445,7 +445,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         from: sFrom,
         queryLanguage: queryLanguage,
         includeNulls: false, // Exclude null values
-        fieldsHidden: fieldsHidden
+        fieldsHidden: fieldsHidden,
     };
 }
 
@@ -513,11 +513,7 @@ function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
         queryLanguage: queryLanguage,
     };
 }
-let filterTextQB = '';
-/**
- * get real time search text
- * @returns real time search text
- */
+
 function getQueryBuilderCode() {
     let filterValue = '';
     //concat the first input box
@@ -618,8 +614,13 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
 }
 //eslint-disable-next-line no-unused-vars
 function getSearchFilterForSave(qname, qdesc) {
-    let filterValue = filterTextQB.trim() || '*';
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
+    let filterValue = '';
+    if (currentTab == 0) {
+        filterValue = getQueryBuilderCode();
+    } else {
+        filterValue = $('#filter-input').val().trim() || '*';
+    }
     return {
         dataSource: 'logs',
         queryName: qname,
@@ -627,6 +628,8 @@ function getSearchFilterForSave(qname, qdesc) {
         searchText: filterValue,
         indexName: selectedSearchIndex,
         filterTab: currentTab.toString(),
+        endTime: (data.endEpoch).toString(),
+        startTime: (data.startEpoch).toString(),
         queryLanguage: $('#query-language-options .query-language-option.active').html(),
     };
 }

@@ -5334,20 +5334,21 @@ p#versionInfo {
 
 .ingestion-cards-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 24px;
-    padding: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 15px;
+    padding: 15px;
 }
 
 .ingestion-card {
     background: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
-    border-radius: 10px;
-    padding: 20px;
+    border-radius: 5px;
+    padding: 10px;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
     box-shadow: 0 2px 5px var(--border-shadow);
-    min-height: 120px;
+    min-height: 60px;
+    min-width: 120px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -5362,43 +5363,34 @@ p#versionInfo {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
     background-color: var(--black1-to-white0);
     border-bottom: none;
 }
 
-.card-header h3 {
-    margin: 20px;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-color);
-
-}
-
-.card-description {
-    color: var(--text-color);
-    margin-bottom: 8px;
-    font-size: 13px;
-    flex-grow: 1;
-}
-
-.back-button {
+.card-header .cards-svg-icon{
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 20px 0;
-    cursor: pointer;
-    color: var(--dashboard-title-color);
-    font-weight: 500;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    background-color: var(--drop-down-btn-bg-regular);
+    border-radius: 5px;
+}
+
+.card-header svg{
+    margin: 0 !important;
+}
+
+[data-theme="dark"]  .card-header .cards-svg-icon{
+    background-color: var(--bg-color);
+}
+
+.card-header h3 {
+    margin: 10px;
     font-size: 16px;
-}
-
-.back-button:hover {
-    opacity: 0.8;
-}
-
-.back-button i {
-    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-color);
 }
 
 .ingest-inner-container .myOrg-heading {
@@ -6936,7 +6928,8 @@ p#versionInfo {
     margin-left: auto;
 }
 
-#panel-loading {
+#panel-loading,
+.panel-loading {
     border: 4px solid var(--purple-1);
     border-radius: 50%;
     border-top: 4px solid var(--lavender-1);
