@@ -1903,12 +1903,11 @@ table.dataTable thead td {
 }
 
 .query-index-container {
-
     justify-content: center;
     flex-direction: column;
     align-items: center;
     width: 105%;
-    margin-top: 40px;
+    margin-top: 10px;
     margin-bottom: 40px;
 }
 
