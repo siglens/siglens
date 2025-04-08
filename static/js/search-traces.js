@@ -333,10 +333,31 @@ function updateUrlWithSearchState(state) {
     searchParams.set('operation', state.operation);
     searchParams.set('startEpoch', state.startEpoch);
     searchParams.set('endEpoch', state.endEpoch);
-    searchParams.set('minDuration', state.minDuration);
-    searchParams.set('maxDuration', state.maxDuration);
-    searchParams.set('limit', state.limit);
-    searchParams.set('tags', state.tags);
+
+    // Only add minDuration, maxDuration, limit, and tags if explicitly set by the user
+    if (state.minDuration !== '' && state.minDuration !== undefined && state.minDuration !== null) {
+        searchParams.set('minDuration', state.minDuration);
+    } else {
+        searchParams.delete('minDuration');
+    }
+
+    if (state.maxDuration !== '' && state.maxDuration !== undefined && state.maxDuration !== null) {
+        searchParams.set('maxDuration', state.maxDuration);
+    } else {
+        searchParams.delete('maxDuration');
+    }
+
+    if (state.limit !== '' && state.limit !== undefined && state.limit !== null) {
+        searchParams.set('limit', state.limit);
+    } else {
+        searchParams.delete('limit');
+    }
+
+    if (state.tags !== '' && state.tags !== undefined && state.tags !== null) {
+        searchParams.set('tags', state.tags);
+    } else {
+        searchParams.delete('tags'); 
+    }
 
     // Update URL without page reload
     window.history.pushState({}, '', url);

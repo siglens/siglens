@@ -392,12 +392,3 @@ function updateGraphStyles() {
         .update();
 }
 
-// Add this new function to handle custom range persistence
-function customRangeHandler() {
-    // Save custom range to cookies
-    Cookies.set('dependency_startEpoch', filterStartDate);
-    Cookies.set('dependency_endEpoch', filterEndDate);
-    Cookies.set('dependency_timeRangeLabel', 'custom');
-
-    getServiceDependencyData(filterStartDate, filterEndDate);
-}
