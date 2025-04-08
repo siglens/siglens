@@ -24,20 +24,14 @@ $(document).ready(() => {
     $('#app-content-area').hide();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
-    $('.theme-btn').on('click', renderChart);
     $('#empty-response').empty();
     $('#empty-response').hide();
 
     // Make api call to get the cluster stats
     renderClusterStatsTables();
-    renderChart();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
     {{ .Button1Function }}
 });
-
-function renderChart() {
-    $('#app-content-area').show();
-}
 
 function drawTotalStatsChart(res) {
     var totalIncomingVolume, totalIncomingVolumeMetrics, totalIncomingVolumeTrace;
