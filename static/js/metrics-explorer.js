@@ -2293,7 +2293,7 @@ function mergeGraphs(chartType, panelId = -1) {
                     }
 
                     if (bigNumVal === null || bigNumVal === undefined) {
-                        panelProcessEmptyQueryResults('', panelId);
+                        window.panelProcessEmptyQueryResults('', panelId);
                     } else {
                         displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
                     }

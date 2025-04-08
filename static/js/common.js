@@ -1744,3 +1744,4 @@ const getCollapseSvg = () => `
 window.ExpandableFieldsSidebarRenderer = ExpandableFieldsSidebarRenderer;
 fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
 window.fieldssidebarRenderer = fieldssidebarRenderer;
+window.panelProcessEmptyQueryResults= panelProcessEmptyQueryResults;
