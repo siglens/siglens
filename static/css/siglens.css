@@ -5837,6 +5837,14 @@ p#versionInfo {
     border-radius: 0 5px 5px 0 !important;
 }
 
+#app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
+    color:  var(--navbar-link-text) !important;
+}
+
+#app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
+    color:  white !important;
+}
+
 .infrastructure-dropdown div {
     padding: 0px 0px 0px 20px !important;
 }

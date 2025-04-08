@@ -119,7 +119,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
                 <div class="menu-header">
-                    <a class="nav-links" href="./kubernetes-overview.html">
+                    <a class="nav-links" href="./infrastructure.html">
                         <span class="icon-infrastructure"></span>
                         <span class="nav-link-text-drpdwn">Infrastructure</span>
                     </a>
@@ -433,7 +433,7 @@ $(document).ready(function () {
         { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest', arrowClass: 'nav-dropdown-icon' },
         { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts', arrowClass: 'nav-dropdown-icon' },
         { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure', arrowClass: 'nav-dropdown-icon'},
-        { menuClass: 'kubernetes-dropdown-toggle', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', parentClass: 'nav-infrastructure', arrowClass: 'kubernetes-arrow' }
+        { menuClass: 'nav-kubernetes', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', arrowClass: 'kubernetes-arrow' , parentClass: 'nav-infrastructure' }
     ];
 
     // Attach click events to each dropdown toggle
