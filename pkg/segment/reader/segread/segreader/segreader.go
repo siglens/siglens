@@ -193,17 +193,18 @@ func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 // The block will not be valid if the column is not found in block metadata. This means that the column never existed for this block and only existed for other blocks
 func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error) {
 
-	blockMetata, blockExists := sfr.blockMetadata[blockNum]
+	blockMeta, blockExists := sfr.blockMetadata[blockNum]
 	if !blockExists {
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v does not exist for this segment file reader", blockNum)
 	}
-	colBlockLen, colExists := blockMetata.ColumnBlockLen[sfr.ColName]
+
+	colBlockLen, colExists := blockMeta.ColumnBlockLen[sfr.ColName]
 	if !colExists {
 		// This is an invalid block & not an error because this column never existed for this block if sfr.blockMetadata[blockNum] exists
 		return false, nil
 	}
 
-	colBlockOffset, colExists := blockMetata.ColumnBlockOffset[sfr.ColName]
+	colBlockOffset, colExists := blockMeta.ColumnBlockOffset[sfr.ColName]
 	if !colExists {
 		return false, nil
 	}
