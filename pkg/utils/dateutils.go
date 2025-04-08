@@ -170,6 +170,17 @@ func ConvertTimestampToMillis(value string) (uint64, error) {
 	return 0, fmt.Errorf("ExtractTimeStamp: couldn't find matching time format for value: %v", value)
 }
 
+func normalizeIntToSeconds(value int64) (uint32, error) {
+	if value > 1e18 {
+		return uint32(value / 1e9), nil
+	} else if value > 1e12 {
+		return uint32(value / 1e3), nil
+	} else if value > 0 {
+		return uint32(value), nil
+	}
+	return 0, fmt.Errorf("normalizeIntToSeconds: invalid time value: %d", value)
+}
+
 // Helper function that parses a time parameter for use in PromQL.
 // The time parameter can be in either epoch time format or RFC3339 format.
 // If the time parameter is an empty string, the function returns an error.
@@ -183,7 +194,7 @@ func ParseTimeForPromQL(timeParam string) (uint32, error) {
 	// Try to parse as integer (Unix timestamp)
 	parsedInt, err := strconv.ParseInt(timeParam, 10, 64)
 	if err == nil {
-		return uint32(parsedInt), nil
+		return normalizeIntToSeconds(parsedInt)
 	}
 
 	// Try to parse as float (Unix timestamp)
@@ -192,7 +203,7 @@ func ParseTimeForPromQL(timeParam string) (uint32, error) {
 		// If the value is a float, we will floor it to the nearest integer
 		// This is because our timestamps are in seconds. So during ingestion, even if the timestamp
 		// for example is given 1741106611.65, we would store it as 1741106611
-		return uint32(math.Floor(parsedFloat)), nil
+		return normalizeIntToSeconds(int64(math.Floor(parsedFloat)))
 	}
 
 	// Try to parse as RFC3339 timestamp
