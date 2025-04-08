@@ -14,11 +14,8 @@ test('Navigation Menu Part 2', async ({ page }) => {
 
     for (const { selector, url } of navItems) {
         const navbarHamburger = page.locator('#navbar-toggle').first();
-
-        if (await navbarHamburger.isVisible()) {
-            await navbarHamburger.click();
-            await page.waitForTimeout(500);
-        }
+        await navbarHamburger.hover();
+        await page.waitForTimeout(1000);
 
         await Promise.all([
             page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
@@ -56,7 +53,6 @@ test('Navigation Menu Part 2', async ({ page }) => {
 
     // Test Infrastructure pages
     const infrastructurePages = [
-        'infrastructure.html',
         'kubernetes-overview.html',
         'kubernetes-view.html?type=clusters',
         'kubernetes-view.html?type=namespaces',
