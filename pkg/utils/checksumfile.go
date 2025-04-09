@@ -57,53 +57,65 @@ func (csf *checksumFile) AppendChunk(data []byte) error {
 		return nil
 	}
 
+	if csf.fd == nil {
+		return fmt.Errorf("checksumFile.AppendChunk: File descriptor is nil")
+	}
+
 	_, err := csf.fd.Seek(0, 2) // Seek to the end of the file
 	if err != nil {
-		return err
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot seek to end of file %v, err=%v", csf.fd.Name(), err)
 	}
 
 	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(magicNumber))
 	if err != nil {
-		return err
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write magic number to file %v, err=%v", csf.fd.Name(), err)
 	}
 
 	checksum := crc32.ChecksumIEEE(data)
 	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(checksum))
 	if err != nil {
-		return err
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write checksum to file %v, err=%v", csf.fd.Name(), err)
 	}
 
 	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(uint32(len(data))))
 	if err != nil {
-		return err
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write length to file %v, err=%v", csf.fd.Name(), err)
 	}
 
 	_, err = csf.fd.Write(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write data to file %v, err=%v", csf.fd.Name(), err)
 	}
 
 	return nil
 }
 
 func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
+	if csf.fd == nil {
+		return 0, fmt.Errorf("checksumFile.ReadAt: File descriptor is nil")
+	}
+
 	_, err := csf.fd.Seek(offset, 0)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot seek to offset %d in file %v, err=%v",
+			offset, csf.fd.Name(), err)
 	}
 
 	if magic, err := readUint32(csf.fd); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read magic number from file %v, err=%v",
+			csf.fd.Name(), err)
 	} else if magic != magicNumber {
 		// Check if this is a checksum file. If it is, it will have the magic
 		// number at the start.
 		_, err := csf.fd.Seek(0, 0) // Seek to the start of the file.
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("checksumFile.ReadAt: Cannot seek to start of file %v, err=%v",
+				csf.fd.Name(), err)
 		}
 
 		if magic, err := readUint32(csf.fd); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read magic number from start of file %v, err=%v",
+				csf.fd.Name(), err)
 		} else if magic == magicNumber {
 			return 0, fmt.Errorf("checksumFile.ReadAt: offset is not the start of a chunk")
 		}
@@ -114,12 +126,14 @@ func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 
 	checksum, err := readUint32(csf.fd)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read checksum from file %v, err=%v",
+			csf.fd.Name(), err)
 	}
 
 	length, err := readUint32(csf.fd)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read length from file %v, err=%v",
+			csf.fd.Name(), err)
 	}
 
 	if length != uint32(len(buf)) {
@@ -129,7 +143,8 @@ func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 
 	numBytesRead, err := csf.fd.Read(buf)
 	if err != nil && err != io.EOF {
-		return 0, err
+		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read data from file %v, err=%v",
+			csf.fd.Name(), err)
 	}
 
 	// Verify the checksum
