@@ -228,12 +228,8 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	}
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(colBlockLen))
-	checksumFile, err := toputils.NewChecksumFile(sfr.currFD)
-	if err != nil {
-		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: error creating checksum file reader for %s. Error: %+v",
-			sfr.fileName, err)
-	}
-	_, err = checksumFile.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
+	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
+	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
 	if err != nil {
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", colBlockOffset, err)
 	}

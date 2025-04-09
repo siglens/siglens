@@ -35,8 +35,7 @@ func Test_checksumFile_ReadAndWrite(t *testing.T) {
 	fd, err := os.Create(fileName)
 	require.NoError(t, err)
 	defer fd.Close()
-	csf, err := NewChecksumFile(fd)
-	require.NoError(t, err)
+	csf := ChecksumFile{Fd: fd}
 
 	err = csf.AppendChunk(data)
 	require.NoError(t, err)
@@ -61,7 +60,7 @@ func Test_checksumFile_ReadAndWrite(t *testing.T) {
 	t.Run("ReadSecondChunk", func(t *testing.T) {
 		// Write another chunk.
 		data2 := []byte("Goodbye!")
-		offset, err := csf.fd.Seek(0, io.SeekEnd)
+		offset, err := csf.Fd.Seek(0, io.SeekEnd)
 		require.NoError(t, err)
 
 		err = csf.AppendChunk(data2)
@@ -87,8 +86,7 @@ func Test_checksumFile_BackwardCompatibility(t *testing.T) {
 	fd, err := os.OpenFile(fileName, os.O_RDWR, 0644)
 	require.NoError(t, err)
 	defer fd.Close()
-	csf, err := NewChecksumFile(fd)
-	require.NoError(t, err)
+	csf := ChecksumFile{Fd: fd}
 
 	actualData := make([]byte, len(data))
 	n, err := csf.ReadAt(actualData, 0)
@@ -108,10 +106,8 @@ func Test_checksumFile_PartialWrites(t *testing.T) {
 	require.NoError(t, err)
 	defer fd2.Close()
 
-	csf1, err := NewChecksumFile(fd1)
-	require.NoError(t, err)
-	csf2, err := NewChecksumFile(fd2)
-	require.NoError(t, err)
+	csf1 := &ChecksumFile{Fd: fd1}
+	csf2 := &ChecksumFile{Fd: fd2}
 
 	// Write the same data to both files (and chunked the the same way), but
 	// using different methods.
@@ -131,7 +127,7 @@ func Test_checksumFile_PartialWrites(t *testing.T) {
 	assert.Equal(t, content1, content2)
 }
 
-func appendChunksNoError(t *testing.T, csf *checksumFile, data [][]byte) {
+func appendChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
 	t.Helper()
 	for _, chunk := range data {
 		err := csf.AppendChunk(chunk)
@@ -139,7 +135,7 @@ func appendChunksNoError(t *testing.T, csf *checksumFile, data [][]byte) {
 	}
 }
 
-func appendPartialChunksNoError(t *testing.T, csf *checksumFile, data [][]byte) {
+func appendPartialChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
 	t.Helper()
 	for _, chunk := range data {
 		err := csf.AppendPartialChunk(chunk)
