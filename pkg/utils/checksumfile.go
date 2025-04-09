@@ -57,9 +57,12 @@ func (csf *checksumFile) AppendChunk(data []byte) error {
 		return nil
 	}
 
-	csf.fd.Seek(0, 2) // Seek to the end of the file
+	_, err := csf.fd.Seek(0, 2) // Seek to the end of the file
+	if err != nil {
+		return err
+	}
 
-	_, err := csf.fd.Write(Uint32ToBytesLittleEndian(magicNumber))
+	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(magicNumber))
 	if err != nil {
 		return err
 	}
@@ -84,14 +87,20 @@ func (csf *checksumFile) AppendChunk(data []byte) error {
 }
 
 func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
-	csf.fd.Seek(offset, 0) // Seek to the specified offset
+	_, err := csf.fd.Seek(offset, 0)
+	if err != nil {
+		return 0, err
+	}
 
 	if magic, err := readUint32(csf.fd); err != nil {
 		return 0, err
 	} else if magic != magicNumber {
 		// Check if this is a checksum file. If it is, it will have the magic
 		// number at the start.
-		csf.fd.Seek(offset, 0) // Seek back to the original offset
+		_, err := csf.fd.Seek(0, 0) // Seek to the start of the file.
+		if err != nil {
+			return 0, err
+		}
 
 		if magic, err := readUint32(csf.fd); err != nil {
 			return 0, err
