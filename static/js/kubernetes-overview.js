@@ -350,7 +350,15 @@ $(document).ready(async () => {
             cluster: clusterFilter,
         };
 
-        datePickerHandler(params.startTime, params.endTime, params.startTime);
+        if (!isNaN(params.startTime)) {
+            let stDate = Number(params.startTime);
+            let endDate = Number(params.endTime);
+            datePickerHandler(stDate, endDate, 'custom');
+            loadCustomDateTimeFromEpoch(stDate, endDate);
+        } else {
+            $(`.ranges .inner-range #${params.startTime}`).addClass('active');
+            datePickerHandler(params.startTime, params.endTime, params.startTime);
+        }
         setupEventHandlers();
         setupRefreshHandlers();
 

@@ -17,33 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let redMetricsData = {
-    indexName: 'red-traces',
-};
-let stDate = Cookies.get('startEpoch') || 'now-3h';
-let endDate = Cookies.get('endEpoch') || 'now';
+let redMetricsData = {};
+let stDate = 'now-1h';
+let endDate = 'now';
 $(document).ready(() => {
     $('.theme-btn').on('click', themePickerHandler);
-    $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
-    $('.range-item').on('click', isServiceHealthDatePickerHandler);
-    let data = getTimeRange();
-    redMetricsData = { ...redMetricsData, ...data };
-    getAllServices();
+    setupEventHandlers();
 
+    getAllServices();
+    
+    $('.range-item, #customrange-btn').on('click', getAllServices);
     $('.search-input').on('input', filterServicesBySearch);
 });
-
-function isServiceHealthDatePickerHandler(evt) {
-    evt.preventDefault();
-    $.each($('.range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    $(evt.currentTarget).addClass('active');
-    datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
-    getAllServices();
-    $('#daterangepicker').hide();
-}
 
 function getTimeRange() {
     return {
@@ -103,10 +89,12 @@ function processRedMetricsData(metricsData) {
 }
 
 function getAllServices() {
-    data = getTimeRange();
-    stDate = data.startEpoch;
-    endDate = data.endEpoch;
-    redMetricsData = { ...redMetricsData, ...data };
+    let data = getTimeRange();
+    redMetricsData = {
+        indexName: 'red-traces',
+        stDate: data.startEpoch,
+        endDate: data.endEpoch,
+    };
     $.ajax({
         method: 'POST',
         url: 'api/search',

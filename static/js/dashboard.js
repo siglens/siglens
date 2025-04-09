@@ -51,7 +51,6 @@ $(document).ready(async function () {
 
     initializeFilterInputEvents();
 
-
     $('#dbSet-edit-json').on('click', enableJsonEditing);
     $('#dbSet-save-json').on('click', saveJsonChanges);
     $('.panelEditor-container').hide();
@@ -527,7 +526,7 @@ async function getDashboardData() {
     if (localPanels != undefined) {
         displayPanels();
         setFavoriteValue(dbData.isFavorite);
-        setTimePickerValue(dbData.timeRange);
+        setTimePickerValue();
         setRefreshItemHandler();
         localPanels.forEach((localPanel) => {
             if (localPanel.style) {
@@ -546,7 +545,7 @@ async function getDashboardData() {
     }
 }
 
-function setTimePickerValue(timeRange) {
+function setTimePickerValue() {
     let start, end;
     if (localPanels.length > 0) {
         localPanels.some((panel) => {
@@ -567,7 +566,7 @@ function setTimePickerValue(timeRange) {
             }
             return false;
         });
-        if (timeRange === 'Custom') {
+        if (!isNaN(start)) {
             let stDate = Number(start);
             let endDate = Number(end);
             datePickerHandler(stDate, endDate, 'custom');
