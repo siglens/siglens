@@ -17,34 +17,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let stDate = Cookies.get('startEpoch') || 'now-3h';
-let endDate = Cookies.get('endEpoch') || 'now';
+let stDate = 'now-1h';
+let endDate = 'now';
 let allMetrics = []; // To store all metrics initially
 
 let gridDiv = null;
 $(document).ready(() => {
-    $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
-    $('.range-item').on('click', isMetricsDatePickerHandler);
-    fetchAllMetrics(); // Fetch all metrics on page load
+    setupEventHandlers();
 
-    // Add event listener for the search input
+    $('.range-item, #customrange-btn').on('click', fetchAllMetrics);
+
+    fetchAllMetrics();
+
     $('#metric-search-input').on('input', function () {
         filterMetrics();
     });
     $('.theme-btn').on('click', themePickerHandler);
 });
-
-function isMetricsDatePickerHandler(evt) {
-    evt.preventDefault();
-    $.each($('.range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    $(evt.currentTarget).addClass('active');
-    datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
-    fetchAllMetrics();
-    $('#daterangepicker').hide();
-}
 
 function getTimeRange() {
     return {
