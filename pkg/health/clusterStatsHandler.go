@@ -221,7 +221,7 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" UsageStatsHandler: received empty search request body ")
+		log.Errorf("ProcessUsageStatsHandler: received empty search request body ")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -235,9 +235,9 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf(" UsageStatsHandler: could not write error message err=%v", err)
+			log.Errorf("ProcessUsageStatsHandler: could not write error message err=%v", err)
 		}
-		log.Errorf(" UsageStatsHandler: failed to decode search request body! Err=%+v", err)
+		log.Errorf("ProcessUsageStatsHandler: failed to decode search request body! Err=%+v", err)
 		return
 	}
 
