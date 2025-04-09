@@ -24,15 +24,16 @@ import (
 	"os"
 )
 
-/* File format:
-   magic number: 4 bytes
-   checksum: 4 bytes
-   length: 4 bytes
-   data: length bytes
-*/
-
 const magicNumber uint32 = 0x87654321
 
+// This is used to read and write files in chunks that are checksummed. It's
+// also backward compatible, so it can read files that were not written this
+// way. In the new format, the file consists of chunks; the layout of each
+// chunk is:
+//   - magic number (4 bytes)
+//   - checksum (4 bytes)
+//   - length (4 bytes)
+//   - data (length bytes)
 type checksumFile struct {
 	fd *os.File
 }
