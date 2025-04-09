@@ -38,10 +38,9 @@ type checksumFile struct {
 	fd *os.File
 }
 
-func NewChecksumFile(fileName string) (*checksumFile, error) {
-	fd, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("NewChecksumFile: Cannot open file %v, err=%v", fileName, err)
+func NewChecksumFile(fd *os.File) (*checksumFile, error) {
+	if fd == nil {
+		return nil, fmt.Errorf("NewChecksumFile: File descriptor is nil")
 	}
 
 	return &checksumFile{fd: fd}, nil
