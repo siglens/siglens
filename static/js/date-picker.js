@@ -102,13 +102,14 @@ function datePickerHandler(startDate, endDate, label) {
             displayStart = moment().subtract(365, 'days').valueOf();
             displayLabel = 'Last 1 Year';
             break;
-        case 'custom':
+        case 'custom': {
             displayStart = filterStartDate;
             displayEnd = filterEndDate;
             const startFormatted = moment(displayStart).format('YYYY-MM-DD HH:mm:ss');
             const endFormatted = moment(displayEnd).format('YYYY-MM-DD HH:mm:ss');
             displayLabel = `${startFormatted} to ${endFormatted}`;
             break;
+        }
     }
     $('.panelEditor-container #date-picker-btn span').html(displayLabel);
     $('#app-container #date-picker-btn span').html(displayLabel);
