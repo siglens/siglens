@@ -242,7 +242,7 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 
 	oPtr := uint32(0)
 	if rawRec[oPtr] != utils.TIMESTAMP_TOPDIFF_VARENC[0] {
-		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for typestamp column! expected %+v got %+v",
+		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for timestamp column! expected %+v got %+v",
 			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 	}
 	oPtr++
