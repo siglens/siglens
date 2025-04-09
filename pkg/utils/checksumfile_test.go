@@ -39,18 +39,38 @@ func Test_checksumFile_ReadAndWrite(t *testing.T) {
 	err = csf.AppendChunk(data)
 	require.NoError(t, err)
 
-	actualData := make([]byte, len(data))
-	n, err := csf.ReadAt(actualData, 0)
-	assert.NoError(t, err)
-	assert.Equal(t, len(data), n)
-	assert.Equal(t, data, actualData)
+	t.Run("ReadFirstChunk", func(t *testing.T) {
+		actualData := make([]byte, len(data))
+		n, err := csf.ReadAt(actualData, 0)
+		assert.NoError(t, err)
+		assert.Equal(t, len(data), n)
+		assert.Equal(t, data, actualData)
+	})
 
-	// Test reading from an offset that's not the start of a chunk.
-	actualData = make([]byte, len(data))
-	n, err = csf.ReadAt(actualData, 1)
-	assert.Error(t, err)
-	assert.NotEqual(t, io.EOF, err)
-	assert.Equal(t, 0, n)
+	t.Run("ReadFromInvalidOffset", func(t *testing.T) {
+		// Test reading from an offset that's not the start of a chunk.
+		actualData := make([]byte, len(data))
+		n, err := csf.ReadAt(actualData, 1)
+		assert.Error(t, err)
+		assert.NotEqual(t, io.EOF, err)
+		assert.Equal(t, 0, n)
+	})
+
+	t.Run("ReadSecondChunk", func(t *testing.T) {
+		// Write another chunk.
+		data2 := []byte("Goodbye!")
+		offset, err := csf.fd.Seek(0, io.SeekEnd)
+		require.NoError(t, err)
+
+		err = csf.AppendChunk(data2)
+		require.NoError(t, err)
+
+		actualData := make([]byte, len(data2))
+		n, err := csf.ReadAt(actualData, offset)
+		assert.NoError(t, err)
+		assert.Equal(t, len(data2), n)
+		assert.Equal(t, data2, actualData)
+	})
 }
 
 func Test_checksumFile_BackwardCompatibility(t *testing.T) {
