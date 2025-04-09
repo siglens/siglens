@@ -207,12 +207,12 @@ func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[st
 	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
+func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
 		if err != nil {
-			log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
+			log.Errorf("ProcessUsageStatsHandler: failed to extract orgId from context. Err=%+v", err)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
@@ -221,7 +221,7 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" ClusterIngestStatsHandler: received empty search request body ")
+		log.Errorf(" UsageStatsHandler: received empty search request body ")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -235,9 +235,9 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf(" ClusterIngestStatsHandler: could not write error message err=%v", err)
+			log.Errorf(" UsageStatsHandler: could not write error message err=%v", err)
 		}
-		log.Errorf(" ClusterIngestStatsHandler: failed to decode search request body! Err=%+v", err)
+		log.Errorf(" UsageStatsHandler: failed to decode search request body! Err=%+v", err)
 		return
 	}
 

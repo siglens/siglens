@@ -394,7 +394,7 @@ function getClusterIngestStats() {
     };
     $.ajax({
         method: 'post',
-        url: 'api/clusterIngestStats',
+        url: 'api/usageStats',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
