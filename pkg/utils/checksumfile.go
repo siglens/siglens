@@ -20,6 +20,7 @@ package utils
 import (
 	"fmt"
 	"hash/crc32"
+	"io"
 	"os"
 )
 
@@ -43,6 +44,10 @@ func NewChecksumFile(fileName string) (*checksumFile, error) {
 	}
 
 	return &checksumFile{fd: fd}, nil
+}
+
+func (csf *checksumFile) Close() error {
+	return csf.fd.Close()
 }
 
 // This is not thread-safe.
@@ -112,8 +117,8 @@ func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 		return 0, fmt.Errorf("checksumFile.ReadAt: buffer length mismatch: expected %d, got %d", length, len(buf))
 	}
 
-	_, err = csf.fd.Read(buf)
-	if err != nil {
+	numBytesRead, err := csf.fd.Read(buf)
+	if err != nil && err != io.EOF {
 		return 0, err
 	}
 
@@ -122,7 +127,7 @@ func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 		return 0, fmt.Errorf("checksumFile.ReadAt: checksum mismatch")
 	}
 
-	return len(buf), nil
+	return numBytesRead, err
 }
 
 func readUint32(fd *os.File) (uint32, error) {
