@@ -105,7 +105,9 @@ function datePickerHandler(startDate, endDate, label) {
         case 'custom':
             displayStart = filterStartDate;
             displayEnd = filterEndDate;
-            displayLabel = 'Custom';
+            const startFormatted = moment(displayStart).format('YYYY-MM-DD HH:mm:ss');
+            const endFormatted = moment(displayEnd).format('YYYY-MM-DD HH:mm:ss');
+            displayLabel = `${startFormatted} to ${endFormatted}`;
             break;
     }
     $('.panelEditor-container #date-picker-btn span').html(displayLabel);
