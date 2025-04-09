@@ -36,6 +36,11 @@ const magicNumber uint32 = 0x87654321
 //   - data (length bytes)
 type checksumFile struct {
 	fd *os.File
+
+	// These are used for partial chunk writes.
+	chunkOffset int64 // Start offset of the chunk (so the offset of the magic number).
+	checksum    uint32
+	curChunkLen int
 }
 
 func NewChecksumFile(fd *os.File) (*checksumFile, error) {
@@ -54,6 +59,10 @@ func (csf *checksumFile) AppendChunk(data []byte) error {
 
 	if csf.fd == nil {
 		return fmt.Errorf("checksumFile.AppendChunk: File descriptor is nil")
+	}
+
+	if csf.curChunkLen != 0 {
+		return fmt.Errorf("checksumFile.AppendChunk: Last chunk is not flushed")
 	}
 
 	_, err := csf.fd.Seek(0, 2) // Seek to the end of the file
@@ -81,6 +90,78 @@ func (csf *checksumFile) AppendChunk(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("checksumFile.AppendChunk: Cannot write data to file %v, err=%v", csf.fd.Name(), err)
 	}
+
+	return nil
+}
+
+// Use this instead of AppendChunk() if you want to have multiple write calls
+// but combine them into one chunk. You MUST call Flush() to finish the chunk.
+func (csf *checksumFile) AppendPartialChunk(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if csf.fd == nil {
+		return fmt.Errorf("checksumFile.AppendPartialChunk: File descriptor is nil")
+	}
+
+	offset, err := csf.fd.Seek(0, 2) // Seek to the end of the file
+	if err != nil {
+		return fmt.Errorf("checksumFile.AppendPartialChunk: Cannot seek to end of file %v, err=%v", csf.fd.Name(), err)
+	}
+
+	if csf.curChunkLen == 0 {
+		// We want to write the data now, but we don't know what checksum or
+		// length to write. So skip some bytes, and we'll write them later.
+		csf.chunkOffset = offset
+		_, err = csf.fd.Write(make([]byte, 12)) // magic, checksum, and length
+		if err != nil {
+			return fmt.Errorf("checksumFile.AppendPartialChunk: Cannot write placeholders to file %v, err=%v",
+				csf.fd.Name(), err)
+		}
+	}
+
+	csf.checksum = crc32.Update(csf.checksum, crc32.IEEETable, data)
+	csf.curChunkLen += len(data)
+
+	_, err = csf.fd.Write(data)
+	if err != nil {
+		return fmt.Errorf("checksumFile.AppendPartialChunk: Cannot write data to file %v, err=%v", csf.fd.Name(), err)
+	}
+
+	return nil
+}
+
+func (csf *checksumFile) Flush() error {
+	if csf.fd == nil {
+		return fmt.Errorf("checksumFile.Flush: File descriptor is nil")
+	}
+
+	// Go to the beginning of this chunk.
+	_, err := csf.fd.Seek(csf.chunkOffset, 0)
+	if err != nil {
+		return fmt.Errorf("checksumFile.Flush: Cannot seek to chunk offset %d in file %v, err=%v",
+			csf.chunkOffset, csf.fd.Name(), err)
+	}
+
+	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(magicNumber))
+	if err != nil {
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write magic number to file %v, err=%v", csf.fd.Name(), err)
+	}
+
+	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(csf.checksum))
+	if err != nil {
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write checksum to file %v, err=%v", csf.fd.Name(), err)
+	}
+
+	_, err = csf.fd.Write(Uint32ToBytesLittleEndian(uint32(csf.curChunkLen)))
+	if err != nil {
+		return fmt.Errorf("checksumFile.AppendChunk: Cannot write length to file %v, err=%v", csf.fd.Name(), err)
+	}
+
+	csf.chunkOffset = 0
+	csf.curChunkLen = 0
+	csf.checksum = 0
 
 	return nil
 }
