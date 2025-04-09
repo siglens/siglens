@@ -31,22 +31,36 @@ func Test_checksumFile_ReadAndWrite(t *testing.T) {
 	fileName := filepath.Join(dir, "test")
 	data := []byte("Hello, world!")
 
-	t.Run("UsingChecksums", func(t *testing.T) {
-		csf, err := NewChecksumFile(fileName)
-		require.NoError(t, err)
-		defer csf.Close()
+	csf, err := NewChecksumFile(fileName)
+	require.NoError(t, err)
+	defer csf.Close()
 
-		err = csf.AppendChunk(data)
-		require.NoError(t, err)
+	err = csf.AppendChunk(data)
+	require.NoError(t, err)
 
-		actualData := make([]byte, len(data))
-		n, err := csf.ReadAt(actualData, 0)
-		assert.NoError(t, err)
-		assert.Equal(t, len(data), n)
-		assert.Equal(t, data, actualData)
+	actualData := make([]byte, len(data))
+	n, err := csf.ReadAt(actualData, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, len(data), n)
+	assert.Equal(t, data, actualData)
+}
 
-		rawData, err := os.ReadFile(fileName)
-		require.NoError(t, err)
-		t.Logf("rawData: % 02x", rawData)
-	})
+func Test_checksumFile_BackwardCompatibility(t *testing.T) {
+	dir := t.TempDir()
+	fileName := filepath.Join(dir, "test")
+	data := []byte("Hello, world!")
+
+	// Write directly to the file.
+	err := os.WriteFile(fileName, data, 0644)
+	require.NoError(t, err)
+
+	csf, err := NewChecksumFile(fileName)
+	require.NoError(t, err)
+	defer csf.Close()
+
+	actualData := make([]byte, len(data))
+	n, err := csf.ReadAt(actualData, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, len(data), n)
+	assert.Equal(t, data, actualData)
 }
