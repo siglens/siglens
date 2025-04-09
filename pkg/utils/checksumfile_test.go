@@ -96,3 +96,51 @@ func Test_checksumFile_BackwardCompatibility(t *testing.T) {
 	assert.Equal(t, len(data), n)
 	assert.Equal(t, data, actualData)
 }
+
+func Test_checksumFile_PartialWrites(t *testing.T) {
+	dir := t.TempDir()
+	file1 := filepath.Join(dir, "test1")
+	file2 := filepath.Join(dir, "test2")
+	fd1, err := os.Create(file1)
+	require.NoError(t, err)
+	defer fd1.Close()
+	fd2, err := os.Create(file2)
+	require.NoError(t, err)
+	defer fd2.Close()
+
+	csf1, err := NewChecksumFile(fd1)
+	require.NoError(t, err)
+	csf2, err := NewChecksumFile(fd2)
+	require.NoError(t, err)
+
+	// Write the same data to both files (and chunked the the same way), but
+	// using different methods.
+	err = csf1.AppendChunk([]byte("foo"))
+	assert.NoError(t, err)
+	err = csf1.AppendChunk([]byte("bar"))
+	assert.NoError(t, err)
+
+	err = csf2.AppendPartialChunk([]byte("f"))
+	assert.NoError(t, err)
+	err = csf2.AppendPartialChunk([]byte("o"))
+	assert.NoError(t, err)
+	err = csf2.AppendPartialChunk([]byte("o"))
+	assert.NoError(t, err)
+	err = csf2.Flush()
+	assert.NoError(t, err)
+
+	err = csf2.AppendPartialChunk([]byte("ba"))
+	assert.NoError(t, err)
+	err = csf2.AppendPartialChunk([]byte("r"))
+	assert.NoError(t, err)
+	err = csf2.Flush()
+	assert.NoError(t, err)
+
+	// The files should have the same content.
+	content1, err := os.ReadFile(file1)
+	assert.NoError(t, err)
+	content2, err := os.ReadFile(file2)
+	assert.NoError(t, err)
+
+	assert.Equal(t, content1, content2)
+}
