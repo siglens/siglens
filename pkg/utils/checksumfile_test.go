@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -43,6 +44,13 @@ func Test_checksumFile_ReadAndWrite(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(data), n)
 	assert.Equal(t, data, actualData)
+
+	// Test reading from an offset that's not the start of a chunk.
+	actualData = make([]byte, len(data))
+	n, err = csf.ReadAt(actualData, 1)
+	assert.Error(t, err)
+	assert.NotEqual(t, io.EOF, err)
+	assert.Equal(t, 0, n)
 }
 
 func Test_checksumFile_BackwardCompatibility(t *testing.T) {
