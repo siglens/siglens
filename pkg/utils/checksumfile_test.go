@@ -115,32 +115,34 @@ func Test_checksumFile_PartialWrites(t *testing.T) {
 
 	// Write the same data to both files (and chunked the the same way), but
 	// using different methods.
-	err = csf1.AppendChunk([]byte("foo"))
+	appendChunksNoError(t, csf1, [][]byte{[]byte("foo"), []byte("bar")})
+	appendPartialChunksNoError(t, csf2, [][]byte{[]byte("f"), []byte("o"), []byte("o")})
+	err = csf2.Flush()
 	assert.NoError(t, err)
-	err = csf1.AppendChunk([]byte("bar"))
-	assert.NoError(t, err)
-
-	err = csf2.AppendPartialChunk([]byte("f"))
-	assert.NoError(t, err)
-	err = csf2.AppendPartialChunk([]byte("o"))
-	assert.NoError(t, err)
-	err = csf2.AppendPartialChunk([]byte("o"))
-	assert.NoError(t, err)
+	appendPartialChunksNoError(t, csf2, [][]byte{[]byte("ba"), []byte("r")})
 	err = csf2.Flush()
 	assert.NoError(t, err)
 
-	err = csf2.AppendPartialChunk([]byte("ba"))
-	assert.NoError(t, err)
-	err = csf2.AppendPartialChunk([]byte("r"))
-	assert.NoError(t, err)
-	err = csf2.Flush()
-	assert.NoError(t, err)
-
-	// The files should have the same content.
+	// The files should be identical.
 	content1, err := os.ReadFile(file1)
 	assert.NoError(t, err)
 	content2, err := os.ReadFile(file2)
 	assert.NoError(t, err)
-
 	assert.Equal(t, content1, content2)
+}
+
+func appendChunksNoError(t *testing.T, csf *checksumFile, data [][]byte) {
+	t.Helper()
+	for _, chunk := range data {
+		err := csf.AppendChunk(chunk)
+		assert.NoError(t, err)
+	}
+}
+
+func appendPartialChunksNoError(t *testing.T, csf *checksumFile, data [][]byte) {
+	t.Helper()
+	for _, chunk := range data {
+		err := csf.AppendPartialChunk(chunk)
+		assert.NoError(t, err)
+	}
 }
