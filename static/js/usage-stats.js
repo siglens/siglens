@@ -54,7 +54,6 @@ function getClusterStats() {
         dataType: 'json',
     })
         .then((res) => {
-            console.log(res);
             displayTotal(res);
         })
         .catch((err) => {
@@ -405,7 +404,6 @@ function getClusterIngestStats() {
         data: JSON.stringify(requestBody),
     })
         .then((res) => {
-            console.log(res);
             setupClusterStatsCharts(res);
         })
         .catch((err) => {

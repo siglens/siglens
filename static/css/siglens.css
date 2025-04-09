@@ -2542,7 +2542,7 @@ div[aria-describedby="download-info"] {
 /* datepicker */
 
 #date-picker-btn {
-    width: 120px;
+    min-width: 120px;
     border: 1px solid var(--border-btn-color);
     background-color: var(--drop-down-btn-bg-regular);
     color: var(--drop-down-text-color) !important;
@@ -6701,13 +6701,13 @@ p#versionInfo {
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
+    gap: 24px;
     max-width: 800px;
 }
 
 .alert-card {
     background-color: var(--black1-to-white0);
-    border-radius: 10px;
+    border-radius: 4px;
     padding: 16px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -6784,7 +6784,6 @@ p#versionInfo {
 }
 
 .use-cases-title {
-    color: var(--white-4);
     font-size: 11px;
 }
 
@@ -6807,7 +6806,6 @@ p#versionInfo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--white-4);
     font-size: 11px;
     margin-bottom: 0.5rem;
 }
