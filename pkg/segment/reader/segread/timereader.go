@@ -172,7 +172,8 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	}
 
 	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(blkLen))
-	_, err = trr.timeFD.ReadAt(trr.blockReadBuffer[:blkLen], blkOff)
+	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
+	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:blkLen], blkOff)
 	if err != nil {
 		if err != io.EOF {
 			trr.loadedBlock = false
