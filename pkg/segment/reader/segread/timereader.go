@@ -303,7 +303,8 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 		buf = append(buf, newArr...)
 	}
 	buf = buf[:blkLen]
-	_, err := fd.ReadAt(buf, blkOff)
+	checksumFile := &toputils.ChecksumFile{Fd: fd}
+	_, err := checksumFile.ReadAt(buf, blkOff)
 	if err != nil {
 		return nil, err
 	}
