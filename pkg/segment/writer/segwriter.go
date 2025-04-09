@@ -903,7 +903,7 @@ func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, er
 
 	blkLen := uint32(0)
 	// todo better error handling should not exit
-	fd, err := os.OpenFile(colWip.csgFname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	fd, err := os.OpenFile(colWip.csgFname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("WriteWip: open failed fname=%v, err=%v", colWip.csgFname, err)
 		return 0, 0, err
