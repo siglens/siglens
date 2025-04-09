@@ -34,9 +34,9 @@ func Test_checksumFile_ReadAndWrite(t *testing.T) {
 
 	fd, err := os.Create(fileName)
 	require.NoError(t, err)
+	defer fd.Close()
 	csf, err := NewChecksumFile(fd)
 	require.NoError(t, err)
-	defer csf.Close()
 
 	err = csf.AppendChunk(data)
 	require.NoError(t, err)
@@ -86,9 +86,9 @@ func Test_checksumFile_BackwardCompatibility(t *testing.T) {
 
 	fd, err := os.OpenFile(fileName, os.O_RDWR, 0644)
 	require.NoError(t, err)
+	defer fd.Close()
 	csf, err := NewChecksumFile(fd)
 	require.NoError(t, err)
-	defer csf.Close()
 
 	actualData := make([]byte, len(data))
 	n, err := csf.ReadAt(actualData, 0)

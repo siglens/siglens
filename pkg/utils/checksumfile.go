@@ -46,10 +46,6 @@ func NewChecksumFile(fd *os.File) (*checksumFile, error) {
 	return &checksumFile{fd: fd}, nil
 }
 
-func (csf *checksumFile) Close() error {
-	return csf.fd.Close()
-}
-
 // This is not thread-safe.
 func (csf *checksumFile) AppendChunk(data []byte) error {
 	if len(data) == 0 {
