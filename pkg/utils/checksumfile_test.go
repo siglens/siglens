@@ -127,6 +127,19 @@ func Test_checksumFile_PartialWrites(t *testing.T) {
 	assert.Equal(t, content1, content2)
 }
 
+func Test_checksumFile_FlushFailsOnAppendOnly(t *testing.T) {
+	dir := t.TempDir()
+	fd, err := os.OpenFile(filepath.Join(dir, "test"), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
+	require.NoError(t, err)
+	defer fd.Close()
+
+	csf := &ChecksumFile{Fd: fd}
+	err = csf.AppendPartialChunk([]byte("foo"))
+	assert.NoError(t, err)
+	err = csf.Flush()
+	assert.Error(t, err) // The fd was opened with O_APPEND.
+}
+
 func appendChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
 	t.Helper()
 	for _, chunk := range data {
