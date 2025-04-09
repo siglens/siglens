@@ -101,10 +101,13 @@ func (csf *checksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 			offset, csf.fd.Name(), err)
 	}
 
-	if magic, err := readUint32(csf.fd); err != nil {
+	magic, err := readUint32(csf.fd)
+	if err != nil {
 		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read magic number from file %v, err=%v",
 			csf.fd.Name(), err)
-	} else if magic != magicNumber {
+	}
+
+	if magic != magicNumber {
 		// Check if this is a checksum file. If it is, it will have the magic
 		// number at the start.
 		_, err := csf.fd.Seek(0, 0) // Seek to the start of the file.
