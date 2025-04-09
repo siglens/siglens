@@ -2263,15 +2263,13 @@ function mergeGraphs(chartType, panelId = -1) {
     var colorIndex = 0;
     var mergedCanvas, legendContainer;
 
-    // Handle number chart type in dashboard mode
-
-
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
             const data = getMetricsQData();
             currentPanel.queryData = data;
 
+            // Handle number chart type in dashboard mode
             if (currentPanel?.chartType === 'number') {
                 const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
                 panelChartEl.hide();
@@ -2295,6 +2293,13 @@ function mergeGraphs(chartType, panelId = -1) {
                     if (bigNumVal === null || bigNumVal === undefined) {
                         window.panelProcessEmptyQueryResults('', panelId);
                     } else {
+                        if (panelId == -1) {
+                            $('.panelDisplay #empty-response').empty().hide();
+                            $('.panelDisplay #corner-popup').hide();
+                        } else {
+                            $(`#panel${panelId} #empty-response`).empty().hide();
+                            $(`#panel${panelId} #corner-popup`).hide();
+                        }
                         displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
                     }
                 }, 0);

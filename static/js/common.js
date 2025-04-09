@@ -602,7 +602,7 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             });
         });
         if (bigNumVal === undefined || bigNumVal === null) {
-            console.log('No data found for the query');
+            panelProcessEmptyQueryResults('', panelId);
         } else {
             displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
             allResultsDisplayed--;
