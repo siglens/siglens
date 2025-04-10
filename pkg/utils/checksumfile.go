@@ -151,33 +151,20 @@ func (csf *ChecksumFile) Flush() error {
 	return nil
 }
 
+// It's safe to call this concurrently at different offsets.
 func (csf *ChecksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 	if csf.Fd == nil {
 		return 0, fmt.Errorf("checksumFile.ReadAt: File descriptor is nil")
 	}
 
-	_, err := csf.Fd.Seek(offset, 0)
-	if err != nil {
-		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot seek to offset %d in file %v, err=%v",
-			offset, csf.Fd.Name(), err)
-	}
-
-	magic, err := readUint32(csf.Fd)
+	magic, err := readUint32At(csf.Fd, offset)
 	if err != nil {
 		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read magic number from file %v, err=%v",
 			csf.Fd.Name(), err)
 	}
 
 	if magic != magicNumber {
-		// Check if this is a checksum file. If it is, it will have the magic
-		// number at the start.
-		_, err := csf.Fd.Seek(0, 0) // Seek to the start of the file.
-		if err != nil {
-			return 0, fmt.Errorf("checksumFile.ReadAt: Cannot seek to start of file %v, err=%v",
-				csf.Fd.Name(), err)
-		}
-
-		if magic, err := readUint32(csf.Fd); err != nil {
+		if magic, err := readUint32At(csf.Fd, 0); err != nil {
 			return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read magic number from start of file %v, err=%v",
 				csf.Fd.Name(), err)
 		} else if magic == magicNumber {
@@ -188,13 +175,13 @@ func (csf *ChecksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 		return csf.Fd.ReadAt(buf, offset)
 	}
 
-	checksum, err := readUint32(csf.Fd)
+	checksum, err := readUint32At(csf.Fd, offset+4)
 	if err != nil {
-		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read checksum from file %v, err=%v",
-			csf.Fd.Name(), err)
+		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read checksum from file %v at offset %v, err=%v",
+			csf.Fd.Name(), offset, err)
 	}
 
-	length, err := readUint32(csf.Fd)
+	length, err := readUint32At(csf.Fd, offset+8)
 	if err != nil {
 		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read length from file %v, err=%v",
 			csf.Fd.Name(), err)
@@ -205,7 +192,7 @@ func (csf *ChecksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 		return 0, fmt.Errorf("checksumFile.ReadAt: buffer length mismatch: expected %d, got %d", length, len(buf))
 	}
 
-	numBytesRead, err := csf.Fd.Read(buf)
+	numBytesRead, err := csf.Fd.ReadAt(buf, offset+12)
 	if err != nil && err != io.EOF {
 		return 0, fmt.Errorf("checksumFile.ReadAt: Cannot read data from file %v, err=%v",
 			csf.Fd.Name(), err)
@@ -219,9 +206,9 @@ func (csf *ChecksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 	return numBytesRead, err
 }
 
-func readUint32(fd *os.File) (uint32, error) {
+func readUint32At(fd *os.File, offset int64) (uint32, error) {
 	buf := make([]byte, 4)
-	_, err := fd.Read(buf)
+	_, err := fd.ReadAt(buf, offset)
 	if err != nil {
 		return 0, err
 	}
