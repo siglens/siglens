@@ -170,6 +170,31 @@ func Test_checksumFile_ConcurrentReads(t *testing.T) {
 	waitGroup.Wait()
 }
 
+func Test_checksumFile_ReadMultipleChunks(t *testing.T) {
+	dir := t.TempDir()
+	fd, err := os.Create(filepath.Join(dir, "test"))
+	require.NoError(t, err)
+	defer fd.Close()
+
+	csf := &ChecksumFile{Fd: fd}
+	allChunksData := [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}
+	appendChunksNoError(t, csf, allChunksData)
+
+	// Read the first two chunks.
+	buf := make([]byte, 6)
+	n, err := csf.ReadAt(buf, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, 6, n)
+	assert.Equal(t, []byte("foobar"), buf)
+
+	// Read the second and third chunks.
+	buf = make([]byte, 6)
+	n, err = csf.ReadAt(buf, 3+12) // 12 is the header size.
+	assert.NoError(t, err)
+	assert.Equal(t, 6, n)
+	assert.Equal(t, []byte("barbaz"), buf)
+}
+
 func appendChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
 	t.Helper()
 	for _, chunk := range data {
