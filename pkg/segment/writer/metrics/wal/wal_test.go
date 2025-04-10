@@ -2,6 +2,7 @@ package wal
 
 import (
 	"fmt"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -206,4 +207,48 @@ func generateMetricNames(n int) []string {
 		metrics[i] = fmt.Sprintf("metric_%d", i+1)
 	}
 	return metrics
+}
+
+func TestMetaEntryWal(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "test_wal_file.wal")
+
+	nwal, err := NewMMetaEntryWal(filePath)
+	assert.NoError(t, err)
+	defer os.Remove(filePath)
+
+	meta1 := &structs.MetricsMeta{
+		TTreeDir:           "treeDir1",
+		MSegmentDir:        "segmentDir1",
+		NumBlocks:          10,
+		BytesReceivedCount: 1000,
+		OnDiskBytes:        500,
+		TagKeys:            map[string]bool{"tag1": true, "tag2": true},
+		EarliestEpochSec:   1610000000,
+		LatestEpochSec:     1610001000,
+		DatapointCount:     200,
+		OrgId:              123,
+	}
+
+	meta2 := &structs.MetricsMeta{
+		TTreeDir:           "treeDir2",
+		MSegmentDir:        "segmentDir2",
+		NumBlocks:          5,
+		BytesReceivedCount: 2000,
+		OnDiskBytes:        800,
+		TagKeys:            map[string]bool{"tag3": true},
+		EarliestEpochSec:   1610002000,
+		LatestEpochSec:     1610003000,
+		DatapointCount:     100,
+		OrgId:              456,
+	}
+
+	err = nwal.WriteMetricsMetaEntries([]*structs.MetricsMeta{meta1, meta2})
+	assert.NoError(t, err)
+
+	readEntries, err := ReadMMetaEntryWal(filePath)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(readEntries))
+	assert.Equal(t, *meta1, *readEntries[0])
+	assert.Equal(t, *meta2, *readEntries[1])
 }

@@ -72,10 +72,13 @@ const METRICS_BLK_FLUSH_SLEEP_DURATION = 2 * 60 * 60 // 2 hours
 
 const METRICS_BLK_ROTATE_SLEEP_DURATION = 10 // 10 seconds
 
-const METRICS_INSTRUMENTATION_FLUSH_DURATION = 60 // 60 seconds
-const WAL_DPS_FLUSH_SLEEP_DURATION = 1            // 1 sec
-const METRICS_NAME_WAL_FLUSH_SLEEP_DURATION = 1   // 1 sec
+const METRICS_INSTRUMENTATION_FLUSH_DURATION = 60     // 60 seconds
+const WAL_DPS_FLUSH_SLEEP_DURATION = 1                // 1 sec
+const METRICS_NAME_WAL_FLUSH_SLEEP_DURATION = 1       // 1 sec
+const METRICS_META_ENTRY_WAL_FLUSH_SLEEP_DURATION = 1 // 1 sec
 const METRICS_NAME_WAL_DIR = "mname"
+const META_ENTRY_WAL_DIR = "metaentry"
+const METRICS_META_ENTRY_WAL_FILE = "metricsMetaEntry.wal"
 
 var dateTimeLayouts = []string{
 	time.RFC3339,
@@ -147,6 +150,11 @@ type mNameWalState struct {
 	wal          *wal.MetricNameWal // Active WAL file
 	lock         sync.Mutex
 }
+type mEntryWalState struct {
+	wal *wal.MetricsMetaEntryWal
+}
+
+var metricsMEntryWalState mEntryWalState
 
 /*
 A metrics buffer represent a 15 minute (or 1GB size) window of encoded series
@@ -217,6 +225,7 @@ func InitMetricsSegStore() {
 	go timeBasedInstruFlush()
 	go timeBasedWalDPSFlush()
 	go timeBasedMNameWalFlush()
+	go timeBasedMetaEntryWalFlush()
 }
 
 func initOrgMetrics(orgid int64) error {
@@ -236,7 +245,11 @@ func initOrgMetrics(orgid int64) error {
 		log.Errorf("initOrgMetrics: Available memory (%d) is not enough to initialize a single metrics segment", availableMem)
 		return errors.New("not enough memory to initialize metrics segments")
 	}
-
+	err := initNewMEntryWAL()
+	if err != nil {
+		log.Errorf("initOrgMetrics: Failed to initialize new Metrics meta entry  WAL in mSeg: %v", err)
+		return err
+	}
 	for i := uint64(0); i < numMetricsSegments; i++ {
 		mSeg, err := InitMetricsSegment(orgid, fmt.Sprintf("%d", i))
 		if err != nil {
@@ -1506,6 +1519,12 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
+	err = metricsMEntryWalState.wal.DeleteWAL()
+	if err != nil {
+		log.Errorf("rotateSegment: failed to delete metrics meta entry wal err = %v", err)
+		return err
+	}
+
 	return blob.UploadIngestNodeDir()
 }
 
@@ -2204,12 +2223,12 @@ func initSegment(suffix uint64, mId string) *MetricsSegment {
 	}
 }
 
-func RecoverMNameWALData() error {
+func RecoverMNameWALData() {
 	baseDir := getWALBaseDir()
 	mNameWalDir := filepath.Join(baseDir, METRICS_NAME_WAL_DIR)
 	walFilesData, err := extractMNameWALFileInfo(mNameWalDir)
 	if err != nil {
-		return err
+		return
 	}
 
 	for _, fileData := range walFilesData {
@@ -2251,10 +2270,62 @@ func RecoverMNameWALData() error {
 			if err != nil {
 				log.Warnf("RecoverMNameWALData :Failed to flush Metrics Name for shardID=%d, segID=%d,: %v",
 					fileData.mId, fileData.segID, err)
-				return err
 			}
 		}
 
 	}
+}
+
+func timeBasedMetaEntryWalFlush() {
+	var allMetaEntries []*structs.MetricsMeta
+	for {
+		time.Sleep(METRICS_META_ENTRY_WAL_FLUSH_SLEEP_DURATION * time.Second)
+		allMetaEntries = allMetaEntries[:0]
+		for _, ms := range GetAllMetricsSegments() {
+			ms.mNameWalState.lock.Lock()
+			finalDir := GetFinalMetricsDir(ms.Mid, ms.Suffix)
+			metaEntry := ms.getMetaEntry(finalDir, ms.Suffix)
+			allMetaEntries = append(allMetaEntries, metaEntry)
+			ms.mNameWalState.lock.Unlock()
+		}
+		if metricsMEntryWalState.wal != nil {
+			err := metricsMEntryWalState.wal.WriteMetricsMetaEntries(allMetaEntries)
+			if err != nil {
+				log.Warnf("timeBasedMetaEntryWalFlush : failed to write metrics meta entry in wal file err : %v", err)
+			}
+		}
+
+	}
+}
+
+func initNewMEntryWAL() error {
+	basedir := getWALBaseDir()
+	filePath := filepath.Join(basedir, META_ENTRY_WAL_DIR)
+	filePath = filepath.Join(filePath, METRICS_META_ENTRY_WAL_FILE)
+
+	var err error
+	metricsMEntryWalState.wal, err = wal.NewMMetaEntryWal(filePath)
+	if err != nil {
+		log.Errorf("initNewMEntryWAL : Failed to create new WAL file %s in %s: %v", METRICS_META_ENTRY_WAL_FILE, basedir, err)
+		return err
+	}
 	return nil
+}
+
+func RecoverMEntryWALData() {
+	baseDir := getWALBaseDir()
+	mNameWalDir := filepath.Join(baseDir, META_ENTRY_WAL_DIR)
+
+	filePath := filepath.Join(mNameWalDir, METRICS_META_ENTRY_WAL_FILE)
+	metaEntry, err := wal.ReadMMetaEntryWal(filePath)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range metaEntry {
+		err = meta.AddMetricsMetaEntry(entry)
+	}
+	if err != nil {
+		log.Warnf("RecoverMEntryWALData :Failed to flush Metrics meta entry  %v", err)
+	}
 }

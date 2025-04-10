@@ -3,8 +3,10 @@ package wal
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"hash/crc32"
 	"io"
 	"os"
@@ -40,6 +42,10 @@ type DataPointWal struct {
 }
 
 type MetricNameWal struct {
+	wal
+}
+
+type MetricsMetaEntryWal struct {
 	wal
 }
 
@@ -593,4 +599,164 @@ func (it *MNameWalIterator) decompressMetricNames() error {
 	}
 
 	return nil
+}
+
+func NewMMetaEntryWal(filePath string) (*MetricsMetaEntryWal, error) {
+	dir := filepath.Dir(filePath)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		log.Errorf("NewMMetaEntryWal : Failed to create directories for path %s: %v", dir, err)
+		return nil, err
+	}
+
+	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		log.Errorf("NewMMetaEntryWal : Failed to open WAL file at path %s: %v", filePath, err)
+		return nil, err
+	}
+
+	return &MetricsMetaEntryWal{
+		wal: wal{
+			fd:            f,
+			fNameWithPath: filePath,
+			checksumBuf:   make([]byte, 4),
+		},
+	}, nil
+}
+
+/*
+This function writes a new block to the file,
+
+File Format:
+	Version:                1 Byte  // File format version
+
+	[Block]
+		BlockLen:               4 Bytes  // Size of this block (excluding this field)
+		Checksum:               4 Bytes  // CRC32 checksum for data integrity
+		[]metricsMetaEntriesForEverySegment: Array of metric meta entries for every segment
+*/
+
+func (w *MetricsMetaEntryWal) WriteMetricsMetaEntries(metaEntries []*structs.MetricsMeta) error {
+	w.encodedBuf = w.encodedBuf[:0]
+
+	err := w.fd.Truncate(0)
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to truncate file: %v", err)
+		return err
+	}
+	_, err = w.fd.Seek(0, 0)
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to seek to beginning: %v", err)
+		return err
+	}
+
+	w.encodedBuf, err = json.Marshal(metaEntries)
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to marshal entries: %v", err)
+		return err
+	}
+
+	checksum := crc32.ChecksumIEEE(w.encodedBuf)
+	blockSize := uint32(len(w.encodedBuf) + UINT32_SIZE) // + 4 bytes for checksum
+
+	_, err = w.fd.Write(segutils.VERSION_WALFILE)
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to write version: %v", err)
+		return err
+	}
+
+	_, err = w.fd.Write(utils.Uint32ToBytesLittleEndian(blockSize))
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to write block size: %v", err)
+		return err
+	}
+
+	binary.LittleEndian.PutUint32(w.checksumBuf, checksum)
+	_, err = w.fd.Write(w.checksumBuf)
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to write checksum: %v", err)
+		return err
+	}
+
+	_, err = w.fd.Write(w.encodedBuf)
+	if err != nil {
+		log.Errorf("WriteMetricsMetaEntries: failed to write encoded data: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (w *MetricsMetaEntryWal) Close() error {
+	if w.fd != nil {
+		return w.fd.Close()
+	}
+	return errors.New("file descriptor is nil")
+}
+func (w *MetricsMetaEntryWal) DeleteWAL() error {
+	if w.fd != nil {
+		_ = w.fd.Close()
+	}
+
+	if err := os.Remove(w.fNameWithPath); err != nil {
+		log.Errorf("DeleteWAL : failed to delete WAL file: %v", err)
+		return err
+	}
+
+	return nil
+
+}
+func ReadMMetaEntryWal(filePath string) ([]*structs.MetricsMeta, error) {
+	fd, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	versionBuf := make([]byte, len(segutils.VERSION_WALFILE))
+	_, err = io.ReadFull(fd, versionBuf)
+	if err != nil {
+		log.Errorf("ReadMMetaEntryWal: failed to read version: %v", err)
+		return nil, err
+	}
+	if !bytes.Equal(versionBuf, segutils.VERSION_WALFILE) {
+		log.Errorf("ReadMMetaEntryWal: invalid WAL file version")
+		return nil, fmt.Errorf("invalid WAL file version")
+	}
+
+	blockSizeBytes := make([]byte, UINT32_SIZE)
+	_, err = io.ReadFull(fd, blockSizeBytes)
+	if err != nil {
+		log.Errorf("ReadMMetaEntryWal: failed to read block size: %v", err)
+		return nil, err
+	}
+	blockSize := binary.LittleEndian.Uint32(blockSizeBytes)
+
+	checksumBuf := make([]byte, UINT32_SIZE)
+	_, err = io.ReadFull(fd, checksumBuf)
+	if err != nil {
+		log.Errorf("ReadMMetaEntryWal: failed to read checksum: %v", err)
+		return nil, err
+	}
+	expectedChecksum := binary.LittleEndian.Uint32(checksumBuf)
+
+	dataSize := blockSize - UINT32_SIZE
+	encodedBuf := make([]byte, dataSize)
+	_, err = io.ReadFull(fd, encodedBuf)
+	if err != nil {
+		log.Errorf("ReadMMetaEntryWal: failed to read block content: %v", err)
+		return nil, err
+	}
+
+	calculatedChecksum := crc32.ChecksumIEEE(encodedBuf)
+	if calculatedChecksum != expectedChecksum {
+		log.Errorf("ReadMMetaEntryWal: checksum mismatch, expected %d, got %d", expectedChecksum, calculatedChecksum)
+		return nil, fmt.Errorf("checksum mismatch")
+	}
+
+	var metaEntries []*structs.MetricsMeta
+	err = json.Unmarshal(encodedBuf, &metaEntries)
+	if err != nil {
+		log.Errorf("ReadMMetaEntryWal: failed to unmarshal JSON array: %v", err)
+		return nil, err
+	}
+
+	return metaEntries, nil
 }

@@ -386,15 +386,10 @@ func startIngestServer(serverAddr string) {
 		}
 	}()
 
-	err := metrics.RecoverWALData()
-	if err != nil {
-		log.Errorf("startIngestServer: Failed to recover WAL files, err: %v", err)
-	}
-	err = metrics.RecoverMNameWALData()
-	if err != nil {
-		log.Errorf("startIngestServer: Failed to recover Metrics Name WAL files, err: %v", err)
-		return
-	}
+	_ = metrics.RecoverWALData()
+	metrics.RecoverMNameWALData()
+	metrics.RecoverMEntryWALData()
+
 }
 
 func startQueryServer(serverAddr string) {
