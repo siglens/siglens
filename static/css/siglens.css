@@ -5774,7 +5774,7 @@ p#versionInfo {
     z-index: 1;
     transition: opacity 0.3s ease-in-out;
     bottom: 10px;
-    left: 180px;
+    left: 179px;
     border: 1px solid var(--border-btn-color);
     border-radius: 5px;
     box-shadow: 0px 2px 8px 0px var(--border-shadow);
