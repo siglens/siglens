@@ -409,12 +409,13 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			continue
 		}
 
+		readOffset := int64(0)
 		for currBlk := minBlkNum; currBlk <= allBlocks[maxIdx]; currBlk++ {
-			readOffset := blks[currBlk].ColumnBlockOffset[tsKey] - firstBlkOff
 			readLen := int64(blks[currBlk].ColumnBlockLen[tsKey])
 			rawBlock := rawChunk[readOffset : readOffset+readLen]
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}
+			readOffset += readLen
 		}
 	}
 	close(allReadJob)
