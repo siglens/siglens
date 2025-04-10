@@ -1309,7 +1309,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 				if value.IsNull() {
 					continue
 				}
-				if strValue, ok := value.CVal.(string); ok && strValue == "" {
+				if strValue, ok := value.CVal.(string); ok && strValue == "" && isLogsQuery {
 					continue
 				}
 			}
