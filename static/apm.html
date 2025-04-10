@@ -41,25 +41,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <meta name="msapplication-TileColor" content="#da532c">
 
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
-    <link rel="stylesheet" href="./css/lib/all.min.css" />
-    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
-    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/lib/jquery.tagsinput.min.css" />
-    <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
-    <link rel="stylesheet" href="./css/lib/tippy.css" />
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
 
-    <script src="./js/lib/uuidv4.min.js"></script>
-    <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
     <script src="./js/lib/js.cookie.min.js"></script>
     <script src="./js/lib/moment.min.js"></script>
-    <script src="./js/lib/date_fns.min.js"></script>
-    <script src="./js/lib/popper.min.js"></script>
-    <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
-    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -114,7 +102,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             $('.submenu-card').click(function () {
                 const cardId = $(this).attr('id');
                 window.location.href = cardId + '.html';
-            });c
+            }); c
         });
     </script>
     <script src="./js/footer.js?cb={{ AppVersion }}"></script>
