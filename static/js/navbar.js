@@ -27,7 +27,7 @@ let navbarComponent = `
         </svg>
         </div>
     <div class="nav-main-menu logo">
-        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
+        <a href="./index.html" class="main-nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
         </a>
     </div>
 </div>
@@ -176,10 +176,15 @@ let navbarComponent = `
                 </button>
             </div>
         </div>
-        <div class="position-relative mb-2">
-            <div class="menu nav-help">
-                <a href="#" class="help-links"><span class="icon-help">
-                </span><span class="nav-link-text">Help & Support</span></a>
+        <div class="menu nav-help help-dropdown-toggle">
+            <div class="help-menu-header">
+                <a href="#" class="main-help-link">
+                    <span class="icon-help"></span>
+                    <span class="nav-link-text-drpdwn">Help & Support</span>
+                </a>
+                <img class="nav-dropdown-icon help-arrow orange"
+                            src="assets/arrow-btn.svg"
+                            alt="Dropdown Arrow">
             </div>
             <div class="help-options">
                 <div class="nav-docs">
@@ -421,9 +426,10 @@ $(document).ready(function () {
 
     setupNavigationState();
 
-    initializeDropdowns();
+    initializeHelpDropdown();
 
     setupHamburgerBehavior();
+
 
     $('.navbar-submenu').hide();
     $('.help-options').hide();
@@ -643,6 +649,7 @@ $(document).ready(function () {
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
     });
+
 });
 
 function setupNavigationState() {
@@ -727,38 +734,44 @@ function setupNavigationState() {
     }
 }
 
-function initializeDropdowns() {
+function initializeHelpDropdown() {
+    const $helpArrow = $('.help-arrow');
+    const $helpHeader = $('.help-menu-header');
+    const $helpOptions = $('.help-options');
 
-    // Help dropdown behavior
-    $('.nav-help').hover(
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $('.help-options').stop(true, true).slideDown(0);
-        },
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $('.help-options').stop(true, true).slideUp(30);
-        }
-    ).on('click', function (event) {
+    $helpHeader.on('click', function (event) {
         event.preventDefault();
+        event.stopPropagation();
+        $helpOptions.stop(true, true).slideToggle(30, function () {
+            // Toggle rotated class based on visibility after animation
+            $helpArrow.toggleClass('rotated', $helpOptions.is(':visible'));
+        });
     });
 
-    // Help options hover behavior
-    $('.help-options').hover(
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $(this).stop(true, true).slideDown(0);
-        },
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $(this).stop(true, true).slideUp(30);
+    // Close dropdown on mouseleave
+    $helpOptions.on('mouseleave', function (event) {
+        event.stopPropagation();
+        $helpOptions.stop(true, true).slideUp(30, function () {
+            helpMenuOpen = false;
+            $helpArrow.removeClass('rotated');
+        });
+    });
+
+    // Close menu when clicking elsewhere on the document
+    $(document).on('click', function (event) {
+        if (!$(event.target).closest('.help-arrow, .help-options').length) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
         }
-    );
+    });
+
+    // Keep menu open when clicking inside the menu
+    $helpOptions.on('click', function(event) {
+        event.stopPropagation();
+    });
 }
+
 
 function setupHamburgerBehavior() {
     const navbarToggle = $('#navbar-toggle');

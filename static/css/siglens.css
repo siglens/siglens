@@ -3546,25 +3546,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     z-index: 1;
 }
 
-.nav-links,
-.help-links {
+.main-nav-links {
     display: flex;
     align-items: center;
     text-decoration: none !important;
     justify-content: flex-start;
 }
-
-.help-links {
-    margin-bottom: 5px;
-    padding-right: 5px;
-}
-
-.nav-feedback .help-links {
-    margin-bottom: 0;
-    margin-top: 5px;
-}
-
-
 
 .nav-link-text {
     font-size: 11px;
@@ -3591,7 +3578,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #app-side-nav .menu.active .nav-link-text,
-#app-side-nav .menu:hover .nav-link-text,
 .nav-link-text:hover,
 .help-links:hover .nav-link-text {
     color: var(--navbar-link-text-active);
@@ -3606,11 +3592,342 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--navbar-link-text-active);
 }
 
-
 #app-side-nav .menu.logo .sslogo-text {
     padding-left: 8px;
     width: 82px;
     height: 20px;
+}
+
+
+.nav-metrics,
+.nav-traces,
+.nav-ingest,
+.nav-alerts,
+.nav-infrastructure {
+    position: relative;
+}
+
+/* Specific styling for menu items with active state */
+#app-side-nav .menu .nav-links {
+    display: flex;
+    align-items: center;
+    text-decoration: none !important;
+    width: 100%;
+    min-height: 28px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+}
+
+#app-side-nav .menu:hover .link-search,
+#app-side-nav .menu:hover .link-slos,
+#app-side-nav .menu:hover .link-minion,
+#app-side-nav .menu:hover .link-usq,
+#app-side-nav .menu:hover .link-myorg,
+#app-side-nav .menu:hover .link-ldb,
+#app-side-nav .menu:hover .link-usage-stats,
+#app-side-nav .menu:hover .link-lookups{
+    background-color: var(--side-nav-bg-color-selected);
+}
+
+#app-side-nav .menu.active .link-search,
+#app-side-nav .menu.active .link-slos,
+#app-side-nav .menu.active .link-minion,
+#app-side-nav .menu.active .link-usq,
+#app-side-nav .menu.active .link-myorg,
+#app-side-nav .menu.active .link-ldb,
+#app-side-nav .menu.active .link-usage-stats,
+#app-side-nav .menu.active .link-lookups {
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    background-color: var(--side-nav-bg-color-selected);
+}
+
+/* Specific styling for Submenu dropdown */
+#app-side-nav .nav-traces .menu-header,
+#app-side-nav .nav-metrics .menu-header,
+#app-side-nav .nav-ingest .menu-header,
+#app-side-nav .nav-alerts .menu-header,
+#app-side-nav .nav-infrastructure .menu-header,
+#app-side-nav .nav-kubernetes .menu-header{
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 28px;
+    border-radius: 0 5px 5px 0;
+}
+
+#app-side-nav .nav-traces.active,
+#app-side-nav .nav-metrics.active,
+#app-side-nav .nav-ingest.active,
+#app-side-nav .nav-alerts.active,
+#app-side-nav .nav-infrastructure.active,
+#app-side-nav .nav-kubernetes.active {
+    border-left: none !important;
+    border-right: none !important;
+    background-color: transparent !important;
+}
+
+#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
+#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
+#app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
+#app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
+#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
+#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
+    color: white !important;
+}
+
+#app-side-nav .nav-traces .menu-header:hover,
+#app-side-nav .nav-metrics .menu-header:hover,
+#app-side-nav .nav-ingest .menu-header:hover,
+#app-side-nav .nav-alerts .menu-header:hover,
+#app-side-nav .nav-infrastructure .menu-header:hover,
+#app-side-nav .nav-kubernetes .menu-header:hover {
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+}
+
+#app-side-nav .nav-traces.active .traces-dropdown,
+#app-side-nav .nav-metrics.active .metrics-dropdown,
+#app-side-nav .nav-ingest.active .ingestion-dropdown,
+#app-side-nav .nav-alerts.active .alerts-dropdown,
+#app-side-nav .nav-infrastructure.active .infrastructure-dropdown,
+#app-side-nav .nav-kubernetes.active .kubernetes-dropdown {
+    border-left: none !important;
+    border-right: none !important;
+    background-color: var(--side-nav-bg-color-regular) !important;
+}
+
+.traces-dropdown,
+.metrics-dropdown,
+.ingestion-dropdown,
+.alerts-dropdown,
+.infrastructure-dropdown{
+    display: none;
+    background-color: var(--side-nav-bg-color-regular);
+    padding: 0 0 6px 0;
+    margin: 0;
+    font-size: 11px;
+    color: var(--navbar-link-text) !important;
+    list-style-type: none;
+    border-radius: 0 0 5px 5px;
+    position: static;
+    width: 100%;
+    cursor: pointer;
+}
+
+.traces-dropdown a,
+.metrics-dropdown a,
+.ingestion-dropdown a,
+.alerts-dropdown a{
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+    display: block;
+    padding-left: 20px;
+}
+
+.traces-dropdown li,
+.metrics-dropdown li,
+.ingestion-dropdown li,
+.alerts-dropdown li{
+    margin-bottom: 2px;
+    font-weight: 500;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    border-left: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+}
+
+.traces-dropdown li:hover,
+.metrics-dropdown li:hover,
+.ingestion-dropdown li:hover,
+.alerts-dropdown li:hover{
+    color: white !important;
+    border-right: 5px solid var(--side-nav-bg-color-selected);
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+}
+
+/* Active state for submenu items */
+.traces-dropdown li.active,
+.metrics-dropdown li.active,
+.ingestion-dropdown li.active,
+.alerts-dropdown li.active{
+    color: white !important;
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    /* Orange bar for submenu */
+    background-color: var(--side-nav-bg-color-selected) !important;
+    border-radius: 0 5px 5px 0 !important;
+}
+
+#app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
+    color:  var(--navbar-link-text) !important;
+}
+
+#app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
+    color:  var(--navbar-link-text) !important;
+}
+
+#app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
+    color:  white !important;
+}
+
+#app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
+    color:  white !important;
+}
+
+.infrastructure-dropdown div {
+    padding: 0px 0px 0px 20px !important;
+}
+
+.infrastructure-dropdown div.menu-header {
+    margin-bottom: 0px !important;
+    font-weight: 500;
+    height: 28px;
+    align-items: center;
+    border-left: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+}
+
+.infrastructure-dropdown div.menu-header:hover {
+    color: white !important;
+    border-right: 0px solid var(--side-nav-bg-color-selected);
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+}
+
+.infrastructure-dropdown div.menu-header.active{
+    color: white !important;
+}
+
+.kubernetes-dropdown{
+    display: none;
+    padding: 0 0 0 0 !important;
+    margin: 0;
+    font-size: 11px;
+    color: var(--navbar-link-text) !important;
+    list-style-type: none;
+    border-radius: 0 0 5px 5px;
+    position: static;
+    width: 100%;
+    cursor: pointer;
+}
+
+.kubernetes-dropdown a{
+    color: var(--navbar-link-text) !important;
+    text-decoration: none;
+    display: block;
+    padding-left: 20px;
+}
+
+.kubernetes-dropdown li{
+    margin-bottom: 2px;
+    font-weight: 500;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    border-left: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+}
+
+.kubernetes-dropdown li:hover{
+    color: white !important;
+    border-right: 5px solid var(--side-nav-bg-color-selected);
+    background-color: var(--side-nav-bg-color-selected);
+    border-radius: 0 5px 5px 0;
+}
+
+.kubernetes-dropdown li.active{
+    color: white !important;
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    /* Orange bar for submenu */
+    background-color: var(--side-nav-bg-color-selected) !important;
+    border-radius: 0 5px 5px 0 !important;
+}
+
+.nav-dropdown-icon,
+.kubernetes-arrow {
+    margin-right: 10px;
+    transition: transform 0.3s ease;
+}
+
+.nav-dropdown-icon.rotated,
+.kubernetes-arrow.rotated {
+    transform: rotate(180deg) !important;
+}
+
+
+#app-side-nav .nav-help .help-menu-header{
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 28px;
+    border-radius: 0 5px 5px 0;
+}
+
+#app-side-nav .help-menu-header:hover{
+    background-color: var(--side-nav-bg-color-selected) !important;
+}
+
+#app-side-nav .nav-help.active  {
+    border-left: none !important;
+    border-right: none !important;
+    background-color: transparent !important;
+}
+
+/* #app-side-nav .nav-help.active .nav-link-text-drpdwn {
+    color: white !important;
+} */
+
+.main-help-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none !important;
+    width: 100%;
+    min-height: 28px;
+    border-right: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+    padding-right: 5px;
+}
+
+.help-links {
+    display: flex;
+    align-items: center;
+    text-decoration: none !important;
+    width: 100%;
+    min-height: 28px;
+    border-right: 5px solid transparent;
+    border-radius: 0 5px 5px 0;
+    margin-bottom: 5px;
+    padding-right: 5px;
+}
+
+.nav-feedback .help-links {
+    margin-bottom: 0;
+    margin-top: 5px;
+}
+
+.help-options.help-links {
+    background-color: var(--side-nav-bg-color-selected) !important;
+    color: var(--navbar-link-text) !important;
+    border-radius: 5px;
+}
+
+.help-options .help-links:hover {
+    background-color: var(--side-nav-bg-color-selected) !important;
+    color: rgb(255, 255, 255);
+    border-radius: 5px;
+}
+
+.nav-dropdown-icon.help-arrow{
+    transform: rotate(270deg) !important;
+}
+
+.nav-dropdown-icon.help-arrow.rotated {
+    transform: rotate(180deg) !important;
 }
 
 /* METRICS UI */
@@ -5746,272 +6063,6 @@ p#versionInfo {
 
 .btncontainer button {
     width: 100%;
-}
-
-
-.nav-metrics,
-.nav-traces,
-.nav-ingest,
-.nav-alerts,
-.nav-infrastructure {
-    position: relative;
-}
-
-/* Specific styling for menu items with active state */
-#app-side-nav .menu .nav-links {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 28px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-}
-
-#app-side-nav .menu:hover .link-search,
-#app-side-nav .menu:hover .link-slos,
-#app-side-nav .menu:hover .link-minion,
-#app-side-nav .menu:hover .link-usq,
-#app-side-nav .menu:hover .link-myorg,
-#app-side-nav .menu:hover .link-ldb,
-#app-side-nav .menu:hover .link-usage-stats,
-#app-side-nav .menu:hover .link-lookups{
-    background-color: var(--side-nav-bg-color-selected);
-}
-
-#app-side-nav .menu.active .link-search,
-#app-side-nav .menu.active .link-slos,
-#app-side-nav .menu.active .link-minion,
-#app-side-nav .menu.active .link-usq,
-#app-side-nav .menu.active .link-myorg,
-#app-side-nav .menu.active .link-ldb,
-#app-side-nav .menu.active .link-usage-stats,
-#app-side-nav .menu.active .link-lookups {
-    border-left: 5px solid var(--side-nav-selected-border-color) !important;
-    background-color: var(--side-nav-bg-color-selected);
-}
-
-/* Specific styling for Submenu dropdown */
-#app-side-nav .nav-traces .menu-header,
-#app-side-nav .nav-metrics .menu-header,
-#app-side-nav .nav-ingest .menu-header,
-#app-side-nav .nav-alerts .menu-header,
-#app-side-nav .nav-infrastructure .menu-header,
-#app-side-nav .nav-kubernetes .menu-header{
-    display: flex;
-    align-items: center;
-    width: 100%;
-    min-height: 28px;
-    border-radius: 0 5px 5px 0;
-}
-
-#app-side-nav .nav-traces.active,
-#app-side-nav .nav-metrics.active,
-#app-side-nav .nav-ingest.active,
-#app-side-nav .nav-alerts.active,
-#app-side-nav .nav-infrastructure.active,
-#app-side-nav .nav-kubernetes.active {
-    border-left: none !important;
-    border-right: none !important;
-    background-color: transparent !important;
-}
-
-#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
-#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
-#app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
-#app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
-#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
-#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
-    color: white !important;
-}
-
-#app-side-nav .nav-traces .menu-header:hover,
-#app-side-nav .nav-metrics .menu-header:hover,
-#app-side-nav .nav-ingest .menu-header:hover,
-#app-side-nav .nav-alerts .menu-header:hover,
-#app-side-nav .nav-infrastructure .menu-header:hover,
-#app-side-nav .nav-kubernetes .menu-header:hover {
-    background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-    cursor: pointer;
-}
-
-#app-side-nav .nav-traces.active .traces-dropdown,
-#app-side-nav .nav-metrics.active .metrics-dropdown,
-#app-side-nav .nav-ingest.active .ingestion-dropdown,
-#app-side-nav .nav-alerts.active .alerts-dropdown,
-#app-side-nav .nav-infrastructure.active .infrastructure-dropdown,
-#app-side-nav .nav-kubernetes.active .kubernetes-dropdown {
-    border-left: none !important;
-    border-right: none !important;
-    background-color: var(--side-nav-bg-color-regular) !important;
-}
-
-.traces-dropdown,
-.metrics-dropdown,
-.ingestion-dropdown,
-.alerts-dropdown,
-.infrastructure-dropdown{
-    display: none;
-    background-color: var(--side-nav-bg-color-regular);
-    padding: 0 0 6px 0;
-    margin: 0;
-    font-size: 11px;
-    color: var(--navbar-link-text) !important;
-    list-style-type: none;
-    border-radius: 0 0 5px 5px;
-    position: static;
-    width: 100%;
-    cursor: pointer;
-}
-
-.traces-dropdown a,
-.metrics-dropdown a,
-.ingestion-dropdown a,
-.alerts-dropdown a{
-    color: var(--navbar-link-text) !important;
-    text-decoration: none;
-    display: block;
-    padding-left: 20px;
-}
-
-.traces-dropdown li,
-.metrics-dropdown li,
-.ingestion-dropdown li,
-.alerts-dropdown li{
-    margin-bottom: 2px;
-    font-weight: 500;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    padding-left: 20px;
-    border-left: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-}
-
-.traces-dropdown li:hover,
-.metrics-dropdown li:hover,
-.ingestion-dropdown li:hover,
-.alerts-dropdown li:hover{
-    color: white !important;
-    border-right: 5px solid var(--side-nav-bg-color-selected);
-    background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-}
-
-/* Active state for submenu items */
-.traces-dropdown li.active,
-.metrics-dropdown li.active,
-.ingestion-dropdown li.active,
-.alerts-dropdown li.active{
-    color: white !important;
-    border-left: 5px solid var(--side-nav-selected-border-color) !important;
-    /* Orange bar for submenu */
-    background-color: var(--side-nav-bg-color-selected) !important;
-    border-radius: 0 5px 5px 0 !important;
-}
-
-#app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
-}
-
-#app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
-}
-
-#app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color:  white !important;
-}
-
-#app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
-    color:  white !important;
-}
-
-.infrastructure-dropdown div {
-    padding: 0px 0px 0px 20px !important;
-}
-
-.infrastructure-dropdown div.menu-header {
-    margin-bottom: 0px !important;
-    font-weight: 500;
-    height: 28px;
-    align-items: center;
-    border-left: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-}
-
-.infrastructure-dropdown div.menu-header:hover {
-    color: white !important;
-    border-right: 0px solid var(--side-nav-bg-color-selected);
-    background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-}
-
-.infrastructure-dropdown div.menu-header.active{
-    color: white !important;
-}
-
-.kubernetes-dropdown{
-    display: none;
-    padding: 0 0 0 0 !important;
-    margin: 0;
-    font-size: 11px;
-    color: var(--navbar-link-text) !important;
-    list-style-type: none;
-    border-radius: 0 0 5px 5px;
-    position: static;
-    width: 100%;
-    cursor: pointer;
-}
-
-.kubernetes-dropdown a{
-    color: var(--navbar-link-text) !important;
-    text-decoration: none;
-    display: block;
-    padding-left: 20px;
-}
-
-.kubernetes-dropdown li{
-    margin-bottom: 2px;
-    font-weight: 500;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    padding-left: 20px;
-    border-left: 5px solid transparent;
-    border-radius: 0 5px 5px 0;
-}
-
-.kubernetes-dropdown li:hover{
-    color: white !important;
-    border-right: 5px solid var(--side-nav-bg-color-selected);
-    background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-}
-
-.kubernetes-dropdown li.active{
-    color: white !important;
-    border-left: 5px solid var(--side-nav-selected-border-color) !important;
-    /* Orange bar for submenu */
-    background-color: var(--side-nav-bg-color-selected) !important;
-    border-radius: 0 5px 5px 0 !important;
-}
-
-.nav-dropdown-icon,
-.kubernetes-arrow {
-    margin-right: 10px;
-    transition: transform 0.3s ease;
-}
-
-.nav-dropdown-icon.rotated,
-.kubernetes-arrow.rotated {
-    transform: rotate(180deg) !important;
-}
-
-.help-options .help-links:hover {
-    background-color: var(--purple-1);
-    color: rgb(255, 255, 255);
-    border-radius: 5px;
 }
 
 .metric-summary {
