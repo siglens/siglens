@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2021-2024 SigScalr, Inc.
+Copyright (c) 2021-2025 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
 
@@ -76,14 +76,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
         <div id="dashboard" class="p-4">
             <div>
-                <h1 class="myOrg-heading submenu-heading">Infrastructure</h1>
-                <p class="caption submenu-caption">Understand your infrastructure's health</p>
+                <h1 class="myOrg-heading submenu-heading">Metrics</h1>
+                <p class="caption submenu-caption">Monitor and analyze time series metrics data</p>
             </div>
             <div class="submenu-container">
-                <div class="submenu-card" id="kubernetes-card">
-                    <div class="myOrg-heading">Kubernetes</div>
+                <div class="submenu-card">
+                    <div class="myOrg-heading">Query Explorer</div>
                     <p>
-                        Quickly and easily monitor you Kubernetes infrastructure with SigLens
+                        Create PromQL queries and visualize metrics data with interactive graphs
+                    </p>
+                </div>
+                <div class="submenu-card">
+                    <div class="myOrg-heading">Metrics Summary</div>
+                    <p>
+                        Browse and search through all available metrics names and metadata
+                    </p>
+                </div>
+                <div class="submenu-card">
+                    <div class="myOrg-heading">Cardinality Explorer</div>
+                    <p>
+                        Analyze series cardinality and identify high-cardinality metrics
                     </p>
                 </div>
             </div>
@@ -99,7 +111,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script>
         $(document).ready(function () {
             $('.theme-btn').on('click', themePickerHandler);
-            $('#kubernetes-card').click(function () {
+            $('.submenu-card').click(function () {
                 window.location.href = 'kubernetes-overview.html';
             });
         });
