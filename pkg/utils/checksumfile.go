@@ -134,17 +134,17 @@ func (csf *ChecksumFile) Flush() error {
 
 	_, err := csf.Fd.WriteAt(Uint32ToBytesLittleEndian(magicNumber), csf.chunkOffset)
 	if err != nil {
-		return fmt.Errorf("checksumFile.AppendChunk: Cannot write magic number to file %v, err=%v", csf.Fd.Name(), err)
+		return fmt.Errorf("checksumFile.Flush: Cannot write magic number to file %v, err=%v", csf.Fd.Name(), err)
 	}
 
 	_, err = csf.Fd.WriteAt(Uint32ToBytesLittleEndian(csf.checksum), csf.chunkOffset+checksumOffset)
 	if err != nil {
-		return fmt.Errorf("checksumFile.AppendChunk: Cannot write checksum to file %v, err=%v", csf.Fd.Name(), err)
+		return fmt.Errorf("checksumFile.Flush: Cannot write checksum to file %v, err=%v", csf.Fd.Name(), err)
 	}
 
 	_, err = csf.Fd.WriteAt(Uint32ToBytesLittleEndian(uint32(csf.curChunkLen)), csf.chunkOffset+lengthOffset)
 	if err != nil {
-		return fmt.Errorf("checksumFile.AppendChunk: Cannot write length to file %v, err=%v", csf.Fd.Name(), err)
+		return fmt.Errorf("checksumFile.Flush: Cannot write length to file %v, err=%v", csf.Fd.Name(), err)
 	}
 
 	csf.chunkOffset = 0
