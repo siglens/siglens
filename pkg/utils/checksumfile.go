@@ -25,6 +25,9 @@ import (
 )
 
 const magicNumber uint32 = 0x87654321
+const checksumOffset = 4
+const lengthOffset = 8
+const dataOffset = 12
 
 // This is used to read and write files in chunks that are checksummed. It's
 // also backward compatible, so it can read files that were not written this
@@ -106,7 +109,7 @@ func (csf *ChecksumFile) AppendPartialChunk(data []byte) error {
 		// We want to write the data now, but we don't know what checksum or
 		// length to write. So skip some bytes, and we'll write them later.
 		csf.chunkOffset = offset
-		_, err = csf.Fd.Write(make([]byte, 12)) // magic, checksum, and length
+		_, err = csf.Fd.Write(make([]byte, dataOffset))
 		if err != nil {
 			return fmt.Errorf("checksumFile.AppendPartialChunk: Cannot write placeholders to file %v, err=%v",
 				csf.Fd.Name(), err)
@@ -134,12 +137,12 @@ func (csf *ChecksumFile) Flush() error {
 		return fmt.Errorf("checksumFile.AppendChunk: Cannot write magic number to file %v, err=%v", csf.Fd.Name(), err)
 	}
 
-	_, err = csf.Fd.WriteAt(Uint32ToBytesLittleEndian(csf.checksum), csf.chunkOffset+4)
+	_, err = csf.Fd.WriteAt(Uint32ToBytesLittleEndian(csf.checksum), csf.chunkOffset+checksumOffset)
 	if err != nil {
 		return fmt.Errorf("checksumFile.AppendChunk: Cannot write checksum to file %v, err=%v", csf.Fd.Name(), err)
 	}
 
-	_, err = csf.Fd.WriteAt(Uint32ToBytesLittleEndian(uint32(csf.curChunkLen)), csf.chunkOffset+8)
+	_, err = csf.Fd.WriteAt(Uint32ToBytesLittleEndian(uint32(csf.curChunkLen)), csf.chunkOffset+lengthOffset)
 	if err != nil {
 		return fmt.Errorf("checksumFile.AppendChunk: Cannot write length to file %v, err=%v", csf.Fd.Name(), err)
 	}
@@ -159,7 +162,7 @@ func (csf *ChecksumFile) ReadAt(buf []byte, offset int64) (int, error) {
 
 	totalBytesRead := 0
 	for i := 0; ; i++ {
-		numBytesRead, err := csf.readChunkAt(buf[totalBytesRead:], offset+int64(totalBytesRead+i*12))
+		numBytesRead, err := csf.readChunkAt(buf[totalBytesRead:], offset+int64(totalBytesRead+i*dataOffset))
 		totalBytesRead += numBytesRead
 		if err != nil {
 			return totalBytesRead, err
@@ -190,13 +193,13 @@ func (csf *ChecksumFile) readChunkAt(buf []byte, offset int64) (int, error) {
 		return csf.Fd.ReadAt(buf, offset)
 	}
 
-	checksum, err := readUint32At(csf.Fd, offset+4)
+	checksum, err := readUint32At(csf.Fd, offset+checksumOffset)
 	if err != nil {
 		return 0, fmt.Errorf("checksumFile.readChunkAt: Cannot read checksum from file %v at offset %v, err=%v",
 			csf.Fd.Name(), offset, err)
 	}
 
-	length, err := readUint32At(csf.Fd, offset+8)
+	length, err := readUint32At(csf.Fd, offset+lengthOffset)
 	if err != nil {
 		return 0, fmt.Errorf("checksumFile.readChunkAt: Cannot read length from file %v, err=%v",
 			csf.Fd.Name(), err)
@@ -208,7 +211,7 @@ func (csf *ChecksumFile) readChunkAt(buf []byte, offset int64) (int, error) {
 	}
 
 	numBytesToRead := min(int(length), len(buf))
-	numBytesRead, err := csf.Fd.ReadAt(buf[:numBytesToRead], offset+12)
+	numBytesRead, err := csf.Fd.ReadAt(buf[:numBytesToRead], offset+dataOffset)
 	if err != nil && err != io.EOF {
 		return 0, fmt.Errorf("checksumFile.readChunkAt: Cannot read data from file %v, err=%v",
 			csf.Fd.Name(), err)
