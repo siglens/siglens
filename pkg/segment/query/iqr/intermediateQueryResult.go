@@ -1300,28 +1300,31 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 	}
 
 	cValRecords := toputils.TransposeMapOfSlices(records)
-	recordsAsAny := make([]map[string]interface{}, len(cValRecords))
-	for i, record := range cValRecords {
-		recordsAsAny[i] = make(map[string]interface{})
+	recordsAsAny := make([]map[string]interface{}, 0)
+	nonEmptyColumns := make(map[string]struct{})
+	for _, record := range cValRecords {
+		nonEmptyRecord := map[string]interface{}{}
 		for key, value := range record {
 			if !includeNulls {
 				if value.IsNull() {
 					continue
 				}
-				if strValue, ok := value.CVal.(string); ok && strValue == "" && isLogsQuery {
+				if strValue, ok := value.CVal.(string); ok && strValue == "" {
 					continue
 				}
 			}
-			recordsAsAny[i][key] = value.CVal
+			nonEmptyColumns[key] = struct{}{}
+			nonEmptyRecord[key] = value.CVal
+		}
+		if len(nonEmptyRecord) > 0 {
+			recordsAsAny = append(recordsAsAny, nonEmptyRecord)
 		}
 	}
 
-	var allCNames []string
+	allCNames := make([]string, 0)
 	if isLogsQuery {
-		for _, col := range toputils.GetKeysOfMap(records) {
-			if col != "" {
-				allCNames = append(allCNames, col)
-			}
+		for col := range nonEmptyColumns {
+			allCNames = append(allCNames, col)
 		}
 	} else {
 		allCNames = toputils.GetKeysOfMap(records)
@@ -1333,7 +1336,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
 				TotalMatched: toputils.HitsCount{
-					Value:    uint64(iqr.NumberOfRecords()),
+					Value:    uint64(len(recordsAsAny)),
 					Relation: "eq",
 				},
 				Hits: recordsAsAny,
