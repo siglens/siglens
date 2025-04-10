@@ -201,7 +201,7 @@ func (hs *queryserverCfg) Run(htmlTemplate *htmltemplate.Template, textTemplate 
 	hs.Router.POST(server_utils.API_PREFIX+"/echo", tracing.TraceMiddleware(hs.Recovery(pipeSearchHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/listIndices", tracing.TraceMiddleware(hs.Recovery(listIndicesHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/clusterStats", tracing.TraceMiddleware(hs.Recovery(getClusterStatsHandler())))
-	hs.Router.POST(server_utils.API_PREFIX+"/clusterIngestStats", tracing.TraceMiddleware(hs.Recovery(getClusterIngestStatsHandler())))
+	hs.Router.POST(server_utils.API_PREFIX+"/usageStats", tracing.TraceMiddleware(hs.Recovery(getUsageStatsHandler())))
 	hs.Router.POST(server_utils.API_PREFIX+"/usersavedqueries/save", tracing.TraceMiddleware(hs.Recovery(saveUserSavedQueriesHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/getall", tracing.TraceMiddleware(hs.Recovery(getUserSavedQueriesAllHandler())))
 	hs.Router.GET(server_utils.API_PREFIX+"/usersavedqueries/deleteone/{qname}", tracing.TraceMiddleware(hs.Recovery(deleteUserSavedQueryHandler())))

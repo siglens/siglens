@@ -29,16 +29,16 @@ $(document).ready(() => {
     let endDate = 'now';
     datePickerHandler(stDate, endDate, stDate);
 
-    $('.range-item').on('click', getClusterIngestStats);
-    $('#customrange-btn').on('click', getClusterIngestStats);
+    $('.range-item').on('click', getUsageStats);
+    $('#customrange-btn').on('click', getUsageStats);
 
-    getClusterIngestStats();
+    getUsageStats();
     getClusterStats();
 
     $('.granularity-tabs .tab').click(function () {
         $('.granularity-tabs .tab').removeClass('active');
         $(this).addClass('active');
-        getClusterIngestStats();
+        getUsageStats();
     });
 });
 
@@ -75,7 +75,7 @@ function displayTotal(res) {
     $('.datapoints-total').text(totalDatapoints);
 }
 
-function setupClusterStatsCharts(data) {
+function setupUsageStatsCharts(data) {
     if (!data || !data.chartStats) {
         console.error('No chart data available');
         return;
@@ -383,8 +383,8 @@ function formatDateLabel(value) {
     }
 }
 
-// Update the getClusterIngestStats function to use our charting functions
-function getClusterIngestStats() {
+// Update the getUsageStats function to use our charting functions
+function getUsageStats() {
     const selectedGranularity = $('.granularity-tabs .tab.active').data('tab');
 
     const requestBody = {
@@ -394,7 +394,7 @@ function getClusterIngestStats() {
     };
     $.ajax({
         method: 'post',
-        url: 'api/clusterIngestStats',
+        url: 'api/usageStats',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -404,7 +404,7 @@ function getClusterIngestStats() {
         data: JSON.stringify(requestBody),
     })
         .then((res) => {
-            setupClusterStatsCharts(res);
+            setupUsageStatsCharts(res);
         })
         .catch((err) => {
             console.error('error:', err);
