@@ -2,11 +2,12 @@ package wal
 
 import (
 	"fmt"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/siglens/siglens/pkg/segment/structs"
 
 	"github.com/stretchr/testify/assert"
 )

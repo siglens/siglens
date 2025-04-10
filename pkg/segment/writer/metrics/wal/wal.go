@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/siglens/siglens/pkg/segment/structs"
 	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/siglens/siglens/pkg/segment/structs"
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
