@@ -80,19 +80,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <p class="caption submenu-caption">End-to-end visibility into your application ecosystem performance</p>
             </div>
             <div class="submenu-container">
-                <div class="submenu-card">
+                <div class="submenu-card" id="service-health">
                     <div class="myOrg-heading">Service Health</div>
                     <p>
                         Monitor critical RED metrics (Request rate, Error %, Duration) across services
                     </p>
                 </div>
-                <div class="submenu-card">
+                <div class="submenu-card" id="search-traces">
                     <div class="myOrg-heading">Search Traces</div>
                     <p>
                         Query distributed traces with detailed span-by-span Gantt visualization
                     </p>
                 </div>
-                <div class="submenu-card">
+                <div class="submenu-card" id="dependency-graph">
                     <div class="myOrg-heading">Dependency Graph </div>
                     <p>
                         Interactive service topology map showing real-time dependencies
@@ -112,8 +112,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         $(document).ready(function () {
             $('.theme-btn').on('click', themePickerHandler);
             $('.submenu-card').click(function () {
-                window.location.href = 'kubernetes-overview.html';
-            });
+                const cardId = $(this).attr('id');
+                window.location.href = cardId + '.html';
+            });c
         });
     </script>
     <script src="./js/footer.js?cb={{ AppVersion }}"></script>

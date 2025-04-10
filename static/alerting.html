@@ -80,13 +80,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <p class="caption submenu-caption">Learn about problems in your systems moments after they occur </p>
             </div>
             <div class="submenu-container">
-                <div class="submenu-card">
+                <div class="submenu-card" id="all-alerts">
                     <div class="myOrg-heading">Alert Rules</div>
                     <p>
                         Create and manage threshold-based alerting for metrics and logs
                     </p>
                 </div>
-                <div class="submenu-card">
+                <div class="submenu-card" id="contacts">
                     <div class="myOrg-heading">Contact Points </div>
                     <p>
                         Configure who receives notifications and how they are sent
@@ -106,7 +106,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         $(document).ready(function () {
             $('.theme-btn').on('click', themePickerHandler);
             $('.submenu-card').click(function () {
-                window.location.href = 'kubernetes-overview.html';
+                const cardId = $(this).attr('id');
+                window.location.href = cardId + '.html';
             });
         });
     </script>
