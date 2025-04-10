@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -138,6 +139,35 @@ func Test_checksumFile_FlushFailsOnAppendOnly(t *testing.T) {
 	assert.NoError(t, err)
 	err = csf.Flush()
 	assert.Error(t, err) // The fd was opened with O_APPEND.
+}
+
+func Test_checksumFile_ConcurrentReads(t *testing.T) {
+	dir := t.TempDir()
+	fd, err := os.Create(filepath.Join(dir, "test"))
+	require.NoError(t, err)
+	defer fd.Close()
+
+	csf := &ChecksumFile{Fd: fd}
+	allChunksData := [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}
+	appendChunksNoError(t, csf, allChunksData)
+
+	offsets := []int64{0 * 12, 1*12 + 3, 2*12 + 3 + 3} // 12 is the header size.
+	waitGroup := sync.WaitGroup{}
+	for i := range offsets {
+		waitGroup.Add(1)
+		go func(expectedData []byte, offset int64) {
+			defer waitGroup.Done()
+
+			for k := 0; k < 100; k++ {
+				actualData := make([]byte, len(expectedData))
+				n, err := csf.ReadAt(actualData, offset)
+				assert.NoError(t, err)
+				assert.Equal(t, len(expectedData), n)
+				assert.Equal(t, expectedData, actualData)
+			}
+		}(allChunksData[i], offsets[i])
+	}
+	waitGroup.Wait()
 }
 
 func appendChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
