@@ -844,9 +844,12 @@ func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error)
 		close(ch)
 	}()
 
+	var err error
 	for res := range ch {
 		if res.err != nil {
-			return nil, res.err
+			err = res.err
+			// continue with the rest of segkey stats
+			continue
 		}
 		stats.TotalCmiSize += res.stats.TotalCmiSize
 		stats.TotalCsgSize += res.stats.TotalCsgSize
@@ -860,7 +863,7 @@ func GetIndexSizeStats(indexName string, orgId int64) (*utils.IndexStats, error)
 	stats.NumIndexFiles += unrotatedStats.NumIndexFiles
 	stats.NumBlocks += unrotatedStats.NumBlocks
 
-	return stats, nil
+	return stats, err
 }
 
 func getUnrotatedSegmentStats(indexName string, orgId int64) *SegmentSizeStats {

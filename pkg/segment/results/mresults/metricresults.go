@@ -797,17 +797,19 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 				Metric: metricSeries,
 			}
 
-			if len(results) == 1 {
-				// Instant Query is expected to have only one timestamp
-				for _, val := range results {
-					result.Value = []interface{}{timestamp, fmt.Sprintf("%v", val)}
-					pqlData.VectorResult = append(pqlData.VectorResult, result)
+			// Instant Query is expected to have only the latest timestamp
+			latestTime := uint32(0)
+			latestValue := float64(0)
+
+			for ts, val := range results {
+				if ts > latestTime {
+					latestTime = ts
+					latestValue = val
 				}
-			} else if len(results) > 1 {
-				// If the results have more than 1 timestamp, then return an error
-				log.Errorf("GetResultsPromQlInstantQuery: More than 1 timestamp found in the results for seriesId: %v", seriesId)
-				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
 			}
+
+			result.Value = []interface{}{latestTime, fmt.Sprintf("%v", latestValue)}
+			pqlData.VectorResult = append(pqlData.VectorResult, result)
 		}
 	case parser.ValueTypeMatrix:
 		return nil, errors.New("ValueTypeMatrix is not supported for Instant Queries")

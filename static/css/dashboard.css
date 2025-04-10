@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -825,7 +825,7 @@
 }
 
 #dbSet-save-json.panEdit-btn {
-  display: none; 
+  display: none;
   position: absolute;
   right: calc(20% + 50px);
   top: 70px;
@@ -950,14 +950,7 @@
 .panEdit-navBtns .refresh-btn{
   border-radius: 5px !important;
 }
-.btn-top{
-  width: 137px;
-  height: 24px !important;
-  border: 1px solid var(--border-color-regular);
-}
-.btn-top:hover{
-  color: var(--drop-down-text-color) !important;
-}
+
 .settings-btn{
   margin-left: 0px;
   border: 1px solid var(--border-color-regular) !important;
@@ -1066,9 +1059,7 @@
 .dropdown-menu{
   background-color: var(--index-drop-down-box-bg-color) !important;
 }
-.index-btn-show{
-  width: 100px;
-}
+
 .over-title{
   display: inline-block;
   white-space: nowrap;

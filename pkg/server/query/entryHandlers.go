@@ -345,12 +345,12 @@ func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func getClusterIngestStatsHandler() func(ctx *fasthttp.RequestCtx) {
+func getUsageStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.IngestStatsHandlerHook; hook != nil {
 			hook(ctx, 0)
 		} else {
-			serverutils.CallWithMyIdQuery(health.ProcessClusterIngestStatsHandler, ctx)
+			serverutils.CallWithMyIdQuery(health.ProcessUsageStatsHandler, ctx)
 		}
 	}
 }
@@ -604,7 +604,7 @@ func liveTailHandler() func(ctx *fasthttp.RequestCtx) {
 			if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 				orgId, err = hook(ctx)
 				if err != nil {
-					log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
+					log.Errorf("ProcessUsageStatsHandler: failed to extract orgId from context. Err=%+v", err)
 					utils.SetBadMsg(ctx, "")
 					return
 				}

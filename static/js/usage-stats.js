@@ -18,7 +18,6 @@
  */
 
 $(document).ready(() => {
-    $('#app-content-area').hide();
     setupEventHandlers();
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', () => {
@@ -30,16 +29,16 @@ $(document).ready(() => {
     let endDate = 'now';
     datePickerHandler(stDate, endDate, stDate);
 
-    $('.range-item').on('click', getClusterIngestStats);
-    $('#customrange-btn').on('click', getClusterIngestStats);
+    $('.range-item').on('click', getUsageStats);
+    $('#customrange-btn').on('click', getUsageStats);
 
-    getClusterIngestStats();
+    getUsageStats();
     getClusterStats();
 
     $('.granularity-tabs .tab').click(function () {
         $('.granularity-tabs .tab').removeClass('active');
         $(this).addClass('active');
-        getClusterIngestStats();
+        getUsageStats();
     });
 });
 
@@ -55,7 +54,6 @@ function getClusterStats() {
         dataType: 'json',
     })
         .then((res) => {
-            console.log(res);
             displayTotal(res);
         })
         .catch((err) => {
@@ -77,7 +75,7 @@ function displayTotal(res) {
     $('.datapoints-total').text(totalDatapoints);
 }
 
-function setupClusterStatsCharts(data) {
+function setupUsageStatsCharts(data) {
     if (!data || !data.chartStats) {
         console.error('No chart data available');
         return;
@@ -296,7 +294,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     borderWidth: 2,
                     tension: 0.3,
                     pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                     fill: false,
                 },
                 {
@@ -307,7 +305,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     borderWidth: 2,
                     tension: 0.3,
                     pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                     fill: false,
                 },
             ],
@@ -315,6 +313,10 @@ function renderStackedChart(data, gridLineColor, tickColor) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
                 tooltip: {
                     mode: 'index',
@@ -381,8 +383,8 @@ function formatDateLabel(value) {
     }
 }
 
-// Update the getClusterIngestStats function to use our charting functions
-function getClusterIngestStats() {
+// Update the getUsageStats function to use our charting functions
+function getUsageStats() {
     const selectedGranularity = $('.granularity-tabs .tab.active').data('tab');
 
     const requestBody = {
@@ -392,7 +394,7 @@ function getClusterIngestStats() {
     };
     $.ajax({
         method: 'post',
-        url: 'api/clusterIngestStats',
+        url: 'api/usageStats',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
@@ -402,8 +404,7 @@ function getClusterIngestStats() {
         data: JSON.stringify(requestBody),
     })
         .then((res) => {
-            console.log(res);
-            setupClusterStatsCharts(res);
+            setupUsageStatsCharts(res);
         })
         .catch((err) => {
             console.error('error:', err);
