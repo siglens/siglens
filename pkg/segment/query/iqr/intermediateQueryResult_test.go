@@ -18,6 +18,7 @@
 package iqr
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
@@ -1405,6 +1406,7 @@ func Test_RemoveOneEmptyRecord(t *testing.T) {
 	}
 
 	result, err := iqr.AsResult(structs.RRCCmd, false, true)
+	sort.Strings(result.AllPossibleColumns)
 	require.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
