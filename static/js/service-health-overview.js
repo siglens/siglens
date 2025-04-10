@@ -43,6 +43,7 @@ $(document).ready(() => {
     $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
+    $('#customrange-btn').on('click', isGraphsDatePickerHandler);
     let data = getTimeRange();
 
     redMetrics = { ...redMetrics, ...data };
@@ -170,6 +171,9 @@ function rateChart(rateData, gridLineColor, tickColor) {
             y: data.rate,
         });
     }
+
+    graph_data.sort((a, b) => new Date(a.x) - new Date(b.x));
+
     var RateCountChartCanvas = $('#ServiceHealthChart').get(0).getContext('2d');
     RateCountChart = new Chart(RateCountChartCanvas, {
         type: 'line',
@@ -232,6 +236,9 @@ function errorChart(errorData, gridLineColor, tickColor) {
             y: data.error_rate,
         });
     }
+
+    graph_data_err.sort((a, b) => new Date(a.x) - new Date(b.x));
+
     var ErrorCountChartCanvas = $('#ServiceHealthChartErr').get(0).getContext('2d');
     ErrCountChart = new Chart(ErrorCountChartCanvas, {
         type: 'line',
@@ -298,6 +305,11 @@ function latenciesChart(latenciesData, gridLineColor, tickColor) {
         graph_data_latencies.p90.push({ x: timestamp, y: data.p90 });
         graph_data_latencies.p99.push({ x: timestamp, y: data.p99 });
     }
+
+    graph_data_latencies.p50.sort((a, b) => new Date(a.x) - new Date(b.x));
+    graph_data_latencies.p90.sort((a, b) => new Date(a.x) - new Date(b.x));
+    graph_data_latencies.p99.sort((a, b) => new Date(a.x) - new Date(b.x));
+    
     var LatenciesChartCanvas = $('#ServiceHealthChart2').get(0).getContext('2d');
     LatenciesChart = new Chart(LatenciesChartCanvas, {
         type: 'line',
