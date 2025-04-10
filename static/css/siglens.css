@@ -577,7 +577,7 @@
     border: 1px solid var(--timepicker-border-color);
     padding: 0;
     width: 100%;
-
+    z-index: 1;
 }
 
 .dropdown-menu li,
@@ -6730,6 +6730,7 @@ p#versionInfo {
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid var(--search-input-border);
+    width: 380px;
 }
 
 .alert-card:hover {
