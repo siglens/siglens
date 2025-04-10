@@ -193,6 +193,13 @@ func Test_checksumFile_ReadMultipleChunks(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 6, n)
 	assert.Equal(t, []byte("barbaz"), buf)
+
+	// Read all the chunks.
+	buf = make([]byte, 9)
+	n, err = csf.ReadAt(buf, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, 9, n)
+	assert.Equal(t, []byte("foobarbaz"), buf)
 }
 
 func appendChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
