@@ -281,6 +281,7 @@ func RawSearchPQMResults(req *structs.SegmentSearchRequest, fileParallelism int6
 	allTimestamps, err := segread.ReadAllTimestampsForBlock(req.AllBlocksToSearch, req.SegmentKey,
 		req.SearchMetadata.BlockSummaries, fileParallelism)
 	if err != nil {
+		log.Errorf("qid=%d, RawSearchPQMResults: failed to read all timestamps; err=%v", qid, err)
 		allSearchResults.AddError(err)
 		return
 	}

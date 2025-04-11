@@ -172,7 +172,8 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	}
 
 	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(blkLen))
-	_, err = trr.timeFD.ReadAt(trr.blockReadBuffer[:blkLen], blkOff)
+	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
+	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:blkLen], blkOff)
 	if err != nil {
 		if err != io.EOF {
 			trr.loadedBlock = false
@@ -242,7 +243,7 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 
 	oPtr := uint32(0)
 	if rawRec[oPtr] != utils.TIMESTAMP_TOPDIFF_VARENC[0] {
-		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for typestamp column! expected %+v got %+v",
+		return nil, fmt.Errorf("convertRawRecordsToTimestamps: received an unknown encoding type for timestamp column! expected %+v got %+v",
 			utils.TIMESTAMP_TOPDIFF_VARENC[0], rawRec[oPtr])
 	}
 	oPtr++
@@ -303,7 +304,8 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 		buf = append(buf, newArr...)
 	}
 	buf = buf[:blkLen]
-	_, err := fd.ReadAt(buf, blkOff)
+	checksumFile := &toputils.ChecksumFile{Fd: fd}
+	_, err := checksumFile.ReadAt(buf, blkOff)
 	if err != nil {
 		return nil, err
 	}
@@ -407,12 +409,13 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			continue
 		}
 
+		readOffset := int64(0)
 		for currBlk := minBlkNum; currBlk <= allBlocks[maxIdx]; currBlk++ {
-			readOffset := blks[currBlk].ColumnBlockOffset[tsKey] - firstBlkOff
 			readLen := int64(blks[currBlk].ColumnBlockLen[tsKey])
 			rawBlock := rawChunk[readOffset : readOffset+readLen]
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}
+			readOffset += readLen
 		}
 	}
 	close(allReadJob)
