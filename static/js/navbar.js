@@ -733,13 +733,13 @@ function setupNavigationState() {
         }
     }
 }
+let isHelpArrowClick = false; // Flag to track help-arrow click
 
 function initializeHelpDropdown() {
     const $helpArrow = $('.help-arrow');
     const $helpHeader = $('.help-menu-header');
     const $helpOptions = $('.help-options');
     const $body = $('body');
-    const $appSideNav = $('#app-side-nav');
 
     $helpHeader.on('click', function (event) {
         event.preventDefault();
@@ -747,7 +747,7 @@ function initializeHelpDropdown() {
         if ($helpOptions.is(':visible')) {
             $helpOptions.stop(true, true).slideUp(30, function () {
                 $helpArrow.removeClass('rotated');
-                // Collapse side nav when help dropdown closes
+                // Collapse side nav when help dropdown closes via header
                 if ($body.hasClass('nav-expanded')) {
                     $body.removeClass('nav-expanded');
                 }
@@ -771,14 +771,15 @@ function initializeHelpDropdown() {
         }
     });
 
-    // Toggle help dropdown and collapse side nav when clicking help arrow
+    // Toggle help dropdown without affecting side nav when clicking help arrow
     $helpArrow.on('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
+        isHelpArrowClick = true;
         if ($helpOptions.is(':visible')) {
             $helpOptions.stop(true, true).slideUp(30, function () {
                 $helpArrow.removeClass('rotated');
-                $body.removeClass('nav-expanded');
+                    isHelpArrowClick = false;
             });
         } else {
             $helpOptions.stop(true, true).slideDown(30, function () {
@@ -811,8 +812,8 @@ function setupHamburgerBehavior() {
     });
 
     appSideNav.on('mouseleave', function () {
-        if (!$helpOptions.is(':visible')) {
-            // Only collapse if help dropdown is not open
+        if (!$helpOptions.is(':visible') && !isHelpArrowClick) {
+            // Only collapse if help dropdown is not open and not recently clicked
             navTimeout = setTimeout(function () {
                 $body.removeClass('nav-expanded');
                 $helpOptions.stop(true, true).slideUp(30, function () {
@@ -824,8 +825,8 @@ function setupHamburgerBehavior() {
 
     navbarToggle.on('mouseleave', function (e) {
         if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
-            if (!$helpOptions.is(':visible')) {
-                 // Only collapse if help dropdown is not open
+            if (!$helpOptions.is(':visible') && !isHelpArrowClick) {
+                // Only collapse if help dropdown is not open and not recently clicked
                 navTimeout = setTimeout(function () {
                     $body.removeClass('nav-expanded');
                     $helpOptions.stop(true, true).slideUp(30, function () {
