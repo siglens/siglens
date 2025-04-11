@@ -146,9 +146,6 @@ type HtmlSnippets struct {
 	Dropdown2 string
 
 	OrgSettingsOrgName         string
-	OrgSettingsRetentionPeriod string
-	OrgDeploymentType          string
-	DistNodesExtras            string
 	OrgSLOs                    string
 	SLOCss                     string
 	EnterpriseEnabled          bool
@@ -163,10 +160,7 @@ type JsSnippets struct {
 	CommonExtraFunctions string
 	Button1Function      string
 
-	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string
-	SettingsExtraFunctions         string
-
 	TestDataSendData string
 	IngestDataCmd    string
 
