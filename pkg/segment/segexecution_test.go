@@ -408,7 +408,12 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 		// cnames start from key0..key11
 		// key1 stores "value1", and the blockLen was calculated by running thw writemock.. func with print statement
 		assert.Equal(t, uint32(30), readAllBmh[uint16(i)].ColumnBlockLen["key1"])
-		assert.Equal(t, int64(i*30), readAllBmh[uint16(i)].ColumnBlockOffset["key1"])
+
+		// For the block offset, i*30 is from the block size. We write the
+		// blocks using utils.ChecksumFile, which has an additional header for
+		// each chunk; that header is 12 bytes. So the total offset is
+		// i*(30+12)
+		assert.Equal(t, int64(i*(30+12)), readAllBmh[uint16(i)].ColumnBlockOffset["key1"])
 	}
 }
 
