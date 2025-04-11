@@ -778,7 +778,7 @@ function initializeHelpDropdown() {
         if ($helpOptions.is(':visible')) {
             $helpOptions.stop(true, true).slideUp(30, function () {
                 $helpArrow.removeClass('rotated');
-                $body.removeClass('nav-expanded'); // Collapse side nav
+                $body.removeClass('nav-expanded');
             });
         } else {
             $helpOptions.stop(true, true).slideDown(30, function () {
@@ -811,7 +811,8 @@ function setupHamburgerBehavior() {
     });
 
     appSideNav.on('mouseleave', function () {
-        if (!$helpOptions.is(':visible')) { // Only collapse if help dropdown is not open
+        if (!$helpOptions.is(':visible')) {
+            // Only collapse if help dropdown is not open
             navTimeout = setTimeout(function () {
                 $body.removeClass('nav-expanded');
                 $helpOptions.stop(true, true).slideUp(30, function () {
@@ -823,7 +824,8 @@ function setupHamburgerBehavior() {
 
     navbarToggle.on('mouseleave', function (e) {
         if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
-            if (!$helpOptions.is(':visible')) { // Only collapse if help dropdown is not open
+            if (!$helpOptions.is(':visible')) {
+                 // Only collapse if help dropdown is not open
                 navTimeout = setTimeout(function () {
                     $body.removeClass('nav-expanded');
                     $helpOptions.stop(true, true).slideUp(30, function () {
