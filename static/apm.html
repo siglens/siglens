@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2021-2024 SigScalr, Inc.
+Copyright (c) 2021-2025 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
 
@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date());
 
     gtag('config', 'G-5SBJC04YFB');
@@ -42,20 +42,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <meta name="msapplication-TileColor" content="#da532c">
 
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
-    <link rel="stylesheet" href="./css/lib/all.min.css" />
-    <link rel="stylesheet" href="./css/lib/ag-grid.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
-    {{ .SLOCss | safeHTML }}
 
-    <script src="./js/lib/lodash.min.js"></script>
     <script src="./js/lib/jquery-3.6.0.min.js"></script>
     <script src="./js/lib/jquery-ui.min.js"></script>
     <script src="./js/lib/js.cookie.min.js"></script>
     <script src="./js/lib/moment.min.js"></script>
-    <script src="./js/lib/date_fns.min.js"></script>
-    <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
-    <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -64,13 +57,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 </head>
 
 <body>
+    <div class="pop-layer" id="pop-layer">
+    </div>
     <div id="app-container">
 
         <div id="app-side-nav">
         </div>
-
-        <h1>hello</h1>
-
+        <div id="dashboard" class="p-4">
+            <div>
+                <h1 class="myOrg-heading submenu-heading">APM</h1>
+                <p class="caption submenu-caption">End-to-end visibility into your application ecosystem performance</p>
+            </div>
+            <div class="submenu-container">
+                <div class="submenu-card" id="service-health">
+                    <div class="myOrg-heading">Service Health</div>
+                    <p>
+                        Monitor critical RED metrics (Request rate, Error %, Duration) across services
+                    </p>
+                </div>
+                <div class="submenu-card" id="search-traces">
+                    <div class="myOrg-heading">Search Traces</div>
+                    <p>
+                        Query distributed traces with detailed span-by-span Gantt visualization
+                    </p>
+                </div>
+                <div class="submenu-card" id="dependency-graph">
+                    <div class="myOrg-heading">Dependency Graph </div>
+                    <p>
+                        Interactive service topology map showing real-time dependencies
+                    </p>
+                </div>
+            </div>
+        </div>
         <div id="app-footer">
         </div>
 
@@ -79,13 +97,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
-    <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
-    <script src="./js/all-slos.js?cb={{ AppVersion }}"></script>
-    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
+    <script>
+        $(document).ready(function () {
+            $('.theme-btn').on('click', themePickerHandler);
+            $('.submenu-card').click(function () {
+                const cardId = $(this).attr('id');
+                window.location.href = cardId + '.html';
+            }); 
+        });
+    </script>
     <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
+
 </body>
 
 </html>

@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 let navbarComponent = `
 <div class="nav-header">
     <div class="sl-hamburger" id="navbar-toggle">
@@ -44,9 +45,7 @@ let navbarComponent = `
                     <span class="icon-traces"></span>
                     <span class="nav-link-text-drpdwn">APM</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                        src="assets/arrow-btn.svg"
-                        alt="Dropdown Arrow">
+                <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="traces-dropdown">
                 <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
@@ -60,9 +59,7 @@ let navbarComponent = `
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text-drpdwn">Metrics</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                     src="assets/arrow-btn.svg"
-                     alt="Dropdown Arrow">
+                <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="metrics-dropdown">
                 <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
@@ -82,9 +79,7 @@ let navbarComponent = `
                     <span class="icon-alerts"></span>
                     <span class="nav-link-text-drpdwn">Alerting</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                    src="assets/arrow-btn.svg"
-                    alt="Dropdown Arrow">
+                <<div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="alerts-dropdown">
                 <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>
@@ -123,7 +118,7 @@ let navbarComponent = `
                         <span class="icon-infrastructure"></span>
                         <span class="nav-link-text-drpdwn">Infrastructure</span>
                     </a>
-                    <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                    <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
                 </div>
                 <ul class="infrastructure-dropdown">
                    <div class="menu nav-kubernetes kubernetes-dropdown-toggle">
@@ -131,7 +126,7 @@ let navbarComponent = `
                             <a class="nav-links link-kubernetes" href="./kubernetes-overview.html">
                                 <span class="nav-link-text-drpdwn">Kubernetes</span>
                             </a>
-                            <img class="nav-dropdown-icon kubernetes-arrow orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                            <div class="kubernetes-arrow"><img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"></div>
                         </div>
                         <ul class="kubernetes-dropdown">
                             <a href="./kubernetes-view.html?type=clusters"><li class="kubernetes-link">Cluster</li></a>
@@ -146,13 +141,11 @@ let navbarComponent = `
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
             <div class="menu-header">
-                <a class="nav-links link-ingestion" href="./test-data.html">
+                <a class="nav-links link-ingestion" href="./ingestion.html">
                     <span class="icon-ingest"></span>
                     <span class="nav-link-text-drpdwn">Ingestion</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                            src="assets/arrow-btn.svg"
-                            alt="Dropdown Arrow">
+                <div class="submenu-arrow"><img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="ingestion-dropdown ">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
@@ -428,32 +421,27 @@ $(document).ready(function () {
     $('.help-options').hide();
 
     const dropdownConfigs = [
-        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics', arrowClass: 'nav-dropdown-icon' },
-        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces', arrowClass: 'nav-dropdown-icon' },
-        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest', arrowClass: 'nav-dropdown-icon' },
-        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts', arrowClass: 'nav-dropdown-icon' },
-        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure', arrowClass: 'nav-dropdown-icon'},
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure', arrowClass: 'submenu-arrow'},
         { menuClass: 'nav-kubernetes', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', arrowClass: 'kubernetes-arrow' , parentClass: 'nav-infrastructure' }
     ];
 
-
     // Attach click events - only arrows toggle dropdowns
     dropdownConfigs.forEach(config => {
-        // Arrow click toggles dropdown
         $(`.${config.menuClass} .${config.arrowClass}`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
-        // Menu header click follows link (no toggle)
         $(`.${config.menuClass} .menu-header .nav-links`).on('click', function(e) {
-            // Link navigation happens naturally, no need to preventDefault
             saveCurrentDropdownStates();
             sessionStorage.setItem('preserveDropdownStates', 'true');
         });
 
-        // Dropdown item clicks
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
             saveCurrentDropdownStates();
@@ -467,7 +455,6 @@ $(document).ready(function () {
         const $arrow = $menu.find(`.${arrowClass}`).first();
         const isVisible = $dropdown.is(':visible');
 
-        // Toggle only this dropdown
         $dropdown.stop(true, true).slideToggle(200);
         $menu.toggleClass('dropdown-open', !isVisible);
 
@@ -475,7 +462,6 @@ $(document).ready(function () {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
-        // Update state
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
@@ -577,7 +563,6 @@ $(document).ready(function () {
     }
 
     function updateActiveHighlighting() {
-        // Remove existing active classes
         $('.nav-links').removeClass('active submenu-active');
         $('.menu').removeClass('active submenu-active');
         $('.icon').removeClass('active submenu-active');
@@ -590,7 +575,6 @@ $(document).ready(function () {
         const currentPath = window.location.pathname.split('/').pop();
         const currentUrl = currentPath + window.location.search;
 
-        // Handle top-level nav-links (non-dropdown items)
         $('.nav-links').each(function() {
             const href = $(this).attr('href');
             if (href) {
@@ -611,14 +595,12 @@ $(document).ready(function () {
             const mainHref = $mainLink.attr('href');
             const mainHrefPath = mainHref ? mainHref.split('/').pop() : '';
 
-            // Check if main menu item is active
             if (mainHref && (currentPath === mainHrefPath || currentUrl === mainHrefPath)) {
                 $mainLink.addClass('active');
                 $menu.addClass('active');
                 $menu.find(`.${config.iconClass}`).addClass('active');
             }
 
-            // Check submenu items
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
@@ -628,7 +610,6 @@ $(document).ready(function () {
                     $li.addClass('active');
                     isSubmenuActive = true;
 
-                    // Apply submenu-active to parent menu
                     const $parentMenu = config.parentClass ?
                         $li.closest(`.${config.menuClass}`).closest(`.${config.parentClass}`) :
                         $li.closest(`.${config.menuClass}`);
@@ -652,7 +633,6 @@ $(document).ready(function () {
             }
         });
 
-        // Special handling for infrastructure pages
         if (currentPath === 'infrastructure.html') {
             $('.nav-infrastructure .nav-links').first().addClass('active');
             $('.nav-infrastructure').addClass('active');

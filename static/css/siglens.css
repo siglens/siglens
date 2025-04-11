@@ -18,7 +18,7 @@
  */
 
 
- :root {
+:root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -577,7 +577,7 @@
     border: 1px solid var(--timepicker-border-color);
     padding: 0;
     width: 100%;
-
+    z-index: 1;
 }
 
 .dropdown-menu li,
@@ -5353,7 +5353,7 @@ p#versionInfo {
     border-bottom: none;
 }
 
-.card-header .cards-svg-icon{
+.card-header .cards-svg-icon {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5364,11 +5364,11 @@ p#versionInfo {
     border-radius: 5px;
 }
 
-.card-header svg{
+.card-header svg {
     margin: 0 !important;
 }
 
-[data-theme="dark"]  .card-header .cards-svg-icon{
+[data-theme="dark"] .card-header .cards-svg-icon {
     background-color: var(--bg-color);
 }
 
@@ -5433,7 +5433,7 @@ p#versionInfo {
     box-shadow: 0 8px 20px var(--border-shadow);
 }
 
-.fa.fa-vial{
+.fa.fa-vial {
     color: var(--purple-1);
 }
 
@@ -5736,7 +5736,6 @@ p#versionInfo {
     width: 100%;
 }
 
-
 .nav-metrics,
 .nav-traces,
 .nav-ingest,
@@ -5935,10 +5934,6 @@ p#versionInfo {
     color:  var(--navbar-link-text) !important;
 }
 
-#app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
-}
-
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
     color:  var(--navbar-link-text-active) !important;
 }
@@ -6017,14 +6012,16 @@ p#versionInfo {
     border-radius: 0 5px 5px 0 !important;
 }
 
-.nav-dropdown-icon,
-.kubernetes-arrow {
+.submenu-arrow,
+.kubernetes-arrow{
+    display: inline-block;
     margin-right: 10px;
+    cursor: pointer;
     transition: transform 0.3s ease;
 }
 
-.nav-dropdown-icon.rotated,
-.kubernetes-arrow.rotated {
+.submenu-arrow.rotated img.nav-dropdown-icon,
+.kubernetes-arrow.rotated img.nav-dropdown-icon{
     transform: rotate(180deg) !important;
 }
 
@@ -6594,7 +6591,7 @@ p#versionInfo {
     flex-wrap: wrap;
 }
 
-.kubernetes-card {
+.submenu-card {
     background-color: var(--drop-down-btn-bg-regular);
     border: 1px solid var(--search-input-border);
     border-radius: 4px;
@@ -6604,9 +6601,27 @@ p#versionInfo {
     transition: all 0.2s ease;
 }
 
-.kubernetes-card:hover {
+.submenu-card:hover {
     box-shadow: var(--box-shadow);
     transform: translateY(-2px);
+}
+
+.submenu-card p {
+    margin-top: 18px;
+}
+
+.submenu-heading {
+    font-size: 20px;
+}
+
+.submenu-caption {
+    font-size: 14px;
+}
+
+.submenu-container {
+    gap: 24px;
+    display: flex;
+    margin-top: 18px;
 }
 
 .kubernetes-img {
@@ -6732,6 +6747,7 @@ p#versionInfo {
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid var(--search-input-border);
+    width: 380px;
 }
 
 .alert-card:hover {
