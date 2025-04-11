@@ -25,7 +25,6 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
-	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	log "github.com/sirupsen/logrus"
@@ -44,7 +43,6 @@ type processedMetric struct {
 }
 
 func ProcessMetricsIngest(ctx *fasthttp.RequestCtx, myid int64) {
-
 	if hook := hooks.GlobalHooks.OverrideIngestRequestHook; hook != nil {
 		alreadyHandled := hook(ctx, myid, grpc.INGEST_FUNC_OTLP_METRICS, false)
 		if alreadyHandled {
@@ -78,7 +76,6 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 
 	for _, resourceMetrics := range request.ResourceMetrics {
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
-
 			for _, ms := range scopeMetrics.Metrics {
 				extractedMetrics := processMetric(ms)
 				for _, metric := range extractedMetrics {
@@ -87,7 +84,7 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 					var mName string
 					re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
 					mName = re.ReplaceAllString(metric.Name, "_")
-					var metricSize = uint64(len(mName))
+					metricSize := uint64(len(mName))
 
 					tagHolder := metrics.GetTagsHolder()
 					for key, val := range metric.Attributes {
@@ -107,7 +104,6 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 
 			}
 		}
-
 	}
 	return dpCount, numFailedDps
 }
