@@ -18,14 +18,15 @@
 package otlp
 
 import (
-	"encoding/json"
 	"regexp"
 	"strconv"
+	"unsafe"
 
+	"github.com/buger/jsonparser"
 	"github.com/siglens/siglens/pkg/grpc"
 	"github.com/siglens/siglens/pkg/hooks"
 	. "github.com/siglens/siglens/pkg/segment/utils"
-	"github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/usageStats"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
@@ -78,20 +79,29 @@ func ingestMetrics(request *collmetricspb.ExportMetricsServiceRequest, myid int6
 	for _, resourceMetrics := range request.ResourceMetrics {
 		for _, scopeMetrics := range resourceMetrics.ScopeMetrics {
 
-			for _, metrics := range scopeMetrics.Metrics {
-				extractedMetrics := processMetric(metrics)
+			for _, ms := range scopeMetrics.Metrics {
+				extractedMetrics := processMetric(ms)
 				for _, metric := range extractedMetrics {
 					dpCount++
-					data, err := ConvertToOTLPMetricsFormat(metric, int64(metric.TimeUnixNano), float64(metric.Value))
-					if err != nil {
-						numFailedDps++
-						log.Errorf("OLTPMetrics: failed to ConvertToOTLPMetricsFormat data=%+v, err=%v", data, err)
-						continue
+
+					var mName string
+					re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+					mName = re.ReplaceAllString(metric.Name, "_")
+					var metricSize = uint64(len(mName))
+
+					tagHolder := metrics.GetTagsHolder()
+					for key, val := range metric.Attributes {
+						value := []byte(val)
+						tagHolder.Insert(key, value, jsonparser.String)
+						metricSize += uint64(len(key)) + uint64(len(value))
 					}
-					err = writer.AddTimeSeriesEntryToInMemBuf([]byte(data), SIGNAL_METRICS_OTLP, myid)
+
+					ts := uint32(metric.TimeUnixNano)
+					metricSize += uint64(unsafe.Sizeof(ts))
+					err := metrics.EncodeDatapoint([]byte(mName), tagHolder, float64(metric.Value), ts, metricSize, myid)
 					if err != nil {
 						numFailedDps++
-						log.Errorf("OLTPMetrics: failed to add time series entry for data=%+v, err=%v", data, err)
+						log.Errorf("OLTPMetrics: failed to add time series entry for data=%+v, err=%v", metric, err)
 					}
 				}
 
@@ -214,37 +224,6 @@ func processMetric(metric *metricspb.Metric) []processedMetric {
 	}
 
 	return extracted
-}
-
-func ConvertToOTLPMetricsFormat(data processedMetric, timestamp int64, value float64) ([]byte, error) {
-	type Metric struct {
-		Name      string            `json:"metric"`
-		Tags      map[string]string `json:"tags"`
-		Timestamp int64             `json:"timestamp"`
-		Value     float64           `json:"value"`
-	}
-
-	var metricName string
-	tags := make(map[string]string)
-	re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
-	metricName = re.ReplaceAllString(data.Name, "_")
-	for key, val := range data.Attributes {
-		tags[key] = val
-	}
-
-	modifiedMetric := Metric{
-		Name:      metricName,
-		Tags:      tags,
-		Timestamp: timestamp,
-		Value:     value,
-	}
-
-	modifiedData, err := json.Marshal(modifiedMetric)
-	if err != nil {
-		return nil, err
-	}
-
-	return modifiedData, nil
 }
 
 func extractAttributes(attributes []*commonpb.KeyValue) map[string]string {
