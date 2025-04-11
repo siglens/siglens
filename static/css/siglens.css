@@ -1056,9 +1056,17 @@ body {
     width: 18px;
 }
 
+.icon-traces:hover,
+.icon-traces.active,
+.nav-traces .menu-header:hover .icon-traces {
+    background-image: url("../assets/tracing-icon-active.svg");
+    height: 24px;
+    width: 24px;
+}
+
 .icon-metrics:hover,
-.menu.nav-metrics.active .icon-metrics,
-.menu.nav-metrics:hover .icon-metrics {
+.icon-metrics.active,
+.nav-metrics .menu-header:hover .icon-metrics {
     background-image: url("../assets/metrics-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -1073,18 +1081,9 @@ body {
     background-size: 51%;
 }
 
-.icon-ingest:hover,
-.menu.nav-ingest.active .icon-ingest,
-.menu.nav-ingest:hover .icon-ingest {
-    background-image: url("../assets/ingestion-icon-active.svg");
-    height: 18px;
-    width: 18px;
-    background-size: 42%;
-}
-
 .icon-alerts:hover,
-.menu.nav-alerts.active .icon-alerts,
-.menu.nav-alerts:hover .icon-alerts {
+.icon-alerts.active,
+.nav-alerts  .menu-header:hover .icon-alerts {
     background-image: url("../assets/alerting-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -1107,17 +1106,9 @@ body {
     width: 24px;
 }
 
-.icon-traces:hover,
-.menu.nav-traces.active .icon-traces,
-.menu.nav-traces:hover .icon-traces {
-    background-image: url("../assets/tracing-icon-active.svg");
-    height: 24px;
-    width: 24px;
-}
-
 .icon-infrastructure:hover,
-.menu.nav-infrastructure.active .icon-infrastructure,
-.menu.nav-infrastructure:hover .icon-infrastructure {
+.icon-infrastructure.active,
+.nav-infrastructure .menu-header:hover .icon-infrastructure {
     background-image: url("../assets/infrastructure-active.svg");
     height: 24px;
     width: 24px;
@@ -1137,6 +1128,15 @@ body {
     background-image: url("../assets/search-icon-active.svg");
     height: 19px;
     width: 19px;
+}
+
+.icon-ingest:hover,
+.icon-ingest.active,
+.nav-ingest .menu-header:hover .icon-ingest {
+    background-image: url("../assets/ingestion-icon-active.svg");
+    height: 18px;
+    width: 18px;
+    background-size: 42%;
 }
 
 #app-side-nav {

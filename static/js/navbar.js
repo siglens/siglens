@@ -244,28 +244,15 @@ const navigationStructure = {
         activeClass: 'nav-search',
         breadcrumbs: [{ name: 'Logs'}]
     },
-    'metrics-explorer.html': {
-        activeClass: 'nav-metrics',
-        temporaryDisableHover: true,
-        breadcrumbs: [{ name: 'Metrics Explorer'}]
-    },
-    'metric-summary.html': {
-        activeClass: 'nav-metrics',
-        breadcrumbs: [
-            { name: 'Metrics Summary'}
-        ]
-    },
-    'metric-cardinality.html': {
-        activeClass: 'nav-metrics',
-        breadcrumbs: [
-            { name: 'Metrics Cardinality' }
-        ]
+    'apm.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [{ name: 'APM'}]
     },
     'service-health.html': {
         activeClass: 'nav-traces',
         temporaryDisableHover: true,
         breadcrumbs: [
-            { name: 'APM', noLink: true},
+            { name: 'APM', url: './apm.html'},
             { name: 'Service Health (RED)' }
         ],
         upperNavTabs: 'tracingUpperNavTabs'
@@ -273,14 +260,14 @@ const navigationStructure = {
     'service-health-overview.html': {
         activeClass: 'nav-traces',
         breadcrumbs: [
-            { name: 'APM', noLink: true},
+            { name: 'APM', url: './apm.html'},
             { name: 'Service Health' }
         ],
     },
     'search-traces.html': {
         activeClass: 'nav-traces',
         breadcrumbs: [
-            { name: 'APM', url: './service-health.html', noLink: true },
+            { name: 'APM', url: './apm.html'},
             { name: 'Search Traces'}
         ],
         upperNavTabs: 'tracingUpperNavTabs'
@@ -288,21 +275,53 @@ const navigationStructure = {
     'dependency-graph.html': {
         activeClass: 'nav-traces',
         breadcrumbs: [
-            { name: 'APM', noLink: true},
+            { name: 'APM', url: './apm.html'},
             { name: 'Dependency Graph', url: './dependency-graph.html' }
         ],
         upperNavTabs: 'tracingUpperNavTabs'
     },
+    'metrics.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [{ name: 'Metrics'}]
+    },
+    'metrics-explorer.html': {
+        activeClass: 'nav-metrics',
+        temporaryDisableHover: true,
+        breadcrumbs: [
+            { name: 'Metrics', url: './metrics.html' },
+            { name: 'Metrics Explorer'}
+        ]
+    },
+    'metric-summary.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics', url: './metrics.html' },
+            { name: 'Metrics Summary'}
+        ]
+    },
+    'metric-cardinality.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics', url: './metrics.html' },
+            { name: 'Metrics Cardinality' }
+        ]
+    },
+    'alerting.html': {
+        activeClass: 'nav-alerts',
+        breadcrumbs: [{ name: 'Alerting', url: './alerting.html'}]
+    },
     'all-alerts.html': {
         activeClass: 'nav-alerts',
-        breadcrumbs: [{ name: 'Alerting', url: './all-alerts.html' },
-                      { name: 'Alert Rules'}],
+        breadcrumbs: [
+            { name: 'Alerting', url: './alerting.html' },
+            { name: 'Alert Rules'}
+        ],
         upperNavTabs: 'alertsUpperNavTabs'
     },
     'contacts.html': {
         activeClass: 'nav-alerts',
         breadcrumbs: [
-            { name: 'Alerting', url: './all-alerts.html' },
+            { name: 'Alerting', url: './alerting.html' },
             { name: 'Contact Points'}
         ],
         upperNavTabs: 'alertsUpperNavTabs'
@@ -341,18 +360,30 @@ const navigationStructure = {
         activeClass: 'nav-infrastructure',
         breadcrumbs: [{ name: 'Infrastructure'}]
     },
+    'ingestion.html': {
+        activeClass: 'nav-ingest',
+        breadcrumbs: [{ name: 'Ingestion Methods'}]
+    },
     'test-data.html': {
         activeClass: 'nav-ingest',
         temporaryDisableHover: true,
-        breadcrumbs: [{ name: 'Log Ingestion Methods'}]
+        breadcrumbs: [
+            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Log Ingestion Methods'}]
     },
     'metrics-ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Metrics Ingestion Methods'}]
+        breadcrumbs: [
+            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Metrics Ingestion Methods'}
+        ]
     },
     'traces-ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Traces Ingestion Methods'}]
+        breadcrumbs: [
+            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Traces Ingestion Methods'}
+        ]
     },
     'usage-stats.html': {
         activeClass: 'nav-usage-stats',
@@ -612,12 +643,12 @@ $(document).ready(function () {
                         $li.closest(`.${config.menuClass}`);
                     $parentMenu.addClass('submenu-active');
                     $parentMenu.find('.nav-links').first().addClass('submenu-active');
-                    $parentMenu.find(`.${config.iconClass}`).addClass('submenu-active');
+                    $parentMenu.find(`.${config.iconClass}`).addClass('active');
 
                     if (config.parentClass) {
                         $(`.${config.parentClass}`).addClass('submenu-active');
                         $(`.${config.parentClass} .nav-links`).first().addClass('submenu-active');
-                        $(`.${config.parentClass} .icon-infrastructure`).addClass('submenu-active');
+                        $(`.${config.parentClass} .icon-infrastructure`).addClass('active');
                     }
                 }
             });
@@ -626,7 +657,11 @@ $(document).ready(function () {
             if (config.name === 'Kubernetes' && isSubmenuActive) {
                 $('.nav-infrastructure').addClass('submenu-active');
                 $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
-                $('.icon-infrastructure').addClass('submenu-active');
+                $('.icon-infrastructure').addClass('active');
+            }
+
+            if ($menu.hasClass('active') || $menu.hasClass('submenu-active')) {
+                $menu.find(`.${config.iconClass}`).addClass('active');
             }
         });
 
@@ -637,7 +672,7 @@ $(document).ready(function () {
         } else if (currentPath === 'kubernetes-overview.html' || (currentPath === 'kubernetes-view.html' && window.location.search)) {
             $('.nav-infrastructure').addClass('submenu-active');
             $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
-            $('.icon-infrastructure').addClass('submenu-active');
+            $('.icon-infrastructure').addClass('active');
             $('.nav-kubernetes').addClass('submenu-active');
             $('.nav-kubernetes .nav-links').first().addClass('submenu-active');
             $('.kubernetes-dropdown-toggle').addClass('submenu-active');
@@ -655,7 +690,7 @@ $(document).ready(function () {
                     $(this).closest('.nav-infrastructure').addClass('submenu-active');
                     $('.nav-kubernetes .nav-links').first().addClass('submenu-active');
                     $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
-                    $('.icon-infrastructure').addClass('submenu-active');
+                    $('.icon-infrastructure').addClass('active');
                 });
             }
         }
