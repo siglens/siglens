@@ -30,6 +30,7 @@ import (
 )
 
 const MaxConcurrentAgileTrees = 5
+const AtreeNodePoolIncrSize = 100
 
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
@@ -327,7 +328,11 @@ func (stb *StarTreeBuilder) resetNodeData() {
 
 func (stb *StarTreeBuilder) newNode() *Node {
 
-	stb.nodePool = toputils.ResizeSlice(stb.nodePool, MaxAgileTreeNodeCountForAlloc)
+	// increment the slice in chunks instead of the max size
+	if stb.nodesCreatedInPool == len(stb.nodePool) {
+		stb.nodePool = toputils.ResizeSlice(stb.nodePool,
+			stb.nodesCreatedInPool+AtreeNodePoolIncrSize)
+	}
 
 	if stb.nodesInUse >= stb.nodesCreatedInPool {
 		stb.nodePool[stb.nodesCreatedInPool] = &Node{}
