@@ -250,11 +250,12 @@ func TestMetaEntryWal(t *testing.T) {
 
 	expected := []*structs.MetricsMeta{meta1, meta2}
 	i := 0
-	reader, err := NewMetricsMetaEntryWalReader(filePath)
+	reader, _ := NewMetricsMetaEntryWalReader(filePath)
 
 	for {
 		entry, err := reader.Next()
 		if err != nil {
+			break
 		}
 		if entry == nil {
 			break
