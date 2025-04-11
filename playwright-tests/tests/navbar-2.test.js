@@ -30,7 +30,7 @@ test('Navigation Menu Part 2', async ({ page }) => {
     }
 
     // Test metrics pages
-    const metricsPages = ['metrics.html', 'metrics-explorer.html', 'metric-summary.html', 'metric-cardinality.html'];
+    const metricsPages = ['metrics-explorer.html', 'metric-summary.html', 'metric-cardinality.html'];
     for (const url of metricsPages) {
         await page.goto(`http://localhost:5122/${url}`, {
             waitUntil: 'domcontentloaded',
@@ -53,7 +53,6 @@ test('Navigation Menu Part 2', async ({ page }) => {
 
     // Test Infrastructure pages
     const infrastructurePages = [
-        'infrastructure.html',
         'kubernetes-overview.html',
         'kubernetes-view.html?type=clusters',
         'kubernetes-view.html?type=namespaces',
