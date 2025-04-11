@@ -79,7 +79,7 @@ let navbarComponent = `
                     <span class="icon-alerts"></span>
                     <span class="nav-link-text-drpdwn">Alerting</span>
                 </a>
-                <<div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
+                <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="alerts-dropdown">
                 <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>

@@ -6016,6 +6016,7 @@ p#versionInfo {
 .kubernetes-arrow{
     display: inline-block;
     margin-right: 10px;
+    padding-left: 10px;
     cursor: pointer;
     transition: transform 0.3s ease;
 }
