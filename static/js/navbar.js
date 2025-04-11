@@ -40,7 +40,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-traces tracing-dropdown-toggle" >
             <div class="menu-header">
-                <a class="nav-links" href="./service-health.html">
+                <a class="nav-links link-apm" href="./apm.html">
                     <span class="icon-traces"></span>
                     <span class="nav-link-text-drpdwn">APM</span>
                 </a>
@@ -56,7 +56,7 @@ let navbarComponent = `
          </div>
         <div class="menu nav-metrics metrics-dropdown-toggle"  >
             <div class="menu-header">
-                <a class="nav-links" href="./metrics-explorer.html">
+                <a class="nav-links link-metrics" href="./metrics.html">
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text-drpdwn">Metrics</span>
                 </a>
@@ -78,7 +78,7 @@ let navbarComponent = `
         {{ end }}
         <div class="menu nav-alerts alerts-dropdown-toggle">
             <div class="menu-header">
-                <a class="nav-links link-alerts" href="./all-alerts.html" >
+                <a class="nav-links link-alerts" href="./alerts.html" >
                     <span class="icon-alerts"></span>
                     <span class="nav-link-text-drpdwn">Alerting</span>
                 </a>
@@ -118,8 +118,8 @@ let navbarComponent = `
                     class="nav-link-text">Lookups</span></a>
         </div>
         <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
-                <div class="menu-header">
-                    <a class="nav-links" href="./kubernetes-overview.html">
+                <div class="menu-header infrastructure-header">
+                    <a class="nav-links link-infrastructure" href="./infrastructure.html">
                         <span class="icon-infrastructure"></span>
                         <span class="nav-link-text-drpdwn">Infrastructure</span>
                     </a>
@@ -127,14 +127,13 @@ let navbarComponent = `
                 </div>
                 <ul class="infrastructure-dropdown">
                    <div class="menu nav-kubernetes kubernetes-dropdown-toggle">
-                        <div class="menu-header">
-                            <a class="nav-links" href="./kubernetes-overview.html">
+                        <div class="menu-header kubernetes-header">
+                            <a class="nav-links link-kubernetes" href="./kubernetes-overview.html">
                                 <span class="nav-link-text-drpdwn">Kubernetes</span>
                             </a>
                             <img class="nav-dropdown-icon kubernetes-arrow orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
                         </div>
                         <ul class="kubernetes-dropdown">
-                            <a href="./kubernetes-overview.html"><li class="kubernetes-link">Overview</li></a>
                             <a href="./kubernetes-view.html?type=clusters"><li class="kubernetes-link">Cluster</li></a>
                             <a href="./kubernetes-view.html?type=namespaces"><li class="kubernetes-link">Namespaces</li></a>
                             <a href="./kubernetes-view.html?type=workloads"><li class="kubernetes-link">Workloads</li></a>
@@ -147,7 +146,7 @@ let navbarComponent = `
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
             <div class="menu-header">
-                <a class="nav-links" href="./test-data.html">
+                <a class="nav-links link-ingestion" href="./test-data.html">
                     <span class="icon-ingest"></span>
                     <span class="nav-link-text-drpdwn">Ingestion</span>
                 </a>
@@ -437,24 +436,24 @@ $(document).ready(function () {
         { menuClass: 'nav-kubernetes', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', arrowClass: 'kubernetes-arrow' , parentClass: 'nav-infrastructure' }
     ];
 
-    // Attach click events to each dropdown toggle
+
+    // Attach click events - only arrows toggle dropdowns
     dropdownConfigs.forEach(config => {
-        $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Only toggle the dropdown that was clicked
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
-        });
-
+        // Arrow click toggles dropdown
         $(`.${config.menuClass} .${config.arrowClass}`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-
-            // Only toggle the dropdown whose arrow was clicked
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
+        // Menu header click follows link (no toggle)
+        $(`.${config.menuClass} .menu-header .nav-links`).on('click', function(e) {
+            // Link navigation happens naturally, no need to preventDefault
+            saveCurrentDropdownStates();
+            sessionStorage.setItem('preserveDropdownStates', 'true');
+        });
+
+        // Dropdown item clicks
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
             saveCurrentDropdownStates();
@@ -476,12 +475,12 @@ $(document).ready(function () {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
-        // Update state for this dropdown only
+        // Update state
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
 
-        // Special case for Kubernetes - ensure parent Infrastructure menu is open when opening Kubernetes
+        // Handle Kubernetes parent menu
         if (dropdownName === 'Kubernetes' && !isVisible) {
             const $parentMenu = $menu.closest('.nav-infrastructure');
             const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
@@ -578,28 +577,48 @@ $(document).ready(function () {
     }
 
     function updateActiveHighlighting() {
+        // Remove existing active classes
+        $('.nav-links').removeClass('active submenu-active');
+        $('.menu').removeClass('active submenu-active');
+        $('.icon').removeClass('active submenu-active');
         dropdownConfigs.forEach(config => {
-            $(`.${config.menuClass}`).removeClass('active');
-            $(`.${config.iconClass}`).removeClass('active');
+            $(`.${config.menuClass}`).removeClass('active submenu-active');
+            $(`.${config.iconClass}`).removeClass('active submenu-active');
             $(`.${config.dropdownClass} li`).removeClass('active');
         });
 
         const currentPath = window.location.pathname.split('/').pop();
         const currentUrl = currentPath + window.location.search;
 
-        // Handle infrastructure pages
-        if (currentPath === 'infrastructure.html' || currentPath === 'kubernetes-overview.html' ||
-            (currentPath === 'kubernetes-view.html' && window.location.search)) {
-            $('.nav-infrastructure').addClass('active');
-            $('.icon-infrastructure').addClass('active');
-
-            if (currentPath === 'kubernetes-overview.html' || currentPath === 'kubernetes-view.html') {
-                $('.nav-kubernetes').addClass('active');
-                $('.kubernetes-dropdown-toggle').addClass('active');
+        // Handle top-level nav-links (non-dropdown items)
+        $('.nav-links').each(function() {
+            const href = $(this).attr('href');
+            if (href) {
+                const hrefPath = href.split('/').pop();
+                if (currentPath === hrefPath || currentUrl === hrefPath) {
+                    $(this).addClass('active');
+                    $(this).closest('.menu').addClass('active');
+                    $(this).find('.icon').addClass('active');
+                }
             }
-        }
+        });
 
+        // Handle dropdown menus
         dropdownConfigs.forEach(config => {
+            let isSubmenuActive = false;
+            const $menu = $(`.${config.menuClass}`);
+            const $mainLink = $menu.find('.menu-header .nav-links').first();
+            const mainHref = $mainLink.attr('href');
+            const mainHrefPath = mainHref ? mainHref.split('/').pop() : '';
+
+            // Check if main menu item is active
+            if (mainHref && (currentPath === mainHrefPath || currentUrl === mainHrefPath)) {
+                $mainLink.addClass('active');
+                $menu.addClass('active');
+                $menu.find(`.${config.iconClass}`).addClass('active');
+            }
+
+            // Check submenu items
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
@@ -607,20 +626,45 @@ $(document).ready(function () {
                 if (currentPath === hrefPath || currentUrl === hrefPath) {
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
+                    isSubmenuActive = true;
 
-                    const $menu = config.parentClass ?
+                    // Apply submenu-active to parent menu
+                    const $parentMenu = config.parentClass ?
                         $li.closest(`.${config.menuClass}`).closest(`.${config.parentClass}`) :
                         $li.closest(`.${config.menuClass}`);
-                    $menu.addClass('active');
-
-                    $menu.find(`.${config.iconClass}`).addClass('active');
+                    $parentMenu.addClass('submenu-active');
+                    $parentMenu.find('.nav-links').first().addClass('submenu-active');
+                    $parentMenu.find(`.${config.iconClass}`).addClass('submenu-active');
 
                     if (config.parentClass) {
-                        $(`.${config.parentClass}`).addClass('active');
+                        $(`.${config.parentClass}`).addClass('submenu-active');
+                        $(`.${config.parentClass} .nav-links`).first().addClass('submenu-active');
+                        $(`.${config.parentClass} .icon-infrastructure`).addClass('submenu-active');
                     }
                 }
             });
+
+            // Special case for Kubernetes under Infrastructure
+            if (config.name === 'Kubernetes' && isSubmenuActive) {
+                $('.nav-infrastructure').addClass('submenu-active');
+                $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
+                $('.icon-infrastructure').addClass('submenu-active');
+            }
         });
+
+        // Special handling for infrastructure pages
+        if (currentPath === 'infrastructure.html') {
+            $('.nav-infrastructure .nav-links').first().addClass('active');
+            $('.nav-infrastructure').addClass('active');
+            $('.icon-infrastructure').addClass('active');
+        } else if (currentPath === 'kubernetes-overview.html' || (currentPath === 'kubernetes-view.html' && window.location.search)) {
+            $('.nav-infrastructure').addClass('submenu-active');
+            $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
+            $('.icon-infrastructure').addClass('submenu-active');
+            $('.nav-kubernetes').addClass('submenu-active');
+            $('.nav-kubernetes .nav-links').first().addClass('submenu-active');
+            $('.kubernetes-dropdown-toggle').addClass('submenu-active');
+        }
 
         // Special handling for kubernetes view with URL parameters
         if (currentPath === 'kubernetes-view.html') {
@@ -630,8 +674,11 @@ $(document).ready(function () {
             if (type) {
                 $(`.kubernetes-dropdown a[href*="type=${type}"]`).each(function() {
                     $(this).find('li').addClass('active');
-                    $(this).closest('.nav-kubernetes').addClass('active');
-                    $(this).closest('.nav-infrastructure').addClass('active');
+                    $(this).closest('.nav-kubernetes').addClass('submenu-active');
+                    $(this).closest('.nav-infrastructure').addClass('submenu-active');
+                    $('.nav-kubernetes .nav-links').first().addClass('submenu-active');
+                    $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
+                    $('.icon-infrastructure').addClass('submenu-active');
                 });
             }
         }
@@ -641,7 +688,7 @@ $(document).ready(function () {
     updateActiveHighlighting();
 
     $(document).on('click', 'a', function() {
-        setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
+        setTimeout(updateActiveHighlighting, 100);
     });
 });
 

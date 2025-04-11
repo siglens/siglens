@@ -3564,8 +3564,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-top: 5px;
 }
 
-
-
 .nav-link-text {
     font-size: 11px;
     font-weight: 500;
@@ -3596,16 +3594,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .help-links:hover .nav-link-text {
     color: var(--navbar-link-text-active);
 }
-
-#app-side-nav .menu.active .nav-link-text-drpdwn {
-    color: var(--navbar-link-text);
-}
-
-#app-side-nav .menu:hover .nav-link-text-drpdwn,
-.nav-link-text-drpdwn:hover {
-    color: var(--navbar-link-text-active);
-}
-
 
 #app-side-nav .menu.logo .sslogo-text {
     padding-left: 8px;
@@ -5791,6 +5779,10 @@ p#versionInfo {
     background-color: var(--side-nav-bg-color-selected);
 }
 
+#app-side-nav .menu.active .nav-link-text-drpdwn {
+    color: var(--navbar-link-text);
+}
+
 /* Specific styling for Submenu dropdown */
 #app-side-nav .nav-traces .menu-header,
 #app-side-nav .nav-metrics .menu-header,
@@ -5816,13 +5808,14 @@ p#versionInfo {
     background-color: transparent !important;
 }
 
-#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
-#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
-#app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
-#app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
-#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
-#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
-    color: white !important;
+#app-side-nav .nav-traces.active  .menu-header,
+#app-side-nav .nav-metrics.active .menu-header,
+#app-side-nav .nav-ingest.active .menu-header,
+#app-side-nav .nav-alerts.active .menu-header,
+#app-side-nav .nav-infrastructure.active .menu-header.infrastructure-header,
+#app-side-nav .nav-kubernetes.active .menu-header.kubernetes-header{
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    background-color: var(--side-nav-bg-color-selected);
 }
 
 #app-side-nav .nav-traces .menu-header:hover,
@@ -5832,8 +5825,28 @@ p#versionInfo {
 #app-side-nav .nav-infrastructure .menu-header:hover,
 #app-side-nav .nav-kubernetes .menu-header:hover {
     background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-    cursor: pointer;
+}
+
+#app-side-nav .menu-header:hover .nav-link-text-drpdwn {
+    color: var(--navbar-link-text-active);
+}
+
+#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
+#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
+#app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
+#app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
+#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
+#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
+    color: var(--navbar-link-text-active) !important;
+}
+
+#app-side-nav .nav-metrics.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-traces.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-ingest.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-alerts.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-infrastructure.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-kubernetes.submenu-active .nav-link-text-drpdwn {
+    color: var(--navbar-link-text-active) !important;
 }
 
 #app-side-nav .nav-traces.active .traces-dropdown,
@@ -5893,10 +5906,17 @@ p#versionInfo {
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
 .alerts-dropdown li:hover{
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
+}
+
+.traces-dropdown li:hover ~ .nav-link-text-drpdwn,
+.metrics-dropdown li:hover ~ .nav-link-text-drpdwn,
+.ingestion-dropdown li:hover ~ .nav-link-text-drpdwn,
+.alerts-dropdown li:hover ~ .nav-link-text-drpdwn{
+    color: var(--navbar-link-text) !important;
 }
 
 /* Active state for submenu items */
@@ -5904,7 +5924,7 @@ p#versionInfo {
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
 .alerts-dropdown li.active{
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
@@ -5920,11 +5940,11 @@ p#versionInfo {
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color:  white !important;
+    color:  var(--navbar-link-text-active) !important;
 }
 
-#app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
-    color:  white !important;
+#app-side-nav .nav-infrastructure .nav-kubernetes .menu-header:hover .nav-link-text-drpdwn {
+    color:  var(--navbar-link-text-active) !important;
 }
 
 .infrastructure-dropdown div {
@@ -5941,14 +5961,14 @@ p#versionInfo {
 }
 
 .infrastructure-dropdown div.menu-header:hover {
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
     border-right: 0px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
 .infrastructure-dropdown div.menu-header.active{
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
 }
 
 .kubernetes-dropdown{
@@ -5983,14 +6003,14 @@ p#versionInfo {
 }
 
 .kubernetes-dropdown li:hover{
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
 .kubernetes-dropdown li.active{
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
@@ -6010,7 +6030,7 @@ p#versionInfo {
 
 .help-options .help-links:hover {
     background-color: var(--purple-1);
-    color: rgb(255, 255, 255);
+    color: var(--navbar-link-text-active);;
     border-radius: 5px;
 }
 
