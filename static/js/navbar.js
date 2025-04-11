@@ -738,30 +738,51 @@ function initializeHelpDropdown() {
     const $helpArrow = $('.help-arrow');
     const $helpHeader = $('.help-menu-header');
     const $helpOptions = $('.help-options');
+    const $body = $('body');
+    const $appSideNav = $('#app-side-nav');
 
     $helpHeader.on('click', function (event) {
         event.preventDefault();
         event.stopPropagation();
-        $helpOptions.stop(true, true).slideToggle(30, function () {
-            // Toggle rotated class based on visibility after animation
-            $helpArrow.toggleClass('rotated', $helpOptions.is(':visible'));
-        });
-    });
-
-    // Close dropdown on mouseleave
-    $helpOptions.on('mouseleave', function (event) {
-        event.stopPropagation();
-        $helpOptions.stop(true, true).slideUp(30, function () {
-            helpMenuOpen = false;
-            $helpArrow.removeClass('rotated');
-        });
-    });
-
-    // Close menu when clicking elsewhere on the document
-    $(document).on('click', function (event) {
-        if (!$(event.target).closest('.help-arrow, .help-options').length) {
+        if ($helpOptions.is(':visible')) {
             $helpOptions.stop(true, true).slideUp(30, function () {
                 $helpArrow.removeClass('rotated');
+                // Collapse side nav when help dropdown closes
+                if ($body.hasClass('nav-expanded')) {
+                    $body.removeClass('nav-expanded');
+                }
+            });
+        } else {
+            $helpOptions.stop(true, true).slideDown(30, function () {
+                $helpArrow.addClass('rotated');
+            });
+        }
+    });
+
+    // Close menu when clicking outside appSideNav or helpOptions
+    $(document).on('click', function (event) {
+        if (!$(event.target).closest('.help-arrow, .help-options, #app-side-nav').length) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
+            if ($body.hasClass('nav-expanded')) {
+                $body.removeClass('nav-expanded');
+            }
+        }
+    });
+
+    // Toggle help dropdown and collapse side nav when clicking help arrow
+    $helpArrow.on('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if ($helpOptions.is(':visible')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+                $body.removeClass('nav-expanded'); // Collapse side nav
+            });
+        } else {
+            $helpOptions.stop(true, true).slideDown(30, function () {
+                $helpArrow.addClass('rotated');
             });
         }
     });
@@ -772,15 +793,17 @@ function initializeHelpDropdown() {
     });
 }
 
-
 function setupHamburgerBehavior() {
     const navbarToggle = $('#navbar-toggle');
     const appSideNav = $('#app-side-nav');
+    const $helpOptions = $('.help-options');
+    const $helpArrow = $('.help-arrow');
+    const $body = $('body');
     let navTimeout;
 
     navbarToggle.on('mouseenter', function () {
         clearTimeout(navTimeout);
-        $('body').addClass('nav-expanded');
+        $body.addClass('nav-expanded');
     });
 
     appSideNav.on('mouseenter', function () {
@@ -788,28 +811,46 @@ function setupHamburgerBehavior() {
     });
 
     appSideNav.on('mouseleave', function () {
-        navTimeout = setTimeout(function () {
-            $('body').removeClass('nav-expanded');
-        }, 300);
+        if (!$helpOptions.is(':visible')) { // Only collapse if help dropdown is not open
+            navTimeout = setTimeout(function () {
+                $body.removeClass('nav-expanded');
+                $helpOptions.stop(true, true).slideUp(30, function () {
+                    $helpArrow.removeClass('rotated');
+                });
+            }, 300);
+        }
     });
 
     navbarToggle.on('mouseleave', function (e) {
         if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
-            navTimeout = setTimeout(function () {
-                $('body').removeClass('nav-expanded');
-            }, 300);
+            if (!$helpOptions.is(':visible')) { // Only collapse if help dropdown is not open
+                navTimeout = setTimeout(function () {
+                    $body.removeClass('nav-expanded');
+                    $helpOptions.stop(true, true).slideUp(30, function () {
+                        $helpArrow.removeClass('rotated');
+                    });
+                }, 300);
+            }
         }
     });
 
     navbarToggle.on('click', function (e) {
         e.stopPropagation();
-        $('body').toggleClass('nav-expanded');
+        $body.toggleClass('nav-expanded');
+        if (!$body.hasClass('nav-expanded')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
+        }
     });
 
     $(document).on('click', function (e) {
         if (!appSideNav.is(e.target) && !appSideNav.has(e.target).length &&
             !navbarToggle.is(e.target) && !navbarToggle.has(e.target).length) {
-            $('body').removeClass('nav-expanded');
+            $body.removeClass('nav-expanded');
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
         }
     });
 }
