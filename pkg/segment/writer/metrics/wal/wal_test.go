@@ -17,7 +17,8 @@ func TestWALAppendAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewDataPointWal(filePath)
+	encoder := NewDataPointEncoder()
+	wal, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -53,7 +54,7 @@ func TestDeleteWALFile(t *testing.T) {
 	dir := t.TempDir()
 	filename := "testwal.wal"
 	filePath := filepath.Join(dir, filename)
-	wal, err := NewDataPointWal(filePath)
+	wal, err := NewWAL(filePath, &MetricsMetaEncoder{})
 	assert.NoError(t, err)
 	_, err = os.Stat(filePath)
 	assert.False(t, os.IsNotExist(err))
@@ -72,8 +73,8 @@ func TestWALStats(t *testing.T) {
 	filename := "testwal.wal"
 
 	filePath := filepath.Join(dir, filename)
-
-	w, err := NewDataPointWal(filePath)
+	encoder := NewDataPointEncoder()
+	w, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 	defer w.Close()
 
@@ -81,9 +82,7 @@ func TestWALStats(t *testing.T) {
 	err = w.Append(dps)
 	assert.NoError(t, err)
 
-	fname, totalDps, encodedSize := w.GetWALStats()
-	assert.Equal(t, fname, filepath.Join(dir, filename))
-	assert.Equal(t, uint32(500), totalDps)
+	encodedSize := w.GetWALStats()
 	assert.True(t, encodedSize > 0)
 }
 
@@ -106,7 +105,8 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewDataPointWal(filePath)
+	encoder := NewDataPointEncoder()
+	wal, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -168,7 +168,7 @@ func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewMNameWal(filePath)
+	wal, err := NewWAL(filePath, &MetricNameEncoder{})
 	assert.NoError(t, err)
 
 	totalAppends := 5
@@ -214,7 +214,7 @@ func TestMetaEntryWal(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "test_wal_file.wal")
 
-	nwal, err := NewMMetaEntryWal(filePath)
+	nwal, err := NewWAL(filePath, &MetricsMetaEncoder{})
 	assert.NoError(t, err)
 	defer os.Remove(filePath)
 
@@ -244,12 +244,23 @@ func TestMetaEntryWal(t *testing.T) {
 		OrgId:              456,
 	}
 
-	err = nwal.WriteMetricsMetaEntries([]*structs.MetricsMeta{meta1, meta2})
+	err = nwal.Write([]*structs.MetricsMeta{meta1, meta2})
 	assert.NoError(t, err)
 
-	readEntries, err := ReadMMetaEntryWal(filePath)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(readEntries))
-	assert.Equal(t, *meta1, *readEntries[0])
-	assert.Equal(t, *meta2, *readEntries[1])
+	expected := []*structs.MetricsMeta{meta1, meta2}
+	i := 0
+	reader, err := NewMetricsMetaEntryWalReader(filePath)
+
+	for {
+		entry, err := reader.Next()
+		if err != nil {
+		}
+		if entry == nil {
+			break
+		}
+		assert.Equal(t, expected[i], entry)
+		i++
+	}
+	assert.Equal(t, len(expected), i)
+
 }

@@ -386,7 +386,7 @@ func startIngestServer(serverAddr string) {
 		}
 	}()
 
-	_ = metrics.RecoverWALData()
+	metrics.RecoverWALData()
 	metrics.RecoverMNameWALData()
 	metrics.RecoverMEntryWALData()
 

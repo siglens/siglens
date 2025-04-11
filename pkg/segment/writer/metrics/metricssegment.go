@@ -146,12 +146,12 @@ type MetricsSegment struct {
 }
 
 type mNameWalState struct {
-	metricsNames []string           // metric names seen across segment
-	wal          *wal.MetricNameWal // Active WAL file
+	metricsNames []string // metric names seen across segment
+	wal          *wal.Wal // Active WAL file
 	lock         sync.Mutex
 }
 type mEntryWalState struct {
-	wal *wal.MetricsMetaEntryWal
+	wal *wal.Wal
 }
 
 var metricsMEntryWalState mEntryWalState
@@ -177,8 +177,8 @@ type MetricsBlock struct {
 type dpWalState struct {
 	segID           uint64
 	mId             string
-	currentWal      *wal.DataPointWal   // Active WAL file
-	allWALs         []*wal.DataPointWal // List of WAL files
+	currentWal      *wal.Wal   // Active WAL file
+	allWALs         []*wal.Wal // List of WAL files
 	dpsInWalMem     []wal.WalDatapoint
 	dpIdx           uint64 // Next write position in dpsInWalMem
 	currentWALIndex uint64
@@ -696,11 +696,11 @@ func initMetricsBlock(shardID string, segID uint64, blockNo uint64) *MetricsBloc
 	return mBlock
 }
 
-func RecoverWALData() error {
+func RecoverWALData() {
 	baseDir := getWALBaseDir()
 	walFilesData, err := extractWALFileInfo(baseDir)
 	if err != nil {
-		return err
+		return
 	}
 
 	for _, fileData := range walFilesData {
@@ -746,8 +746,6 @@ func RecoverWALData() error {
 		}
 
 	}
-	return nil
-
 }
 
 func (mb *MetricsBlock) encodeDatapoint(timestamp uint32, dpVal float64, tsid uint64) error {
@@ -2006,7 +2004,7 @@ func (mb *MetricsBlock) appendToWALBuffer(timestamp uint32, dp float64, tsid uin
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
 		}
-		_, _, totalEncodedSize := mb.dpWalState.currentWal.GetWALStats()
+		totalEncodedSize := mb.dpWalState.currentWal.GetWALStats()
 		if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
 			if err := mb.rotateWAL(); err != nil {
 				log.Errorf("appendToWALBuffer : Failed to rotate WAL file: %v", err)
@@ -2034,7 +2032,7 @@ func timeBasedWalDPSFlush() {
 				if err != nil {
 					log.Warnf("timeBasedWalDPSFlush : Failed to append datapoints to WAL: %v", err)
 				}
-				_, _, totalEncodedSize := ms.mBlock.dpWalState.currentWal.GetWALStats()
+				totalEncodedSize := ms.mBlock.dpWalState.currentWal.GetWALStats()
 				if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
 					if err := ms.mBlock.rotateWAL(); err != nil {
 						log.Warnf("timeBasedWalDPSFlush : Failed to rotate WAL file: %v", err)
@@ -2065,7 +2063,8 @@ func (mb *MetricsBlock) initNewDpWal() error {
 	fileName := "shardID_" + mb.dpWalState.mId + "_segID_" + strconv.FormatUint(mb.dpWalState.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.dpWalState.currentWALIndex, 10) + ".wal"
 	filePath := filepath.Join(basedir, fileName)
 	var err error
-	mb.dpWalState.currentWal, err = wal.NewDataPointWal(filePath)
+	encoder := wal.NewDataPointEncoder()
+	mb.dpWalState.currentWal, err = wal.NewWAL(filePath, encoder)
 	if err != nil {
 		log.Errorf("initNewDpWal : Failed to create new WAL file %s in %s: %v", fileName, basedir, err)
 		return err
@@ -2112,7 +2111,8 @@ func (mb *MetricsSegment) initNewMNameWAL() error {
 	filePath = filepath.Join(filePath, fileName)
 
 	var err error
-	mb.mNameWalState.wal, err = wal.NewMNameWal(filePath)
+	encoder := wal.NewMetricNameEncoder()
+	mb.mNameWalState.wal, err = wal.NewWAL(filePath, encoder)
 	if err != nil {
 		log.Errorf("initNewMNameWAL : Failed to create new WAL file %s in %s: %v", fileName, basedir, err)
 		return err
@@ -2289,7 +2289,7 @@ func timeBasedMetaEntryWalFlush() {
 			ms.mNameWalState.lock.Unlock()
 		}
 		if metricsMEntryWalState.wal != nil {
-			err := metricsMEntryWalState.wal.WriteMetricsMetaEntries(allMetaEntries)
+			err := metricsMEntryWalState.wal.Write(allMetaEntries)
 			if err != nil {
 				log.Warnf("timeBasedMetaEntryWalFlush : failed to write metrics meta entry in wal file err : %v", err)
 			}
@@ -2304,7 +2304,7 @@ func initNewMEntryWAL() error {
 	filePath = filepath.Join(filePath, METRICS_META_ENTRY_WAL_FILE)
 
 	var err error
-	metricsMEntryWalState.wal, err = wal.NewMMetaEntryWal(filePath)
+	metricsMEntryWalState.wal, err = wal.NewWAL(filePath, &wal.MetricsMetaEncoder{})
 	if err != nil {
 		log.Errorf("initNewMEntryWAL : Failed to create new WAL file %s in %s: %v", METRICS_META_ENTRY_WAL_FILE, basedir, err)
 		return err
@@ -2317,15 +2317,26 @@ func RecoverMEntryWALData() {
 	mNameWalDir := filepath.Join(baseDir, META_ENTRY_WAL_DIR)
 
 	filePath := filepath.Join(mNameWalDir, METRICS_META_ENTRY_WAL_FILE)
-	metaEntry, err := wal.ReadMMetaEntryWal(filePath)
-	if err != nil {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return
 	}
-
-	for _, entry := range metaEntry {
-		err = meta.AddMetricsMetaEntry(entry)
-	}
+	walIterator, err := wal.NewMetricsMetaEntryWalReader(filePath)
 	if err != nil {
-		log.Warnf("RecoverMEntryWALData :Failed to flush Metrics meta entry  %v", err)
+		log.Warnf("RecoverMEntryWALData :Failed to create WAL reader for file %s: %v", filePath, err)
+		return
+	}
+	for {
+		mName, err := walIterator.Next()
+		if err != nil {
+			log.Warnf("RecoverMEntryWALData : Error reading next WAL entry from file %s: %v", filePath, err)
+			break
+		}
+		if mName == nil {
+			break
+		}
+		err = meta.AddMetricsMetaEntry(mName)
+		if err != nil {
+			log.Warnf("RecoverMEntryWALData : Failed to AddMetricsMetaEntry  %v", err)
+		}
 	}
 }
