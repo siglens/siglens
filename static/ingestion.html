@@ -64,26 +64,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
         <div id="dashboard" class="p-4">
             <div>
-                <h1 class="myOrg-heading submenu-heading">APM</h1>
-                <p class="caption submenu-caption">End-to-end visibility into your application ecosystem performance</p>
+                <h1 class="myOrg-heading submenu-heading">Ingestion</h1>
+                <p class="caption submenu-caption">Seamlessly bring your observability data into SigLens — start gaining insights from logs, metrics, and traces in minutes.</p>
             </div>
             <div class="submenu-container">
-                <div class="submenu-card" id="service-health">
-                    <div class="myOrg-heading">Service Health</div>
+                <div class="submenu-card" id="test-data">
+                    <div class="myOrg-heading">Log Ingestion</div>
                     <p>
-                        Monitor critical RED metrics (Request rate, Error %, Duration) across services
+                        Ingest logs using OpenTelemetry Collector, FluentBit or other supported tools. Supports JSON, syslog, and structured logs.
                     </p>
                 </div>
-                <div class="submenu-card" id="search-traces">
-                    <div class="myOrg-heading">Search Traces</div>
+                <div class="submenu-card" id="metrics-ingestion">
+                    <div class="myOrg-heading">Metrics Ingestion</div>
                     <p>
-                        Query distributed traces with detailed span-by-span Gantt visualization
+                        Send metrics from Prometheus or OpenTelemetry. Use PromQL queries to track system , visualize and alert on performance.
                     </p>
                 </div>
-                <div class="submenu-card" id="dependency-graph">
-                    <div class="myOrg-heading">Dependency Graph </div>
+                <div class="submenu-card" id="traces-ingestion">
+                    <div class="myOrg-heading">Traces Ingestion</div>
                     <p>
-                        Interactive service topology map showing real-time dependencies
+                        Instrument your applications with OpenTelemetry SDKs to capture traces. Visualize span details and find bottlenecks fast.
                     </p>
                 </div>
             </div>
@@ -96,16 +96,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
     <script>
         $(document).ready(function () {
             $('.theme-btn').on('click', themePickerHandler);
             $('.submenu-card').click(function () {
                 const cardId = $(this).attr('id');
                 window.location.href = cardId + '.html';
-            }); 
+            });
         });
     </script>
-    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
