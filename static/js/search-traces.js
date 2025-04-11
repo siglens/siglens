@@ -33,22 +33,38 @@ $(document).ready(() => {
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', showScatterPlot);
 
+    // Initialize page with URL parameters
+    getInitialSearchState();
     initPage();
+
+    // Add popstate event listener for browser navigation
+    window.addEventListener('popstate', handlePopState);
 });
 window.onload = function () {
     hasLoaded = true;
 };
 function initPage() {
     initChart();
-    getValuesOfColumn('service', 'Service');
-    getValuesOfColumn('name', 'Operation');
+    // Initialize dropdowns with URL values first
+    initializeDropdowns();
     handleSort();
     handleDownload();
     handleTimePicker();
     $('#search-trace-btn').on('click', searchTraceHandler);
 }
 
-function getValuesOfColumn(chooseColumn, spanName) {
+function initializeDropdowns() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const serviceValue = urlParams.get('service') || 'All';
+    const operationValue = urlParams.get('operation') || 'All';
+
+    // Initialize service dropdown
+    getValuesOfColumn('service', 'Service', serviceValue);
+    // Initialize operation dropdown after service is set
+    getValuesOfColumn('name', 'Operation', operationValue);
+}
+
+function getValuesOfColumn(chooseColumn, spanName, defaultValue = 'All') {
     let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
     let param = {
         state: 'query',
@@ -83,7 +99,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
         $(`#${chooseColumn}-dropdown`).singleBox({
             spanName: spanName,
             dataList: currList,
-            defaultValue: 'All',
+            defaultValue: defaultValue,
             dataUpdate: true,
             clickedHead: async function () {
                 await fetchData(chooseColumn);
@@ -92,6 +108,7 @@ function getValuesOfColumn(chooseColumn, spanName) {
         });
     });
 }
+
 function fetchData(chooseColumn) {
     return new Promise((resolve, reject) => {
         let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
@@ -138,13 +155,33 @@ function fetchData(chooseColumn) {
             });
     });
 }
+
 function handleTimePicker() {
-    Cookies.set('startEpoch', 'now-1h');
-    Cookies.set('endEpoch', 'now');
+    const urlParams = new URLSearchParams(window.location.search);
+    const startEpoch = urlParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
+    const endEpoch = urlParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
+    Cookies.set('startEpoch', startEpoch);
+    Cookies.set('endEpoch', endEpoch);
+
+    // Convert startEpoch to display format
+    let displayText = 'Last 1 Hr';
+    if (startEpoch === 'now-1h') displayText = 'Last 1 Hr';
+    else if (startEpoch === 'now-15m') displayText = 'Last 15 Min';
+    else if (startEpoch === 'now-30m') displayText = 'Last 30 Min';
+    else if (startEpoch === 'now-3h') displayText = 'Last 3 Hr';
+    else if (startEpoch === 'now-6h') displayText = 'Last 6 Hr';
+    else if (startEpoch === 'now-12h') displayText = 'Last 12 Hr';
+    else if (startEpoch === 'now-24h') displayText = 'Last 24 Hr';
+    else if (startEpoch === 'now-7d') displayText = 'Last 7 Days';
+    else if (startEpoch === 'now-30d') displayText = 'Last 30 Days';
+    else if (!isNaN(startEpoch)) displayText = 'Custom Range';
+
     $('#lookback').timeTicker({
-        spanName: 'Last 1 Hr',
+        spanName: displayText,
     });
 }
+
 function handleSort() {
     let currList = ['Most Recent', 'Longest First', 'Shortest First', 'Most Spans', 'Least Spans'];
     $('#sort-dropdown').singleBox({
@@ -246,6 +283,92 @@ function durationToNanoseconds(durationStr) {
     }
 }
 
+function getInitialSearchState() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const defaultParams = {
+        service: 'All',
+        operation: 'All',
+        startEpoch: 'now-1h',
+        endEpoch: 'now',
+        minDuration: '',
+        maxDuration: '',
+        limit: '',
+        tags: ''
+    };
+
+    // Get values from URL or use defaults
+    const state = {
+        service: urlParams.get('service') || defaultParams.service,
+        operation: urlParams.get('operation') || defaultParams.operation,
+        startEpoch: urlParams.get('startEpoch') || defaultParams.startEpoch,
+        endEpoch: urlParams.get('endEpoch') || defaultParams.endEpoch,
+        minDuration: urlParams.get('minDuration') || defaultParams.minDuration,
+        maxDuration: urlParams.get('maxDuration') || defaultParams.maxDuration,
+        limit: urlParams.get('limit') || defaultParams.limit,
+        tags: urlParams.get('tags') || defaultParams.tags
+    };
+
+    // Update UI with URL parameters
+    $('#service-span-name').text(state.service);
+    $('#operation-span-name').text(state.operation);
+    $('#min-duration-input').val(state.minDuration);
+    $('#max-duration-input').val(state.maxDuration);
+    $('#limit-result-input').val(state.limit);
+    $('#tags-input').val(state.tags);
+
+    // Set time range
+    datePickerHandler(state.startEpoch, state.endEpoch, state.startEpoch);
+    filterStartDate = state.startEpoch;
+    filterEndDate = state.endEpoch;
+
+    return state;
+}
+
+function updateUrlWithSearchState(state) {
+    const url = new URL(window.location);
+    const searchParams = url.searchParams;
+
+    // Update URL parameters
+    searchParams.set('service', state.service);
+    searchParams.set('operation', state.operation);
+    searchParams.set('startEpoch', state.startEpoch);
+    searchParams.set('endEpoch', state.endEpoch);
+
+    // Only add minDuration, maxDuration, limit, and tags if explicitly set by the user
+    if (state.minDuration !== '' && state.minDuration !== undefined && state.minDuration !== null) {
+        searchParams.set('minDuration', state.minDuration);
+    } else {
+        searchParams.delete('minDuration');
+    }
+
+    if (state.maxDuration !== '' && state.maxDuration !== undefined && state.maxDuration !== null) {
+        searchParams.set('maxDuration', state.maxDuration);
+    } else {
+        searchParams.delete('maxDuration');
+    }
+
+    if (state.limit !== '' && state.limit !== undefined && state.limit !== null) {
+        searchParams.set('limit', state.limit);
+    } else {
+        searchParams.delete('limit');
+    }
+
+    if (state.tags !== '' && state.tags !== undefined && state.tags !== null) {
+        searchParams.set('tags', state.tags);
+    } else {
+        searchParams.delete('tags'); 
+    }
+
+    // Update URL without page reload
+    window.history.pushState({}, '', url);
+}
+
+function handlePopState() {
+    getInitialSearchState();
+    // Perform search with current state
+    searchTraceHandler(new Event('click'));
+}
+
 function searchTraceHandler(e) {
     e.stopPropagation();
     e.preventDefault();
@@ -256,12 +379,13 @@ function searchTraceHandler(e) {
     params = {};
     $('.warn-box').remove();
     $('#traces-number').text('');
+
     let serviceValue = $('#service-span-name').text();
     let operationValue = $('#operation-span-name').text();
     let tagValue = $('#tags-input').val();
-
     let maxDurationValueStr = $('#max-duration-input').val();
     let minDurationValueStr = $('#min-duration-input').val();
+    let limitResValue = $('#limit-result-input').val();
 
     // Convert min and max duration to nanoseconds
     let maxDurationValue = durationToNanoseconds(maxDurationValueStr);
@@ -277,13 +401,13 @@ function searchTraceHandler(e) {
         return;
     }
 
-    let limitResValue = $('#limit-result-input').val();
     if (limitResValue) limitation = parseInt(limitResValue);
     else limitation = -1;
     if (limitation > 0 && limitation < 50) {
         requestFlag = limitation;
         limitation = 0;
     }
+
     let searchText = '';
     if (serviceValue != 'All') searchText = 'service=' + serviceValue + ' ';
     if (operationValue != 'All') searchText += 'name=' + operationValue + ' ';
@@ -292,9 +416,24 @@ function searchTraceHandler(e) {
     if (tagValue) searchText += tagValue;
     if (searchText == '') searchText = '*';
     else searchText = searchText.trim();
+
     let queryParams = new URLSearchParams(window.location.search);
     let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-3h';
     let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
+    // Update URL with current search state
+    const currentState = {
+        service: serviceValue,
+        operation: operationValue,
+        startEpoch: stDate,
+        endEpoch: endDate,
+        minDuration: minDurationValueStr,
+        maxDuration: maxDurationValueStr,
+        limit: limitResValue,
+        tags: tagValue
+    };
+    updateUrlWithSearchState(currentState);
+
     pageNumber = 1;
     params = {
         searchText: searchText,
@@ -303,6 +442,7 @@ function searchTraceHandler(e) {
         queryLanguage: 'Splunk QL',
         page: pageNumber,
     };
+
     allResultsFetched = false;
     if (chart != null && chart != '' && chart != undefined) {
         echarts?.dispose(chart);
