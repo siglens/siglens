@@ -75,7 +75,7 @@ let navbarComponent = `
         {{ end }}
         <div class="menu nav-alerts alerts-dropdown-toggle">
             <div class="menu-header">
-                <a class="nav-links link-alerts" href="./alerts.html" >
+                <a class="nav-links link-alerts" href="./alerting.html" >
                     <span class="icon-alerts"></span>
                     <span class="nav-link-text-drpdwn">Alerting</span>
                 </a>
