@@ -145,11 +145,11 @@ type HtmlSnippets struct {
 	Button1   string
 	Dropdown2 string
 
-	OrgSettingsOrgName         string
-	OrgSLOs                    string
-	SLOCss                     string
-	EnterpriseEnabled          bool
-	Constants                  map[string]interface{}
+	OrgSettingsOrgName string
+	OrgSLOs            string
+	SLOCss             string
+	EnterpriseEnabled  bool
+	Constants          map[string]interface{}
 }
 
 type JsSnippets struct {
@@ -161,8 +161,8 @@ type JsSnippets struct {
 	Button1Function      string
 
 	SettingsRetentionDataThenBlock string
-	TestDataSendData string
-	IngestDataCmd    string
+	TestDataSendData               string
+	IngestDataCmd                  string
 
 	OrgUpperNavTabs string
 	OrgUpperNavUrls string
