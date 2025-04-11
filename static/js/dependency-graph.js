@@ -139,7 +139,6 @@ $(document).ready(() => {
     let stDate = 'now-1h';
     let endDate = 'now';
     datePickerHandler(stDate, endDate, stDate);
-    setupDependencyEventHandlers();
 
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', function () {
@@ -163,10 +162,11 @@ $(document).ready(() => {
             $('#dependency-info').tooltip('hide');
         }
     });
+
+    $('.range-item').on('click', rangeItemHandler);
 });
 
 function rangeItemHandler(evt) {
-    resetCustomDateRange();
     $.each($('.range-item.active'), function () {
         $(this).removeClass('active');
     });
@@ -176,36 +176,6 @@ function rangeItemHandler(evt) {
     const label = $(this).attr('id');
     datePickerHandler(start, end, label);
     getServiceDependencyData(start, end);
-}
-
-function resetDatePickerHandler(evt) {
-    evt.stopPropagation();
-    resetCustomDateRange();
-    $.each($('.range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-}
-
-function showDatePickerHandler(evt) {
-    evt.stopPropagation();
-    $('#daterangepicker').toggle();
-    $(evt.currentTarget).toggleClass('active');
-}
-
-function hideDatePickerHandler() {
-    $('#daterangepicker').removeClass('active');
-}
-
-function setupDependencyEventHandlers() {
-    $('#date-picker-btn').on('show.bs.dropdown', showDatePickerHandler);
-    $('#date-picker-btn').on('hide.bs.dropdown', hideDatePickerHandler);
-    $('#reset-timepicker').on('click', resetDatePickerHandler);
-
-    $('#time-start').on('change', getStartTimeHandler);
-    $('#time-end').on('change', getEndTimeHandler);
-    $('#customrange-btn').on('click', customRangeHandler);
-
-    $('.range-item').on('click', rangeItemHandler);
 }
 
 function getServiceDependencyData(start, end) {

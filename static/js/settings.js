@@ -29,7 +29,7 @@ $(document).ready(async function () {
         inodeInfo = result.inodeInfo;
     }
     fetchQueryTimeout()
-    {{ .SettingsExtraOnReadySetup }}
+
     {{ .Button1Function }}
 });
 
@@ -53,8 +53,6 @@ function getRetentionDataFromConfig() {
         console.log(err)
     });
 }
-
-{{ .SettingsExtraFunctions }}
 
 async function getSystemAndInodeInfo() {
     try {

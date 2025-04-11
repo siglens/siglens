@@ -76,8 +76,20 @@ let navbarComponent = `
                     class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
-        <div class="menu nav-alerts">
-            <a href="./all-alerts.html" class="nav-links link-alerts"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+        <div class="menu nav-alerts alerts-dropdown-toggle">
+            <div class="menu-header">
+                <a class="nav-links link-alerts" href="./all-alerts.html" >
+                    <span class="icon-alerts"></span>
+                    <span class="nav-link-text-drpdwn">Alerting</span>
+                </a>
+                <img class="nav-dropdown-icon orange"
+                    src="assets/arrow-btn.svg"
+                    alt="Dropdown Arrow">
+            </div>
+            <ul class="alerts-dropdown">
+                <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>
+                <a href="./contacts.html"><li class="alerts-link">Contact Points</li></a>
+            </ul>
         </div>
         <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links link-ldb">
@@ -105,9 +117,33 @@ let navbarComponent = `
             <a href="./lookups.html" class="nav-links link-lookups"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
         </div>
-        <div class="menu nav-infrastructure">
-            <a href="./infrastructure.html" class="nav-links link-infrastructure"><span class="icon-infrastructure"></span><span
-                    class="nav-link-text">Infrastructure</span></a>
+        <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
+                <div class="menu-header">
+                    <a class="nav-links" href="./kubernetes-overview.html">
+                        <span class="icon-infrastructure"></span>
+                        <span class="nav-link-text-drpdwn">Infrastructure</span>
+                    </a>
+                    <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                </div>
+                <ul class="infrastructure-dropdown">
+                   <div class="menu nav-kubernetes kubernetes-dropdown-toggle">
+                        <div class="menu-header">
+                            <a class="nav-links" href="./kubernetes-overview.html">
+                                <span class="nav-link-text-drpdwn">Kubernetes</span>
+                            </a>
+                            <img class="nav-dropdown-icon kubernetes-arrow orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow">
+                        </div>
+                        <ul class="kubernetes-dropdown">
+                            <a href="./kubernetes-overview.html"><li class="kubernetes-link">Overview</li></a>
+                            <a href="./kubernetes-view.html?type=clusters"><li class="kubernetes-link">Cluster</li></a>
+                            <a href="./kubernetes-view.html?type=namespaces"><li class="kubernetes-link">Namespaces</li></a>
+                            <a href="./kubernetes-view.html?type=workloads"><li class="kubernetes-link">Workloads</li></a>
+                            <a href="./kubernetes-view.html?type=nodes"><li class="kubernetes-link">Nodes</li></a>
+                            <a href="./kubernetes-view.html?type=events"><li class="kubernetes-link">Events</li></a>
+                            <a href="./kubernetes-view.html?type=configuration&"><li class="kubernetes-link">Configuration</li></a>
+                        </ul>
+                    </div>
+                </ul>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
             <div class="menu-header">
@@ -193,8 +229,10 @@ let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
     { name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
+    {{ if not .EnterpriseEnabled }}
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
     { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
+    {{ end }}
     { name: 'Version', url: './application-version.html', class: 'application-version' },
     { name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
 ];
@@ -209,6 +247,7 @@ let alertsUpperNavTabs = [
     { name: 'Alert Rules', url: './all-alerts.html', class: 'all-alerts' },
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
+
 
 const navigationStructure = {
     'index.html': {
@@ -392,65 +431,152 @@ $(document).ready(function () {
     $('.help-options').hide();
 
     const dropdownConfigs = [
-        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
-        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
-        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' }
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts', arrowClass: 'nav-dropdown-icon' },
+        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure', arrowClass: 'nav-dropdown-icon'},
+        { menuClass: 'nav-kubernetes', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', arrowClass: 'kubernetes-arrow' , parentClass: 'nav-infrastructure' }
     ];
 
+    // Attach click events to each dropdown toggle
     dropdownConfigs.forEach(config => {
         $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+
+            // Only toggle the dropdown that was clicked
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
-        $(`.${config.menuClass} .nav-dropdown-icon`).on('click', function(e) {
+        $(`.${config.menuClass} .${config.arrowClass}`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+
+            // Only toggle the dropdown whose arrow was clicked
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
+            saveCurrentDropdownStates();
+            sessionStorage.setItem('preserveDropdownStates', 'true');
         });
     });
 
-    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
+    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass, arrowClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        const $arrow = $menu.find('.nav-dropdown-icon');
+        const $arrow = $menu.find(`.${arrowClass}`).first();
         const isVisible = $dropdown.is(':visible');
 
+        // Toggle only this dropdown
         $dropdown.stop(true, true).slideToggle(200);
-
         $menu.toggleClass('dropdown-open', !isVisible);
 
         if ($arrow.length) {
             $arrow.toggleClass('rotated', !isVisible);
         }
 
+        // Update state for this dropdown only
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+
+        // Special case for Kubernetes - ensure parent Infrastructure menu is open when opening Kubernetes
+        if (dropdownName === 'Kubernetes' && !isVisible) {
+            const $parentMenu = $menu.closest('.nav-infrastructure');
+            const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+            const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+
+            if (!$parentDropdown.is(':visible')) {
+                $parentDropdown.stop(true, true).slideDown(200);
+                $parentMenu.addClass('dropdown-open');
+                $parentArrow.addClass('rotated');
+                dropdownStates['Infrastructure'] = true;
+                localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+            }
+        }
     };
 
-    function restoreDropdownState() {
-        const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+    // Add click handler to breadcrumb links
+    $(document).on('click', '#sl-breadcrumb a', function() {
+        saveCurrentDropdownStates();
+        sessionStorage.setItem('preserveDropdownStates', 'true');
+    });
 
+    function saveCurrentDropdownStates() {
+        const currentStates = {};
         dropdownConfigs.forEach(config => {
-            const $menu = $(`.${config.menuClass}`);
-            const isOpen = dropdownStates[config.name] === true;
-
-            if (isOpen) {
-                $menu.addClass('dropdown-open');
-                $menu.find(`.${config.dropdownClass}`).show();
-                $menu.find('.nav-dropdown-icon').addClass('rotated');
-            } else {
-                $menu.removeClass('dropdown-open');
-                $menu.find(`.${config.dropdownClass}`).hide();
-                $menu.find('.nav-dropdown-icon').removeClass('rotated');
-            }
+            const isOpen = $(`.${config.menuClass} .${config.dropdownClass}`).is(':visible');
+            currentStates[config.name] = isOpen;
         });
+        sessionStorage.setItem('currentDropdownStates', JSON.stringify(currentStates));
+    }
+
+    function restoreDropdownState() {
+        const shouldPreserveStates = sessionStorage.getItem('preserveDropdownStates') === 'true';
+
+        if (shouldPreserveStates) {
+            const savedStates = JSON.parse(sessionStorage.getItem('currentDropdownStates')) || {};
+
+            dropdownConfigs.forEach(config => {
+                const $menu = $(`.${config.menuClass}`);
+                const $dropdown = $menu.find(`.${config.dropdownClass}`);
+                const $arrow = $menu.find(`.${config.arrowClass}`).first();
+                const shouldBeOpen = savedStates[config.name] === true;
+
+                if (shouldBeOpen) {
+                    $menu.addClass('dropdown-open');
+                    $dropdown.show();
+                    $arrow.addClass('rotated');
+                } else {
+                    $menu.removeClass('dropdown-open');
+                    $dropdown.hide();
+                    $arrow.removeClass('rotated');
+                }
+            });
+
+            if (savedStates['Kubernetes'] === true && savedStates['Infrastructure'] !== false) {
+                const $infraMenu = $('.nav-infrastructure');
+                $infraMenu.addClass('dropdown-open');
+                $infraMenu.find('.infrastructure-dropdown').show();
+                $infraMenu.find('.nav-dropdown-icon').first().addClass('rotated');
+            }
+
+            sessionStorage.removeItem('preserveDropdownStates');
+            sessionStorage.removeItem('currentDropdownStates');
+        } else {
+            const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+
+            dropdownConfigs.forEach(config => {
+                const $menu = $(`.${config.menuClass}`);
+                const isOpen = dropdownStates[config.name] === true;
+
+                if (isOpen) {
+                    $menu.addClass('dropdown-open');
+                    $menu.find(`.${config.dropdownClass}`).show();
+                    $menu.find(`.${config.arrowClass}`).first().addClass('rotated');
+
+                    if (config.name === 'Kubernetes') {
+                        const $parentMenu = $menu.closest('.nav-infrastructure');
+                        const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+                        const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+                        if (!$parentDropdown.is(':visible')) {
+                            $parentDropdown.show();
+                            $parentMenu.addClass('dropdown-open');
+                            $parentArrow.addClass('rotated');
+                            dropdownStates['Infrastructure'] = true;
+                            localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+                        }
+                    }
+                } else {
+                    $menu.removeClass('dropdown-open');
+                    $menu.find(`.${config.dropdownClass}`).hide();
+                    $menu.find(`.${config.arrowClass}`).first().removeClass('rotated');
+                }
+            });
+        }
     }
 
     function updateActiveHighlighting() {
@@ -461,26 +587,57 @@ $(document).ready(function () {
         });
 
         const currentPath = window.location.pathname.split('/').pop();
+        const currentUrl = currentPath + window.location.search;
+
+        // Handle infrastructure pages
+        if (currentPath === 'infrastructure.html' || currentPath === 'kubernetes-overview.html' ||
+            (currentPath === 'kubernetes-view.html' && window.location.search)) {
+            $('.nav-infrastructure').addClass('active');
+            $('.icon-infrastructure').addClass('active');
+
+            if (currentPath === 'kubernetes-overview.html' || currentPath === 'kubernetes-view.html') {
+                $('.nav-kubernetes').addClass('active');
+                $('.kubernetes-dropdown-toggle').addClass('active');
+            }
+        }
 
         dropdownConfigs.forEach(config => {
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
 
-                if (currentPath === hrefPath) {
+                if (currentPath === hrefPath || currentUrl === hrefPath) {
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
 
-                    const $menu = $li.closest(`.${config.menuClass}`);
-                    const $icon = $menu.find(`.${config.iconClass}`);
-
+                    const $menu = config.parentClass ?
+                        $li.closest(`.${config.menuClass}`).closest(`.${config.parentClass}`) :
+                        $li.closest(`.${config.menuClass}`);
                     $menu.addClass('active');
-                    $icon.addClass('active');
+
+                    $menu.find(`.${config.iconClass}`).addClass('active');
+
+                    if (config.parentClass) {
+                        $(`.${config.parentClass}`).addClass('active');
+                    }
                 }
             });
         });
-    }
 
+        // Special handling for kubernetes view with URL parameters
+        if (currentPath === 'kubernetes-view.html') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const type = urlParams.get('type');
+
+            if (type) {
+                $(`.kubernetes-dropdown a[href*="type=${type}"]`).each(function() {
+                    $(this).find('li').addClass('active');
+                    $(this).closest('.nav-kubernetes').addClass('active');
+                    $(this).closest('.nav-infrastructure').addClass('active');
+                });
+            }
+        }
+    }
 
     restoreDropdownState();
     updateActiveHighlighting();
@@ -488,7 +645,6 @@ $(document).ready(function () {
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
     });
-
 });
 
 function setupNavigationState() {

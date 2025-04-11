@@ -188,28 +188,48 @@ func (sfr *SegmentFileReader) readBlock(blockNum uint16) (bool, error) {
 	return true, nil
 }
 
-// helper function to decompresses and loads block using passed buffers
-// returns the raw buffer, if the block is valid, and any error encountered
-// The block will not be valid if the column is not found in block metadata. This means that the column never existed for this block and only existed for other blocks
+// Helper function to decompresses and loads block using passed buffers.
+// Returns whether the block is valid, and any error encountered.
+//
+// The block will not be valid if the column is not found in block metadata.
+// This means that the column never existed for this block and only existed for
+// other blocks
 func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error) {
-
-	blockMetata, blockExists := sfr.blockMetadata[blockNum]
-	if !blockExists {
-		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v does not exist for this segment file reader", blockNum)
+	if sfr == nil {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: SegmentFileReader is nil")
 	}
-	colBlockLen, colExists := blockMetata.ColumnBlockLen[sfr.ColName]
+
+	blockMeta, blockExists := sfr.blockMetadata[blockNum]
+	if !blockExists {
+		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v does not exist", blockNum)
+	}
+
+	if blockMeta == nil {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v is nil", blockNum)
+	}
+
+	if blockMeta.ColumnBlockLen == nil {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v column block len is nil", blockNum)
+	}
+
+	colBlockLen, colExists := blockMeta.ColumnBlockLen[sfr.ColName]
 	if !colExists {
 		// This is an invalid block & not an error because this column never existed for this block if sfr.blockMetadata[blockNum] exists
 		return false, nil
 	}
 
-	colBlockOffset, colExists := blockMetata.ColumnBlockOffset[sfr.ColName]
+	if blockMeta.ColumnBlockOffset == nil {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v column block offset is nil", blockNum)
+	}
+
+	colBlockOffset, colExists := blockMeta.ColumnBlockOffset[sfr.ColName]
 	if !colExists {
 		return false, nil
 	}
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(colBlockLen))
-	_, err := sfr.currFD.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
+	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
+	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
 	if err != nil {
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", colBlockOffset, err)
 	}

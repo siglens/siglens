@@ -1276,7 +1276,7 @@ func (iqr *IQR) GetColumnsOrder(allCnames []string) []string {
 
 // TODO: Add option/method to return the result for a websocket query.
 // TODO: Add option/method to return the result for an ES/kibana query.
-func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.PipeSearchResponseOuter, error) {
+func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool, isLogsQuery bool) (*structs.PipeSearchResponseOuter, error) {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.AsResult: validation failed: %v", err)
 		return nil, err
@@ -1300,18 +1300,35 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.P
 	}
 
 	cValRecords := toputils.TransposeMapOfSlices(records)
-	recordsAsAny := make([]map[string]interface{}, len(cValRecords))
-	for i, record := range cValRecords {
-		recordsAsAny[i] = make(map[string]interface{})
+	recordsAsAny := make([]map[string]interface{}, 0)
+	nonEmptyColumns := make(map[string]struct{})
+	for _, record := range cValRecords {
+		nonEmptyRecord := map[string]interface{}{}
 		for key, value := range record {
-			if !includeNulls && value.IsNull() {
-				continue
+			if !includeNulls {
+				if value.IsNull() {
+					continue
+				}
+				if strValue, ok := value.CVal.(string); ok && strValue == "" && isLogsQuery {
+					continue
+				}
 			}
-			recordsAsAny[i][key] = value.CVal
+			nonEmptyColumns[key] = struct{}{}
+			nonEmptyRecord[key] = value.CVal
+		}
+		if len(nonEmptyRecord) > 0 {
+			recordsAsAny = append(recordsAsAny, nonEmptyRecord)
 		}
 	}
 
-	allCNames := toputils.GetKeysOfMap(records)
+	allCNames := make([]string, 0)
+	if isLogsQuery {
+		for col := range nonEmptyColumns {
+			allCNames = append(allCNames, col)
+		}
+	} else {
+		allCNames = toputils.GetKeysOfMap(records)
+	}
 
 	var response *structs.PipeSearchResponseOuter
 	switch qType {
@@ -1319,7 +1336,7 @@ func (iqr *IQR) AsResult(qType structs.QueryType, includeNulls bool) (*structs.P
 		response = &structs.PipeSearchResponseOuter{
 			Hits: structs.PipeSearchResponse{
 				TotalMatched: toputils.HitsCount{
-					Value:    uint64(iqr.NumberOfRecords()),
+					Value:    uint64(len(recordsAsAny)),
 					Relation: "eq",
 				},
 				Hits: recordsAsAny,
@@ -1601,9 +1618,9 @@ func (iqr *IQR) getFinalStatsResults() ([]*structs.BucketHolder, []string, []str
 	return bucketHolderArr, groupByColumns, measureColumns, bucketCount, nil
 }
 
-func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNulls bool) (*structs.PipeSearchWSUpdateResponse, error) {
+func (iqr *IQR) AsWSResult(qType structs.QueryType, scrollFrom uint64, includeNulls bool, isLogsQuery bool) (*structs.PipeSearchWSUpdateResponse, error) {
 
-	resp, err := iqr.AsResult(qType, includeNulls)
+	resp, err := iqr.AsResult(qType, includeNulls, isLogsQuery)
 	if err != nil {
 		return nil, fmt.Errorf("IQR.AsWSResult: error getting result: %v", err)
 	}
