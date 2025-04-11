@@ -437,7 +437,7 @@ $(document).ready(function () {
             toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
-        $(`.${config.menuClass} .menu-header .nav-links`).on('click', function(e) {
+        $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
             saveCurrentDropdownStates();
             sessionStorage.setItem('preserveDropdownStates', 'true');
         });
@@ -563,9 +563,6 @@ $(document).ready(function () {
     }
 
     function updateActiveHighlighting() {
-        $('.nav-links').removeClass('active submenu-active');
-        $('.menu').removeClass('active submenu-active');
-        $('.icon').removeClass('active submenu-active');
         dropdownConfigs.forEach(config => {
             $(`.${config.menuClass}`).removeClass('active submenu-active');
             $(`.${config.iconClass}`).removeClass('active submenu-active');
