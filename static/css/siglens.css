@@ -3589,6 +3589,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #app-side-nav .menu.active .nav-link-text,
+#app-side-nav .menu.submenu-active .nav-link-text,
 #app-side-nav .menu:hover .nav-link-text,
 .nav-link-text:hover,
 .help-links:hover .nav-link-text {
