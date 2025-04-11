@@ -229,8 +229,10 @@ let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
     { name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
+    {{ if not .EnterpriseEnabled }}
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
     { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
+    {{ end }}
     { name: 'Version', url: './application-version.html', class: 'application-version' },
     { name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
 ];
