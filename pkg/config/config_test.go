@@ -347,7 +347,7 @@ a: b
 				MaxWaitWipFlushIntervalSecs: 30,
 				DataPath:                    "data/",
 				S3:                          common.S3Config{Enabled: false, BucketName: "", BucketPrefix: "", RegionName: ""},
-				RetentionHours:              15 * 24,
+				RetentionHours:              30 * 24,
 				TimeStampKey:                "timestamp",
 				MaxSegFileSize:              4_294_967_296,
 				LicenseKeyPath:              "./",
