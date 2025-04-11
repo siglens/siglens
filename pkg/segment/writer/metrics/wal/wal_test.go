@@ -168,7 +168,8 @@ func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewWAL(filePath, &MetricNameEncoder{})
+	encoder := NewMetricNameEncoder()
+	wal, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 
 	totalAppends := 5
