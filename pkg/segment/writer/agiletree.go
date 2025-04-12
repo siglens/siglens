@@ -444,29 +444,25 @@ func (stb *StarTreeBuilder) updateAggVals(node *Node, nodeToMerge *Node) error {
 		agvidx := midx + MeasFnMinIdx
 		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Min)
 		if err != nil {
-			log.Errorf("updateAggVals: error in min err:%v", err)
-			return err
+			return fmt.Errorf("updateAggVals: error in min err:%v", err)
 		}
 
 		agvidx = midx + MeasFnMaxIdx
 		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Max)
 		if err != nil {
-			log.Errorf("updateAggVals: error in max err:%v", err)
-			return err
+			return fmt.Errorf("updateAggVals: error in max err:%v", err)
 		}
 
 		agvidx = midx + MeasFnSumIdx
 		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Sum)
 		if err != nil {
-			log.Errorf("updateAggVals: error in sum err:%v", err)
-			return err
+			return fmt.Errorf("updateAggVals: error in sum err:%v", err)
 		}
 
 		agvidx = midx + MeasFnCountIdx
 		err = node.aggValues[agvidx].ReduceFast(nodeToMerge.aggValues[agvidx], utils.Count)
 		if err != nil {
-			log.Errorf("updateAggVals: error in count err:%v", err)
-			return err
+			return fmt.Errorf("updateAggVals: error in count err:%v", err)
 		}
 	}
 
@@ -599,9 +595,8 @@ func (stb *StarTreeBuilder) creatEnc(wip *WipBlock) error {
 		for recNum := uint16(0); recNum < numRecs; recNum++ {
 			cValBytes, endIdx, err := getColByteSlice(cwip.cbuf, int(idx), 0) // todo pass qid here
 			if err != nil {
-				log.Errorf("populateLeafsWithMeasVals: Could not extract val for cname: %v, idx: %v",
+				return fmt.Errorf("populateLeafsWithMeasVals: Could not extract val for cname: %v, idx: %v",
 					colName, idx)
-				return err
 			}
 			idx += uint32(endIdx)
 			enc := stb.setColValEnc(colNum, cValBytes)
@@ -635,14 +630,13 @@ func (stb *StarTreeBuilder) buildTreeStructure(wip *WipBlock) error {
 			midx := mcNum * TotalMeasFns
 			err := getMeasCval(cwip, recNum, measCidx, mcNum, mcName, num)
 			if err != nil {
-				log.Errorf("buildTreeStructure: Could not get measure for cname: %v, err: %v",
+				log.Debugf("buildTreeStructure: Could not get measure for cname: %v, err: %v",
 					mcName, err)
 				continue
 			}
 			err = stb.addMeasures(num, lenAggValues, midx, node)
 			if err != nil {
-				log.Errorf("buildTreeStructure: Could not add measure for cname: %v", mcName)
-				return err
+				return fmt.Errorf("buildTreeStructure: Could not add measure for cname: %v", mcName)
 			}
 		}
 	}
@@ -661,20 +655,17 @@ func (stb *StarTreeBuilder) addMeasures(val *utils.Number,
 	agvidx := midx + MeasFnMinIdx
 	err = node.aggValues[agvidx].ReduceFast(val, utils.Min)
 	if err != nil {
-		log.Errorf("addMeasures: error in min err:%v", err)
-		return err
+		return fmt.Errorf("addMeasures: error in min err:%v", err)
 	}
 	agvidx = midx + MeasFnMaxIdx
 	err = node.aggValues[agvidx].ReduceFast(val, utils.Max)
 	if err != nil {
-		log.Errorf("addMeasures: error in max err:%v", err)
-		return err
+		return fmt.Errorf("addMeasures: error in max err:%v", err)
 	}
 	agvidx = midx + MeasFnSumIdx
 	err = node.aggValues[agvidx].ReduceFast(val, utils.Sum)
 	if err != nil {
-		log.Errorf("addMeasures: error in sum err:%v", err)
-		return err
+		return fmt.Errorf("addMeasures: error in sum err:%v", err)
 	}
 
 	one := &utils.Number{}
@@ -684,8 +675,7 @@ func (stb *StarTreeBuilder) addMeasures(val *utils.Number,
 	// for count we always use 1 instead of val
 	err = node.aggValues[agvidx].ReduceFast(one, utils.Count)
 	if err != nil {
-		log.Errorf("addMeasures: error in count err:%v", err)
-		return err
+		return fmt.Errorf("addMeasures: error in count err:%v", err)
 	}
 	return nil
 }
@@ -766,9 +756,8 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 				buffer.Append([]byte(dword))
 				_, err := GetNumValFromRec(buffer, 0, 0, num)
 				if err != nil {
-					log.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
+					return fmt.Errorf("getMeasCval: Could not extract val for cname: %v, dword: %v",
 						colName, dword)
-					return err
 				}
 				return nil
 			}
@@ -778,9 +767,8 @@ func getMeasCval(cwip *ColWip, recNum uint16, cIdx []uint32, colNum int,
 
 	endIdx, err := GetNumValFromRec(cwip.cbuf, int(cIdx[colNum]), 0, num) // todo pass qid
 	if err != nil {
-		log.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
+		return fmt.Errorf("getMeasCval: Could not extract val for cname: %v, idx: %v",
 			colName, cIdx[colNum])
-		return err
 	}
 	cIdx[colNum] += uint32(endIdx)
 	return nil
