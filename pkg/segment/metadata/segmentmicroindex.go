@@ -98,8 +98,7 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 	// The map of blockNum to BlockMetadataHolder structs
 	// type BlockMetadataHolder struct {
 	//	BlkNum            uint16
-	//	ColumnBlockOffset map[string]int64
-	//	ColumnBlockLen    map[string]uint32
+	//	ColBlockOffAndLen map[string]ColOffAndLen
 	// }
 	sumColSize := uint64(0)
 	for cname := range sm.ColumnNames {
