@@ -116,8 +116,7 @@ func ReadBlockSummaries(fileName string) ([]*structs.BlockSummary,
 		offset += 2
 		bmh := &structs.BlockMetadataHolder{
 			BlkNum:            blkNum,
-			ColumnBlockOffset: make(map[string]int64, numCols),
-			ColumnBlockLen:    make(map[string]uint32, numCols),
+			ColBlockOffAndLen: make(map[string]structs.ColOffAndLen, numCols),
 		}
 
 		for i := uint16(0); i < numCols; i++ {
@@ -142,8 +141,9 @@ func ReadBlockSummaries(fileName string) ([]*structs.BlockSummary,
 			offset += 8
 			blkLen := toputils.BytesToUint32LittleEndian(rbuf[offset:])
 			offset += 4
-			bmh.ColumnBlockOffset[cname] = blkOff
-			bmh.ColumnBlockLen[cname] = blkLen
+			bmh.ColBlockOffAndLen[cname] = structs.ColOffAndLen{Offset: blkOff,
+				Length: blkLen,
+			}
 		}
 		allBmh[blkNum] = bmh
 
