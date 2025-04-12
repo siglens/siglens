@@ -126,12 +126,12 @@
 
 #one-service-overview .chart-container {
     width: 49%;
+    height: 350px;
 }
 
-#one-service-overview .chart_container {
-    width: 100%;
+#one-service-overview .canvas-container {
+    height: calc(100% - 30px);
 }
-
 .search #date-picker-btn {
     width: 100% !important;
     justify-content: space-between;

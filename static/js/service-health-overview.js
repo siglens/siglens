@@ -138,6 +138,7 @@ function rateChart(rateData, gridLineColor, tickColor) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             interaction: {
                 intersect: false,
                 mode: 'index',
@@ -203,6 +204,7 @@ function errorChart(errorData, gridLineColor, tickColor) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             interaction: {
                 intersect: false,
                 mode: 'index',
@@ -296,6 +298,7 @@ function latenciesChart(latenciesData, gridLineColor, tickColor) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             interaction: {
                 intersect: false,
                 mode: 'index',
