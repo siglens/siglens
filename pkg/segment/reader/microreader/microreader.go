@@ -22,6 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
+	"unsafe"
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -32,6 +34,19 @@ import (
 )
 
 const SECONDS_REREAD_META = 10
+
+var internCnamesPool sync.Map // map[string]string
+
+func internCnamesBytes(b []byte) string {
+	tmp := *(*string)(unsafe.Pointer(&b))
+	if val, ok := internCnamesPool.Load(tmp); ok {
+		return val.(string)
+	}
+	// Force copy to make sure interned string is safe
+	safe := string(b)
+	internCnamesPool.Store(safe, safe)
+	return safe
+}
 
 func ReadBlockSummaries(fileName string) ([]*structs.BlockSummary,
 	map[uint16]*structs.BlockMetadataHolder, error) {
@@ -120,7 +135,8 @@ func ReadBlockSummaries(fileName string) ([]*structs.BlockSummary,
 				return blockSummaries, allBmh, errors.New("bad data")
 			}
 
-			cname := string(rbuf[offset : offset+int64(cnamelen)])
+			cname := internCnamesBytes(rbuf[offset : offset+int64(cnamelen)])
+
 			offset += int64(cnamelen)
 			blkOff := toputils.BytesToInt64LittleEndian(rbuf[offset:])
 			offset += 8
