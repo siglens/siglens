@@ -113,6 +113,7 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 }
 
 func (smi *SegmentMicroIndex) clearSearchMetadataWithLock() {
+
 	smi.BlockSearchInfo = nil
 	smi.BlockSummaries = nil
 	smi.loadedSearchMetadata = false
@@ -170,27 +171,19 @@ func (sm *SegmentMicroIndex) loadSearchMetadata() error {
 	if sm.loadedSearchMetadata {
 		return nil
 	}
-	blockSum, allBmh, err := sm.ReadBlockSummaries()
-	if err != nil {
-		sm.clearSearchMetadataWithLock()
-		return err
-	}
-	sm.loadedSearchMetadata = true
-	sm.BlockSummaries = blockSum
-	sm.BlockSearchInfo = allBmh
-	return nil
-}
-
-func (sm *SegmentMicroIndex) ReadBlockSummaries() ([]*structs.BlockSummary,
-	map[uint16]*structs.BlockMetadataHolder, error) {
 
 	bsfname := structs.GetBsuFnameFromSegKey(sm.SegmentKey)
 	blockSum, allBmh, err := microreader.ReadBlockSummaries(bsfname)
 	if err != nil {
 		log.Errorf("ReadBlockSummaries: Failed to read block summary file: %v, err:%+v", bsfname, err)
-		return blockSum, allBmh, err
+		sm.clearSearchMetadataWithLock()
+		return err
 	}
-	return blockSum, allBmh, nil
+
+	sm.loadedSearchMetadata = true
+	sm.BlockSummaries = blockSum
+	sm.BlockSearchInfo = allBmh
+	return nil
 }
 
 func (sm *SegmentMicroIndex) ReadBlockSumOnly() ([]*structs.BlockSummary, error) {
@@ -404,7 +397,8 @@ func GetSearchInfoAndSummary(segkey string) (map[uint16]*structs.BlockMetadataHo
 		return smi.BlockSearchInfo, smi.BlockSummaries, nil
 	}
 
-	blockSum, allBmh, err := smi.ReadBlockSummaries()
+	bsfname := structs.GetBsuFnameFromSegKey(smi.SegmentKey)
+	blockSum, allBmh, err := microreader.ReadBlockSummaries(bsfname)
 	if err != nil {
 		log.Errorf("GetSearchInfoAndSummary: failed to read column block sum infos for segkey %s: %v", segkey, err)
 		return nil, nil, err
