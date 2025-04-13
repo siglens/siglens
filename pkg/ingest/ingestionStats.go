@@ -124,8 +124,13 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 	for indexName := range uniqueIndexes {
 		stats, err := segwriter.GetIndexSizeStats(indexName, 0)
 		if err != nil {
-			log.Errorf("processSegmentAndIndexStats: failed to get stats for index=%v err=%v", indexName, err)
-			continue
+			log.Errorf("processSegmentAndIndexStats: failed to get stats=%v for index=%v err=%v",
+				stats, indexName, err)
+			// some sfm filenames might be empty, but we should show what we have
+			// if stats happens to be nil then continue on
+			if stats == nil {
+				continue
+			}
 		}
 
 		totalCmiSize += stats.TotalCmiSize
