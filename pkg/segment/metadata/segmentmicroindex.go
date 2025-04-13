@@ -193,6 +193,18 @@ func (sm *SegmentMicroIndex) ReadBlockSummaries() ([]*structs.BlockSummary,
 	return blockSum, allBmh, nil
 }
 
+func (sm *SegmentMicroIndex) ReadBlockSumOnly() ([]*structs.BlockSummary, error) {
+
+	bsfname := structs.GetBsuFnameFromSegKey(sm.SegmentKey)
+	blockSum, err := microreader.ReadBlockSumOnly(bsfname)
+	if err != nil {
+		log.Errorf("ReadBlockSumOnly: Failed to read block sum only file: %v, err:%+v",
+			bsfname, err)
+		return blockSum, err
+	}
+	return blockSum, nil
+}
+
 func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 	colsToRead map[string]bool) error {
 

@@ -48,7 +48,7 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	}
 	bMicro.SegbaseDir = segKey // for mocks its fine
 
-	_, blockSum, err := bMicro.ReadBlockSummaries()
+	blockSum, err := bMicro.ReadBlockSumOnly()
 	assert.Nil(t, err)
 	log.Infof("num block summaries: %d", len(blockSum))
 	assert.Len(t, blockSum, numBlocks)

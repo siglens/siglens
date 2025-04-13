@@ -157,6 +157,99 @@ func ReadBlockSummaries(fileName string) ([]*structs.BlockSummary,
 	return blockSummaries, allBmh, nil
 }
 
+func ReadBlockSumOnly(fileName string) ([]*structs.BlockSummary, error) {
+
+	blockSummaries := make([]*structs.BlockSummary, 0)
+	err := blob.DownloadSegmentBlob(fileName, false)
+	if err != nil {
+		log.Errorf("ReadBlockSumOnly: Error downloading block summary file at %s, err: %v", fileName, err)
+		return blockSummaries, err
+	}
+
+	finfo, err := os.Stat(fileName)
+	if err != nil {
+		log.Errorf("ReadBlockSumOnly: error when trying to stat file=%+v. Error=%+v", fileName, err)
+		return blockSummaries, err
+	}
+
+	fileSize := finfo.Size()
+	rbuf := make([]byte, int(fileSize))
+
+	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
+	if err != nil {
+		log.Infof("ReadBlockSumOnly: failed to open fileName: %v  Error: %v.",
+			fileName, err)
+		return blockSummaries, err
+	}
+	defer fd.Close()
+
+	_, err = fd.ReadAt(rbuf[:fileSize], 0)
+	if err != nil {
+		log.Errorf("ReadBlockSumOnly: Error reading bsu file: %v, err: %v", fileName, err)
+		return blockSummaries, err
+	}
+
+	offset := int64(0)
+
+	for offset < fileSize {
+
+		// todo kunal do we need blksumlen ?
+		offset += 4 // for blkSumLen
+
+		if len(rbuf[offset:]) < 2+8+8+2+2 {
+			log.Errorf("ReadBlockSumOnly: expected at least %d more bytes for block header, got %d more bytes; file=%v, offset=%d",
+				2+8+8+2+2, len(rbuf[offset:]), fileName, offset)
+			return blockSummaries, errors.New("bad data")
+		}
+
+		// for blknum
+		offset += 2
+
+		// read highTs
+		highTs := toputils.BytesToUint64LittleEndian(rbuf[offset:])
+		offset += 8
+
+		// read lowTs
+		lowTs := toputils.BytesToUint64LittleEndian(rbuf[offset:])
+		offset += 8
+
+		// read recCount
+		recCount := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+		offset += 2
+
+		// read numCols
+		numCols := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+		offset += 2
+
+		for i := uint16(0); i < numCols; i++ {
+			if len(rbuf[offset:]) < 2 {
+				log.Errorf("ReadBlockSumOnly: expected at least %d more bytes for column name length, got %d more bytes; file=%v, offset=%d",
+					2, len(rbuf[offset:]), fileName, offset)
+				return blockSummaries, errors.New("bad data")
+			}
+			cnamelen := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+			offset += 2
+
+			if minLen := int(offset + int64(cnamelen) + 12); len(rbuf) < minLen {
+				log.Errorf("ReadBlockSumOnly: expected at least size %d, got %d; file=%v, offset=%d",
+					minLen, len(rbuf), fileName, offset)
+				return blockSummaries, errors.New("bad data")
+			}
+
+			offset += int64(cnamelen)
+			offset += 8 + 4 // Blk Offset and Blk Len
+		}
+
+		blkSumm := &structs.BlockSummary{HighTs: highTs,
+			LowTs:    lowTs,
+			RecCount: recCount}
+
+		blockSummaries = append(blockSummaries, blkSumm)
+	}
+
+	return blockSummaries, nil
+}
+
 func ReadSegMeta(fname string) (*structs.SegMeta, error) {
 
 	var sm structs.SegMeta
