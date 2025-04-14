@@ -1517,10 +1517,13 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
-	err = metricsMEntryWalState.wal.DeleteWAL()
-	if err != nil {
-		log.Errorf("rotateSegment: failed to delete metrics meta entry wal err = %v", err)
-		return err
+	if forceRotate {
+		err = metricsMEntryWalState.wal.DeleteWAL()
+		if err != nil {
+			log.Errorf("rotateSegment: failed to delete metrics meta entry wal err = %v", err)
+			return err
+		}
+		metricsMEntryWalState.wal = nil
 	}
 
 	return blob.UploadIngestNodeDir()
@@ -2052,13 +2055,6 @@ func (mb *MetricsBlock) rotateWAL() error {
 }
 
 func (mb *MetricsBlock) initNewDpWal() error {
-	if mb.dpWalState.currentWal != nil {
-		err := mb.dpWalState.currentWal.Close()
-		if err != nil {
-			log.Warnf("initNewDpWal : Failed to close current WAL: %v", err)
-		}
-	}
-
 	basedir := getWALBaseDir()
 	fileName := "shardID_" + mb.dpWalState.mId + "_segID_" + strconv.FormatUint(mb.dpWalState.segID, 10) + "_blockID_" + strconv.FormatUint(uint64(mb.mBlockSummary.Blknum), 10) + "_" + strconv.FormatUint(mb.dpWalState.currentWALIndex, 10) + ".wal"
 	filePath := filepath.Join(basedir, fileName)
@@ -2098,13 +2094,6 @@ Write-Ahead Logging (WAL) for Metrics Names
 */
 
 func (mb *MetricsSegment) initNewMNameWAL() error {
-	if mb.mNameWalState.wal != nil {
-		err := mb.mNameWalState.wal.Close()
-		if err != nil {
-			log.Warnf("initNewMNameWAL : Failed to close current WAL: %v", err)
-		}
-	}
-
 	basedir := getWALBaseDir()
 	filePath := filepath.Join(basedir, METRICS_NAME_WAL_DIR)
 	fileName := "shardID_" + mb.Mid + "_segID_" + strconv.FormatUint(mb.Suffix, 10) + "_.wal"
@@ -2326,15 +2315,15 @@ func RecoverMEntryWALData() {
 		return
 	}
 	for {
-		mName, err := walIterator.Next()
+		mEntry, err := walIterator.Next()
 		if err != nil {
 			log.Warnf("RecoverMEntryWALData : Error reading next WAL entry from file %s: %v", filePath, err)
 			break
 		}
-		if mName == nil {
+		if mEntry == nil {
 			break
 		}
-		err = meta.AddMetricsMetaEntry(mName)
+		err = meta.AddMetricsMetaEntry(mEntry)
 		if err != nil {
 			log.Warnf("RecoverMEntryWALData : Failed to AddMetricsMetaEntry  %v", err)
 		}

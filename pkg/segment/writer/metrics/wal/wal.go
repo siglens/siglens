@@ -89,7 +89,11 @@ func (w *Wal) Append(input any) error {
 	return w.writeBlockToFile()
 }
 
-// Write overwrites the existing WAL file with new content.
+/*
+Write truncates the WAL file and writes the new input.
+  - Although WALs are usually append-only, in some cases (like segmeta.json meta entries),
+  - we overwrite the file since old data is no longer needed.
+*/
 func (w *Wal) Write(input any) error {
 	err := w.truncate()
 	if err != nil {
@@ -456,9 +460,9 @@ func (it *MNameWalIterator) Close() error {
 }
 
 func NewMNameWalReader(filePath string) (*MNameWalIterator, error) {
-	fd, err2 := openAndValidateWALFile(filePath)
-	if err2 != nil {
-		return nil, err2
+	fd, err := openAndValidateWALFile(filePath)
+	if err != nil {
+		return nil, err
 	}
 
 	return &MNameWalIterator{
@@ -588,9 +592,9 @@ func (it *MMetaEntryIterator) Close() error {
 }
 
 func NewMetricsMetaEntryWalReader(filePath string) (*MMetaEntryIterator, error) {
-	fd, err2 := openAndValidateWALFile(filePath)
-	if err2 != nil {
-		return nil, err2
+	fd, err := openAndValidateWALFile(filePath)
+	if err != nil {
+		return nil, err
 	}
 
 	return &MMetaEntryIterator{
