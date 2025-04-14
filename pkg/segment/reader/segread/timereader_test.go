@@ -99,7 +99,7 @@ func Benchmark_readTimeFile(b *testing.B) {
 	segKey := "/Users/ssubramanian/Desktop/SigLens/siglens/data/Sris-MacBook-Pro.local/final/2022/02/21/01/valtix2/10005995996882630313/0"
 	sumFile := structs.GetBsuFnameFromSegKey(segKey)
 
-	blockSums, allBlockInfo, _, err := microreader.ReadBlockSummaries(sumFile, []byte{})
+	blockSums, allBlockInfo, err := microreader.ReadBlockSummaries(sumFile, false)
 	assert.Nil(b, err)
 
 	colName := config.GetTimeStampKey()

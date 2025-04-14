@@ -112,10 +112,14 @@ type SearchMetadataHolder struct {
 	SearchTotalMemory  uint64 // total memory that this search would take, BlockSummaries + raw search buffers
 }
 
+type ColOffAndLen struct {
+	Offset int64
+	Length uint32
+}
+
 type BlockMetadataHolder struct {
 	BlkNum            uint16
-	ColumnBlockOffset map[string]int64
-	ColumnBlockLen    map[string]uint32
+	ColBlockOffAndLen map[string]ColOffAndLen
 }
 
 // a struct for raw search to apply search on specific blocks within a file

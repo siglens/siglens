@@ -376,7 +376,7 @@ func Benchmark_logSummarySegKey(b *testing.B) {
 
 	log.Infof("Read Seg info: %+v", segInfo)
 	blockSum := structs.GetBsuFnameFromSegKey(segKey)
-	blockInfo, readValues, _, err := microreader.ReadBlockSummaries(blockSum, []byte{})
+	blockInfo, readValues, err := microreader.ReadBlockSummaries(blockSum, false)
 	if err != nil {
 		b.Fatalf("Failed to read seginfo at %s: %v", blockSum, err)
 	}
