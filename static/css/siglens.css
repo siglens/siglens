@@ -1056,9 +1056,17 @@ body {
     width: 18px;
 }
 
+.icon-traces:hover,
+.icon-traces.active,
+.nav-traces .menu-header:hover .icon-traces {
+    background-image: url("../assets/tracing-icon-active.svg");
+    height: 24px;
+    width: 24px;
+}
+
 .icon-metrics:hover,
-.menu.nav-metrics.active .icon-metrics,
-.menu.nav-metrics:hover .icon-metrics {
+.icon-metrics.active,
+.nav-metrics .menu-header:hover .icon-metrics {
     background-image: url("../assets/metrics-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -1073,18 +1081,9 @@ body {
     background-size: 51%;
 }
 
-.icon-ingest:hover,
-.menu.nav-ingest.active .icon-ingest,
-.menu.nav-ingest:hover .icon-ingest {
-    background-image: url("../assets/ingestion-icon-active.svg");
-    height: 18px;
-    width: 18px;
-    background-size: 42%;
-}
-
 .icon-alerts:hover,
-.menu.nav-alerts.active .icon-alerts,
-.menu.nav-alerts:hover .icon-alerts {
+.icon-alerts.active,
+.nav-alerts  .menu-header:hover .icon-alerts {
     background-image: url("../assets/alerting-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -1107,17 +1106,9 @@ body {
     width: 24px;
 }
 
-.icon-traces:hover,
-.menu.nav-traces.active .icon-traces,
-.menu.nav-traces:hover .icon-traces {
-    background-image: url("../assets/tracing-icon-active.svg");
-    height: 24px;
-    width: 24px;
-}
-
 .icon-infrastructure:hover,
-.menu.nav-infrastructure.active .icon-infrastructure,
-.menu.nav-infrastructure:hover .icon-infrastructure {
+.icon-infrastructure.active,
+.nav-infrastructure .menu-header:hover .icon-infrastructure {
     background-image: url("../assets/infrastructure-active.svg");
     height: 24px;
     width: 24px;
@@ -1137,6 +1128,15 @@ body {
     background-image: url("../assets/search-icon-active.svg");
     height: 19px;
     width: 19px;
+}
+
+.icon-ingest:hover,
+.icon-ingest.active,
+.nav-ingest .menu-header:hover .icon-ingest {
+    background-image: url("../assets/ingestion-icon-active.svg");
+    height: 18px;
+    width: 18px;
+    background-size: 42%;
 }
 
 #app-side-nav {
@@ -3553,8 +3553,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     margin-top: 5px;
 }
 
-
-
 .nav-link-text {
     font-size: 11px;
     font-weight: 500;
@@ -3580,21 +3578,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #app-side-nav .menu.active .nav-link-text,
+#app-side-nav .menu.submenu-active .nav-link-text,
 #app-side-nav .menu:hover .nav-link-text,
 .nav-link-text:hover,
 .help-links:hover .nav-link-text {
     color: var(--navbar-link-text-active);
 }
-
-#app-side-nav .menu.active .nav-link-text-drpdwn {
-    color: var(--navbar-link-text);
-}
-
-#app-side-nav .menu:hover .nav-link-text-drpdwn,
-.nav-link-text-drpdwn:hover {
-    color: var(--navbar-link-text-active);
-}
-
 
 #app-side-nav .menu.logo .sslogo-text {
     padding-left: 8px;
@@ -5741,7 +5730,6 @@ p#versionInfo {
     width: 100%;
 }
 
-
 .nav-metrics,
 .nav-traces,
 .nav-ingest,
@@ -5768,7 +5756,7 @@ p#versionInfo {
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
 #app-side-nav .menu:hover .link-usage-stats,
-#app-side-nav .menu:hover .link-lookups {
+#app-side-nav .menu:hover .link-lookups{
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -5784,13 +5772,17 @@ p#versionInfo {
     background-color: var(--side-nav-bg-color-selected);
 }
 
+#app-side-nav .menu.active .nav-link-text-drpdwn {
+    color: var(--navbar-link-text);
+}
+
 /* Specific styling for Submenu dropdown */
 #app-side-nav .nav-traces .menu-header,
 #app-side-nav .nav-metrics .menu-header,
 #app-side-nav .nav-ingest .menu-header,
 #app-side-nav .nav-alerts .menu-header,
 #app-side-nav .nav-infrastructure .menu-header,
-#app-side-nav .nav-kubernetes .menu-header {
+#app-side-nav .nav-kubernetes .menu-header{
     display: flex;
     align-items: center;
     width: 100%;
@@ -5809,13 +5801,14 @@ p#versionInfo {
     background-color: transparent !important;
 }
 
-#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
-#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
-#app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
-#app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
-#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
-#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
-    color: white !important;
+#app-side-nav .nav-traces.active  .menu-header,
+#app-side-nav .nav-metrics.active .menu-header,
+#app-side-nav .nav-ingest.active .menu-header,
+#app-side-nav .nav-alerts.active .menu-header,
+#app-side-nav .nav-infrastructure.active .menu-header.infrastructure-header,
+#app-side-nav .nav-kubernetes.active .menu-header.kubernetes-header{
+    border-left: 5px solid var(--side-nav-selected-border-color) !important;
+    background-color: var(--side-nav-bg-color-selected);
 }
 
 #app-side-nav .nav-traces .menu-header:hover,
@@ -5825,8 +5818,28 @@ p#versionInfo {
 #app-side-nav .nav-infrastructure .menu-header:hover,
 #app-side-nav .nav-kubernetes .menu-header:hover {
     background-color: var(--side-nav-bg-color-selected);
-    border-radius: 0 5px 5px 0;
-    cursor: pointer;
+}
+
+#app-side-nav .menu-header:hover .nav-link-text-drpdwn {
+    color: var(--navbar-link-text-active);
+}
+
+#app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
+#app-side-nav .nav-traces.active .nav-link-text-drpdwn,
+#app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
+#app-side-nav .nav-alerts.active .nav-link-text-drpdwn,
+#app-side-nav .nav-infrastructure.active .nav-link-text-drpdwn,
+#app-side-nav .nav-kubernetes.active .nav-link-text-drpdwn {
+    color: var(--navbar-link-text-active) !important;
+}
+
+#app-side-nav .nav-metrics.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-traces.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-ingest.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-alerts.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-infrastructure.submenu-active .nav-link-text-drpdwn,
+#app-side-nav .nav-kubernetes.submenu-active .nav-link-text-drpdwn {
+    color: var(--navbar-link-text-active) !important;
 }
 
 #app-side-nav .nav-traces.active .traces-dropdown,
@@ -5844,7 +5857,7 @@ p#versionInfo {
 .metrics-dropdown,
 .ingestion-dropdown,
 .alerts-dropdown,
-.infrastructure-dropdown {
+.infrastructure-dropdown{
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -5861,7 +5874,7 @@ p#versionInfo {
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
-.alerts-dropdown a {
+.alerts-dropdown a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -5871,7 +5884,7 @@ p#versionInfo {
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
-.alerts-dropdown li {
+.alerts-dropdown li{
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -5885,19 +5898,26 @@ p#versionInfo {
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
-.alerts-dropdown li:hover {
-    color: white !important;
+.alerts-dropdown li:hover{
+    color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
+}
+
+.traces-dropdown li:hover ~ .nav-link-text-drpdwn,
+.metrics-dropdown li:hover ~ .nav-link-text-drpdwn,
+.ingestion-dropdown li:hover ~ .nav-link-text-drpdwn,
+.alerts-dropdown li:hover ~ .nav-link-text-drpdwn{
+    color: var(--navbar-link-text) !important;
 }
 
 /* Active state for submenu items */
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
-.alerts-dropdown li.active {
-    color: white !important;
+.alerts-dropdown li.active{
+    color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
@@ -5905,19 +5925,15 @@ p#versionInfo {
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
-    color: var(--navbar-link-text) !important;
-}
-
-#app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
-    color: var(--navbar-link-text) !important;
+    color:  var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color: white !important;
+    color:  var(--navbar-link-text-active) !important;
 }
 
-#app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
-    color: white !important;
+#app-side-nav .nav-infrastructure .nav-kubernetes .menu-header:hover .nav-link-text-drpdwn {
+    color:  var(--navbar-link-text-active) !important;
 }
 
 .infrastructure-dropdown div {
@@ -5934,17 +5950,17 @@ p#versionInfo {
 }
 
 .infrastructure-dropdown div.menu-header:hover {
-    color: white !important;
+    color: var(--navbar-link-text-active) !important;
     border-right: 0px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.infrastructure-dropdown div.menu-header.active {
-    color: white !important;
+.infrastructure-dropdown div.menu-header.active{
+    color: var(--navbar-link-text-active) !important;
 }
 
-.kubernetes-dropdown {
+.kubernetes-dropdown{
     display: none;
     padding: 0 0 0 0 !important;
     margin: 0;
@@ -5957,14 +5973,14 @@ p#versionInfo {
     cursor: pointer;
 }
 
-.kubernetes-dropdown a {
+.kubernetes-dropdown a{
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
     padding-left: 20px;
 }
 
-.kubernetes-dropdown li {
+.kubernetes-dropdown li{
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -5975,35 +5991,38 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li:hover {
-    color: white !important;
+.kubernetes-dropdown li:hover{
+    color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li.active {
-    color: white !important;
+.kubernetes-dropdown li.active{
+    color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
     background-color: var(--side-nav-bg-color-selected) !important;
     border-radius: 0 5px 5px 0 !important;
 }
 
-.nav-dropdown-icon,
-.kubernetes-arrow {
+.submenu-arrow,
+.kubernetes-arrow{
+    display: inline-block;
     margin-right: 10px;
+    padding-left: 10px;
+    cursor: pointer;
     transition: transform 0.3s ease;
 }
 
-.nav-dropdown-icon.rotated,
-.kubernetes-arrow.rotated {
+.submenu-arrow.rotated img.nav-dropdown-icon,
+.kubernetes-arrow.rotated img.nav-dropdown-icon{
     transform: rotate(180deg) !important;
 }
 
 .help-options .help-links:hover {
     background-color: var(--purple-1);
-    color: rgb(255, 255, 255);
+    color: var(--navbar-link-text-active);;
     border-radius: 5px;
 }
 
