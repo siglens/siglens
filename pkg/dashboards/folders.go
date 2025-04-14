@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -553,11 +552,6 @@ func deleteFolder(folderID string, myid int64) error {
 
 	if err := writeFolderStructure(structure, myid); err != nil {
 		return fmt.Errorf("deleteFolder: failed to write folder structure: %v", err)
-	}
-
-	if err := blob.UploadQueryNodeDir(); err != nil {
-		log.Errorf("deleteFolder: Failed to upload query nodes dir, err=%v", err)
-		return err
 	}
 
 	return nil

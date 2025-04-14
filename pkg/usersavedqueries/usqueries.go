@@ -29,7 +29,6 @@ import (
 	"github.com/imdario/mergo"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -350,11 +349,6 @@ func writeSavedQueries(myid int64) error {
 		log.Errorf("writeSavedQueries: Failed to writefile filename=%v, err=%v", usqFilename, err)
 		return err
 	}
-	err = blob.UploadQueryNodeDir()
-	if err != nil {
-		log.Errorf("DeleteUserSavedQuery: Failed to upload query nodes dir  err=%v", err)
-		return err
-	}
 	return nil
 }
 
@@ -365,11 +359,6 @@ func DeleteAllUserSavedQueries(myid int64) error {
 		return err
 	}
 	log.Infof("DeleteAllUserSavedQueries: Successfully deleted user saved queries for orgid: %d", myid)
-	err = blob.UploadQueryNodeDir()
-	if err != nil {
-		log.Errorf("DeleteAllUserSavedQueries: Failed to upload query nodes dir, err=%v", err)
-		return err
-	}
 
 	return nil
 }
@@ -387,11 +376,6 @@ func DeleteUserSavedQuery(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 	log.Infof("DeleteUserSavedQuery: Successfully deleted user saved query %v", queryName)
-	err = blob.UploadQueryNodeDir()
-	if err != nil {
-		log.Errorf("DeleteUserSavedQuery: Failed to upload query nodes dir  err=%v", err)
-		return
-	}
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
