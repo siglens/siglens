@@ -39,13 +39,7 @@ $(document).ready(() => {
 
     // Add popstate event listener for browser navigation
     window.removeEventListener('popstate', handlePopState);
-    window.addEventListener('popstate', function(event) {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!urlParams.toString()) {
-            // If URL has no parameters, reset everything to default
-            resetToDefaults();
-        }
-    });
+    window.addEventListener('popstate', handlePopState);
 
 });
 window.onload = function () {
@@ -100,7 +94,7 @@ function getValuesOfColumn(chooseColumn, spanName, defaultValue = 'All') {
     let param = {
         state: 'query',
         searchText: searchText,
-        startEpoch: 'now-1h',
+        startEpoch: startEpoch || 'now-1h',
         endEpoch: endEpoch || filterEndDate,
         indexName: 'traces',
         queryLanguage: 'SQL',
@@ -451,6 +445,14 @@ function updateUrlWithSearchState(state) {
 }
 
 function handlePopState(event) {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    if (!urlParams.toString()) {
+        // If URL has no parameters, reset everything to default
+        resetToDefaults();
+        return;
+    }
+
     if (event.state && event.state.searchState) {
         // If we have state data, use it
         const state = event.state.searchState;
