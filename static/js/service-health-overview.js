@@ -66,6 +66,8 @@ $(document).ready(() => {
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
     $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
+    $('.range-item').on('click', isGraphsDatePickerHandler);
+
 
     window.addEventListener('popstate', function () {
         const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
