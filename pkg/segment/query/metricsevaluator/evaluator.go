@@ -38,8 +38,6 @@ type Evaluator struct {
 	querySummary *summary.QuerySummary
 
 	mSearchReqs []*structs.MetricsSearchRequest
-
-	fetchTsidsForFullRange bool
 }
 
 type SeriesResult struct {
@@ -80,7 +78,7 @@ func generateLabelKey(labels map[string]string) string {
 	return b.String()
 }
 
-func (e *Evaluator) EvalExpr(expr parser.Expr) (interface{}, error) {
+func (e *Evaluator) EvalExpr(expr parser.Expr) (map[string]*SeriesResult, error) {
 	if expr == nil {
 		return nil, nil
 	}
@@ -117,67 +115,12 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) (interface{}, error) {
 
 			seriesMap[labelKey].Values = append(seriesMap[labelKey].Values, samples...)
 		}
+
+		evalTs += e.step
 	}
 
 	return seriesMap, nil
 }
-
-// func (e *Evaluator) evalAtTs(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	switch e := expr.(type) {
-// 	case *parser.MatrixSelector:
-// 		// TODO: Implement Range Vector
-// 		return nil, nil
-// 	case *parser.SubqueryExpr:
-// 		// TODO: Implement Subquery
-// 		return nil, nil
-// 	default:
-// 		return nil, nil
-// 	}
-// }
-
-// func (e *Evaluator) evalInstantVector(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	return nil, nil
-// }
-
-// func (e *Evaluator) evalRangeVector(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	matrix, ok := expr.(*parser.MatrixSelector)
-// 	if !ok {
-// 		return nil, fmt.Errorf("expected MatrixSelector, got %T", expr)
-// 	}
-
-// }
-
-// func (e *Evaluator) evalSubQueryExp(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	subquery, ok := expr.(*parser.SubqueryExpr)
-// 	if !ok {
-// 		return nil, fmt.Errorf("expected SubqueryExpr, got %T", expr)
-// 	}
-
-// 	rangeStart := evalTs - uint32(subquery.Range.Seconds())
-
-// 	newEvaluator := NewEvaluator(
-// 		rangeStart,
-// 		evalTs,
-// 		uint32(subquery.Step.Seconds()),
-// 		e.lookBackDelta,
-// 		e.querySummary,
-// 		e.qid,
-// 		e.mSearchReqs,
-// 	)
-
-// 	// Once the results are fetched, we need to evaluate the subquery expression
-// 	_, err := newEvaluator.EvalExpr(subquery.Expr)
-
-// 	return nil, err
-// }
-
-// func (e *Evaluator) fetchSamplesInRange(vs *parser.VectorSelector, startTs, endTs uint32) (interface{}, error) {
-// 	return nil, nil
-// }
-
-// func (e *Evaluator) fetchInstantSample(vs *parser.VectorSelector, evalTs uint32) (interface{}, error) {
-// 	return nil, nil
-// }
 
 // Evaluator entry point.
 func (e *Evaluator) evalStream(evalTs uint32, expr parser.Expr) (SeriesStream, error) {

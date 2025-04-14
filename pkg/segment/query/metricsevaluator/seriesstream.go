@@ -19,9 +19,12 @@ package metricsevaluator
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prometheus/prometheus/promql/parser"
 )
+
+const DEFAULT_SUB_QUERY_EXPR_CHUNK_SIZE time.Duration = 4 * time.Hour
 
 // Sample represents a single sample in a time series.
 type Sample struct {
@@ -89,14 +92,14 @@ type AggregateExprStream struct {
 
 type SubqueryExprStream struct {
 	*BaseStream
-	expr        *parser.SubqueryExpr
-	inputStream SeriesStream
-}
-
-type EvalExprStream struct {
-	*BaseStream
-	inputStream      SeriesStream
-	currentTsidIndex int
+	expr              *parser.SubqueryExpr
+	step              uint32 // Subquery step in seconds (e.g., 300 for 5m)
+	chunkSize         uint32 // Base chunk duration in seconds (e.g., 7200 for 2h)
+	rangeStart        uint32 // Start of the entire subquery window
+	rangeEnd          uint32 // End of the subquery window
+	currentChunkStart uint32 // Start of current chunk
+	currentChunkEnd   uint32 // End of current chunk (aligned to step)
+	seriesMap         map[string]*SeriesResult
 }
 
 func (bs *BaseStream) Next() bool {
@@ -209,42 +212,28 @@ func NewAggregateExprStream(evalTs uint32, expr *parser.AggregateExpr, evaluator
 	}, nil
 }
 
-func NewEvalExprStream(evalTs uint32, expr parser.Expr, evaluator *Evaluator) (SeriesStream, error) {
-	evaluator.fetchTsidsForFullRange = true // Fetches the TSIDs for the entire sub query eval range
-	inputStream, err := evaluator.evalStream(evalTs, expr)
-	if err != nil {
-		return nil, fmt.Errorf("NewEvalExprStream: %w", err)
-	}
-
-	return &EvalExprStream{
-		BaseStream:       newBaseStream(evalTs, expr, evaluator),
-		currentTsidIndex: -1,
-		inputStream:      inputStream,
-	}, nil
-}
-
 func NewSubqueryExprStream(evalTs uint32, expr *parser.SubqueryExpr, evaluator *Evaluator) (SeriesStream, error) {
 	rangeStart := evalTs - uint32(expr.Range.Seconds())
+	step := uint32(expr.Step.Seconds())
+	baseChunkSize := uint32(DEFAULT_SUB_QUERY_EXPR_CHUNK_SIZE.Seconds())
 
-	newEvaluator := NewEvaluator(
-		rangeStart,
-		evalTs,
-		uint32(expr.Step.Seconds()),
-		evaluator.lookBackDelta,
-		evaluator.querySummary,
-		evaluator.qid,
-		evaluator.mSearchReqs,
-	)
-
-	inputStream, err := NewEvalExprStream(evalTs, expr.Expr, newEvaluator)
-	if err != nil {
-		return nil, fmt.Errorf("NewSubqueryExprStream: %w", err)
+	// Align chunk size to be a multiple of step
+	alignedChunkSize := (baseChunkSize / step) * step
+	chunkEnd := rangeStart + alignedChunkSize
+	if chunkEnd > evalTs {
+		chunkEnd = evalTs
 	}
 
 	return &SubqueryExprStream{
-		BaseStream:  newBaseStream(evalTs, expr, evaluator),
-		expr:        expr,
-		inputStream: inputStream,
+		BaseStream:        newBaseStream(evalTs, expr, evaluator),
+		expr:              expr,
+		step:              step,
+		chunkSize:         alignedChunkSize,
+		rangeStart:        rangeStart,
+		rangeEnd:          evalTs,
+		currentChunkStart: rangeStart,
+		currentChunkEnd:   chunkEnd,
+		seriesMap:         make(map[string]*SeriesResult),
 	}, nil
 }
 
@@ -402,12 +391,56 @@ func (bes *BinaryExprStream) Fetch() error {
 }
 
 func (sqes *SubqueryExprStream) Next() bool {
-	// Completely depends on the input stream
 	if sqes == nil {
 		return false
 	}
 
-	return sqes.inputStream.Next()
+	for {
+		// Still have series left in current chunk
+		if len(sqes.seriesMap) > 0 {
+			return true
+		}
+
+		// No more chunks left to evaluate
+		if sqes.currentChunkEnd >= sqes.rangeEnd {
+			return false
+		}
+
+		// Advance to next chunk
+		sqes.currentChunkStart = sqes.currentChunkEnd + 1
+		sqes.currentChunkEnd = sqes.currentChunkStart + sqes.chunkSize
+		if sqes.currentChunkEnd > sqes.rangeEnd {
+			sqes.currentChunkEnd = sqes.rangeEnd
+		}
+
+		err := sqes.fetchChunk()
+		if err != nil {
+			// TODO: handle error logging or sending back to the caller
+			continue // fetching the next chunk
+		}
+	}
+}
+
+func (sqes *SubqueryExprStream) fetchChunk() error {
+	// Evaluate this chunk
+	eval := NewEvaluator(
+		sqes.currentChunkStart,
+		sqes.currentChunkEnd,
+		sqes.step,
+		sqes.evaluator.lookBackDelta,
+		sqes.evaluator.querySummary,
+		sqes.evaluator.qid,
+		sqes.evaluator.mSearchReqs,
+	)
+
+	seriesMap, err := eval.EvalExpr(sqes.expr.Expr)
+	if err != nil {
+		return fmt.Errorf("SubqueryExprStream.fetchchunk: %v", err)
+	}
+
+	// Found non-empty chunk, assign seriesMap
+	sqes.seriesMap = seriesMap
+	return nil
 }
 
 func (sqes *SubqueryExprStream) Fetch() error {
@@ -415,81 +448,39 @@ func (sqes *SubqueryExprStream) Fetch() error {
 		return fmt.Errorf("SubqueryExprStream: nil")
 	}
 
-	return sqes.inputStream.Fetch()
-}
+	for key, seriesResult := range sqes.seriesMap {
+		sqes.currentSamples = seriesResult.Values
+		sqes.currentLabels = seriesResult.Labels
 
-func (sqes *SubqueryExprStream) At() ([]Sample, error) {
-	if sqes == nil {
-		return nil, fmt.Errorf("SubqueryExprStream: nil")
-	}
+		delete(sqes.seriesMap, key)
 
-	return sqes.inputStream.At()
-}
-
-func (sqes *SubqueryExprStream) Labels() map[string]string {
-	if sqes == nil {
 		return nil
 	}
 
-	return sqes.inputStream.Labels()
+	return fmt.Errorf("SubqueryExprStream.Fetch: no more series in current chunk")
 }
 
-func (ees *EvalExprStream) Next() bool {
-	if ees == nil {
-		return false
-	}
+func (ce *CallExprStream) Fetch() error {
+	/**
+	TODO: Function evaluation for CallExprStream
 
-	exists := ees.inputStream.Next()
-	if exists {
-		ees.currentTsidIndex++
-	}
+	This Fetch function supports evaluating call expressions like:
+	- agg_over_time functions: max_over_time, avg_over_time, etc.
+	- rate functions, scalar math functions, etc.
 
-	return exists
-}
+	Flow (only for agg_over_time functions):
+	- These need to aggregate over a range of data points, possibly spread across multiple chunks (e.g., SubqueryExprStream).
+	- For these, we need to:
+	  1. Loop: while inputStream.Next() → inputStream.Fetch() → inputStream.At()
+	  2. Accumulate all samples into a slice
+	  3. Apply the aggregation function to the complete slice
+	  4. Return a single result sample in ce.currentSamples
 
-func (ees *EvalExprStream) Fetch() error {
-	if ees == nil {
-		return fmt.Errorf("EvalExprStream: nil")
-	}
-
-	if ees.currentTsidIndex < 0 {
-		return fmt.Errorf("EvalExprStream: no TSIDs")
-	}
-
-	allSamples := make([]Sample, 0)
-	var labels map[string]string
-
-	currentEvalTs := ees.evaluator.startEpochSec
-	for currentEvalTs <= ees.evaluator.endEpochSec {
-		stream, err := ees.evaluator.evalStream(currentEvalTs, ees.expr)
-		if err != nil {
-			return fmt.Errorf("EvalExprStream.Fetch: %w", err)
-		}
-
-		// TODO: Have a way to update the index of the instant or range vector TSID index
-		// This will be used to fetch the samples for the tsid at all eval timestamps
-
-		err = stream.Fetch()
-		if err != nil {
-			return fmt.Errorf("EvalExprStream.Fetch: %w", err)
-		}
-
-		samples, err := stream.At()
-		if err != nil {
-			return fmt.Errorf("EvalExprStream.Fetch: %w", err)
-		}
-
-		allSamples = append(allSamples, samples...)
-
-		if labels == nil {
-			labels = stream.Labels()
-		}
-
-		currentEvalTs += ees.evaluator.step
-	}
-
-	ees.currentSamples = allSamples
-	ees.currentLabels = labels
+	For most other functions (like rate, abs, delta):
+	- A single call to inputStream.Next() and inputStream.Fetch() is sufficient
+	- The function can be evaluated over that one set of samples
+	- No internal accumulation is needed
+	*/
 
 	return nil
 }

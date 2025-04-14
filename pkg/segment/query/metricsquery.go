@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/metricsevaluator"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
@@ -630,14 +631,14 @@ func sortSegmentsByStartTime(mSegments map[string][]*structs.MetricsSearchReques
 	return mSearchReqs
 }
 
-func ExecuteMetricsRangeQuery(qid uint64, orgId int64, query string, timeRange *dtu.MetricsTimeRange, step uint32, querySummary *summary.QuerySummary) error {
+func ExecuteMetricsRangeQuery(qid uint64, orgId int64, query string, timeRange *dtu.MetricsTimeRange, step uint32, querySummary *summary.QuerySummary) (*structs.MetricsPromQLRangeQueryResponse, error) {
 	expr, err := parser.ParseExpr(query)
 	if err != nil {
-		return fmt.Errorf("failed to parse query: %v", err)
+		return nil, fmt.Errorf("failed to parse query: %v", err)
 	}
 
 	if expr.Type() != parser.ValueTypeVector && expr.Type() != parser.ValueTypeScalar {
-		return fmt.Errorf("qid=%v, query=%v must be a vector or scalar expression, got %v", qid, query, expr.Type())
+		return nil, fmt.Errorf("qid=%v, query=%v must be a vector or scalar expression, got %v", qid, query, expr.Type())
 	}
 
 	if step == 0 {
@@ -663,17 +664,26 @@ func ExecuteMetricsRangeQuery(qid uint64, orgId int64, query string, timeRange *
 	// Get the segments for the filtered time range
 	mSegments, err := getAllRequestsWithinTimeRange(segFilterTRange, orgId, querySummary)
 	if err != nil {
-		return fmt.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", segFilterTRange, err)
+		return nil, fmt.Errorf("ApplyMetricsQuery: failed to get all metric segments within time range %+v; err=%v", segFilterTRange, err)
 	}
 
 	// sort the segments based on the start time of the range
 	mSearchReqs := sortSegmentsByStartTime(mSegments)
 
-	evalTs := timeRange.StartEpochSec
-	for evalTs <= timeRange.EndEpochSec {
-		fmt.Println("evalTs", evalTs, mSearchReqs)
-		evalTs += step
+	evaluator := metricsevaluator.NewEvaluator(timeRange.StartEpochSec, timeRange.EndEpochSec, step, structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR,
+		querySummary, qid, mSearchReqs)
+
+	seriesMap, err := evaluator.EvalExpr(expr)
+	if err != nil {
+		return nil, fmt.Errorf("qid=%v, ExecuteMetricsRangeQuery: error evaluating query: %v", qid, err)
 	}
 
+	// TODO: convert the seriesMap to PromQL response format.
+
+	return convertToPromQLRangeQueryResponse(seriesMap), nil
+}
+
+func convertToPromQLRangeQueryResponse(seriesMap map[string]*metricsevaluator.SeriesResult) *structs.MetricsPromQLRangeQueryResponse {
+	// TODO: Implement this function
 	return nil
 }
