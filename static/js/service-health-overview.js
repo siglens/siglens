@@ -33,11 +33,9 @@ $(document).ready(() => {
     const stDate = getParameterFromUrl('startEpoch');
     const endDate = getParameterFromUrl('endEpoch');
     redMetrics['searchText'] = 'service=' + serviceName + '';
-    initializeBreadcrumbs([
-        { name: 'APM', url: './service-health.html' },
-        { name: 'Service Health', url: './service-health.html' },
-        { name: serviceName},
-    ]);
+
+    initializeBreadcrumbs([{ name: 'APM', url: './service-health.html' }, { name: 'Service Health', url: './service-health.html' }, { name: serviceName }]);
+
     $('.inner-range #' + stDate).addClass('active');
     datePickerHandler(stDate, endDate, stDate);
     $('.range-item').on('click', isGraphsDatePickerHandler);
@@ -72,6 +70,8 @@ let gridLineColor;
 let tickColor;
 
 function getOneServiceOverview() {
+    showLoadingIcons(['ServiceHealthChart', 'ServiceHealthChartErr', 'ServiceHealthChart2']);
+    
     let data = getTimeRange();
     redMetrics = { ...redMetrics, ...data };
     $.ajax({
@@ -84,27 +84,34 @@ function getOneServiceOverview() {
         data: JSON.stringify(redMetrics),
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        if ($('html').attr('data-theme') == 'light') {
-            gridLineColor = '#DCDBDF';
-            tickColor = '#160F29';
-        } else {
-            gridLineColor = '#383148';
-            tickColor = '#FFFFFF';
-        }
-        if (RateCountChart !== undefined) {
-            RateCountChart.destroy();
-        }
-        if (ErrCountChart !== undefined) {
-            ErrCountChart.destroy();
-        }
-        if (LatenciesChart !== undefined) {
-            LatenciesChart.destroy();
-        }
-        rateChart(res.hits.records, gridLineColor, tickColor);
-        errorChart(res.hits.records, gridLineColor, tickColor);
-        latenciesChart(res.hits.records, gridLineColor, tickColor);
-    });
+    })
+        .then(function (res) {
+            if ($('html').attr('data-theme') == 'light') {
+                gridLineColor = '#DCDBDF';
+                tickColor = '#160F29';
+            } else {
+                gridLineColor = '#383148';
+                tickColor = '#FFFFFF';
+            }
+            if (RateCountChart !== undefined) {
+                RateCountChart.destroy();
+            }
+            if (ErrCountChart !== undefined) {
+                ErrCountChart.destroy();
+            }
+            if (LatenciesChart !== undefined) {
+                LatenciesChart.destroy();
+            }
+            hideLoadingIcons(['ServiceHealthChart', 'ServiceHealthChartErr', 'ServiceHealthChart2']);
+
+            rateChart(res.hits.records, gridLineColor, tickColor);
+            errorChart(res.hits.records, gridLineColor, tickColor);
+            latenciesChart(res.hits.records, gridLineColor, tickColor);
+        })
+        .catch((error) => {
+            hideLoadingIcons(['ServiceHealthChart', 'ServiceHealthChartErr', 'ServiceHealthChart2']);
+            console.error('Error fetching service health data:', error);
+        });
 }
 
 function rateChart(rateData, gridLineColor, tickColor) {
@@ -255,7 +262,7 @@ function latenciesChart(latenciesData, gridLineColor, tickColor) {
     graph_data_latencies.p50.sort((a, b) => new Date(a.x) - new Date(b.x));
     graph_data_latencies.p90.sort((a, b) => new Date(a.x) - new Date(b.x));
     graph_data_latencies.p99.sort((a, b) => new Date(a.x) - new Date(b.x));
-    
+
     var LatenciesChartCanvas = $('#ServiceHealthChart2').get(0).getContext('2d');
     LatenciesChart = new Chart(LatenciesChartCanvas, {
         type: 'line',
@@ -335,4 +342,25 @@ function latenciesChart(latenciesData, gridLineColor, tickColor) {
     });
 
     return LatenciesChart;
+}
+
+function showLoadingIcons(chartIds) {
+    for (const chartId of chartIds) {
+        const canvas = $('#' + chartId);
+        const container = canvas.closest('.canvas-container');
+
+        if (container.find('.panel-loading').length === 0) {
+            container.prepend('<div class="panel-loading"></div>');
+        } else {
+            container.find('.panel-loading').show();
+        }
+    }
+}
+
+function hideLoadingIcons(chartIds) {
+    for (const chartId of chartIds) {
+        const canvas = $('#' + chartId);
+        const container = canvas.closest('.canvas-container');
+        container.find('.panel-loading').hide();
+    }
 }
