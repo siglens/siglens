@@ -130,15 +130,6 @@ function updateChartColors(chart, gridLineColor, tickColor) {
     chart.update();
 }
 
-function getGraphGridColors() {
-    const rootStyles = getComputedStyle(document.documentElement);
-    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
-    const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
-
-    return { gridLineColor, tickColor };
-}
-
 // Common chart configuration function to avoid repetition
 function createVolumeChart(chartId, data, options) {
     const ctx = document.getElementById(chartId).getContext('2d');

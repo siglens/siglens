@@ -126,10 +126,19 @@
 
 #one-service-overview .chart-container {
     width: 49%;
+    height: 350px;
+    padding: 0;
 }
 
-#one-service-overview .chart_container {
-    width: 100%;
+#one-service-overview .canvas-container {
+    height: calc(100% - 30px);
+}
+
+#one-service-overview .ingestion-stats-header {
+    padding: 4px;
+    border-bottom: 1px solid var(--search-input-border);
+    background-color: var(--alerting-table-bg-color);
+    border-radius: 10px 10px 0 0;
 }
 
 .search #date-picker-btn {
