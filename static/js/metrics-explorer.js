@@ -3095,15 +3095,6 @@ function updateChartColorsBasedOnTheme() {
     }
 }
 
-function getGraphGridColors() {
-    const rootStyles = getComputedStyle(document.documentElement);
-    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
-    const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
-
-    return { gridLineColor, tickColor };
-}
-
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     addOrUpdateFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`);

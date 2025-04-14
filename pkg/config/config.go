@@ -1133,9 +1133,9 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		}
 	}
 
-	if config.RetentionHours == 0 || config.RetentionHours > 15*24 {
-		log.Infof("ExtractConfigData: Setting to 360hrs (15 days) of retention as default...")
-		config.RetentionHours = 15 * 24
+	if config.RetentionHours == 0 || config.RetentionHours > 30*24 {
+		log.Infof("ExtractConfigData: Setting to 720hrs (30 days) of retention as default...")
+		config.RetentionHours = 30 * 24
 	}
 	if len(config.TimeStampKey) <= 0 {
 		config.TimeStampKey = "timestamp"

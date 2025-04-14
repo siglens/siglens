@@ -31,7 +31,7 @@ test('Navigation Menu Part 1', async ({ page }) => {
     }
 
     // Test tracing pages
-    const tracingPages = ['service-health.html', 'search-traces.html', 'dependency-graph.html'];
+    const tracingPages = ['apm.html','service-health.html', 'search-traces.html', 'dependency-graph.html'];
     for (const url of tracingPages) {
         await page.goto(`http://localhost:5122/${url}`, {
             waitUntil: 'domcontentloaded',
@@ -42,7 +42,7 @@ test('Navigation Menu Part 1', async ({ page }) => {
     }
 
     // Test Alerts pages
-    const alertsPages = ['all-alerts.html', 'contacts.html'];
+    const alertsPages = ['alerting.html', 'all-alerts.html', 'contacts.html'];
     for (const url of alertsPages) {
         await page.goto(`http://localhost:5122/${url}`, {
             waitUntil: 'domcontentloaded',
