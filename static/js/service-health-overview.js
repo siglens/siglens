@@ -60,23 +60,75 @@ $(document).ready(() => {
         updateChartsTheme(gridLineColor, tickColor);
     });
 
+    $('.inner-range #' + startDate).addClass('active');
+    datePickerHandler(startDate, endDate, startDate);
+
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
     $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
+
+    window.addEventListener('popstate', function () {
+        const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
+        const endDate = getParameterFromUrl('endEpoch') || 'now';
+
+        $('.range-item').removeClass('active');
+        $('.inner-range #' + stDate).addClass('active');
+
+        datePickerHandler(stDate, endDate, stDate);
+
+        filterStartDate = stDate;
+        filterEndDate = endDate;
+
+        getOneServiceOverview();
+    });
 
     getOneServiceOverview();
 });
 
 function getTimeRange() {
+    const urlStartEpoch = getParameterFromUrl('startEpoch');
+    const urlEndEpoch = getParameterFromUrl('endEpoch');
+
     return {
-        startEpoch: filterStartDate || 'now-1h',
-        endEpoch: filterEndDate || 'now',
+        startEpoch: filterStartDate || urlStartEpoch || 'now-1h',
+        endEpoch: filterEndDate || urlEndEpoch || 'now',
     };
 }
 
 function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
+}
+
+function isGraphsDatePickerHandler(evt) {
+    evt.preventDefault();
+
+    const selectedRange = $(evt.currentTarget).attr('id');
+    let data;
+
+    if (selectedRange) {
+        filterStartDate = selectedRange;
+        filterEndDate = 'now';
+        data = {
+            startEpoch: selectedRange,
+            endEpoch: 'now',
+        };
+
+        $('.range-item').removeClass('active');
+        $(evt.currentTarget).addClass('active');
+    } else {
+        data = getTimeRange();
+    }
+
+    const url = new URL(window.location);
+    url.searchParams.set('startEpoch', data.startEpoch);
+    url.searchParams.set('endEpoch', data.endEpoch);
+    window.history.pushState({ path: url.href }, '', url.href);
+
+    datePickerHandler(data.startEpoch, data.endEpoch, data.startEpoch);
+
+    getOneServiceOverview();
+    $('#daterangepicker').hide();
 }
 
 function getOneServiceOverview() {
