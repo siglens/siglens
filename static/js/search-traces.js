@@ -33,33 +33,81 @@ $(document).ready(() => {
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', showScatterPlot);
 
+    // Initialize page with URL parameters
+    getInitialSearchState();
     initPage();
+
+    // Add popstate event listener for browser navigation
+    window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', function(event) {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!urlParams.toString()) {
+            // If URL has no parameters, reset everything to default
+            resetToDefaults();
+        }
+    });
+
 });
 window.onload = function () {
     hasLoaded = true;
 };
 function initPage() {
     initChart();
-    getValuesOfColumn('service', 'Service');
-    getValuesOfColumn('name', 'Operation');
+    // Initialize dropdowns with URL values first
+    initializeDropdowns();
     handleSort();
     handleDownload();
     handleTimePicker();
     $('#search-trace-btn').on('click', searchTraceHandler);
+
+     // Trigger a search with URL parameters if they exist
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.toString()) {
+        setTimeout(() => {
+            searchTraceHandler(new Event('init'));
+        }, 300);
+    } else {
+        // Only initialize default chart if no URL parameters
+        initChart();
+    }
 }
 
-function getValuesOfColumn(chooseColumn, spanName) {
+function initializeDropdowns() {
+    const state = getInitialSearchState();
+    const serviceValue = state.service || 'All';
+    const operationValue = state.operation || 'All';
+
+    getValuesOfColumn('service', 'Service', serviceValue);
+
+    setTimeout(() => {
+        getValuesOfColumn('name', 'Operation', operationValue);
+    }, 100);
+}
+
+
+function getValuesOfColumn(chooseColumn, spanName, defaultValue = 'All') {
     let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
+
+    // Add conditional logic for operations dropdown
+    if (chooseColumn === 'name' && $('#service-span-name').text() && $('#service-span-name').text() !== 'All') {
+        searchText += " WHERE service='" + $('#service-span-name').text() + "'";
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    let startEpoch = urlParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
+    let endEpoch = urlParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
     let param = {
         state: 'query',
         searchText: searchText,
         startEpoch: 'now-1h',
-        endEpoch: filterEndDate,
+        endEpoch: endEpoch || filterEndDate,
         indexName: 'traces',
         queryLanguage: 'SQL',
         from: 0,
     };
-    $.ajax({
+
+    return $.ajax({
         method: 'post',
         url: 'api/search',
         headers: {
@@ -80,18 +128,24 @@ function getValuesOfColumn(chooseColumn, spanName) {
             }
         }
         currList = Array.from(valuesOfColumn);
-        $(`#${chooseColumn}-dropdown`).singleBox({
-            spanName: spanName,
-            dataList: currList,
-            defaultValue: 'All',
-            dataUpdate: true,
-            clickedHead: async function () {
-                await fetchData(chooseColumn);
-                return currList;
-            },
-        });
+
+        if ($(`#${chooseColumn}-dropdown`).length) {
+            $(`#${chooseColumn}-dropdown`).singleBox({
+                spanName: spanName,
+                dataList: currList,
+                defaultValue: defaultValue,
+                dataUpdate: true,
+                clickedHead: async function () {
+                    await fetchData(chooseColumn);
+                    return currList;
+                },
+            });
+        }
+
+        return currList;
     });
 }
+
 function fetchData(chooseColumn) {
     return new Promise((resolve, reject) => {
         let searchText = 'SELECT DISTINCT ' + '`' + chooseColumn + '`' + ' FROM `traces`';
@@ -138,13 +192,61 @@ function fetchData(chooseColumn) {
             });
     });
 }
+
 function handleTimePicker() {
-    Cookies.set('startEpoch', 'now-1h');
-    Cookies.set('endEpoch', 'now');
+    const urlParams = new URLSearchParams(window.location.search);
+    const startEpoch = urlParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
+    const endEpoch = urlParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
+    Cookies.set('startEpoch', startEpoch);
+    Cookies.set('endEpoch', endEpoch);
+
+    // Convert startEpoch to display format
+    let displayText = 'Last 1 Hr';
+    if (startEpoch === 'now-1h') displayText = 'Last 1 Hr';
+    else if (startEpoch === 'now-15m') displayText = 'Last 15 Min';
+    else if (startEpoch === 'now-30m') displayText = 'Last 30 Min';
+    else if (startEpoch === 'now-3h') displayText = 'Last 3 Hr';
+    else if (startEpoch === 'now-6h') displayText = 'Last 6 Hr';
+    else if (startEpoch === 'now-12h') displayText = 'Last 12 Hr';
+    else if (startEpoch === 'now-24h') displayText = 'Last 24 Hr';
+    else if (startEpoch === 'now-7d') displayText = 'Last 7 Days';
+    else if (startEpoch === 'now-30d') displayText = 'Last 30 Days';
+    else if (!isNaN(startEpoch)) displayText = 'Custom Range';
+
     $('#lookback').timeTicker({
-        spanName: 'Last 1 Hr',
+        spanName: displayText,
+        clicked: function(selectedTime) {
+            // Map the display text to actual time values
+            let startTime;
+            let endTime = 'now';
+
+            if (selectedTime === 'Last 15 Min') startTime = 'now-15m';
+            else if (selectedTime === 'Last 30 Min') startTime = 'now-30m';
+            else if (selectedTime === 'Last 1 Hr') startTime = 'now-1h';
+            else if (selectedTime === 'Last 3 Hr') startTime = 'now-3h';
+            else if (selectedTime === 'Last 6 Hr') startTime = 'now-6h';
+            else if (selectedTime === 'Last 12 Hr') startTime = 'now-12h';
+            else if (selectedTime === 'Last 24 Hr') startTime = 'now-24h';
+            else if (selectedTime === 'Last 7 Days') startTime = 'now-7d';
+            else if (selectedTime === 'Last 30 Days') startTime = 'now-30d';
+            else startTime = 'now-1h'; // Default fallback
+
+            // Update cookies with the new values
+            Cookies.set('startEpoch', startTime);
+            Cookies.set('endEpoch', endTime);
+
+            // Update filter dates for searches
+            filterStartDate = startTime;
+            filterEndDate = endTime;
+
+            // Trigger search with updated time range
+            searchTraceHandler(new Event('timeChange'));
+        }
+
     });
 }
+
 function handleSort() {
     let currList = ['Most Recent', 'Longest First', 'Shortest First', 'Most Spans', 'Least Spans'];
     $('#sort-dropdown').singleBox({
@@ -182,6 +284,28 @@ function compare(property, method) {
         if (method == 'most') return value2 - value1;
         else return value1 - value2;
     };
+}
+
+function resetToDefaults() {
+    // Reset UI elements to default values
+    $('#service-span-name').text('All');
+    $('#operation-span-name').text('All');
+    $('#min-duration-input').val('');
+    $('#max-duration-input').val('');
+    $('#limit-result-input').val('');
+    $('#tags-input').val('');
+
+    // Reset cookies to default values
+    Cookies.set('startEpoch', 'now-1h');
+    Cookies.set('endEpoch', 'now');
+
+    // Update the lookback UI to show "Last 1 Hr"
+    if ($('#lookback').data('timeTicker')) {
+        $('#lookback').data('timeTicker').updateText('Last 1 Hr');
+    }
+
+    // Run default search
+    initChart();
 }
 
 function handleDownload() {
@@ -246,9 +370,116 @@ function durationToNanoseconds(durationStr) {
     }
 }
 
+function getInitialSearchState() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const defaultParams = {
+        service: 'All',
+        operation: 'All',
+        startEpoch: 'now-1h',
+        endEpoch: 'now',
+        minDuration: '',
+        maxDuration: '',
+        limit: '',
+        tags: ''
+    };
+
+    // Get values from URL or use defaults
+    const state = {
+        service: urlParams.get('service') || defaultParams.service,
+        operation: urlParams.get('operation') || defaultParams.operation,
+        startEpoch: urlParams.get('startEpoch') || Cookies.get('startEpoch') || defaultParams.startEpoch,
+        endEpoch: urlParams.get('endEpoch') || Cookies.get('endEpoch') || defaultParams.endEpoch,
+        minDuration: urlParams.get('minDuration') || defaultParams.minDuration,
+        maxDuration: urlParams.get('maxDuration') || defaultParams.maxDuration,
+        limit: urlParams.get('limit') || defaultParams.limit,
+        tags: urlParams.get('tags') || defaultParams.tags
+    };
+
+    // Update UI with URL parameters
+    $('#service-span-name').text(state.service);
+    $('#operation-span-name').text(state.operation);
+    $('#min-duration-input').val(state.minDuration);
+    $('#max-duration-input').val(state.maxDuration);
+    $('#limit-result-input').val(state.limit);
+    $('#tags-input').val(state.tags);
+
+    // Set time range
+    datePickerHandler(state.startEpoch, state.endEpoch, state.startEpoch);
+    filterStartDate = state.startEpoch;
+    filterEndDate = state.endEpoch;
+
+    return state;
+}
+
+function updateUrlWithSearchState(state) {
+    const url = new URL(window.location);
+    const searchParams = url.searchParams;
+
+    // Always update these core parameters
+    searchParams.set('service', state.service);
+    searchParams.set('operation', state.operation);
+    searchParams.set('startEpoch', state.startEpoch);
+    searchParams.set('endEpoch', state.endEpoch);
+
+    // Only add non-default parameters if they have values
+    if (state.minDuration && state.minDuration.trim() !== '') {
+        searchParams.set('minDuration', state.minDuration);
+    } else {
+        searchParams.delete('minDuration');
+    }
+
+    if (state.maxDuration && state.maxDuration.trim() !== '') {
+        searchParams.set('maxDuration', state.maxDuration);
+    } else {
+        searchParams.delete('maxDuration');
+    }
+
+    if (state.limit && state.limit.trim() !== '') {
+        searchParams.set('limit', state.limit);
+    } else {
+        searchParams.delete('limit');
+    }
+
+    if (state.tags && state.tags.trim() !== '') {
+        searchParams.set('tags', state.tags);
+    } else {
+        searchParams.delete('tags');
+    }
+
+    // Update URL without page reload
+    window.history.pushState({searchState: state}, '', url);
+}
+
+function handlePopState(event) {
+    if (event.state && event.state.searchState) {
+        // If we have state data, use it
+        const state = event.state.searchState;
+
+        // Update UI with the state data
+        $('#service-span-name').text(state.service);
+        $('#operation-span-name').text(state.operation);
+        $('#min-duration-input').val(state.minDuration);
+        $('#max-duration-input').val(state.maxDuration);
+        $('#limit-result-input').val(state.limit);
+        $('#tags-input').val(state.tags);
+
+        // Set time range
+        datePickerHandler(state.startEpoch, state.endEpoch, state.startEpoch);
+    } else {
+        // If no state data, get from URL
+        getInitialSearchState();
+    }
+
+    // Perform search with current state
+    searchTraceHandler(new Event('popstate'));
+}
+
 function searchTraceHandler(e) {
-    e.stopPropagation();
-    e.preventDefault();
+    if (e.type !== 'popstate' && e.type !== 'init' && e.type !== 'timeChange') {  // Don't prevent default for popstate events
+        e.stopPropagation();
+        e.preventDefault();
+    }
+
     returnResTotal = [];
     scatterData = [];
     pageNumber = 1;
@@ -256,19 +487,20 @@ function searchTraceHandler(e) {
     params = {};
     $('.warn-box').remove();
     $('#traces-number').text('');
+
     let serviceValue = $('#service-span-name').text();
     let operationValue = $('#operation-span-name').text();
     let tagValue = $('#tags-input').val();
-
     let maxDurationValueStr = $('#max-duration-input').val();
     let minDurationValueStr = $('#min-duration-input').val();
+    let limitResValue = $('#limit-result-input').val();
 
-    // Convert min and max duration to nanoseconds
+    // Convert min and max duration to nanoseconds using the improved function
     let maxDurationValue = durationToNanoseconds(maxDurationValueStr);
     let minDurationValue = durationToNanoseconds(minDurationValueStr);
 
     if (maxDurationValue === null && maxDurationValueStr) {
-        showToast("Invalid format for Max Duration.  Examples: 1.2s, 100ms, 500µs", 'error');
+        showToast("Invalid format for Max Duration. Examples: 1.2s, 100ms, 500µs", 'error');
         return;
     }
 
@@ -277,24 +509,57 @@ function searchTraceHandler(e) {
         return;
     }
 
-    let limitResValue = $('#limit-result-input').val();
     if (limitResValue) limitation = parseInt(limitResValue);
     else limitation = -1;
     if (limitation > 0 && limitation < 50) {
         requestFlag = limitation;
         limitation = 0;
     }
-    let searchText = '';
-    if (serviceValue != 'All') searchText = 'service=' + serviceValue + ' ';
-    if (operationValue != 'All') searchText += 'name=' + operationValue + ' ';
-    if (maxDurationValue) searchText += 'duration<=' + maxDurationValue + ' ';
-    if (minDurationValue) searchText += 'duration>=' + minDurationValue + ' ';
-    if (tagValue) searchText += tagValue;
-    if (searchText == '') searchText = '*';
-    else searchText = searchText.trim();
-    let queryParams = new URLSearchParams(window.location.search);
-    let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-3h';
-    let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
+    // Fix 5: Improved search text formatting
+    let searchParts = [];
+
+    searchParts.push(`service=${serviceValue === 'All' ? '*' : JSON.stringify(serviceValue)}`);
+
+    searchParts.push(`name=${operationValue === 'All' ? '*' : JSON.stringify(operationValue)}`);
+
+    if (maxDurationValue) {
+        searchParts.push(`duration<=${maxDurationValue}`);
+    }
+
+    if (minDurationValue) {
+        searchParts.push(`duration>=${minDurationValue}`);
+    }
+
+    if (tagValue && tagValue.trim() !== '') {
+        searchParts.push(tagValue.trim());
+    }
+
+    let searchText = searchParts.length > 0 ? searchParts.join(' ') : '*';
+
+    // Use URL parameters or cookies for date range
+    // let queryParams = new URLSearchParams(window.location.search);
+    // let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
+    // let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
+
+    // Always use the current time range from cookies
+    let stDate = Cookies.get('startEpoch') || 'now-1h';
+    let endDate = Cookies.get('endEpoch') || 'now';
+
+    // Update URL with current search state
+    const currentState = {
+        service: serviceValue,
+        operation: operationValue,
+        startEpoch: stDate,
+        endEpoch: endDate,
+        minDuration: minDurationValueStr,
+        maxDuration: maxDurationValueStr,
+        limit: limitResValue,
+        tags: tagValue
+    };
+
+    updateUrlWithSearchState(currentState);
+
     pageNumber = 1;
     params = {
         searchText: searchText,
@@ -303,21 +568,33 @@ function searchTraceHandler(e) {
         queryLanguage: 'Splunk QL',
         page: pageNumber,
     };
+
     allResultsFetched = false;
-    if (chart != null && chart != '' && chart != undefined) {
+    if (chart != null && chart !== '' && chart !== undefined) {
         echarts?.dispose(chart);
     }
+
     $('body').css('cursor', 'progress');
     $('#search-trace-btn').prop('disabled', true).addClass('disabled');
+
     searchTrace(params);
     handleSort();
     return false;
 }
+
 function initChart() {
     $('#graph-show').removeClass('empty-result-show');
     pageNumber = 1;
     traceSize = 0;
     returnResTotal = [];
+
+    // Check if URL has search parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.toString()) {
+        // Don't execute default search if URL parameters exist
+        return;
+    }
+
     let stDate = 'now-1h';
     let endDate = 'now';
     params = {
