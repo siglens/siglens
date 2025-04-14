@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 let navbarComponent = `
 <div class="nav-header">
     <div class="sl-hamburger" id="navbar-toggle">
@@ -40,13 +41,11 @@ let navbarComponent = `
         </div>
         <div class="menu nav-traces tracing-dropdown-toggle" >
             <div class="menu-header">
-                <a class="nav-links" href="./service-health.html">
+                <a class="nav-links link-apm" href="./apm.html">
                     <span class="icon-traces"></span>
                     <span class="nav-link-text-drpdwn">APM</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                        src="assets/arrow-btn.svg"
-                        alt="Dropdown Arrow">
+                <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="traces-dropdown">
                 <a href="./service-health.html"><li class="traces-link">Service Health (RED)</li></a>
@@ -56,13 +55,11 @@ let navbarComponent = `
          </div>
         <div class="menu nav-metrics metrics-dropdown-toggle"  >
             <div class="menu-header">
-                <a class="nav-links" href="./metrics-explorer.html">
+                <a class="nav-links link-metrics" href="./metrics.html">
                     <span class="icon-metrics"></span>
                     <span class="nav-link-text-drpdwn">Metrics</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                     src="assets/arrow-btn.svg"
-                     alt="Dropdown Arrow">
+                <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="metrics-dropdown">
                 <a href="./metrics-explorer.html"><li class="metrics-summary-metrics-link">Explorer</li></a>
@@ -76,8 +73,18 @@ let navbarComponent = `
                     class="nav-link-text">SLOs</span></a>
         </div>
         {{ end }}
-        <div class="menu nav-alerts">
-            <a href="./all-alerts.html" class="nav-links link-alerts"><span class="icon-alerts"></span><span class="nav-link-text">Alerting</span></a>
+        <div class="menu nav-alerts alerts-dropdown-toggle">
+            <div class="menu-header">
+                <a class="nav-links link-alerts" href="./alerting.html" >
+                    <span class="icon-alerts"></span>
+                    <span class="nav-link-text-drpdwn">Alerting</span>
+                </a>
+                <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
+            </div>
+            <ul class="alerts-dropdown">
+                <a href="./all-alerts.html"><li class="alerts-link">Alert Rules</li></a>
+                <a href="./contacts.html"><li class="alerts-link">Contact Points</li></a>
+            </ul>
         </div>
         <div class="menu nav-ldb">
             <a href="../dashboards-home.html" class="nav-links link-ldb">
@@ -105,19 +112,40 @@ let navbarComponent = `
             <a href="./lookups.html" class="nav-links link-lookups"><span class="icon-search"></span><span
                     class="nav-link-text">Lookups</span></a>
         </div>
-        <div class="menu nav-infrastructure">
-            <a href="./infrastructure.html" class="nav-links link-infrastructure"><span class="icon-infrastructure"></span><span
-                    class="nav-link-text">Infrastructure</span></a>
+        <div class="menu nav-infrastructure infrastructure-dropdown-toggle">
+                <div class="menu-header infrastructure-header">
+                    <a class="nav-links link-infrastructure" href="./infrastructure.html">
+                        <span class="icon-infrastructure"></span>
+                        <span class="nav-link-text-drpdwn">Infrastructure</span>
+                    </a>
+                    <div class="submenu-arrow"> <img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
+                </div>
+                <ul class="infrastructure-dropdown">
+                   <div class="menu nav-kubernetes kubernetes-dropdown-toggle">
+                        <div class="menu-header kubernetes-header">
+                            <a class="nav-links link-kubernetes" href="./kubernetes-overview.html">
+                                <span class="nav-link-text-drpdwn">Kubernetes</span>
+                            </a>
+                            <div class="kubernetes-arrow"><img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"></div>
+                        </div>
+                        <ul class="kubernetes-dropdown">
+                            <a href="./kubernetes-view.html?type=clusters"><li class="kubernetes-link">Cluster</li></a>
+                            <a href="./kubernetes-view.html?type=namespaces"><li class="kubernetes-link">Namespaces</li></a>
+                            <a href="./kubernetes-view.html?type=workloads"><li class="kubernetes-link">Workloads</li></a>
+                            <a href="./kubernetes-view.html?type=nodes"><li class="kubernetes-link">Nodes</li></a>
+                            <a href="./kubernetes-view.html?type=events"><li class="kubernetes-link">Events</li></a>
+                            <a href="./kubernetes-view.html?type=configuration&"><li class="kubernetes-link">Configuration</li></a>
+                        </ul>
+                    </div>
+                </ul>
         </div>
         <div class="menu nav-ingest ingestion-dropdown-toggle" >
             <div class="menu-header">
-                <a class="nav-links" href="./test-data.html">
+                <a class="nav-links link-ingestion" href="./ingestion.html">
                     <span class="icon-ingest"></span>
                     <span class="nav-link-text-drpdwn">Ingestion</span>
                 </a>
-                <img class="nav-dropdown-icon orange"
-                            src="assets/arrow-btn.svg"
-                            alt="Dropdown Arrow">
+                <div class="submenu-arrow"><img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="ingestion-dropdown ">
                 <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
@@ -140,10 +168,15 @@ let navbarComponent = `
                 </button>
             </div>
         </div>
-        <div class="position-relative mb-2">
-            <div class="menu nav-help">
-                <a href="#" class="help-links"><span class="icon-help">
-                </span><span class="nav-link-text">Help & Support</span></a>
+        <div class="menu nav-help help-dropdown-toggle">
+            <div class="help-menu-header">
+                <a href="#" class="main-help-link">
+                    <span class="icon-help"></span>
+                    <span class="nav-link-text-drpdwn">Help & Support</span>
+                </a>
+                <img class="nav-dropdown-icon help-arrow orange"
+                            src="assets/arrow-btn.svg"
+                            alt="Dropdown Arrow">
             </div>
             <div class="help-options">
                 <div class="nav-docs">
@@ -193,8 +226,10 @@ let orgUpperNavTabs = [
     { name: 'Cluster Stats', url: './cluster-stats.html', class: 'cluster-stats' },
     {{ .OrgUpperNavTabs }}
     { name: 'Org Settings', url: './org-settings.html', class: 'org-settings' },
+    {{ if not .EnterpriseEnabled }}
     { name: 'PQS', url: './pqs-settings.html', class: 'pqs-settings' },
     { name: 'Query Stats', url: './query-stats.html', class: 'query-stats' },
+    {{ end }}
     { name: 'Version', url: './application-version.html', class: 'application-version' },
     { name: 'Diagnostics', url: './diagnostics.html', class: 'diagnostics' },
 ];
@@ -210,33 +245,21 @@ let alertsUpperNavTabs = [
     { name: 'Contact Points', url: './contacts.html', class: 'contacts' },
 ];
 
+
 const navigationStructure = {
     'index.html': {
         activeClass: 'nav-search',
         breadcrumbs: [{ name: 'Logs'}]
     },
-    'metrics-explorer.html': {
-        activeClass: 'nav-metrics',
-        temporaryDisableHover: true,
-        breadcrumbs: [{ name: 'Metrics Explorer'}]
-    },
-    'metric-summary.html': {
-        activeClass: 'nav-metrics',
-        breadcrumbs: [
-            { name: 'Metrics Summary'}
-        ]
-    },
-    'metric-cardinality.html': {
-        activeClass: 'nav-metrics',
-        breadcrumbs: [
-            { name: 'Metrics Cardinality' }
-        ]
+    'apm.html': {
+        activeClass: 'nav-traces',
+        breadcrumbs: [{ name: 'APM'}]
     },
     'service-health.html': {
         activeClass: 'nav-traces',
         temporaryDisableHover: true,
         breadcrumbs: [
-            { name: 'APM', noLink: true},
+            { name: 'APM', url: './apm.html'},
             { name: 'Service Health (RED)' }
         ],
         upperNavTabs: 'tracingUpperNavTabs'
@@ -244,14 +267,14 @@ const navigationStructure = {
     'service-health-overview.html': {
         activeClass: 'nav-traces',
         breadcrumbs: [
-            { name: 'APM', noLink: true},
+            { name: 'APM', url: './apm.html'},
             { name: 'Service Health' }
         ],
     },
     'search-traces.html': {
         activeClass: 'nav-traces',
         breadcrumbs: [
-            { name: 'APM', url: './service-health.html', noLink: true },
+            { name: 'APM', url: './apm.html'},
             { name: 'Search Traces'}
         ],
         upperNavTabs: 'tracingUpperNavTabs'
@@ -259,21 +282,53 @@ const navigationStructure = {
     'dependency-graph.html': {
         activeClass: 'nav-traces',
         breadcrumbs: [
-            { name: 'APM', noLink: true},
+            { name: 'APM', url: './apm.html'},
             { name: 'Dependency Graph', url: './dependency-graph.html' }
         ],
         upperNavTabs: 'tracingUpperNavTabs'
     },
+    'metrics.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [{ name: 'Metrics'}]
+    },
+    'metrics-explorer.html': {
+        activeClass: 'nav-metrics',
+        temporaryDisableHover: true,
+        breadcrumbs: [
+            { name: 'Metrics', url: './metrics.html' },
+            { name: 'Metrics Explorer'}
+        ]
+    },
+    'metric-summary.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics', url: './metrics.html' },
+            { name: 'Metrics Summary'}
+        ]
+    },
+    'metric-cardinality.html': {
+        activeClass: 'nav-metrics',
+        breadcrumbs: [
+            { name: 'Metrics', url: './metrics.html' },
+            { name: 'Metrics Cardinality' }
+        ]
+    },
+    'alerting.html': {
+        activeClass: 'nav-alerts',
+        breadcrumbs: [{ name: 'Alerting', url: './alerting.html'}]
+    },
     'all-alerts.html': {
         activeClass: 'nav-alerts',
-        breadcrumbs: [{ name: 'Alerting', url: './all-alerts.html' },
-                      { name: 'Alert Rules'}],
+        breadcrumbs: [
+            { name: 'Alerting', url: './alerting.html' },
+            { name: 'Alert Rules'}
+        ],
         upperNavTabs: 'alertsUpperNavTabs'
     },
     'contacts.html': {
         activeClass: 'nav-alerts',
         breadcrumbs: [
-            { name: 'Alerting', url: './all-alerts.html' },
+            { name: 'Alerting', url: './alerting.html' },
             { name: 'Contact Points'}
         ],
         upperNavTabs: 'alertsUpperNavTabs'
@@ -312,18 +367,30 @@ const navigationStructure = {
         activeClass: 'nav-infrastructure',
         breadcrumbs: [{ name: 'Infrastructure'}]
     },
+    'ingestion.html': {
+        activeClass: 'nav-ingest',
+        breadcrumbs: [{ name: 'Ingestion Methods'}]
+    },
     'test-data.html': {
         activeClass: 'nav-ingest',
         temporaryDisableHover: true,
-        breadcrumbs: [{ name: 'Log Ingestion Methods'}]
+        breadcrumbs: [
+            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Log Ingestion Methods'}]
     },
     'metrics-ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Metrics Ingestion Methods'}]
+        breadcrumbs: [
+            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Metrics Ingestion Methods'}
+        ]
     },
     'traces-ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Traces Ingestion Methods'}]
+        breadcrumbs: [
+            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Traces Ingestion Methods'}
+        ]
     },
     'usage-stats.html': {
         activeClass: 'nav-usage-stats',
@@ -384,45 +451,50 @@ $(document).ready(function () {
 
     setupNavigationState();
 
-    initializeDropdowns();
+    initializeHelpDropdown();
 
     setupHamburgerBehavior();
+
 
     $('.navbar-submenu').hide();
     $('.help-options').hide();
 
     const dropdownConfigs = [
-        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics' },
-        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces' },
-        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest' }
+        { menuClass: 'nav-metrics', dropdownClass: 'metrics-dropdown', name: 'Metrics', iconClass: 'icon-metrics', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-traces', dropdownClass: 'traces-dropdown', name: 'APM', iconClass: 'icon-traces', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-ingest', dropdownClass: 'ingestion-dropdown', name: 'Ingestion', iconClass: 'icon-ingest', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-alerts', dropdownClass: 'alerts-dropdown', name: 'Alerts', iconClass: 'icon-alerts', arrowClass: 'submenu-arrow' },
+        { menuClass: 'nav-infrastructure', dropdownClass: 'infrastructure-dropdown', name: 'Infrastructure', iconClass: 'icon-infrastructure', arrowClass: 'submenu-arrow'},
+        { menuClass: 'nav-kubernetes', dropdownClass: 'kubernetes-dropdown', name: 'Kubernetes', iconClass: 'icon-kubernetes', arrowClass: 'kubernetes-arrow' , parentClass: 'nav-infrastructure' }
     ];
 
+    // Attach click events - only arrows toggle dropdowns
     dropdownConfigs.forEach(config => {
-        $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
+        $(`.${config.menuClass} .${config.arrowClass}`).on('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass, config.arrowClass);
         });
 
-        $(`.${config.menuClass} .nav-dropdown-icon`).on('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleDropdown($(this).closest('.menu'), config.name, config.dropdownClass);
+        $(`.${config.menuClass} .menu-header, .${config.menuClass} .nav-links`).on('click', function(e) {
+            saveCurrentDropdownStates();
+            sessionStorage.setItem('preserveDropdownStates', 'true');
         });
 
         $(`.${config.dropdownClass} a`).on('click', function(e) {
             e.stopPropagation();
+            saveCurrentDropdownStates();
+            sessionStorage.setItem('preserveDropdownStates', 'true');
         });
     });
 
-    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass) {
+    window.toggleDropdown = function(menuElement, dropdownName, dropdownClass, arrowClass) {
         const $menu = $(menuElement);
         const $dropdown = $menu.find(`.${dropdownClass}`);
-        const $arrow = $menu.find('.nav-dropdown-icon');
+        const $arrow = $menu.find(`.${arrowClass}`).first();
         const isVisible = $dropdown.is(':visible');
 
         $dropdown.stop(true, true).slideToggle(200);
-
         $menu.toggleClass('dropdown-open', !isVisible);
 
         if ($arrow.length) {
@@ -432,61 +504,211 @@ $(document).ready(function () {
         let dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
         dropdownStates[dropdownName] = !isVisible;
         localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+
+        // Handle Kubernetes parent menu
+        if (dropdownName === 'Kubernetes' && !isVisible) {
+            const $parentMenu = $menu.closest('.nav-infrastructure');
+            const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+            const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+
+            if (!$parentDropdown.is(':visible')) {
+                $parentDropdown.stop(true, true).slideDown(200);
+                $parentMenu.addClass('dropdown-open');
+                $parentArrow.addClass('rotated');
+                dropdownStates['Infrastructure'] = true;
+                localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+            }
+        }
     };
 
-    function restoreDropdownState() {
-        const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+    // Add click handler to breadcrumb links
+    $(document).on('click', '#sl-breadcrumb a', function() {
+        saveCurrentDropdownStates();
+        sessionStorage.setItem('preserveDropdownStates', 'true');
+    });
 
+    function saveCurrentDropdownStates() {
+        const currentStates = {};
         dropdownConfigs.forEach(config => {
-            const $menu = $(`.${config.menuClass}`);
-            const isOpen = dropdownStates[config.name] === true;
-
-            if (isOpen) {
-                $menu.addClass('dropdown-open');
-                $menu.find(`.${config.dropdownClass}`).show();
-                $menu.find('.nav-dropdown-icon').addClass('rotated');
-            } else {
-                $menu.removeClass('dropdown-open');
-                $menu.find(`.${config.dropdownClass}`).hide();
-                $menu.find('.nav-dropdown-icon').removeClass('rotated');
-            }
+            const isOpen = $(`.${config.menuClass} .${config.dropdownClass}`).is(':visible');
+            currentStates[config.name] = isOpen;
         });
+        sessionStorage.setItem('currentDropdownStates', JSON.stringify(currentStates));
+    }
+
+    function restoreDropdownState() {
+        const shouldPreserveStates = sessionStorage.getItem('preserveDropdownStates') === 'true';
+
+        if (shouldPreserveStates) {
+            const savedStates = JSON.parse(sessionStorage.getItem('currentDropdownStates')) || {};
+
+            dropdownConfigs.forEach(config => {
+                const $menu = $(`.${config.menuClass}`);
+                const $dropdown = $menu.find(`.${config.dropdownClass}`);
+                const $arrow = $menu.find(`.${config.arrowClass}`).first();
+                const shouldBeOpen = savedStates[config.name] === true;
+
+                if (shouldBeOpen) {
+                    $menu.addClass('dropdown-open');
+                    $dropdown.show();
+                    $arrow.addClass('rotated');
+                } else {
+                    $menu.removeClass('dropdown-open');
+                    $dropdown.hide();
+                    $arrow.removeClass('rotated');
+                }
+            });
+
+            if (savedStates['Kubernetes'] === true && savedStates['Infrastructure'] !== false) {
+                const $infraMenu = $('.nav-infrastructure');
+                $infraMenu.addClass('dropdown-open');
+                $infraMenu.find('.infrastructure-dropdown').show();
+                $infraMenu.find('.nav-dropdown-icon').first().addClass('rotated');
+            }
+
+            sessionStorage.removeItem('preserveDropdownStates');
+            sessionStorage.removeItem('currentDropdownStates');
+        } else {
+            const dropdownStates = JSON.parse(localStorage.getItem('navbarDropdownStates')) || {};
+
+            dropdownConfigs.forEach(config => {
+                const $menu = $(`.${config.menuClass}`);
+                const isOpen = dropdownStates[config.name] === true;
+
+                if (isOpen) {
+                    $menu.addClass('dropdown-open');
+                    $menu.find(`.${config.dropdownClass}`).show();
+                    $menu.find(`.${config.arrowClass}`).first().addClass('rotated');
+
+                    if (config.name === 'Kubernetes') {
+                        const $parentMenu = $menu.closest('.nav-infrastructure');
+                        const $parentDropdown = $parentMenu.find('.infrastructure-dropdown');
+                        const $parentArrow = $parentMenu.find('.nav-dropdown-icon').first();
+                        if (!$parentDropdown.is(':visible')) {
+                            $parentDropdown.show();
+                            $parentMenu.addClass('dropdown-open');
+                            $parentArrow.addClass('rotated');
+                            dropdownStates['Infrastructure'] = true;
+                            localStorage.setItem('navbarDropdownStates', JSON.stringify(dropdownStates));
+                        }
+                    }
+                } else {
+                    $menu.removeClass('dropdown-open');
+                    $menu.find(`.${config.dropdownClass}`).hide();
+                    $menu.find(`.${config.arrowClass}`).first().removeClass('rotated');
+                }
+            });
+        }
     }
 
     function updateActiveHighlighting() {
         dropdownConfigs.forEach(config => {
-            $(`.${config.menuClass}`).removeClass('active');
-            $(`.${config.iconClass}`).removeClass('active');
+            $(`.${config.menuClass}`).removeClass('active submenu-active');
+            $(`.${config.iconClass}`).removeClass('active submenu-active');
             $(`.${config.dropdownClass} li`).removeClass('active');
         });
 
         const currentPath = window.location.pathname.split('/').pop();
+        const currentUrl = currentPath + window.location.search;
 
+        $('.nav-links').each(function() {
+            const href = $(this).attr('href');
+            if (href) {
+                const hrefPath = href.split('/').pop();
+                if (currentPath === hrefPath || currentUrl === hrefPath) {
+                    $(this).addClass('active');
+                    $(this).closest('.menu').addClass('active');
+                    $(this).find('.icon').addClass('active');
+                }
+            }
+        });
+
+        // Handle dropdown menus
         dropdownConfigs.forEach(config => {
+            let isSubmenuActive = false;
+            const $menu = $(`.${config.menuClass}`);
+            const $mainLink = $menu.find('.menu-header .nav-links').first();
+            const mainHref = $mainLink.attr('href');
+            const mainHrefPath = mainHref ? mainHref.split('/').pop() : '';
+
+            if (mainHref && (currentPath === mainHrefPath || currentUrl === mainHrefPath)) {
+                $mainLink.addClass('active');
+                $menu.addClass('active');
+                $menu.find(`.${config.iconClass}`).addClass('active');
+            }
+
             $(`.${config.dropdownClass} a`).each(function() {
                 const href = $(this).attr('href');
                 const hrefPath = href.split('/').pop();
 
-                if (currentPath === hrefPath) {
+                if (currentPath === hrefPath || currentUrl === hrefPath) {
                     const $li = $(this).find('li').length ? $(this).find('li') : $(this).parent();
                     $li.addClass('active');
+                    isSubmenuActive = true;
 
-                    const $menu = $li.closest(`.${config.menuClass}`);
-                    const $icon = $menu.find(`.${config.iconClass}`);
+                    const $parentMenu = config.parentClass ?
+                        $li.closest(`.${config.menuClass}`).closest(`.${config.parentClass}`) :
+                        $li.closest(`.${config.menuClass}`);
+                    $parentMenu.addClass('submenu-active');
+                    $parentMenu.find('.nav-links').first().addClass('submenu-active');
+                    $parentMenu.find(`.${config.iconClass}`).addClass('active');
 
-                    $menu.addClass('active');
-                    $icon.addClass('active');
+                    if (config.parentClass) {
+                        $(`.${config.parentClass}`).addClass('submenu-active');
+                        $(`.${config.parentClass} .nav-links`).first().addClass('submenu-active');
+                        $(`.${config.parentClass} .icon-infrastructure`).addClass('active');
+                    }
                 }
             });
-        });
-    }
 
+            // Special case for Kubernetes under Infrastructure
+            if (config.name === 'Kubernetes' && isSubmenuActive) {
+                $('.nav-infrastructure').addClass('submenu-active');
+                $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
+                $('.icon-infrastructure').addClass('active');
+            }
+
+            if ($menu.hasClass('active') || $menu.hasClass('submenu-active')) {
+                $menu.find(`.${config.iconClass}`).addClass('active');
+            }
+        });
+
+        if (currentPath === 'infrastructure.html') {
+            $('.nav-infrastructure .nav-links').first().addClass('active');
+            $('.nav-infrastructure').addClass('active');
+            $('.icon-infrastructure').addClass('active');
+        } else if (currentPath === 'kubernetes-overview.html' || (currentPath === 'kubernetes-view.html' && window.location.search)) {
+            $('.nav-infrastructure').addClass('submenu-active');
+            $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
+            $('.icon-infrastructure').addClass('active');
+            $('.nav-kubernetes').addClass('submenu-active');
+            $('.nav-kubernetes .nav-links').first().addClass('submenu-active');
+            $('.kubernetes-dropdown-toggle').addClass('submenu-active');
+        }
+
+        // Special handling for kubernetes view with URL parameters
+        if (currentPath === 'kubernetes-view.html') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const type = urlParams.get('type');
+
+            if (type) {
+                $(`.kubernetes-dropdown a[href*="type=${type}"]`).each(function() {
+                    $(this).find('li').addClass('active');
+                    $(this).closest('.nav-kubernetes').addClass('submenu-active');
+                    $(this).closest('.nav-infrastructure').addClass('submenu-active');
+                    $('.nav-kubernetes .nav-links').first().addClass('submenu-active');
+                    $('.nav-infrastructure .nav-links').first().addClass('submenu-active');
+                    $('.icon-infrastructure').addClass('active');
+                });
+            }
+        }
+    }
 
     restoreDropdownState();
     updateActiveHighlighting();
 
     $(document).on('click', 'a', function() {
-        setTimeout(updateActiveHighlighting, 100); // Small delay to ensure page has changed
+        setTimeout(updateActiveHighlighting, 100);
     });
 
 });
@@ -572,48 +794,78 @@ function setupNavigationState() {
         }
     }
 }
+let isHelpArrowClick = false; // Flag to track help-arrow click
 
-function initializeDropdowns() {
+function initializeHelpDropdown() {
+    const $helpArrow = $('.help-arrow');
+    const $helpHeader = $('.help-menu-header');
+    const $helpOptions = $('.help-options');
+    const $body = $('body');
 
-    // Help dropdown behavior
-    $('.nav-help').hover(
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $('.help-options').stop(true, true).slideDown(0);
-        },
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $('.help-options').stop(true, true).slideUp(30);
-        }
-    ).on('click', function (event) {
+    $helpHeader.on('click', function (event) {
         event.preventDefault();
+        event.stopPropagation();
+        if ($helpOptions.is(':visible')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+                // Collapse side nav when help dropdown closes via header
+                if ($body.hasClass('nav-expanded')) {
+                    $body.removeClass('nav-expanded');
+                }
+            });
+        } else {
+            $helpOptions.stop(true, true).slideDown(30, function () {
+                $helpArrow.addClass('rotated');
+            });
+        }
     });
 
-    // Help options hover behavior
-    $('.help-options').hover(
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $(this).stop(true, true).slideDown(0);
-        },
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $(this).stop(true, true).slideUp(30);
+    // Close menu when clicking outside appSideNav or helpOptions
+    $(document).on('click', function (event) {
+        if (!$(event.target).closest('.help-arrow, .help-options, #app-side-nav').length) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
+            if ($body.hasClass('nav-expanded')) {
+                $body.removeClass('nav-expanded');
+            }
         }
-    );
+    });
+
+    // Toggle help dropdown without affecting side nav when clicking help arrow
+    $helpArrow.on('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        isHelpArrowClick = true;
+        if ($helpOptions.is(':visible')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+                    isHelpArrowClick = false;
+            });
+        } else {
+            $helpOptions.stop(true, true).slideDown(30, function () {
+                $helpArrow.addClass('rotated');
+            });
+        }
+    });
+
+    // Keep menu open when clicking inside the menu
+    $helpOptions.on('click', function(event) {
+        event.stopPropagation();
+    });
 }
 
 function setupHamburgerBehavior() {
     const navbarToggle = $('#navbar-toggle');
     const appSideNav = $('#app-side-nav');
+    const $helpOptions = $('.help-options');
+    const $helpArrow = $('.help-arrow');
+    const $body = $('body');
     let navTimeout;
 
     navbarToggle.on('mouseenter', function () {
         clearTimeout(navTimeout);
-        $('body').addClass('nav-expanded');
+        $body.addClass('nav-expanded');
     });
 
     appSideNav.on('mouseenter', function () {
@@ -621,28 +873,48 @@ function setupHamburgerBehavior() {
     });
 
     appSideNav.on('mouseleave', function () {
-        navTimeout = setTimeout(function () {
-            $('body').removeClass('nav-expanded');
-        }, 300);
+        if (!$helpOptions.is(':visible') && !isHelpArrowClick) {
+            // Only collapse if help dropdown is not open and not recently clicked
+            navTimeout = setTimeout(function () {
+                $body.removeClass('nav-expanded');
+                $helpOptions.stop(true, true).slideUp(30, function () {
+                    $helpArrow.removeClass('rotated');
+                });
+            }, 300);
+        }
     });
 
     navbarToggle.on('mouseleave', function (e) {
         if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
-            navTimeout = setTimeout(function () {
-                $('body').removeClass('nav-expanded');
-            }, 300);
+            if (!$helpOptions.is(':visible') && !isHelpArrowClick) {
+                // Only collapse if help dropdown is not open and not recently clicked
+                navTimeout = setTimeout(function () {
+                    $body.removeClass('nav-expanded');
+                    $helpOptions.stop(true, true).slideUp(30, function () {
+                        $helpArrow.removeClass('rotated');
+                    });
+                }, 300);
+            }
         }
     });
 
     navbarToggle.on('click', function (e) {
         e.stopPropagation();
-        $('body').toggleClass('nav-expanded');
+        $body.toggleClass('nav-expanded');
+        if (!$body.hasClass('nav-expanded')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
+        }
     });
 
     $(document).on('click', function (e) {
         if (!appSideNav.is(e.target) && !appSideNav.has(e.target).length &&
             !navbarToggle.is(e.target) && !navbarToggle.has(e.target).length) {
-            $('body').removeClass('nav-expanded');
+            $body.removeClass('nav-expanded');
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
         }
     });
 }
