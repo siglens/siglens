@@ -394,7 +394,7 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 	blockSumFile := dir + "query_test.bsu"
 
 	writer.WriteMockBlockSummary(blockSumFile, blockSummaries, allBmhInMem)
-	blockSums, readAllBmh, err := microreader.ReadBlockSummaries(blockSumFile)
+	blockSums, readAllBmh, err := microreader.ReadBlockSummaries(blockSumFile, false)
 	if err != nil {
 		log.Fatal(err)
 	}

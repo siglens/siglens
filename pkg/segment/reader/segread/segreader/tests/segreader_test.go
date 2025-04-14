@@ -40,7 +40,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 
 	numRecsPerBlock := make(map[uint16]uint16)
 	maxRecReadInBlock := make(map[uint16]uint16)
-	blockSums, allBlockInfo, err := microreader.ReadBlockSummaries(sumFile)
+	blockSums, allBlockInfo, err := microreader.ReadBlockSummaries(sumFile, false)
 	assert.Nil(b, err)
 
 	for idx, bSum := range blockSums {

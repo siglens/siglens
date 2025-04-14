@@ -602,7 +602,7 @@ func createBenchQuery(b *testing.B, segKey string,
 	}
 
 	bSumFile := structs.GetBsuFnameFromSegKey(segKey)
-	blockSummaries, allBlockInfo, err := microreader.ReadBlockSummaries(bSumFile)
+	blockSummaries, allBlockInfo, err := microreader.ReadBlockSummaries(bSumFile, false)
 	if err != nil {
 		log.Fatal(err)
 	}

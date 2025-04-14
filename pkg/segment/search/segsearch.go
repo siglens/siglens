@@ -596,7 +596,8 @@ func loadMetadataForSearchRequest(searchReq *structs.SegmentSearchRequest, qid u
 				qid, searchReq.SegmentKey, sFile)
 			return
 		}
-		bSum, err := microreader.ReadBlockSumOnly(searchReq.SearchMetadata.BlockSummariesFile)
+		bSum, _, err := microreader.ReadBlockSummaries(searchReq.SearchMetadata.BlockSummariesFile,
+			true)
 		if err != nil {
 			log.Errorf("qid=%v, loadMetadataForSearchRequest: failed to read block sumonly for segment %s. block summary file: %s. Error: %+v",
 				qid, searchReq.SegmentKey, searchReq.SearchMetadata.BlockSummariesFile, err)
