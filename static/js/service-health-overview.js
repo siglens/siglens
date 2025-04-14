@@ -17,46 +17,55 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let redMetrics = {
-    indexName: 'red-traces',
-    queryLanguage: 'Splunk QL',
+let serviceName;
+const charts = {
+    rate: null,
+    error: null,
+    latencies: null,
 };
-var RateCountChart;
-var ErrCountChart;
-var LatenciesChart;
+
+const chartConfigs = {
+    rate: {
+        id: 'ServiceHealthChart',
+        label: 'Rate',
+        dataKey: 'rate',
+        color: 'rgb(99,71,217)',
+    },
+    error: {
+        id: 'ServiceHealthChartErr',
+        label: 'Error Rate',
+        dataKey: 'error_rate',
+        color: 'rgb(99,71,217)',
+    },
+    latencies: {
+        id: 'ServiceHealthChart2',
+        datasets: [
+            { label: 'P50 Latency', dataKey: 'p50', color: '#FF6484' },
+            { label: 'P90 Latency', dataKey: 'p90', color: '#36A2EB' },
+            { label: 'P99 Latency', dataKey: 'p99', color: '#4BC0C0' },
+        ],
+    },
+};
+
 $(document).ready(() => {
-    setupEventHandlers();
-    $('.theme-btn').on('click', themePickerHandler);
-    $('.theme-btn').on('click', getOneServiceOverview);
-
-    const serviceName = getParameterFromUrl('service');
-    const stDate = getParameterFromUrl('startEpoch');
+    serviceName = getParameterFromUrl('service');
+    const startDate = getParameterFromUrl('startEpoch');
     const endDate = getParameterFromUrl('endEpoch');
-    redMetrics['searchText'] = 'service=' + serviceName + '';
-    initializeBreadcrumbs([
-        { name: 'APM', url: './service-health.html' },
-        { name: 'Service Health', url: './service-health.html' },
-        { name: serviceName},
-    ]);
-    $('.inner-range #' + stDate).addClass('active');
-    datePickerHandler(stDate, endDate, stDate);
-    $('.range-item').on('click', isGraphsDatePickerHandler);
-    $('#customrange-btn').on('click', isGraphsDatePickerHandler);
-    let data = getTimeRange();
 
-    redMetrics = { ...redMetrics, ...data };
-    getOneServiceOverview();
+    initializeBreadcrumbs([{ name: 'APM', url: './service-health.html' }, { name: 'Service Health', url: './service-health.html' }, { name: serviceName }]);
 
-    $('.service-health-text').click(function () {
-        window.location.href = '../service-health.html';
+    $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', () => {
+        const { gridLineColor, tickColor } = getGraphGridColors();
+        updateChartsTheme(gridLineColor, tickColor);
     });
-});
 
-function isGraphsDatePickerHandler(evt) {
-    evt.preventDefault();
+    setupEventHandlers();
+    datePickerHandler(startDate, endDate, startDate);
+    $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
+
     getOneServiceOverview();
-    $('#daterangepicker').hide();
-}
+});
 
 function getTimeRange() {
     return {
@@ -64,16 +73,24 @@ function getTimeRange() {
         endEpoch: filterEndDate || 'now',
     };
 }
+
 function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
 }
-let gridLineColor;
-let tickColor;
 
 function getOneServiceOverview() {
+    const chartIds = Object.values(chartConfigs).map((config) => config.id || config.datasets?.[0]?.id);
+
+    showLoadingIcons(chartIds);
     let data = getTimeRange();
-    redMetrics = { ...redMetrics, ...data };
+    let requestBody = {
+        indexName: 'red-traces',
+        queryLanguage: 'Splunk QL',
+        stDate: data.startEpoch,
+        endDate: data.endEpoch,
+        searchText: serviceName,
+    };
     $.ajax({
         method: 'POST',
         url: 'api/search',
@@ -81,255 +98,161 @@ function getOneServiceOverview() {
             'Content-Type': 'application/json; charset=utf-8',
             Accept: '*/*',
         },
-        data: JSON.stringify(redMetrics),
+        data: JSON.stringify(requestBody),
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        if ($('html').attr('data-theme') == 'light') {
-            gridLineColor = '#DCDBDF';
-            tickColor = '#160F29';
-        } else {
-            gridLineColor = '#383148';
-            tickColor = '#FFFFFF';
-        }
-        if (RateCountChart !== undefined) {
-            RateCountChart.destroy();
-        }
-        if (ErrCountChart !== undefined) {
-            ErrCountChart.destroy();
-        }
-        if (LatenciesChart !== undefined) {
-            LatenciesChart.destroy();
-        }
-        rateChart(res.hits.records, gridLineColor, tickColor);
-        errorChart(res.hits.records, gridLineColor, tickColor);
-        latenciesChart(res.hits.records, gridLineColor, tickColor);
-    });
+    })
+        .then(function (res) {
+            const { gridLineColor, tickColor } = getGraphGridColors();
+            const colors = { gridLineColor, tickColor };
+
+            Object.values(charts).forEach((chart) => {
+                if (chart) chart.destroy();
+            });
+
+            hideLoadingIcons(chartIds);
+
+            charts.rate = createSingleLineChart(chartConfigs.rate.id, res.hits.records, chartConfigs.rate.dataKey, chartConfigs.rate.label, chartConfigs.rate.color, colors, false);
+
+            charts.error = createSingleLineChart(chartConfigs.error.id, res.hits.records, chartConfigs.error.dataKey, chartConfigs.error.label, chartConfigs.error.color, colors, false);
+
+            charts.latencies = createMultiLineChart(chartConfigs.latencies.id, res.hits.records, chartConfigs.latencies.datasets, colors, true);
+        })
+        .catch((error) => {
+            hideLoadingIcons(chartIds);
+            console.error('Error fetching service health data:', error);
+        });
 }
 
-function rateChart(rateData, gridLineColor, tickColor) {
-    let graph_data = [];
-    for (let data of rateData) {
-        graph_data.push({
-            x: new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' '),
-            y: data.rate,
-        });
-    }
+function formatTimestamp(timestamp) {
+    return new Date(timestamp).toISOString().slice(0, -5).replace('T', ' ');
+}
 
-    graph_data.sort((a, b) => new Date(a.x) - new Date(b.x));
+function prepareChartData(records, dataKey) {
+    const data = records.map((record) => ({
+        x: formatTimestamp(record.timestamp),
+        y: record[dataKey],
+    }));
 
-    var RateCountChartCanvas = $('#ServiceHealthChart').get(0).getContext('2d');
-    RateCountChart = new Chart(RateCountChartCanvas, {
+    return data.sort((a, b) => new Date(a.x) - new Date(b.x));
+}
+
+function createSingleLineChart(canvasId, records, dataKey, label, color, themeColors, showLegend = false) {
+    const chartData = prepareChartData(records, dataKey);
+    const canvas = $(`#${canvasId}`).get(0).getContext('2d');
+
+    return new Chart(canvas, {
         type: 'line',
         data: {
             datasets: [
                 {
-                    label: 'Rate',
-                    data: graph_data,
-                    borderColor: ['rgb(99,71,217)'],
+                    label: label,
+                    data: chartData,
+                    borderColor: color,
                     borderWidth: 2,
                     yAxisID: 'y',
                     pointStyle: 'circle',
                     pointRadius: 2,
-                    pointBorderColor: ['rgb(99,71,217)'],
+                    pointBorderColor: color,
                     fill: false,
                 },
             ],
         },
-        options: {
-            responsive: true,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: tickColor,
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-                x: {
-                    ticks: {
-                        color: tickColor,
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-            },
-            plugins: {
-                legend: {
-                    display: false,
-                },
-            },
-        },
+        options: createChartOptions(themeColors, showLegend),
     });
-    return RateCountChart;
 }
 
-function errorChart(errorData, gridLineColor, tickColor) {
-    let graph_data_err = [];
-    for (let data of errorData) {
-        let formatted_date = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
-        graph_data_err.push({
-            x: formatted_date,
-            y: data.error_rate,
-        });
-    }
+function createMultiLineChart(canvasId, records, datasets, themeColors, showLegend = true) {
+    const canvas = $(`#${canvasId}`).get(0).getContext('2d');
+    const chartDatasets = datasets.map((dataset) => {
+        const data = prepareChartData(records, dataset.dataKey);
+        return {
+            label: dataset.label,
+            data: data,
+            borderColor: dataset.color,
+            yAxisID: 'y',
+            pointStyle: 'circle',
+            pointRadius: 2,
+            borderWidth: 2,
+            pointBorderColor: dataset.color,
+            fill: false,
+        };
+    });
 
-    graph_data_err.sort((a, b) => new Date(a.x) - new Date(b.x));
-
-    var ErrorCountChartCanvas = $('#ServiceHealthChartErr').get(0).getContext('2d');
-    ErrCountChart = new Chart(ErrorCountChartCanvas, {
+    return new Chart(canvas, {
         type: 'line',
-        data: {
-            datasets: [
-                {
-                    label: 'Error Rate',
-                    data: graph_data_err,
-                    borderColor: ['rgb(99,71,217)'],
-                    borderWidth: 2,
-                    yAxisID: 'y',
-                    pointStyle: 'circle',
-                    pointRadius: 2,
-                    pointBorderColor: ['rgb(99,71,217)'],
-                    fill: false,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: tickColor,
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-                x: {
-                    ticks: {
-                        color: tickColor,
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-            },
-            plugins: {
-                legend: {
-                    display: false,
-                },
-            },
-        },
+        data: { datasets: chartDatasets },
+        options: createChartOptions(themeColors, showLegend),
     });
-    return ErrCountChart;
 }
 
-function latenciesChart(latenciesData, gridLineColor, tickColor) {
-    let graph_data_latencies = {
-        p50: [],
-        p90: [],
-        p99: [],
+function createChartOptions(colors, showLegend) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index',
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: { color: colors.tickColor },
+                grid: { color: colors.gridLineColor },
+            },
+            x: {
+                ticks: { color: colors.tickColor },
+                grid: { color: colors.gridLineColor },
+            },
+        },
+        plugins: {
+            legend: {
+                display: showLegend,
+                position: 'bottom',
+                labels: {
+                    boxHeight: 10,
+                    padding: 20,
+                },
+            },
+        },
     };
+}
 
-    for (let data of latenciesData) {
-        const timestamp = new Date(data.timestamp).toISOString().slice(0, -5).replace('T', ' ');
-        graph_data_latencies.p50.push({ x: timestamp, y: data.p50 });
-        graph_data_latencies.p90.push({ x: timestamp, y: data.p90 });
-        graph_data_latencies.p99.push({ x: timestamp, y: data.p99 });
-    }
+function showLoadingIcons(chartIds) {
+    chartIds.forEach((chartId) => {
+        const canvas = $('#' + chartId);
+        const container = canvas.closest('.canvas-container');
 
-    graph_data_latencies.p50.sort((a, b) => new Date(a.x) - new Date(b.x));
-    graph_data_latencies.p90.sort((a, b) => new Date(a.x) - new Date(b.x));
-    graph_data_latencies.p99.sort((a, b) => new Date(a.x) - new Date(b.x));
-    
-    var LatenciesChartCanvas = $('#ServiceHealthChart2').get(0).getContext('2d');
-    LatenciesChart = new Chart(LatenciesChartCanvas, {
-        type: 'line',
-        data: {
-            datasets: [
-                {
-                    label: 'P50 Latency',
-                    data: graph_data_latencies.p50,
-                    borderColor: '#FF6484',
-                    yAxisID: 'y',
-                    pointStyle: 'circle',
-                    pointRadius: 2,
-                    borderWidth: 2,
-                    pointBorderColor: ['#FF6484'],
-                    fill: false,
-                },
-                {
-                    label: 'P90 Latency',
-                    data: graph_data_latencies.p90,
-                    borderColor: '#36A2EB',
-                    yAxisID: 'y',
-                    pointStyle: 'circle',
-                    pointRadius: 2,
-                    borderWidth: 2,
-                    pointBorderColor: '#36A2EB',
-                    fill: false,
-                },
-                {
-                    label: 'P99 Latency',
-                    data: graph_data_latencies.p99,
-                    yAxisID: 'y',
-                    pointStyle: 'circle',
-                    pointRadius: 2,
-                    borderWidth: 2,
-                    pointBorderColor: '#4BC0C0',
-                    borderColor: '#4BC0C0',
-                    fill: false,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            interaction: {
-                intersect: false,
-                mode: 'index',
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: tickColor,
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-                x: {
-                    ticks: {
-                        color: tickColor,
-                    },
-                    grid: {
-                        color: gridLineColor,
-                    },
-                },
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxHeight: 10,
-                        padding: 20,
-                    },
-                },
-            },
-        },
+        if (container.find('.panel-loading').length === 0) {
+            container.prepend('<div class="panel-loading"></div>');
+        } else {
+            container.find('.panel-loading').show();
+        }
     });
+}
 
-    return LatenciesChart;
+function hideLoadingIcons(chartIds) {
+    chartIds.forEach((chartId) => {
+        const canvas = $('#' + chartId);
+        const container = canvas.closest('.canvas-container');
+        container.find('.panel-loading').hide();
+    });
+}
+
+function updateChartsTheme(gridLineColor, tickColor) {
+    Object.values(charts).forEach((chart) => {
+        if (chart) {
+            updateChartColors(chart, gridLineColor, tickColor);
+        }
+    });
+}
+
+function updateChartColors(chart, gridLineColor, tickColor) {
+    chart.options.scales.x.grid.color = gridLineColor;
+    chart.options.scales.x.ticks.color = tickColor;
+
+    chart.options.scales.y.grid.color = gridLineColor;
+    chart.options.scales.y.ticks.color = tickColor;
+
+    chart.update();
 }

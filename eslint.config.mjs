@@ -232,6 +232,8 @@ export default [
                 initializeBreadcrumbs: true,
                 lucide: true,
                 tippy: true,
+                getGraphGridColors: true,
+                updateChartColorsBasedOnTheme: true,
             },
         },
         rules: {

@@ -1770,7 +1770,8 @@ progress.hidden {
 .index-stats {
     margin: auto;
     float: left;
-    width: 95%;
+    width: 100%;
+    margin-bottom: 28px;
 }
 
 .index-data-table {
@@ -1780,7 +1781,7 @@ progress.hidden {
 .index-stats-header {
     font-size: 14px;
     color: var(--cstats-header-text-color);
-    font-weight: bold;
+    font-weight: 500;
 }
 
 .index-data-table {
@@ -1856,9 +1857,7 @@ table.dataTable thead td {
 }
 
 .chart_container {
-    float: left;
     margin-bottom: 30px;
-    width: 50%;
 }
 
 .bar_chart_container {
@@ -1900,15 +1899,6 @@ table.dataTable thead td {
     font-weight: var(--fw-900);
     z-index: 1;
     margin-left: 41px;
-}
-
-.query-index-container {
-    justify-content: center;
-    flex-direction: column;
-    align-items: center;
-    width: 105%;
-    margin-top: 10px;
-    margin-bottom: 40px;
 }
 
 .query-stats-container {
@@ -2751,8 +2741,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #cstats-app-container hr {
-    border: 1px solid;
-    height: 3px;
+    height: 2px;
     background: var(--alerting-table-line-color);
     margin: 30px 0;
 }
@@ -4126,6 +4115,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .prompt-text-bottom {
     margin: 15px 0;
+}
+
+#index-summary-prompt {
+    width: 450px !important;
 }
 
 #index-summary-prompt .summary-content {
