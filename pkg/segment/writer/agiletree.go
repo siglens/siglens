@@ -30,6 +30,7 @@ import (
 )
 
 const MaxConcurrentAgileTrees = 5
+const AtreeNodePoolIncrSize = 100
 
 var currentAgileTreeCount int
 var atreeCounterLock sync.Mutex = sync.Mutex{}
@@ -47,17 +48,18 @@ type Node struct {
 }
 
 type StarTreeBuilder struct {
-	groupByKeys       []string
-	numGroupByCols    uint16
-	mColNames         []string
-	nodeCount         int
-	nodePool          []*Node
-	tree              *StarTree
-	segDictMap        []map[string]uint32 // "mac" ==> enc-2
-	segDictEncRev     [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
-	segDictLastNum    []uint32            // for each ColNum maintains the lastEnc increasing seq
-	wipRecNumToColEnc [][]uint32          //maintain working buffer per wipBlock
-	buf               []byte
+	groupByKeys        []string
+	numGroupByCols     uint16
+	mColNames          []string
+	nodesInUse         int
+	nodesCreatedInPool int
+	nodePool           []*Node
+	tree               *StarTree
+	segDictMap         []map[string]uint32 // "mac" ==> enc-2
+	segDictEncRev      [][]string          // [colNum]["ios", "mac", "win" ...] , [0][enc2] --> "mac"
+	segDictLastNum     []uint32            // for each ColNum maintains the lastEnc increasing seq
+	wipRecNumToColEnc  [][]uint32          //maintain working buffer per wipBlock
+	buf                []byte
 	// array to keep reusing for tree traversal. [level][*Node Array]
 	treeTravNodePtrs [][]*Node
 }
@@ -142,7 +144,7 @@ func (stb *StarTreeBuilder) GetGroupByKeys() []string {
 }
 
 func (stb *StarTreeBuilder) GetNodeCount() int {
-	return stb.nodeCount
+	return stb.nodesInUse
 }
 
 func (stb *StarTreeBuilder) GetEachColNodeCount() map[string]uint32 {
@@ -309,7 +311,8 @@ func (stb *StarTreeBuilder) setColValEnc(colNum int, colValBytes []byte) uint32 
 // helper function to reset node data for builder reuse
 func (stb *StarTreeBuilder) resetNodeData() {
 
-	for _, node := range stb.nodePool {
+	for i := 0; i < stb.nodesInUse; i++ {
+		node := stb.nodePool[i]
 		node.parent = nil
 		for k := range node.children {
 			delete(node.children, k)
@@ -320,26 +323,24 @@ func (stb *StarTreeBuilder) resetNodeData() {
 			}
 		}
 	}
-	stb.nodeCount = 0
+	stb.nodesInUse = 0
 }
 
 func (stb *StarTreeBuilder) newNode() *Node {
 
-	// pre-alloc on the first one to the size of MaxAgileTree,
-	// and after that if the nodePool count exceeds then we can do the
-	// one by one extension
-	stbNodePoolLen := len(stb.nodePool)
-	stb.nodePool = toputils.ResizeSlice(stb.nodePool, MaxAgileTreeNodeCountForAlloc)
-	if len(stb.nodePool) > stbNodePoolLen {
-		for i := stbNodePoolLen; i < len(stb.nodePool); i++ {
-			stb.nodePool[i] = &Node{}
-		}
+	// increment the slice in chunks instead of the max size
+	if stb.nodesCreatedInPool == len(stb.nodePool) {
+		stb.nodePool = toputils.ResizeSlice(stb.nodePool,
+			stb.nodesCreatedInPool+AtreeNodePoolIncrSize)
 	}
-	if stb.nodeCount >= len(stb.nodePool) {
-		stb.nodePool = append(stb.nodePool, &Node{})
+
+	if stb.nodesInUse >= stb.nodesCreatedInPool {
+		stb.nodePool[stb.nodesCreatedInPool] = &Node{}
+		stb.nodesCreatedInPool += 1
 	}
-	ans := stb.nodePool[stb.nodeCount]
-	stb.nodeCount += 1
+
+	ans := stb.nodePool[stb.nodesInUse]
+	stb.nodesInUse++
 
 	if ans.children == nil {
 		ans.children = make(map[uint32]*Node)

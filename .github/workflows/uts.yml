@@ -1,10 +1,9 @@
 name: siglens-lint-ut
 on:
-  push:
-    branches-ignore:
-      - main
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    branches-ignore:
+      - main
 permissions:
   contents: read
 jobs:

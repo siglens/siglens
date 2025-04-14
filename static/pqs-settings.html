@@ -60,7 +60,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     </script>
     {{ .RunCheck1 | safeHTML }}
 </head>
-
+{{ if not .EnterpriseEnabled }}
 <body>
     <div id="app-container">
         <div id="app-side-nav">
@@ -128,9 +128,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <p>Are you sure you want to clear PQS Info?
                         </p>
                         <div class="mt-4">
-                            <button type="button" class="saveqButton" id="cancel-pqs"
+                            <button type="button" class="saveqButton btn-primary btn" id="cancel-pqs"
                                 style="margin-left: 0px !important;">Cancel</button>
-                            <button type="button" id="clear-pqs" class="cancelqButton"
+                            <button type="button" id="clear-pqs" class="cancelqButton btn-secondary btn"
                                 style="margin-left: 14px !important;">Clear</button>
                         </div>
                     </div>
@@ -145,7 +145,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                         <textarea class="json-body"></textarea>
                         <div class="mt-2 d-flex justify-content-end">
-                            <button type="button" id="close-popup" class="saveqButton">OK</button>
+                            <button type="button" id="close-popup" class="saveqButton btn-secondary btn">OK</button>
                         </div>
                     </div>
                 </div>
@@ -166,7 +166,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
-
 </body>
+{{ end }}
 
 </html>

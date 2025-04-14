@@ -2262,11 +2262,50 @@ function mergeGraphs(chartType, panelId = -1) {
     var mergedCtx;
     var colorIndex = 0;
     var mergedCanvas, legendContainer;
+
     if (isDashboardScreen) {
         // For dashboard page
         if (currentPanel) {
             const data = getMetricsQData();
             currentPanel.queryData = data;
+
+            // Handle number chart type in dashboard mode
+            if (currentPanel?.chartType === 'number') {
+                const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
+                panelChartEl.hide();
+
+                setTimeout(async () => {
+                    let bigNumVal = null;
+                    let dataType = currentPanel.dataType;
+
+                    if (currentPanel.queryData && currentPanel.queryData.queriesData && currentPanel.queryData.queriesData.length) {
+                        if (rawTimeSeriesData && rawTimeSeriesData.values) {
+                            $.each(rawTimeSeriesData.values, function (_index, valueArray) {
+                                $.each(valueArray, function (_index, value) {
+                                    if (value > bigNumVal || bigNumVal === null) {
+                                        bigNumVal = value;
+                                    }
+                                });
+                            });
+                        }
+                    }
+
+                    if (bigNumVal === null || bigNumVal === undefined) {
+                        window.panelProcessEmptyQueryResults('', panelId);
+                    } else {
+                        if (panelId == -1) {
+                            $('.panelDisplay #empty-response').empty().hide();
+                            $('.panelDisplay #corner-popup').hide();
+                        } else {
+                            $(`#panel${panelId} #empty-response`).empty().hide();
+                            $(`#panel${panelId} #corner-popup`).hide();
+                        }
+                        displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
+                    }
+                }, 0);
+
+                return;
+            }
         }
         var panelChartEl;
         if (panelId === -1) {
@@ -3056,15 +3095,6 @@ function updateChartColorsBasedOnTheme() {
     }
 }
 
-function getGraphGridColors() {
-    const rootStyles = getComputedStyle(document.documentElement);
-    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
-    const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
-
-    return { gridLineColor, tickColor };
-}
-
 function addVisualizationContainerToAlerts(queryName, seriesData, queryString) {
     addOrUpdateFormulaCache(queryName, queryString);
     var existingContainer = $(`.metrics-graph`);
@@ -3606,7 +3636,7 @@ document.addEventListener('DOMContentLoaded', resizeAllTextareas);
 
 function setupRawQueryKeyboardHandlers() {
     $(document).off('keydown.rawQuerySearch', '.raw-query-input');
-    
+
     $(document).on('keydown.rawQuerySearch', '.raw-query-input', function(event) {
         // Check if Enter key is pressed
         if (event.key === 'Enter') {
@@ -3618,11 +3648,11 @@ function setupRawQueryKeyboardHandlers() {
                 return true;
             } else {
                 event.preventDefault();
-                
+
                 // Run Query
                 const runButton = $(this).closest('.raw-query').find('#run-filter-btn');
                 runButton.click();
-                
+
                 return false;
             }
         }

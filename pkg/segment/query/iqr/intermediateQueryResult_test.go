@@ -18,6 +18,7 @@
 package iqr
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/reader/record"
@@ -119,7 +120,7 @@ func Test_AsResult(t *testing.T) {
 		CanScrollMore:      false,
 		ColumnsOrder:       []string{"col1"},
 	}
-	result, err := iqr.AsResult(structs.RRCCmd, false)
+	result, err := iqr.AsResult(structs.RRCCmd, false, false)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
 }
@@ -1305,4 +1306,107 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, iqr, decodedIQR)
+}
+
+func Test_RemovesEmptyColumns(t *testing.T) {
+	iqr := NewIQR(0)
+	iqr.mode = withoutRRCs
+
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "value1"},
+			{Dtype: utils.SS_DT_STRING, CVal: "value2"},
+		},
+		"empty_col": {
+			{Dtype: utils.SS_DT_STRING, CVal: ""},
+			{Dtype: utils.SS_DT_STRING, CVal: ""},
+		},
+	}
+	err := iqr.AppendKnownValues(knownValues)
+	require.NoError(t, err)
+
+	expected := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
+			TotalMatched: toputils.HitsCount{Value: 2, Relation: "eq"},
+			Hits: []map[string]interface{}{
+				{"col1": "value1"},
+				{"col1": "value2"},
+			},
+		},
+		AllPossibleColumns: []string{"col1"},
+		Errors:             nil,
+		Qtype:              "logs-query",
+		CanScrollMore:      false,
+		ColumnsOrder:       []string{"col1"},
+	}
+
+	result, err := iqr.AsResult(structs.RRCCmd, false, true)
+	require.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func Test__RemoveEmptyRecords(t *testing.T) {
+	iqr := NewIQR(0)
+	iqr.mode = withoutRRCs
+
+	knownValues := map[string][]utils.CValueEnclosure{}
+	err := iqr.AppendKnownValues(knownValues)
+	require.NoError(t, err)
+
+	expected := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
+			TotalMatched: toputils.HitsCount{Value: 0, Relation: "eq"},
+			Hits:         []map[string]interface{}{},
+		},
+		AllPossibleColumns: []string{},
+		Errors:             nil,
+		Qtype:              "logs-query",
+		CanScrollMore:      false,
+		ColumnsOrder:       []string{},
+	}
+
+	result, err := iqr.AsResult(structs.RRCCmd, false, true)
+	require.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func Test_RemoveOneEmptyRecord(t *testing.T) {
+	iqr := NewIQR(0)
+	iqr.mode = withoutRRCs
+
+	knownValues := map[string][]utils.CValueEnclosure{
+		"col1": {
+			{Dtype: utils.SS_DT_STRING, CVal: "value1"},
+			{Dtype: utils.SS_DT_STRING, CVal: ""},
+		},
+		"col2": {
+			{Dtype: utils.SS_DT_STRING, CVal: "value2"},
+			{Dtype: utils.SS_DT_STRING, CVal: ""},
+		},
+	}
+
+	err := iqr.AppendKnownValues(knownValues)
+	require.NoError(t, err)
+
+	expected := &structs.PipeSearchResponseOuter{
+		Hits: structs.PipeSearchResponse{
+			TotalMatched: toputils.HitsCount{Value: 1, Relation: "eq"},
+			Hits: []map[string]interface{}{
+				{
+					"col1": "value1",
+					"col2": "value2",
+				},
+			},
+		},
+		AllPossibleColumns: []string{"col1", "col2"},
+		Errors:             nil,
+		Qtype:              "logs-query",
+		CanScrollMore:      false,
+		ColumnsOrder:       []string{"col1", "col2"},
+	}
+
+	result, err := iqr.AsResult(structs.RRCCmd, false, true)
+	sort.Strings(result.AllPossibleColumns)
+	require.NoError(t, err)
+	assert.Equal(t, expected, result)
 }

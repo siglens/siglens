@@ -515,6 +515,8 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 			for key, value := range record {
 				if value == nil {
 					delete(record, key)
+				} else if strValue, ok := value.(string); ok && strValue == "" {
+					delete(record, key)
 				}
 			}
 		}
