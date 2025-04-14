@@ -47,17 +47,6 @@ const chartConfigs = {
     },
 };
 
-let themeColors = {
-    light: {
-        gridLineColor: '#DCDBDF',
-        tickColor: '#160F29',
-    },
-    dark: {
-        gridLineColor: '#383148',
-        tickColor: '#FFFFFF',
-    },
-};
-
 $(document).ready(() => {
     serviceName = getParameterFromUrl('service');
     const startDate = getParameterFromUrl('startEpoch');
@@ -65,15 +54,16 @@ $(document).ready(() => {
 
     initializeBreadcrumbs([{ name: 'APM', url: './service-health.html' }, { name: 'Service Health', url: './service-health.html' }, { name: serviceName }]);
 
-    $('.theme-btn').on('click', function () {
-        themePickerHandler();
-        getOneServiceOverview();
+    $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', () => {
+        const { gridLineColor, tickColor } = getGraphGridColors();
+        updateChartsTheme(gridLineColor, tickColor);
     });
 
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
     $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
-    
+
     getOneServiceOverview();
 });
 
@@ -90,7 +80,6 @@ function getParameterFromUrl(param) {
 }
 
 function getOneServiceOverview() {
-    console.log("getOneServiceOverview")
     const chartIds = Object.values(chartConfigs).map((config) => config.id || config.datasets?.[0]?.id);
 
     showLoadingIcons(chartIds);
@@ -114,8 +103,8 @@ function getOneServiceOverview() {
         crossDomain: true,
     })
         .then(function (res) {
-            const theme = $('html').attr('data-theme') || 'dark';
-            const colors = themeColors[theme];
+            const { gridLineColor, tickColor } = getGraphGridColors();
+            const colors = { gridLineColor, tickColor };
 
             Object.values(charts).forEach((chart) => {
                 if (chart) chart.destroy();
@@ -248,4 +237,22 @@ function hideLoadingIcons(chartIds) {
         const container = canvas.closest('.canvas-container');
         container.find('.panel-loading').hide();
     });
+}
+
+function updateChartsTheme(gridLineColor, tickColor) {
+    Object.values(charts).forEach((chart) => {
+        if (chart) {
+            updateChartColors(chart, gridLineColor, tickColor);
+        }
+    });
+}
+
+function updateChartColors(chart, gridLineColor, tickColor) {
+    chart.options.scales.x.grid.color = gridLineColor;
+    chart.options.scales.x.ticks.color = tickColor;
+
+    chart.options.scales.y.grid.color = gridLineColor;
+    chart.options.scales.y.ticks.color = tickColor;
+
+    chart.update();
 }
