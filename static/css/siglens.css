@@ -3546,6 +3546,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     z-index: 1;
 }
 
+.nav-links,
 .main-help-link {
     display: flex;
     align-items: center;

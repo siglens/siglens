@@ -27,7 +27,7 @@ let navbarComponent = `
         </svg>
         </div>
     <div class="nav-main-menu logo">
-        <a href="./index.html" class="main-nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
+        <a href="./index.html" class="nav-links"><img class="sslogo" src="./assets/siglens-logo.svg">
         </a>
     </div>
 </div>
