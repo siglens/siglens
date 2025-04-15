@@ -145,14 +145,6 @@ $(document).ready(async function () {
         }, 1000);
     });
 
-    $('#test-data-btn').on('click', (_e) => {
-        if (selectedLogSource === 'Send Test Data') {
-            var testDataBtn = document.getElementById("test-data-btn");
-            testDataBtn.disabled = true;
-            sendTestData();
-        }
-    });
-
     {{ .Button1Function }}
 });
 
