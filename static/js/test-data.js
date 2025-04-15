@@ -111,7 +111,7 @@ $(document).ready(async function () {
         }
     }
 
-    if (logMethodParam && pageName === 'test-data.html') {
+    if (logMethodParam && pageName === 'log-ingestion.html') {
         updateBreadcrumbsForIngestion('Log Ingestion Methods', formattedMethod);
     }
     if (logMethodParam && pageName === 'metrics-ingestion.html') {

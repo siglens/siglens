@@ -3,7 +3,7 @@ const { testThemeToggle } = require('./common-functions');
 
 test.describe('Logs Ingestion Page Tests', () => {
     test('should display logs ingestion cards view by default', async ({ page }) => {
-        await page.goto('http://localhost:5122/test-data.html');
+        await page.goto('http://localhost:5122/log-ingestion.html');
         await expect(page.locator('#app-side-nav')).toBeVisible();
         await expect(page.locator('#logs-cards-view')).toBeVisible();
 
@@ -27,7 +27,7 @@ test.describe('Logs Ingestion Page Tests', () => {
     });
 
     test('should navigate to log details when a logs card is clicked', async ({ page }) => {
-        await page.goto('http://localhost:5122/test-data.html');
+        await page.goto('http://localhost:5122/log-ingestion.html');
         await page.waitForTimeout(1000); // Wait for page to stabilize
 
         // Click on one of the logs ingestion cards (e.g., OpenTelemetry)
@@ -55,7 +55,7 @@ test.describe('Logs Ingestion Page Tests', () => {
     });
 
     test('should load correct details for Send Test Data card', async ({ page }) => {
-        await page.goto('http://localhost:5122/test-data.html');
+        await page.goto('http://localhost:5122/log-ingestion.html');
         await page.waitForTimeout(1000); // Wait for page to stabilize
 
         // Click on Send Test Data card
@@ -84,7 +84,7 @@ test.describe('Logs Ingestion Page Tests', () => {
 
     test('should process URL parameter and show correct logs details', async ({ page }) => {
         // Navigate directly with method parameter
-        await page.goto('http://localhost:5122/test-data.html?method=elasticbulk');
+        await page.goto('http://localhost:5122/log-ingestion.html?method=elasticbulk');
         await page.waitForTimeout(1000); // Wait for page to stabilize
 
         // Check that the logs cards view is hidden and details view is shown
@@ -101,7 +101,7 @@ test.describe('Logs Ingestion Page Tests', () => {
     });
 
     test('should send test data when button is clicked', async ({ page }) => {
-        await page.goto('http://localhost:5122/test-data.html?method=sendtestdata');
+        await page.goto('http://localhost:5122/log-ingestion.html?method=sendtestdata');
         await page.waitForTimeout(1000); // Wait for page to stabilize
 
         // Check that test data button is visible
