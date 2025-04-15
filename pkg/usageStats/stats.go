@@ -533,9 +533,9 @@ func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, 
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
-func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64) (map[string]*ReadStats, error) {
+func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64, endTs int64) (map[string]*ReadStats, error) {
 
-	endEpoch := time.Now()
+	endEpoch := time.Unix(endTs, 0)
 	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
 	startTOD := (startEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
 	endTOD := (endEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
@@ -557,20 +557,22 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 		for runningTs.Before(endEpoch) {
 			// Truncate runningTs to the nearest intervalMinutes
 			truncatedTs := runningTs.Truncate(time.Duration(intervalMinutes) * time.Minute)
-			bucketInterval = truncatedTs.Format("2006-01-02T15:04")
+			bucketInterval = strconv.FormatInt(truncatedTs.Unix(), 10)
 			resultMap[bucketInterval] = &ReadStats{} // Initialize the bucket if not already present
 			runningTs = runningTs.Add(time.Duration(intervalMinutes) * time.Minute)
 		}
 	} else if granularity == Daily {
 		for endTOD >= startTOD {
-			bucketInterval = runningTs.Format("2006-01-02")
+			roundedToDay := runningTs.Truncate(24 * time.Hour)
+			bucketInterval = strconv.FormatInt(roundedToDay.Unix(), 10)
 			runningTs = runningTs.Add(24 * time.Hour)
 			startTOD = startTOD + segutils.MS_IN_DAY
 			resultMap[bucketInterval] = &ReadStats{}
 		}
 	} else if granularity == Hourly {
 		for endTOH >= startTOH {
-			bucketInterval = runningTs.Format("2006-01-02T15")
+			roundedToHour := runningTs.Truncate(time.Hour)
+			bucketInterval = strconv.FormatInt(roundedToHour.Unix(), 10)
 			runningTs = runningTs.Add(1 * time.Hour)
 			startTOH = startTOH + segutils.MS_IN_HOUR
 			resultMap[bucketInterval] = &ReadStats{}
@@ -582,7 +584,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 		endMonth := time.Date(endEpoch.Year(), endEpoch.Month(), 1, 0, 0, 0, 0, endEpoch.Location())
 
 		for !runningTs.After(endMonth) {
-			bucketInterval = runningTs.Format("2006-01")
+			roundedToMonth := time.Date(runningTs.Year(), runningTs.Month(), 1, 0, 0, 0, 0, runningTs.Location())
+			bucketInterval = strconv.FormatInt(roundedToMonth.Unix(), 10)
 			resultMap[bucketInterval] = &ReadStats{}
 
 			runningTs = time.Date(runningTs.Year(), runningTs.Month()+1, 1, 0, 0, 0, 0, runningTs.Location())
@@ -599,16 +602,19 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 	ascBuckets := map[string][]uint64{}
 	for _, rStat := range allStatsMap {
 		if granularity == Daily {
-			bucketInterval = rStat.TimeStamp.Format("2006-01-02")
+			roundedToDay := rStat.TimeStamp.Truncate(24 * time.Hour)
+			bucketInterval = strconv.FormatInt(roundedToDay.Unix(), 10)
 		} else if granularity == Hourly {
-			bucketInterval = rStat.TimeStamp.Format("2006-01-02T15")
+			roundedToHour := rStat.TimeStamp.Truncate(time.Hour)
+			bucketInterval = strconv.FormatInt(roundedToHour.Unix(), 10)
 		} else if granularity == ByMinute {
 			// Truncate the timestamp to the nearest intervalMinutes and format it as a string.
 			// For example, if rStat.TimeStamp is "20:47" and intervalMinutes is 10,
 			// it will truncate the time to "20:40" and format it as "2006-01-02T20:40" to store in the resultMap.
-			bucketInterval = rStat.TimeStamp.Truncate(time.Duration(intervalMinutes) * time.Minute).Format("2006-01-02T15:04")
+			bucketInterval = strconv.FormatInt(rStat.TimeStamp.Truncate(time.Duration(intervalMinutes)*time.Minute).Unix(), 10)
 		} else if granularity == Monthly {
-			bucketInterval = rStat.TimeStamp.Format("2006-01")
+			roundedToMonth := time.Date(rStat.TimeStamp.Year(), rStat.TimeStamp.Month(), 1, 0, 0, 0, 0, rStat.TimeStamp.Location())
+			bucketInterval = strconv.FormatInt(roundedToMonth.Unix(), 10)
 		} else {
 			return nil, fmt.Errorf("GetUsageStats: unknown granularity value: %v", granularity)
 		}

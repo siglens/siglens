@@ -156,7 +156,7 @@ func TestParseIngestionStatsRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hours, granularity := parseIngestionStatsRequest(tt.jsonInput)
+			hours, granularity, _ := parseIngestionStatsRequest(tt.jsonInput)
 			if tt.timeRelative {
 				assert.Equal(t, tt.expectedGran, granularity, tt.description)
 				assert.InDelta(t, float64(tt.expectedHours), float64(hours), 2, tt.description)

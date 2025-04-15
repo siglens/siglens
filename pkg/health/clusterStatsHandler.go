@@ -241,8 +241,8 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		return
 	}
 
-	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
-	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
+	pastXhours, granularity, endTs := parseIngestionStatsRequest(readJSON)
+	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId, endTs)
 
 	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
 		hook(rStats, pastXhours, uint8(granularity), orgId)
@@ -264,7 +264,7 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	utils.WriteJsonResponse(ctx, httpResp)
 }
 
-func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity) {
+func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity, int64) {
 	defaultPastHours := uint64(7 * 24) // 7 days default
 
 	startEpoch, hasStart := jsonSource["startEpoch"]
@@ -273,10 +273,11 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 
 	// Handle missing values
 	if !hasStart || !hasEnd || startEpoch == nil || endEpoch == nil {
+		endTs := time.Now().Unix()
 		if hasGranularity {
-			return defaultPastHours, parseGranularity(granularity)
+			return defaultPastHours, parseGranularity(granularity), endTs
 		}
-		return defaultPastHours, determineGranularity(defaultPastHours)
+		return defaultPastHours, determineGranularity(defaultPastHours), endTs
 	}
 
 	// Parse timestamps
@@ -286,17 +287,17 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 	// Validate timestamps
 	if startTs == -1 || endTs == -1 || endTs <= startTs {
 		if hasGranularity {
-			return defaultPastHours, parseGranularity(granularity)
+			return defaultPastHours, parseGranularity(granularity), endTs
 		}
-		return defaultPastHours, determineGranularity(defaultPastHours)
+		return defaultPastHours, determineGranularity(defaultPastHours), endTs
 	}
 
 	// Calculate hours difference
 	hours := uint64((endTs - startTs) / 3600)
 	if hasGranularity {
-		return hours, parseGranularity(granularity)
+		return hours, parseGranularity(granularity), endTs
 	}
-	return hours, determineGranularity(hours)
+	return hours, determineGranularity(hours), endTs
 }
 
 func determineGranularity(hours uint64) usageStats.UsageStatsGranularity {
