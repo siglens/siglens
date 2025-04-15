@@ -1083,7 +1083,7 @@ body {
 
 .icon-alerts:hover,
 .icon-alerts.active,
-.nav-alerts  .menu-header:hover .icon-alerts {
+.nav-alerts .menu-header:hover .icon-alerts {
     background-image: url("../assets/alerting-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -3617,7 +3617,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
 #app-side-nav .menu:hover .link-usage-stats,
-#app-side-nav .menu:hover .link-lookups{
+#app-side-nav .menu:hover .link-lookups {
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -3639,7 +3639,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #app-side-nav .nav-ingest .menu-header,
 #app-side-nav .nav-alerts .menu-header,
 #app-side-nav .nav-infrastructure .menu-header,
-#app-side-nav .nav-kubernetes .menu-header{
+#app-side-nav .nav-kubernetes .menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -3693,7 +3693,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .metrics-dropdown,
 .ingestion-dropdown,
 .alerts-dropdown,
-.infrastructure-dropdown{
+.infrastructure-dropdown {
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -3710,7 +3710,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
-.alerts-dropdown a{
+.alerts-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -3720,7 +3720,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
-.alerts-dropdown li{
+.alerts-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -3734,7 +3734,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
-.alerts-dropdown li:hover{
+.alerts-dropdown li:hover {
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
@@ -3745,7 +3745,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
-.alerts-dropdown li.active{
+.alerts-dropdown li.active {
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -3754,19 +3754,19 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
+    color: var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
+    color: var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color:  white !important;
+    color: white !important;
 }
 
 #app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
-    color:  white !important;
+    color: white !important;
 }
 
 .infrastructure-dropdown div {
@@ -3789,11 +3789,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
-.infrastructure-dropdown div.menu-header.active{
+.infrastructure-dropdown div.menu-header.active {
     color: white !important;
 }
 
-.kubernetes-dropdown{
+.kubernetes-dropdown {
     display: none;
     padding: 0 0 0 0 !important;
     margin: 0;
@@ -3806,14 +3806,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-.kubernetes-dropdown a{
+.kubernetes-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
     padding-left: 20px;
 }
 
-.kubernetes-dropdown li{
+.kubernetes-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -3824,14 +3824,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li:hover{
+.kubernetes-dropdown li:hover {
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li.active{
+.kubernetes-dropdown li.active {
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -3851,7 +3851,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 
-#app-side-nav .nav-help .help-menu-header{
+#app-side-nav .nav-help .help-menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -3859,11 +3859,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
-#app-side-nav .help-menu-header:hover{
+#app-side-nav .help-menu-header:hover {
     background-color: var(--side-nav-bg-color-selected) !important;
 }
 
-#app-side-nav .nav-help.active  {
+#app-side-nav .nav-help.active {
     border-left: none !important;
     border-right: none !important;
     background-color: transparent !important;
@@ -3913,7 +3913,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 5px;
 }
 
-.nav-dropdown-icon.help-arrow{
+.nav-dropdown-icon.help-arrow {
     transform: rotate(270deg) !important;
 }
 
@@ -5687,7 +5687,7 @@ p#versionInfo {
 
 .card-header svg {
     margin: 0 !important;
-    width:22px;
+    width: 22px;
 }
 
 [data-theme="dark"] .card-header .cards-svg-icon {
@@ -6068,7 +6068,7 @@ p#versionInfo {
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
 #app-side-nav .menu:hover .link-usage-stats,
-#app-side-nav .menu:hover .link-lookups{
+#app-side-nav .menu:hover .link-lookups {
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -6094,7 +6094,7 @@ p#versionInfo {
 #app-side-nav .nav-ingest .menu-header,
 #app-side-nav .nav-alerts .menu-header,
 #app-side-nav .nav-infrastructure .menu-header,
-#app-side-nav .nav-kubernetes .menu-header{
+#app-side-nav .nav-kubernetes .menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -6113,12 +6113,12 @@ p#versionInfo {
     background-color: transparent !important;
 }
 
-#app-side-nav .nav-traces.active  .menu-header,
+#app-side-nav .nav-traces.active .menu-header,
 #app-side-nav .nav-metrics.active .menu-header,
 #app-side-nav .nav-ingest.active .menu-header,
 #app-side-nav .nav-alerts.active .menu-header,
 #app-side-nav .nav-infrastructure.active .menu-header.infrastructure-header,
-#app-side-nav .nav-kubernetes.active .menu-header.kubernetes-header{
+#app-side-nav .nav-kubernetes.active .menu-header.kubernetes-header {
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     background-color: var(--side-nav-bg-color-selected);
 }
@@ -6169,7 +6169,7 @@ p#versionInfo {
 .metrics-dropdown,
 .ingestion-dropdown,
 .alerts-dropdown,
-.infrastructure-dropdown{
+.infrastructure-dropdown {
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -6186,7 +6186,7 @@ p#versionInfo {
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
-.alerts-dropdown a{
+.alerts-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -6196,7 +6196,7 @@ p#versionInfo {
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
-.alerts-dropdown li{
+.alerts-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -6210,17 +6210,17 @@ p#versionInfo {
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
-.alerts-dropdown li:hover{
+.alerts-dropdown li:hover {
     color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.traces-dropdown li:hover ~ .nav-link-text-drpdwn,
-.metrics-dropdown li:hover ~ .nav-link-text-drpdwn,
-.ingestion-dropdown li:hover ~ .nav-link-text-drpdwn,
-.alerts-dropdown li:hover ~ .nav-link-text-drpdwn{
+.traces-dropdown li:hover~.nav-link-text-drpdwn,
+.metrics-dropdown li:hover~.nav-link-text-drpdwn,
+.ingestion-dropdown li:hover~.nav-link-text-drpdwn,
+.alerts-dropdown li:hover~.nav-link-text-drpdwn {
     color: var(--navbar-link-text) !important;
 }
 
@@ -6228,7 +6228,7 @@ p#versionInfo {
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
-.alerts-dropdown li.active{
+.alerts-dropdown li.active {
     color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -6237,15 +6237,15 @@ p#versionInfo {
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
+    color: var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text-active) !important;
+    color: var(--navbar-link-text-active) !important;
 }
 
 #app-side-nav .nav-infrastructure .nav-kubernetes .menu-header:hover .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text-active) !important;
+    color: var(--navbar-link-text-active) !important;
 }
 
 .infrastructure-dropdown div {
@@ -6268,11 +6268,11 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-.infrastructure-dropdown div.menu-header.active{
+.infrastructure-dropdown div.menu-header.active {
     color: var(--navbar-link-text-active) !important;
 }
 
-.kubernetes-dropdown{
+.kubernetes-dropdown {
     display: none;
     padding: 0 0 0 0 !important;
     margin: 0;
@@ -6285,14 +6285,14 @@ p#versionInfo {
     cursor: pointer;
 }
 
-.kubernetes-dropdown a{
+.kubernetes-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
     padding-left: 20px;
 }
 
-.kubernetes-dropdown li{
+.kubernetes-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -6303,14 +6303,14 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li:hover{
+.kubernetes-dropdown li:hover {
     color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li.active{
+.kubernetes-dropdown li.active {
     color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -6319,7 +6319,7 @@ p#versionInfo {
 }
 
 .submenu-arrow,
-.kubernetes-arrow{
+.kubernetes-arrow {
     display: inline-block;
     margin-right: 10px;
     padding-left: 10px;
@@ -6328,13 +6328,14 @@ p#versionInfo {
 }
 
 .submenu-arrow.rotated img.nav-dropdown-icon,
-.kubernetes-arrow.rotated img.nav-dropdown-icon{
+.kubernetes-arrow.rotated img.nav-dropdown-icon {
     transform: rotate(180deg) !important;
 }
 
 .help-options .help-links:hover {
     background-color: var(--purple-1);
-    color: var(--navbar-link-text-active);;
+    color: var(--navbar-link-text-active);
+    ;
     border-radius: 5px;
 }
 
@@ -6442,6 +6443,10 @@ p#versionInfo {
 .ingest-inner-container .ui-tabs-panel {
     margin-top: 30px;
     border: none;
+}
+
+#sample-data {
+    display: flex;
 }
 
 #index-del-btn-traces {
