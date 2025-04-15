@@ -66,12 +66,13 @@ $(document).ready(() => {
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
     $('.range-item, #customrange-btn').on('click', isGraphsDatePickerHandler);
+    // $('.range-item').on('click', isGraphsDatePickerHandler);
 
     window.addEventListener('popstate', function () {
         const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
         const endDate = getParameterFromUrl('endEpoch') || 'now';
 
-        $('.range-item').removeClass('active');
+        $('.range-item, #customrange-btn').removeClass('active');
         $('.inner-range #' + stDate).addClass('active');
 
         datePickerHandler(stDate, endDate, stDate);
@@ -103,20 +104,31 @@ function getParameterFromUrl(param) {
 function isGraphsDatePickerHandler(evt) {
     evt.preventDefault();
 
-    const selectedRange = $(evt.currentTarget).attr('id');
+    const selectedElement = $(evt.currentTarget);
+    const selectedRange = selectedElement.attr('id');
     let data;
 
-    if (selectedRange) {
+    if (selectedRange === 'customrange-btn') {
+        data = {
+            startEpoch: filterStartDate,
+            endEpoch: filterEndDate
+        };
+
+        $('.range-item').removeClass('active');
+        selectedElement.addClass('active');
+    }
+    else if (selectedRange && selectedRange.startsWith('now-')) {
         filterStartDate = selectedRange;
         filterEndDate = 'now';
         data = {
             startEpoch: selectedRange,
-            endEpoch: 'now',
+            endEpoch: 'now'
         };
 
         $('.range-item').removeClass('active');
-        $(evt.currentTarget).addClass('active');
-    } else {
+        selectedElement.addClass('active');
+    }
+    else {
         data = getTimeRange();
     }
 
@@ -125,9 +137,11 @@ function isGraphsDatePickerHandler(evt) {
     url.searchParams.set('endEpoch', data.endEpoch);
     window.history.pushState({ path: url.href }, '', url.href);
 
-    datePickerHandler(data.startEpoch, data.endEpoch, data.startEpoch);
+    datePickerHandler(data.startEpoch, data.endEpoch,
+                       selectedRange === 'customrange-btn' ? 'custom' : data.startEpoch);
 
     getOneServiceOverview();
+
     $('#daterangepicker').hide();
 }
 
