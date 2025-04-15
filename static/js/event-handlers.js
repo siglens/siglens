@@ -25,7 +25,7 @@ const VIEW_TYPES = {
 
 //eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
-    $('#filter-input').on('keyup', filterInputHandler);
+    $('#filter-input').on('keydown', filterInputHandler);
 
     $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
@@ -58,7 +58,7 @@ function setupEventHandlers() {
     $('.panelEditor-container #date-end').on('change', getEndDateHandler);
     $('.panelEditor-container #time-start').on('change', getStartTimeHandler);
     $('.panelEditor-container #time-end').on('change', getEndTimeHandler);
-    $('.panelEditor-container #customrange-btn').on('click', customRangeHandler);
+    $('.panelEditor-container #customrange-btn').off('click').on('click', customRangeHandler);
 
     $('#date-start').on('change', getStartDateHandler);
     $('#date-end').on('change', getEndDateHandler);
@@ -83,6 +83,10 @@ function windowPopStateHandler(evt) {
             resetDashboard();
             wsState = 'query';
             doSearch(data);
+        }
+
+        if (window.fieldssidebarRenderer) {
+            window.fieldssidebarRenderer.init();
         }
     }
 }
@@ -209,12 +213,35 @@ function customRangeHandler(evt) {
         if (currentPanel) {
             if (currentPanel.queryData) {
                 if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                    currentPanel.queryData.start = filterStartDate.toString();
-                    currentPanel.queryData.end = filterEndDate.toString();
+                    const startDateStr = filterStartDate.toString();
+                    const endDateStr = filterEndDate.toString();
+
+                    // Update start and end for queryData
+                    if (currentPanel.queryData) {
+                        currentPanel.queryData.start = startDateStr;
+                        currentPanel.queryData.end = endDateStr;
+
+                        // Update start and end for each item in queriesData
+                        if (Array.isArray(currentPanel.queryData.queriesData)) {
+                            currentPanel.queryData.queriesData.forEach((query) => {
+                                query.start = startDateStr;
+                                query.end = endDateStr;
+                            });
+                        }
+
+                        // Update start and end for each item in formulasData
+                        if (Array.isArray(currentPanel.queryData.formulasData)) {
+                            currentPanel.queryData.formulasData.forEach((formula) => {
+                                formula.start = startDateStr;
+                                formula.end = endDateStr;
+                            });
+                        }
+                    }
                 } else {
                     currentPanel.queryData.startEpoch = filterStartDate;
                     currentPanel.queryData.endEpoch = filterEndDate;
                 }
+                runQueryBtnHandler();
             }
         } else if (!currentPanel) {
             // if user is on dashboard screen
@@ -222,8 +249,30 @@ function customRangeHandler(evt) {
                 delete panel.queryRes;
                 if (panel.queryData) {
                     if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                        panel.queryData.start = filterStartDate.toString();
-                        panel.queryData.end = filterEndDate.toString();
+                        const startDateStr = filterStartDate.toString();
+                        const endDateStr = filterEndDate.toString();
+
+                        // Update start and end for queryData
+                        if (panel.queryData) {
+                            panel.queryData.start = startDateStr;
+                            panel.queryData.end = endDateStr;
+
+                            // Update start and end for each item in queriesData
+                            if (Array.isArray(panel.queryData.queriesData)) {
+                                panel.queryData.queriesData.forEach((query) => {
+                                    query.start = startDateStr;
+                                    query.end = endDateStr;
+                                });
+                            }
+
+                            // Update start and end for each item in formulasData
+                            if (Array.isArray(panel.queryData.formulasData)) {
+                                panel.queryData.formulasData.forEach((formula) => {
+                                    formula.start = startDateStr;
+                                    formula.end = endDateStr;
+                                });
+                            }
+                        }
                     } else {
                         panel.queryData.startEpoch = filterStartDate;
                         panel.queryData.endEpoch = filterEndDate;
@@ -469,8 +518,8 @@ function runFilterBtnHandler(evt) {
 }
 
 function filterInputHandler(evt) {
-    evt.preventDefault();
-    if (evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
+    if (!evt.shiftKey && evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
+        evt.preventDefault();
         resetDashboard();
         logsRowData = [];
         accumulatedRecords = [];

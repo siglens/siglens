@@ -73,6 +73,8 @@ type MetricsResult struct {
 	IsScalar    bool
 	ScalarValue float64
 
+	IsInstantQuery bool
+
 	State bucketState
 
 	rwLock               *sync.RWMutex
@@ -93,6 +95,7 @@ func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult 
 		rwLock:               &sync.RWMutex{},
 		ErrList:              make([]error, 0),
 		AllSeriesTagsOnlyMap: make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0),
+		IsInstantQuery:       mQuery.IsInstantQuery,
 	}
 }
 
@@ -108,7 +111,10 @@ func (r *MetricsResult) AddSeries(series *Series, tsid uint64, tsGroupId *bytebu
 		r.AllSeries[tsid] = series
 		return
 	}
-	currSeries.Merge(series)
+	err := currSeries.Merge(series)
+	if err != nil {
+		r.AddError(err)
+	}
 }
 
 func (r *MetricsResult) AddAllSeriesTagsOnlyMap(tsidInfoMap map[uint64]*tsidtracker.AllMatchedTSIDsInfo) {
@@ -198,27 +204,36 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	r.Results = make(map[string]map[uint32]float64)
 	errors := make([]error, 0)
 
+	seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
+
+	for grpID, ds := range r.DsResults {
+		if ds == nil {
+			err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
+			errors = append(errors, err)
+			return errors
+		}
+
+		var aggSeriesId string
+
+		if aggregation.IsAggregateFromAllTimeseries() {
+			aggSeriesId = grpID
+		} else {
+			aggSeriesId = getAggSeriesId(grpID, &aggregation)
+		}
+
+		if _, exists := seriesEntriesMap[aggSeriesId]; !exists {
+			seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
+		}
+
+		for i := 0; i < ds.idx; i++ {
+			entry := ds.runningEntries[i]
+			seriesEntriesMap[aggSeriesId][entry.downsampledTime] = append(seriesEntriesMap[aggSeriesId][entry.downsampledTime], entry)
+		}
+	}
+
 	// For some aggregations like sum and avg, we can compute the result from a single timeseries within a vector.
 	// However, for aggregations like count, topk, and bottomk, we must retrieve all the time series in the vector and can only compute the results after traversing all of these time series.
 	if aggregation.IsAggregateFromAllTimeseries() {
-		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
-
-		for grpID, ds := range r.DsResults {
-			if ds == nil {
-				err := fmt.Errorf("AggregateResults: Group %v has nonexistent downsample series", grpID)
-				errors = append(errors, err)
-				return errors
-			}
-
-			if _, exists := seriesEntriesMap[grpID]; !exists {
-				seriesEntriesMap[grpID] = make(map[uint32][]RunningEntry, 0)
-			}
-
-			for i := 0; i < ds.idx; i++ {
-				entry := ds.runningEntries[i]
-				seriesEntriesMap[grpID][entry.downsampledTime] = append(seriesEntriesMap[grpID][entry.downsampledTime], entry)
-			}
-		}
 
 		err := r.aggregateFromAllTimeseries(aggregation, seriesEntriesMap)
 		if err != nil {
@@ -234,23 +249,31 @@ func (r *MetricsResult) AggregateResults(parallelism int, aggregation structs.Ag
 	errorLock := &sync.Mutex{}
 
 	var idx int
-	for grpID, runningDS := range r.DsResults {
+	for seriesId, timeSeries := range seriesEntriesMap {
 		wg.Add(1)
-		go func(grp string, ds *DownsampleSeries) {
+		go func(grp string, timeSeries map[uint32][]RunningEntry) {
 			defer wg.Done()
 
-			grpVal, err := ds.AggregateFromSingleTimeseries()
-			if err != nil {
-				errorLock.Lock()
-				errors = append(errors, err)
-				errorLock.Unlock()
-				return
+			for ts, entries := range timeSeries {
+				aggVal, err := ApplyAggregationFromSingleTimeseries(entries, aggregation)
+				if err != nil {
+					errorLock.Lock()
+					errors = append(errors, err)
+					errorLock.Unlock()
+					return
+				}
+				lock.Lock()
+				tsMap, ok := r.Results[grp]
+				if !ok {
+					tsMap = make(map[uint32]float64, 0)
+					r.Results[grp] = tsMap
+				}
+
+				tsMap[ts] = aggVal
+				lock.Unlock()
 			}
 
-			lock.Lock()
-			r.Results[grp] = grpVal
-			lock.Unlock()
-		}(grpID, runningDS)
+		}(seriesId, timeSeries)
 		idx++
 		if idx%parallelism == 0 {
 			wg.Wait()
@@ -369,8 +392,7 @@ func (r *MetricsResult) ApplyAggregationToResults(parallelism int, aggregation s
 	if aggregation.IsAggregateFromAllTimeseries() {
 		seriesEntriesMap := make(map[string]map[uint32][]RunningEntry, 0)
 
-		for seriesId, timeSeries := range r.Results {
-			aggSeriesId := getAggSeriesId(seriesId, &aggregation)
+		for aggSeriesId, timeSeries := range r.Results {
 			if _, ok := results[aggSeriesId]; !ok {
 				results[aggSeriesId] = make(map[uint32]float64, 0)
 				seriesEntriesMap[aggSeriesId] = make(map[uint32][]RunningEntry, 0)
@@ -661,7 +683,10 @@ func (r *MetricsResult) Merge(localRes *MetricsResult) error {
 			r.AllSeries[tsid] = series
 			continue
 		}
-		currSeries.Merge(series)
+		err := currSeries.Merge(series)
+		if err != nil {
+			r.AddError(err)
+		}
 	}
 	return nil
 }
@@ -712,6 +737,10 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 
 		for _, val := range tagValues {
 			keyValue := strings.Split(removeMetricNameFromGroupID(val), ":")
+			if len(keyValue) != 2 {
+				log.Errorf("GetResults: Invalid tag keyvalue: %v", val)
+				continue
+			}
 			tags[keyValue[0]] = keyValue[1]
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
@@ -768,34 +797,18 @@ func (r *MetricsResult) GetResultsPromQlInstantQuery(pqlQueryType parser.ValueTy
 				Metric: metricSeries,
 			}
 
-			floatValue, ok := results[timestamp]
-			if ok {
-				result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
-				pqlData.VectorResult = append(pqlData.VectorResult, result)
-				continue
-			}
+			// Instant Query is expected to have only the latest timestamp
+			latestTime := uint32(0)
+			latestValue := float64(0)
 
-			// TODO: Inspect on whether we should ensure that the timestamp is present in the results?
-
-			// In the case where the timestamp is not present in the results
-			if len(results) > 2 {
-				// If the results have more than 2 timestamps, this should not happen.
-				// As the startTime = timestamp - 1 and endTime = timestamp, and intervalSeconds = 1
-				// So, the results should have only 2 timestamps
-				log.Errorf("GetResultsPromQlInstantQuery: More than 2 timestamps found in the results for seriesId: %v", seriesId)
-				return nil, errors.New("error in fetching the results. Multiple timestamps found in the results")
-			}
-
-			maxTimestamp := uint32(0)
-			floatValue = 0
 			for ts, val := range results {
-				if ts > maxTimestamp {
-					maxTimestamp = ts
-					floatValue = val
+				if ts > latestTime {
+					latestTime = ts
+					latestValue = val
 				}
 			}
 
-			result.Value = []interface{}{timestamp, fmt.Sprintf("%v", floatValue)}
+			result.Value = []interface{}{latestTime, fmt.Sprintf("%v", latestValue)}
 			pqlData.VectorResult = append(pqlData.VectorResult, result)
 		}
 	case parser.ValueTypeMatrix:
@@ -1207,12 +1220,8 @@ func (r *MetricsResult) computeAggCount(aggregation structs.Aggregation, seriesE
 		timestampToCount := make(map[uint32]float64)
 
 		for _, timeSeries := range seriesEntriesMap {
-			for timestamp, entries := range timeSeries {
-				for _, entry := range entries {
-					if entry.runningCount > 0 {
-						timestampToCount[timestamp] += float64(entry.runningCount)
-					}
-				}
+			for timestamp := range timeSeries {
+				timestampToCount[timestamp]++
 			}
 		}
 		r.Results[r.MetricName+"{"] = timestampToCount

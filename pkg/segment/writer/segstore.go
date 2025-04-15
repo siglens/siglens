@@ -59,6 +59,8 @@ import (
 const MaxAgileTreeNodeCountForAlloc = 8_066_000 // for atree to do allocations
 const MaxAgileTreeNodeCount = 8_000_000
 
+var SkipUploadOnRotate = false
+
 const BS_INITIAL_SIZE = uint32(1000)
 
 // SegStore Individual stream buffer
@@ -88,7 +90,6 @@ type SegStore struct {
 	AllSst                map[string]*structs.SegStats // map[colName] => SegStats_of_each_column
 	stbHolder             *STBHolder
 	OrgId                 int64
-	firstTime             bool
 	stbDictEncWorkBuf     [][]string
 	segStatsWorkBuf       []byte
 	SegmentErrors         map[string]*structs.SearchErrorInfo
@@ -136,7 +137,6 @@ func NewSegStore(orgId int64) *SegStore {
 		lastWipFlushTime:   now,
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
-		firstTime:          true,
 		stbDictEncWorkBuf:  make([][]string, 0),
 		segStatsWorkBuf:    make([]byte, utils.WIP_SIZE),
 	}
@@ -545,8 +545,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		wipBlockLock := sync.Mutex{}
 		wipBlockMetadata := &structs.BlockMetadataHolder{
 			BlkNum:            segstore.numBlocks,
-			ColumnBlockOffset: make(map[string]int64),
-			ColumnBlockLen:    make(map[string]uint32),
+			ColBlockOffAndLen: make(map[string]structs.ColOffAndLen),
 		}
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
@@ -612,8 +611,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 					atomic.AddUint64(&totalBytesWritten, uint64(blkLen))
 					wipBlockLock.Lock()
-					wipBlockMetadata.ColumnBlockOffset[cname] = blkOffset
-					wipBlockMetadata.ColumnBlockLen[cname] = blkLen
+					wipBlockMetadata.ColBlockOffAndLen[cname] = structs.ColOffAndLen{Offset: blkOffset,
+						Length: blkLen,
+					}
 					wipBlockLock.Unlock()
 
 					if !isKibana {
@@ -672,7 +672,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			BytesReceivedCount: segstore.BytesReceivedCount, OnDiskBytes: segstore.OnDiskBytes,
 			ColumnNames: allColsSizes, AllPQIDs: allPQIDs, NumBlocks: segstore.numBlocks, OrgId: segstore.OrgId}
 
-		WriteRunningSegMeta(segstore.SegmentKey, &segmeta)
+		WriteRunningSegMeta(&segmeta)
 
 		for pqid, pqResults := range segstore.pqMatches {
 			segstore.pqNonEmptyResults[pqid] = segstore.pqNonEmptyResults[pqid] || pqResults.Any()
@@ -814,18 +814,20 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 			}
 		}
 
-		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey)
+		updateRecentlyRotatedSegmentFiles(segstore.SegmentKey, segstore.VirtualTableName)
 		metadata.AddSegMetaToMetadata(&segmeta)
 
 		go writeSortIndexes(segstore.SegmentKey, segstore.VirtualTableName)
 
-		// upload ingest node dir to s3
-		err := blob.UploadIngestNodeDir()
-		if err != nil {
-			log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+		if !SkipUploadOnRotate {
+			// upload ingest node dir to s3
+			err := blob.UploadIngestNodeDir()
+			if err != nil {
+				log.Errorf("checkAndRotateColFiles: failed to upload ingest node dir , err=%v", err)
+			}
 		}
 
-		err = CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
+		err := CleanupUnrotatedSegment(segstore, streamid, false, !forceRotate)
 		if err != nil {
 			log.Errorf("checkAndRotateColFiles: failed to cleanup unrotated segment %v, err=%v", segstore.SegmentKey, err)
 			return err

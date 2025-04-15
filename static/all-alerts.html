@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -99,10 +99,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
             <div class="create-alert-page d-none">
                 <div>
-                    <h3 class="myOrg-heading">Create New Alert</h3>
-                    <p>Choose an alert type to begin monitoring your systems</p>
+                    <h3 class="myOrg-heading submenu-heading">Create New Alert</h3>
+                    <p class="caption submenu-caption mt-0">Choose an alert type to begin monitoring your systems</p>
                 </div>
-                <div class="cards">
+                <div class="submenu-container">
                     <div class="alert-card" id="create-logs-alert">
                         <div class="header">
                             <div class="icon-wrapper logs-icon">
@@ -158,7 +158,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         </div>
 
         <div id="app-footer">
-            2024 &copy; SigLens
         </div>
 
     </div>
@@ -168,7 +167,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
     <script src="./js/all-alerts.js?cb={{ AppVersion }}"></script>
-    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>    
+    <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

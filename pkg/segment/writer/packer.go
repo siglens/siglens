@@ -1035,8 +1035,7 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 		allBlockSummaries[j] = &segStore.wipBlock.blockSummary
 		allBlockRangeIdx[j] = segStore.wipBlock.columnRangeIndexes
 		allBlockOffsets[currBlockUint] = &BlockMetadataHolder{
-			ColumnBlockOffset: make(map[string]int64),
-			ColumnBlockLen:    make(map[string]uint32),
+			ColBlockOffAndLen: make(map[string]ColOffAndLen),
 		}
 		for cname, colWip := range segStore.wipBlock.colWips {
 			csgFname := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
@@ -1056,8 +1055,9 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)
 			}
-			allBlockOffsets[currBlockUint].ColumnBlockLen[cname] = blkLen
-			allBlockOffsets[currBlockUint].ColumnBlockOffset[cname] = blkOffset
+			allBlockOffsets[currBlockUint].ColBlockOffAndLen[cname] =
+				ColOffAndLen{Offset: blkOffset,
+					Length: blkLen}
 		}
 	}
 
@@ -1171,8 +1171,7 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 		allBlockSummaries[j] = &segStore.wipBlock.blockSummary
 		allBlockRangeIdx[j] = segStore.wipBlock.columnRangeIndexes
 		allBlockOffsets[currBlockUint] = &BlockMetadataHolder{
-			ColumnBlockOffset: make(map[string]int64),
-			ColumnBlockLen:    make(map[string]uint32),
+			ColBlockOffAndLen: make(map[string]ColOffAndLen),
 		}
 		for cname, colWip := range segStore.wipBlock.colWips {
 			csgFname := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
@@ -1186,8 +1185,9 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			if err != nil {
 				log.Errorf("WriteMockTraceFile: failed to write tracer filename=%v, err=%v", csgFname, err)
 			}
-			allBlockOffsets[currBlockUint].ColumnBlockLen[cname] = blkLen
-			allBlockOffsets[currBlockUint].ColumnBlockOffset[cname] = blkOffset
+			allBlockOffsets[currBlockUint].ColBlockOffAndLen[cname] = ColOffAndLen{Offset: blkOffset,
+				Length: blkLen,
+			}
 		}
 	}
 	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBlockOffsets
@@ -1420,12 +1420,12 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 
 	clen := 0
 	numCols := uint16(0)
-	for cname := range bmh.ColumnBlockOffset {
+	for cname := range bmh.ColBlockOffAndLen {
 		clen += len(cname)
 		numCols++
 	}
 	// summLen + blkNum + highTs + lowTs + recCount + numCols + totalCnamesLen + N * (cnameLenHolder + blkOff + blkLen)
-	requiredLen := 4 + 2 + 8 + 8 + 2 + 2 + clen + len(bmh.ColumnBlockOffset)*(2+8+4)
+	requiredLen := 4 + 2 + 8 + 8 + 2 + 2 + clen + len(bmh.ColBlockOffAndLen)*(2+8+4)
 	blockSummBuf = utils.ResizeSlice(blockSummBuf, requiredLen)
 
 	// reserve first 4 bytes for BLOCK_SUMMARY_LEN.
@@ -1442,14 +1442,14 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 	utils.Uint16ToBytesLittleEndianInplace(numCols, blockSummBuf[idx:])
 	idx += 2
 
-	for cname, cOff := range bmh.ColumnBlockOffset {
+	for cname, cOffLen := range bmh.ColBlockOffAndLen {
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cname)), blockSummBuf[idx:])
 		idx += 2
 		copy(blockSummBuf[idx:], cname)
 		idx += uint32(len(cname))
-		utils.Int64ToBytesLittleEndianInplace(cOff, blockSummBuf[idx:])
+		utils.Int64ToBytesLittleEndianInplace(cOffLen.Offset, blockSummBuf[idx:])
 		idx += 8
-		utils.Uint32ToBytesLittleEndianInplace(bmh.ColumnBlockLen[cname], blockSummBuf[idx:])
+		utils.Uint32ToBytesLittleEndianInplace(cOffLen.Length, blockSummBuf[idx:])
 		idx += 4
 	}
 

@@ -20,36 +20,170 @@ package query
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
+	"regexp"
+	"sort"
+	"strings"
 	"sync"
+	"time"
 	"verifier/pkg/utils"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const timestampCol = "timestamp"
 
 type queryValidator interface {
 	Copy() queryValidator
-	HandleLog(map[string]interface{}) error
+	HandleLog(map[string]interface{}, uint64) error
 	GetQuery() (string, uint64, uint64) // Query, start epoch, end epoch.
 	SetTimeRange(startEpoch uint64, endEpoch uint64)
 	MatchesResult(jsonResult []byte) error
 	PastEndTime(timestamp uint64) bool
+	Info() string
+	WithAllowAllStartTimes() queryValidator
+	AllowsAllStartTimes() bool
+}
+
+type filter interface {
+	Matches(map[string]interface{}) bool
+	String() string
+	Copy() filter
+}
+
+type kvFilter struct {
+	key   string
+	value stringOrRegex
+}
+
+func Filter(key string, value string) (filter, error) {
+	// Don't allow matching literal asterisks.
+	if strings.Contains(value, "\\*") {
+		return nil, fmt.Errorf("Filter: matching literal asterisks is not implemented")
+	}
+
+	finalValue := stringOrRegex{isRegex: false, rawString: value}
+	if strings.Contains(finalValue.rawString, "*") {
+		s := strings.ReplaceAll(finalValue.rawString, "*", ".*")
+		s = fmt.Sprintf("^%v$", s)
+		regex, err := regexp.Compile(s)
+		if err != nil {
+			return nil, fmt.Errorf("Filter: invalid regex %v; err=%v", finalValue.rawString, err)
+		}
+
+		finalValue.isRegex = true
+		finalValue.regex = *regex
+	}
+	return &kvFilter{
+		key:   key,
+		value: finalValue,
+	}, nil
+}
+
+func (kv *kvFilter) Matches(log map[string]interface{}) bool {
+	value, ok := log[kv.key]
+	if !ok {
+		return false
+	}
+
+	switch val := value.(type) {
+	case string:
+		return kv.value.Matches(val)
+	default:
+		return kv.value.Matches(fmt.Sprintf("%v", value))
+	}
+}
+
+func (kv kvFilter) String() string {
+	return fmt.Sprintf(`%v="%v"`, kv.key, kv.value)
+}
+
+func (kv *kvFilter) Copy() filter {
+	return &kvFilter{
+		key:   kv.key,
+		value: kv.value,
+	}
+}
+
+type matchAllFilter struct{}
+
+func MatchAll() filter {
+	return &matchAllFilter{}
+}
+
+func (m *matchAllFilter) Matches(log map[string]interface{}) bool {
+	return true
+}
+
+func (m matchAllFilter) String() string {
+	return "*"
+}
+
+func (m *matchAllFilter) Copy() filter {
+	return &matchAllFilter{}
+}
+
+type dynamicFilter struct {
+	filter filter
+}
+
+func DynamicFilter() filter {
+	return &dynamicFilter{}
+}
+
+func (df *dynamicFilter) Matches(log map[string]interface{}) bool {
+	if df.filter == nil {
+		df.setFrom(log)
+	}
+
+	return df.filter.Matches(log)
+}
+
+func (df *dynamicFilter) setFrom(log map[string]interface{}) {
+	// Choose a random key=value pair from the log to filter on. Currently,
+	// the validator only supports string values. Map iterations in Go are
+	// nondeterministic, so we should get a variety of keys over time.
+	for key, value := range log {
+		switch v := value.(type) {
+		case string:
+			if !utils.IsAscii(v) {
+				// TODO: remove this once we support searching for non-ascii.
+				continue
+			}
+
+			df.filter = &kvFilter{
+				key:   key,
+				value: stringOrRegex{isRegex: false, rawString: v},
+			}
+
+			return
+		}
+	}
+
+	df.filter = MatchAll()
+}
+
+func (df *dynamicFilter) String() string {
+	if df.filter == nil {
+		return "unset"
+	}
+
+	return df.filter.String()
+}
+
+func (df *dynamicFilter) Copy() filter {
+	if df.filter != nil {
+		return df.filter.Copy()
+	}
+
+	return &dynamicFilter{}
 }
 
 type basicValidator struct {
 	startEpoch uint64
 	endEpoch   uint64
-	query      string
-}
 
-func (b *basicValidator) HandleLog(log map[string]interface{}) error {
-	return fmt.Errorf("basicValidator.HandleLog: not implemented")
-}
-
-func (b *basicValidator) GetQuery() (string, uint64, uint64) {
-	return b.query, b.startEpoch, b.endEpoch
+	// If true, the start time may be before the test was started. So
+	// validation should be less strict because the system may have preexisting
+	// data that this validator doesn't know about.
+	allowAllStartTimes bool
 }
 
 func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
@@ -57,25 +191,43 @@ func (b *basicValidator) SetTimeRange(startEpoch uint64, endEpoch uint64) {
 	b.endEpoch = endEpoch
 }
 
-func (b *basicValidator) MatchesResult(result []byte) error {
-	return fmt.Errorf("basicValidator.MatchesResult: not implemented")
-}
-
 func (b *basicValidator) PastEndTime(timestamp uint64) bool {
 	return timestamp > b.endEpoch
 }
 
-type filterQueryValidator struct {
-	basicValidator
-	key             string
-	value           string
-	head            int
-	reversedResults []map[string]interface{}
-	lock            sync.Mutex
+func (b *basicValidator) AllowsAllStartTimes() bool {
+	return b.allowAllStartTimes
 }
 
-func NewFilterQueryValidator(key string, value string, head int, startEpoch uint64,
-	endEpoch uint64) (queryValidator, error) {
+type filterQueryValidator struct {
+	basicValidator
+	filter  filter
+	sortCol string
+	head    int
+	results []map[string]interface{} // Sorted descending by sortCol.
+	lock    sync.Mutex
+}
+
+type stringOrRegex struct {
+	isRegex   bool
+	rawString string
+	regex     regexp.Regexp
+}
+
+func (s stringOrRegex) String() string {
+	return s.rawString
+}
+
+func (s *stringOrRegex) Matches(value string) bool {
+	if s.isRegex {
+		return s.regex.MatchString(value)
+	}
+
+	return value == s.rawString
+}
+
+func NewFilterQueryValidator(filter filter, numericSortCol string, head int,
+	startEpoch uint64, endEpoch uint64) (queryValidator, error) {
 
 	if head < 1 || head > 99 {
 		// The 99 limit is to simplify the expected results. If siglens returns
@@ -85,79 +237,154 @@ func NewFilterQueryValidator(key string, value string, head int, startEpoch uint
 		return nil, fmt.Errorf("NewFilterQueryValidator: head must be between 1 and 99 inclusive")
 	}
 
+	if numericSortCol == "" {
+		numericSortCol = timestampCol
+	}
+
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
 			startEpoch: startEpoch,
 			endEpoch:   endEpoch,
-			query:      fmt.Sprintf("%v=%v | head %v", key, value, head),
 		},
-		key:             key,
-		value:           value,
-		head:            head,
-		reversedResults: make([]map[string]interface{}, 0),
+		filter:  filter,
+		sortCol: numericSortCol,
+		head:    head,
+		results: make([]map[string]interface{}, 0),
 	}, nil
+}
+
+func (f *filterQueryValidator) GetQuery() (string, uint64, uint64) {
+	var query string
+	if f.sortCol == timestampCol {
+		query = fmt.Sprintf(`%v | head %v`, f.filter, f.head)
+	} else {
+		// Only sorting by numeric columns is supported for now.
+		// Sort so the highest values are first.
+		query = fmt.Sprintf(`%v | sort %v -num(%v)`, f.filter, f.head, f.sortCol)
+	}
+
+	return query, f.startEpoch, f.endEpoch
 }
 
 func (f *filterQueryValidator) Copy() queryValidator {
 	return &filterQueryValidator{
 		basicValidator: basicValidator{
-			startEpoch: f.startEpoch,
-			endEpoch:   f.endEpoch,
-			query:      f.query,
+			startEpoch:         f.startEpoch,
+			endEpoch:           f.endEpoch,
+			allowAllStartTimes: f.allowAllStartTimes,
 		},
-		key:             f.key,
-		value:           f.value,
-		head:            f.head,
-		reversedResults: make([]map[string]interface{}, 0),
+		filter:  f.filter.Copy(),
+		sortCol: f.sortCol,
+		head:    f.head,
+		results: make([]map[string]interface{}, 0),
 	}
 }
 
+func (f *filterQueryValidator) Info() string {
+	duration := time.Duration(f.endEpoch-f.startEpoch) * time.Millisecond
+	numResults := min(len(f.results), f.head)
+	query, startEpoch, endEpoch := f.GetQuery()
+
+	validation := "strict"
+	if f.allowAllStartTimes {
+		validation = "minimal"
+	}
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), validation=%v, got %v matches",
+		query, duration, startEpoch, endEpoch, validation, numResults)
+}
+
 // Note: this assumes successive calls to this are for logs with increasing timestamps.
-func (f *filterQueryValidator) HandleLog(log map[string]interface{}) error {
-	if !withinTimeRange(log, f.startEpoch, f.endEpoch) {
+func (f *filterQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
+	if !withinTimeRange(f.startEpoch, f.endEpoch, recTs) {
 		return nil
 	}
 
-	value, ok := log[f.key]
-	if !ok || value != fmt.Sprintf("%v", f.value) {
+	if !f.filter.Matches(log) {
+		return nil
+	}
+
+	if f.allowAllStartTimes {
+		// We're doing minimal validation, so don't update our expected
+		// results, to avoid unneeded computation.
 		return nil
 	}
 
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
-	f.reversedResults = append(f.reversedResults, log)
+	f.results = append(f.results, log)
+	sort.Slice(f.results, func(i, j int) bool {
+		iSortVal, ok := f.results[i][f.sortCol]
+		if !ok {
+			return false
+		}
 
-	if len(f.reversedResults) > f.head {
-		lastKeptLog := f.reversedResults[len(f.reversedResults)-f.head]
-		var lastKeptTimestamp uint64
-		if timestamp, ok := lastKeptLog[timestampCol]; !ok {
-			return fmt.Errorf("FQV.HandleLog: missing timestamp column")
-		} else if lastKeptTimestamp, ok = utils.AsUint64(timestamp); !ok {
-			return fmt.Errorf("FQV.HandleLog: invalid timestamp type %T", timestamp)
+		jSortVal, ok := f.results[j][f.sortCol]
+		if !ok {
+			return true
+		}
+
+		iFloat, ok := utils.AsFloat64(iSortVal)
+		if !ok {
+			return false
+		}
+
+		jFloat, ok := utils.AsFloat64(jSortVal)
+		if !ok {
+			return true
+		}
+
+		return iFloat > jFloat
+	})
+
+	if len(f.results) > f.head {
+		lastKeptLog := f.results[f.head-1]
+		var lastKeptVal float64
+		var lastOk bool
+		if sortVal, ok := lastKeptLog[f.sortCol]; !ok {
+			lastOk = false
+		} else if lastKeptVal, ok = utils.AsFloat64(sortVal); !ok {
+			return fmt.Errorf("FQV.HandleLog: invalid type in sort column %v: %T", f.sortCol, sortVal)
+		} else {
+			lastOk = true
 		}
 
 		numToDelete := 0
-		for i := range f.reversedResults[:len(f.reversedResults)-f.head] {
-			var thisTimestamp uint64
-			if timestamp, ok := f.reversedResults[i][timestampCol]; !ok {
-				return fmt.Errorf("FQV.HandleLog: missing timestamp column")
-			} else if thisTimestamp, ok = utils.AsUint64(timestamp); !ok {
-				return fmt.Errorf("FQV.HandleLog: invalid timestamp type %T", timestamp)
-			} else if thisTimestamp < lastKeptTimestamp {
+		for i := f.head; i < len(f.results); i++ {
+			var thisSortVal float64
+			var thisOk bool
+			if sortVal, ok := f.results[i][f.sortCol]; !ok {
+				thisOk = false
+			} else if thisSortVal, ok = utils.AsFloat64(sortVal); !ok {
+				return fmt.Errorf("FQV.HandleLog: invalid type in sort column %v: %T", f.sortCol, sortVal)
+			} else {
+				thisOk = true
+			}
+
+			if lastOk != thisOk || (lastOk && thisOk && thisSortVal != lastKeptVal) {
 				numToDelete++
 			}
 		}
 
-		f.reversedResults = f.reversedResults[numToDelete:]
+		f.results = f.results[:len(f.results)-numToDelete]
 	}
 
 	return nil
 }
 
+func (f *filterQueryValidator) WithAllowAllStartTimes() queryValidator {
+	f.allowAllStartTimes = true
+	return f
+}
+
 type logsResponse struct {
 	Hits       hits     `json:"hits"`
 	AllColumns []string `json:"allColumns"`
+
+	// Used for aggregation queries.
+	MeasureFunctions []string        `json:"measureFunctions,omitempty"`
+	Measure          []measureResult `json:"measure,omitempty"`
 }
 
 type hits struct {
@@ -170,6 +397,11 @@ type totalMatched struct {
 	Relation string `json:"relation"`
 }
 
+type measureResult struct {
+	GroupByValues []string               `json:"GroupByValues"`
+	Value         map[string]interface{} `json:"MeasureVal"`
+}
+
 func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
@@ -179,7 +411,13 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 		return fmt.Errorf("FQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
 	}
 
-	numExpectedLogs := min(len(f.reversedResults), f.head)
+	if f.allowAllStartTimes {
+		// Skip the rest of the validation, since we're not sure what the
+		// expected result is.
+		return nil
+	}
+
+	numExpectedLogs := min(len(f.results), f.head)
 	if response.Hits.TotalMatched.Value != numExpectedLogs {
 		return fmt.Errorf("FQV.MatchesResult: expected %d logs, got %d",
 			numExpectedLogs, response.Hits.TotalMatched.Value)
@@ -196,42 +434,38 @@ func (f *filterQueryValidator) MatchesResult(result []byte) error {
 	}
 
 	// Parsing json treats all numbers as float64, so we need to convert the logs.
-	for i := range f.reversedResults {
-		f.reversedResults[i] = copyLogWithFloats(f.reversedResults[i])
+	for i := range f.results {
+		f.results[i] = copyLogWithFloats(f.results[i])
 	}
 
 	// Compare the logs.
-	slices.Reverse(f.reversedResults)       // Reverse it to match the order of the response.
-	defer slices.Reverse(f.reversedResults) // Revert to the original order, so subsequent calls work.
-	expectedLogs := f.reversedResults
-
-	err := logsMatch(expectedLogs, response.Hits.Records)
+	err := logsMatch(f.results, response.Hits.Records, f.sortCol)
 	if err != nil {
 		return err
 	}
-
-	log.Infof("FQV.MatchesResult: successfully matched %d logs", len(f.reversedResults))
 
 	return nil
 }
 
 // Returns no error if the logs match the expected logs, and they're in the
 // same order. It also returns no error if the logs are in a different order,
-// but it's a valid sorting order; since sorting is on the timestamp, this
-// happens when multiple logs have the same timestamp.
-func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]interface{}) error {
-	expectedGroups, err := groupBySortColumn(expectedLogs, timestampCol)
+// but it's a valid sorting order; this happens when multiple logs have the
+// same value in the column being sorted on.
+func logsMatch(expectedLogs []map[string]interface{}, actualLogs []map[string]interface{},
+	sortCol string) error {
+
+	expectedGroups, err := groupBySortColumn(expectedLogs, sortCol)
 	if err != nil {
 		return fmt.Errorf("logsMatch: failed to group expected logs; err=%v", err)
 	}
 
-	actualGroups, err := groupBySortColumn(actualLogs, timestampCol)
+	actualGroups, err := groupBySortColumn(actualLogs, sortCol)
 	if err != nil {
 		return fmt.Errorf("logsMatch: failed to group actual logs; err=%v", err)
 	}
 
 	if len(expectedGroups) != len(actualGroups) {
-		return fmt.Errorf("logsMatch: expected %d unique timestamps, got %d",
+		return fmt.Errorf("logsMatch: expected %d unique sort values, got %d",
 			len(expectedGroups), len(actualGroups))
 	}
 
@@ -267,20 +501,15 @@ func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]ma
 	groups := make([][]map[string]interface{}, 0)
 	groups = append(groups, make([]map[string]interface{}, 0))
 
-	curValue, ok := logs[0][sortColumn]
-	if !ok {
-		return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
-	}
+	curValue, curOk := logs[0][sortColumn]
 
 	for _, log := range logs {
 		value, ok := log[sortColumn]
-		if !ok {
-			return nil, fmt.Errorf("groupBySortColumn: missing sort column %v", sortColumn)
-		}
 
-		if value != curValue {
+		if ok != curOk || (ok && curOk && value != curValue) {
 			groups = append(groups, make([]map[string]interface{}, 0))
 			curValue = value
+			curOk = ok
 		}
 
 		groups[len(groups)-1] = append(groups[len(groups)-1], log)
@@ -289,21 +518,10 @@ func groupBySortColumn(logs []map[string]interface{}, sortColumn string) ([][]ma
 	return groups, nil
 }
 
-func withinTimeRange(record map[string]interface{}, startEpoch uint64, endEpoch uint64) bool {
-	timestamp, ok := record[timestampCol]
-	if !ok {
-		log.Errorf("withinTimeRange: missing timestamp column")
-		return false
-	}
+func withinTimeRange(startEpoch uint64,
+	endEpoch uint64, recTs uint64) bool {
 
-	switch timestamp := timestamp.(type) {
-	case uint64:
-		return timestamp >= startEpoch && timestamp <= endEpoch
-	}
-
-	log.Errorf("withinTimeRange: invalid timestamp type %T", timestamp)
-
-	return false
+	return recTs >= startEpoch && recTs <= endEpoch
 }
 
 func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
@@ -338,4 +556,139 @@ func copyLogWithFloats(log map[string]interface{}) map[string]interface{} {
 	}
 
 	return newLog
+}
+
+type countQueryValidator struct {
+	basicValidator
+	filter     filter
+	numMatches int
+	lock       sync.Mutex
+}
+
+func NewCountQueryValidator(filter filter, startEpoch uint64,
+	endEpoch uint64) (queryValidator, error) {
+
+	return &countQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch: startEpoch,
+			endEpoch:   endEpoch,
+		},
+		filter:     filter,
+		numMatches: 0,
+	}, nil
+}
+
+func (c *countQueryValidator) GetQuery() (string, uint64, uint64) {
+	query := fmt.Sprintf("%v | stats count", c.filter)
+	return query, c.startEpoch, c.endEpoch
+}
+
+func (c *countQueryValidator) Copy() queryValidator {
+	return &countQueryValidator{
+		basicValidator: basicValidator{
+			startEpoch:         c.startEpoch,
+			endEpoch:           c.endEpoch,
+			allowAllStartTimes: c.allowAllStartTimes,
+		},
+		filter:     c.filter.Copy(),
+		numMatches: c.numMatches,
+	}
+}
+
+func (c *countQueryValidator) Info() string {
+	duration := time.Duration(c.endEpoch-c.startEpoch) * time.Millisecond
+	query, startEpoch, endEpoch := c.GetQuery()
+
+	validation := "strict"
+	if c.allowAllStartTimes {
+		validation = "minimal"
+	}
+
+	return fmt.Sprintf("query=%v, timeSpan=%v (%v-%v), validation=%v, got %v matches",
+		query, duration, startEpoch, endEpoch, validation, c.numMatches)
+}
+
+func (c *countQueryValidator) WithAllowAllStartTimes() queryValidator {
+	c.allowAllStartTimes = true
+	return c
+}
+
+func (c *countQueryValidator) HandleLog(log map[string]interface{}, recTs uint64) error {
+	if !withinTimeRange(c.startEpoch, c.endEpoch, recTs) {
+		return nil
+	}
+
+	if !c.filter.Matches(log) {
+		return nil
+	}
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.numMatches++
+
+	return nil
+}
+
+func (c *countQueryValidator) MatchesResult(result []byte) error {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	response := logsResponse{}
+	if err := json.Unmarshal(result, &response); err != nil {
+		return fmt.Errorf("CQV.MatchesResult: cannot unmarshal %s; err=%v", result, err)
+	}
+
+	if c.allowAllStartTimes {
+		// Skip the rest of the validation, since we're not sure what the
+		// expected result is.
+		return nil
+	}
+
+	if response.Hits.TotalMatched.Value != c.numMatches {
+		return fmt.Errorf("CQV.MatchesResult: expected %d logs, got %d",
+			c.numMatches, response.Hits.TotalMatched.Value)
+	}
+
+	if response.Hits.TotalMatched.Relation != "eq" {
+		return fmt.Errorf("CQV.MatchesResult: expected relation to be eq, got %s",
+			response.Hits.TotalMatched.Relation)
+	}
+
+	if len(response.AllColumns) != 1 || response.AllColumns[0] != "count(*)" {
+		return fmt.Errorf("CQV.MatchesResult: expected allColumns to be [count(*)], got %v",
+			response.AllColumns)
+	}
+
+	if len(response.MeasureFunctions) != 1 || response.MeasureFunctions[0] != "count(*)" {
+		return fmt.Errorf("CQV.MatchesResult: expected measureFunctions to be [count(*)], got %v",
+			response.MeasureFunctions)
+	}
+
+	if len(response.Measure) != 1 {
+		return fmt.Errorf("CQV.MatchesResult: expected 1 measure, got %d", len(response.Measure))
+	}
+
+	measure := response.Measure[0]
+	if len(measure.GroupByValues) != 1 || measure.GroupByValues[0] != "*" {
+		return fmt.Errorf("CQV.MatchesResult: expected groupByValues to be [*], got %v",
+			measure.GroupByValues)
+	}
+
+	if len(measure.Value) != 1 {
+		return fmt.Errorf("CQV.MatchesResult: expected 1 value, got %d", len(measure.Value))
+	}
+
+	if count, ok := measure.Value["count(*)"]; !ok {
+		return fmt.Errorf("CQV.MatchesResult: expected measure[0] to have key count(*), got %v",
+			measure.Value)
+	} else if countUint, ok := utils.AsUint64(count); !ok {
+		return fmt.Errorf("CQV.MatchesResult: invalid count type %T in measure[0] value %v",
+			count, measure.Value)
+	} else if countUint != uint64(c.numMatches) {
+		return fmt.Errorf("CQV.MatchesResult: expected measure[0] count to be %d, got %d",
+			c.numMatches, countUint)
+	}
+
+	return nil
 }

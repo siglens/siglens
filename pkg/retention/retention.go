@@ -49,12 +49,6 @@ const MAX_INODE_USAGE_PERCENT = 85
 
 // Starting the periodic retention based deletion
 func InitRetentionCleaner() error {
-	if hook := hooks.GlobalHooks.ExtraRetentionCleanerHook; hook != nil {
-		err := hook()
-		if err != nil {
-			return err
-		}
-	}
 
 	go internalRetentionCleaner()
 	return nil
@@ -157,21 +151,27 @@ func DoRetentionBasedDeletion(ingestNodeDir string, retentionHours int, orgid in
 		}
 	}
 
-	log.Infof("doRetentionBasedDeletion: totalsegs=%v, segmentsToDelete=%v, metricsSegmentsToDelete=%v, oldest=%v, orgid=%v",
-		len(allEntries), len(segmentsToDelete), len(metricSegmentsToDelete), oldest, orgid)
+	log.Infof("DoRetentionBasedDeletion: totalsegs=%v, segmentsToDelete=%v, metricsSegmentsToDelete=%v, oldest=%v, orgid=%v, retentionHours: %v",
+		len(allEntries), len(segmentsToDelete), len(metricSegmentsToDelete), oldest, orgid, retentionHours)
 
 	// Delete all segment data
-	DeleteSegmentData(segmentsToDelete, true)
-	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete)
 	DeleteEmptyIndices(ingestNodeDir, orgid)
 }
 
 func DeleteEmptyIndices(ingestNodeDir string, myid int64) {
 	allIndices, err := vtable.GetVirtualTableNames(myid)
 	if err != nil {
-		log.Errorf("deleteEmptyIndices: Error in getting virtual table names, err: %v", err)
+		log.Errorf("DeleteEmptyIndices: Error in getting virtual table names, err: %v", err)
 		return
 	}
+
+	// get table names for unrotated segs
+	utn := writer.GetIndexNamesForUnrotated()
+
+	// get table names for recently rotated segs
+	rrtn := writer.GetIndexNamesForRecentlyRotated()
 
 	segMetaEntries := writer.ReadLocalSegmeta(false)
 
@@ -181,13 +181,17 @@ func DeleteEmptyIndices(ingestNodeDir string, myid int64) {
 		virtualTableNames[entry.VirtualTableName] = struct{}{}
 	}
 
+	utils.MergeMapsRetainingFirst(virtualTableNames, utn)
+	utils.MergeMapsRetainingFirst(virtualTableNames, rrtn)
+
 	// Iterate over all indices
 	for indexName := range allIndices {
 		// If an index is not in the set of virtualTableName values from segMetaEntries, delete it
 		if _, exists := virtualTableNames[indexName]; !exists {
+			log.Infof("DeleteEmptyIndices: deleting unused index: %v", indexName)
 			err := vtable.DeleteVirtualTable(&indexName, myid)
 			if err != nil {
-				log.Errorf("deleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
+				log.Errorf("DeleteEmptyIndices: Error in deleting index %s, err: %v", indexName, err)
 			}
 		}
 	}
@@ -290,8 +294,8 @@ func doVolumeBasedDeletion(ingestNodeDir string, allowedVolumeGB uint64, deletio
 			}
 		}
 	}
-	DeleteSegmentData(segmentsToDelete, true)
-	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete)
 }
 
 func getSystemVolumeBytes() (uint64, error) {
@@ -324,21 +328,24 @@ func getSystemVolumeBytes() (uint64, error) {
 	return currentVolume, nil
 }
 
-func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob bool) {
+func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta) {
 
 	if len(segmentsToDelete) == 0 {
 		return
 	}
 
-	// 1) First delete from segmeta.json
-	segBaseDirs := writer.RemoveSegMetas(segmentsToDelete)
+	segBaseDirs := make(map[string]struct{}, len(segmentsToDelete))
+	for segkey := range segmentsToDelete {
+		baseDir, err := utils.GetSegBaseDirFromFilename(segkey)
+		if err != nil {
+			log.Errorf("DeleteSegmentData: Cannot get segbaseDir from segkey=%v; err=%v", segkey, err)
+			continue
+		}
 
-	// 2) Then from in memory metadata
-	for _, segMetaEntry := range segmentsToDelete {
-		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+		segBaseDirs[baseDir] = struct{}{}
 	}
 
-	// 3) then iterate through blob
+	// 1) First iterate through blob
 	for _, segMetaEntry := range segmentsToDelete {
 
 		// Delete segment files from s3
@@ -352,7 +359,7 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 			}
 			err := blob.DeleteBlob(file)
 			if err != nil {
-				log.Errorf("deleteSegmentData: Error in deleting segment file %v in blob, err: %v",
+				log.Infof("DeleteSegmentData: Error in deleting segment file %v in blob, its ok prev iteration might have cleaned it, err: %v",
 					file, err)
 				continue
 			}
@@ -360,31 +367,31 @@ func DeleteSegmentData(segmentsToDelete map[string]*structs.SegMeta, updateBlob 
 		if svFileName != "" {
 			err := blob.DeleteBlob(svFileName)
 			if err != nil {
-				log.Errorf("deleteSegmentData: Error deleting validity file %v in blob, err: %v",
+				log.Infof("DeleteSegmentData: Error deleting validity file %v in blob, , its ok prev iteration might have cleaned it, err: %v",
 					svFileName, err)
 			}
 		}
-		log.Infof("DeleteSegmentData: deleted seg: %v", segMetaEntry.SegmentKey)
+		log.Infof("DeleteSegmentData: deleted seg blob (if blob enabled): %v", segMetaEntry.SegmentKey)
 	}
 
-	// 4) then recursively delete local files
+	// 2) then recursively delete local files
 	writer.RemoveSegBasedirs(segBaseDirs)
 
-	//	5) then emptyPqMeta files
+	// 3) Then from in memory metadata
+	for _, segMetaEntry := range segmentsToDelete {
+		segmetadata.DeleteSegmentKey(segMetaEntry.SegmentKey)
+	}
+
+	// 4) then emptyPqMeta files
 	deleteSegmentsFromEmptyPqMetaFiles(segmentsToDelete)
 
-	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
-	if !updateBlob {
-		return
-	}
-	err := blob.UploadIngestNodeDir()
-	if err != nil {
-		log.Errorf("deleteSegmentData: failed to upload ingestnodes dir to s3 err=%v", err)
-		return
-	}
+	// 5) Then lastly delete from segmeta.json, because if we remove it from here before deleting from the rest and
+	//    there is system restart, these files will stay forever since we do not have segmeta entry from them
+	_ = writer.RemoveSegMetas(segmentsToDelete)
+
 }
 
-func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[string]*structs.MetricsMeta, updateBlob bool) {
+func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[string]*structs.MetricsMeta) {
 	if len(metricSegmentsToDelete) == 0 {
 		return
 	}
@@ -412,15 +419,6 @@ func DeleteMetricsSegmentData(mmetaFile string, metricSegmentsToDelete map[strin
 
 	mmeta.RemoveMetricsSegments(mmetaFile, metricSegmentsToDelete)
 
-	// Upload the latest ingest nodes dir to s3 only if updateBlob is true
-	if !updateBlob {
-		return
-	}
-	err := blob.UploadIngestNodeDir()
-	if err != nil {
-		log.Errorf("deleteMetricsSegmentData: failed to upload ingestnodes dir to s3 err=%v", err)
-		return
-	}
 }
 
 func doInodeBasedDeletion(ingestNodeDir string, deletionWarningCounter int) {
@@ -536,8 +534,8 @@ func doInodeBasedDeletion(ingestNodeDir string, deletionWarningCounter int) {
 	log.Infof("doInodeBasedDeletion: Deleting %d segments and %d metric segments to free approximately %d inodes",
 		len(segmentsToDelete), len(metricSegmentsToDelete), inodesMarked)
 
-	DeleteSegmentData(segmentsToDelete, true)
-	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete, true)
+	DeleteSegmentData(segmentsToDelete)
+	DeleteMetricsSegmentData(currentMetricsMeta, metricSegmentsToDelete)
 }
 
 func calculateSegmentInodeCount(dirPath string) (int, error) {

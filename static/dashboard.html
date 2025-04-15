@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -52,8 +52,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
     <link rel="stylesheet" href="./css/metrics-explorer.css?cb={{ AppVersion }}" />
-    
-    
+
+
     <script src="./js/lib/uuidv4.min.js"></script>
     <script src="./js/lib/gridstack.all.js"></script>
     <script src="./js/lib/lodash.min.js"></script>
@@ -142,7 +142,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                                 data-bs-toggle="dropdown">
                                 <span></span>
-                                <img class="orange" src="assets/arrow-btn.svg" alt="expand">                
+                                <img class="orange" src="assets/arrow-btn.svg" alt="expand">
                             </button>
                             <div class="dropdown-menu refresh-picker" aria-labelledby="index-btn" id="refresh-picker ">
                                 <div class="ranges">
@@ -305,7 +305,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <i class="dropdown-arrow"></i>
                                 </button>
                                 <div class="dropdown-menu box-shadow" aria-labelledby="avail-fields-btn" id="available-fields">
-                    
+
                                     <div class="select-unselect-header" id="select-unselect-header">
                                         Select/Unselect All
                                         <img class="select-unselect-checkbox" src="assets/available-field-checkbox.svg">
@@ -427,7 +427,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                 <li id="mode-option-2" class="query-mode-option">Code</li>
                                                             </div>
                                                         </div>
-                                                        
+
                                                     </div>
                                                 </div>
                                                 <div class="d-flex">
@@ -488,7 +488,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                                                         SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
                                                                                                         SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
                                                                                                         SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-                                                
+
                                                                 </i>
                                                                 <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
                                                                     title=' {app="mysql",name="mysql-backup"}
@@ -535,7 +535,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                      </div>
                                      <div id="visualization-options" class="mb-3 mt-3">
                                         <div>Display: <input id="display-input" type="text" value="Line chart"></div>
-                                        <div>Color: <input id="color-input" type="text" value="Classic"></div>
+                                        <div>Color: <input id="color-input" type="text" value="Palette"></div>
                                         <div id="line-style-div">Style: <input id="line-style-input" type="text" value="Solid"></div>
                                         <div id="stroke-div">Stroke: <input id="stroke-input" type="text" value="Normal"></div>
                                     </div>
@@ -809,7 +809,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <textarea class="dbSet-jsonModelData" placeholder="{'field 1':'value 1',\n 'field 2': 'value 2'}" disabled></textarea>
                         <div class="copy" title="Copy"></div>
                     </div>
-                </div>                                      
+                </div>
             </div>
         </div>
     </div>
@@ -840,7 +840,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./component/dashboard/breadcrum.js?cb={{ AppVersion }}"></script>
     <script src="./js/metrics-explorer.js?cb={{ AppVersion }}"></script>
     <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
-
+    
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}
 </body>

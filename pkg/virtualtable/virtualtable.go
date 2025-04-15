@@ -254,42 +254,20 @@ func BulkAddVirtualTableNames(myIdToVTableMap map[int64]map[string]struct{}) err
 
 	wg := sync.WaitGroup{}
 
-	shouldUpload := false
-	mu := sync.RWMutex{}
-
 	for myid, vTableNamesMap := range myIdToVTableMap {
 		wg.Add(1)
 		go func(id int64, vTableMap map[string]struct{}) {
 			defer wg.Done()
 
-			vTableFileUpdated, err := addVirtualTableHelper(vTableMap, id)
+			_, err := addVirtualTableHelper(vTableMap, id)
 			if err != nil {
-				log.Errorf("RefreshGlobalMetadata: Error in adding virtual table names for myid=%d, err:%v", id, err)
-			}
-
-			mu.RLock()
-			curentShouldUploadValue := shouldUpload
-			mu.RUnlock()
-
-			if vTableFileUpdated && !curentShouldUploadValue {
-				mu.Lock()
-				shouldUpload = true
-				mu.Unlock()
+				log.Errorf("BulkAddVirtualTableNames: Error in adding virtual table names for myid=%d, err:%v", id, err)
 			}
 
 		}(myid, vTableNamesMap)
 	}
 
 	wg.Wait()
-
-	if shouldUpload {
-		go func() {
-			err := blob.UploadIngestNodeDir()
-			if err != nil {
-				log.Errorf("AddVirtualTable: Failed to upload vtable data to blob store, err=%v", err)
-			}
-		}()
-	}
 
 	return nil
 }

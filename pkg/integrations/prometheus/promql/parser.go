@@ -193,7 +193,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 	if mQuery.SubsequentAggs == nil {
 		mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 			AggBlockType:    structs.AggregatorBlock,
-			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+			AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
 		}
 		if len(mQuery.TagsFilters) == 0 {
 			mQuery.GetAllLabels = true
@@ -205,7 +205,7 @@ func parsePromQLQuery(query string, startTime, endTime uint32, myid int64) ([]*s
 		if mQuery.SubsequentAggs.AggBlockType != structs.AggregatorBlock {
 			mQuery.SubsequentAggs = &structs.MetricQueryAgg{
 				AggBlockType:    structs.AggregatorBlock,
-				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg},
+				AggregatorBlock: &structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true},
 				Next:            mQuery.SubsequentAggs,
 			}
 			mQueryReqs[0].MetricsQuery = mQuery
@@ -299,6 +299,7 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Avg
 	case "count":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Count
+		mQuery.GetAllLabels = true
 	case "sum":
 		mQuery.FirstAggregator.AggregatorFunction = segutils.Sum
 	case "max":
@@ -344,6 +345,9 @@ func handleAggregateExpr(expr *parser.AggregateExpr, mQuery *structs.MetricsQuer
 
 	if len(expr.Grouping) > 0 {
 		mQuery.Groupby = true
+	} else {
+		mQuery.AggWithoutGroupBy = true
+		mQuery.SelectAllSeries = mQuery.GetAllLabels
 	}
 
 	mQuery.FirstAggregator.GroupByFields = sort.StringSlice(expr.Grouping)
@@ -511,20 +515,20 @@ func handlePromQLRangeFunctionNode(functionName string, timeWindow, step float64
 	case "count_over_time":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Count_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "stdvar_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Stdvar_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "stddev_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Stddev_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "last_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Last_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "present_over_time":
-		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Present_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "mad_over_time":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Mad_Over_Time, TimeWindow: timeWindow, Step: step}
 	case "quantile_over_time":
 		if len(expr.Args) != 2 {
 			return fmt.Errorf("parser.Inspect: Incorrect parameters: %v for the quantile_over_time function", expr.Args.String())
 		}
-		mQuery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}}
+		mQuery.Function = structs.Function{RangeFunction: segutils.Quantile_Over_Time, TimeWindow: timeWindow, ValueList: []string{expr.Args[0].String()}, Step: step}
 	case "changes":
 		mQuery.Function = structs.Function{RangeFunction: segutils.Changes, TimeWindow: timeWindow, Step: step}
 	case "resets":
@@ -734,8 +738,26 @@ func handleVectorSelector(mQueryReqs []*structs.MetricsQueryRequest, intervalSec
 
 	mQuery.Downsampler = structs.Downsampler{Interval: int(intervalSeconds), Unit: "s", Aggregator: agg}
 
-	if len(mQuery.TagsFilters) == 0 {
+	if !mQuery.SelectAllSeries {
 		mQuery.SelectAllSeries = true
+
+		// If the query has a group by (metricname or tags) or has an aggregation function, with tags,
+		// then we do not need to search all the series. We can search only the series that match the tags.
+		if (mQuery.AggWithoutGroupBy || mQuery.GroupByMetricName) && len(mQuery.TagsFilters) > 0 {
+			mQuery.SelectAllSeries = false
+		} else {
+			for _, tag := range mQuery.TagsFilters {
+				if tag.IsGroupByKey && !tag.NotInitialGroup {
+					mQuery.SelectAllSeries = false
+					break
+				}
+			}
+		}
+
+		// For the queries without group by and without an aggregation function, we need to get all the labels
+		if mQuery.SelectAllSeries && !mQuery.Groupby && !mQuery.AggWithoutGroupBy {
+			mQuery.GetAllLabels = true
+		}
 	}
 
 	return mQueryReqs, nil
@@ -749,15 +771,23 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	myid := mQueryReqs[0].MetricsQuery.OrgId
 	timeRange := mQueryReqs[0].TimeRange
 
-	arithmeticOperation := structs.QueryArithmetic{}
+	binaryOperation := structs.QueryArithmetic{}
 	var lhsRequest, rhsRequest []*structs.MetricsQueryRequest
 	var lhsQueryArth, rhsQueryArth []*structs.QueryArithmetic
 	lhsIsVector := false
 	rhsIsVector := false
 
+	if len(mQueryReqs) > 0 && mQueryReqs[0].MetricsQuery.SubsequentAggs != nil {
+		// This means there is a common group by on multiple metrics separated by operators.
+		// So, we need to append the aggregations to the current BinaryOperation, so that
+		// once the binary operation is done, we can apply the aggregations on the result.
+		// And we can discard the current aggregation in the mQueryReqs[0]
+		appendMetricAggsToTheMQuery(&binaryOperation, &mQueryReqs[0].MetricsQuery)
+	}
+
 	if constant, ok := expr.LHS.(*parser.NumberLiteral); ok {
-		arithmeticOperation.ConstantOp = true
-		arithmeticOperation.Constant = constant.Val
+		binaryOperation.ConstantOp = true
+		binaryOperation.Constant = constant.Val
 	} else {
 		lhsRequest, _, lhsQueryArth, err = parsePromQLQuery(expr.LHS.String(), timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
 		if err != nil {
@@ -765,23 +795,23 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 		}
 		if len(lhsRequest) > 0 {
 			lhsIsVector = true
-			arithmeticOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
+			binaryOperation.LHS = lhsRequest[0].MetricsQuery.QueryHash
 		}
 		if len(lhsQueryArth) > 0 {
-			arithmeticOperation.LHSExpr = lhsQueryArth[0]
+			binaryOperation.LHSExpr = lhsQueryArth[0]
 		}
 	}
 
 	if constant, ok := expr.RHS.(*parser.NumberLiteral); ok {
-		if arithmeticOperation.ConstantOp {
+		if binaryOperation.ConstantOp {
 			// This implies that both LHS and RHS are constants.
-			arithmeticOperation.RHSExpr = &structs.QueryArithmetic{
+			binaryOperation.RHSExpr = &structs.QueryArithmetic{
 				ConstantOp: true,
 				Constant:   constant.Val,
 			}
 		} else {
-			arithmeticOperation.ConstantOp = true
-			arithmeticOperation.Constant = constant.Val
+			binaryOperation.ConstantOp = true
+			binaryOperation.Constant = constant.Val
 		}
 	} else {
 		rhsRequest, _, rhsQueryArth, err = parsePromQLQuery(expr.RHS.String(), timeRange.StartEpochSec, timeRange.EndEpochSec, myid)
@@ -789,41 +819,35 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 			return mQueryReqs, queryArithmetic, err
 		}
 		if len(rhsRequest) > 0 {
-			arithmeticOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
+			binaryOperation.RHS = rhsRequest[0].MetricsQuery.QueryHash
 			rhsIsVector = true
 		}
 		if len(rhsQueryArth) > 0 {
-			arithmeticOperation.RHSExpr = rhsQueryArth[0]
+			binaryOperation.RHSExpr = rhsQueryArth[0]
 		}
 	}
-	arithmeticOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
-	arithmeticOperation.ReturnBool = expr.ReturnBool
-	queryArithmetic = append(queryArithmetic, &arithmeticOperation)
+	binaryOperation.Operation = putils.GetLogicalAndArithmeticOperation(expr.Op)
+	binaryOperation.ReturnBool = expr.ReturnBool
+	queryArithmetic = append(queryArithmetic, &binaryOperation)
 
-	if mQueryReqs[0].MetricsQuery.SubsequentAggs == nil {
-		mQueryReqs = lhsRequest
-	} else if mQueryReqs[0].MetricsQuery.HashedMName == uint64(0) {
-		// This means there is a common group by on multiple metrics separated by operators.
-		// So, we need to append the aggregations to each of the Request in LHS and RHS.
-		// And we can discard the current aggregation in the mQueryReqs[0]
-		rhsRequest = appendMetricAggsToTheMQuery(rhsRequest, &mQueryReqs[0].MetricsQuery)
-		mQueryReqs = appendMetricAggsToTheMQuery(lhsRequest, &mQueryReqs[0].MetricsQuery)
-	} else {
+	if mQueryReqs[0].MetricsQuery.HashedMName != 0 || mQueryReqs[0].MetricsQuery.SubsequentAggs != nil {
+		// This means that the current MQueryReqs is not empty and we need to append the new request
 		mQueryReqs = append(mQueryReqs, lhsRequest...)
+	} else {
+		mQueryReqs = lhsRequest
 	}
+
 	mQueryReqs = append(mQueryReqs, rhsRequest...)
 
 	if expr.VectorMatching != nil && len(expr.VectorMatching.MatchingLabels) > 0 {
-		if putils.IsLogicalOperator(arithmeticOperation.Operation) {
-			return []*structs.MetricsQueryRequest{}, []*structs.QueryArithmetic{}, fmt.Errorf("convertPqlToMetricsQuery: Grouping modifiers can only be used for comparison and arithmetic %T", expr)
-		}
+		// TODO: Fix for Logical operators. The Logical Operators can also have vector matching on labels.
 
-		arithmeticOperation.VectorMatching = &structs.VectorMatching{
+		binaryOperation.VectorMatching = &structs.VectorMatching{
 			Cardinality:    structs.VectorMatchCardinality(expr.VectorMatching.Card),
 			MatchingLabels: expr.VectorMatching.MatchingLabels,
 			On:             expr.VectorMatching.On,
 		}
-		sort.Strings(arithmeticOperation.VectorMatching.MatchingLabels)
+		sort.Strings(binaryOperation.VectorMatching.MatchingLabels)
 
 		for i := 0; i < len(mQueryReqs); i++ {
 			if len(mQueryReqs[i].MetricsQuery.TagsFilters) > 0 {
@@ -834,7 +858,7 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 
 	// Mathematical operations between two vectors occur when their label sets match, so it is necessary to retrieve all label sets from the vectors.
 	// Logical operations also require checking whether the label sets between the vectors match
-	if putils.IsLogicalOperator(arithmeticOperation.Operation) || (lhsIsVector && rhsIsVector) {
+	if putils.IsLogicalOperator(binaryOperation.Operation) || (lhsIsVector && rhsIsVector) {
 		for i := 0; i < len(mQueryReqs); i++ {
 			mQueryReqs[i].MetricsQuery.GetAllLabels = true
 		}
@@ -843,19 +867,12 @@ func handleBinaryExpr(expr *parser.BinaryExpr, mQueryReqs []*structs.MetricsQuer
 	return mQueryReqs, queryArithmetic, nil
 }
 
-func appendMetricAggsToTheMQuery(mQueryReqs []*structs.MetricsQueryRequest, mQuery *structs.MetricsQuery) []*structs.MetricsQueryRequest {
-	for _, mQueryReq := range mQueryReqs {
-		currentAggs := mQueryReq.MetricsQuery.SubsequentAggs
-		for currentAggs.Next != nil {
-			currentAggs = currentAggs.Next
-		}
-		currentAggs.Next = mQuery.SubsequentAggs
+func appendMetricAggsToTheMQuery(binaryOperation *structs.QueryArithmetic, mQuery *structs.MetricsQuery) {
+	binaryOperation.MQueryAggsChain = mQuery.SubsequentAggs
+	mQuery.SubsequentAggs = nil
+	mQuery.Function = structs.Function{}
+	mQuery.FirstAggregator = structs.Aggregation{}
 
-		mQueryReq.MetricsQuery.Groupby = mQuery.Groupby
-		mQueryReq.MetricsQuery.SelectAllSeries = mQuery.SelectAllSeries
-		mQueryReq.MetricsQuery.TagsFilters = mQuery.TagsFilters
-	}
-	return mQueryReqs
 }
 
 func updateMetricQueryWithAggs(mQuery *structs.MetricsQuery, mQueryAgg *structs.MetricQueryAgg) {

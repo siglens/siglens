@@ -27,7 +27,15 @@ class KubernetesView {
         this.currentFrom = 0;
         this.init();
 
-        datePickerHandler(this.startTime, this.endTime, this.startTime);
+        if (!isNaN(this.startTime)) {
+            let stDate = Number(this.startTime);
+            let endDate = Number(this.endTime);
+            datePickerHandler(stDate, endDate, 'custom');
+            loadCustomDateTimeFromEpoch(stDate, endDate);
+        } else {
+            $(`.ranges .inner-range #${this.startTime}`).addClass('active');
+            datePickerHandler(this.startTime, this.endTime, this.startTime);
+        }
         setupEventHandlers();
     }
 

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -82,39 +82,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <tr>
                                     <th>Organization Name</th>
                                     {{ if .OrgSettingsOrgName }}
-                                        {{ .OrgSettingsOrgName | safeHTML }}
+                                    {{ .OrgSettingsOrgName | safeHTML }}
                                     {{ else }}
-                                        <td id="orgName">SigLens</td>
+                                    <td id="orgName">SigLens</td>
                                     {{ end }}
                                 </tr>
-                                <tr>
-                                    {{ if .OrgSettingsRetentionPeriod }}
-                                        {{ .OrgSettingsRetentionPeriod | safeHTML }}
-                                    {{ else }}
-                                        <th>Retention</th>
-                                        <td id="retention-days-value">4 days</td>
-                                    {{ end }}
-                                </tr>
+                                {{ if not .EnterpriseEnabled }}
+                                <th>Retention</th>
+                                <td id="retention-days-value">4 days</td>
                                 <tr>
                                     <th>Deployment Type</th>
-                                    {{ if .OrgDeploymentType }}
-                                        {{ .OrgDeploymentType | safeHTML }}
-                                    {{ else }}
-                                        <td id="deployment-type">Single Node Deployment</td>
-                                    {{ end }}
+                                    <td id="deployment-type">Single Node Deployment</td>
                                 </tr>
+                                {{ end }}
                             </table>
                         </div>
-                        {{ if .DistNodesExtras }}
-                            {{ .DistNodesExtras | safeHTML }}
-                        {{ else}}
+
+                        {{ if not .EnterpriseEnabled }}
                         <div class="settings-card pt-4 pb-3">
                             <div class="header mb-3">
                                 System Configuration
                             </div>
                             <table class="org-settings-table" id="system-info-table"></table>
                         </div>
-                        {{ end }}
                         <div class="settings-card pt-2 pb-3">
                             <table class="org-settings-table mt-2" id="org-settings-table">
                                 <tr>
@@ -125,36 +115,41 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                 <p class="mb-0">
                                                     Set the maximum duration a query can
                                                 </p>
-                                                <p class="mb-0">run before automatic cancellation. Range: 1-30 minutes.</p>
+                                                <p class="mb-0">run before automatic cancellation. Range: 1-30 minutes.
+                                                </p>
                                             </div>
                                         </div>
                                     </th>
                                     <th>
                                         <div class="d-flex align-items-center">
-                                            <input type="number" id="queryTimeout" min="1" max="30" class="form-control" style="width: 70px;">
+                                            <input type="number" id="queryTimeout" min="1" max="30" class="form-control"
+                                                style="width: 70px;">
                                             <span style="margin-left: 8px; font-weight: 100;">minutes</span>
-                                            <button id="saveTimeout" class="btn btn-primary" style="display: none; margin-left: 10px; ">Save
+                                            <button id="saveTimeout" class="btn btn-primary"
+                                                style="display: none; margin-left: 10px; ">Save
                                             </button>
                                         </div>
                                     </th>
                                 </tr>
                             </table>
                         </div>
+                        {{ end }}
                     </div>
                 </div>
             </div>
         </div>
 
-    <div id="app-footer">
-        2024 &copy; SigLens
+        <div id="app-footer">
+        </div>
     </div>
-    </div>
+
     <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
     <script src="./component/upper-navbar/upper-navbar.js?cb={{ AppVersion }}"></script>
-    <script src="./js/settings.js?cb={{ AppVersion }}"></script>    
+    <script src="./js/settings.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

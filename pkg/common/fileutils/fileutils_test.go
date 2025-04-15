@@ -20,6 +20,24 @@ func forceCreate(t *testing.T, path string) {
 	}
 }
 
+func Test_GetAllFilesInDirectory(t *testing.T) {
+	dir := t.TempDir()
+	paths := []string{
+		filepath.Join(dir, "abc.txt"),
+		filepath.Join(dir, "def.txt"),
+		filepath.Join(dir, "dir1/abc.txt"),
+		filepath.Join(dir, "dir2/def.txt"),
+		filepath.Join(dir, "dir1/dir3/abc.txt"),
+	}
+
+	for _, path := range paths {
+		forceCreate(t, path)
+	}
+
+	allFiles := GetAllFilesInDirectory(dir)
+	assert.ElementsMatch(t, paths, allFiles)
+}
+
 func Test_GetAllFilesWithSameNameInDirectory(t *testing.T) {
 	temp := t.TempDir()
 	forceCreate(t, temp+"/abc.txt")

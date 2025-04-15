@@ -126,7 +126,15 @@ func Test_simpleRawSearch(t *testing.T) {
 		block, _ := pqmrReadResults.GetBlockResults(blkNum)
 		numOfRecs += block.GetNumberOfSetBits()
 	}
-	assert.Equal(t, uint(numBuffers*numEntriesForBuffer), numOfRecs)
+
+	// The expected number of records depends on:
+	// 1. How the mock data is generated.
+	// 2. The time range of the search.
+	// The mock data timestamp for the i-th record in a block is (i + 1).
+	minRecord := max(int(timeRange.StartEpochMs), 1)
+	maxRecord := min(int(timeRange.EndEpochMs), numEntriesForBuffer)
+	expectedNumRecs := uint(numBuffers * (maxRecord - minRecord + 1))
+	assert.Equal(t, expectedNumRecs, numOfRecs)
 
 	config.SetPQSEnabled(false)
 
@@ -594,7 +602,7 @@ func createBenchQuery(b *testing.B, segKey string,
 	}
 
 	bSumFile := structs.GetBsuFnameFromSegKey(segKey)
-	blockSummaries, allBlockInfo, _, err := microreader.ReadBlockSummaries(bSumFile, []byte{})
+	blockSummaries, allBlockInfo, err := microreader.ReadBlockSummaries(bSumFile, false)
 	if err != nil {
 		log.Fatal(err)
 	}

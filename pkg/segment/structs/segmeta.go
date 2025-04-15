@@ -57,6 +57,7 @@ type SegFullMeta struct {
 	*SegMeta
 	ColumnNames map[string]*ColSizeInfo `json:"columnNames,omitempty"`
 	AllPQIDs    map[string]bool         `json:"pqids,omitempty"`
+	UploadedSeg bool                    `json:"uploadedSegment,omitempty"`
 }
 
 type MetricsMeta struct {

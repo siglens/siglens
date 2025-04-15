@@ -207,12 +207,12 @@ func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[st
 	return convertDataToSlice(traceIndexData, "traceVolume", "traceSpanCount", "segmentCount", "columnCount", "earliestEpoch", "latestEpoch", "onDiskBytes", "cmiSize", "csgSize", "numIndexFiles", "numBlocks")
 }
 
-func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
+func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
 	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
 		orgId, err = hook(ctx)
 		if err != nil {
-			log.Errorf("ProcessClusterIngestStatsHandler: failed to extract orgId from context. Err=%+v", err)
+			log.Errorf("ProcessUsageStatsHandler: failed to extract orgId from context. Err=%+v", err)
 			utils.SetBadMsg(ctx, "")
 			return
 		}
@@ -221,7 +221,7 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
 	if rawJSON == nil {
-		log.Errorf(" ClusterIngestStatsHandler: received empty search request body ")
+		log.Errorf("ProcessUsageStatsHandler: received empty search request body ")
 		utils.SetBadMsg(ctx, "")
 		return
 	}
@@ -235,9 +235,9 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		_, err = ctx.WriteString(err.Error())
 		if err != nil {
-			log.Errorf(" ClusterIngestStatsHandler: could not write error message err=%v", err)
+			log.Errorf("ProcessUsageStatsHandler: could not write error message err=%v", err)
 		}
-		log.Errorf(" ClusterIngestStatsHandler: failed to decode search request body! Err=%+v", err)
+		log.Errorf("ProcessUsageStatsHandler: failed to decode search request body! Err=%+v", err)
 		return
 	}
 
@@ -252,79 +252,178 @@ func ProcessClusterIngestStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
-		httpResp.ChartStats[k]["TotalGBCount"] = float64(entry.TotalBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["TotalBytesCount"] = float64(entry.TotalBytesCount)
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
-		httpResp.ChartStats[k]["LogsGBCount"] = float64(entry.LogsBytesCount) / 1_000_000_000
-		httpResp.ChartStats[k]["MetricsGBCount"] = float64(entry.MetricsBytesCount) / 1_000_000_000
-		httpResp.ChartStats[k]["TraceGBCount"] = float64(entry.TraceBytesCount) / 1_000_000_000
+		httpResp.ChartStats[k]["LogsBytesCount"] = float64(entry.LogsBytesCount)
+		httpResp.ChartStats[k]["MetricsBytesCount"] = float64(entry.MetricsBytesCount)
+		httpResp.ChartStats[k]["TraceBytesCount"] = float64(entry.TraceBytesCount)
 		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
+		httpResp.ChartStats[k]["ActiveSeriesCount"] = entry.ActiveSeriesCount
 	}
 	utils.WriteJsonResponse(ctx, httpResp)
 }
 
-func parseAlphaNumTime(inp string, defValue uint64) (uint64, usageStats.UsageStatsGranularity) {
-	granularity := usageStats.Daily
-	sanTime := strings.ReplaceAll(inp, " ", "")
-	retVal := defValue
+func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity) {
+	defaultPastHours := uint64(7 * 24) // 7 days default
 
+	startEpoch, hasStart := jsonSource["startEpoch"]
+	endEpoch, hasEnd := jsonSource["endEpoch"]
+	granularity, hasGranularity := jsonSource["granularity"]
+
+	// Handle missing values
+	if !hasStart || !hasEnd || startEpoch == nil || endEpoch == nil {
+		if hasGranularity {
+			return defaultPastHours, parseGranularity(granularity)
+		}
+		return defaultPastHours, determineGranularity(defaultPastHours)
+	}
+
+	// Parse timestamps
+	startTs := parseTimestamp(startEpoch)
+	endTs := parseTimestamp(endEpoch)
+
+	// Validate timestamps
+	if startTs == -1 || endTs == -1 || endTs <= startTs {
+		if hasGranularity {
+			return defaultPastHours, parseGranularity(granularity)
+		}
+		return defaultPastHours, determineGranularity(defaultPastHours)
+	}
+
+	// Calculate hours difference
+	hours := uint64((endTs - startTs) / 3600)
+	if hasGranularity {
+		return hours, parseGranularity(granularity)
+	}
+	return hours, determineGranularity(hours)
+}
+
+func determineGranularity(hours uint64) usageStats.UsageStatsGranularity {
+	switch {
+	case hours < 24:
+		return usageStats.ByMinute
+	case hours <= 48:
+		return usageStats.Hourly
+	default:
+		return usageStats.Daily
+	}
+}
+
+func parseGranularity(value interface{}) usageStats.UsageStatsGranularity {
+	switch v := value.(type) {
+	case string:
+		switch strings.ToLower(v) {
+		case "minute", "byminute":
+			return usageStats.ByMinute
+		case "hour", "hourly":
+			return usageStats.Hourly
+		case "day", "daily":
+			return usageStats.Daily
+		case "month", "monthly":
+			return usageStats.Monthly
+		default:
+			return usageStats.Daily
+		}
+	case json.Number:
+		num, err := v.Int64()
+		if err != nil {
+			return usageStats.Daily
+		}
+		return intToGranularity(int(num))
+	case float64:
+		return intToGranularity(int(v))
+	case int:
+		return intToGranularity(v)
+	case int64:
+		return intToGranularity(int(v))
+	default:
+		return usageStats.Daily
+	}
+}
+
+func intToGranularity(value int) usageStats.UsageStatsGranularity {
+	switch value {
+	case int(usageStats.Hourly):
+		return usageStats.Hourly
+	case int(usageStats.Daily):
+		return usageStats.Daily
+	case int(usageStats.ByMinute):
+		return usageStats.ByMinute
+	case int(usageStats.Monthly):
+		return usageStats.Monthly
+	default:
+		return usageStats.Daily
+	}
+}
+
+func parseAlphaNumTime(inp string, defValue uint64) (uint64, usageStats.UsageStatsGranularity) {
+	sanTime := strings.ReplaceAll(inp, " ", "")
 	strln := len(sanTime)
 	if strln < 6 {
-		return retVal, usageStats.Daily
+		return defValue, determineGranularity(defValue)
 	}
 
 	unit := sanTime[strln-1]
 	num, err := strconv.ParseInt(sanTime[4:strln-1], 0, 64)
 	if err != nil {
-		return defValue, usageStats.Daily
+		return defValue, determineGranularity(defValue)
 	}
 
+	var hours uint64
 	switch unit {
 	case 'h':
-		retVal = uint64(num)
-		granularity = usageStats.Hourly
+		hours = uint64(num)
 	case 'd':
-		retVal = 24 * uint64(num)
-		granularity = usageStats.Daily
+		hours = 24 * uint64(num)
+	default:
+		hours = defValue
 	}
-	// for past 2 days , set granularity to Hourly
-	if num <= 2 {
-		granularity = usageStats.Hourly
-	}
-	return retVal, granularity
+
+	return hours, determineGranularity(hours)
 }
 
-func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity) {
-	var pastXhours uint64
-	granularity := usageStats.Daily
-	startE, ok := jsonSource["startEpoch"]
-	if !ok || startE == nil {
-		pastXhours = uint64(7 * 24)
-	} else {
-		switch val := startE.(type) {
-		case json.Number:
-			temp, _ := val.Int64()
-			pastXhours = uint64(temp)
-		case float64:
-			pastXhours = uint64(val)
-		case int64:
-			pastXhours = uint64(val)
-		case uint64:
-			pastXhours = uint64(val)
-		case string:
-			defValue := uint64(7 * 24)
-			pastXhours, granularity = parseAlphaNumTime(string(val), defValue)
-		default:
-			pastXhours = uint64(7 * 24)
+func parseTimestamp(value interface{}) int64 {
+	switch v := value.(type) {
+	case json.Number:
+		num, err := v.Int64()
+		if err != nil {
+			return -1
 		}
-	}
+		return normalizeToSeconds(num)
+	case float64:
+		return normalizeToSeconds(int64(v))
+	case int64:
+		return normalizeToSeconds(v)
+	case uint64:
+		return normalizeToSeconds(int64(v))
+	case string:
+		if v == "now" {
+			return time.Now().Unix()
+		}
 
-	// If pastXhours is less than 24, set granularity to ByMinute
-	if pastXhours < 24 {
-		granularity = usageStats.ByMinute
-	}
+		// Handle relative time
+		if strings.Contains(v, "now-") {
+			hoursAgo, _ := parseAlphaNumTime(v, 7*24)
+			return time.Now().Unix() - (int64(hoursAgo) * 3600)
+		}
 
-	return pastXhours, granularity
+		// Parse epoch
+		num, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return -1
+		}
+		return normalizeToSeconds(num)
+	default:
+		return -1
+	}
+}
+
+func normalizeToSeconds(timestamp int64) int64 {
+	if timestamp > 10000000000 {
+		return timestamp / 1000
+	}
+	return timestamp
 }
 
 func isTraceRelatedIndex(indexName string) bool {
@@ -426,8 +525,11 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 
 		indexSegStats, err := writer.GetIndexSizeStats(indexName, myid)
 		if err != nil {
-			log.Errorf("getStats: failed to get size stats for index %s: %v", indexName, err)
-			continue
+			log.Errorf("getStats: failed to get size stats=%v for index %s: err:%v",
+				indexSegStats, indexName, err)
+			if indexSegStats == nil {
+				continue
+			}
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)

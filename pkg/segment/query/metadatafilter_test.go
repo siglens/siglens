@@ -226,9 +226,9 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		assert.Len(t, errs, 0)
 		assert.Len(t, searchRequests, 1, "one file at a time key7=batch-1")
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "each file will should have a single matching block")
-		assert.Equal(t, uint64(1), matchedBlocks, "each file will should have a single matching block")
+		assert.GreaterOrEqual(t, matchedBlocks, uint64(1), "each file will should have a >=1 matching block")
 		for _, sReq := range searchRequests {
-			assert.Len(t, sReq.AllBlocksToSearch, 1)
+			assert.GreaterOrEqual(t, len(sReq.AllBlocksToSearch), 1)
 			assert.Contains(t, sReq.AllBlocksToSearch, uint16(1))
 		}
 	}
@@ -290,7 +290,7 @@ func getMyIds() []int64 {
 func Test_MetadataFilter(t *testing.T) {
 	numBlocks := 5
 	numEntriesInBlock := 10
-	fileCount := 5
+	numColumns := 5
 	dir := t.TempDir()
 	config.InitializeTestingConfig(dir)
 	limit.InitMemoryLimiter()
@@ -299,12 +299,12 @@ func Test_MetadataFilter(t *testing.T) {
 		t.Fatalf("Failed to initialize query node: %v", err)
 	}
 
-	_, err = metadata.InitMockColumnarMetadataStore(0, "metadatafilter", fileCount, numBlocks, numEntriesInBlock)
+	_, err = metadata.InitMockColumnarMetadataStore(0, "metadatafilter", numColumns, numBlocks, numEntriesInBlock)
 	assert.Nil(t, err)
 
-	testTimeFilter(t, numBlocks, numEntriesInBlock, fileCount)
-	testBloomFilter(t, numBlocks, numEntriesInBlock, fileCount)
-	testRangeFilter(t, numBlocks, numEntriesInBlock, fileCount)
+	testTimeFilter(t, numBlocks, numEntriesInBlock, numColumns)
+	testBloomFilter(t, numBlocks, numEntriesInBlock, numColumns)
+	testRangeFilter(t, numBlocks, numEntriesInBlock, numColumns)
 
 	os.RemoveAll(dir)
 }

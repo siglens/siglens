@@ -145,7 +145,7 @@ func (s *Series) sortEntries() {
 	s.sorted = true
 }
 
-func (s *Series) Merge(toJoin *Series) {
+func (s *Series) Merge(toJoin *Series) error {
 	toJoinEntries := toJoin.entries[:toJoin.idx]
 	s.entries = s.entries[:s.idx]
 	s.len = s.idx
@@ -153,6 +153,8 @@ func (s *Series) Merge(toJoin *Series) {
 	s.idx += toJoin.idx
 	s.sorted = false
 	s.len += toJoin.idx
+
+	return nil
 }
 
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {
@@ -288,6 +290,11 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 		return seriesId, fmt.Errorf("applyLabelReplace: labelFunction is nil")
 	}
 
+	if labelFunction.SourceLabel == "" {
+		seriesId = fmt.Sprintf("%s,%s:%s", seriesId, labelFunction.DestinationLabel, labelFunction.Replacement.NameBasedVal)
+		return seriesId, nil
+	}
+
 	_, values := ExtractGroupByFieldsFromSeriesId(seriesId, []string{labelFunction.SourceLabel})
 	if len(values) == 0 {
 		return seriesId, nil
@@ -342,7 +349,7 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Abs:
 		evaluate(ts, math.Abs)
 	case segutils.Sqrt:
-		err = applyFuncToNonNegativeValues(ts, math.Sqrt)
+		applyFuncToNonNegativeValues(ts, math.Sqrt)
 	case segutils.Ceil:
 		evaluate(ts, math.Ceil)
 	case segutils.Floor:
@@ -356,11 +363,11 @@ func ApplyMathFunction(ts map[uint32]float64, function structs.Function) (map[ui
 	case segutils.Exp:
 		evaluate(ts, math.Exp)
 	case segutils.Ln:
-		err = applyFuncToNonNegativeValues(ts, math.Log)
+		applyFuncToNonNegativeValues(ts, math.Log)
 	case segutils.Log2:
-		err = applyFuncToNonNegativeValues(ts, math.Log2)
+		applyFuncToNonNegativeValues(ts, math.Log2)
 	case segutils.Log10:
-		err = applyFuncToNonNegativeValues(ts, math.Log10)
+		applyFuncToNonNegativeValues(ts, math.Log10)
 	case segutils.Sgn:
 		evaluate(ts, calculateSgn)
 	case segutils.Deg:
@@ -662,7 +669,7 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 			ts[sortedTimeSeries[i].downsampledTime] = prefixSum[i] - prefixSum[preIndex]
 		}
 		return ts, nil
-	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time:
+	case segutils.Avg_Over_Time, segutils.Min_Over_Time, segutils.Max_Over_Time, segutils.Sum_Over_Time, segutils.Count_Over_Time, segutils.Last_Over_Time:
 		return evaluateAggregationOverTime(sortedTimeSeries, ts, function, timeRange)
 	case segutils.Stdvar_Over_Time:
 		return evaluateStandardVariance(sortedTimeSeries, ts, timeWindow), nil
@@ -674,9 +681,6 @@ func ApplyRangeFunction(ts map[uint32]float64, function structs.Function, timeRa
 		return ts, nil
 	case segutils.Mad_Over_Time:
 		return evaluateMADOverTime(sortedTimeSeries, ts, timeWindow), nil
-	case segutils.Last_Over_Time:
-		// If we take the very last sample from every element of a range vector, the resulting vector will be identical to a regular instant vector query.
-		return ts, nil
 	case segutils.Present_Over_Time:
 		for key := range ts {
 			ts[key] = 1
@@ -745,14 +749,18 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 	for nextEvaluationTime <= timeRange.EndEpochSec {
 		timeWindowStartTime := nextEvaluationTime - timeWindow
 
-		// Find index of the first point within the time window using binary search (Inclusive)
+		// In Prometheus, the time window is left-open and right-closed, meaning
+		// that the start time is exclusive and the end time is inclusive.
+		// refer to: https://prometheus.io/docs/prometheus/latest/querying/basics/#range-vector-selectors
+
+		// Find index of the first point within the time window using binary search (Exclusive)
 		preIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= timeWindowStartTime
+			return sortedTimeSeries[j].downsampledTime > timeWindowStartTime
 		})
 
-		// Find index of the last point within the time window using binary search (Exclusive)
+		// Find index of the last point within the time window using binary search (Inclusive)
 		lastIndex := sort.Search(len(sortedTimeSeries), func(j int) bool {
-			return sortedTimeSeries[j].downsampledTime >= nextEvaluationTime
+			return sortedTimeSeries[j].downsampledTime > nextEvaluationTime
 		}) - 1
 
 		if lastIndex < preIndex {
@@ -780,6 +788,9 @@ func evaluateAggregationOverTime(sortedTimeSeries []Entry, ts map[uint32]float64
 				max = math.Max(max, sortedTimeSeries[j].dpVal)
 			}
 			ts[nextEvaluationTime] = max
+		case segutils.Last_Over_Time:
+			// the most recent point value in the specified interval
+			ts[nextEvaluationTime] = sortedTimeSeries[lastIndex].dpVal
 		default:
 			return ts, fmt.Errorf("evaluateAggregationOverTime: unsupported function type %v", function.RangeFunction)
 		}
@@ -1061,14 +1072,14 @@ func evaluateWithErr(ts map[uint32]float64, mathFunc float64FuncWithErr) error {
 	return nil
 }
 
-func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) error {
+func applyFuncToNonNegativeValues(ts map[uint32]float64, mathFunc float64Func) {
 	for key, val := range ts {
 		if val < 0 {
-			return fmt.Errorf("applyFuncToNonNegativeValues: negative param not allowed: %v", val)
+			ts[key] = math.NaN()
+			continue
 		}
 		ts[key] = mathFunc(val)
 	}
-	return nil
 }
 
 func calculateSgn(val float64) float64 {

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 Copyright (c) 2021-2024 SigScalr, Inc.
 
 This file is part of SigLens Observability Solution
@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-    
+
         gtag('config', 'G-5SBJC04YFB');
     </script>
 <head>
@@ -121,35 +121,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div id="one-service-overview">
                         <div class="d-flex w-100 mt-2 gap-4">
                             <div class="chart-container">
-                                <div class="graph-container mt-2">
-                                    <div class="chart_container">
-                                        <div class="ingestion-stats-header">Rate (Request per Second)</div>
-                                        <canvas id="ServiceHealthChart"></canvas>
-                                    </div>
+                                <div class="ingestion-stats-header">Rate (Request per Second)</div>
+                                <div class="canvas-container">
+                                    <canvas id="ServiceHealthChart"></canvas>
                                 </div>
                             </div>
                             <div class="chart-container">
-                                <div class="graph-container mt-2">
-                                    <div class="chart_container">
-                                        <div class="ingestion-stats-header">Error (% of Rate)</div>
-                                        <canvas id="ServiceHealthChartErr"></canvas>
-                                    </div>
+                                <div class="ingestion-stats-header">Error (% of Rate)</div>
+                                <div class="canvas-container">
+                                    <canvas id="ServiceHealthChartErr"></canvas>
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-2 d-flex justify-content-center">
+                        <div class="mt-4 d-flex justify-content-center">
                             <div class="chart-container">
-                                <div class="graph-container mt-2">
-                                    <div class="chart_container">
-                                        <div class="ingestion-stats-header">Latency</div>
-                                        <canvas id="ServiceHealthChart2"></canvas>
-                                    </div>
+                                <div class="ingestion-stats-header">Latency</div>
+                                <div class="canvas-container">
+                                    <canvas id="ServiceHealthChart2"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div id="cstats-app-footer">
-                        2024 &copy; SigLens
                     </div>
                 </div>
             </div>
@@ -161,7 +154,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
     <script src="./js/common.js?cb={{ AppVersion }}"></script>
     <script src="./js/date-picker.js?cb={{ AppVersion }}"></script>
-    <script src="./js/service-health-overview.js?cb={{ AppVersion }}"></script>    
+    <script src="./js/service-health-overview.js?cb={{ AppVersion }}"></script>
+    <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 
     {{ .RunCheck2 | safeHTML }}
     {{ .RunCheck3 | safeHTML }}

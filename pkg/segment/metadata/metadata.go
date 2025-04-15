@@ -283,18 +283,12 @@ func (hm *allSegmentMetadata) loadParallelSsm(idxToLoad []int) (uint64, int) {
 
 	wg := &sync.WaitGroup{}
 	var err error
-	var ssmBufs [][]byte
 	parallelism := int(config.GetParallelism())
-
-	ssmBufs = make([][]byte, parallelism)
-	for i := 0; i < parallelism; i++ {
-		ssmBufs[i] = make([]byte, 0)
-	}
 
 	for i, idx := range idxToLoad {
 		wg.Add(1)
 		go func(myIdx int, rbufIdx int) {
-			ssmBufs[rbufIdx], err = hm.allSegmentMicroIndex[myIdx].loadSearchMetadata(ssmBufs[rbufIdx])
+			err = hm.allSegmentMicroIndex[myIdx].loadSearchMetadata()
 			if err != nil {
 				log.Errorf("loadParallelSsm: failed to load SSM at index %d. Error: %v", myIdx, err)
 			}
@@ -356,7 +350,7 @@ func (hm *allSegmentMetadata) deleteSegmentKeyWithLock(key string) {
 	}
 	delete(hm.segmentMetadataReverseIndex, key)
 	if tName == "" {
-		log.Errorf("deleteSegmentKeyWithLock: key %+v was not found in allSegmentMicroIndex", key)
+		log.Infof("deleteSegmentKeyWithLock: key %+v not found in inmem allSegmentMicroIndex, and thats ok since Rebalance thread could have removed it", key)
 		return
 	}
 	sortedTableSlice, ok := hm.tableSortedMetadata[tName]
@@ -554,7 +548,7 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 	}
 
 	if !sMicroIdx.loadedSearchMetadata {
-		_, err := sMicroIdx.loadSearchMetadata([]byte{})
+		err := sMicroIdx.loadSearchMetadata()
 		if err != nil {
 			log.Errorf("Error loading search metadata: %+v", err)
 			return nil

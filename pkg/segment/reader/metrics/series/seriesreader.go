@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/memorypool"
+	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
@@ -66,7 +67,94 @@ type SharedTimeSeriesSegmentReader struct {
 	rwLock                       *sync.Mutex
 }
 
-var globalPool = memorypool.NewMemoryPool(0, segutils.METRICS_SEARCH_ALLOCATE_BLOCK)
+const S_1_KB = 1024
+const S_4_KB = 4096
+const S_32_KB = 32768
+const S_128_KB = 131072
+const S_256_KB = 262144
+const S_1_MB = 1048576
+const S_4_MB = 4194304
+const S_16_MB = 16777216
+const S_32_MB = 33554432
+const S_64_MB = 67108864
+const S_128_MB = 134217728
+const S_256_MB = 268435456
+
+var pool1K = memorypool.NewMemoryPool(0, S_1_KB)
+var pool4K = memorypool.NewMemoryPool(0, S_4_KB)
+var pool32K = memorypool.NewMemoryPool(0, S_32_KB)
+var pool128K = memorypool.NewMemoryPool(0, S_128_KB)
+var pool256K = memorypool.NewMemoryPool(0, S_256_KB)
+var pool1M = memorypool.NewMemoryPool(0, S_1_MB)
+var pool4M = memorypool.NewMemoryPool(0, S_4_MB)
+var pool16M = memorypool.NewMemoryPool(0, S_16_MB)
+var pool32M = memorypool.NewMemoryPool(0, S_32_MB)
+var pool64M = memorypool.NewMemoryPool(0, S_64_MB)
+var pool128M = memorypool.NewMemoryPool(0, S_128_MB)
+var pool256M = memorypool.NewMemoryPool(0, S_256_MB)
+
+func GetBufFromPool(size int64) []byte {
+	switch {
+	case size <= S_1_KB:
+		return pool1K.Get(S_1_KB)[:size]
+	case size <= S_4_KB:
+		return pool4K.Get(S_4_KB)[:size]
+	case size <= S_32_KB:
+		return pool32K.Get(S_32_KB)[:size]
+	case size <= S_128_KB:
+		return pool128K.Get(S_128_KB)[:size]
+	case size <= S_256_KB:
+		return pool256K.Get(S_256_KB)[:size]
+	case size <= S_1_MB:
+		return pool1M.Get(S_1_MB)[:size]
+	case size <= S_4_MB:
+		return pool4M.Get(S_4_MB)[:size]
+	case size <= S_16_MB:
+		return pool16M.Get(S_16_MB)[:size]
+	case size <= S_32_MB:
+		return pool32M.Get(S_32_MB)[:size]
+	case size <= S_64_MB:
+		return pool64M.Get(S_64_MB)[:size]
+	case size <= S_128_MB:
+		return pool128M.Get(S_128_MB)[:size]
+	case size <= S_256_MB:
+		return pool256M.Get(S_256_MB)[:size]
+	default:
+		return make([]byte, 0, size) // too big, don't pool
+	}
+}
+
+func PutBufToPool(buf []byte) error {
+	switch cap(buf) {
+	case S_1_KB:
+		return pool1K.Put(buf)
+	case S_4_KB:
+		return pool4K.Put(buf)
+	case S_32_KB:
+		return pool32K.Put(buf)
+	case S_128_KB:
+		return pool128K.Put(buf)
+	case S_256_KB:
+		return pool256K.Put(buf)
+	case S_1_MB:
+		return pool1M.Put(buf)
+	case S_4_MB:
+		return pool4M.Put(buf)
+	case S_16_MB:
+		return pool16M.Put(buf)
+	case S_32_MB:
+		return pool32M.Put(buf)
+	case S_64_MB:
+		return pool64M.Put(buf)
+	case S_128_MB:
+		return pool128M.Put(buf)
+	case S_256_MB:
+		return pool256M.Put(buf)
+	default:
+		// too large or not from a known pool; discard
+		return nil
+	}
+}
 
 /*
 Exposes init functions for timeseries block readers.
@@ -78,8 +166,8 @@ It is up to the caller to call .Close() to return all buffers
 func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 	return &TimeSeriesSegmentReader{
 		mKey:   mKey,
-		tsoBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
-		tsgBuf: globalPool.Get(segutils.METRICS_SEARCH_ALLOCATE_BLOCK),
+		tsoBuf: nil,
+		tsgBuf: nil,
 	}, nil
 }
 
@@ -87,14 +175,14 @@ func InitTimeSeriesReader(mKey string) (*TimeSeriesSegmentReader, error) {
 Closes the iterator by returning all buffers back to the pool
 */
 func (tssr *TimeSeriesSegmentReader) Close() error {
-	err1 := globalPool.Put(tssr.tsoBuf)
-	if err1 != nil {
-		log.Errorf("TimeSeriesSegmentReader.Close: Error putting tsoBuf back to the pool: %v", err1)
+
+	var err1, err2 error
+	if tssr.tsoBuf != nil {
+		err1 = PutBufToPool(tssr.tsoBuf)
 	}
 
-	err2 := globalPool.Put(tssr.tsgBuf)
-	if err2 != nil {
-		log.Errorf("TimeSeriesSegmentReader.Close: Error putting tsgBuf back to the pool: %v", err2)
+	if tssr.tsgBuf != nil {
+		err2 = PutBufToPool(tssr.tsgBuf)
 	}
 
 	if err1 != nil || err2 != nil {
@@ -140,6 +228,24 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 	// load tso/tsg file as need
 	tsoFName := fmt.Sprintf("%s_%d.tso", tssr.mKey, blkNum)
 	sTime := time.Now()
+
+	tsoFileSize, err := utils.GetFileSize(tsoFName)
+	if err != nil {
+		return nil, err
+	}
+
+	// we may get called multiple time for different blocks, when we get called first time
+	// it will be nil, if it called subsequently then first release the buf and then get a new one
+	// based on the size of the block being asked
+	if tssr.tsoBuf != nil {
+		err := PutBufToPool(tssr.tsoBuf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tssr.tsoBuf = GetBufFromPool(tsoFileSize)
+
 	tsoVersion, readTSO, nTSIDs, err := tssr.loadTSOFile(tsoFName)
 	if err != nil {
 		log.Errorf("InitReaderForBlock: failed to init reader for block %v! Err:%+v", blkNum, err)
@@ -151,6 +257,21 @@ func (tssr *TimeSeriesSegmentReader) InitReaderForBlock(blkNum uint16, queryMetr
 
 	tsgFName := fmt.Sprintf("%s_%d.tsg", tssr.mKey, blkNum)
 	sTime = time.Now()
+
+	tsgFileSize, err := utils.GetFileSize(tsgFName)
+	if err != nil {
+		return nil, err
+	}
+
+	if tssr.tsgBuf != nil {
+		err := PutBufToPool(tssr.tsgBuf)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tssr.tsgBuf = GetBufFromPool(tsgFileSize)
+
 	readTSG, err := tssr.loadTSGFile(tsgFName)
 
 	if err != nil {
@@ -253,26 +374,7 @@ func getOffsetFromTsoFile(tsoVersion byte, low uint32, high uint32, nTsids uint3
 	return false, 0, 0
 }
 
-// Note: this must only be called for buffers received from globalPool. If
-// there's no error, the buffer passed in must not be used again; only use the
-// returned buffer.
-func expandPoolBufferToMinSize(buffer []byte, minSize uint64) ([]byte, error) {
-	if cap(buffer) < int(minSize) {
-		err := globalPool.Put(buffer)
-		if err != nil {
-			log.Errorf("expandPoolBufferToMinSize: Error putting buffer back into the pool: %v", err)
-			return buffer, err
-		}
-
-		buffer = globalPool.Get(minSize)
-	}
-
-	buffer = buffer[:minSize]
-
-	return buffer, nil
-}
-
-func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
+func loadFileIntoPoolBuffer(fileName string, bufferFromPool []byte) error {
 	fd, err := os.OpenFile(fileName, os.O_RDONLY, 0644)
 	if err != nil {
 		log.Errorf("loadFileIntoPoolBuffer: failed to open fileName: %v  Error: %v", fileName, err)
@@ -280,22 +382,7 @@ func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
 	}
 	defer fd.Close()
 
-	finfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("loadFileIntoPoolBuffer: error when trying to stat file=%+v. Error=%+v", fileName, err)
-		return err
-	}
-
-	fileSize := finfo.Size()
-	newBuffer, err := expandPoolBufferToMinSize(*bufferFromPool, uint64(fileSize))
-	if err != nil {
-		log.Errorf("loadFileIntoPoolBuffer: Error expanding buffer: %v", err)
-		return err
-	}
-
-	*bufferFromPool = newBuffer
-
-	_, err = fd.ReadAt(newBuffer, 0)
+	_, err = fd.ReadAt(bufferFromPool, 0)
 	if err != nil {
 		log.Errorf("loadFileIntoPoolBuffer: Error reading file: %v, err: %v", fileName, err)
 		return err
@@ -305,7 +392,8 @@ func loadFileIntoPoolBuffer(fileName string, bufferFromPool *[]byte) error {
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte, uint64, error) {
-	err := loadFileIntoPoolBuffer(fileName, &tssr.tsoBuf)
+
+	err := loadFileIntoPoolBuffer(fileName, tssr.tsoBuf)
 	if err != nil {
 		log.Errorf("loadTSOFile: Error loading TSO file: %v", err)
 		return 0, nil, 0, err
@@ -326,7 +414,7 @@ func (tssr *TimeSeriesSegmentReader) loadTSOFile(fileName string) (byte, []byte,
 }
 
 func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error) {
-	err := loadFileIntoPoolBuffer(fileName, &tssr.tsgBuf)
+	err := loadFileIntoPoolBuffer(fileName, tssr.tsgBuf)
 	if err != nil {
 		log.Errorf("loadTSGFile: Error loading TSG file: %v", err)
 		return nil, err
@@ -340,47 +428,8 @@ func (tssr *TimeSeriesSegmentReader) loadTSGFile(fileName string) ([]byte, error
 	return tssr.tsgBuf, nil
 }
 
-/*
-TODO: Use the buffer pools for such kinds of memory accesses, it will reduce GC pressures.
-*/
 func GetAllMetricNames(mKey string) (map[string]bool, error) {
 
 	filePath := fmt.Sprintf("%s.mnm", mKey)
-
-	fd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
-	if err != nil {
-		log.Errorf("GetAllMetricNames: failed to open fileName: %v  Error: %v", filePath, err)
-		return nil, err
-	}
-
-	defer fd.Close()
-
-	finfo, err := fd.Stat()
-	if err != nil {
-		log.Errorf("GetAllMetricNames: error when trying to stat file=%+v. Error=%+v", filePath, err)
-		return nil, err
-	}
-
-	fileSize := finfo.Size()
-	buf := make([]byte, fileSize)
-
-	_, err = fd.Read(buf)
-	if err != nil {
-		log.Errorf("GetAllMetricNames: Error reading the Metric Names file: %v, err: %v", filePath, err)
-		return nil, err
-	}
-
-	metricNames := make(map[string]bool)
-
-	for i := 0; i < len(buf); {
-		metricNameLen := int(utils.BytesToUint16LittleEndian(buf[i : i+2]))
-		i += 2
-		metricName := string(buf[i : i+metricNameLen])
-		i += metricNameLen
-		metricNames[metricName] = true
-	}
-
-	buf = nil
-
-	return metricNames, nil
+	return metadata.ReadMetricNames(filePath)
 }

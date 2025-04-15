@@ -61,10 +61,11 @@ const BLOOM_SIZE_HISTORY = 5 // number of entries to analyze to get next block's
 const BLOCK_BLOOM_SIZE = 10
 const BLOCK_RI_MAP_SIZE = 100
 
-var MAX_BYTES_METRICS_BLOCK uint64 = 1e+8         // 100MB
-var METRICS_SEARCH_ALLOCATE_BLOCK uint64 = 1.5e+8 // 150MB
-var MAX_BYTES_METRICS_SEGMENT uint64 = 1e+10      // 10GB
+var MAX_BYTES_METRICS_BLOCK uint64 = 1e+8    // 100MB
+var MAX_BYTES_METRICS_SEGMENT uint64 = 1e+10 // 10GB
 var MAX_ACTIVE_SERIES_PER_SEGMENT = 10_000_000
+var MAX_WAL_FILE_SIZE_BYTES uint64 = 134217728 // 128MB
+var WAL_BLOCK_FLUSH_SIZE = 10000
 
 const MAX_RAW_DATAPOINTS_IN_RESULT = 5_000_000
 
@@ -138,6 +139,7 @@ var VERSION_TSOFILE_V1 = []byte{0x01}
 var VERSION_TSOFILE_V2 = []byte{0x02} // Current version
 var VERSION_TSGFILE = []byte{0x01}
 var VERSION_MBLOCKSUMMARY = []byte{0x01}
+var VERSION_WALFILE = []byte{0x01}
 
 var VERSION_SEGSTATS = []byte{2} // version of the Segment Stats file.
 var VERSION_SEGSTATS_LEGACY = []byte{1}
@@ -213,10 +215,11 @@ func ValTypeToSSDType(valtype byte) SS_DTYPE {
 	}
 }
 
-const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000             // one minute
-const SEGMENT_ROTATE_DURATION_SECONDS = 15 * 60            // 15 mins
-var UPLOAD_INGESTNODE_DIR = time.Duration(1 * time.Minute) // one minute
-const SEGMENT_ROTATE_SLEEP_DURATION_SECONDS = 120
+const STALE_RECENTLY_ROTATED_ENTRY_MS = 60_000 // one minute
+const STALE_SEGMENT_DELETION_SECONDS = 15 * 60 // 15 mins
+// todo : once the blindly uploading thing is fixed, we should change this timer back to 1 min
+var UPLOAD_INGESTNODE_DIR_SLEEP = time.Duration(10 * time.Minute) // 10 minutes
+const STALE_SEGMENT_DELETION_SLEEP_SECONDS = 120
 
 const QUERY_EARLY_EXIT_LIMIT = uint64(100)
 const QUERY_MAX_BUCKETS = uint64(10_000)

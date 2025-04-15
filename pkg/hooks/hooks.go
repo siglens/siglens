@@ -47,7 +47,7 @@ type Hooks struct {
 	SigLensDBExtrasHook       func() error
 	StartSiglensExtrasHook    func(nodeID string) error
 	ShutdownSiglensExtrasHook func()
-	ShutdownSiglensPreHook    func()
+	ShutdownSiglensPreHook    func(bool)
 
 	// Cluster health
 	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)
@@ -70,7 +70,6 @@ type Hooks struct {
 	ReleaseOwnedSegmentRLockHook func()
 
 	// Retention
-	ExtraRetentionCleanerHook     func() error
 	InternalRetentionCleanerHook1 func() string
 	InternalRetentionCleanerHook2 func(string, int)
 
@@ -146,14 +145,11 @@ type HtmlSnippets struct {
 	Button1   string
 	Dropdown2 string
 
-	OrgSettingsOrgName         string
-	OrgSettingsRetentionPeriod string
-	OrgDeploymentType          string
-	DistNodesExtras            string
-	OrgSLOs                    string
-	SLOCss                     string
-	EnterpriseEnabled          bool
-	Constants                  map[string]interface{}
+	OrgSettingsOrgName string
+	OrgSLOs            string
+	SLOCss             string
+	EnterpriseEnabled  bool
+	Constants          map[string]interface{}
 }
 
 type JsSnippets struct {
@@ -164,12 +160,9 @@ type JsSnippets struct {
 	CommonExtraFunctions string
 	Button1Function      string
 
-	SettingsExtraOnReadySetup      string
 	SettingsRetentionDataThenBlock string
-	SettingsExtraFunctions         string
-
-	TestDataSendData string
-	IngestDataCmd    string
+	TestDataSendData               string
+	IngestDataCmd                  string
 
 	OrgUpperNavTabs string
 	OrgUpperNavUrls string

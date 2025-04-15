@@ -124,12 +124,13 @@ func removeSegKeyFromUnrotatedInfo(segkey string) {
 	}
 }
 
-func updateRecentlyRotatedSegmentFiles(segkey string) {
+func updateRecentlyRotatedSegmentFiles(segkey string, tableName string) {
 	// TODO: Does this function do anything useful now? Can it be removed?
 	recentlyRotatedSegmentFilesLock.Lock()
 	RecentlyRotatedSegmentFiles[segkey] = &SegfileRotateInfo{
 		FinalName:   segkey,
 		TimeRotated: utils.GetCurrentTimeInMs(),
+		tableName:   tableName,
 	}
 	recentlyRotatedSegmentFilesLock.Unlock()
 }
@@ -392,9 +393,9 @@ func (usi *UnrotatedSegmentInfo) doBloomCheckForCols(timeFilteredBlocks map[uint
 
 	numUnrotatedBlks := uint16(len(usi.unrotatedBlockCmis))
 	for blkNum := range timeFilteredBlocks {
-		if blkNum > numUnrotatedBlks {
-			log.Errorf("doBloomCheckForCols: tried to check a block that does not exist in unrotated info. blkNum %+v, numBlocks %+v",
-				blkNum, numUnrotatedBlks)
+		if blkNum >= numUnrotatedBlks {
+			log.Errorf("qid=%v, doBloomCheckForCols: tried to check a block that does not exist in unrotated info. blkNum %+v, numBlocks %+v",
+				qid, blkNum, numUnrotatedBlks)
 			continue
 		}
 		currInfo := usi.unrotatedBlockCmis[blkNum]
@@ -674,4 +675,26 @@ func GetNumOfSearchedRecordsUnRotated(segKey string) uint64 {
 		return 0
 	}
 	return uint64(usi.RecordCount)
+}
+
+func GetIndexNamesForUnrotated() map[string]struct{} {
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+
+	retVal := make(map[string]struct{})
+	for _, usi := range AllUnrotatedSegmentInfo {
+		retVal[usi.TableName] = struct{}{}
+	}
+	return retVal
+}
+
+func GetIndexNamesForRecentlyRotated() map[string]struct{} {
+	recentlyRotatedSegmentFilesLock.RLock()
+	defer recentlyRotatedSegmentFilesLock.RUnlock()
+
+	retVal := make(map[string]struct{})
+	for _, rrsf := range RecentlyRotatedSegmentFiles {
+		retVal[rrsf.tableName] = struct{}{}
+	}
+	return retVal
 }

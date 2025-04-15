@@ -515,6 +515,8 @@ func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit u
 			for key, value := range record {
 				if value == nil {
 					delete(record, key)
+				} else if strValue, ok := value.(string); ok && strValue == "" {
+					delete(record, key)
 				}
 			}
 		}
@@ -633,7 +635,6 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 		queryStateData, ok := <-stateChan
 		if !ok {
 			log.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
-			query.LogGlobalSearchErrors(qid)
 			query.DeleteQuery(qid)
 			return httpRespOuter, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: Got non ok, state: %+v", qid, queryStateData)
 		}
@@ -644,7 +645,11 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			continue
 		}
 
+		rQuery.SetLatestQueryState(queryStateData.StateName)
+
 		switch queryStateData.StateName {
+		case query.WAITING:
+			// do nothing
 		case query.READY:
 			switch queryStateData.ChannelIndex {
 			case multiplexer.MainIndex:
@@ -670,7 +675,9 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 		case query.COMPLETE:
 			defer query.DeleteQuery(qid)
-			defer query.DeleteQuery(timechartQid)
+			if runTimechartQuery {
+				defer query.DeleteQuery(timechartQid)
+			}
 
 			if isAsync {
 				wErr := conn.WriteJSON(queryStateData.CompleteWSResp)
@@ -705,7 +712,9 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			}
 
 			defer query.DeleteQuery(qid)
-			defer query.DeleteQuery(timechartQid)
+			if runTimechartQuery {
+				defer query.DeleteQuery(timechartQid)
+			}
 			if isAsync {
 				wErr := conn.WriteJSON(createErrorResponse(queryStateData.Error.Error()))
 				if wErr != nil {
@@ -741,18 +750,24 @@ func RunQueryForNewPipeline(conn *websocket.Conn, qid uint64, root *structs.ASTN
 			defer query.DeleteQuery(timechartQid)
 			if isAsync {
 				processTimeoutUpdate(conn, qid)
-				processTimeoutUpdate(conn, timechartQid)
+				if runTimechartQuery {
+					processTimeoutUpdate(conn, timechartQid)
+				}
 			} else {
 				return nil, false, root.TimeRange, fmt.Errorf("qid=%v, RunQueryForNewPipeline: query timed out", qid)
 			}
 		case query.CANCELLED:
 			log.Infof("qid=%v, RunQueryForNewPipeline: query cancelled", qid)
 			defer query.DeleteQuery(qid)
-			defer query.DeleteQuery(timechartQid)
+			if runTimechartQuery {
+				defer query.DeleteQuery(timechartQid)
+			}
 
 			if isAsync {
 				processCancelQuery(conn, qid)
-				processCancelQuery(conn, timechartQid)
+				if runTimechartQuery {
+					processCancelQuery(conn, timechartQid)
+				}
 			}
 			return nil, false, root.TimeRange, nil
 		}
@@ -770,7 +785,6 @@ func listenToRestartQuery(qid uint64, rQuery *query.RunningQueryState, isAsync b
 		select {
 		case queryStateData, ok := <-rQuery.StateChan:
 			if !ok {
-				query.LogGlobalSearchErrors(qid)
 				query.DeleteQuery(qid)
 				return nil, 0, fmt.Errorf("qid=%v, listenToRestartQuery: Got non ok, state: %v", qid, queryStateData.StateName)
 			}

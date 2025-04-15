@@ -74,7 +74,7 @@ func Test_parsePromQLQuery_simpleQueries(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
 	assert.Equal(t, "testmetric3", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -318,9 +318,9 @@ func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
 	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
-	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
-	assert.Equal(t, segutils.Round, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.MathFunction)
-	assert.Equal(t, functionValues, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.FunctionBlock.ValueList)
+	assert.Nil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
+	assert.Equal(t, segutils.Round, queryArithmetic[0].MQueryAggsChain.FunctionBlock.MathFunction)
+	assert.Equal(t, functionValues, queryArithmetic[0].MQueryAggsChain.FunctionBlock.ValueList)
 
 	query = "http_requests_total{job='apiserver', handler='/api/comments'}[5m]"
 	mHashedMName = xxhash.Sum64String("http_requests_total")
@@ -336,7 +336,7 @@ func Test_parsePromQLQuery_SimpleQueries_v2(t *testing.T) {
 	assert.Equal(t, parser.ValueTypeMatrix, pqlQuerytype)
 	assert.Equal(t, "http_requests_total", mQueryReqs[0].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName, mQueryReqs[0].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
 	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	actualTagKeys := []string{}
@@ -893,7 +893,7 @@ func Test_parsePromQLQuery_NestedQueries_v8(t *testing.T) {
 	query := "sum by (app, proc) ( instance_memory_limit_bytes - instance_memory_usage_bytes )"
 	mHashedMName1 := xxhash.Sum64String("instance_memory_limit_bytes")
 	mHashedMName2 := xxhash.Sum64String("instance_memory_usage_bytes")
-	tagKeys := []string{"app", "proc"}
+	groupByKeys := []string{"app", "proc"}
 
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myId)
 	assert.Nil(t, err)
@@ -906,55 +906,25 @@ func Test_parsePromQLQuery_NestedQueries_v8(t *testing.T) {
 	assert.Equal(t, "instance_memory_usage_bytes", mQueryReqs[1].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedMName2, mQueryReqs[1].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
-	assert.False(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
-	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
-	assert.True(t, mQueryReqs[1].MetricsQuery.Groupby)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
+	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
+	assert.False(t, mQueryReqs[1].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	assert.Equal(t, intervalSeconds, mQueryReqs[1].MetricsQuery.Downsampler.Interval)
-	actualTagKeys := []string{}
-	for _, tag := range mQueryReqs[0].MetricsQuery.TagsFilters {
-		actualTagKeys = append(actualTagKeys, tag.TagKey)
-		if tag.TagKey == "app" {
-			assert.Equal(t, "*", tag.RawTagValue)
-		}
-		if tag.TagKey == "proc" {
-			assert.Equal(t, "*", tag.RawTagValue)
-		}
-	}
-	sort.Slice(actualTagKeys, func(i, j int) bool {
-		return actualTagKeys[i] < actualTagKeys[j]
-	})
-	assert.Equal(t, tagKeys, actualTagKeys)
-
-	actualTagKeys = []string{}
-	for _, tag := range mQueryReqs[1].MetricsQuery.TagsFilters {
-		actualTagKeys = append(actualTagKeys, tag.TagKey)
-		if tag.TagKey == "app" {
-			assert.Equal(t, "*", tag.RawTagValue)
-		}
-		if tag.TagKey == "proc" {
-			assert.Equal(t, "*", tag.RawTagValue)
-
-		}
-	}
-	sort.Slice(actualTagKeys, func(i, j int) bool {
-		return actualTagKeys[i] < actualTagKeys[j]
-	})
-	assert.Equal(t, tagKeys, actualTagKeys)
 
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
 	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
-	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
-	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggBlockType)
-	assert.Equal(t, segutils.Sum, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggregatorBlock.AggregatorFunction)
+	assert.Nil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[1].MetricsQuery.SubsequentAggs.AggBlockType)
 	assert.Equal(t, segutils.Avg, mQueryReqs[1].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
-	assert.NotNil(t, mQueryReqs[1].MetricsQuery.SubsequentAggs.Next)
-	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[1].MetricsQuery.SubsequentAggs.Next.AggBlockType)
-	assert.Equal(t, segutils.Sum, mQueryReqs[1].MetricsQuery.SubsequentAggs.Next.AggregatorBlock.AggregatorFunction)
+	assert.Nil(t, mQueryReqs[1].MetricsQuery.SubsequentAggs.Next)
 
 	assert.Equal(t, segutils.LetSubtract, queryArithmetic[0].Operation)
+	assert.NotNil(t, queryArithmetic[0].MQueryAggsChain)
+	assert.Equal(t, structs.AggregatorBlock, queryArithmetic[0].MQueryAggsChain.AggBlockType)
+	assert.Equal(t, segutils.Sum, queryArithmetic[0].MQueryAggsChain.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, groupByKeys, queryArithmetic[0].MQueryAggsChain.AggregatorBlock.GroupByFields)
 }
 
 func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v1(t *testing.T) {
@@ -1041,7 +1011,7 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v2(t *testing.T) {
 	query := "sum by (app, proc) ( sum by (job) (instance_memory_limit_bytes - instance_memory_usage_bytes) )"
 	mHashedMName1 := xxhash.Sum64String("instance_memory_limit_bytes")
 	mHashedMName2 := xxhash.Sum64String("instance_memory_usage_bytes")
-	tagKeys := []string{"app", "job", "proc"}
+	groupByKeysL2 := []string{"app", "proc"}
 
 	mQueryReqs, pqlQuerytype, queryArithmetic, err := parsePromQLQuery(query, startTime, endTime, myId)
 	assert.Nil(t, err)
@@ -1054,69 +1024,29 @@ func Test_parsePromQLQuery_NestedQueries_NestedGroupBy_v2(t *testing.T) {
 	assert.Equal(t, "instance_memory_usage_bytes", mQueryReqs[1].MetricsQuery.MetricName)
 	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
 	assert.Equal(t, mHashedMName2, mQueryReqs[1].MetricsQuery.HashedMName)
-	assert.False(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
-	assert.False(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
-	assert.True(t, mQueryReqs[0].MetricsQuery.Groupby)
-	assert.True(t, mQueryReqs[1].MetricsQuery.Groupby)
+	assert.True(t, mQueryReqs[0].MetricsQuery.SelectAllSeries)
+	assert.True(t, mQueryReqs[1].MetricsQuery.SelectAllSeries)
+	assert.False(t, mQueryReqs[0].MetricsQuery.Groupby)
+	assert.False(t, mQueryReqs[1].MetricsQuery.Groupby)
 	assert.Equal(t, intervalSeconds, mQueryReqs[0].MetricsQuery.Downsampler.Interval)
 	assert.Equal(t, intervalSeconds, mQueryReqs[1].MetricsQuery.Downsampler.Interval)
-	actualTagKeys := []string{}
-	for _, tag := range mQueryReqs[0].MetricsQuery.TagsFilters {
-		actualTagKeys = append(actualTagKeys, tag.TagKey)
-		if tag.TagKey == "app" {
-			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, true, tag.NotInitialGroup)
-		}
-		if tag.TagKey == "proc" {
-			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, true, tag.NotInitialGroup)
-		}
-		if tag.TagKey == "job" {
-			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, false, tag.NotInitialGroup)
-		}
-	}
-	sort.Slice(actualTagKeys, func(i, j int) bool {
-		return actualTagKeys[i] < actualTagKeys[j]
-	})
-	assert.Equal(t, tagKeys, actualTagKeys)
-
-	actualTagKeys = []string{}
-	for _, tag := range mQueryReqs[1].MetricsQuery.TagsFilters {
-		actualTagKeys = append(actualTagKeys, tag.TagKey)
-		if tag.TagKey == "app" {
-			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, true, tag.NotInitialGroup)
-		}
-		if tag.TagKey == "proc" {
-			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, true, tag.NotInitialGroup)
-		}
-		if tag.TagKey == "job" {
-			assert.Equal(t, "*", tag.RawTagValue)
-			assert.Equal(t, false, tag.NotInitialGroup)
-		}
-	}
-
-	sort.Slice(actualTagKeys, func(i, j int) bool {
-		return actualTagKeys[i] < actualTagKeys[j]
-	})
-
-	assert.Equal(t, tagKeys, actualTagKeys)
 
 	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggBlockType)
 	assert.Equal(t, segutils.Avg, mQueryReqs[0].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
-	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
-	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggBlockType)
-	assert.Equal(t, segutils.Sum, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggregatorBlock.AggregatorFunction)
-	assert.Equal(t, 1, len(mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggregatorBlock.GroupByFields))
-	assert.Equal(t, "job", mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.AggregatorBlock.GroupByFields[0])
-	assert.NotNil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next)
-	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggBlockType)
-	assert.Equal(t, segutils.Sum, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.AggregatorFunction)
-	assert.Equal(t, 2, len(mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields))
-	assert.Equal(t, "app", mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields[0])
-	assert.Equal(t, "proc", mQueryReqs[0].MetricsQuery.SubsequentAggs.Next.Next.AggregatorBlock.GroupByFields[1])
+	assert.Nil(t, mQueryReqs[0].MetricsQuery.SubsequentAggs.Next)
+
+	assert.Equal(t, segutils.LetSubtract, queryArithmetic[0].Operation)
+	assert.NotNil(t, queryArithmetic[0].MQueryAggsChain)
+
+	assert.Equal(t, structs.AggregatorBlock, queryArithmetic[0].MQueryAggsChain.AggBlockType)
+	assert.Equal(t, segutils.Sum, queryArithmetic[0].MQueryAggsChain.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 1, len(queryArithmetic[0].MQueryAggsChain.AggregatorBlock.GroupByFields))
+	assert.Equal(t, "job", queryArithmetic[0].MQueryAggsChain.AggregatorBlock.GroupByFields[0])
+	assert.NotNil(t, queryArithmetic[0].MQueryAggsChain.Next)
+	assert.Equal(t, structs.AggregatorBlock, queryArithmetic[0].MQueryAggsChain.Next.AggBlockType)
+	assert.Equal(t, segutils.Sum, queryArithmetic[0].MQueryAggsChain.Next.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 2, len(queryArithmetic[0].MQueryAggsChain.Next.AggregatorBlock.GroupByFields))
+	assert.Equal(t, groupByKeysL2, queryArithmetic[0].MQueryAggsChain.Next.AggregatorBlock.GroupByFields)
 }
 
 func Test_parsePromQLQuery_Scalar_Op_v1(t *testing.T) {
@@ -1354,6 +1284,95 @@ func Test_parsePromQLQuery_Without(t *testing.T) {
 	assert.True(t, tagFilters[1].NotInitialGroup)
 }
 
+func Test_parsePromQLQuery_Binary_With_Nested_Queries(t *testing.T) {
+	endTime := uint32(time.Now().Unix())
+	startTime := endTime - 86400 // 1 day
+
+	myId := int64(0)
+
+	query := `sum by (cluster, namespace) (group by (cluster, namespace, workload) ((label_replace(label_replace(kube_pod_owner{cluster=~".+", namespace=~".+", pod=~".+", owner_kind=~".+", owner_name=~".+"}, "workload", "$1", "owner_name", "^(.*?)(-[a-z0-9]{9,10})?$"), "workload_type", "$1", "owner_kind", "(.*)")) or (label_replace(label_replace(kube_pod_owner{cluster=~".+", namespace=~".+", pod=~".+", owner_kind=""}, "workload", "$1", "pod", "^(.*?)(-[a-z0-9]{9,10})?$"), "workload_type", "pod", "", "")) or (label_replace(label_replace(kube_pod_owner{cluster=~".+", namespace=~".+", pod=~".+", owner_kind="Node"}, "workload", "$1", "pod", "^(.*?)(-[a-z0-9]{9,10})?$"), "workload_type", "staticpod", "", "")))) or on (cluster, namespace) (last_over_time(group by (cluster, namespace) (kube_namespace_status_phase{cluster=~".+", namespace=~".+", phase="Active"} == 1)[1h:]) - 1)`
+	mHashedMName1 := xxhash.Sum64String("kube_pod_owner")
+	mHashedMName2 := mHashedMName1
+	mHashedMName3 := mHashedMName1
+	mHashedMName4 := xxhash.Sum64String("kube_namespace_status_phase")
+
+	mQueryReqs, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(query, startTime, endTime, myId)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(mQueryReqs))
+	assert.Equal(t, 1, len(queryArithmetic))
+	assert.Equal(t, parser.ValueTypeVector, pqlQuerytype)
+	assert.Equal(t, "kube_pod_owner", mQueryReqs[0].MetricsQuery.MetricName)
+	assert.Equal(t, "kube_pod_owner", mQueryReqs[1].MetricsQuery.MetricName)
+	assert.Equal(t, "kube_pod_owner", mQueryReqs[2].MetricsQuery.MetricName)
+	assert.Equal(t, "kube_namespace_status_phase", mQueryReqs[3].MetricsQuery.MetricName)
+	assert.Equal(t, mHashedMName1, mQueryReqs[0].MetricsQuery.HashedMName)
+	assert.Equal(t, mHashedMName2, mQueryReqs[1].MetricsQuery.HashedMName)
+	assert.Equal(t, mHashedMName3, mQueryReqs[2].MetricsQuery.HashedMName)
+	assert.Equal(t, mHashedMName4, mQueryReqs[3].MetricsQuery.HashedMName)
+
+	for i := 0; i < 3; i++ {
+		assert.True(t, mQueryReqs[i].MetricsQuery.SelectAllSeries)
+		assert.False(t, mQueryReqs[i].MetricsQuery.Groupby)
+		assert.Equal(t, structs.AggregatorBlock, mQueryReqs[i].MetricsQuery.SubsequentAggs.AggBlockType)
+		assert.Equal(t, segutils.Avg, mQueryReqs[i].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
+		assert.NotNil(t, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next)
+		assert.Equal(t, structs.FunctionBlock, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.AggBlockType)
+		assert.Equal(t, structs.LabelFunction, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.FunctionBlock.FunctionType)
+		assert.Equal(t, segutils.LabelReplace, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.FunctionBlock.LabelFunction.FunctionType)
+		assert.NotNil(t, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.Next)
+		assert.Equal(t, structs.FunctionBlock, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.Next.AggBlockType)
+		assert.Equal(t, segutils.LabelReplace, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.Next.FunctionBlock.LabelFunction.FunctionType)
+		assert.Nil(t, mQueryReqs[i].MetricsQuery.SubsequentAggs.Next.Next.Next)
+	}
+
+	assert.Equal(t, structs.AggregatorBlock, mQueryReqs[3].MetricsQuery.SubsequentAggs.AggBlockType)
+	assert.Equal(t, segutils.Avg, mQueryReqs[3].MetricsQuery.SubsequentAggs.AggregatorBlock.AggregatorFunction)
+
+	binaryOperation := queryArithmetic[0]
+
+	//  sum by (cluster, namespace) (...) or on (cluster, namespace) (...)
+	assert.NotNil(t, binaryOperation.VectorMatching)
+	assert.Equal(t, segutils.LetOr, binaryOperation.Operation)
+	assert.Equal(t, []string{"cluster", "namespace"}, binaryOperation.VectorMatching.MatchingLabels)
+	assert.True(t, binaryOperation.VectorMatching.On)
+
+	// First let's deal with RHS part ... or on (cluster, namespace) (...)
+	// within on (cluster, namespace) (...)
+	// there are two binary operations
+	assert.NotNil(t, binaryOperation.RHSExpr)
+	assert.Equal(t, segutils.LetSubtract, binaryOperation.RHSExpr.Operation)
+	assert.Equal(t, float64(1), binaryOperation.RHSExpr.Constant)
+	assert.NotNil(t, binaryOperation.RHSExpr.LHSExpr)
+	assert.Equal(t, segutils.LetEquals, binaryOperation.RHSExpr.LHSExpr.Operation)
+	assert.Equal(t, float64(1), binaryOperation.RHSExpr.LHSExpr.Constant)
+	assert.True(t, binaryOperation.RHSExpr.LHSExpr.ConstantOp)
+	assert.NotNil(t, binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain)
+	assert.Equal(t, structs.AggregatorBlock, binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.AggBlockType)
+	assert.Equal(t, segutils.Group, binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 2, len(binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.AggregatorBlock.GroupByFields))
+	assert.Equal(t, []string{"cluster", "namespace"}, binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.AggregatorBlock.GroupByFields)
+	assert.Equal(t, structs.FunctionBlock, binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.Next.AggBlockType)
+	assert.Equal(t, segutils.Last_Over_Time, binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.Next.FunctionBlock.RangeFunction)
+	assert.Equal(t, float64(3600), binaryOperation.RHSExpr.LHSExpr.MQueryAggsChain.Next.FunctionBlock.TimeWindow)
+
+	// NOW let's deal with LHS part  sum by (cluster, namespace) (...)
+	assert.NotNil(t, binaryOperation.LHSExpr)
+	// sum by (cluster, namespace) (label_replace(...) or ((...) or (...)))
+	assert.NotNil(t, binaryOperation.LHSExpr.LHSExpr)
+	assert.Equal(t, segutils.LetOr, binaryOperation.LHSExpr.Operation)
+	assert.Equal(t, segutils.LetOr, binaryOperation.LHSExpr.LHSExpr.Operation)
+	assert.NotNil(t, binaryOperation.LHSExpr.MQueryAggsChain)
+	assert.Equal(t, structs.AggregatorBlock, binaryOperation.LHSExpr.MQueryAggsChain.AggBlockType)
+	assert.Equal(t, segutils.Group, binaryOperation.LHSExpr.MQueryAggsChain.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 3, len(binaryOperation.LHSExpr.MQueryAggsChain.AggregatorBlock.GroupByFields))
+	assert.Equal(t, []string{"cluster", "namespace", "workload"}, binaryOperation.LHSExpr.MQueryAggsChain.AggregatorBlock.GroupByFields)
+	assert.Equal(t, structs.AggregatorBlock, binaryOperation.LHSExpr.MQueryAggsChain.Next.AggBlockType)
+	assert.Equal(t, segutils.Sum, binaryOperation.LHSExpr.MQueryAggsChain.Next.AggregatorBlock.AggregatorFunction)
+	assert.Equal(t, 2, len(binaryOperation.LHSExpr.MQueryAggsChain.Next.AggregatorBlock.GroupByFields))
+	assert.Equal(t, []string{"cluster", "namespace"}, binaryOperation.LHSExpr.MQueryAggsChain.Next.AggregatorBlock.GroupByFields)
+	assert.Nil(t, binaryOperation.LHSExpr.MQueryAggsChain.Next.Next)
+}
+
 func Test_parsePromQLQuery_Parse_Metrics_Test_CSV(t *testing.T) {
 	endTime := uint32(time.Now().Unix())
 	startTime := endTime - 86400 // 1 day
@@ -1421,9 +1440,11 @@ func Test_parsePromQLQuery_Parse_Promql_Test_CSV(t *testing.T) {
 
 func Test_GetAllLabels(t *testing.T) {
 	assertGetAllLabels(t, true, `allocated_bytes`)
-	assertGetAllLabels(t, false, `allocated_bytes{app="foo"}`)
+	assertGetAllLabels(t, true, `allocated_bytes{app="foo"}`)
 	assertGetAllLabels(t, false, `avg(allocated_bytes)`)
 	assertGetAllLabels(t, false, `group by (app) (allocated_bytes)`)
+	assertGetAllLabels(t, true, `count(allocated_bytes{instance="foo"})`)
+	assertGetAllLabels(t, true, `count by (app) (allocated_bytes{instance="foo"})`)
 }
 
 func assertGetAllLabels(t *testing.T, expected bool, query string) {
@@ -1431,6 +1452,24 @@ func assertGetAllLabels(t *testing.T, expected bool, query string) {
 
 	mQuery := parsePromQLForTest(t, query)
 	assert.Equal(t, expected, mQuery.GetAllLabels)
+}
+
+func Test_SelectAllSeries(t *testing.T) {
+	assertSelectAllSeries(t, true, `allocated_bytes`)
+	assertSelectAllSeries(t, true, `allocated_bytes{app="foo"}`)
+	assertSelectAllSeries(t, true, `avg(allocated_bytes)`)
+	assertSelectAllSeries(t, false, `group by (app) (allocated_bytes)`)
+	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"})`)
+	assertSelectAllSeries(t, false, `avg(allocated_bytes{instance="foo"}) by (app)`)
+	assertSelectAllSeries(t, true, `count(allocated_bytes{instance="foo"})`)
+	assertSelectAllSeries(t, false, `count by (app) (allocated_bytes{instance="foo"})`)
+}
+
+func assertSelectAllSeries(t *testing.T, expected bool, query string) {
+	t.Helper()
+
+	mQuery := parsePromQLForTest(t, query)
+	assert.Equal(t, expected, mQuery.SelectAllSeries)
 }
 
 func parsePromQLForTest(t *testing.T, query string) structs.MetricsQuery {

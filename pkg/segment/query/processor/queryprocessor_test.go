@@ -222,3 +222,62 @@ func Test_NewQueryProcessor_allCommands(t *testing.T) {
 
 	query.DeleteQuery(0)
 }
+
+func TestIsLogsQuery_AllRRCCmd(t *testing.T) {
+	agg := &structs.QueryAggregators{}
+	result := query.IsLogsQuery(agg)
+	assert.True(t, result)
+}
+
+func TestIsLogsQuery_ChainOfRRCCmd(t *testing.T) {
+	agg := &structs.QueryAggregators{
+		Next: &structs.QueryAggregators{
+			Next: &structs.QueryAggregators{},
+		},
+	}
+	result := query.IsLogsQuery(agg)
+	assert.True(t, result)
+}
+
+func TestIsLogsQuery_WithGroupByCmd(t *testing.T) {
+	agg := &structs.QueryAggregators{
+		GroupByRequest: &structs.GroupByRequest{
+			MeasureOperations: []*structs.MeasureAggregator{},
+			GroupByColumns:    []string{"col1"},
+		},
+	}
+	result := query.IsLogsQuery(agg)
+	assert.False(t, result)
+}
+
+func TestIsLogsQuery_WithSegmentStatsCmd(t *testing.T) {
+	agg := &structs.QueryAggregators{
+		GroupByRequest: &structs.GroupByRequest{
+			MeasureOperations: []*structs.MeasureAggregator{},
+			GroupByColumns:    nil,
+		},
+	}
+	result := query.IsLogsQuery(agg)
+	assert.False(t, result)
+}
+
+func TestIsLogsQuery_WithMeasureOnly_SegmentStatsCmd(t *testing.T) {
+	agg := &structs.QueryAggregators{
+		MeasureOperations: []*structs.MeasureAggregator{},
+	}
+	result := query.IsLogsQuery(agg)
+	assert.False(t, result)
+}
+
+func TestIsLogsQuery_MixedRRCCmdAndGroupByCmd(t *testing.T) {
+	agg := &structs.QueryAggregators{
+		Next: &structs.QueryAggregators{
+			GroupByRequest: &structs.GroupByRequest{
+				MeasureOperations: []*structs.MeasureAggregator{},
+				GroupByColumns:    []string{"col1"},
+			},
+		},
+	}
+	result := query.IsLogsQuery(agg)
+	assert.False(t, result)
+}

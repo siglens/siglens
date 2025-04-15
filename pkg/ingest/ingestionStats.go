@@ -124,8 +124,13 @@ func processSegmentAndIndexStats(allSegmetas []*structs.SegMeta, allCnts map[str
 	for indexName := range uniqueIndexes {
 		stats, err := segwriter.GetIndexSizeStats(indexName, 0)
 		if err != nil {
-			log.Errorf("processSegmentAndIndexStats: failed to get stats for index=%v err=%v", indexName, err)
-			continue
+			log.Errorf("processSegmentAndIndexStats: failed to get stats=%v for index=%v err=%v",
+				stats, indexName, err)
+			// some sfm filenames might be empty, but we should show what we have
+			// if stats happens to be nil then continue on
+			if stats == nil {
+				continue
+			}
 		}
 
 		totalCmiSize += stats.TotalCmiSize
@@ -160,9 +165,6 @@ func metricsLooper() {
 			setNumMetricNames()
 			setMetricOnDiskBytes()
 		case <-fifteenMinuteTicker.C:
-			// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
-			// keep it disabled until the panic is fixed
-			// setNumSeries()
 			setNumKeysAndValues()
 		}
 	}
@@ -181,25 +183,6 @@ func setNumMetricNames() {
 
 	instrumentation.SetTotalMetricNames(int64(len(names)))
 }
-
-/*
-// TODO: disable calling series cardinality call every x minutes, since there is a bug which causes a panic
-// keep it disabled until the panic is fixed
-
-func setNumSeries() {
-	allPreviousTime := &dtu.MetricsTimeRange{
-		StartEpochSec: 0,
-		EndEpochSec:   uint32(time.Now().Unix()),
-	}
-	numSeries, err := query.GetSeriesCardinalityOverTimeRange(allPreviousTime, 0)
-	if err != nil {
-		log.Errorf("setNumSeries: failed to get all series: %v", err)
-		return
-	}
-
-	instrumentation.SetTotalTimeSeries(int64(numSeries))
-}
-*/
 
 func setNumKeysAndValues() {
 	allPreviousTime := &dtu.MetricsTimeRange{

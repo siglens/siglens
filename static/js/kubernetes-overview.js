@@ -20,8 +20,8 @@
 const QUERIES = {
     CPU_USAGE: `sum by (cluster) (
         max by (cluster, instance, cpu, core) (1 - rate(node_cpu_seconds_total{cluster=~".+", mode="idle"}[5m]))
-    ) 
-    / on (cluster) 
+    )
+    / on (cluster)
     sum by (cluster) (
         max by (cluster, node) (kube_node_status_capacity{cluster=~".+", resource="cpu"})
     )`,
@@ -36,8 +36,8 @@ const QUERIES = {
                     "node", "$1", "instance", "(.+)"
                 )
             )
-        ) 
-        / on (cluster) 
+        )
+        / on (cluster)
         sum by (cluster) (
             max by (cluster, node) (
                 kube_node_status_capacity{cluster=~".+", resource="memory"}
@@ -350,7 +350,15 @@ $(document).ready(async () => {
             cluster: clusterFilter,
         };
 
-        datePickerHandler(params.startTime, params.endTime, params.startTime);
+        if (!isNaN(params.startTime)) {
+            let stDate = Number(params.startTime);
+            let endDate = Number(params.endTime);
+            datePickerHandler(stDate, endDate, 'custom');
+            loadCustomDateTimeFromEpoch(stDate, endDate);
+        } else {
+            $(`.ranges .inner-range #${params.startTime}`).addClass('active');
+            datePickerHandler(params.startTime, params.endTime, params.startTime);
+        }
         setupEventHandlers();
         setupRefreshHandlers();
 

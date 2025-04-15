@@ -71,11 +71,11 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 
 		encoded := make([]byte, WIP_SIZE)
 		bmh := &BlockMetadataHolder{
-			ColumnBlockOffset: make(map[string]int64),
-			ColumnBlockLen:    make(map[string]uint32),
+			ColBlockOffAndLen: make(map[string]ColOffAndLen),
 		}
-		bmh.ColumnBlockOffset["mycol"] = 29
-		bmh.ColumnBlockLen["mycol"] = 22
+		bmh.ColBlockOffAndLen["mycol"] = ColOffAndLen{Offset: 29,
+			Length: 22,
+		}
 
 		packedLen, _, err := EncodeBlocksum(bmh, record_json, encoded, 23)
 
