@@ -130,6 +130,7 @@ function formatMethodName(methodParam, type) {
         if (methodParam === 'elasticbulk') return 'Elastic Bulk';
         if (methodParam === 'splunkhec') return 'Splunk HEC';
         if (methodParam === 'sendtestdata') return 'Send Test Data';
+        if (methodParam === 'verifyconnection') return 'Verify Connection';
     } else if (type === 'metrics') {
         if (methodParam === 'vectormetrics') return 'VectorMetrics';
     } else if (type === 'traces') {
@@ -155,23 +156,30 @@ function navigateToLogDetails(source, ingestURL) {
     );
 
     updateBreadcrumbsForIngestion('Log Ingestion Methods', source);
+    $('#data-ingestion, #sample-data, #verify-connection').hide();
 
     if (source === 'Send Test Data') {
-        $('#data-ingestion').hide();
         $('#sample-data').show();
-    } else {
+    } else if (source === 'Verify Connection'){
+        $('#verify-connection').show();
+    }else {
         $('#data-ingestion').show();
-        $('#sample-data').hide();
     }
 
-    var ingestCmd = '';
-    var curlCommand = 'curl -X POST "' + ingestURL + '/elastic/_bulk" \\\n' + "-H 'Content-Type: application/json' \\\n" + ingestCmd + '-d \'{ "index" : { "_index" : "test" } }\n' + '{ "name" : "john", "age":"23" }\'';
-
-    if (source === 'Splunk HEC') {
-        curlCommand = 'curl -X POST "' + ingestURL + '/services/collector/event" \\\n' + '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' + ingestCmd + '-d \'{ "index": "test", "name": "john", "age": "23"}\'';
-    }
-
-    $('#verify-command').text(curlCommand);
+    var ingestCmd = "";
+    var esBulkCommand = 'curl -X POST "' + ingestURL + '/elastic/_bulk" \\\n' +
+        '-H \'Content-Type: application/json\' \\\n' +
+        ingestCmd +
+        '-d \'{ "index" : { "_index" : "test" } }\n' +
+        '{ "name" : "john", "age":"23" }\'';
+    
+    var hecCommand = 'curl -X POST "' + ingestURL + '/services/collector/event" \\\n' +
+        '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
+        ingestCmd +
+        '-d \'{ "index": "test", "name": "john", "age": "23"}\'';
+    
+    $('#verify-command-esbulk').text(esBulkCommand);
+    $('#verify-command-hec').text(hecCommand);
     $('#platform-input').val(source);
 
     const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
@@ -213,6 +221,9 @@ function navigateToLogDetails(source, ingestURL) {
             break;
         case 'Send Test Data':
             urlParam = 'sendtestdata';
+            break;
+        case 'Verify Connection':
+            urlParam = 'verifyconnection';
             break;
     }
 

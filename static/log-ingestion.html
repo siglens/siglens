@@ -314,9 +314,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <div class="ingestion-card logs-card" data-source="Send Test Data">
                             <div class="card-header">
                                 <div class="cards-svg-icon">
-                                    <i class="fa fa-vial" style="font-size: 19px;"></i>
+                                    <i class="fa fa-vial" style="font-size: 17px;"></i>
                                 </div>
-                                <h3>Test Data</h3>
+                                <h3>Send Test Data</h3>
+                            </div>
+                        </div>
+                        <div class="ingestion-card logs-card" data-source="Verify Connection">
+                            <div class="card-header">
+                                <div class="cards-svg-icon">
+                                    <i class="fa fa-terminal" style="font-size: 14px;"></i>
+                                </div>
+                                <h3>Verify Connection</h3>
                             </div>
                         </div>
                     </div>
@@ -325,26 +333,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 <div class="ingest-inner-container" id="logs-ingestion-details" style="display: none;">
                     <div class="ingestion-content">
                         <div>
-
                             <div id="data-ingestion">
-                                <div class="mt-4">
-                                    <div class="d-flex mt-4">
-                                        <h5 class="myOrg-heading">Setup instructions</h5>
-                                        <div class="ingestion-container">
-                                            <div>Follow the steps in <a href="" id="logs-setup-instructions-link"
-                                                    target="_blank">Quick start
-                                                    guide<span id="open-new-tab-icon"></span></a></div>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex mt-4">
-                                        <h5 class="myOrg-heading">Verify data collection</h5>
-                                        <div class="ingestion-container">
-                                            <p>Test the pipes by running the following command in your terminal:</p>
-                                            <div class="position-relative">
-                                                <textarea name="" id="verify-command" cols="30" rows="6"
-                                                    class="form-control copyable" readonly></textarea>
-                                            </div>
-                                        </div>
+                                <div class="d-flex">
+                                    <h5 class="myOrg-heading">Setup instructions</h5>
+                                    <div class="ingestion-container">
+                                        <div>Follow the steps in <a href="" id="logs-setup-instructions-link"
+                                                target="_blank">Quick start
+                                                guide<span id="open-new-tab-icon"></span></a></div>
                                     </div>
                                 </div>
                             </div>
@@ -352,6 +347,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <p class="caption mb-0"> Get started by sending sample logs data &nbsp; </p>
                                 <button type="button" class="btn btn-primary test-data-btn" id="test-data-btn">Send Test
                                     Data</button>
+                            </div>
+                            <div id="verify-connection">
+                                <div>
+                                    <h5 class="myOrg-heading">Verify data collection</h5>
+                                    <p>Test the pipes by running the following command in your terminal:</p>
+                                    <div class="ingestion-container">
+                                        <h5 class="myOrg-heading">Elastic Bulk</h5>
+                                        <div class="position-relative">
+                                            <textarea name="" id="verify-command-esbulk" cols="30" rows="6"
+                                                class="form-control copyable" readonly></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="ingestion-container">
+                                        <h5 class="myOrg-heading">Splunk HEC</h5>
+                                        <div class="position-relative">
+                                            <textarea name="" id="verify-command-hec" cols="30" rows="6"
+                                                class="form-control copyable" readonly></textarea>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -5715,7 +5715,7 @@ p#versionInfo {
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
-    padding: 30px;
+    padding: 20px;
     box-shadow: var(--box-shadow);
 }
 
@@ -6435,7 +6435,6 @@ p#versionInfo {
 }
 
 .ingest-inner-container {
-    padding: 10px;
     height: 100%;
     padding-left: 10px;
 }
