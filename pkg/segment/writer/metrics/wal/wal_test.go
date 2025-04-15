@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/siglens/siglens/pkg/segment/structs"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +17,8 @@ func TestWALAppendAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewDataPointWal(filePath)
+	encoder := NewDataPointEncoder()
+	wal, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -51,7 +54,7 @@ func TestDeleteWALFile(t *testing.T) {
 	dir := t.TempDir()
 	filename := "testwal.wal"
 	filePath := filepath.Join(dir, filename)
-	wal, err := NewDataPointWal(filePath)
+	wal, err := NewWAL(filePath, &MetricsMetaEncoder{})
 	assert.NoError(t, err)
 	_, err = os.Stat(filePath)
 	assert.False(t, os.IsNotExist(err))
@@ -70,8 +73,8 @@ func TestWALStats(t *testing.T) {
 	filename := "testwal.wal"
 
 	filePath := filepath.Join(dir, filename)
-
-	w, err := NewDataPointWal(filePath)
+	encoder := NewDataPointEncoder()
+	w, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 	defer w.Close()
 
@@ -79,9 +82,7 @@ func TestWALStats(t *testing.T) {
 	err = w.Append(dps)
 	assert.NoError(t, err)
 
-	fname, totalDps, encodedSize := w.GetWALStats()
-	assert.Equal(t, fname, filepath.Join(dir, filename))
-	assert.Equal(t, uint32(500), totalDps)
+	encodedSize := w.GetWALStats()
 	assert.True(t, encodedSize > 0)
 }
 
@@ -104,7 +105,8 @@ func TestWALAppendAndRead_MultipleAppends(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewDataPointWal(filePath)
+	encoder := NewDataPointEncoder()
+	wal, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 	defer wal.Close()
 
@@ -166,7 +168,8 @@ func TestMNameWALMultipleAppendsAndRead(t *testing.T) {
 	dirPath := t.TempDir()
 	filePath := filepath.Join(dirPath, filename)
 
-	wal, err := NewMNameWal(filePath)
+	encoder := NewMetricNameEncoder()
+	wal, err := NewWAL(filePath, encoder)
 	assert.NoError(t, err)
 
 	totalAppends := 5
@@ -206,4 +209,60 @@ func generateMetricNames(n int) []string {
 		metrics[i] = fmt.Sprintf("metric_%d", i+1)
 	}
 	return metrics
+}
+
+func TestMetaEntryWal(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "test_wal_file.wal")
+
+	nwal, err := NewWAL(filePath, &MetricsMetaEncoder{})
+	assert.NoError(t, err)
+	defer os.Remove(filePath)
+
+	meta1 := &structs.MetricsMeta{
+		TTreeDir:           "treeDir1",
+		MSegmentDir:        "segmentDir1",
+		NumBlocks:          10,
+		BytesReceivedCount: 1000,
+		OnDiskBytes:        500,
+		TagKeys:            map[string]bool{"tag1": true, "tag2": true},
+		EarliestEpochSec:   1610000000,
+		LatestEpochSec:     1610001000,
+		DatapointCount:     200,
+		OrgId:              123,
+	}
+
+	meta2 := &structs.MetricsMeta{
+		TTreeDir:           "treeDir2",
+		MSegmentDir:        "segmentDir2",
+		NumBlocks:          5,
+		BytesReceivedCount: 2000,
+		OnDiskBytes:        800,
+		TagKeys:            map[string]bool{"tag3": true},
+		EarliestEpochSec:   1610002000,
+		LatestEpochSec:     1610003000,
+		DatapointCount:     100,
+		OrgId:              456,
+	}
+
+	err = nwal.Write([]*structs.MetricsMeta{meta1, meta2})
+	assert.NoError(t, err)
+
+	expected := []*structs.MetricsMeta{meta1, meta2}
+	i := 0
+	reader, _ := NewMetricsMetaEntryWalReader(filePath)
+
+	for {
+		entry, err := reader.Next()
+		if err != nil {
+			break
+		}
+		if entry == nil {
+			break
+		}
+		assert.Equal(t, expected[i], entry)
+		i++
+	}
+	assert.Equal(t, len(expected), i)
+
 }

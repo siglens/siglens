@@ -31,7 +31,6 @@ import (
 
 	"github.com/imdario/mergo"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/colusage"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -98,11 +97,6 @@ func runFlushLoop() {
 		persistentInfoLock.Lock()
 		flushPQueriesToDisk()
 		persistentInfoLock.Unlock()
-		err := blob.UploadQueryNodeDir()
-		if err != nil {
-			log.Errorf("runFlushLoop: Error in uploading the query nodes dir, err: %v", err)
-			continue
-		}
 	}
 }
 

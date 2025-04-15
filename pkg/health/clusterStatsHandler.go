@@ -525,8 +525,11 @@ func getStats(myid int64, filterFunc func(string) bool, allSegMetas []*structs.S
 
 		indexSegStats, err := writer.GetIndexSizeStats(indexName, myid)
 		if err != nil {
-			log.Errorf("getStats: failed to get size stats for index %s: %v", indexName, err)
-			continue
+			log.Errorf("getStats: failed to get size stats=%v for index %s: err:%v",
+				indexSegStats, indexName, err)
+			if indexSegStats == nil {
+				continue
+			}
 		}
 
 		unrotatedByteCount, unrotatedEventCount, unrotatedOnDiskBytesCount, columnNamesSet := segwriter.GetUnrotatedVTableCounts(indexName, myid)

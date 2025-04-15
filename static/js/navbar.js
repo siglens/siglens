@@ -148,7 +148,7 @@ let navbarComponent = `
                 <div class="submenu-arrow"><img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="ingestion-dropdown ">
-                <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
+                <a href="./log-ingestion.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
                 <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
@@ -168,10 +168,15 @@ let navbarComponent = `
                 </button>
             </div>
         </div>
-        <div class="position-relative mb-2">
-            <div class="menu nav-help">
-                <a href="#" class="help-links"><span class="icon-help">
-                </span><span class="nav-link-text">Help & Support</span></a>
+        <div class="menu nav-help help-dropdown-toggle">
+            <div class="help-menu-header">
+                <a href="#" class="main-help-link">
+                    <span class="icon-help"></span>
+                    <span class="nav-link-text-drpdwn">Help & Support</span>
+                </a>
+                <img class="nav-dropdown-icon help-arrow orange"
+                            src="assets/arrow-btn.svg"
+                            alt="Dropdown Arrow">
             </div>
             <div class="help-options">
                 <div class="nav-docs">
@@ -364,26 +369,26 @@ const navigationStructure = {
     },
     'ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Ingestion Methods'}]
+        breadcrumbs: [{ name: 'Ingestion'}]
     },
-    'test-data.html': {
+    'log-ingestion.html': {
         activeClass: 'nav-ingest',
         temporaryDisableHover: true,
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Log Ingestion Methods'}]
     },
     'metrics-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Metrics Ingestion Methods'}
         ]
     },
     'traces-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Traces Ingestion Methods'}
         ]
     },
@@ -446,9 +451,10 @@ $(document).ready(function () {
 
     setupNavigationState();
 
-    initializeDropdowns();
+    initializeHelpDropdown();
 
     setupHamburgerBehavior();
+
 
     $('.navbar-submenu').hide();
     $('.help-options').hide();
@@ -704,6 +710,7 @@ $(document).ready(function () {
     $(document).on('click', 'a', function() {
         setTimeout(updateActiveHighlighting, 100);
     });
+
 });
 
 function setupNavigationState() {
@@ -787,48 +794,78 @@ function setupNavigationState() {
         }
     }
 }
+let isHelpArrowClick = false; // Flag to track help-arrow click
 
-function initializeDropdowns() {
+function initializeHelpDropdown() {
+    const $helpArrow = $('.help-arrow');
+    const $helpHeader = $('.help-menu-header');
+    const $helpOptions = $('.help-options');
+    const $body = $('body');
 
-    // Help dropdown behavior
-    $('.nav-help').hover(
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $('.help-options').stop(true, true).slideDown(0);
-        },
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $('.help-options').stop(true, true).slideUp(30);
-        }
-    ).on('click', function (event) {
+    $helpHeader.on('click', function (event) {
         event.preventDefault();
+        event.stopPropagation();
+        if ($helpOptions.is(':visible')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+                // Collapse side nav when help dropdown closes via header
+                if ($body.hasClass('nav-expanded')) {
+                    $body.removeClass('nav-expanded');
+                }
+            });
+        } else {
+            $helpOptions.stop(true, true).slideDown(30, function () {
+                $helpArrow.addClass('rotated');
+            });
+        }
     });
 
-    // Help options hover behavior
-    $('.help-options').hover(
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $(this).stop(true, true).slideDown(0);
-        },
-        function (event) {
-            event.stopPropagation();
-            event.preventDefault();
-            $(this).stop(true, true).slideUp(30);
+    // Close menu when clicking outside appSideNav or helpOptions
+    $(document).on('click', function (event) {
+        if (!$(event.target).closest('.help-arrow, .help-options, #app-side-nav').length) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
+            if ($body.hasClass('nav-expanded')) {
+                $body.removeClass('nav-expanded');
+            }
         }
-    );
+    });
+
+    // Toggle help dropdown without affecting side nav when clicking help arrow
+    $helpArrow.on('click', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        isHelpArrowClick = true;
+        if ($helpOptions.is(':visible')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+                    isHelpArrowClick = false;
+            });
+        } else {
+            $helpOptions.stop(true, true).slideDown(30, function () {
+                $helpArrow.addClass('rotated');
+            });
+        }
+    });
+
+    // Keep menu open when clicking inside the menu
+    $helpOptions.on('click', function(event) {
+        event.stopPropagation();
+    });
 }
 
 function setupHamburgerBehavior() {
     const navbarToggle = $('#navbar-toggle');
     const appSideNav = $('#app-side-nav');
+    const $helpOptions = $('.help-options');
+    const $helpArrow = $('.help-arrow');
+    const $body = $('body');
     let navTimeout;
 
     navbarToggle.on('mouseenter', function () {
         clearTimeout(navTimeout);
-        $('body').addClass('nav-expanded');
+        $body.addClass('nav-expanded');
     });
 
     appSideNav.on('mouseenter', function () {
@@ -836,28 +873,48 @@ function setupHamburgerBehavior() {
     });
 
     appSideNav.on('mouseleave', function () {
-        navTimeout = setTimeout(function () {
-            $('body').removeClass('nav-expanded');
-        }, 300);
+        if (!$helpOptions.is(':visible') && !isHelpArrowClick) {
+            // Only collapse if help dropdown is not open and not recently clicked
+            navTimeout = setTimeout(function () {
+                $body.removeClass('nav-expanded');
+                $helpOptions.stop(true, true).slideUp(30, function () {
+                    $helpArrow.removeClass('rotated');
+                });
+            }, 300);
+        }
     });
 
     navbarToggle.on('mouseleave', function (e) {
         if (!appSideNav.is(e.relatedTarget) && !$.contains(appSideNav[0], e.relatedTarget)) {
-            navTimeout = setTimeout(function () {
-                $('body').removeClass('nav-expanded');
-            }, 300);
+            if (!$helpOptions.is(':visible') && !isHelpArrowClick) {
+                // Only collapse if help dropdown is not open and not recently clicked
+                navTimeout = setTimeout(function () {
+                    $body.removeClass('nav-expanded');
+                    $helpOptions.stop(true, true).slideUp(30, function () {
+                        $helpArrow.removeClass('rotated');
+                    });
+                }, 300);
+            }
         }
     });
 
     navbarToggle.on('click', function (e) {
         e.stopPropagation();
-        $('body').toggleClass('nav-expanded');
+        $body.toggleClass('nav-expanded');
+        if (!$body.hasClass('nav-expanded')) {
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
+        }
     });
 
     $(document).on('click', function (e) {
         if (!appSideNav.is(e.target) && !appSideNav.has(e.target).length &&
             !navbarToggle.is(e.target) && !navbarToggle.has(e.target).length) {
-            $('body').removeClass('nav-expanded');
+            $body.removeClass('nav-expanded');
+            $helpOptions.stop(true, true).slideUp(30, function () {
+                $helpArrow.removeClass('rotated');
+            });
         }
     });
 }

@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
@@ -35,20 +36,10 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	segKey := segDir + "test"
 	blockSummariesFile := structs.GetBsuFnameFromSegKey(segKey)
 	numBlocks := 10
-	_, blockSummaries, _, _, allBmh, allColsSizes := writer.WriteMockColSegFile(segKey, segKey, numBlocks, 30)
+	_, blockSummaries, _, _, allBmh, _ := writer.WriteMockColSegFile(segKey, segKey, numBlocks, 30)
 	writer.WriteMockBlockSummary(blockSummariesFile, blockSummaries, allBmh)
 
-	bMicro := &segmetadata.SegmentMicroIndex{
-		SegMeta: structs.SegMeta{
-			SegmentKey:       segKey,
-			ColumnNames:      allColsSizes,
-			VirtualTableName: "test",
-			SegbaseDir:       segKey, // its actually one dir up but for mocks/tests its fine
-		},
-	}
-	bMicro.SegbaseDir = segKey // for mocks its fine
-
-	_, blockSum, _, err := bMicro.ReadBlockSummaries([]byte{})
+	blockSum, _, err := microreader.ReadBlockSummaries(blockSummariesFile, true)
 	assert.Nil(t, err)
 	log.Infof("num block summaries: %d", len(blockSum))
 	assert.Len(t, blockSum, numBlocks)
