@@ -5645,8 +5645,7 @@ p#versionInfo {
 .ingestion-cards-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 15px;
-    padding: 15px;
+    gap: 16px;
 }
 
 .ingestion-card {
@@ -5656,17 +5655,14 @@ p#versionInfo {
     padding: 10px;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
-    box-shadow: 0 2px 5px var(--border-shadow);
-    min-height: 60px;
-    min-width: 120px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
 .ingestion-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px var(--border-shadow);
+    box-shadow: var(--box-shadow);
+    transform: translateY(-2px);
 }
 
 .card-header {
@@ -5675,14 +5671,15 @@ p#versionInfo {
     gap: 12px;
     background-color: var(--black1-to-white0);
     border-bottom: none;
+    padding: 0px;
 }
 
 .card-header .cards-svg-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     align-items: center;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px;
@@ -5690,6 +5687,7 @@ p#versionInfo {
 
 .card-header svg {
     margin: 0 !important;
+    width:22px;
 }
 
 [data-theme="dark"] .card-header .cards-svg-icon {
@@ -5698,8 +5696,8 @@ p#versionInfo {
 
 .card-header h3 {
     margin: 10px;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     color: var(--text-color);
 }
 

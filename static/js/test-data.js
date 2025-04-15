@@ -366,7 +366,7 @@ function updateUrlParameter(key, value) {
 
 function updateBreadcrumbsForIngestion(baseTitle, selectedSource) {
     const breadcrumbConfig = [
-        { name : 'Ingestion Methods', url: './ingestion.html'},
+        { name : 'Ingestion', url: './ingestion.html'},
         { name: baseTitle, url: window.location.pathname },
         { name: selectedSource }
     ];

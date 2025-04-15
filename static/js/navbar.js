@@ -369,26 +369,26 @@ const navigationStructure = {
     },
     'ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Ingestion Methods'}]
+        breadcrumbs: [{ name: 'Ingestion'}]
     },
     'test-data.html': {
         activeClass: 'nav-ingest',
         temporaryDisableHover: true,
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Log Ingestion Methods'}]
     },
     'metrics-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Metrics Ingestion Methods'}
         ]
     },
     'traces-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Traces Ingestion Methods'}
         ]
     },
