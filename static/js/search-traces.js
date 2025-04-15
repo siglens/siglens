@@ -28,13 +28,13 @@ let limitation = -1;
 let hasLoaded = false;
 let allResultsFetched = false;
 let totalTraces = 0;
+let initialSearchPerformed = false;
+let dropdownsInitialized = false;
 $(document).ready(() => {
     allResultsFetched = false;
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', showScatterPlot);
 
-    // Initialize page with URL parameters
-    getInitialSearchState();
     initPage();
 
     // Add popstate event listener for browser navigation
@@ -44,32 +44,60 @@ $(document).ready(() => {
 });
 window.onload = function () {
     hasLoaded = true;
+
+    const isRefresh = sessionStorage.getItem('pageRefreshed');
+
+    if (!isRefresh) {
+        sessionStorage.setItem('pageRefreshed', 'true');
+
+        if (!initialSearchPerformed) {
+            getInitialSearchState();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.toString()) {
+                setTimeout(() => {
+                    searchTraceHandler(new Event('init'));
+                }, 300);
+            }
+        }
+    } else {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.toString() && !initialSearchPerformed) {
+            setTimeout(() => {
+                searchTraceHandler(new Event('init'));
+            }, 300);
+        }
+    }
 };
+
+window.addEventListener('beforeunload', function() {
+})
+
+function resetAllState() {
+    initialSearchPerformed = false;
+    dropdownsInitialized = false;
+    sessionStorage.removeItem('pageRefreshed');
+}
+
 function initPage() {
-    initChart();
+    initChart(true);
     // Initialize dropdowns with URL values first
     initializeDropdowns();
     handleSort();
     handleDownload();
     handleTimePicker();
     $('#search-trace-btn').on('click', searchTraceHandler);
-
-     // Trigger a search with URL parameters if they exist
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.toString()) {
-        setTimeout(() => {
-            searchTraceHandler(new Event('init'));
-        }, 300);
-    } else {
-        // Only initialize default chart if no URL parameters
-        initChart();
-    }
 }
 
 function initializeDropdowns() {
+    if (dropdownsInitialized) {
+        return;
+    }
     const state = getInitialSearchState();
     const serviceValue = state.service || 'All';
     const operationValue = state.operation || 'All';
+
+    dropdownsInitialized = true;
 
     getValuesOfColumn('service', 'Service', serviceValue);
 
@@ -289,17 +317,15 @@ function resetToDefaults() {
     $('#limit-result-input').val('');
     $('#tags-input').val('');
 
-    // Reset cookies to default values
     Cookies.set('startEpoch', 'now-1h');
     Cookies.set('endEpoch', 'now');
 
-    // Update the lookback UI to show "Last 1 Hr"
     if ($('#lookback').data('timeTicker')) {
         $('#lookback').data('timeTicker').updateText('Last 1 Hr');
     }
-
+    initialSearchPerformed = false;
     // Run default search
-    initChart();
+    initChart(false);
 }
 
 function handleDownload() {
@@ -448,16 +474,13 @@ function handlePopState(event) {
     const urlParams = new URLSearchParams(window.location.search);
 
     if (!urlParams.toString()) {
-        // If URL has no parameters, reset everything to default
         resetToDefaults();
         return;
     }
 
     if (event.state && event.state.searchState) {
-        // If we have state data, use it
         const state = event.state.searchState;
 
-        // Update UI with the state data
         $('#service-span-name').text(state.service);
         $('#operation-span-name').text(state.operation);
         $('#min-duration-input').val(state.minDuration);
@@ -465,14 +488,11 @@ function handlePopState(event) {
         $('#limit-result-input').val(state.limit);
         $('#tags-input').val(state.tags);
 
-        // Set time range
         datePickerHandler(state.startEpoch, state.endEpoch, state.startEpoch);
     } else {
-        // If no state data, get from URL
         getInitialSearchState();
     }
 
-    // Perform search with current state
     searchTraceHandler(new Event('popstate'));
 }
 
@@ -539,11 +559,6 @@ function searchTraceHandler(e) {
 
     let searchText = searchParts.length > 0 ? searchParts.join(' ') : '*';
 
-    // Use URL parameters or cookies for date range
-    // let queryParams = new URLSearchParams(window.location.search);
-    // let stDate = queryParams.get('startEpoch') || Cookies.get('startEpoch') || 'now-1h';
-    // let endDate = queryParams.get('endEpoch') || Cookies.get('endEpoch') || 'now';
-
     // Always use the current time range from cookies
     let stDate = Cookies.get('startEpoch') || 'now-1h';
     let endDate = Cookies.get('endEpoch') || 'now';
@@ -584,16 +599,14 @@ function searchTraceHandler(e) {
     return false;
 }
 
-function initChart() {
+function initChart(skipSearch = false) {
     $('#graph-show').removeClass('empty-result-show');
     pageNumber = 1;
     traceSize = 0;
     returnResTotal = [];
 
-    // Check if URL has search parameters
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.toString()) {
-        // Don't execute default search if URL parameters exist
         return;
     }
 
@@ -607,6 +620,11 @@ function initChart() {
         page: pageNumber,
     };
     searchTrace(params);
+
+    if (!skipSearch && !initialSearchPerformed) {
+        searchTrace(params);
+        initialSearchPerformed = true;
+    }
 }
 async function getTotalTraces(params) {
     return $.ajax({
