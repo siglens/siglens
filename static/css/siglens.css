@@ -5739,22 +5739,6 @@ p#versionInfo {
     font-weight: bold;
 }
 
-.btn.btn-primary.test-data-btn {
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
-    background-color: var(--purple-1);
-    color: white;
-    border: 2px solid var(--purple-1);
-    border-radius: 6px;
-    transition: background-color 0.2s ease;
-}
-
-.btn.btn-primary.test-data-btn:hover {
-    background-color: var(--lavender-2);
-    box-shadow: 0 8px 20px var(--border-shadow);
-}
-
 .fa.fa-vial {
     color: var(--purple-1);
 }
@@ -6460,13 +6444,8 @@ p#versionInfo {
     border: none;
 }
 
-#sample-data {
-    display: flex;
-}
-
 #index-del-btn-traces {
     background-image: none;
-
 }
 
 #error-popup .fas {
