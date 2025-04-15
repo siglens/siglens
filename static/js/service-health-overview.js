@@ -65,8 +65,10 @@ $(document).ready(() => {
 
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
-    $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
-    $('.range-item').on('click', isGraphsDatePickerHandler);
+    $('.range-item, #customrange-btn').on('click', function (event) {
+        getOneServiceOverview.call(this, event);
+        isGraphsDatePickerHandler.call(this, event);
+    });
 
 
     window.addEventListener('popstate', function () {
