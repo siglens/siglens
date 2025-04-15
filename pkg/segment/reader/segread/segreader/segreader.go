@@ -208,40 +208,31 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v is nil", blockNum)
 	}
 
-	if blockMeta.ColumnBlockLen == nil {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v column block len is nil", blockNum)
+	if blockMeta.ColBlockOffAndLen == nil {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v column block ColOffAndLen is nil", blockNum)
 	}
 
-	colBlockLen, colExists := blockMeta.ColumnBlockLen[sfr.ColName]
+	cOffAndLen, colExists := blockMeta.ColBlockOffAndLen[sfr.ColName]
 	if !colExists {
 		// This is an invalid block & not an error because this column never existed for this block if sfr.blockMetadata[blockNum] exists
 		return false, nil
 	}
 
-	if blockMeta.ColumnBlockOffset == nil {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v column block offset is nil", blockNum)
-	}
-
-	colBlockOffset, colExists := blockMeta.ColumnBlockOffset[sfr.ColName]
-	if !colExists {
-		return false, nil
-	}
-
-	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(colBlockLen))
+	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
-	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:colBlockLen], colBlockOffset)
+	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:cOffAndLen.Length], cOffAndLen.Offset)
 	if err != nil {
-		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", colBlockOffset, err)
+		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", cOffAndLen.Offset, err)
 	}
 	oPtr := uint32(0)
 	sfr.encType = sfr.currFileBuffer[oPtr]
 	oPtr++
 
 	if sfr.encType == utils.ZSTD_COMLUNAR_BLOCK[0] {
-		err := sfr.unpackRawCsg(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
+		err := sfr.unpackRawCsg(sfr.currFileBuffer[oPtr:cOffAndLen.Length], blockNum)
 		return true, err
 	} else if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
-		err := sfr.ReadDictEnc(sfr.currFileBuffer[oPtr:colBlockLen], blockNum)
+		err := sfr.ReadDictEnc(sfr.currFileBuffer[oPtr:cOffAndLen.Length], blockNum)
 		return true, err
 	} else {
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: received an unknown encoding type for %v column! expected zstd or dictenc got %+v",

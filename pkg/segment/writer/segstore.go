@@ -545,8 +545,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		wipBlockLock := sync.Mutex{}
 		wipBlockMetadata := &structs.BlockMetadataHolder{
 			BlkNum:            segstore.numBlocks,
-			ColumnBlockOffset: make(map[string]int64),
-			ColumnBlockLen:    make(map[string]uint32),
+			ColBlockOffAndLen: make(map[string]structs.ColOffAndLen),
 		}
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
@@ -612,8 +611,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 					atomic.AddUint64(&totalBytesWritten, uint64(blkLen))
 					wipBlockLock.Lock()
-					wipBlockMetadata.ColumnBlockOffset[cname] = blkOffset
-					wipBlockMetadata.ColumnBlockLen[cname] = blkLen
+					wipBlockMetadata.ColBlockOffAndLen[cname] = structs.ColOffAndLen{Offset: blkOffset,
+						Length: blkLen,
+					}
 					wipBlockLock.Unlock()
 
 					if !isKibana {
