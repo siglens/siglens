@@ -16,10 +16,10 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-let selectedLogSource = "";
-let selectedMetricsSource = "";
-let selectedTracesSource = "";
-let iToken = "";
+let selectedLogSource = '';
+let selectedMetricsSource = '';
+let selectedTracesSource = '';
+let iToken = '';
 
 $(document).ready(async function () {
     let pageName = window.location.pathname.split('/').pop() || 'index.html';
@@ -29,185 +29,133 @@ $(document).ready(async function () {
         initializeBreadcrumbs(pageConfig.breadcrumbs);
     }
 
-    // Get method parameters from URL if they exist
     const urlParams = new URLSearchParams(window.location.search);
-    const logMethodParam = urlParams.get('method');
-    const metricsMethodParam = urlParams.get('method');
-    const tracesMethodParam = urlParams.get('method');
+    const methodParam = urlParams.get('method');
 
-    // Determine which page we're on based on the URL
     const currentPath = window.location.pathname;
     const isMetricsPage = currentPath.includes('metrics-ingestion.html');
     const isTracesPage = currentPath.includes('traces-ingestion.html');
-    const isLogsPage = !isMetricsPage && !isTracesPage; // Default to logs page
+    const isLogsPage = !isMetricsPage && !isTracesPage;
 
-    // Initial setup for logs ingestion
     $('#data-ingestion').hide();
-    $('#sample-data').show();  // Show sample-data div by default
+    $('#sample-data').show();
     $('.theme-btn').on('click', themePickerHandler);
-    $(".custom-chart-tab").tabs();
-    $(".custom-chart-tab").show();
 
-    let baseUrl = "";
+    let ingestURL = '';
     try {
         const config = await $.ajax({
             method: 'GET',
             url: 'api/config',
             crossDomain: true,
             dataType: 'json',
-            xhrFields: { withCredentials: true }
+            xhrFields: { withCredentials: true },
         });
         if (config.IngestUrl) {
-            baseUrl = config.IngestUrl;
+            ingestURL = config.IngestUrl;
         }
         {{ if .TestDataSendData }}
             {{ .TestDataSendData }}
         {{ else }}
-            myOrgSendTestData();
+            $('#test-data-btn')
+            .off('click')
+            .on('click', () => {
+                const testDataBtn = document.getElementById('test-data-btn');
+                testDataBtn.disabled = true;
+                sendTestData();
+            });
         {{ end }}
     } catch (err) {
         console.log(err);
     }
 
-    // Handle LOGS card clicks to navigate to details view
     $('.ingestion-card.logs-card').on('click', function () {
         selectedLogSource = $(this).data('source');
-        navigateToLogDetails(selectedLogSource, baseUrl);
+        navigateToLogDetails(selectedLogSource, ingestURL);
     });
 
-    // Handle METRICS card clicks to navigate to details view
     $('.ingestion-card.metrics-card').on('click', function () {
         selectedMetricsSource = $(this).data('source');
         navigateToMetricsDetails(selectedMetricsSource);
     });
 
-    // Handle TRACES card clicks to navigate to details view
     $('.ingestion-card.traces-card').on('click', function () {
         selectedTracesSource = $(this).data('source');
         navigateToTracesDetails(selectedTracesSource);
     });
 
-    // Process URL parameters based on the current page
-    if (isLogsPage && logMethodParam) {
-        const formattedMethod = formatLogMethodName(logMethodParam);
-        const matchingCard = $(`.ingestion-card.logs-card[data-source="${formattedMethod}"]`);
-        if (matchingCard.length) {
-            selectedLogSource = formattedMethod;
-            navigateToLogDetails(selectedLogSource, baseUrl);
+    if (methodParam) {
+        let formattedMethod;
+
+        if (isLogsPage) {
+            formattedMethod = formatMethodName(methodParam, 'log');
+            const matchingCard = $(`.ingestion-card.logs-card[data-source="${formattedMethod}"]`);
+            if (matchingCard.length) {
+                selectedLogSource = formattedMethod;
+                navigateToLogDetails(selectedLogSource, ingestURL);
+            }
+        } else if (isMetricsPage) {
+            formattedMethod = formatMethodName(methodParam, 'metrics');
+            const matchingCard = $(`.ingestion-card.metrics-card[data-source="${formattedMethod}"]`);
+            if (matchingCard.length) {
+                selectedMetricsSource = formattedMethod;
+                navigateToMetricsDetails(selectedMetricsSource);
+            }
+        } else if (isTracesPage) {
+            formattedMethod = formatMethodName(methodParam, 'traces');
+            const matchingCard = $(`.ingestion-card.traces-card[data-source="${formattedMethod}"]`);
+            if (matchingCard.length) {
+                selectedTracesSource = formattedMethod;
+                navigateToTracesDetails(selectedTracesSource);
+            }
         }
-    } else if (isMetricsPage && metricsMethodParam) {
-        const formattedMethod = formatMetricsMethodName(metricsMethodParam);
-        const matchingCard = $(`.ingestion-card.metrics-card[data-source="${formattedMethod}"]`);
-        if (matchingCard.length) {
-            selectedMetricsSource = formattedMethod;
-            navigateToMetricsDetails(selectedMetricsSource);
-        }
-    } else if (isTracesPage && tracesMethodParam) {
-        const formattedMethod = formatTracesMethodName(tracesMethodParam);
-        const matchingCard = $(`.ingestion-card.traces-card[data-source="${formattedMethod}"]`);
-        if (matchingCard.length) {
-            selectedTracesSource = formattedMethod;
-            navigateToTracesDetails(selectedTracesSource);
+
+        if (pageName === 'log-ingestion.html') {
+            updateBreadcrumbsForIngestion('Log Ingestion Methods', formattedMethod);
+        } else if (pageName === 'metrics-ingestion.html') {
+            updateBreadcrumbsForIngestion('Metrics Ingestion Methods', formattedMethod);
+        } else if (pageName === 'traces-ingestion.html') {
+            updateBreadcrumbsForIngestion('Traces Ingestion Methods', formattedMethod);
         }
     }
-
-    if (logMethodParam && pageName === 'log-ingestion.html') {
-        updateBreadcrumbsForIngestion('Log Ingestion Methods', formattedMethod);
-    }
-    if (logMethodParam && pageName === 'metrics-ingestion.html') {
-        updateBreadcrumbsForIngestion('Metrics Ingestion Methods', formattedMethod);
-    }
-    if (logMethodParam && pageName === 'traces-ingestion.html') {
-        updateBreadcrumbsForIngestion('Traces Ingestion Methods', formattedMethod);
-    }
-
-    // Copy Handler (used by both logs and metrics)
-    $('.copyable').each(function () {
-        var copyIcon = $('<span class="copy-icon"></span>');
-        $(this).after(copyIcon);
-    });
-
-    $('.copy-icon').on('click', function (_event) {
-        var copyIcon = $(this);
-        var inputOrTextarea = copyIcon.prev('.copyable');
-        var inputValue = inputOrTextarea.val();
-
-        var tempInput = document.createElement("textarea");
-        tempInput.value = inputValue;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        document.execCommand("copy");
-        document.body.removeChild(tempInput);
-
-        copyIcon.addClass('success');
-        setTimeout(function () {
-            copyIcon.removeClass('success');
-        }, 1000);
-    });
 
     {{ .Button1Function }}
 });
 
-// Helper functions to format method names from URL parameters
-function formatLogMethodName(methodParam) {
-    // Handle special cases
-    if (methodParam.toLowerCase() === 'opentelemetry') {
-        return 'OpenTelemetry';
-    } else if (methodParam.toLowerCase() === 'elasticbulk') {
-        return 'Elastic Bulk';
-    } else if (methodParam.toLowerCase() === 'splunkhec') {
-        return 'Splunk HEC';
-    } else if (methodParam.toLowerCase() === 'sendtestdata') {
-        return 'Send Test Data';
-    } else {
-        // Capitalize first letter for simple cases
-        return methodParam.charAt(0).toUpperCase() + methodParam.slice(1);
+function formatMethodName(methodParam, type) {
+    methodParam = methodParam.toLowerCase();
+    
+    if (methodParam === 'opentelemetry') return 'OpenTelemetry';
+    
+    if (type === 'log') {
+        if (methodParam === 'elasticbulk') return 'Elastic Bulk';
+        if (methodParam === 'splunkhec') return 'Splunk HEC';
+        if (methodParam === 'sendtestdata') return 'Send Test Data';
+    } else if (type === 'metrics') {
+        if (methodParam === 'vectormetrics') return 'VectorMetrics';
+    } else if (type === 'traces') {
+        if (methodParam === 'goapp') return 'Go App';
+        if (methodParam === 'javaapp') return 'Java App';
+        if (methodParam === 'pythonapp') return 'Python App';
+        if (methodParam === 'dotnetapp') return '.Net App';
+        if (methodParam === 'javascriptapp') return 'Javascript App';
     }
+    
+    return methodParam.charAt(0).toUpperCase() + methodParam.slice(1);
 }
 
-function formatMetricsMethodName(methodParam) {
-    // Handle special cases for metrics
-    if (methodParam.toLowerCase() === 'vectormetrics') {
-        return 'VectorMetrics';
-    } else if (methodParam.toLowerCase() === 'opentelemetry') {
-        return 'Opentelemetry';
-    } else {
-        // Capitalize first letter for simple cases
-        return methodParam.charAt(0).toUpperCase() + methodParam.slice(1);
-    }
-}
-
-function formatTracesMethodName(methodParam) {
-    // Handle special cases for traces
-    if (methodParam.toLowerCase() === 'goapp') {
-        return 'Go App';
-    } else if (methodParam.toLowerCase() === 'javaapp') {
-        return 'Java App';
-    } else if (methodParam.toLowerCase() === 'pythonapp') {
-        return 'Python App';
-    } else if (methodParam.toLowerCase() === 'dotnetapp') {
-        return '.Net App';
-    } else if (methodParam.toLowerCase() === 'javascriptapp') {
-        return 'Javascript App';
-    } else {
-        // Capitalize first letter for simple cases
-        return methodParam.charAt(0).toUpperCase() + methodParam.slice(1);
-    }
-}
-
-// Function to handle navigation to log details
-function navigateToLogDetails(source, baseUrl) {
+function navigateToLogDetails(source, ingestURL) {
     $('#logs-cards-view').hide();
     $('#logs-ingestion-details').show();
 
-    // Scroll to the top of the logs details section
-    $('html, body').animate({
-        scrollTop: $("#logs-ingestion-details").offset().top
-    }, 500);
+    $('html, body').animate(
+        {
+            scrollTop: $('#logs-ingestion-details').offset().top,
+        },
+        500
+    );
 
     updateBreadcrumbsForIngestion('Log Ingestion Methods', source);
 
-    // Show/hide appropriate sections based on the selected logs card
     if (source === 'Send Test Data') {
         $('#data-ingestion').hide();
         $('#sample-data').show();
@@ -216,140 +164,141 @@ function navigateToLogDetails(source, baseUrl) {
         $('#sample-data').hide();
     }
 
-    var ingestCmd = "";
-    {{ if .IngestDataCmd }}
-        {{ .IngestDataCmd }}
-    {{ end }}
+    var ingestCmd = '';
+    var curlCommand = 'curl -X POST "' + ingestURL + '/elastic/_bulk" \\\n' + "-H 'Content-Type: application/json' \\\n" + ingestCmd + '-d \'{ "index" : { "_index" : "test" } }\n' + '{ "name" : "john", "age":"23" }\'';
 
-    var curlCommand = 'curl -X POST "' + baseUrl + '/elastic/_bulk" \\\n' +
-        '-H \'Content-Type: application/json\' \\\n' +
-        ingestCmd +
-        '-d \'{ "index" : { "_index" : "test" } }\n' +
-        '{ "name" : "john", "age":"23" }\'';
+    if (source === 'Splunk HEC') {
+        curlCommand = 'curl -X POST "' + ingestURL + '/services/collector/event" \\\n' + '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' + ingestCmd + '-d \'{ "index": "test", "name": "john", "age": "23"}\'';
+    }
+
     $('#verify-command').text(curlCommand);
+    $('#platform-input').val(source);
 
-    // Update setup instructions based on selected logs source
+    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
+    let docPath = '';
+    let urlParam = '';
+
     switch (source) {
         case 'OpenTelemetry':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/open-telemetry');
-            // Update URL with the method parameter without refreshing the page
-            updateUrlParameter('method', 'opentelemetry');
+            docPath = 'log-ingestion/open-telemetry';
+            urlParam = 'opentelemetry';
             break;
         case 'Vector':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/vector');
-            updateUrlParameter('method', 'vector');
+            docPath = 'log-ingestion/vector';
+            urlParam = 'vector';
             break;
         case 'Logstash':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/logstash');
-            updateUrlParameter('method', 'logstash');
+            docPath = 'log-ingestion/logstash';
+            urlParam = 'logstash';
             break;
         case 'Fluentd':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/fluentd');
-            updateUrlParameter('method', 'fluentd');
+            docPath = 'log-ingestion/fluentd';
+            urlParam = 'fluentd';
             break;
         case 'Filebeat':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/filebeat');
-            updateUrlParameter('method', 'filebeat');
+            docPath = 'log-ingestion/filebeat';
+            urlParam = 'filebeat';
             break;
         case 'Promtail':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/log-ingestion/promtail');
-            updateUrlParameter('method', 'promtail');
+            docPath = 'log-ingestion/promtail';
+            urlParam = 'promtail';
             break;
         case 'Elastic Bulk':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/elasticsearch/fluentd');
-            updateUrlParameter('method', 'elasticbulk');
+            docPath = 'migration/elasticsearch/fluentd';
+            urlParam = 'elasticbulk';
             break;
         case 'Splunk HEC':
-            $('#platform-input').val(source);
-            $('#logs-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/migration/splunk/fluentd');
-            updateUrlParameter('method', 'splunkhec');
-            curlCommand = 'curl -X POST "' + baseUrl + '/services/collector/event" \\\n' +
-                '-H "Authorization: A94A8FE5CCB19BA61C4C08"  \\\n' +
-                ingestCmd +
-                '-d \'{ "index": "test", "name": "john", "age": "23"}\'';
-            $('#verify-command').text(curlCommand);
+            docPath = 'migration/splunk/fluentd';
+            urlParam = 'splunkhec';
             break;
         case 'Send Test Data':
-            // No setup instructions for Test Data
-            updateUrlParameter('method', 'sendtestdata');
-            break;
-        default:
+            urlParam = 'sendtestdata';
             break;
     }
+
+    if (docPath) {
+        $('#logs-setup-instructions-link').attr('href', docsBaseUrl + docPath);
+    }
+
+    updateUrlParameter('method', urlParam);
 }
 
-// Function to handle navigation to metrics details
 function navigateToMetricsDetails(source) {
     $('#metrics-cards-view').hide();
     $('#metrics-ingestion-details').show();
-
+    
     $('html, body').animate({
         scrollTop: $("#metrics-ingestion-details").offset().top
     }, 500);
-
-    updateBreadcrumbsForIngestion('Metrics Ingestion Methods', selectedMetricsSource);
-
-    // Update setup instructions based on selected metrics source
+    
+    updateBreadcrumbsForIngestion('Metrics Ingestion Methods', source);
+    
+    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
+    let docPath = '';
+    let urlParam = '';
+    
     switch (source) {
         case 'VectorMetrics':
-            $('#metrics-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/vector-metrics');
-            updateUrlParameter('method', 'vectorMetrics');
+            docPath = 'metric-ingestion/vector-metrics';
+            urlParam = 'vectorMetrics';
             break;
         case 'Opentelemetry':
-            $('#metrics-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/open-telemetry');
-            updateUrlParameter('method', 'opentelemetry');
-            break;
-        default:
+            docPath = 'metric-ingestion/open-telemetry';
+            urlParam = 'opentelemetry';
             break;
     }
+    
+    if (docPath) {
+        $('#metrics-setup-instructions-link').attr('href', docsBaseUrl + docPath);
+    }
+    
+    updateUrlParameter('method', urlParam);
 }
 
-// Function to handle navigation to traces details
 function navigateToTracesDetails(source) {
     $('#traces-cards-view').hide();
     $('#traces-ingestion-details').show();
-
+    
     $('html, body').animate({
         scrollTop: $("#traces-ingestion-details").offset().top
     }, 500);
-
-    updateBreadcrumbsForIngestion('Traces Ingestion Methods', selectedTracesSource);
-
-    // Update setup instructions based on selected traces source
+    
+    updateBreadcrumbsForIngestion('Traces Ingestion Methods', source);
+    
+    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
+    let docPath = '';
+    let urlParam = '';
+    
     switch (source) {
         case 'Go App':
-            $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/go-app');
-            updateUrlParameter('method', 'goApp');
+            docPath = 'instrument-traces/go-app';
+            urlParam = 'goApp';
             break;
         case 'Java App':
-            $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/java-app');
-            updateUrlParameter('method', 'javaApp');
+            docPath = 'instrument-traces/java-app';
+            urlParam = 'javaApp';
             break;
         case 'Python App':
-            $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/python-app');
-            updateUrlParameter('method', 'pythonApp');
+            docPath = 'instrument-traces/python-app';
+            urlParam = 'pythonApp';
             break;
         case '.Net App':
-            $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/dotnet-app');
-            updateUrlParameter('method', 'dotnetApp');
+            docPath = 'instrument-traces/dotnet-app';
+            urlParam = 'dotnetApp';
             break;
         case 'Javascript App':
-            $('#traces-setup-instructions-link').attr('href', 'https://www.siglens.com/siglens-docs/instrument-traces/js-app');
-            updateUrlParameter('method', 'javascriptApp');
-            break;
-        default:
+            docPath = 'instrument-traces/js-app';
+            urlParam = 'javascriptApp';
             break;
     }
+    
+    if (docPath) {
+        $('#traces-setup-instructions-link').attr('href', docsBaseUrl + docPath);
+    }
+    
+    updateUrlParameter('method', urlParam);
 }
 
-// Function to update URL parameters without page refresh
 function updateUrlParameter(key, value) {
     const url = new URL(window.location.href);
     url.searchParams.set(key, value);
@@ -358,7 +307,7 @@ function updateUrlParameter(key, value) {
 
 function updateBreadcrumbsForIngestion(baseTitle, selectedSource) {
     const breadcrumbConfig = [
-        { name : 'Ingestion', url: './ingestion.html'},
+        { name: 'Ingestion', url: './ingestion.html' },
         { name: baseTitle, url: window.location.pathname },
         { name: selectedSource }
     ];
@@ -366,15 +315,16 @@ function updateBreadcrumbsForIngestion(baseTitle, selectedSource) {
 }
 
 function sendTestData() {
-    sendTestDataWithoutBearerToken().then((_res) => {
-        showToast('Sent Test Data Successfully', 'success');
-        let testDataBtn = document.getElementById("test-data-btn");
-        testDataBtn.disabled = false;
-    })
+    sendTestDataWithoutBearerToken()
+        .then((_res) => {
+            showToast('Sent Test Data Successfully', 'success');
+            let testDataBtn = document.getElementById('test-data-btn');
+            testDataBtn.disabled = false;
+        })
         .catch((err) => {
             console.log(err);
             showToast('Error Sending Test Data', 'error');
-            let testDataBtn = document.getElementById("test-data-btn");
+            let testDataBtn = document.getElementById('test-data-btn');
             testDataBtn.disabled = false;
         });
 }
@@ -386,10 +336,11 @@ function sendTestDataWithoutBearerToken() {
             url: '/api/sampledataset_bulk',
             crossDomain: true,
             dataType: 'json',
-            credentials: 'include'
-        }).then((res) => {
-            resolve(res);
+            credentials: 'include',
         })
+            .then((res) => {
+                resolve(res);
+            })
             .catch((err) => {
                 console.log(err);
                 reject(err);
@@ -397,11 +348,28 @@ function sendTestDataWithoutBearerToken() {
     });
 }
 
-function myOrgSendTestData() {
-    // Remove any existing click handlers to prevent duplicates
-    $('#test-data-btn').off('click').on('click', () => {
-        const testDataBtn = document.getElementById("test-data-btn");
-        testDataBtn.disabled = true;
-        sendTestData();
+
+function setupCopyFunctionality() {
+    $('.copyable').each(function () {
+        var copyIcon = $('<span class="copy-icon"></span>');
+        $(this).after(copyIcon);
+    });
+
+    $('.copy-icon').on('click', function (_event) {
+        var copyIcon = $(this);
+        var inputOrTextarea = copyIcon.prev('.copyable');
+        var inputValue = inputOrTextarea.val();
+
+        var tempInput = document.createElement('textarea');
+        tempInput.value = inputValue;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+
+        copyIcon.addClass('success');
+        setTimeout(function () {
+            copyIcon.removeClass('success');
+        }, 1000);
     });
 }
