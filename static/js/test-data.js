@@ -124,7 +124,7 @@ $(document).ready(async function () {
 function formatMethodName(methodParam, type) {
     methodParam = methodParam.toLowerCase();
     
-    if (methodParam === 'opentelemetry') return 'OpenTelemetry';
+    if (methodParam === 'opentelemetry') return 'OpenTelemetry Collector';
     
     if (type === 'log') {
         if (methodParam === 'elasticbulk') return 'Elastic Bulk';
@@ -132,13 +132,14 @@ function formatMethodName(methodParam, type) {
         if (methodParam === 'sendtestdata') return 'Send Test Data';
         if (methodParam === 'verifyconnection') return 'Verify Connection';
     } else if (type === 'metrics') {
-        if (methodParam === 'vectormetrics') return 'VectorMetrics';
+        if (methodParam === 'vector') return 'Vector';
     } else if (type === 'traces') {
         if (methodParam === 'goapp') return 'Go App';
         if (methodParam === 'javaapp') return 'Java App';
         if (methodParam === 'pythonapp') return 'Python App';
         if (methodParam === 'dotnetapp') return '.Net App';
         if (methodParam === 'javascriptapp') return 'Javascript App';
+        if (methodParam === 'opentelemetry') return 'OpenTelemetry Collector';
     }
     
     return methodParam.charAt(0).toUpperCase() + methodParam.slice(1);
@@ -187,7 +188,7 @@ function navigateToLogDetails(source, ingestURL) {
     let urlParam = '';
 
     switch (source) {
-        case 'OpenTelemetry':
+        case 'OpenTelemetry Collector':
             docPath = 'log-ingestion/open-telemetry';
             urlParam = 'opentelemetry';
             break;
@@ -249,11 +250,11 @@ function navigateToMetricsDetails(source) {
     let urlParam = '';
     
     switch (source) {
-        case 'VectorMetrics':
+        case 'Vector':
             docPath = 'metric-ingestion/vector-metrics';
-            urlParam = 'vectorMetrics';
+            urlParam = 'vector';
             break;
-        case 'Opentelemetry':
+        case 'OpenTelemetry Collector':
             docPath = 'metric-ingestion/open-telemetry';
             urlParam = 'opentelemetry';
             break;
@@ -300,6 +301,10 @@ function navigateToTracesDetails(source) {
         case 'Javascript App':
             docPath = 'instrument-traces/js-app';
             urlParam = 'javascriptApp';
+            break;
+        case 'OpenTelemetry Collector':
+            docPath = 'log-ingestion/open-telemetry';
+            urlParam = 'opentelemetry';
             break;
     }
     
