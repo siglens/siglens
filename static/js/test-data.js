@@ -36,9 +36,7 @@ $(document).ready(async function () {
     const isMetricsPage = currentPath.includes('metrics-ingestion.html');
     const isTracesPage = currentPath.includes('traces-ingestion.html');
     const isLogsPage = !isMetricsPage && !isTracesPage;
-
-    $('#data-ingestion').hide();
-    $('#sample-data').show();
+    
     $('.theme-btn').on('click', themePickerHandler);
 
     let ingestURL = '';
