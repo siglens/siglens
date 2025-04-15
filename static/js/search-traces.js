@@ -70,15 +70,6 @@ window.onload = function () {
     }
 };
 
-window.addEventListener('beforeunload', function() {
-})
-
-function resetAllState() {
-    initialSearchPerformed = false;
-    dropdownsInitialized = false;
-    sessionStorage.removeItem('pageRefreshed');
-}
-
 function initPage() {
     initChart(true);
     // Initialize dropdowns with URL values first
