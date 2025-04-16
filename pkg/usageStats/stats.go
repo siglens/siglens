@@ -533,10 +533,10 @@ func readUsageStats(startEpoch, endEpoch time.Time, orgid int64) ([]*ReadStats, 
 }
 
 // Calculate total bytesCount,linesCount and return hourly / daily / minute count
-func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid int64, endTs int64) (map[string]*ReadStats, error) {
+func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity, orgid int64) (map[string]*ReadStats, error) {
 
 	endEpoch := time.Unix(endTs, 0)
-	startEpoch := endEpoch.Add(-(time.Duration(pastXhours) * time.Hour))
+	startEpoch := time.Unix(startTs, 0)
 	startTOD := (startEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
 	endTOD := (endEpoch.UnixMilli() / segutils.MS_IN_DAY) * segutils.MS_IN_DAY
 	startTOH := (startEpoch.UnixMilli() / segutils.MS_IN_HOUR) * segutils.MS_IN_HOUR
@@ -549,7 +549,8 @@ func GetUsageStats(pastXhours uint64, granularity UsageStatsGranularity, orgid i
 	runningTs := startEpoch
 
 	if granularity == ByMinute {
-		intervalMinutes, err = CalculateIntervalForStatsByMinute(uint32(pastXhours * 60))
+		timeRangeMinutes := uint32((endTs - startTs) / 60)
+		intervalMinutes, err = CalculateIntervalForStatsByMinute(timeRangeMinutes)
 		if err != nil {
 			return nil, err
 		}
