@@ -32,7 +32,7 @@ func (m *MockReader) Read(seriesId SeriesId) []SeriesResult {
 		if seriesId.Matches(id) {
 			allSeries = append(allSeries, SeriesResult{
 				Labels: map[string]string{
-					"__name__": string(id), // TODO
+					"__name__": string(id), // TODO: get the other labels from the id.
 				},
 				Values: series,
 			})

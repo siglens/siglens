@@ -19,8 +19,10 @@ package metricsevaluator
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/siglens/siglens/pkg/segment/structs"
 )
 
 // Sample represents a single sample in a time series.
@@ -286,6 +288,32 @@ func (vss *VectorSelectorStream) Next() bool {
 
 func (vss *VectorSelectorStream) Fetch() error {
 	return nil
+}
+
+func (vss *VectorSelectorStream) At() ([]Sample, error) {
+	if vss == nil {
+		return nil, fmt.Errorf("VectorSelectorStream: nil")
+	}
+
+	if vss.currTsidIndex < 0 || vss.currTsidIndex >= len(vss.allSeries) {
+		return nil, fmt.Errorf("VectorSelectorStream: no TSIDs")
+	}
+
+	samples := vss.allSeries[vss.currTsidIndex].Values
+	idx := sort.Search(len(samples), func(i int) bool {
+		return vss.evalTs < samples[i].Ts
+	})
+	idx--
+
+	if idx > -1 && idx < len(samples) && !isStale(samples[idx].Ts, vss.evalTs) {
+		return []Sample{{Ts: vss.evalTs, Value: samples[idx].Value}}, nil
+	}
+
+	return nil, nil
+}
+
+func isStale(ts, evalTs uint32) bool {
+	return ts+uint32(structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR.Seconds()) <= evalTs
 }
 
 func (mss *MatrixSelectorStream) Next() bool {
