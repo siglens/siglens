@@ -105,10 +105,13 @@ func Test_ExecuteInstantQuery(t *testing.T) {
 		},
 	}
 
-	assertQueryYieldsJson(t, mockReader, 1700000000, `metric`, `{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`)
+	assertQueryYieldsJson(t, mockReader, 1700000000, `metric`,
+		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`,
+	)
 }
 
-func assertQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader, evalTime uint32, query string, expectedJson string) {
+func assertQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
+	evalTime uint32, query string, expectedJson string) {
 	t.Helper()
 
 	qid := uint64(0)

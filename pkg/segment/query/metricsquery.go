@@ -659,7 +659,7 @@ func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricseval
 	for _, series := range allSeries {
 		instantVectorResult := structs.InstantVectorResult{
 			Metric: series.Labels,
-			Value:  []interface{}{series.Values[0].Ts, series.Values[0].Value},
+			Value:  []interface{}{series.Values[0].Ts, fmt.Sprintf("%v", series.Values[0].Value)},
 		}
 		data.VectorResult = append(data.VectorResult, instantVectorResult)
 	}

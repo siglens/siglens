@@ -285,19 +285,6 @@ func (vss *VectorSelectorStream) Next() bool {
 }
 
 func (vss *VectorSelectorStream) Fetch() error {
-	// Fetch the instant samples for the current evalTs
-	if vss == nil {
-		return fmt.Errorf("VectorSelectorStream: nil")
-	}
-
-	if !vss.gotTSIDs || vss.currTsidIndex >= len(vss.tsids) {
-		return fmt.Errorf("VectorSelectorStream: no TSIDs")
-	}
-
-	// TODO: Determine the segments to be searched for the current evalTs
-	// Call function fetchInstantSample(evalTs, tsid)
-	// set the current samples to the fetched samples
-
 	return nil
 }
 
