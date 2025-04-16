@@ -47,6 +47,8 @@ type SeriesResult struct {
 	Values []Sample // Sample {Ts uint32, Value float64}
 }
 
+type SeriesId string
+
 func NewEvaluator(startEpochSec, endEpochSec, step uint32, lookBackDelta time.Duration, querySummary *summary.QuerySummary, qid uint64,
 	mSearchReqs []*structs.MetricsSearchRequest) *Evaluator {
 	return &Evaluator{
@@ -62,7 +64,7 @@ func NewEvaluator(startEpochSec, endEpochSec, step uint32, lookBackDelta time.Du
 	}
 }
 
-func generateLabelKey(labels map[string]string) string {
+func generateLabelKey(labels map[string]string) SeriesId {
 	// e.g., job=api,instance=localhost:9090
 	keys := make([]string, 0, len(labels))
 	for k := range labels {
@@ -77,15 +79,15 @@ func generateLabelKey(labels map[string]string) string {
 		b.WriteString(labels[k])
 		b.WriteString(",")
 	}
-	return b.String()
+	return SeriesId(b.String())
 }
 
-func (e *Evaluator) EvalExpr(expr parser.Expr) (interface{}, error) {
+func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, error) {
 	if expr == nil {
 		return nil, nil
 	}
 
-	seriesMap := make(map[string]*SeriesResult)
+	seriesMap := make(map[SeriesId]*SeriesResult)
 
 	evalTs := e.startEpochSec
 	for evalTs <= e.endEpochSec {
