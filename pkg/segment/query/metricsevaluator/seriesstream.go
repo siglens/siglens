@@ -257,7 +257,7 @@ func (vss *VectorSelectorStream) Fetch() (*SeriesResult, error) {
 		}, nil
 	}
 
-	// This series as no data, but there may still be others with data. So
+	// This series has no data, but there may still be others with data. So
 	// return an empty series instead of a nil one.
 	return &SeriesResult{}, nil
 }
