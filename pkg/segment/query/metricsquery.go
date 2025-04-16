@@ -611,7 +611,7 @@ func ExecuteInstantQuery(qid uint64, orgId int64, reader metricsevaluator.DiskRe
 
 func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricsevaluator.SeriesResult) *structs.MetricsPromQLInstantQueryResponse {
 	data := structs.PromQLInstantData{
-		ResultType:   "vector", // TODO?
+		ResultType:   "vector",
 		VectorResult: make([]structs.InstantVectorResult, 0, len(allSeries)),
 	}
 	data.Result = data.VectorResult
