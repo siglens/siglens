@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+
+storage:
+  tsdb:
+    out_of_order_time_window: 87600h
+
+scrape_configs:
+  - job_name: 'test_metrics'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    metric_relabel_configs:
+      # Drop the job and instance labels because they're automatically added by
+      # Prometheus. Dropping them makes it easier to verify our response with
+      # the Prometheus response.
+      - regex: (job|instance)
+        action: labeldrop
