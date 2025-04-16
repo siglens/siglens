@@ -33,10 +33,7 @@ type Sample struct {
 
 // SeriesStream is the streaming interface for per-series evaluation.
 type SeriesStream interface {
-	Next() bool            // Move to next TSIDs
-	Fetch() error          // Fetch/evaluate for current TSID at given evalTs
-	At() ([]Sample, error) // Returns samples for the current series
-	Labels() map[string]string
+	Fetch() (*SeriesResult, error)
 	Close()
 }
 
@@ -99,36 +96,16 @@ type EvalExprStream struct {
 	currentTsidIndex int
 }
 
-func (bs *BaseStream) Next() bool {
-	if bs == nil {
-		return false
-	}
-
-	return len(bs.curSeries.Values) > 0
-}
-
-func (bs *BaseStream) At() ([]Sample, error) {
+func (bs *BaseStream) Fetch() (*SeriesResult, error) {
 	if bs == nil {
 		return nil, fmt.Errorf("stream is nil")
 	}
 
-	return bs.curSeries.Values, nil
-}
-
-func (bs *BaseStream) Fetch() error {
-	if bs == nil {
-		return fmt.Errorf("stream is nil")
+	if len(bs.curSeries.Values) == 0 {
+		return nil, nil
 	}
 
-	return nil
-}
-
-func (bs *BaseStream) Labels() map[string]string {
-	if bs == nil {
-		return nil
-	}
-
-	return bs.curSeries.Labels
+	return &bs.curSeries, nil
 }
 
 func (bs *BaseStream) Close() {}
@@ -248,64 +225,46 @@ func NewSubqueryExprStream(evalTs uint32, expr *parser.SubqueryExpr, evaluator *
 	}, nil
 }
 
-func (vss *VectorSelectorStream) Next() bool {
-	if vss == nil {
-		return false
-	}
-
-	// If the TSIDs are already fetched, move to the next TSID and set the labels
-	// reset the current samples
-	vss.currTsidIndex++
-
-	if !vss.gotTSIDs {
-		// TODO: Implement the logic to fetch all the TSIDs for the current evalTs => call a function similar to FIndTSIDs
-		// Need to implement the logic to determine the Tags Trees need to be searched for the current evalTs
-		// initiate the current labels and current samples with the first TSID
-		// sets the currTsidIndex to 0
-		// set the gotTSIDs to true
-		// set the current Labels to the first TSID
-		// set the current samples to the first TSID
-		// return true
-
-		seriesId := SeriesId(vss.expr.Name) // TODO: add labels
-		vss.allSeries = vss.reader.Read(seriesId)
-		vss.gotTSIDs = true
-		vss.currTsidIndex = 0
-	}
-
-	if vss.currTsidIndex >= len(vss.allSeries) {
-		return false
-	}
-
-	vss.curSeries = vss.allSeries[vss.currTsidIndex]
-
-	return true
-}
-
-func (vss *VectorSelectorStream) Fetch() error {
-	return nil
-}
-
-func (vss *VectorSelectorStream) At() ([]Sample, error) {
+func (vss *VectorSelectorStream) Fetch() (*SeriesResult, error) {
 	if vss == nil {
 		return nil, fmt.Errorf("VectorSelectorStream: nil")
 	}
 
-	if vss.currTsidIndex < 0 || vss.currTsidIndex >= len(vss.allSeries) {
-		return nil, fmt.Errorf("VectorSelectorStream: no TSIDs")
+	if !vss.gotTSIDs {
+		seriesId := SeriesId(vss.expr.Name) // TODO: add labels
+		vss.allSeries = vss.reader.Read(seriesId)
+		vss.gotTSIDs = true
+		vss.currTsidIndex = 0
+	} else {
+		vss.currTsidIndex++
 	}
 
+	// Check if we've reached the end
+	if vss.currTsidIndex >= len(vss.allSeries) {
+		return nil, nil
+	}
+
+	// Set the current series
+	vss.curSeries = vss.allSeries[vss.currTsidIndex]
+
 	samples := vss.allSeries[vss.currTsidIndex].Values
+	labels := vss.allSeries[vss.currTsidIndex].Labels
+
 	idx := sort.Search(len(samples), func(i int) bool {
 		return vss.evalTs < samples[i].Ts
 	})
 	idx--
 
 	if idx > -1 && idx < len(samples) && !isStale(samples[idx].Ts, vss.evalTs) {
-		return []Sample{{Ts: vss.evalTs, Value: samples[idx].Value}}, nil
+		return &SeriesResult{
+			Labels: labels,
+			Values: []Sample{{Ts: vss.evalTs, Value: samples[idx].Value}},
+		}, nil
 	}
 
-	return nil, nil
+	// This series as no data, but there may still be others with data. So
+	// return an empty series instead of a nil one.
+	return &SeriesResult{}, nil
 }
 
 func isStale(ts, evalTs uint32) bool {

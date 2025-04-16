@@ -98,28 +98,26 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, erro
 			return nil, fmt.Errorf("Evaluator.EvalExpr: %w", err)
 		}
 
-		for stream.Next() {
-			err := stream.Fetch()
+		for {
+			series, err := stream.Fetch()
+			if series == nil {
+				// No more series to fetch.
+				break
+			}
 			if err != nil {
 				// TODO: Handle error logging
 				continue
 			}
 
-			samples, err := stream.At()
-			if err != nil {
-				continue
-			}
-
-			labels := stream.Labels()
-			labelKey := generateLabelKey(labels)
+			labelKey := generateLabelKey(series.Labels)
 			if _, ok := seriesMap[labelKey]; !ok {
 				seriesMap[labelKey] = &SeriesResult{
-					Labels: labels,
+					Labels: series.Labels,
 					Values: make([]Sample, 0),
 				}
 			}
 
-			seriesMap[labelKey].Values = append(seriesMap[labelKey].Values, samples...)
+			seriesMap[labelKey].Values = append(seriesMap[labelKey].Values, series.Values...)
 		}
 	}
 
