@@ -29,6 +29,8 @@ import (
 )
 
 type Evaluator struct {
+	reader DiskReader
+
 	startEpochSec uint32
 	endEpochSec   uint32
 	step          uint32
@@ -36,8 +38,6 @@ type Evaluator struct {
 
 	qid          uint64
 	querySummary *summary.QuerySummary
-
-	mSearchReqs []*structs.MetricsSearchRequest
 
 	fetchTsidsForFullRange bool
 }
@@ -49,18 +49,21 @@ type SeriesResult struct {
 
 type SeriesId string
 
-func NewEvaluator(startEpochSec, endEpochSec, step uint32, lookBackDelta time.Duration, querySummary *summary.QuerySummary, qid uint64,
-	mSearchReqs []*structs.MetricsSearchRequest) *Evaluator {
+func (s SeriesId) Matches(other SeriesId) bool {
+	// TODO
+	return true
+}
+
+func NewEvaluator(reader DiskReader, startEpochSec, endEpochSec, step uint32, querySummary *summary.QuerySummary, qid uint64) *Evaluator {
 	return &Evaluator{
+		reader:        reader,
 		startEpochSec: startEpochSec,
 		endEpochSec:   endEpochSec,
 		step:          step,
-		lookBackDelta: lookBackDelta,
+		lookBackDelta: structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR,
 
 		qid:          qid,
 		querySummary: querySummary,
-
-		mSearchReqs: mSearchReqs,
 	}
 }
 
@@ -89,8 +92,7 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, erro
 
 	seriesMap := make(map[SeriesId]*SeriesResult)
 
-	evalTs := e.startEpochSec
-	for evalTs <= e.endEpochSec {
+	for evalTs := e.startEpochSec; evalTs <= e.endEpochSec; evalTs += e.step {
 		stream, err := e.evalStream(evalTs, expr)
 		if err != nil {
 			return nil, fmt.Errorf("Evaluator.EvalExpr: %w", err)

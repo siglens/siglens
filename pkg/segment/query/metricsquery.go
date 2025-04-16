@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/metricsevaluator"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/series"
 	"github.com/siglens/siglens/pkg/segment/reader/metrics/tagstree"
@@ -628,6 +629,45 @@ func sortSegmentsByStartTime(mSegments map[string][]*structs.MetricsSearchReques
 	})
 
 	return mSearchReqs
+}
+
+func ExecuteInstantQuery(qid uint64, orgId int64, reader metricsevaluator.DiskReader, query string,
+	evalTime uint32, querySummary *summary.QuerySummary) (*structs.MetricsPromQLInstantQueryResponse, error) {
+
+	expr, err := parser.ParseExpr(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query: %v", err)
+	}
+
+	evaluator := metricsevaluator.NewEvaluator(reader, evalTime, evalTime, 1, querySummary, qid)
+
+	allSeries, err := evaluator.EvalExpr(expr)
+	if err != nil {
+		return nil, fmt.Errorf("qid=%v, ExecuteInstantQuery: error evaluating query: %v", qid, err)
+	}
+
+	return asInstantQueryResponse(allSeries), nil
+}
+
+func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricsevaluator.SeriesResult) *structs.MetricsPromQLInstantQueryResponse {
+	data := structs.PromQLInstantData{
+		ResultType:   "vector", // TODO?
+		VectorResult: make([]structs.InstantVectorResult, 0, len(allSeries)),
+	}
+	data.Result = data.VectorResult
+
+	for _, series := range allSeries {
+		instantVectorResult := structs.InstantVectorResult{
+			Metric: series.Labels,
+			Value:  []interface{}{series.Values[0].Ts, series.Values[0].Value},
+		}
+		data.VectorResult = append(data.VectorResult, instantVectorResult)
+	}
+
+	return &structs.MetricsPromQLInstantQueryResponse{
+		Status: "success",
+		Data:   &data,
+	}
 }
 
 func ExecuteMetricsRangeQuery(qid uint64, orgId int64, query string, timeRange *dtu.MetricsTimeRange, step uint32, querySummary *summary.QuerySummary) error {

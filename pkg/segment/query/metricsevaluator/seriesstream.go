@@ -39,8 +39,7 @@ type SeriesStream interface {
 }
 
 type BaseStream struct {
-	currentSamples []Sample
-	currentLabels  map[string]string
+	curSeries SeriesResult
 
 	evalTs    uint32
 	expr      parser.Expr
@@ -50,6 +49,9 @@ type BaseStream struct {
 type VectorSelectorStream struct {
 	*BaseStream
 	expr *parser.VectorSelector
+
+	reader    DiskReader
+	allSeries []SeriesResult // TODO: only store one series at a time.
 
 	// should I define instantSampleStream here?
 	// instantSampleStream will be used to fetch the samples for the current evalTs
@@ -104,7 +106,7 @@ func (bs *BaseStream) Next() bool {
 		return false
 	}
 
-	return len(bs.currentSamples) > 0
+	return len(bs.curSeries.Values) > 0
 }
 
 func (bs *BaseStream) At() ([]Sample, error) {
@@ -112,7 +114,7 @@ func (bs *BaseStream) At() ([]Sample, error) {
 		return nil, fmt.Errorf("stream is nil")
 	}
 
-	return bs.currentSamples, nil
+	return bs.curSeries.Values, nil
 }
 
 func (bs *BaseStream) Fetch() error {
@@ -128,25 +130,26 @@ func (bs *BaseStream) Labels() map[string]string {
 		return nil
 	}
 
-	return bs.currentLabels
+	return bs.curSeries.Labels
 }
 
 func (bs *BaseStream) Close() {}
 
 func newBaseStream(evalTs uint32, expr parser.Expr, evaluator *Evaluator) *BaseStream {
 	return &BaseStream{
-		currentSamples: []Sample{},
-		currentLabels:  make(map[string]string),
-		evalTs:         evalTs,
-		expr:           expr,
-		evaluator:      evaluator,
+		evalTs:    evalTs,
+		expr:      expr,
+		evaluator: evaluator,
 	}
 }
 
 func NewVectorSelectorStream(evalTs uint32, expr *parser.VectorSelector, evaluator *Evaluator) (SeriesStream, error) {
 	return &VectorSelectorStream{
-		BaseStream: newBaseStream(evalTs, expr, evaluator),
-		expr:       expr,
+		BaseStream:      newBaseStream(evalTs, expr, evaluator),
+		expr:            expr,
+		reader:          evaluator.reader,
+		tsids:           make([]uint64, 0),
+		tsidToLabelsMap: make(map[uint64]map[string]string),
 	}, nil
 }
 
@@ -227,13 +230,12 @@ func NewSubqueryExprStream(evalTs uint32, expr *parser.SubqueryExpr, evaluator *
 	rangeStart := evalTs - uint32(expr.Range.Seconds())
 
 	newEvaluator := NewEvaluator(
+		evaluator.reader,
 		rangeStart,
 		evalTs,
 		uint32(expr.Step.Seconds()),
-		evaluator.lookBackDelta,
 		evaluator.querySummary,
 		evaluator.qid,
-		evaluator.mSearchReqs,
 	)
 
 	inputStream, err := NewEvalExprStream(evalTs, expr.Expr, newEvaluator)
@@ -253,6 +255,10 @@ func (vss *VectorSelectorStream) Next() bool {
 		return false
 	}
 
+	// If the TSIDs are already fetched, move to the next TSID and set the labels
+	// reset the current samples
+	vss.currTsidIndex++
+
 	if !vss.gotTSIDs {
 		// TODO: Implement the logic to fetch all the TSIDs for the current evalTs => call a function similar to FIndTSIDs
 		// Need to implement the logic to determine the Tags Trees need to be searched for the current evalTs
@@ -263,23 +269,17 @@ func (vss *VectorSelectorStream) Next() bool {
 		// set the current samples to the first TSID
 		// return true
 
+		seriesId := SeriesId(vss.expr.Name) // TODO: add labels
+		vss.allSeries = vss.reader.Read(seriesId)
 		vss.gotTSIDs = true
 		vss.currTsidIndex = 0
-		vss.currentLabels = vss.tsidToLabelsMap[vss.tsids[vss.currTsidIndex]]
-		vss.currentSamples = vss.currentSamples[:0]
-
-		return true
 	}
 
-	// If the TSIDs are already fetched, move to the next TSID and set the labels
-	// reset the current samples
-	vss.currTsidIndex++
-
-	vss.currentSamples = vss.currentSamples[:0]
-	if vss.currTsidIndex >= len(vss.tsids) {
+	if vss.currTsidIndex >= len(vss.allSeries) {
 		return false
 	}
-	vss.currentLabels = vss.tsidToLabelsMap[vss.tsids[vss.currTsidIndex]]
+
+	vss.curSeries = vss.allSeries[vss.currTsidIndex]
 
 	return true
 }
@@ -348,8 +348,7 @@ func (bes *BinaryExprStream) Fetch() error {
 	}
 
 	if bes.bothStreamsExhausted {
-		bes.currentLabels = bes.seriesResult[bes.currSeriesIndex].Labels
-		bes.currentSamples = bes.seriesResult[bes.currSeriesIndex].Values
+		bes.curSeries = *bes.seriesResult[bes.currSeriesIndex]
 		bes.currSeriesIndex++
 		return nil
 	}
@@ -488,8 +487,10 @@ func (ees *EvalExprStream) Fetch() error {
 		currentEvalTs += ees.evaluator.step
 	}
 
-	ees.currentSamples = allSamples
-	ees.currentLabels = labels
+	ees.curSeries = SeriesResult{
+		Labels: labels,
+		Values: allSamples,
+	}
 
 	return nil
 }

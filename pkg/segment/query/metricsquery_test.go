@@ -18,6 +18,7 @@
 package query
 
 import (
+	"encoding/json"
 	"os"
 	"sort"
 	"testing"
@@ -27,6 +28,8 @@ import (
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/query/metricsevaluator"
+	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/stretchr/testify/assert"
 )
@@ -89,4 +92,34 @@ func Test_getSegmentFilterTimeRange(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedTimeRange, segmentTimeRange)
+}
+
+func Test_ExecuteInstantQuery(t *testing.T) {
+	mockReader := &metricsevaluator.MockReader{
+		Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+			"metric": {
+				{Ts: 1700000000, Value: 1.0},
+				{Ts: 1700000001, Value: 2.0},
+				{Ts: 1700000005, Value: 3.0},
+			},
+		},
+	}
+
+	assertQueryYieldsJson(t, mockReader, 1700000000, `metric`, `{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`)
+}
+
+func assertQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader, evalTime uint32, query string, expectedJson string) {
+	t.Helper()
+
+	qid := uint64(0)
+	myId := int64(0)
+	qs := summary.InitQuerySummary(summary.METRICS, qid)
+
+	result, err := ExecuteInstantQuery(qid, myId, mockReader, query, evalTime, qs)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+
+	jsonBytes, err := json.Marshal(result)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedJson, string(jsonBytes))
 }
