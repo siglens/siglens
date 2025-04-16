@@ -58,15 +58,6 @@ func GetTraceStatsForAllSegments(myid int64) (utils.AllIndexesStats, int64, floa
 
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid int64) {
 	var httpResp utils.ClusterStatsResponseInfo
-	var err error
-	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
-		myid, err = hook(ctx)
-		if err != nil {
-			log.Errorf("ProcessClusterStatsHandler: failed to extract orgId from context. Err=%+v", err)
-			utils.SetBadMsg(ctx, "")
-			return
-		}
-	}
 
 	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
 	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
