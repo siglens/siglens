@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
+	log "github.com/sirupsen/logrus"
 )
 
 type Evaluator struct {
@@ -44,7 +45,7 @@ type Evaluator struct {
 
 type SeriesResult struct {
 	Labels map[string]string
-	Values []Sample // Sample {Ts uint32, Value float64}
+	Values []Sample
 }
 
 type SeriesId string
@@ -68,7 +69,6 @@ func NewEvaluator(reader DiskReader, startEpochSec, endEpochSec, step uint32, qu
 }
 
 func generateLabelKey(labels map[string]string) SeriesId {
-	// e.g., job=api,instance=localhost:9090
 	keys := make([]string, 0, len(labels))
 	for k := range labels {
 		keys = append(keys, k)
@@ -105,7 +105,7 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, erro
 				break
 			}
 			if err != nil {
-				// TODO: Handle error logging
+				log.Errorf("Evaluator.EvalExpr: failed to fetch; err=%v", err)
 				continue
 			}
 
@@ -123,63 +123,6 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, erro
 
 	return seriesMap, nil
 }
-
-// func (e *Evaluator) evalAtTs(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	switch e := expr.(type) {
-// 	case *parser.MatrixSelector:
-// 		// TODO: Implement Range Vector
-// 		return nil, nil
-// 	case *parser.SubqueryExpr:
-// 		// TODO: Implement Subquery
-// 		return nil, nil
-// 	default:
-// 		return nil, nil
-// 	}
-// }
-
-// func (e *Evaluator) evalInstantVector(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	return nil, nil
-// }
-
-// func (e *Evaluator) evalRangeVector(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	matrix, ok := expr.(*parser.MatrixSelector)
-// 	if !ok {
-// 		return nil, fmt.Errorf("expected MatrixSelector, got %T", expr)
-// 	}
-
-// }
-
-// func (e *Evaluator) evalSubQueryExp(evalTs uint32, expr parser.Expr) (interface{}, error) {
-// 	subquery, ok := expr.(*parser.SubqueryExpr)
-// 	if !ok {
-// 		return nil, fmt.Errorf("expected SubqueryExpr, got %T", expr)
-// 	}
-
-// 	rangeStart := evalTs - uint32(subquery.Range.Seconds())
-
-// 	newEvaluator := NewEvaluator(
-// 		rangeStart,
-// 		evalTs,
-// 		uint32(subquery.Step.Seconds()),
-// 		e.lookBackDelta,
-// 		e.querySummary,
-// 		e.qid,
-// 		e.mSearchReqs,
-// 	)
-
-// 	// Once the results are fetched, we need to evaluate the subquery expression
-// 	_, err := newEvaluator.EvalExpr(subquery.Expr)
-
-// 	return nil, err
-// }
-
-// func (e *Evaluator) fetchSamplesInRange(vs *parser.VectorSelector, startTs, endTs uint32) (interface{}, error) {
-// 	return nil, nil
-// }
-
-// func (e *Evaluator) fetchInstantSample(vs *parser.VectorSelector, evalTs uint32) (interface{}, error) {
-// 	return nil, nil
-// }
 
 // Evaluator entry point.
 func (e *Evaluator) evalStream(evalTs uint32, expr parser.Expr) (SeriesStream, error) {

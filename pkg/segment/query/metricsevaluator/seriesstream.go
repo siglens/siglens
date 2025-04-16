@@ -52,8 +52,6 @@ type VectorSelectorStream struct {
 	reader    DiskReader
 	allSeries []SeriesResult // TODO: only store one series at a time.
 
-	// should I define instantSampleStream here?
-	// instantSampleStream will be used to fetch the samples for the current evalTs
 	gotTSIDs        bool // indicates if we have already fetched the TSIDs for the current evalTs
 	tsids           []uint64
 	tsidToLabelsMap map[uint64]map[string]string
@@ -239,16 +237,13 @@ func (vss *VectorSelectorStream) Fetch() (*SeriesResult, error) {
 		vss.currTsidIndex++
 	}
 
-	// Check if we've reached the end
 	if vss.currTsidIndex >= len(vss.allSeries) {
 		return nil, nil
 	}
 
-	// Set the current series
 	vss.curSeries = vss.allSeries[vss.currTsidIndex]
-
-	samples := vss.allSeries[vss.currTsidIndex].Values
-	labels := vss.allSeries[vss.currTsidIndex].Labels
+	samples := vss.curSeries.Values
+	labels := vss.curSeries.Labels
 
 	idx := sort.Search(len(samples), func(i int) bool {
 		return vss.evalTs < samples[i].Ts
