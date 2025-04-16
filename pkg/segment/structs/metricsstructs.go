@@ -38,7 +38,7 @@ import (
 // https://github.com/prometheus/prometheus/blob/e483cff61ff1b68e8925db1059393c4d36af9df5/web/ui/react-app/src/pages/graph/Panel.tsx#L114
 const MAX_POINTS_TO_EVALUATE float64 = 250
 
-const DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR time.Duration = 5 * time.Minute // 5 mins
+const PROMQL_LOOKBACK time.Duration = 5 * time.Minute // 5 mins
 
 /*
 Struct to represent a single metrics query request.

@@ -180,7 +180,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		}
 	}
 
-	startTime := endTime - uint32(structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR.Seconds())
+	startTime := endTime - uint32(structs.PROMQL_LOOKBACK.Seconds())
 	log.Infof("qid=%v, ProcessPromqlMetricsSearchRequest: InstantQuery; searchString=[%v] startEpochs=[%v] endEpochs=[%v]", qid, searchText, startTime, endTime)
 	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {

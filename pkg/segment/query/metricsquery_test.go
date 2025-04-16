@@ -87,7 +87,7 @@ func Test_getSegmentFilterTimeRange(t *testing.T) {
 	segmentTimeRange := getSegmentFilterTimeRange(parsedQuery, *timeRange)
 
 	expectedTimeRange := &dtu.MetricsTimeRange{
-		StartEpochSec: timeRef - 60*60 - 5*60 - uint32(structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR.Seconds()),
+		StartEpochSec: timeRef - 60*60 - 5*60 - uint32(structs.PROMQL_LOOKBACK.Seconds()),
 		EndEpochSec:   timeRange.EndEpochSec,
 	}
 

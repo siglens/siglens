@@ -599,7 +599,7 @@ func getStepValueFromTimeRange(timeRange *dtu.MetricsTimeRange) float64 {
 
 func getSegmentFilterTimeRange(expr parser.Expr, timeRange dtu.MetricsTimeRange) *dtu.MetricsTimeRange {
 	fmt.Println("expr", expr)
-	offset := structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR
+	offset := structs.PROMQL_LOOKBACK
 	parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
 		switch n := node.(type) {
 		case *parser.MatrixSelector:

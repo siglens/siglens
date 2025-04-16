@@ -61,7 +61,7 @@ func NewEvaluator(reader DiskReader, startEpochSec, endEpochSec, step uint32, qu
 		startEpochSec: startEpochSec,
 		endEpochSec:   endEpochSec,
 		step:          step,
-		lookBackDelta: structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR,
+		lookBackDelta: structs.PROMQL_LOOKBACK,
 
 		qid:          qid,
 		querySummary: querySummary,

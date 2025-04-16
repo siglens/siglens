@@ -263,5 +263,5 @@ func (vss *VectorSelectorStream) Fetch() (*SeriesResult, error) {
 }
 
 func isStale(ts, evalTs uint32) bool {
-	return ts+uint32(structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR.Seconds()) <= evalTs
+	return ts+uint32(structs.PROMQL_LOOKBACK.Seconds()) <= evalTs
 }
