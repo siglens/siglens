@@ -177,6 +177,7 @@ type QueryAggregators struct {
 	GenerateEvent        *GenerateEvent
 	Next                 *QueryAggregators
 	Limit                int
+	IndexName            string
 
 	// TODO: eventually, we shouldn't need any of the above fields; then we can
 	// delete them.
