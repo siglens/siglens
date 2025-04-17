@@ -420,13 +420,13 @@ function configureTimeAxis(data, granularity) {
             maxTicksLimit = hoursInRange + 1;
         } else if (daysInRange <= 4) {
             stepSize = 6;
-            maxTicksLimit = daysInRange * 4;
+            maxTicksLimit = daysInRange * 4 + 1;
         } else if (daysInRange <= 15) {
             stepSize = 12;
-            maxTicksLimit = daysInRange * 2;
+            maxTicksLimit = daysInRange * 2 + 1;
         } else {
             stepSize = 24;
-            maxTicksLimit = Math.ceil(daysInRange / 2);
+            maxTicksLimit = Math.ceil(daysInRange / 2) + 1;
         }
     } else if (granularity === 'day') {
         unit = 'day';
@@ -543,7 +543,7 @@ function configureTimeAxis(data, granularity) {
                     const date = new Date(value);
                     const hours = date.getHours();
 
-                    if ((granularity === 'hour') & (hours === 0)) {
+                    if (granularity === 'hour' && hours === 0) {
                         return 'bold';
                     }
                     return 'normal';
