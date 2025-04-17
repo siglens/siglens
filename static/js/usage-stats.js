@@ -444,41 +444,47 @@ function formatHourTick(date, prevDate, isFirstTick) {
 }
 
 function configureTimeAxis(data, granularity) {
-    // Calculate time range in days
     const firstTimestamp = parseInt(data.dates[0]) * 1000;
     const lastTimestamp = parseInt(data.dates[data.dates.length - 1]) * 1000;
     const daysInRange = Math.ceil((lastTimestamp - firstTimestamp) / (1000 * 60 * 60 * 24));
 
-    // Configure based on granularity and range
-    let unit, maxTicksLimit;
+    let unit, maxTicksLimit, stepSize;
 
-    if (granularity === 'day') {
+    if (granularity === 'hour') {
+        unit = 'hour';
+
+        let timeRange;
+        if (daysInRange <= 4) {
+            stepSize = 6;
+            maxTicksLimit = daysInRange * 4;
+        } else if (daysInRange <= 15) {
+            stepSize = 12;
+            maxTicksLimit = daysInRange * 2;
+        } else {
+            stepSize = 24;
+            maxTicksLimit = Math.ceil(daysInRange / 2);
+        }
+    } else if (granularity === 'day') {
         unit = 'day';
 
-        // For daily data, adapt based on range
         if (data.dates.length <= 15) {
-            maxTicksLimit = data.dates.length; // Show all points for week view
+            maxTicksLimit = data.dates.length;
         } else if (daysInRange <= 31) {
-            maxTicksLimit = Math.min(14, Math.ceil(daysInRange / 2)); // For a month, show every other day or so
+            maxTicksLimit = Math.min(14, Math.ceil(daysInRange / 2));
         } else if (daysInRange <= 90) {
-            maxTicksLimit = Math.min(12, Math.ceil(daysInRange / 7)); // For longer periods, show weekly points
+            maxTicksLimit = Math.min(12, Math.ceil(daysInRange / 7));
         } else {
-            maxTicksLimit = Math.min(15, Math.ceil(daysInRange / 14)); // For very long periods, show biweekly points
+            maxTicksLimit = Math.min(15, Math.ceil(daysInRange / 14));
         }
     } else {
-        // month
         unit = 'month';
         if (daysInRange <= 366) {
-            // About a year
-            maxTicksLimit = 12; // Show all months in a year
+            maxTicksLimit = 12;
         } else {
-            maxTicksLimit = Math.min(12, Math.ceil(daysInRange / 30)); // Show major months for multi-year
+            maxTicksLimit = Math.min(12, Math.ceil(daysInRange / 30));
         }
     }
 
-    console.log('daysInRange', daysInRange);
-    console.log('maxTicksLimit', maxTicksLimit);
-    // Configure time options with conditional rounding
     const timeOptions = {
         unit: unit,
         displayFormats: {
@@ -490,50 +496,23 @@ function configureTimeAxis(data, granularity) {
         bounds: 'ticks',
     };
 
-    // Set offset based on granularity to properly align ticks with bars
     let offsetValue = true;
     if (granularity === 'hour') {
-        unit = 'hour';
-
-        // Configure the time options for hourly display
-        timeOptions.displayFormats.hour = 'HH:00'; // Use 24-hour format for clarity
-
-        // For single-day views, we need to ensure hours are properly displayed
-        if (daysInRange <= 1) {
-            // For very short ranges (single day), show more hour ticks
-            maxTicksLimit = 12; // Show every 2 hours
-            timeOptions.stepSize = 2;
-        } else if (daysInRange <= 4) {
-            // For short ranges (2-4 days), show key hours (00, 06, 12, 18)
-            maxTicksLimit = daysInRange * 4;
-        } else if (daysInRange <= 15) {
-            // For medium ranges (5-15 days), show midnight and noon
-            maxTicksLimit = daysInRange * 2;
-        } else {
-            // For longer ranges, show only midnight
-            maxTicksLimit = daysInRange;
-            timeOptions.unit = 'day'; // Switch to day unit for very sparse data
-        }
-
-        // Critical: Set distribution to 'series' to ensure all ticks are shown
-        timeOptions.distribution = 'series';
-
-        // Force alignment to hour boundaries
         timeOptions.round = 'hour';
-        timeOptions.isoWeekday = false; // Don't align to weeks
-
-        // Set to false for hourly data for better bar alignment
         offsetValue = false;
+
+        if (stepSize) {
+            timeOptions.stepSize = stepSize;
+        }
     }
 
     timeOptions.offset = offsetValue;
 
-    // Apply rounding only for day granularity
     if (granularity === 'day') {
         timeOptions.round = 'day';
     }
 
-    return {
+    const config = {
         type: 'time',
         time: timeOptions,
         border: {
@@ -555,40 +534,33 @@ function configureTimeAxis(data, granularity) {
                 const day = date.getDate();
 
                 if (granularity === 'hour') {
-                    // Different display strategy based on days range
-                    if (daysInRange <= 1) {
-                        // For single day: just show hours
-                        return `${hours}:00`;
-                    } else if (daysInRange <= 4) {
-                        // For short range: show date at midnight, key hours otherwise
+                    if (daysInRange <= 4) {
                         if (hours === 0) {
-                            return `${day} ${monthNames[date.getMonth()]}`;
-                        } else if (hours % 6 === 0) {
-                            // Show 6, 12, 18
-                            return `${hours}:00`;
+                            return `${monthNames[date.getMonth()]} ${day}`;
+                        } else if (hours === 6) {
+                            return '6AM';
+                        } else if (hours === 12) {
+                            return '12PM';
+                        } else if (hours === 18) {
+                            return '6PM';
                         }
                     } else if (daysInRange <= 15) {
-                        // For medium range: show date at midnight, noon marker
                         if (hours === 0) {
-                            return `${day} ${monthNames[date.getMonth()]}`;
+                            return `${monthNames[date.getMonth()]} ${day}`;
                         } else if (hours === 12) {
-                            return `12:00`;
+                            return '12PM';
                         }
                     } else {
-                        // For long range: only show dates (every other day)
-                        if (hours === 0) {
-                            if (day % 2 === 0 || index === 0 || index === values.length - 1) {
-                                return `${day} ${monthNames[date.getMonth()]}`;
-                            }
+                        if (hours === 0 && day % 2 === 0) {
+                            return `${monthNames[date.getMonth()]} ${day}`;
+                        } else if (hours === 0) {
+                            return `${monthNames[date.getMonth()]} ${day}`;
                         }
                     }
-                    // Return empty string for ticks we don't want to show
-                    return '';
+                    return null;
                 } else if (granularity === 'day') {
-                    // Your existing day formatting
                     return `${monthNames[date.getMonth()]} ${day}`;
                 } else {
-                    // Your existing month formatting
                     return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
                 }
             },
@@ -596,4 +568,6 @@ function configureTimeAxis(data, granularity) {
         alignToPixels: true,
         offset: offsetValue,
     };
+
+    return config;
 }
