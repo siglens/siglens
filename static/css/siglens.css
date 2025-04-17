@@ -1083,7 +1083,7 @@ body {
 
 .icon-alerts:hover,
 .icon-alerts.active,
-.nav-alerts  .menu-header:hover .icon-alerts {
+.nav-alerts .menu-header:hover .icon-alerts {
     background-image: url("../assets/alerting-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -3617,7 +3617,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
 #app-side-nav .menu:hover .link-usage-stats,
-#app-side-nav .menu:hover .link-lookups{
+#app-side-nav .menu:hover .link-lookups {
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -3639,7 +3639,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 #app-side-nav .nav-ingest .menu-header,
 #app-side-nav .nav-alerts .menu-header,
 #app-side-nav .nav-infrastructure .menu-header,
-#app-side-nav .nav-kubernetes .menu-header{
+#app-side-nav .nav-kubernetes .menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -3693,7 +3693,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .metrics-dropdown,
 .ingestion-dropdown,
 .alerts-dropdown,
-.infrastructure-dropdown{
+.infrastructure-dropdown {
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -3710,7 +3710,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
-.alerts-dropdown a{
+.alerts-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -3720,7 +3720,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
-.alerts-dropdown li{
+.alerts-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -3734,7 +3734,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
-.alerts-dropdown li:hover{
+.alerts-dropdown li:hover {
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
@@ -3745,7 +3745,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
-.alerts-dropdown li.active{
+.alerts-dropdown li.active {
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -3754,19 +3754,19 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
+    color: var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure:hover .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
+    color: var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color:  white !important;
+    color: white !important;
 }
 
 #app-side-nav .nav-infrastructure .nav-kubernetes:hover .nav-link-text-drpdwn {
-    color:  white !important;
+    color: white !important;
 }
 
 .infrastructure-dropdown div {
@@ -3789,11 +3789,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
-.infrastructure-dropdown div.menu-header.active{
+.infrastructure-dropdown div.menu-header.active {
     color: white !important;
 }
 
-.kubernetes-dropdown{
+.kubernetes-dropdown {
     display: none;
     padding: 0 0 0 0 !important;
     margin: 0;
@@ -3806,14 +3806,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-.kubernetes-dropdown a{
+.kubernetes-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
     padding-left: 20px;
 }
 
-.kubernetes-dropdown li{
+.kubernetes-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -3824,14 +3824,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li:hover{
+.kubernetes-dropdown li:hover {
     color: white !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li.active{
+.kubernetes-dropdown li.active {
     color: white !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -3851,7 +3851,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 
-#app-side-nav .nav-help .help-menu-header{
+#app-side-nav .nav-help .help-menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -3859,11 +3859,11 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
-#app-side-nav .help-menu-header:hover{
+#app-side-nav .help-menu-header:hover {
     background-color: var(--side-nav-bg-color-selected) !important;
 }
 
-#app-side-nav .nav-help.active  {
+#app-side-nav .nav-help.active {
     border-left: none !important;
     border-right: none !important;
     background-color: transparent !important;
@@ -3913,7 +3913,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 5px;
 }
 
-.nav-dropdown-icon.help-arrow{
+.nav-dropdown-icon.help-arrow {
     transform: rotate(270deg) !important;
 }
 
@@ -4099,15 +4099,24 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     align-items: center;
     justify-content: center;
     font-size: 20px;
+    position: relative;
 }
 
-.far.fa-clone {
-    font-size: 16px;
+.copy-button .copy-icon {
+    top: 6px;
+    right: 5px;
+    height: 12px;
+    width: 12px;
+}
+
+.copy-button .copy-icon.success {
+    width: 14px;
+    height: 10px;
+    top: 8px;
 }
 
 .copy-button:hover {
-    background-color: var(--purple-1);
-    color: var(--white-0);
+    background-color: var(--theme-btn-hover-bg-color);
 }
 
 
@@ -5645,8 +5654,7 @@ p#versionInfo {
 .ingestion-cards-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 15px;
-    padding: 15px;
+    gap: 16px;
 }
 
 .ingestion-card {
@@ -5656,17 +5664,14 @@ p#versionInfo {
     padding: 10px;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
-    box-shadow: 0 2px 5px var(--border-shadow);
-    min-height: 60px;
-    min-width: 120px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
 .ingestion-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px var(--border-shadow);
+    box-shadow: var(--box-shadow);
+    transform: translateY(-2px);
 }
 
 .card-header {
@@ -5675,14 +5680,15 @@ p#versionInfo {
     gap: 12px;
     background-color: var(--black1-to-white0);
     border-bottom: none;
+    padding: 0px;
 }
 
 .card-header .cards-svg-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     align-items: center;
     background-color: var(--drop-down-btn-bg-regular);
     border-radius: 5px;
@@ -5690,6 +5696,7 @@ p#versionInfo {
 
 .card-header svg {
     margin: 0 !important;
+    width: 22px;
 }
 
 [data-theme="dark"] .card-header .cards-svg-icon {
@@ -5698,8 +5705,8 @@ p#versionInfo {
 
 .card-header h3 {
     margin: 10px;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     color: var(--text-color);
 }
 
@@ -5717,7 +5724,7 @@ p#versionInfo {
     background-color: var(--black1-to-white0);
     border: 1px solid var(--search-input-border);
     border-radius: 10px;
-    padding: 30px;
+    padding: 20px;
     box-shadow: var(--box-shadow);
 }
 
@@ -5739,22 +5746,6 @@ p#versionInfo {
 .ingestion-container a {
     color: var(--dashboard-title-color);
     font-weight: bold;
-}
-
-.btn.btn-primary.test-data-btn {
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
-    background-color: var(--purple-1);
-    color: white;
-    border: 2px solid var(--purple-1);
-    border-radius: 6px;
-    transition: background-color 0.2s ease;
-}
-
-.btn.btn-primary.test-data-btn:hover {
-    background-color: var(--lavender-2);
-    box-shadow: 0 8px 20px var(--border-shadow);
 }
 
 .fa.fa-vial {
@@ -6086,7 +6077,7 @@ p#versionInfo {
 #app-side-nav .menu:hover .link-myorg,
 #app-side-nav .menu:hover .link-ldb,
 #app-side-nav .menu:hover .link-usage-stats,
-#app-side-nav .menu:hover .link-lookups{
+#app-side-nav .menu:hover .link-lookups {
     background-color: var(--side-nav-bg-color-selected);
 }
 
@@ -6112,7 +6103,7 @@ p#versionInfo {
 #app-side-nav .nav-ingest .menu-header,
 #app-side-nav .nav-alerts .menu-header,
 #app-side-nav .nav-infrastructure .menu-header,
-#app-side-nav .nav-kubernetes .menu-header{
+#app-side-nav .nav-kubernetes .menu-header {
     display: flex;
     align-items: center;
     width: 100%;
@@ -6131,12 +6122,12 @@ p#versionInfo {
     background-color: transparent !important;
 }
 
-#app-side-nav .nav-traces.active  .menu-header,
+#app-side-nav .nav-traces.active .menu-header,
 #app-side-nav .nav-metrics.active .menu-header,
 #app-side-nav .nav-ingest.active .menu-header,
 #app-side-nav .nav-alerts.active .menu-header,
 #app-side-nav .nav-infrastructure.active .menu-header.infrastructure-header,
-#app-side-nav .nav-kubernetes.active .menu-header.kubernetes-header{
+#app-side-nav .nav-kubernetes.active .menu-header.kubernetes-header {
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     background-color: var(--side-nav-bg-color-selected);
 }
@@ -6187,7 +6178,7 @@ p#versionInfo {
 .metrics-dropdown,
 .ingestion-dropdown,
 .alerts-dropdown,
-.infrastructure-dropdown{
+.infrastructure-dropdown {
     display: none;
     background-color: var(--side-nav-bg-color-regular);
     padding: 0 0 6px 0;
@@ -6204,7 +6195,7 @@ p#versionInfo {
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
-.alerts-dropdown a{
+.alerts-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
@@ -6214,7 +6205,7 @@ p#versionInfo {
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
-.alerts-dropdown li{
+.alerts-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -6228,17 +6219,17 @@ p#versionInfo {
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
-.alerts-dropdown li:hover{
+.alerts-dropdown li:hover {
     color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.traces-dropdown li:hover ~ .nav-link-text-drpdwn,
-.metrics-dropdown li:hover ~ .nav-link-text-drpdwn,
-.ingestion-dropdown li:hover ~ .nav-link-text-drpdwn,
-.alerts-dropdown li:hover ~ .nav-link-text-drpdwn{
+.traces-dropdown li:hover~.nav-link-text-drpdwn,
+.metrics-dropdown li:hover~.nav-link-text-drpdwn,
+.ingestion-dropdown li:hover~.nav-link-text-drpdwn,
+.alerts-dropdown li:hover~.nav-link-text-drpdwn {
     color: var(--navbar-link-text) !important;
 }
 
@@ -6246,7 +6237,7 @@ p#versionInfo {
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
-.alerts-dropdown li.active{
+.alerts-dropdown li.active {
     color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -6255,15 +6246,15 @@ p#versionInfo {
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text) !important;
+    color: var(--navbar-link-text) !important;
 }
 
 #app-side-nav .nav-infrastructure.active .nav-kubernetes.active .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text-active) !important;
+    color: var(--navbar-link-text-active) !important;
 }
 
 #app-side-nav .nav-infrastructure .nav-kubernetes .menu-header:hover .nav-link-text-drpdwn {
-    color:  var(--navbar-link-text-active) !important;
+    color: var(--navbar-link-text-active) !important;
 }
 
 .infrastructure-dropdown div {
@@ -6286,11 +6277,11 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-.infrastructure-dropdown div.menu-header.active{
+.infrastructure-dropdown div.menu-header.active {
     color: var(--navbar-link-text-active) !important;
 }
 
-.kubernetes-dropdown{
+.kubernetes-dropdown {
     display: none;
     padding: 0 0 0 0 !important;
     margin: 0;
@@ -6303,14 +6294,14 @@ p#versionInfo {
     cursor: pointer;
 }
 
-.kubernetes-dropdown a{
+.kubernetes-dropdown a {
     color: var(--navbar-link-text) !important;
     text-decoration: none;
     display: block;
     padding-left: 20px;
 }
 
-.kubernetes-dropdown li{
+.kubernetes-dropdown li {
     margin-bottom: 2px;
     font-weight: 500;
     height: 28px;
@@ -6321,14 +6312,14 @@ p#versionInfo {
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li:hover{
+.kubernetes-dropdown li:hover {
     color: var(--navbar-link-text-active) !important;
     border-right: 5px solid var(--side-nav-bg-color-selected);
     background-color: var(--side-nav-bg-color-selected);
     border-radius: 0 5px 5px 0;
 }
 
-.kubernetes-dropdown li.active{
+.kubernetes-dropdown li.active {
     color: var(--navbar-link-text-active) !important;
     border-left: 5px solid var(--side-nav-selected-border-color) !important;
     /* Orange bar for submenu */
@@ -6337,7 +6328,7 @@ p#versionInfo {
 }
 
 .submenu-arrow,
-.kubernetes-arrow{
+.kubernetes-arrow {
     display: inline-block;
     margin-right: 10px;
     padding-left: 10px;
@@ -6346,13 +6337,14 @@ p#versionInfo {
 }
 
 .submenu-arrow.rotated img.nav-dropdown-icon,
-.kubernetes-arrow.rotated img.nav-dropdown-icon{
+.kubernetes-arrow.rotated img.nav-dropdown-icon {
     transform: rotate(180deg) !important;
 }
 
 .help-options .help-links:hover {
     background-color: var(--purple-1);
-    color: var(--navbar-link-text-active);;
+    color: var(--navbar-link-text-active);
+    ;
     border-radius: 5px;
 }
 
@@ -6452,7 +6444,6 @@ p#versionInfo {
 }
 
 .ingest-inner-container {
-    padding: 10px;
     height: 100%;
     padding-left: 10px;
 }
@@ -6468,7 +6459,6 @@ p#versionInfo {
 
 #index-del-btn-traces {
     background-image: none;
-
 }
 
 #error-popup .fas {

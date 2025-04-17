@@ -846,7 +846,7 @@ function showToast(msg, type = 'error') {
 }
 
 //eslint-disable-next-line no-unused-vars
-function getIngestUrl() {
+function getOrgConfig() {
     return new Promise((resolve, reject) => {
         $.ajax({
             method: 'get',
@@ -856,7 +856,7 @@ function getIngestUrl() {
             credentials: 'include',
         })
             .then((res) => {
-                resolve(res.IngestUrl);
+                resolve(res);
             })
             .catch((err) => {
                 console.log(err);

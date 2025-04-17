@@ -148,7 +148,7 @@ let navbarComponent = `
                 <div class="submenu-arrow"><img class="nav-dropdown-icon orange" src="assets/arrow-btn.svg" alt="Dropdown Arrow"> </div>
             </div>
             <ul class="ingestion-dropdown ">
-                <a href="./test-data.html"><li class="ingestion-link">Log Ingestion</li></a>
+                <a href="./log-ingestion.html"><li class="ingestion-link">Log Ingestion</li></a>
                 <a href="./metrics-ingestion.html"><li class="ingestion-link">Metrics Ingestion</li></a>
                 <a href="./traces-ingestion.html"><li class="ingestion-link">Traces Ingestion</li></a>
             </ul>
@@ -369,26 +369,26 @@ const navigationStructure = {
     },
     'ingestion.html': {
         activeClass: 'nav-ingest',
-        breadcrumbs: [{ name: 'Ingestion Methods'}]
+        breadcrumbs: [{ name: 'Ingestion'}]
     },
-    'test-data.html': {
+    'log-ingestion.html': {
         activeClass: 'nav-ingest',
         temporaryDisableHover: true,
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Log Ingestion Methods'}]
     },
     'metrics-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Metrics Ingestion Methods'}
         ]
     },
     'traces-ingestion.html': {
         activeClass: 'nav-ingest',
         breadcrumbs: [
-            { name: 'Ingestion Methods', url: './ingestion.html' },
+            { name: 'Ingestion', url: './ingestion.html' },
             { name: 'Traces Ingestion Methods'}
         ]
     },
