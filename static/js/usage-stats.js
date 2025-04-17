@@ -81,21 +81,35 @@ function setupUsageStatsCharts(data) {
         return;
     }
 
+    const selectedGranularity = $('.granularity-tabs .tab.active').data('tab') || 'day';
+
+    let chartGranularity;
+    if (selectedGranularity === 'hour' || selectedGranularity === 'hourly') {
+        chartGranularity = 'hour';
+    } else if (selectedGranularity === 'day' || selectedGranularity === 'daily') {
+        chartGranularity = 'day';
+    } else {
+        chartGranularity = 'month';
+    }
+
     // Process the data for charts
     const dates = Object.keys(data.chartStats).sort();
     const processedData = {
         logs: {
             dates: dates,
             gbCount: dates.map((date) => data.chartStats[date].LogsBytesCount),
+            granularity: chartGranularity,
         },
         traces: {
             dates: dates,
             gbCount: dates.map((date) => data.chartStats[date].TraceBytesCount),
+            granularity: chartGranularity,
         },
         stacked: {
             dates: dates,
             activeSeriesCount: dates.map((date) => data.chartStats[date].ActiveSeriesCount),
             metricsDatapointsCount: dates.map((date) => data.chartStats[date].MetricsDatapointsCount),
+            granularity: chartGranularity,
         },
     };
 
@@ -130,7 +144,6 @@ function updateChartColors(chart, gridLineColor, tickColor) {
     chart.update();
 }
 
-// Common chart configuration function to avoid repetition
 function createVolumeChart(chartId, data, options) {
     const ctx = document.getElementById(chartId).getContext('2d');
     const { chartType, color, gridLineColor, tickColor, title } = options;
@@ -140,34 +153,35 @@ function createVolumeChart(chartId, data, options) {
         window[chartType].destroy();
     }
 
-    // Format data properly
-    const bytesData = data.dates.map((date, index) => ({
-        x: date,
+    const chartData = data.dates.map((timestamp, index) => ({
+        x: parseInt(timestamp) * 1000,
         y: data.gbCount[index],
     }));
 
-    // Determine appropriate scale
     //eslint-disable-next-line no-undef
-    const scale = determineUnit(bytesData);
+    const scale = determineUnit(chartData.map((item) => ({ y: item.y })));
 
-    // Scale the data
-    const scaledData = bytesData.map((point) => ({
-        x: point.x,
-        y: point.y / scale.divisor,
+    const scaledData = chartData.map((item) => ({
+        x: item.x,
+        y: item.y / scale.divisor,
     }));
 
-    // Create chart configuration
+    const xAxisConfig = configureTimeAxis(data, data.granularity);
+
+    scaledData.sort((a, b) => a.x - b.x);
+
     const chartConfig = {
         type: 'bar',
         data: {
-            labels: data.dates,
             datasets: [
                 {
                     label: title,
                     data: scaledData,
                     backgroundColor: color,
                     borderRadius: 4,
-                    barPercentage: 0.5,
+                    barPercentage: 0.8,
+                    categoryPercentage: 0.8,
+                    barThickness: 'flex',
                 },
             ],
         },
@@ -185,12 +199,16 @@ function createVolumeChart(chartId, data, options) {
                                 let value = context.parsed.y;
                                 if (value >= 10) {
                                     value = Number(value.toFixed()).toLocaleString('en-us');
-                                    label += ' ' + value + ' ' + scale.unit;
+                                    label += ': ' + value + ' ' + scale.unit;
                                 } else {
-                                    label += ' ' + value.toFixed(2) + ' ' + scale.unit;
+                                    label += ': ' + value.toFixed(2) + ' ' + scale.unit;
                                 }
                             }
                             return label;
+                        },
+                        title: function (tooltipItems) {
+                            const timestamp = tooltipItems[0].parsed.x / 1000;
+                            return formatTooltipTimestamp(timestamp, data.granularity);
                         },
                     },
                 },
@@ -217,23 +235,27 @@ function createVolumeChart(chartId, data, options) {
                     },
                 },
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Time Period',
-                    },
+                    ...xAxisConfig,
                     grid: {
                         display: true,
                         color: gridLineColor,
+                        offset: data.granularity === 'hour' ? false : true,
                     },
                     ticks: {
+                        ...xAxisConfig.ticks,
                         color: tickColor,
-                        callback: function (val, _index, _ticks) {
-                            let value = this.getLabelForValue(val);
-                            return formatDateLabel(value);
-                        },
                     },
+                    afterFit: function (scale) {
+                        scale.paddingLeft = 15;
+                        scale.paddingRight = 15;
+                    },
+                    offset: data.granularity === 'hour' ? false : true,
+                    alignToPixels: true,
+                    distribution: 'auto',
                 },
             },
+            borderAlign: 'center',
+            devicePixelRatio: 2,
         },
     };
 
@@ -242,7 +264,6 @@ function createVolumeChart(chartId, data, options) {
     return window[chartType];
 }
 
-// Simplified volume chart functions using the common approach
 function renderLogsVolumeChart(data, gridLineColor, tickColor) {
     return createVolumeChart('logsVolumeChart', data, {
         chartType: 'logsVolumeChart',
@@ -263,7 +284,6 @@ function renderTracesVolumeChart(data, gridLineColor, tickColor) {
     });
 }
 
-// Render stacked chart for active series and datapoint count
 function renderStackedChart(data, gridLineColor, tickColor) {
     const ctx = document.getElementById('stackedChart').getContext('2d');
 
@@ -272,14 +292,25 @@ function renderStackedChart(data, gridLineColor, tickColor) {
         window.stackedChart.destroy();
     }
 
+    const timeSeriesData = data.dates.map((timestamp, index) => ({
+        x: parseInt(timestamp) * 1000,
+        y: data.activeSeriesCount[index],
+    }));
+
+    const metricsData = data.dates.map((timestamp, index) => ({
+        x: parseInt(timestamp) * 1000,
+        y: data.metricsDatapointsCount[index],
+    }));
+
+    const xAxisConfig = configureTimeAxis(data, data.granularity);
+
     window.stackedChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: data.dates,
             datasets: [
                 {
                     label: 'Active Series Count',
-                    data: data.activeSeriesCount,
+                    data: timeSeriesData,
                     backgroundColor: 'rgba(255, 100, 132, 0.2)',
                     borderColor: '#FF6484',
                     borderWidth: 2,
@@ -290,7 +321,7 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                 },
                 {
                     label: 'Metrics Datapoints Count',
-                    data: data.metricsDatapointsCount,
+                    data: metricsData,
                     backgroundColor: 'rgba(99, 71, 217, 0.2)',
                     borderColor: 'rgb(99, 71, 217)',
                     borderWidth: 2,
@@ -312,6 +343,12 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    callbacks: {
+                        title: function (tooltipItems) {
+                            const timestamp = tooltipItems[0].parsed.x / 1000;
+                            return formatTooltipTimestamp(timestamp, data.granularity);
+                        },
+                    },
                 },
                 legend: {
                     position: 'bottom',
@@ -333,48 +370,23 @@ function renderStackedChart(data, gridLineColor, tickColor) {
                     },
                 },
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Time Period',
-                    },
+                    ...xAxisConfig,
                     grid: {
                         display: true,
                         color: gridLineColor,
                     },
                     ticks: {
+                        ...xAxisConfig.ticks,
                         color: tickColor,
-                        callback: function (val, _index, _ticks) {
-                            let value = this.getLabelForValue(val);
-                            return formatDateLabel(value);
-                        },
                     },
                 },
             },
         },
     });
+
+    return window.stackedChart;
 }
 
-function formatDateLabel(value) {
-    if (!value) {
-        return '';
-    }
-    // (YYYY-MM-DDThh)
-    if (value.indexOf('T') > -1) {
-        let parts = value.split('T');
-        return 'T' + parts[1];
-    }
-    // (YYYY-MM)
-    else if (value.split('-').length === 2) {
-        return value;
-    }
-    // (YYYY-MM-DD)
-    else {
-        let parts = value.split('-');
-        return parts[1] + '-' + parts[2];
-    }
-}
-
-// Update the getUsageStats function to use our charting functions
 function getUsageStats() {
     const selectedGranularity = $('.granularity-tabs .tab.active').data('tab');
 
@@ -400,4 +412,188 @@ function getUsageStats() {
         .catch((err) => {
             console.error('error:', err);
         });
+}
+
+function formatTooltipTimestamp(timestamp, granularity) {
+    const date = new Date(timestamp * 1000);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    if (granularity === 'hour') {
+        const hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const hour12 = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+        return `${month} ${day}, ${year} ${hour12}:00 ${ampm}`;
+    } else {
+        return `${month} ${day}, ${year}`;
+    }
+}
+
+function formatHourTick(date, prevDate, isFirstTick) {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const hours = date.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hour12 = hours % 12 || 12;
+
+    if (isFirstTick || date.getDate() !== prevDate.getDate()) {
+        return `${monthNames[date.getMonth()]} ${date.getDate()}, ${hour12}${ampm}`;
+    }
+    return `${hour12}${ampm}`;
+}
+
+function configureTimeAxis(data, granularity) {
+    // Calculate time range in days
+    const firstTimestamp = parseInt(data.dates[0]) * 1000;
+    const lastTimestamp = parseInt(data.dates[data.dates.length - 1]) * 1000;
+    const daysInRange = Math.ceil((lastTimestamp - firstTimestamp) / (1000 * 60 * 60 * 24));
+
+    // Configure based on granularity and range
+    let unit, maxTicksLimit;
+
+    if (granularity === 'day') {
+        unit = 'day';
+
+        // For daily data, adapt based on range
+        if (data.dates.length <= 15) {
+            maxTicksLimit = data.dates.length; // Show all points for week view
+        } else if (daysInRange <= 31) {
+            maxTicksLimit = Math.min(14, Math.ceil(daysInRange / 2)); // For a month, show every other day or so
+        } else if (daysInRange <= 90) {
+            maxTicksLimit = Math.min(12, Math.ceil(daysInRange / 7)); // For longer periods, show weekly points
+        } else {
+            maxTicksLimit = Math.min(15, Math.ceil(daysInRange / 14)); // For very long periods, show biweekly points
+        }
+    } else {
+        // month
+        unit = 'month';
+        if (daysInRange <= 366) {
+            // About a year
+            maxTicksLimit = 12; // Show all months in a year
+        } else {
+            maxTicksLimit = Math.min(12, Math.ceil(daysInRange / 30)); // Show major months for multi-year
+        }
+    }
+
+    console.log('daysInRange', daysInRange);
+    console.log('maxTicksLimit', maxTicksLimit);
+    // Configure time options with conditional rounding
+    const timeOptions = {
+        unit: unit,
+        displayFormats: {
+            hour: 'h aaa',
+            day: 'MMM d',
+            month: 'MMM yyyy',
+        },
+        tooltipFormat: 'MMM d, yyyy, h:mm aaa',
+        bounds: 'ticks',
+    };
+
+    // Set offset based on granularity to properly align ticks with bars
+    let offsetValue = true;
+    if (granularity === 'hour') {
+        unit = 'hour';
+
+        // Configure the time options for hourly display
+        timeOptions.displayFormats.hour = 'HH:00'; // Use 24-hour format for clarity
+
+        // For single-day views, we need to ensure hours are properly displayed
+        if (daysInRange <= 1) {
+            // For very short ranges (single day), show more hour ticks
+            maxTicksLimit = 12; // Show every 2 hours
+            timeOptions.stepSize = 2;
+        } else if (daysInRange <= 4) {
+            // For short ranges (2-4 days), show key hours (00, 06, 12, 18)
+            maxTicksLimit = daysInRange * 4;
+        } else if (daysInRange <= 15) {
+            // For medium ranges (5-15 days), show midnight and noon
+            maxTicksLimit = daysInRange * 2;
+        } else {
+            // For longer ranges, show only midnight
+            maxTicksLimit = daysInRange;
+            timeOptions.unit = 'day'; // Switch to day unit for very sparse data
+        }
+
+        // Critical: Set distribution to 'series' to ensure all ticks are shown
+        timeOptions.distribution = 'series';
+
+        // Force alignment to hour boundaries
+        timeOptions.round = 'hour';
+        timeOptions.isoWeekday = false; // Don't align to weeks
+
+        // Set to false for hourly data for better bar alignment
+        offsetValue = false;
+    }
+
+    timeOptions.offset = offsetValue;
+
+    // Apply rounding only for day granularity
+    if (granularity === 'day') {
+        timeOptions.round = 'day';
+    }
+
+    return {
+        type: 'time',
+        time: timeOptions,
+        border: {
+            display: true,
+        },
+        title: {
+            display: true,
+            text: 'Time Period',
+        },
+        ticks: {
+            maxRotation: 0,
+            minRotation: 0,
+            maxTicksLimit: maxTicksLimit,
+            includeBounds: true,
+            callback: function (value, index, values) {
+                const date = new Date(value);
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const hours = date.getHours();
+                const day = date.getDate();
+
+                if (granularity === 'hour') {
+                    // Different display strategy based on days range
+                    if (daysInRange <= 1) {
+                        // For single day: just show hours
+                        return `${hours}:00`;
+                    } else if (daysInRange <= 4) {
+                        // For short range: show date at midnight, key hours otherwise
+                        if (hours === 0) {
+                            return `${day} ${monthNames[date.getMonth()]}`;
+                        } else if (hours % 6 === 0) {
+                            // Show 6, 12, 18
+                            return `${hours}:00`;
+                        }
+                    } else if (daysInRange <= 15) {
+                        // For medium range: show date at midnight, noon marker
+                        if (hours === 0) {
+                            return `${day} ${monthNames[date.getMonth()]}`;
+                        } else if (hours === 12) {
+                            return `12:00`;
+                        }
+                    } else {
+                        // For long range: only show dates (every other day)
+                        if (hours === 0) {
+                            if (day % 2 === 0 || index === 0 || index === values.length - 1) {
+                                return `${day} ${monthNames[date.getMonth()]}`;
+                            }
+                        }
+                    }
+                    // Return empty string for ticks we don't want to show
+                    return '';
+                } else if (granularity === 'day') {
+                    // Your existing day formatting
+                    return `${monthNames[date.getMonth()]} ${day}`;
+                } else {
+                    // Your existing month formatting
+                    return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                }
+            },
+        },
+        alignToPixels: true,
+        offset: offsetValue,
+    };
 }
