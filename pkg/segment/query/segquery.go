@@ -153,6 +153,9 @@ func IsLogsQuery(firstAgg *structs.QueryAggregators) bool {
 		if qType != structs.RRCCmd {
 			return false
 		}
+		if firstAgg.IndexName == "traces" || firstAgg.IndexName == "service-dependency" || firstAgg.IndexName == "red-traces" {
+			return false
+		}
 	}
 	return true
 }

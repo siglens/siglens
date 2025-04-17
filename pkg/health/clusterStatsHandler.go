@@ -235,9 +235,8 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	granularity, startTs, endTs := parseIngestionStatsRequest(readJSON)
 	rStats, _ := usageStats.GetUsageStats(startTs, endTs, granularity, orgId)
 
-	pastXhours := uint64((endTs - startTs) / 3600)
 	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
-		hook(rStats, pastXhours, uint8(granularity), orgId)
+		hook(rStats, startTs, endTs, uint8(granularity), orgId)
 	}
 
 	httpResp.ChartStats = make(map[string]map[string]interface{})
