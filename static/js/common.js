@@ -1513,7 +1513,6 @@ function ExpandableJsonCellRenderer(type = 'events') {
 }
 
 function determineUnit(data) {
-    console.log(data)
     let maxBytes = 0;
     data.forEach(point => {
         if (point.y > maxBytes) {
