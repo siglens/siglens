@@ -238,7 +238,10 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool,
 			blockSummaries, consistentCValLen, qid)
 		if err != nil {
 			sharedReader.Close()
-			_ = blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)
+			err1 := blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)
+			if err1 != nil {
+				log.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to release needed segment files from local storage %+v! err: %+v", qid, allInUseSegSetFiles, err1)
+			}
 			return sharedReader, err
 		}
 		sharedReader.MultiColReaders[i] = currReader

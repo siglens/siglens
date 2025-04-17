@@ -98,10 +98,7 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 		return nil, fmt.Errorf("ReadAllRecords: failed to get block info for segkey %s; err=%+v", segkey, err)
 	}
 
-	allBlocksToSearch := make(map[uint16]struct{}, len(allBmi.AllBmh))
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
 
 	fileReader, err := InitNewSegFileReader(fd, cname, allBlocksToSearch, 0, blockSummaries,
 		segutils.INCONSISTENT_CVAL_SIZE, allBmi)

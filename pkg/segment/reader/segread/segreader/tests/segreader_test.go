@@ -47,10 +47,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 		numRecsPerBlock[uint16(idx)] = bSum.RecCount
 	}
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	colName := "device_type"
 

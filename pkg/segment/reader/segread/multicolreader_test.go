@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,10 +45,7 @@ func Test_segReader(t *testing.T) {
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
 
 	colsToReadIndices := make(map[int]struct{})
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bsm, 3, nil, 9, &structs.NodeResult{})
@@ -116,10 +114,7 @@ func Test_multiSegReader(t *testing.T) {
 	numEntriesInBlock := 10
 	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
 
 	assert.Greater(t, len(cols), 1)
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})
@@ -194,10 +189,7 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 	numEntriesInBlock := 10
 	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
 
 	assert.Greater(t, len(cols), 1)
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})

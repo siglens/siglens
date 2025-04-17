@@ -25,6 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,10 +40,7 @@ func Test_timeReader(t *testing.T) {
 	numEntriesInBlock := 10
 	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	assert.Greater(t, len(cols), 1)
 	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), allBlocksToSearch, bSum, 0, allBmi)
@@ -74,10 +72,7 @@ func Test_readTimeStamps(t *testing.T) {
 	numEntriesInBlock := 2000
 	_, blockSums, _, _, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	colName := config.GetTimeStampKey()
 	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, allBlocksToSearch, blockSums, 0, allBmi)
@@ -112,10 +107,7 @@ func Benchmark_readTimeFile(b *testing.B) {
 	blockSums, allBmi, err := microreader.ReadBlockSummaries(sumFile, false)
 	assert.Nil(b, err)
 
-	allBlocksToSearch := make(map[uint16]struct{})
-	for blkNum := range allBmi.AllBmh {
-		allBlocksToSearch[blkNum] = struct{}{}
-	}
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	colName := config.GetTimeStampKey()
 
