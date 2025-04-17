@@ -63,7 +63,7 @@ type Hooks struct {
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// rStats is of type usageStats.ReadStats
-	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId int64)
+	AddMultinodeIngestStatsHook func(rStats interface{}, startTs int64, endTs int64, granularity uint8, orgId int64)
 	AddMultiNodeIndexHook       func(orgId int64) []string
 
 	AcquireOwnedSegmentRLockHook func()
