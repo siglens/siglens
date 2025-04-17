@@ -28,7 +28,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 
-	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -187,11 +186,6 @@ func createDashboard(req *CreateDashboardRequest, myid int64) (map[string]string
 
 	if err := os.WriteFile(dashboardDetailsFname, detailsData, 0644); err != nil {
 		return nil, fmt.Errorf("createDashboard: failed to write dashboard details: %v", err)
-	}
-
-	if err := blob.UploadQueryNodeDir(); err != nil {
-		log.Errorf("createDashboard: Failed to upload query nodes dir, err=%v", err)
-		return nil, err
 	}
 
 	retval := make(map[string]string)
@@ -382,10 +376,6 @@ func updateDashboard(id string, dName string, dashboardDetails map[string]interf
 		return fmt.Errorf("updateDashboard: failed to write dashboard details: %v", err)
 	}
 
-	if err := blob.UploadQueryNodeDir(); err != nil {
-		return fmt.Errorf("updateDashboard: failed to upload query nodes dir: %v", err)
-	}
-
 	return nil
 }
 
@@ -432,10 +422,6 @@ func deleteDashboard(id string, myid int64) error {
 	if err := os.Remove(dashboardDetailsFname); err != nil && !os.IsNotExist(err) {
 		log.Errorf("deleteDashboard: Error deleting dashboard file %s: %v", dashboardDetailsFname, err)
 		return fmt.Errorf("deleteDashboard: failed to delete dashboard file: %v", err)
-	}
-
-	if err := blob.UploadQueryNodeDir(); err != nil {
-		return fmt.Errorf("deleteDashboard: failed to upload query nodes dir: %v", err)
 	}
 
 	return nil
@@ -636,10 +622,6 @@ func ProcessDeleteDashboardsByOrgId(myid int64) error {
 	folderStructurePath := getFolderStructureFilePath(myid)
 	if err := os.Remove(folderStructurePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("ProcessDeleteOrgData: Failed to delete folder structure file: %v", err)
-	}
-
-	if err := blob.UploadQueryNodeDir(); err != nil {
-		return fmt.Errorf("ProcessDeleteOrgData: failed to upload query nodes dir: %v", err)
 	}
 
 	return nil

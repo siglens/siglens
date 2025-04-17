@@ -162,18 +162,15 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	if !ok || blockMeta == nil {
 		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block")
 	}
-	blkOff, ok := blockMeta.ColumnBlockOffset[trr.timestampKey]
+
+	cOffLen, ok := blockMeta.ColBlockOffAndLen[trr.timestampKey]
 	if !ok {
-		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block offset for timestamp")
-	}
-	blkLen, ok := blockMeta.ColumnBlockLen[trr.timestampKey]
-	if !ok {
-		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block length")
+		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find ColBlockOffAndLen for timestamp")
 	}
 
-	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(blkLen))
+	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(cOffLen.Length))
 	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
-	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:blkLen], blkOff)
+	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:cOffLen.Length], cOffLen.Offset)
 	if err != nil {
 		if err != io.EOF {
 			trr.loadedBlock = false
@@ -182,7 +179,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 		return nil
 	}
 
-	rawTSVal := trr.blockReadBuffer[:blkLen]
+	rawTSVal := trr.blockReadBuffer[:cOffLen.Length]
 	numRecs := trr.blockRecCount[blockNum]
 	decoded, err := convertRawRecordsToTimestamps(rawTSVal, numRecs, trr.blockTimestamps)
 	if err != nil {
@@ -384,8 +381,9 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	for minIdx, maxIdx := 0, 0; minIdx < len(allBlocks); minIdx = maxIdx + 1 {
 		minBlkNum := allBlocks[minIdx]
 		lastBlkNum := minBlkNum
-		firstBlkOff := blks[minBlkNum].ColumnBlockOffset[tsKey]
-		blkLen := blks[minBlkNum].ColumnBlockLen[tsKey]
+		cOffLen := blks[minBlkNum].ColBlockOffAndLen[tsKey]
+		firstBlkOff := cOffLen.Offset
+		blkLen := cOffLen.Length
 		maxIdx = minIdx
 		for {
 			nextIdx := maxIdx + 1
@@ -395,7 +393,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			nextBlkNum := allBlocks[nextIdx]
 			if nextBlkNum == lastBlkNum+1 {
 				maxIdx++
-				blkLen += blks[nextBlkNum].ColumnBlockLen[tsKey]
+				blkLen += blks[nextBlkNum].ColBlockOffAndLen[tsKey].Length
 				lastBlkNum = nextBlkNum
 			} else {
 				break
@@ -411,7 +409,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 
 		readOffset := int64(0)
 		for currBlk := minBlkNum; currBlk <= allBlocks[maxIdx]; currBlk++ {
-			readLen := int64(blks[currBlk].ColumnBlockLen[tsKey])
+			readLen := int64(blks[currBlk].ColBlockOffAndLen[tsKey].Length)
 			rawBlock := rawChunk[readOffset : readOffset+readLen]
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}

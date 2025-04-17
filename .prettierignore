@@ -1,6 +1,6 @@
 static/js/navbar.js
 static/js/settings.js
-static/js/test-data.js
+static/js/ingestion.js
 static/js/all-slos.js
 static/js/application-version.js
 static/js/cluster-stats.js

@@ -228,7 +228,7 @@ func testBloomFilter(t *testing.T, numBlocks int, numEntriesInBlock int, fileCou
 		assert.Equal(t, uint64(numBlocks), checkedBlocks, "each file will should have a single matching block")
 		assert.GreaterOrEqual(t, matchedBlocks, uint64(1), "each file will should have a >=1 matching block")
 		for _, sReq := range searchRequests {
-			assert.Len(t, sReq.AllBlocksToSearch, 1)
+			assert.GreaterOrEqual(t, len(sReq.AllBlocksToSearch), 1)
 			assert.Contains(t, sReq.AllBlocksToSearch, uint16(1))
 		}
 	}

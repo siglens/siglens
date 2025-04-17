@@ -846,7 +846,7 @@ function showToast(msg, type = 'error') {
 }
 
 //eslint-disable-next-line no-unused-vars
-function getIngestUrl() {
+function getOrgConfig() {
     return new Promise((resolve, reject) => {
         $.ajax({
             method: 'get',
@@ -856,7 +856,7 @@ function getIngestUrl() {
             credentials: 'include',
         })
             .then((res) => {
-                resolve(res.IngestUrl);
+                resolve(res);
             })
             .catch((err) => {
                 console.log(err);
@@ -1513,7 +1513,6 @@ function ExpandableJsonCellRenderer(type = 'events') {
 }
 
 function determineUnit(data) {
-    console.log(data)
     let maxBytes = 0;
     data.forEach(point => {
         if (point.y > maxBytes) {
@@ -1545,6 +1544,7 @@ function formatByteSize(bytes) {
         ? bytes + ' ' + units[i]
         : (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
 }
+
 //eslint-disable-next-line no-unused-vars
 const ExpandableFieldsSidebarRenderer = () => {
     const initialState = () => {
@@ -1745,3 +1745,12 @@ window.ExpandableFieldsSidebarRenderer = ExpandableFieldsSidebarRenderer;
 fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
 window.fieldssidebarRenderer = fieldssidebarRenderer;
 window.panelProcessEmptyQueryResults= panelProcessEmptyQueryResults;
+
+function getGraphGridColors() {
+    const rootStyles = getComputedStyle(document.documentElement);
+    let isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridLineColor = isDarkTheme ? rootStyles.getPropertyValue('--black-3') : rootStyles.getPropertyValue('--white-1');
+    const tickColor = isDarkTheme ? rootStyles.getPropertyValue('--white-0') : rootStyles.getPropertyValue('--white-6');
+
+    return { gridLineColor, tickColor };
+}

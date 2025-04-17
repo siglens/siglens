@@ -156,12 +156,13 @@ func TestParseIngestionStatsRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hours, granularity := parseIngestionStatsRequest(tt.jsonInput)
+			granularity, startTs, endTs := parseIngestionStatsRequest(tt.jsonInput)
+			pastXhours := uint64((endTs - startTs) / 3600)
 			if tt.timeRelative {
 				assert.Equal(t, tt.expectedGran, granularity, tt.description)
-				assert.InDelta(t, float64(tt.expectedHours), float64(hours), 2, tt.description)
+				assert.InDelta(t, float64(tt.expectedHours), float64(pastXhours), 2, tt.description)
 			} else {
-				assert.Equal(t, tt.expectedHours, hours, tt.description)
+				assert.Equal(t, tt.expectedHours, pastXhours, tt.description)
 				assert.Equal(t, tt.expectedGran, granularity, tt.description)
 			}
 		})
