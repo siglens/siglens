@@ -53,11 +53,16 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	numBuffers := 5
 	numEntriesForBuffer := 10
-	_, allBlockSummaries, _, allCols, blockMetadata, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
+	_, allBlockSummaries, _, allCols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
+
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
+	}
 
 	searchReq := &SegmentSearchRequest{
 		SegmentKey:        segKey,
-		AllBlocksToSearch: blockMetadata,
+		AllBlocksToSearch: allBlocksToSearch,
 		SearchMetadata: &SearchMetadataHolder{
 			BlockSummaries: allBlockSummaries,
 		},
@@ -308,11 +313,16 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	numBuffers := 1
 	numEntriesForBuffer := 1
 	segKey := dataDir + "mock-host/raw_search_test_jaeger"
-	_, allBlockSummaries, _, allCols, blockMetadata := writer.WriteMockTraceFile(segKey, numBuffers, numEntriesForBuffer)
+	_, allBlockSummaries, _, allCols, allBmi := writer.WriteMockTraceFile(segKey, numBuffers, numEntriesForBuffer)
+
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
+	}
 
 	searchReq := &SegmentSearchRequest{
 		SegmentKey:        segKey,
-		AllBlocksToSearch: blockMetadata,
+		AllBlocksToSearch: allBlocksToSearch,
 		SearchMetadata: &SearchMetadataHolder{
 			BlockSummaries: allBlockSummaries,
 		},
@@ -602,9 +612,14 @@ func createBenchQuery(b *testing.B, segKey string,
 	}
 
 	bSumFile := structs.GetBsuFnameFromSegKey(segKey)
-	blockSummaries, allBlockInfo, err := microreader.ReadBlockSummaries(bSumFile, false)
+	blockSummaries, allBmi, err := microreader.ReadBlockSummaries(bSumFile, false)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
 	}
 
 	searchReq := &SegmentSearchRequest{
@@ -612,7 +627,7 @@ func createBenchQuery(b *testing.B, segKey string,
 		SearchMetadata: &SearchMetadataHolder{
 			BlockSummaries: blockSummaries,
 		},
-		AllBlocksToSearch: allBlockInfo,
+		AllBlocksToSearch: allBlocksToSearch,
 	}
 
 	allSearchColumns, _ := node.GetAllColumnsToSearch()

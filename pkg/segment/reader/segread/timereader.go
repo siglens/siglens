@@ -28,6 +28,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/config"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -52,10 +53,10 @@ type timeBlockRequest struct {
 }
 
 type TimeRangeReader struct {
-	timeFD        *os.File
-	timestampKey  string
-	timeMetadata  map[uint16]*structs.BlockMetadataHolder
-	blockRecCount map[uint16]uint16
+	timeFD            *os.File
+	timestampKey      string
+	allBlocksToSearch map[uint16]struct{}
+	blockRecCount     map[uint16]uint16
 
 	loadedBlockNum          uint16
 	blockTimestamps         []uint64
@@ -64,12 +65,13 @@ type TimeRangeReader struct {
 	numBlockReadTimestamps  uint16
 	loadedBlock             bool
 	allInUseFiles           []string
+	allBmi                  *structs.AllBlksMetaInfo
 }
 
 // returns a new TimeRangeReader and any errors encountered
 // the caller is responsible for calling TimeRangeReader.Close() when finished using it to close the fd
-func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blkRecCount map[uint16]uint16, qid uint64) (*TimeRangeReader, error) {
+func InitNewTimeReader(segKey string, tsKey string, allBlocksToSearch map[uint16]struct{},
+	blkRecCount map[uint16]uint16, qid uint64, allBmi *structs.AllBlksMetaInfo) (*TimeRangeReader, error) {
 	allInUseFiles := make([]string, 0)
 	var err error
 	fName := fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(tsKey))
@@ -90,39 +92,44 @@ func InitNewTimeReader(segKey string, tsKey string, blockMetadata map[uint16]*st
 	return &TimeRangeReader{
 		timeFD:                  fd,
 		timestampKey:            tsKey,
-		timeMetadata:            blockMetadata,
+		allBlocksToSearch:       allBlocksToSearch,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
 		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
 		blockUncompressedBuffer: *segreader.UncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
 		allInUseFiles:           allInUseFiles,
+		allBmi:                  allBmi,
 	}, nil
 }
 
-func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blkRecCount map[uint16]uint16, qid uint64) (*TimeRangeReader, error) {
+func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, allBlocksToSearch map[uint16]struct{},
+	blkRecCount map[uint16]uint16, qid uint64,
+	allBmi *structs.AllBlksMetaInfo) (*TimeRangeReader, error) {
 
 	return &TimeRangeReader{
 		timeFD:                  tsFD,
 		timestampKey:            tsKey,
-		timeMetadata:            blockMetadata,
+		allBlocksToSearch:       allBlocksToSearch,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
 		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
 		blockUncompressedBuffer: *segreader.UncompressedReadBufferPool.Get().(*[]byte),
 		loadedBlock:             false,
+		allBmi:                  allBmi,
 	}, nil
 }
 
-func InitNewTimeReaderFromBlockSummaries(segKey string, tsKey string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, qid uint64) (*TimeRangeReader, error) {
+func InitNewTimeReaderFromBlockSummaries(segKey string, tsKey string,
+	allBlocksToSearch map[uint16]struct{},
+	blockSummaries []*structs.BlockSummary, qid uint64,
+	allBmi *structs.AllBlksMetaInfo) (*TimeRangeReader, error) {
 
 	blkRecCount := make(map[uint16]uint16)
 	for blkIdx, blkSum := range blockSummaries {
 		blkRecCount[uint16(blkIdx)] = blkSum.RecCount
 	}
-	return InitNewTimeReader(segKey, tsKey, blockMetadata, blkRecCount, qid)
+	return InitNewTimeReader(segKey, tsKey, allBlocksToSearch, blkRecCount, qid, allBmi)
 }
 
 // highly optimized for subsequent calls to handle the same blockNum
@@ -158,15 +165,17 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to resize internal")
 	}
 
-	blockMeta, ok := trr.timeMetadata[blockNum]
+	blockMeta, ok := trr.allBmi.AllBmh[blockNum]
 	if !ok || blockMeta == nil {
 		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find block")
 	}
 
-	cOffLen, ok := blockMeta.ColBlockOffAndLen[trr.timestampKey]
-	if !ok {
-		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to find ColBlockOffAndLen for timestamp")
+	cnameIdx, ok := trr.allBmi.CnameDict[trr.timestampKey]
+	if !ok || cnameIdx >= len(blockMeta.ColBlockOffAndLen) {
+		return fmt.Errorf("TimeRangeReader.readAllTimestampsForBlock: unexpected found: %v, cnameIdx: %v, len(blockMeta.ColBlockOffAndLen): %v", ok, cnameIdx, len(blockMeta.ColBlockOffAndLen))
 	}
+
+	cOffLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
 	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(cOffLen.Length))
 	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
@@ -334,10 +343,10 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 
 // When the caller of this function is done with the returned map, they should
 // call ReturnTimeBuffers() on it to return the buffers to rawTimestampsBufferPool.
-func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, segKey string,
+func ReadAllTimestampsForBlock(blkNums map[uint16]struct{}, segKey string,
 	blockSummaries []*structs.BlockSummary, parallelism int64) (map[uint16][]uint64, error) {
 
-	if len(blks) == 0 {
+	if len(blkNums) == 0 {
 		return make(map[uint16][]uint64), nil
 	}
 	tsKey := config.GetTimeStampKey()
@@ -345,6 +354,15 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	err := blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
 		return nil, fmt.Errorf("ReadAllTimestampsForBlock: failed to download time column file %s. Error: %+v", fName, err)
+	}
+
+	allBmi, _, err := segmetadata.GetSearchInfoAndSummary(segKey)
+	if err != nil {
+		return nil, fmt.Errorf("ReadAllTimestampsForBlock: failed to get allBmis segKey: %s. Error: %+v", segKey, err)
+	}
+	cnameIdx, ok := allBmi.CnameDict[tsKey]
+	if !ok {
+		return nil, fmt.Errorf("ReadAllTimestampsForBlock: could not find tsKey in cnameDict")
 	}
 
 	defer func() {
@@ -360,7 +378,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	defer fd.Close()
 
 	allBlocks := make([]uint16, 0)
-	for n := range blks {
+	for n := range blkNums {
 		allBlocks = append(allBlocks, n)
 	}
 
@@ -381,7 +399,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 	for minIdx, maxIdx := 0, 0; minIdx < len(allBlocks); minIdx = maxIdx + 1 {
 		minBlkNum := allBlocks[minIdx]
 		lastBlkNum := minBlkNum
-		cOffLen := blks[minBlkNum].ColBlockOffAndLen[tsKey]
+		cOffLen := allBmi.AllBmh[minBlkNum].ColBlockOffAndLen[cnameIdx]
 		firstBlkOff := cOffLen.Offset
 		blkLen := cOffLen.Length
 		maxIdx = minIdx
@@ -393,7 +411,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 			nextBlkNum := allBlocks[nextIdx]
 			if nextBlkNum == lastBlkNum+1 {
 				maxIdx++
-				blkLen += blks[nextBlkNum].ColBlockOffAndLen[tsKey].Length
+				blkLen += allBmi.AllBmh[nextBlkNum].ColBlockOffAndLen[cnameIdx].Length
 				lastBlkNum = nextBlkNum
 			} else {
 				break
@@ -409,7 +427,7 @@ func ReadAllTimestampsForBlock(blks map[uint16]*structs.BlockMetadataHolder, seg
 
 		readOffset := int64(0)
 		for currBlk := minBlkNum; currBlk <= allBlocks[maxIdx]; currBlk++ {
-			readLen := int64(blks[currBlk].ColBlockOffAndLen[tsKey].Length)
+			readLen := int64(allBmi.AllBmh[currBlk].ColBlockOffAndLen[cnameIdx].Length)
 			rawBlock := rawChunk[readOffset : readOffset+readLen]
 			numRecs := blockSummaries[currBlk].RecCount
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}

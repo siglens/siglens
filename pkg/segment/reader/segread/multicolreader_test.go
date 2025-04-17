@@ -39,18 +39,23 @@ func Test_segReader(t *testing.T) {
 
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bsm, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+	_, bsm, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
 
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
+	}
+
 	colsToReadIndices := make(map[int]struct{})
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bsm, 3, nil, 9, &structs.NodeResult{})
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bsm, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
 	multiReader := sharedReader.MultiColReaders[0]
-
+	assert.NotNil(t, multiReader)
 	for colName := range cols {
 		if colName == config.GetTimeStampKey() {
 			continue
@@ -109,10 +114,15 @@ func Test_multiSegReader(t *testing.T) {
 
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
+	}
 
 	assert.Greater(t, len(cols), 1)
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9, &structs.NodeResult{})
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
@@ -182,16 +192,21 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
+	}
 
 	assert.Greater(t, len(cols), 1)
-	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9, &structs.NodeResult{})
+	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedReader.MultiColReaders, sharedReader.numReaders)
 	assert.Equal(t, 3, sharedReader.numReaders)
 
 	cols["*"] = true
-	sharedAsteriskReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, blockmeta, bSum, 3, nil, 9, &structs.NodeResult{})
+	sharedAsteriskReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})
 	assert.Nil(t, foundErr)
 	assert.Len(t, sharedAsteriskReader.MultiColReaders, sharedAsteriskReader.numReaders)
 	assert.Equal(t, 3, sharedAsteriskReader.numReaders)

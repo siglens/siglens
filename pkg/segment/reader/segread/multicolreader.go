@@ -27,6 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/common/fileutils"
 	"github.com/siglens/siglens/pkg/config"
+	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/reader/segread/segreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -77,8 +78,10 @@ Caller is responsible for calling .CloseAll() to close all the fds.
 
 Can also be used to get the timestamp for any arbitrary record in the Segment
 */
-func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	blockSummaries []*structs.BlockSummary, allColumnsRecSize map[string]uint32, qid uint64) (*MultiColSegmentReader, error) {
+func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
+	allBlocksToSearch map[uint16]struct{},
+	blockSummaries []*structs.BlockSummary,
+	allColumnsRecSize map[string]uint32, qid uint64) (*MultiColSegmentReader, error) {
 
 	readCols := make([]*ColumnInfo, 0)
 	readColsReverseIndex := make(map[string]*ColumnInfo)
@@ -95,13 +98,20 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 		maxColIdx:           -1,
 	}
 
+	// todo blockSummaries don't need to be passed, we could just pick from this
+	// below function
+	allBmi, _, err := segmetadata.GetSearchInfoAndSummary(segKey)
+	if err != nil {
+		return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get allBmi segKey: %s. Error: %+v", segKey, err)
+	}
+
 	for colName, colFD := range colFDs {
 		if colName == tsKey {
 			blkRecCount := make(map[uint16]uint16)
 			for blkIdx, blkSum := range blockSummaries {
 				blkRecCount[uint16(blkIdx)] = blkSum.RecCount
 			}
-			currTimeReader, err := InitNewTimeReaderWithFD(colFD, tsKey, blockMetadata, blkRecCount, qid)
+			currTimeReader, err := InitNewTimeReaderWithFD(colFD, tsKey, allBlocksToSearch, blkRecCount, qid, allBmi)
 			if err != nil {
 				log.Errorf("qid=%d, initNewMultiColumnReader: failed initialize timestamp reader for using timestamp key %s and segkey %s. Error: %v",
 					qid, tsKey, segKey, err)
@@ -118,7 +128,7 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File, blockMe
 			}
 		}
 
-		segReader, err := segreader.InitNewSegFileReader(colFD, colName, blockMetadata, qid, blockSummaries, colRecSize)
+		segReader, err := segreader.InitNewSegFileReader(colFD, colName, allBlocksToSearch, qid, blockSummaries, colRecSize, allBmi)
 		if err != nil {
 			log.Errorf("qid=%d, initNewMultiColumnReader: failed initialize segfile reader for column %s Using file %s. Error: %v",
 				qid, colName, colFD.Name(), err)
@@ -145,7 +155,8 @@ Inializes N MultiColumnSegmentReaders, each of which share the same file descrip
 Only columns that exist will be loaded, not guaranteed to load all columnns in colNames
 It is up to the caller to close the open FDs using .Close()
 */
-func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, blockMetadata map[uint16]*structs.BlockMetadataHolder,
+func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool,
+	allBlocksToSearch map[uint16]struct{},
 	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64, nodeRes *structs.NodeResult) (*SharedMultiColReaders, error) {
 	allInUseSegSetFiles := make([]string, 0)
 
@@ -223,17 +234,16 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 	}
 
 	for i := 0; i < numReaders; i++ {
-		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, blockMetadata, blockSummaries, consistentCValLen, qid)
+		currReader, err := initNewMultiColumnReader(segKey, sharedReader.allFDs, allBlocksToSearch,
+			blockSummaries, consistentCValLen, qid)
 		if err != nil {
 			sharedReader.Close()
-			err := blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)
-			if err != nil {
-				err = fmt.Errorf("qid=%d, InitSharedMultiColumnReaders: Failed to release needed segment files from local storage %+v! err: %+v", qid, allInUseSegSetFiles, err)
-			}
+			_ = blob.SetSegSetFilesAsNotInUse(allInUseSegSetFiles)
 			return sharedReader, err
 		}
 		sharedReader.MultiColReaders[i] = currReader
 	}
+
 	sharedReader.allInUseFiles = allInUseSegSetFiles
 	return sharedReader, nil
 }
@@ -242,7 +252,9 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool, block
 func (scr *SharedMultiColReaders) Close() {
 
 	for _, multiReader := range scr.MultiColReaders {
-		multiReader.returnBuffers()
+		if multiReader != nil {
+			multiReader.returnBuffers()
+		}
 	}
 	for _, reader := range scr.allFDs {
 		if reader != nil {

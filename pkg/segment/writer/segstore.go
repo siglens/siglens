@@ -543,10 +543,16 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		var totalMetadata uint64 = 0
 		allColsToFlush := &sync.WaitGroup{}
 		wipBlockLock := sync.Mutex{}
+
+		allBmi := &structs.AllBlksMetaInfo{CnameDict: make(map[string]int),
+			AllBmh: make(map[uint16]*structs.BlockMetadataHolder),
+		}
 		wipBlockMetadata := &structs.BlockMetadataHolder{
 			BlkNum:            segstore.numBlocks,
-			ColBlockOffAndLen: make(map[string]structs.ColOffAndLen),
+			ColBlockOffAndLen: make([]structs.ColOffAndLen, len(segstore.wipBlock.colWips)),
 		}
+		allBmi.AllBmh[segstore.numBlocks] = wipBlockMetadata
+
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
 			err := vtable.AddVirtualTable(&segstore.VirtualTableName, segstore.OrgId)
@@ -611,7 +617,15 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 					atomic.AddUint64(&totalBytesWritten, uint64(blkLen))
 					wipBlockLock.Lock()
-					wipBlockMetadata.ColBlockOffAndLen[cname] = structs.ColOffAndLen{Offset: blkOffset,
+
+					cnameIdx, ok := allBmi.CnameDict[cname]
+					if !ok {
+						cnameIdx = len(allBmi.CnameDict)
+						allBmi.CnameDict[cname] = cnameIdx
+					}
+
+					wipBlockMetadata.ColBlockOffAndLen[cnameIdx] = structs.ColOffAndLen{
+						Offset: blkOffset,
 						Length: blkLen,
 					}
 					wipBlockLock.Unlock()
@@ -642,11 +656,11 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 
 		allColsToFlush.Wait()
-		blkSumLen := segstore.flushBlockSummary(wipBlockMetadata, segstore.numBlocks)
+		blkSumLen := segstore.flushBlockSummary(allBmi, segstore.numBlocks)
 		if !isKibana {
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
-				wipBlockMetadata, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
+				allBmi, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
 				segstore.latest_millis, segstore.RecordCount, segstore.OrgId, segstore.pqMatches)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
@@ -1180,7 +1194,8 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 }
 
 // returns the number of bytes written
-func (segstore *SegStore) flushBlockSummary(bmh *structs.BlockMetadataHolder, blkNum uint16) uint64 {
+func (segstore *SegStore) flushBlockSummary(allBmi *structs.AllBlksMetaInfo,
+	blkNum uint16) uint64 {
 
 	fname := structs.GetBsuFnameFromSegKey(segstore.SegmentKey)
 
@@ -1193,7 +1208,8 @@ func (segstore *SegStore) flushBlockSummary(bmh *structs.BlockMetadataHolder, bl
 	defer fd.Close()
 
 	blkSumBuf := make([]byte, utils.BLOCK_SUMMARY_SIZE)
-	packedLen, blkSumBuf, err := EncodeBlocksum(bmh, &segstore.wipBlock.blockSummary, blkSumBuf[0:], blkNum)
+	packedLen, blkSumBuf, err := EncodeBlocksum(allBmi, &segstore.wipBlock.blockSummary,
+		blkSumBuf[0:], blkNum)
 	if err != nil {
 		log.Errorf("flushBlockSummary: EncodeBlocksum: Failed to encode blocksummary=%+v, err=%v",
 			segstore.wipBlock.blockSummary, err)

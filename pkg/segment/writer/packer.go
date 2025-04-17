@@ -958,13 +958,15 @@ func GetMockVTableDirForTest(myid int64, vTableName string) (string, error) {
 }
 
 func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
-	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder,
+	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, *AllBlksMetaInfo,
 	map[string]*ColSizeInfo) {
 
 	allBlockBlooms := make([]map[string]*BloomIndex, numBlocks)
 	allBlockRangeIdx := make([]map[string]*RangeIndex, numBlocks)
 	allBlockSummaries := make([]*BlockSummary, numBlocks)
-	allBlockOffsets := make(map[uint16]*BlockMetadataHolder)
+	allBmi := &AllBlksMetaInfo{CnameDict: make(map[string]int),
+		AllBmh: make(map[uint16]*BlockMetadataHolder),
+	}
 	segstats := make(map[string]*SegStats)
 	lencnames := uint8(12)
 	cnames := make([]string, lencnames)
@@ -981,6 +983,7 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 	compWorkBuf := make([]byte, WIP_SIZE)
 	tsKey := config.GetTimeStampKey()
 	allCols := make(map[string]uint32)
+
 	// set up entries
 	for j := 0; j < numBlocks; j++ {
 		currBlockUint := uint16(j)
@@ -1034,8 +1037,9 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 		allBlockBlooms[j] = segStore.wipBlock.columnBlooms
 		allBlockSummaries[j] = &segStore.wipBlock.blockSummary
 		allBlockRangeIdx[j] = segStore.wipBlock.columnRangeIndexes
-		allBlockOffsets[currBlockUint] = &BlockMetadataHolder{
-			ColBlockOffAndLen: make(map[string]ColOffAndLen),
+		allBmi.AllBmh[currBlockUint] = &BlockMetadataHolder{
+			BlkNum:            currBlockUint,
+			ColBlockOffAndLen: make([]ColOffAndLen, len(segStore.wipBlock.colWips)),
 		}
 		for cname, colWip := range segStore.wipBlock.colWips {
 			csgFname := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
@@ -1055,9 +1059,17 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)
 			}
-			allBlockOffsets[currBlockUint].ColBlockOffAndLen[cname] =
+
+			cnameIdx, ok := allBmi.CnameDict[cname]
+			if !ok {
+				cnameIdx = len(allBmi.CnameDict)
+				allBmi.CnameDict[cname] = cnameIdx
+			}
+
+			allBmi.AllBmh[currBlockUint].ColBlockOffAndLen[cnameIdx] =
 				ColOffAndLen{Offset: blkOffset,
-					Length: blkLen}
+					Length: blkLen,
+				}
 		}
 	}
 
@@ -1070,16 +1082,21 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 		allColsSizes[cname] = &ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize}
 	}
 
-	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBlockOffsets, allColsSizes
+	blockSummariesFile := GetBsuFnameFromSegKey(segkey)
+	WriteMockBlockSummary(blockSummariesFile, allBlockSummaries, allBmi)
+
+	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBmi, allColsSizes
 }
 
 func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[string]*BloomIndex,
-	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, map[uint16]*BlockMetadataHolder) {
+	[]*BlockSummary, []map[string]*RangeIndex, map[string]bool, *AllBlksMetaInfo) {
 
 	allBlockBlooms := make([]map[string]*BloomIndex, numBlocks)
 	allBlockRangeIdx := make([]map[string]*RangeIndex, numBlocks)
 	allBlockSummaries := make([]*BlockSummary, numBlocks)
-	allBlockOffsets := make(map[uint16]*BlockMetadataHolder)
+	allBmi := &AllBlksMetaInfo{CnameDict: make(map[string]int),
+		AllBmh: make(map[uint16]*BlockMetadataHolder),
+	}
 
 	segstats := make(map[string]*SegStats)
 
@@ -1170,8 +1187,9 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 		allBlockBlooms[j] = segStore.wipBlock.columnBlooms
 		allBlockSummaries[j] = &segStore.wipBlock.blockSummary
 		allBlockRangeIdx[j] = segStore.wipBlock.columnRangeIndexes
-		allBlockOffsets[currBlockUint] = &BlockMetadataHolder{
-			ColBlockOffAndLen: make(map[string]ColOffAndLen),
+		allBmi.AllBmh[currBlockUint] = &BlockMetadataHolder{
+			BlkNum:            currBlockUint,
+			ColBlockOffAndLen: make([]ColOffAndLen, len(segStore.wipBlock.colWips)),
 		}
 		for cname, colWip := range segStore.wipBlock.colWips {
 			csgFname := fmt.Sprintf("%v_%v.csg", segkey, xxhash.Sum64String(cname))
@@ -1185,12 +1203,24 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			if err != nil {
 				log.Errorf("WriteMockTraceFile: failed to write tracer filename=%v, err=%v", csgFname, err)
 			}
-			allBlockOffsets[currBlockUint].ColBlockOffAndLen[cname] = ColOffAndLen{Offset: blkOffset,
-				Length: blkLen,
+			cnameIdx, ok := allBmi.CnameDict[cname]
+			if !ok {
+				cnameIdx = len(allBmi.CnameDict)
+				allBmi.CnameDict[cname] = cnameIdx
 			}
+
+			allBmi.AllBmh[currBlockUint].ColBlockOffAndLen[cnameIdx] =
+				ColOffAndLen{Offset: blkOffset,
+					Length: blkLen,
+				}
+
 		}
 	}
-	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBlockOffsets
+
+	blockSummariesFile := GetBsuFnameFromSegKey(segkey)
+	WriteMockBlockSummary(blockSummariesFile, allBlockSummaries, allBmi)
+
+	return allBlockBlooms, allBlockSummaries, allBlockRangeIdx, mapCol, allBmi
 }
 
 func WriteMockMetricsSegment(forceRotate bool, entryCount int) ([]*metrics.MetricsSegment, error) {
@@ -1408,7 +1438,7 @@ func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 
 */
 
-func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
+func EncodeBlocksum(allBmi *AllBlksMetaInfo, bsum *BlockSummary,
 	blockSummBuf []byte, blkNum uint16) (uint32, []byte, error) {
 
 	var idx uint32
@@ -1420,10 +1450,20 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 
 	clen := 0
 	numCols := uint16(0)
-	for cname := range bmh.ColBlockOffAndLen {
+	for cname := range allBmi.CnameDict {
 		clen += len(cname)
 		numCols++
 	}
+
+	bmh, ok := allBmi.AllBmh[blkNum]
+	if !ok {
+		return idx, blockSummBuf, fmt.Errorf("EncodeBlocksum: could not find blkNum: %v in allBmi", blkNum)
+	}
+
+	if bmh == nil {
+		return idx, blockSummBuf, fmt.Errorf("EncodeBlocksum: bmh was nil for blkNum: %v", blkNum)
+	}
+
 	// summLen + blkNum + highTs + lowTs + recCount + numCols + totalCnamesLen + N * (cnameLenHolder + blkOff + blkLen)
 	requiredLen := 4 + 2 + 8 + 8 + 2 + 2 + clen + len(bmh.ColBlockOffAndLen)*(2+8+4)
 	blockSummBuf = utils.ResizeSlice(blockSummBuf, requiredLen)
@@ -1442,7 +1482,8 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 	utils.Uint16ToBytesLittleEndianInplace(numCols, blockSummBuf[idx:])
 	idx += 2
 
-	for cname, cOffLen := range bmh.ColBlockOffAndLen {
+	for cname, cnameIdx := range allBmi.CnameDict {
+		cOffLen := bmh.ColBlockOffAndLen[cnameIdx]
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cname)), blockSummBuf[idx:])
 		idx += 2
 		copy(blockSummBuf[idx:], cname)
@@ -1460,7 +1501,7 @@ func EncodeBlocksum(bmh *BlockMetadataHolder, bsum *BlockSummary,
 }
 
 func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
-	allBmh map[uint16]*BlockMetadataHolder) {
+	allBmi *AllBlksMetaInfo) {
 	fd, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("WriteMockBlockSummary: open failed blockSummaryFname=%v, err=%v", file, err)
@@ -1471,7 +1512,7 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 
 	for blkNum, block := range blockSums {
 		blkSumBuf := make([]byte, BLOCK_SUMMARY_SIZE)
-		packedLen, _, err := EncodeBlocksum(allBmh[uint16(blkNum)], block, blkSumBuf[0:], uint16(blkNum))
+		packedLen, _, err := EncodeBlocksum(allBmi, block, blkSumBuf[0:], uint16(blkNum))
 
 		if err != nil {
 			log.Errorf("WriteMockBlockSummary: EncodeBlocksum: Failed to encode blocksummary=%+v, err=%v", block, err)

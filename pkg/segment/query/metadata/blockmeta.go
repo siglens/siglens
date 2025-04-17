@@ -55,9 +55,11 @@ func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file
 		LatestEpochMS:      segMicroIdx.LatestEpochMS,
 		CmiPassedCnames:    blocksForFile,
 	}
-	blockInfo := make(map[uint16]*structs.BlockMetadataHolder)
+
+	blockInfo := make(map[uint16]struct{})
+
 	for blockNum := range blocksForFile {
-		blockInfo[blockNum] = segMicroIdx.BlockSearchInfo[blockNum]
+		blockInfo[blockNum] = struct{}{}
 	}
 	finalReq.AllBlocksToSearch = blockInfo
 	return finalReq, nil
@@ -83,7 +85,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	smi.RLockSmi()
 
-	totalBlockCount := uint64(len(smi.BlockSummaries))
+	totalBlockCount := uint64(len(smi.BlockSearchInfo.AllBmh))
 	timeFilteredBlocks := metautils.FilterBlocksByTime(smi.BlockSummaries, blockTracker, timeRange)
 
 	var missingBlockCMI bool

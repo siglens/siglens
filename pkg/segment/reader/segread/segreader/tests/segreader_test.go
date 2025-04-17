@@ -40,11 +40,16 @@ func Benchmark_readColumnarFile(b *testing.B) {
 
 	numRecsPerBlock := make(map[uint16]uint16)
 	maxRecReadInBlock := make(map[uint16]uint16)
-	blockSums, allBlockInfo, err := microreader.ReadBlockSummaries(sumFile, false)
+	blockSums, allBmi, err := microreader.ReadBlockSummaries(sumFile, false)
 	assert.Nil(b, err)
 
 	for idx, bSum := range blockSums {
 		numRecsPerBlock[uint16(idx)] = bSum.RecCount
+	}
+
+	allBlocksToSearch := make(map[uint16]struct{})
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
 	}
 
 	colName := "device_type"
@@ -52,7 +57,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 	colCSG := fmt.Sprintf("%s_%v.csg", segKey, xxhash.Sum64String(colName))
 	fd, err := os.Open(colCSG)
 	assert.NoError(b, err)
-	fileReader, err := segreader.InitNewSegFileReader(fd, colName, allBlockInfo, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE)
+	fileReader, err := segreader.InitNewSegFileReader(fd, colName, allBlocksToSearch, 0, blockSums, segutils.INCONSISTENT_CVAL_SIZE, allBmi)
 	assert.Nil(b, err)
 
 	b.ResetTimer()
@@ -60,7 +65,7 @@ func Benchmark_readColumnarFile(b *testing.B) {
 
 	sTime := time.Now()
 	numRead := 0
-	for blkNum := range allBlockInfo {
+	for blkNum := range allBlocksToSearch {
 		for i := uint16(0); i < numRecsPerBlock[blkNum]; i++ {
 			rawRec, err := fileReader.ReadRecord(i)
 			numRead++
@@ -94,7 +99,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	allBlockSummaries := make([]*structs.BlockSummary, 1)
 	allBlockSummaries[0] = &structs.BlockSummary{RecCount: recCounts}
 
-	sfr, err := segreader.InitNewSegFileReader(nil, cname, nil, 0, allBlockSummaries, segutils.INCONSISTENT_CVAL_SIZE)
+	sfr, err := segreader.InitNewSegFileReader(nil, cname, nil, 0, allBlockSummaries, segutils.INCONSISTENT_CVAL_SIZE, nil)
 	assert.NoError(t, err)
 
 	recNum := uint16(0)
@@ -174,7 +179,7 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 	block0RecordCount := uint16(8)
 	block1RecordCount := uint16(5)
 	blockSummaries := []*structs.BlockSummary{{RecCount: block0RecordCount}, {RecCount: block1RecordCount}}
-	segFileReader, err := segreader.InitNewSegFileReader(nil, "", nil, 0, blockSummaries, 0)
+	segFileReader, err := segreader.InitNewSegFileReader(nil, "", nil, 0, blockSummaries, 0, nil)
 	assert.NoError(t, err)
 
 	block0Strings := []string{"apple", "banana", "cherry"}

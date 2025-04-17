@@ -60,10 +60,10 @@ var FileReadBufferPool = sync.Pool{
 var decoder, _ = zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
 
 type SegmentFileReader struct {
-	ColName       string   // column name this file references
-	fileName      string   // file name to iterate
-	currFD        *os.File // current file descriptor
-	blockMetadata map[uint16]*structs.BlockMetadataHolder
+	ColName           string   // column name this file references
+	fileName          string   // file name to iterate
+	currFD            *os.File // current file descriptor
+	allBlocksToSearch map[uint16]struct{}
 
 	currBlockNum             uint16
 	currRecordNum            uint16
@@ -80,6 +80,7 @@ type SegmentFileReader struct {
 	deRecToTlv         []uint16 // deRecToTlv[recNum] --> dWordIdx
 	blockSummaries     []*structs.BlockSummary
 	someBlksAbsent     bool // this is used to not log some errors
+	allBmi             *structs.AllBlksMetaInfo
 }
 
 // Returns a map of blockNum -> slice, where each element of the slice has the
@@ -92,12 +93,18 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 	}
 	defer fd.Close()
 
-	blockMeta, blockSummaries, err := segmetadata.GetSearchInfoAndSummary(segkey)
+	allBmi, blockSummaries, err := segmetadata.GetSearchInfoAndSummary(segkey)
 	if err != nil {
 		return nil, fmt.Errorf("ReadAllRecords: failed to get block info for segkey %s; err=%+v", segkey, err)
 	}
 
-	fileReader, err := InitNewSegFileReader(fd, cname, blockMeta, 0, blockSummaries, segutils.INCONSISTENT_CVAL_SIZE)
+	allBlocksToSearch := make(map[uint16]struct{}, len(allBmi.AllBmh))
+	for blkNum := range allBmi.AllBmh {
+		allBlocksToSearch[blkNum] = struct{}{}
+	}
+
+	fileReader, err := InitNewSegFileReader(fd, cname, allBlocksToSearch, 0, blockSummaries,
+		segutils.INCONSISTENT_CVAL_SIZE, allBmi)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +112,7 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 
 	blockToRecords := make(map[uint16][][]byte)
 
-	for blockNum := range blockMeta {
+	for blockNum := range allBmi.AllBmh {
 		_, err := fileReader.readBlock(blockNum)
 		if err != nil {
 			return nil, fmt.Errorf("ReadAllRecords: error reading block %v; err=%+v", blockNum, err)
@@ -134,8 +141,9 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 
 // returns a new SegmentFileReader and any errors encountered
 // The returned SegmentFileReader must call .Close() when finished using it to close the fd
-func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]*structs.BlockMetadataHolder,
-	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen uint32) (*SegmentFileReader, error) {
+func InitNewSegFileReader(fd *os.File, colName string, allBlocksToSearch map[uint16]struct{},
+	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen uint32,
+	allBmi *structs.AllBlksMetaInfo) (*SegmentFileReader, error) {
 
 	fileName := ""
 	if fd != nil {
@@ -146,7 +154,7 @@ func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]
 		ColName:               colName,
 		fileName:              fileName,
 		currFD:                fd,
-		blockMetadata:         blockMetadata,
+		allBlocksToSearch:     allBlocksToSearch,
 		currOffset:            0,
 		currFileBuffer:        *FileReadBufferPool.Get().(*[]byte),
 		currRawBlockBuffer:    *UncompressedReadBufferPool.Get().(*[]byte),
@@ -156,6 +164,7 @@ func InitNewSegFileReader(fd *os.File, colName string, blockMetadata map[uint16]
 		blockSummaries:        blockSummaries,
 		deTlv:                 make([][]byte, 0),
 		deRecToTlv:            make([]uint16, 0),
+		allBmi:                allBmi,
 	}, nil
 }
 
@@ -199,7 +208,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: SegmentFileReader is nil")
 	}
 
-	blockMeta, blockExists := sfr.blockMetadata[blockNum]
+	blockMeta, blockExists := sfr.allBmi.AllBmh[blockNum]
 	if !blockExists {
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v does not exist", blockNum)
 	}
@@ -208,15 +217,14 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v is nil", blockNum)
 	}
 
-	if blockMeta.ColBlockOffAndLen == nil {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: block %v column block ColOffAndLen is nil", blockNum)
+	cnameIdx := sfr.allBmi.CnameDict[sfr.ColName]
+
+	if cnameIdx >= len(blockMeta.ColBlockOffAndLen) {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: blkNum: %v, cname: %v, cnameIdx: %v was higher than len(blockMeta.ColBlockOffAndLen): %v",
+			blockNum, sfr.ColName, cnameIdx, len(blockMeta.ColBlockOffAndLen))
 	}
 
-	cOffAndLen, colExists := blockMeta.ColBlockOffAndLen[sfr.ColName]
-	if !colExists {
-		// This is an invalid block & not an error because this column never existed for this block if sfr.blockMetadata[blockNum] exists
-		return false, nil
-	}
+	cOffAndLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
