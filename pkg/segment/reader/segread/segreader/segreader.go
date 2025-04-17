@@ -223,6 +223,10 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 
 	cOffAndLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
+	if cOffAndLen.Length == 0 {
+		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: offset was 0, colName: %v, cnameIdx: %v, fname: %v", sfr.ColName, cnameIdx, sfr.fileName)
+	}
+
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
 	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:cOffAndLen.Length], cOffAndLen.Offset)
