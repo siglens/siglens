@@ -189,19 +189,6 @@ function createVolumeChart(chartId, data, options) {
                     mode: 'index',
                     intersect: false,
                     callbacks: {
-                        label: function (context) {
-                            let label = context.dataset.label || '';
-                            if (context.parsed.y !== null) {
-                                let value = context.parsed.y;
-                                if (value >= 10) {
-                                    value = Number(value.toFixed()).toLocaleString('en-us');
-                                    label += ': ' + value + ' ' + scale.unit;
-                                } else {
-                                    label += ': ' + value.toFixed(2) + ' ' + scale.unit;
-                                }
-                            }
-                            return label;
-                        },
                         title: function (tooltipItems) {
                             const timestamp = tooltipItems[0].parsed.x / 1000;
                             return formatTooltipTimestamp(timestamp, data.granularity);
@@ -241,17 +228,9 @@ function createVolumeChart(chartId, data, options) {
                         ...xAxisConfig.ticks,
                         color: tickColor,
                     },
-                    afterFit: function (scale) {
-                        scale.paddingLeft = 15;
-                        scale.paddingRight = 15;
-                    },
                     offset: data.granularity === 'hour' ? false : true,
-                    alignToPixels: true,
-                    distribution: 'auto',
                 },
             },
-            borderAlign: 'center',
-            devicePixelRatio: 2,
         },
     };
 
