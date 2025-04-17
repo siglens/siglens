@@ -424,37 +424,27 @@ function formatTooltipTimestamp(timestamp, granularity) {
     if (granularity === 'hour') {
         const hours = date.getHours();
         const ampm = hours >= 12 ? 'PM' : 'AM';
-        const hour12 = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+        const hour12 = hours % 12 || 12;
         return `${month} ${day}, ${year} ${hour12}:00 ${ampm}`;
     } else {
         return `${month} ${day}, ${year}`;
     }
 }
 
-function formatHourTick(date, prevDate, isFirstTick) {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const hours = date.getHours();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-
-    if (isFirstTick || date.getDate() !== prevDate.getDate()) {
-        return `${monthNames[date.getMonth()]} ${date.getDate()}, ${hour12}${ampm}`;
-    }
-    return `${hour12}${ampm}`;
-}
-
 function configureTimeAxis(data, granularity) {
     const firstTimestamp = parseInt(data.dates[0]) * 1000;
     const lastTimestamp = parseInt(data.dates[data.dates.length - 1]) * 1000;
     const daysInRange = Math.ceil((lastTimestamp - firstTimestamp) / (1000 * 60 * 60 * 24));
-
+    const hoursInRange = Math.ceil((lastTimestamp - firstTimestamp) / (1000 * 60 * 60));
+    console.log(hoursInRange);
     let unit, maxTicksLimit, stepSize;
 
     if (granularity === 'hour') {
         unit = 'hour';
-
-        let timeRange;
-        if (daysInRange <= 4) {
+        if (hoursInRange <= 24) {
+            stepSize = 1;
+            maxTicksLimit = hoursInRange + 1;
+        } else if (daysInRange <= 4) {
             stepSize = 6;
             maxTicksLimit = daysInRange * 4;
         } else if (daysInRange <= 15) {
@@ -534,7 +524,16 @@ function configureTimeAxis(data, granularity) {
                 const day = date.getDate();
 
                 if (granularity === 'hour') {
-                    if (daysInRange <= 4) {
+                    if (hoursInRange <= 24) {
+                        const hourIn12 = hours % 12 || 12;
+                        const amPm = hours < 12 ? 'AM' : 'PM';
+
+                        if (hours === 0) {
+                            return `${monthNames[date.getMonth()]} ${day}`;
+                        } else {
+                            return `${hourIn12}${amPm}`;
+                        }
+                    } else if (daysInRange <= 4) {
                         if (hours === 0) {
                             return `${monthNames[date.getMonth()]} ${day}`;
                         } else if (hours === 6) {
