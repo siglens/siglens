@@ -84,13 +84,9 @@ function setupUsageStatsCharts(data) {
     const selectedGranularity = $('.granularity-tabs .tab.active').data('tab') || 'day';
 
     let chartGranularity;
-    if (selectedGranularity === 'hour' || selectedGranularity === 'hourly') {
-        chartGranularity = 'hour';
-    } else if (selectedGranularity === 'day' || selectedGranularity === 'daily') {
-        chartGranularity = 'day';
-    } else {
-        chartGranularity = 'month';
-    }
+    if (selectedGranularity === 'hourly') chartGranularity = 'hour';
+    else if (selectedGranularity === 'daily') chartGranularity = 'day';
+    else chartGranularity = 'month';
 
     // Process the data for charts
     const dates = Object.keys(data.chartStats).sort();
@@ -436,7 +432,6 @@ function configureTimeAxis(data, granularity) {
     const lastTimestamp = parseInt(data.dates[data.dates.length - 1]) * 1000;
     const daysInRange = Math.ceil((lastTimestamp - firstTimestamp) / (1000 * 60 * 60 * 24));
     const hoursInRange = Math.ceil((lastTimestamp - firstTimestamp) / (1000 * 60 * 60));
-    console.log(hoursInRange);
     let unit, maxTicksLimit, stepSize;
 
     if (granularity === 'hour') {
@@ -517,7 +512,7 @@ function configureTimeAxis(data, granularity) {
             minRotation: 0,
             maxTicksLimit: maxTicksLimit,
             includeBounds: true,
-            callback: function (value, index, values) {
+            callback: function (value) {
                 const date = new Date(value);
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const hours = date.getHours();
@@ -569,7 +564,6 @@ function configureTimeAxis(data, granularity) {
                     const date = new Date(value);
                     const hours = date.getHours();
 
-                    // Make midnight labels (date labels) bold
                     if ((granularity === 'hour') & (hours === 0)) {
                         return 'bold';
                     }
