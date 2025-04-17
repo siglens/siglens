@@ -1768,8 +1768,8 @@ func Test_SimpleMetricInstantQuery(t *testing.T) {
 	assert.Nil(t, err)
 	assert.JSONEq(t, string(marshalExpectedResp), string(resp))
 
-	// Now since this is more than the DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES(5m), the query will not return any results.
-	endTime = startTimestamp + 3600 + promql.DEFAULT_LOOKBACK_FOR_INSTANT_QUERIES + 1
+	// Now since this is more than the PROMQL_LOOKBACK, the query will not return any results.
+	endTime = startTimestamp + 3600 + uint32(structs.PROMQL_LOOKBACK.Seconds()) + 1
 
 	fastCtx = &fasthttp.RequestCtx{}
 	fastCtx.Request.PostArgs().Add("query", query)
