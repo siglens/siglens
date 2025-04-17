@@ -100,14 +100,16 @@ func (sm *SegmentMicroIndex) initMetadataSize() {
 	//	BlkNum            uint16
 	//	ColBlockOffAndLen map[string]ColOffAndLen
 	// }
-	sumColSize := uint64(0)
+	sumCnamesSize := uint64(0)
 	for cname := range sm.ColumnNames {
-		sumColSize += uint64(len(cname))
+		sumCnamesSize += uint64(len(cname))
 	}
 
-	blockHolderSize := sumColSize * (8 + 4) // int64 value + uint32 value
-	blockHolderSize += 2 + 6 + 8 + 8        // blockNum, padding, 2 map pointers
-	searchMetadataSize += uint64(sm.NumBlocks) * blockHolderSize
+	searchMetadataSize += sumCnamesSize * (8 + 4) // 8 (for mapkey of CnameDict) + 4 (for int idx)
+
+	blockHolderSize := len(sm.ColumnNames) * (8 + 4) // int64 Offset + uint32 Length
+	blockHolderSize += 2 + 6                         // blockNum, padding,
+	searchMetadataSize += uint64(sm.NumBlocks) * uint64(blockHolderSize)
 
 	sm.SearchMetadataSize = searchMetadataSize
 }
