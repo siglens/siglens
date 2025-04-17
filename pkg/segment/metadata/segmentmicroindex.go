@@ -392,6 +392,14 @@ func GetSearchInfoAndSummary(segkey string) (*structs.AllBlksMetaInfo, []*struct
 		return nil, nil, err
 	}
 
+	// if found smi then load it for future
+	if ok {
+		smi.loadedSearchMetadata = true
+		smi.BlockSummaries = blockSum
+		smi.BlockSearchInfo = allBmi
+		smi.initMetadataSize()
+	}
+
 	return allBmi, blockSum, nil
 }
 
