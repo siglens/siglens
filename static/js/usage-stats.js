@@ -563,6 +563,19 @@ function configureTimeAxis(data, granularity) {
                     return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
                 }
             },
+            font: {
+                weight: function (context) {
+                    const value = context.tick.value;
+                    const date = new Date(value);
+                    const hours = date.getHours();
+
+                    // Make midnight labels (date labels) bold
+                    if ((granularity === 'hour') & (hours === 0)) {
+                        return 'bold';
+                    }
+                    return 'normal';
+                },
+            },
         },
         alignToPixels: true,
         offset: offsetValue,
