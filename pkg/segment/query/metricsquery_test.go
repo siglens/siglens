@@ -72,24 +72,24 @@ func Test_ExecuteInstantQuery(t *testing.T) {
 		},
 	}
 
-	assertQueryYieldsJson(t, mockReader, 1699999999, `metric`,
+	assertInstantQueryYieldsJson(t, mockReader, 1699999999, `metric`,
 		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
 	)
-	assertQueryYieldsJson(t, mockReader, 1700000000, `metric`,
+	assertInstantQueryYieldsJson(t, mockReader, 1700000000, `metric`,
 		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`,
 	)
-	assertQueryYieldsJson(t, mockReader, 1700000003, `metric`,
+	assertInstantQueryYieldsJson(t, mockReader, 1700000003, `metric`,
 		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000003,"2"]}]}}`,
 	)
-	assertQueryYieldsJson(t, mockReader, 1700000304, `metric`,
+	assertInstantQueryYieldsJson(t, mockReader, 1700000304, `metric`,
 		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000304,"3"]}]}}`,
 	)
-	assertQueryYieldsJson(t, mockReader, 1700000305, `metric`,
+	assertInstantQueryYieldsJson(t, mockReader, 1700000305, `metric`,
 		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
 	)
 }
 
-func assertQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
+func assertInstantQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
 	evalTime uint32, query string, expectedJson string) {
 	t.Helper()
 
@@ -98,6 +98,39 @@ func assertQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader
 	qs := summary.InitQuerySummary(summary.METRICS, qid)
 
 	result, err := ExecuteInstantQuery(qid, myId, mockReader, query, evalTime, qs)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+
+	jsonBytes, err := json.Marshal(result)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedJson, string(jsonBytes))
+}
+
+func Test_ExecuteRangeQuery(t *testing.T) {
+	mockReader := &metricsevaluator.MockReader{
+		Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+			"metric": {
+				{Ts: 1700000000, Value: 1.0},
+				{Ts: 1700000001, Value: 2.0},
+				{Ts: 1700000005, Value: 3.0},
+			},
+		},
+	}
+
+	assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000006, 1, `metric`,
+		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000000,"1"],[1700000001,"2"],[1700000002,"2"],[1700000003,"2"],[1700000004,"2"],[1700000005,"3"],[1700000006,"3"]]}]}}`,
+	)
+}
+
+func assertRangeQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
+	startTime, endTime, step uint32, query string, expectedJson string) {
+	t.Helper()
+
+	qid := uint64(0)
+	myId := int64(0)
+	qs := summary.InitQuerySummary(summary.METRICS, qid)
+
+	result, err := ExecuteRangeQuery(qid, myId, mockReader, query, startTime, endTime, step, qs)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 
