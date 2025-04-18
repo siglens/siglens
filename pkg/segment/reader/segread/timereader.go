@@ -172,7 +172,8 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 
 	cnameIdx, ok := trr.allBmi.CnameDict[trr.timestampKey]
 	if !ok || cnameIdx >= len(blockMeta.ColBlockOffAndLen) {
-		return fmt.Errorf("TimeRangeReader.readAllTimestampsForBlock: unexpected found: %v, cnameIdx: %v, len(blockMeta.ColBlockOffAndLen): %v", ok, cnameIdx, len(blockMeta.ColBlockOffAndLen))
+		return fmt.Errorf("TimeRangeReader.readAllTimestampsForBlock: unexpected found: %v, cnameIdx: %v, len(blockMeta.ColBlockOffAndLen): %v, cnameDict: %v",
+			ok, cnameIdx, len(blockMeta.ColBlockOffAndLen), trr.allBmi.CnameDict)
 	}
 
 	cOffLen := blockMeta.ColBlockOffAndLen[cnameIdx]

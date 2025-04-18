@@ -144,8 +144,9 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 
 	blkSumCpy := wipBlock.blockSummary.Copy()
 	tRange := &dtu.TimeRange{StartEpochMs: earliestTs, EndEpochMs: latestTs}
+	var allBmi *structs.AllBlksMetaInfo
 	if _, ok := AllUnrotatedSegmentInfo[segkey]; !ok {
-		allBmi := &structs.AllBlksMetaInfo{
+		allBmi = &structs.AllBlksMetaInfo{
 			CnameDict: make(map[string]int),
 			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
 		}
@@ -159,19 +160,21 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 			isCmiLoaded:         true, // default loading is true
 			orgid:               orgid,
 		}
+	} else {
+		allBmi = AllUnrotatedSegmentInfo[segkey].blockInfo
 	}
 	AllUnrotatedSegmentInfo[segkey].blockSummaries = append(AllUnrotatedSegmentInfo[segkey].blockSummaries, blkSumCpy)
-
-	// kunal todo: In the past blocks, the allBmi.CnameDict may have a different dict
-	// for cname-> cnameIdx. Take the old dict, walk through the newly passed in dict,
-	// if the cnameIdx is same, then nothing to do , if it is different then swap out the
-	// allBmi.AllBmh[blockNum].ColOffAndLen[oldIdx] <==> newIdx
-	// a slightly more complicated than that, we may have to just create a new slice,
-	// and just put according to the existing AllUnrotatedSegmentInfo[segkey].blockInfo's
-	// old idx and if it is new column, then update our existing cnameDict map
-	AllUnrotatedSegmentInfo[segkey].blockInfo.AllBmh[blockNum] = blockMetadata.AllBmh[blockNum]
 	AllUnrotatedSegmentInfo[segkey].tsRange = tRange
 	AllUnrotatedSegmentInfo[segkey].RecordCount = recordCount
+
+	bmh := &structs.BlockMetadataHolder{
+		BlkNum:            blockNum,
+		ColBlockOffAndLen: utils.DeepCopySlice(blockMetadata.AllBmh[blockNum].ColBlockOffAndLen),
+	}
+
+	allBmi.AllBmh[blockNum] = bmh
+	// if new cnames got added in this block, then copy them over
+	utils.MergeMapsRetainingFirst(allBmi.CnameDict, blockMetadata.CnameDict)
 
 	for col := range allCols {
 		AllUnrotatedSegmentInfo[segkey].allColumns[col] = true

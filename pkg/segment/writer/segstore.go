@@ -332,6 +332,15 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		return err
 	}
 
+	if segstore.wipBlock.currAllBmi != nil {
+		for k := range segstore.wipBlock.currAllBmi.AllBmh {
+			delete(segstore.wipBlock.currAllBmi.AllBmh, k)
+		}
+		for k := range segstore.wipBlock.currAllBmi.CnameDict {
+			delete(segstore.wipBlock.currAllBmi.CnameDict, k)
+		}
+	}
+
 	return nil
 }
 
@@ -544,14 +553,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		allColsToFlush := &sync.WaitGroup{}
 		wipBlockLock := sync.Mutex{}
 
-		allBmi := &structs.AllBlksMetaInfo{CnameDict: make(map[string]int),
-			AllBmh: make(map[uint16]*structs.BlockMetadataHolder),
-		}
-		wipBlockMetadata := &structs.BlockMetadataHolder{
-			BlkNum:            segstore.numBlocks,
-			ColBlockOffAndLen: make([]structs.ColOffAndLen, len(segstore.wipBlock.colWips)),
-		}
-		allBmi.AllBmh[segstore.numBlocks] = wipBlockMetadata
+		segstore.initBmh()
+		allBmi := segstore.wipBlock.currAllBmi
 
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
@@ -624,7 +627,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						allBmi.CnameDict[cname] = cnameIdx
 					}
 
-					wipBlockMetadata.ColBlockOffAndLen[cnameIdx] = structs.ColOffAndLen{
+					bmh := allBmi.AllBmh[segstore.numBlocks]
+					bmh.ColBlockOffAndLen[cnameIdx] = structs.ColOffAndLen{
 						Offset: blkOffset,
 						Length: blkLen,
 					}
@@ -711,6 +715,41 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 	}
 	return nil
+}
+
+func (segstore *SegStore) initBmh() {
+
+	if segstore.wipBlock.currAllBmi == nil {
+		segstore.wipBlock.currAllBmi = &structs.AllBlksMetaInfo{
+			CnameDict: make(map[string]int),
+			AllBmh: make(map[uint16]*structs.BlockMetadataHolder),
+		}
+	}
+	var bmh *structs.BlockMetadataHolder
+	// reuse old val to save on mem
+	for _, v := range segstore.wipBlock.currAllBmi.AllBmh {
+		bmh = v
+		break
+	}
+	if bmh == nil {
+		bmh = &structs.BlockMetadataHolder{
+			BlkNum:            segstore.numBlocks,
+			ColBlockOffAndLen: make([]structs.ColOffAndLen, len(segstore.wipBlock.colWips)),
+		}
+	}
+	// delete the old keys since we don;t need them anymore
+	for k := range segstore.wipBlock.currAllBmi.AllBmh {
+		delete(segstore.wipBlock.currAllBmi.AllBmh, k)
+	}
+	// extend array in cases where we get new columns names that were
+	// not there in previous blocks
+	arrLen := len(bmh.ColBlockOffAndLen)
+	numCols := len(segstore.wipBlock.colWips)
+	if arrLen <= numCols {
+		bmh.ColBlockOffAndLen = append(bmh.ColBlockOffAndLen,
+			make([]structs.ColOffAndLen, numCols-arrLen+1)...)
+	}
+	segstore.wipBlock.currAllBmi.AllBmh[segstore.numBlocks] = bmh
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {

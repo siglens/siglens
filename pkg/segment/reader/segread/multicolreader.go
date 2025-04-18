@@ -98,11 +98,20 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
 		maxColIdx:           -1,
 	}
 
+	var allBmi *structs.AllBlksMetaInfo
+	var err error
 	// todo blockSummaries don't need to be passed, we could just pick from this
 	// below function
-	allBmi, _, err := segmetadata.GetSearchInfoAndSummary(segKey)
-	if err != nil {
-		return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get allBmi segKey: %s. Error: %+v", segKey, err)
+	if writer.IsSegKeyUnrotated(segKey) {
+		allBmi, err = writer.GetBlockSearchInfoForKey(segKey)
+		if err != nil {
+			return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get allBmi for unrotated segKey %s; err=%v", segKey, err)
+		}
+	} else {
+		allBmi, _, err = segmetadata.GetSearchInfoAndSummary(segKey)
+		if err != nil {
+			return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get allBmi segKey: %s. Error: %+v", segKey, err)
+		}
 	}
 
 	for colName, colFD := range colFDs {
