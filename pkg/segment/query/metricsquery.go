@@ -385,7 +385,7 @@ func applyTagValuesSearchOnlyOnSegments(mQuery *structs.MetricsQuery, allSearchR
 	}
 }
 
-func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqests map[string][]*structs.MetricsSearchRequest,
+func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchRequests map[string][]*structs.MetricsSearchRequest,
 	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 	// for each metrics segment, apply a single metrics segment search
 	// var tsidInfo *tsidtracker.AllMatchedTSIDs
@@ -398,7 +398,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// The Segement base Directory can be taken from the first MetricSearchRequest.
 	// tthBaseDir can span for 24 hours, and it can contain multiple mSegs, some of these mSegs
 	// can be rotated and unrotated
-	for tthBaseDir, allMSearchReqs := range allSearchReqests {
+	for tthBaseDir, allMSearchReqs := range allSearchRequests {
 		if mQuery.IsQueryCancelled() {
 			return
 		}
