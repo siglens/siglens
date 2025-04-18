@@ -673,12 +673,13 @@ func (dr *diskReader) Read(labels []*labels.Matcher, endTime uint32, lookback ui
 
 	for _, label := range labels {
 		filter := matcherToTagsFilter(label)
-		mQuery.TagsFilters = append(mQuery.TagsFilters, filter)
 
 		if label.Name == "__name__" {
 			mQuery.MetricName = label.Value
 			mQuery.MetricOperator = filter.TagOperator
 			mQuery.MetricNameRegexPattern = fmt.Sprintf("^%s$", label.Value)
+		} else {
+			mQuery.TagsFilters = append(mQuery.TagsFilters, filter)
 		}
 	}
 

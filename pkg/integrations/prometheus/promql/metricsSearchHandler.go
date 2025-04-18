@@ -200,6 +200,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 
 	qs := summary.InitQuerySummary(summary.METRICS, qid)
+	defer qs.LogMetricsQuerySummary(myid)
 	reader := query.NewDiskReader(qid, qs)
 	response, err := query.ExecuteInstantQuery(qid, myid, reader, searchText, endTime, qs)
 	if err != nil {

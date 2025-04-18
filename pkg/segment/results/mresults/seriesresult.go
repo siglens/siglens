@@ -41,13 +41,14 @@ import (
 */
 
 type Series struct {
-	idx       int // entries[:idx] is guaranteed to have valid results
-	len       int // the number of available elements. Once idx==len, entries needs to be resized
-	entries   []Entry
-	dsSeconds uint32
-	sorted    bool
-	grpID     *bytebufferpool.ByteBuffer
+	idx     int // entries[:idx] is guaranteed to have valid results
+	len     int // the number of available elements. Once idx==len, entries needs to be resized
+	entries []Entry
+	sorted  bool
+	grpID   *bytebufferpool.ByteBuffer
 
+	downsample bool
+	dsSeconds  uint32
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
@@ -94,13 +95,17 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 		convertedDownsampleAggFn = utils.Sum
 	}
 	aggregationConstant := mQuery.FirstAggregator.FuncConstant
+	var dsSeconds uint32
+	if ds.Interval > 0 {
+		dsSeconds = ds.GetIntervalTimeInSeconds()
+	}
 
 	retVal := make([]Entry, initial_len, extend_capacity)
 	return &Series{
 		idx:                      0,
 		len:                      initial_len,
 		entries:                  retVal,
-		dsSeconds:                ds.GetIntervalTimeInSeconds(),
+		dsSeconds:                dsSeconds,
 		sorted:                   false,
 		convertedDownsampleAggFn: convertedDownsampleAggFn,
 		aggregationConstant:      aggregationConstant,
@@ -119,7 +124,11 @@ func (s *Series) GetIdx() int {
 }
 
 func (s *Series) AddEntry(ts uint32, dp float64) {
-	s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
+	if s.downsample {
+		s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
+	} else {
+		s.entries[s.idx].downsampledTime = ts
+	}
 	s.entries[s.idx].dpVal = dp
 	s.idx++
 	if s.idx >= s.len {
@@ -188,6 +197,10 @@ func (s *Series) getLabels() map[string]string {
 }
 
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {
+	if !s.downsample {
+		return nil, fmt.Errorf("Downsample: downsampler is not set")
+	}
+
 	// get downsampled series
 	s.sortEntries()
 	ds := initDownsampleSeries(downsampler.Aggregator)
