@@ -89,6 +89,26 @@ func Test_ExecuteInstantQuery(t *testing.T) {
 			`{"status":"success","data":{"resultType":"vector","result":[]}}`,
 		)
 	})
+
+	t.Run("Multiple Series", func(t *testing.T) {
+		mockReader := &metricsevaluator.MockReader{
+			Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+				`metric{color="red"}`: {
+					{Ts: 1700000000, Value: 1.0},
+					{Ts: 1700000003, Value: 2.0},
+				},
+				`metric{color="blue"}`: {
+					{Ts: 1700000001, Value: 3.0},
+				},
+				`metric{color="blue",region="us-east"}`: {
+					{Ts: 1700000004, Value: 4.0},
+				},
+			},
+		}
+		assertInstantQueryYieldsJson(t, mockReader, 1700000001, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000001,"1"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000001,"3"]}]}}`,
+		)
+	})
 }
 
 func assertInstantQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
