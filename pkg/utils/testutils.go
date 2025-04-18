@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"math/rand"
 	"time"
 )
@@ -54,4 +55,30 @@ func GetRandomString(length int, stringType StringType) string {
 		b[i] = charset[seededRand.Intn(len(charset))]
 	}
 	return string(b)
+}
+
+func EquivalentJson(a, b string) bool {
+	if a == b {
+		return true
+	}
+
+	var objA, objB interface{}
+	if err := json.Unmarshal([]byte(a), &objA); err != nil {
+		return false
+	}
+	if err := json.Unmarshal([]byte(b), &objB); err != nil {
+		return false
+	}
+
+	jsonA, err := json.Marshal(objA)
+	if err != nil {
+		return false
+	}
+
+	jsonB, err := json.Marshal(objB)
+	if err != nil {
+		return false
+	}
+
+	return string(jsonA) == string(jsonB)
 }
