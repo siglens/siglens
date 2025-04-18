@@ -18,9 +18,7 @@
 package utils
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"sort"
 )
 
@@ -229,26 +227,6 @@ func TransposeMapOfSlices[K comparable, V any](m map[K][]V) []map[K]V {
 	}
 
 	return result
-}
-
-// Compare two maps and return true if map1 is less than map2.
-func MapLessThan[K, V cmp.Ordered](map1, map2 map[K]V) bool {
-	keys1 := GetKeysOfMap(map1)
-	keys2 := GetKeysOfMap(map2)
-	slices.Sort(keys1)
-	slices.Sort(keys2)
-
-	for i := 0; i < len(keys1) && i < len(keys2); i++ {
-		if key1, key2 := keys1[i], keys2[i]; key1 != key2 {
-			return key1 < key2
-		}
-
-		if val1, val2 := map1[keys1[i]], map2[keys2[i]]; val1 != val2 {
-			return val1 < val2
-		}
-	}
-
-	return len(keys1) < len(keys2)
 }
 
 type TwoWayMap[T1, T2 comparable] struct {
