@@ -411,3 +411,12 @@ func NormalizeSlice[T any](slice []T) []T {
 
 	return slice
 }
+
+func DeepCopySlice[T any](src []T) []T {
+	if src == nil {
+		return nil
+	}
+	dst := make([]T, len(src))
+	copy(dst, src)
+	return dst
+}

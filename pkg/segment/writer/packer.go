@@ -1611,11 +1611,9 @@ func addSegStatsStrIngestion(segstats map[string]*SegStats, cname string, valByt
 		segstats[cname] = stats
 	}
 
-	floatVal, err := strconv.ParseFloat(string(valBytes), 64)
+	floatVal, err := utils.FastParseFloat(valBytes)
 	if err == nil {
-		if !stats.IsNumeric {
-			stats.IsNumeric = true
-		}
+		stats.IsNumeric = true
 		addSegStatsNums(segstats, cname, SS_FLOAT64, 0, 0, floatVal, valBytes)
 		return
 	}
