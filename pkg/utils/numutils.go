@@ -31,7 +31,7 @@ func FastParseFloat(val []byte) (float64, error) {
 	var sign float64 = 1
 	var i int
 
-	if val[0] == '-' {
+	if val[i] == '-' {
 		sign = -1
 		i++
 	}

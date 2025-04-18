@@ -202,9 +202,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		cwip.cstartidx = 0
 		cwip.cbuf.Reset()
 
-		for dword := range cwip.deData.deMap {
-			delete(cwip.deData.deMap, dword)
-		}
+		clear(cwip.deData.deMap)
 		cwip.deData.deCount = 0
 	}
 
@@ -212,9 +210,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		bi.uniqueWordCount = 0
 	}
 
-	for k := range segstore.wipBlock.columnRangeIndexes {
-		delete(segstore.wipBlock.columnRangeIndexes, k)
-	}
+	clear(segstore.wipBlock.columnRangeIndexes)
 
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
@@ -222,9 +218,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.lastWipFlushTime = time.Now()
 
 	// delete keys from map to keep underlying storage
-	for col := range segstore.wipBlock.columnsInBlock {
-		delete(segstore.wipBlock.columnsInBlock, col)
-	}
+	clear(segstore.wipBlock.columnsInBlock)
 
 	// Reset PQBitmaps
 	for pqid := range segstore.pqMatches {
@@ -245,9 +239,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 func clearTRollups(rrmap map[uint64]*RolledRecs) {
 	// delete keys from map to keep underlying storage
-	for k := range rrmap {
-		delete(rrmap, k)
-	}
+	clear(rrmap)
 }
 
 // do not call this function on its own, since it may result in race condition. It should be called from
@@ -333,12 +325,8 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	}
 
 	if segstore.wipBlock.currAllBmi != nil {
-		for k := range segstore.wipBlock.currAllBmi.AllBmh {
-			delete(segstore.wipBlock.currAllBmi.AllBmh, k)
-		}
-		for k := range segstore.wipBlock.currAllBmi.CnameDict {
-			delete(segstore.wipBlock.currAllBmi.CnameDict, k)
-		}
+		clear(segstore.wipBlock.currAllBmi.AllBmh)
+		clear(segstore.wipBlock.currAllBmi.CnameDict)
 	}
 
 	return nil
@@ -738,9 +726,8 @@ func (segstore *SegStore) initBmh() {
 		}
 	}
 	// delete the old keys since we don;t need them anymore
-	for k := range segstore.wipBlock.currAllBmi.AllBmh {
-		delete(segstore.wipBlock.currAllBmi.AllBmh, k)
-	}
+	clear(segstore.wipBlock.currAllBmi.AllBmh)
+
 	// extend array in cases where we get new columns names that were
 	// not there in previous blocks
 	arrLen := len(bmh.ColBlockOffAndLen)
