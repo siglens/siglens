@@ -120,6 +120,12 @@ func Test_ExecuteRangeQuery(t *testing.T) {
 	assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000006, 1, `metric`,
 		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000000,"1"],[1700000001,"2"],[1700000002,"2"],[1700000003,"2"],[1700000004,"2"],[1700000005,"3"],[1700000006,"3"]]}]}}`,
 	)
+	assertRangeQueryYieldsJson(t, mockReader, 1700000298, 1700000306, 1, `metric`,
+		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000298,"3"],[1700000299,"3"],[1700000300,"3"],[1700000301,"3"],[1700000302,"3"],[1700000303,"3"],[1700000304,"3"]]}]}}`,
+	)
+	assertRangeQueryYieldsJson(t, mockReader, 1700000005, 1700000010, 2, `metric`,
+		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000005,"3"],[1700000007,"3"],[1700000009,"3"]]}]}}`,
+	)
 }
 
 func assertRangeQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
