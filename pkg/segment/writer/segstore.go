@@ -722,7 +722,7 @@ func (segstore *SegStore) initBmh() {
 	if segstore.wipBlock.currAllBmi == nil {
 		segstore.wipBlock.currAllBmi = &structs.AllBlksMetaInfo{
 			CnameDict: make(map[string]int),
-			AllBmh: make(map[uint16]*structs.BlockMetadataHolder),
+			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
 		}
 	}
 	var bmh *structs.BlockMetadataHolder
