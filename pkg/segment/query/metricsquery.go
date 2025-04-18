@@ -635,63 +635,78 @@ func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricseval
 	}
 }
 
-func readMetricsFromDisk(
-	qid uint64,
-	querySummary *summary.QuerySummary,
-	timeRange *dtu.MetricsTimeRange,
-	mQuery *structs.MetricsQuery,
-) (map[uint64]*mresults.Series, error) {
-
-	// Get segments.
-	mSegments, err := getAllRequestsWithinTimeRange(timeRange, mQuery.OrgId, querySummary)
-	if err != nil {
-		return nil, err
-	}
-
-	mRes := mresults.InitMetricResults(mQuery, qid)
-	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
-
-	return mRes.AllSeries, nil
-}
-
 type diskReader struct {
 	qid          uint64
+	myId         int64
 	querySummary *summary.QuerySummary
 }
 
-func NewDiskReader(qid uint64, querySummary *summary.QuerySummary) metricsevaluator.DiskReader {
+func NewDiskReader(qid uint64, myid int64, querySummary *summary.QuerySummary) metricsevaluator.DiskReader {
 	return &diskReader{
 		qid:          qid,
+		myId:         myid,
 		querySummary: querySummary,
 	}
 }
 
 func (dr *diskReader) Read(labels []*labels.Matcher, endTime uint32, lookback uint32) []metricsevaluator.SeriesResult {
-	mQuery := &structs.MetricsQuery{
-		TagsFilters: make([]*structs.TagsFilter, 0, len(labels)),
-	}
-
-	for _, label := range labels {
-		filter := matcherToTagsFilter(label)
-
-		if label.Name == "__name__" {
-			mQuery.MetricName = label.Value
-			mQuery.MetricOperator = filter.TagOperator
-			mQuery.MetricNameRegexPattern = fmt.Sprintf("^%s$", label.Value)
-		} else {
-			mQuery.TagsFilters = append(mQuery.TagsFilters, filter)
-		}
-	}
-
 	timeRange := &dtu.MetricsTimeRange{
 		StartEpochSec: endTime - lookback,
 		EndEpochSec:   endTime,
 	}
-	allSeries, err := readMetricsFromDisk(dr.qid, dr.querySummary, timeRange, mQuery)
+
+	// Find all segments to search.
+	mSegments, err := getAllRequestsWithinTimeRange(timeRange, dr.myId, dr.querySummary)
 	if err != nil {
-		log.Errorf("diskReader: failed to read metrics from disk: %v", err)
+		log.Errorf("diskReader: failed to get all metric segments within time range %+v; err=%v", timeRange, err)
 		return nil
 	}
+
+	// Find all tag keys.
+	allTagKeys := make(map[string]struct{})
+	for _, allMSearchReqs := range mSegments {
+		for _, mSeg := range allMSearchReqs {
+			toputils.AddMapKeysToSet(allTagKeys, mSeg.AllTagKeys)
+		}
+	}
+
+	mQuery := &structs.MetricsQuery{
+		TagsFilters: make([]*structs.TagsFilter, 0, len(labels)),
+		OrgId:       dr.myId,
+	}
+
+	addedTagKeys := make(map[string]struct{})
+	for _, label := range labels {
+		filter := matcherToTagsFilter(label)
+		mQuery.TagsFilters = append(mQuery.TagsFilters, filter)
+
+		if label.Name == "__name__" {
+			mQuery.MetricName = label.Value
+			mQuery.MetricOperator = filter.TagOperator
+			mQuery.MetricNameRegexPattern = fmt.Sprintf("^(%s)$", label.Value)
+		}
+
+		addedTagKeys[label.Name] = struct{}{}
+	}
+
+	// Add all the remaining tag keys to the query.
+	for tagKey := range allTagKeys {
+		if _, ok := addedTagKeys[tagKey]; ok {
+			continue
+		}
+
+		mQuery.TagsFilters = append(mQuery.TagsFilters, &structs.TagsFilter{
+			TagKey:          tagKey,
+			RawTagValue:     tagstree.STAR,
+			HashTagValue:    xxhash.Sum64String(tagstree.STAR),
+			LogicalOperator: utils.And, // TODO: should this be OR? It's not used anywhere yet.
+			TagOperator:     utils.Equal,
+		})
+	}
+
+	mRes := mresults.InitMetricResults(mQuery, dr.qid)
+	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, dr.qid, dr.querySummary)
+	allSeries := mRes.AllSeries
 
 	seriesResults := make([]metricsevaluator.SeriesResult, 0, len(allSeries))
 	for _, series := range allSeries {

@@ -201,7 +201,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	qs := summary.InitQuerySummary(summary.METRICS, qid)
 	defer qs.LogMetricsQuerySummary(myid)
-	reader := query.NewDiskReader(qid, qs)
+	reader := query.NewDiskReader(qid, myid, qs)
 	response, err := query.ExecuteInstantQuery(qid, myid, reader, searchText, endTime, qs)
 	if err != nil {
 		utils.SendError(ctx, "Failed to execute query", fmt.Sprintf("Query: %s", searchText), err)
