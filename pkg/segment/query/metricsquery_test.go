@@ -108,6 +108,9 @@ func Test_ExecuteInstantQuery(t *testing.T) {
 		assertInstantQueryYieldsJson(t, mockReader, 1700000001, `metric`,
 			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000001,"1"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000001,"3"]}]}}`,
 		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000010, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000010,"2"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000010,"3"]},{"metric":{"__name__":"metric","color":"blue","region":"us-east"},"value":[1700000010,"4"]}]}}`,
+		)
 	})
 }
 
