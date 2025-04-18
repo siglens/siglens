@@ -200,14 +200,6 @@ func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[st
 
 func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
-	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
-		orgId, err = hook(ctx)
-		if err != nil {
-			log.Errorf("ProcessUsageStatsHandler: failed to extract orgId from context. Err=%+v", err)
-			utils.SetBadMsg(ctx, "")
-			return
-		}
-	}
 
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
