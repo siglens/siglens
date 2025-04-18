@@ -169,7 +169,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 
 	bmh := &structs.BlockMetadataHolder{
 		BlkNum:            blockNum,
-		ColBlockOffAndLen: utils.DeepCopySlice(blockMetadata.AllBmh[blockNum].ColBlockOffAndLen),
+		ColBlockOffAndLen: utils.ShallowCopySlice(blockMetadata.AllBmh[blockNum].ColBlockOffAndLen),
 	}
 
 	allBmi.AllBmh[blockNum] = bmh

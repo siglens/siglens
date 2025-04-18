@@ -412,7 +412,7 @@ func NormalizeSlice[T any](slice []T) []T {
 	return slice
 }
 
-func DeepCopySlice[T any](src []T) []T {
+func ShallowCopySlice[T any](src []T) []T {
 	if src == nil {
 		return nil
 	}

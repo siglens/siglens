@@ -317,9 +317,9 @@ func Test_ReverseSlice(t *testing.T) {
 	assert.Equal(t, []string{"d", "c", "b", "a"}, slice2)
 }
 
-func Test_DeepCopySlice(t *testing.T) {
+func Test_ShallowCopySlice(t *testing.T) {
 	slice := []int{1, 2, 3, 4, 5}
-	newSlice := DeepCopySlice(slice)
+	newSlice := ShallowCopySlice(slice)
 
 	assert.Len(t, newSlice, len(slice))
 	assert.Equal(t, []int{1, 2, 3, 4, 5}, newSlice)
