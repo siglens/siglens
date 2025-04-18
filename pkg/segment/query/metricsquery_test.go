@@ -62,31 +62,33 @@ func Test_GetAllMetricNamesOverTheTimeRange(t *testing.T) {
 }
 
 func Test_ExecuteInstantQuery(t *testing.T) {
-	mockReader := &metricsevaluator.MockReader{
-		Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
-			"metric": {
-				{Ts: 1700000000, Value: 1.0},
-				{Ts: 1700000001, Value: 2.0},
-				{Ts: 1700000005, Value: 3.0},
+	t.Run("Simple", func(t *testing.T) {
+		mockReader := &metricsevaluator.MockReader{
+			Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+				"metric": {
+					{Ts: 1700000000, Value: 1.0},
+					{Ts: 1700000001, Value: 2.0},
+					{Ts: 1700000005, Value: 3.0},
+				},
 			},
-		},
-	}
+		}
 
-	assertInstantQueryYieldsJson(t, mockReader, 1699999999, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000000, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000003, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000003,"2"]}]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000304, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000304,"3"]}]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000305, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
-	)
+		assertInstantQueryYieldsJson(t, mockReader, 1699999999, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000000, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000003, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000003,"2"]}]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000304, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000304,"3"]}]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000305, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[]}}`,
+		)
+	})
 }
 
 func assertInstantQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
