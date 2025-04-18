@@ -28,6 +28,7 @@ import (
 
 	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/query/metricsevaluator"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -155,6 +156,35 @@ func (s *Series) Merge(toJoin *Series) error {
 	s.len += toJoin.idx
 
 	return nil
+}
+
+func (s *Series) AsSeriesResult() (metricsevaluator.SeriesResult, error) {
+	s.sortEntries()
+	samples := make([]metricsevaluator.Sample, s.idx)
+	for i := 0; i < s.idx; i++ {
+		samples[i] = metricsevaluator.Sample{
+			Ts:    s.entries[i].downsampledTime,
+			Value: s.entries[i].dpVal,
+		}
+	}
+
+	return metricsevaluator.SeriesResult{
+		Labels: s.getLabels(),
+		Values: samples,
+	}, nil
+}
+
+func (s *Series) getLabels() map[string]string {
+	labels := make(map[string]string)
+
+	id := s.grpID.String()
+	if i := strings.Index(id, "{"); i > 0 {
+		labels["__name__"] = id[:i]
+	}
+
+	// TODO: extract the other labels.
+
+	return labels
 }
 
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {

@@ -229,8 +229,7 @@ func (vss *VectorSelectorStream) Fetch() (*SeriesResult, error) {
 	}
 
 	if !vss.gotTSIDs {
-		seriesId := SeriesId(vss.expr.Name) // TODO: add labels
-		vss.allSeries = vss.reader.Read(seriesId)
+		vss.allSeries = vss.reader.Read(vss.expr.LabelMatchers, vss.evalTs, uint32(structs.PROMQL_LOOKBACK.Seconds()))
 		vss.gotTSIDs = true
 		vss.currTsidIndex = 0
 	} else {

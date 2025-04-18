@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -50,7 +51,7 @@ type SeriesResult struct {
 
 type SeriesId string
 
-func (s SeriesId) Matches(other SeriesId) bool {
+func (s SeriesId) Matches(labels []*labels.Matcher) bool {
 	// TODO
 	return true
 }

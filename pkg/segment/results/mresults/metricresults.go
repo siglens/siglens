@@ -99,6 +99,18 @@ func InitMetricResults(mQuery *structs.MetricsQuery, qid uint64) *MetricsResult 
 	}
 }
 
+// TODO: merge with above constructor.
+func InitMetricResultsFromName(metricName string) *MetricsResult {
+	return &MetricsResult{
+		MetricName:           metricName,
+		AllSeries:            make(map[uint64]*Series),
+		rwLock:               &sync.RWMutex{},
+		ErrList:              make([]error, 0),
+		AllSeriesTagsOnlyMap: make(map[uint64]*tsidtracker.AllMatchedTSIDsInfo, 0),
+		IsInstantQuery:       false, // TODO: delete this field (I don't think it's used).
+	}
+}
+
 /*
 Add a given series for the tsid and group information
 

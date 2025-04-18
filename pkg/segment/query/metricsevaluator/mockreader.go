@@ -17,19 +17,21 @@
 
 package metricsevaluator
 
+import "github.com/prometheus/prometheus/model/labels"
+
 type DiskReader interface {
-	Read(seriesId SeriesId) []SeriesResult
+	Read(labels []*labels.Matcher, endTime uint32, lookback uint32) []SeriesResult
 }
 
 type MockReader struct {
 	Data map[SeriesId][]Sample
 }
 
-func (m *MockReader) Read(seriesId SeriesId) []SeriesResult {
+func (m *MockReader) Read(labels []*labels.Matcher, _endTime uint32, _lookback uint32) []SeriesResult {
 	allSeries := make([]SeriesResult, 0)
 
 	for id, series := range m.Data {
-		if seriesId.Matches(id) {
+		if id.Matches(labels) {
 			allSeries = append(allSeries, SeriesResult{
 				Labels: map[string]string{
 					"__name__": string(id), // TODO: get the other labels from the id.

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -632,4 +633,99 @@ func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricseval
 		Status: "success",
 		Data:   &data,
 	}
+}
+
+func readMetricsFromDisk(
+	qid uint64,
+	querySummary *summary.QuerySummary,
+	timeRange *dtu.MetricsTimeRange,
+	mQuery *structs.MetricsQuery,
+) (map[uint64]*mresults.Series, error) {
+
+	// Get segments.
+	mSegments, err := getAllRequestsWithinTimeRange(timeRange, mQuery.OrgId, querySummary)
+	if err != nil {
+		return nil, err
+	}
+
+	mRes := mresults.InitMetricResults(mQuery, qid)
+	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, qid, querySummary)
+
+	return mRes.AllSeries, nil
+}
+
+type diskReader struct {
+	qid          uint64
+	querySummary *summary.QuerySummary
+}
+
+func NewDiskReader(qid uint64, querySummary *summary.QuerySummary) metricsevaluator.DiskReader {
+	return &diskReader{
+		qid:          qid,
+		querySummary: querySummary,
+	}
+}
+
+func (dr *diskReader) Read(labels []*labels.Matcher, endTime uint32, lookback uint32) []metricsevaluator.SeriesResult {
+	mQuery := &structs.MetricsQuery{
+		TagsFilters: make([]*structs.TagsFilter, 0, len(labels)),
+	}
+
+	for _, label := range labels {
+		filter := matcherToTagsFilter(label)
+		mQuery.TagsFilters = append(mQuery.TagsFilters, filter)
+
+		if label.Name == "__name__" {
+			mQuery.MetricName = label.Value
+			mQuery.MetricOperator = filter.TagOperator
+			mQuery.MetricNameRegexPattern = fmt.Sprintf("^%s$", label.Value)
+		}
+	}
+
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: endTime - lookback,
+		EndEpochSec:   endTime,
+	}
+	allSeries, err := readMetricsFromDisk(dr.qid, dr.querySummary, timeRange, mQuery)
+	if err != nil {
+		log.Errorf("diskReader: failed to read metrics from disk: %v", err)
+		return nil
+	}
+
+	seriesResults := make([]metricsevaluator.SeriesResult, 0, len(allSeries))
+	for _, series := range allSeries {
+		// TODO: make the reader read into the correct type, so we avoid this
+		// conversion.
+
+		series, err := series.AsSeriesResult()
+		if err != nil {
+			log.Errorf("diskReader: failed to convert series to samples: %v", err)
+			continue
+		}
+		seriesResults = append(seriesResults, series)
+	}
+
+	return seriesResults
+}
+
+func matcherToTagsFilter(matcher *labels.Matcher) *structs.TagsFilter {
+	filter := &structs.TagsFilter{
+		TagKey:          matcher.Name,
+		RawTagValue:     matcher.Value,
+		HashTagValue:    xxhash.Sum64String(matcher.Value),
+		LogicalOperator: utils.And,
+	}
+
+	switch matcher.Type {
+	case labels.MatchEqual:
+		filter.TagOperator = utils.Equal
+	case labels.MatchNotEqual:
+		filter.TagOperator = utils.NotEqual
+	case labels.MatchRegexp:
+		filter.TagOperator = utils.Regex
+	case labels.MatchNotRegexp:
+		filter.TagOperator = utils.NegRegex
+	}
+
+	return filter
 }
