@@ -564,7 +564,7 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 		}
 	} else if granularity == Daily {
 		for endTOD >= startTOD {
-			roundedToDay := runningTs.Truncate(24 * time.Hour)
+			roundedToDay := time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(), 0, 0, 0, 0, runningTs.Location())
 			bucketInterval = strconv.FormatInt(roundedToDay.Unix(), 10)
 			runningTs = runningTs.Add(24 * time.Hour)
 			startTOD = startTOD + segutils.MS_IN_DAY
@@ -572,7 +572,7 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 		}
 	} else if granularity == Hourly {
 		for endTOH >= startTOH {
-			roundedToHour := runningTs.Truncate(time.Hour)
+			roundedToHour := time.Date(runningTs.Year(), runningTs.Month(), runningTs.Day(), runningTs.Hour(), 0, 0, 0, runningTs.Location())
 			bucketInterval = strconv.FormatInt(roundedToHour.Unix(), 10)
 			runningTs = runningTs.Add(1 * time.Hour)
 			startTOH = startTOH + segutils.MS_IN_HOUR
@@ -603,10 +603,10 @@ func GetUsageStats(startTs int64, endTs int64, granularity UsageStatsGranularity
 	ascBuckets := map[string][]uint64{}
 	for _, rStat := range allStatsMap {
 		if granularity == Daily {
-			roundedToDay := rStat.TimeStamp.Truncate(24 * time.Hour)
+			roundedToDay := time.Date(rStat.TimeStamp.Year(), rStat.TimeStamp.Month(), rStat.TimeStamp.Day(), 0, 0, 0, 0, rStat.TimeStamp.Location())
 			bucketInterval = strconv.FormatInt(roundedToDay.Unix(), 10)
 		} else if granularity == Hourly {
-			roundedToHour := rStat.TimeStamp.Truncate(time.Hour)
+			roundedToHour := time.Date(rStat.TimeStamp.Year(), rStat.TimeStamp.Month(), rStat.TimeStamp.Day(), rStat.TimeStamp.Hour(), 0, 0, 0, rStat.TimeStamp.Location())
 			bucketInterval = strconv.FormatInt(roundedToHour.Unix(), 10)
 		} else if granularity == ByMinute {
 			// Truncate the timestamp to the nearest intervalMinutes and format it as a string.
