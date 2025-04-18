@@ -256,39 +256,30 @@ func ProcessPromqlMetricsRangeSearchRequest(ctx *fasthttp.RequestCtx, myid int64
 
 	log.Infof("qid=%v, ProcessPromqlMetricsRangeSearchRequest:  searchString=[%v] startEpochs=[%v] endEpochs=[%v] step=[%v]", qid, searchText, startTime, endTime, step)
 
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
 	}
 
-	metricQueriesList := make([]*structs.MetricsQuery, 0)
-	var timeRange *dtu.MetricsTimeRange
-	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
 		metricQueryRequest[i].MetricsQuery.Downsampler.Interval = int(step.Seconds())
 		metricQueryRequest[i].MetricsQuery.Downsampler.Unit = "s"
-		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
-		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
-		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
-	var mQResponse *structs.MetricsPromQLRangeQueryResponse
-
-	if res.IsScalar {
-		mQResponse, err = res.GetResultsPromQlForScalarType(pqlQuerytype, startTime, endTime, uint32(step.Seconds()))
-	} else {
-		mQResponse, err = res.GetResultsPromQl(&metricQueryRequest[0].MetricsQuery, pqlQuerytype)
-	}
+	qs := summary.InitQuerySummary(summary.METRICS, qid)
+	defer qs.LogMetricsQuerySummary(myid)
+	reader := query.NewDiskReader(qid, myid, qs)
+	response, err := query.ExecuteRangeQuery(qid, myid, reader, searchText, startTime, endTime, uint32(step.Seconds()), qs)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		utils.SendError(ctx, "Failed to execute query", fmt.Sprintf("Query: %s", searchText), err)
 		return
 	}
-	mQResponse.Data.ResultType = parser.ValueTypeMatrix
-	WriteJsonResponse(ctx, &mQResponse)
+
+	response.Data.ResultType = parser.ValueTypeMatrix
+	WriteJsonResponse(ctx, &response)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 

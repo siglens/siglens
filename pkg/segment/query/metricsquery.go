@@ -610,6 +610,24 @@ func ExecuteInstantQuery(qid uint64, orgId int64, reader metricsevaluator.DiskRe
 	return asInstantQueryResponse(allSeries), nil
 }
 
+func ExecuteRangeQuery(qid uint64, orgId int64, reader metricsevaluator.DiskReader, query string,
+	startTime, endTime, step uint32, querySummary *summary.QuerySummary) (*structs.MetricsPromQLRangeQueryResponse, error) {
+
+	expr, err := parser.ParseExpr(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse query: %v", err)
+	}
+
+	evaluator := metricsevaluator.NewEvaluator(reader, startTime, endTime, step, querySummary, qid)
+
+	allSeries, err := evaluator.EvalExpr(expr)
+	if err != nil {
+		return nil, fmt.Errorf("qid=%v, ExecuteRangeQuery: error evaluating query: %v", qid, err)
+	}
+
+	return asRangeQueryResponse(allSeries), nil
+}
+
 func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricsevaluator.SeriesResult) *structs.MetricsPromQLInstantQueryResponse {
 	data := structs.PromQLInstantData{
 		ResultType:   "vector",
@@ -630,6 +648,33 @@ func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricseval
 	}
 
 	return &structs.MetricsPromQLInstantQueryResponse{
+		Status: "success",
+		Data:   &data,
+	}
+}
+
+func asRangeQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricsevaluator.SeriesResult) *structs.MetricsPromQLRangeQueryResponse {
+	data := structs.PromQLRangeData{
+		ResultType: "matrix",
+		Result:     make([]structs.RangeVectorResult, 0, len(allSeries)),
+	}
+
+	for _, series := range allSeries {
+		if len(series.Values) == 0 {
+			continue
+		}
+
+		matrixResult := structs.RangeVectorResult{
+			Metric: series.Labels,
+			Values: make([]interface{}, 0, len(series.Values)),
+		}
+		for _, sample := range series.Values {
+			matrixResult.Values = append(matrixResult.Values, []interface{}{sample.Ts, fmt.Sprintf("%v", sample.Value)})
+		}
+		data.Result = append(data.Result, matrixResult)
+	}
+
+	return &structs.MetricsPromQLRangeQueryResponse{
 		Status: "success",
 		Data:   &data,
 	}
