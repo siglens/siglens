@@ -304,6 +304,15 @@ func Test_TransposeMapOfSlices(t *testing.T) {
 	}
 }
 
+func Test_MapLessThan(t *testing.T) {
+	assert.True(t, MapLessThan(map[string]int{"a": 1}, map[string]int{"b": 2}))
+	assert.True(t, MapLessThan(map[string]int{"a": 1}, map[string]int{"a": 2}))
+	assert.False(t, MapLessThan(map[string]int{"a": 2}, map[string]int{"a": 1}))
+	assert.False(t, MapLessThan(map[string]int{"a": 1}, map[string]int{"a": 1}))
+	assert.True(t, MapLessThan(map[string]int{"a": 1, "b": 2}, map[string]int{"a": 1, "b": 3}))
+	assert.True(t, MapLessThan(map[string]int{"a": 1, "b": 2}, map[string]int{"a": 1, "c": 0}))
+}
+
 func Test_TwoWayMap(t *testing.T) {
 	twm := NewTwoWayMap[string, int]()
 	twm.Set("key1", 1)
