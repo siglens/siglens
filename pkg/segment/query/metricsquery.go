@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -384,7 +385,7 @@ func applyTagValuesSearchOnlyOnSegments(mQuery *structs.MetricsQuery, allSearchR
 	}
 }
 
-func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqests map[string][]*structs.MetricsSearchRequest,
+func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchRequests map[string][]*structs.MetricsSearchRequest,
 	mRes *mresults.MetricsResult, timeRange *dtu.MetricsTimeRange, qid uint64, querySummary *summary.QuerySummary) {
 	// for each metrics segment, apply a single metrics segment search
 	// var tsidInfo *tsidtracker.AllMatchedTSIDs
@@ -397,7 +398,7 @@ func applyMetricsOperatorOnSegments(mQuery *structs.MetricsQuery, allSearchReqes
 	// The Segement base Directory can be taken from the first MetricSearchRequest.
 	// tthBaseDir can span for 24 hours, and it can contain multiple mSegs, some of these mSegs
 	// can be rotated and unrotated
-	for tthBaseDir, allMSearchReqs := range allSearchReqests {
+	for tthBaseDir, allMSearchReqs := range allSearchRequests {
 		if mQuery.IsQueryCancelled() {
 			return
 		}
@@ -632,4 +633,115 @@ func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricseval
 		Status: "success",
 		Data:   &data,
 	}
+}
+
+type diskReader struct {
+	qid          uint64
+	myId         int64
+	querySummary *summary.QuerySummary
+}
+
+func NewDiskReader(qid uint64, myid int64, querySummary *summary.QuerySummary) metricsevaluator.DiskReader {
+	return &diskReader{
+		qid:          qid,
+		myId:         myid,
+		querySummary: querySummary,
+	}
+}
+
+func (dr *diskReader) Read(labels []*labels.Matcher, endTime uint32, lookback uint32) []metricsevaluator.SeriesResult {
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: endTime - lookback,
+		EndEpochSec:   endTime,
+	}
+
+	// Find all segments to search.
+	mSegments, err := getAllRequestsWithinTimeRange(timeRange, dr.myId, dr.querySummary)
+	if err != nil {
+		log.Errorf("diskReader: failed to get all metric segments within time range %+v; err=%v", timeRange, err)
+		return nil
+	}
+
+	// Find all tag keys.
+	allTagKeys := make(map[string]struct{})
+	for _, allMSearchReqs := range mSegments {
+		for _, mSeg := range allMSearchReqs {
+			toputils.AddMapKeysToSet(allTagKeys, mSeg.AllTagKeys)
+		}
+	}
+
+	mQuery := &structs.MetricsQuery{
+		TagsFilters: make([]*structs.TagsFilter, 0, len(labels)),
+		OrgId:       dr.myId,
+	}
+
+	addedTagKeys := make(map[string]struct{})
+	for _, label := range labels {
+		filter := matcherToTagsFilter(label)
+		mQuery.TagsFilters = append(mQuery.TagsFilters, filter)
+
+		if label.Name == "__name__" {
+			mQuery.MetricName = label.Value
+			mQuery.MetricOperator = filter.TagOperator
+			mQuery.MetricNameRegexPattern = fmt.Sprintf("^(%s)$", label.Value)
+		}
+
+		addedTagKeys[label.Name] = struct{}{}
+	}
+
+	// Add all the remaining tag keys to the query.
+	for tagKey := range allTagKeys {
+		if _, ok := addedTagKeys[tagKey]; ok {
+			continue
+		}
+
+		mQuery.TagsFilters = append(mQuery.TagsFilters, &structs.TagsFilter{
+			TagKey:          tagKey,
+			RawTagValue:     tagstree.STAR,
+			HashTagValue:    xxhash.Sum64String(tagstree.STAR),
+			LogicalOperator: utils.And, // TODO: should this be OR? It's not used anywhere yet.
+			TagOperator:     utils.Equal,
+		})
+	}
+
+	mRes := mresults.InitMetricResults(mQuery, dr.qid)
+	applyMetricsOperatorOnSegments(mQuery, mSegments, mRes, timeRange, dr.qid, dr.querySummary)
+	allSeries := mRes.AllSeries
+
+	seriesResults := make([]metricsevaluator.SeriesResult, 0, len(allSeries))
+	for _, series := range allSeries {
+		// TODO: make the reader read into the correct type, so we avoid this
+		// conversion.
+
+		series, err := series.AsSeriesResult()
+		if err != nil {
+			log.Errorf("diskReader: failed to convert series to samples: %v", err)
+			continue
+		}
+		seriesResults = append(seriesResults, series)
+	}
+
+	return seriesResults
+}
+
+func matcherToTagsFilter(matcher *labels.Matcher) *structs.TagsFilter {
+	filter := &structs.TagsFilter{
+		TagKey:          matcher.Name,
+		RawTagValue:     matcher.Value,
+		HashTagValue:    xxhash.Sum64String(matcher.Value),
+		LogicalOperator: utils.And,
+	}
+
+	switch matcher.Type {
+	case labels.MatchEqual:
+		filter.TagOperator = utils.Equal
+	case labels.MatchNotEqual:
+		filter.TagOperator = utils.NotEqual
+	case labels.MatchRegexp:
+		filter.TagOperator = utils.Regex
+	case labels.MatchNotRegexp:
+		filter.TagOperator = utils.NegRegex
+	}
+
+	return filter
 }

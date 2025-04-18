@@ -182,7 +182,7 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	startTime := endTime - uint32(structs.PROMQL_LOOKBACK.Seconds())
 	log.Infof("qid=%v, ProcessPromqlMetricsSearchRequest: InstantQuery; searchString=[%v] startEpochs=[%v] endEpochs=[%v]", qid, searchText, startTime, endTime)
-	metricQueryRequest, pqlQuerytype, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
+	metricQueryRequest, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
 	if err != nil {
 		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
 		return
@@ -193,25 +193,22 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 		return
 	}
 
-	metricQueriesList := make([]*structs.MetricsQuery, 0)
-	var timeRange *dtu.MetricsTimeRange
-	hashList := make([]uint64, 0)
 	for i := range metricQueryRequest {
 		metricQueryRequest[i].MetricsQuery.IsInstantQuery = true
-		hashList = append(hashList, metricQueryRequest[i].MetricsQuery.QueryHash)
-		metricQueriesList = append(metricQueriesList, &metricQueryRequest[i].MetricsQuery)
 		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
-		timeRange = &metricQueryRequest[i].TimeRange
 	}
 	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
-	res := segment.ExecuteMultipleMetricsQuery(hashList, metricQueriesList, queryArithmetic, timeRange, qid, false)
 
-	mQResponse, err := res.GetResultsPromQlInstantQuery(pqlQuerytype, endTime)
+	qs := summary.InitQuerySummary(summary.METRICS, qid)
+	defer qs.LogMetricsQuerySummary(myid)
+	reader := query.NewDiskReader(qid, myid, qs)
+	response, err := query.ExecuteInstantQuery(qid, myid, reader, searchText, endTime, qs)
 	if err != nil {
-		utils.SendError(ctx, "Failed to get results", fmt.Sprintf("Query: %s", searchText), err)
+		utils.SendError(ctx, "Failed to execute query", fmt.Sprintf("Query: %s", searchText), err)
 		return
 	}
-	WriteJsonResponse(ctx, &mQResponse)
+
+	WriteJsonResponse(ctx, &response)
 	ctx.SetContentType(ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }

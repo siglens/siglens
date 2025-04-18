@@ -28,6 +28,7 @@ import (
 
 	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/segment/query/metricsevaluator"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
@@ -40,13 +41,14 @@ import (
 */
 
 type Series struct {
-	idx       int // entries[:idx] is guaranteed to have valid results
-	len       int // the number of available elements. Once idx==len, entries needs to be resized
-	entries   []Entry
-	dsSeconds uint32
-	sorted    bool
-	grpID     *bytebufferpool.ByteBuffer
+	idx     int // entries[:idx] is guaranteed to have valid results
+	len     int // the number of available elements. Once idx==len, entries needs to be resized
+	entries []Entry
+	sorted  bool
+	grpID   *bytebufferpool.ByteBuffer
 
+	downsample bool
+	dsSeconds  uint32
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
 	convertedDownsampleAggFn utils.AggregateFunctions
 	aggregationConstant      float64
@@ -95,16 +97,22 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	aggregationConstant := mQuery.FirstAggregator.FuncConstant
 
 	retVal := make([]Entry, initial_len, extend_capacity)
-	return &Series{
+	series := &Series{
 		idx:                      0,
 		len:                      initial_len,
 		entries:                  retVal,
-		dsSeconds:                ds.GetIntervalTimeInSeconds(),
 		sorted:                   false,
 		convertedDownsampleAggFn: convertedDownsampleAggFn,
 		aggregationConstant:      aggregationConstant,
 		grpID:                    tsGroupId,
 	}
+
+	if ds.Interval > 0 {
+		series.downsample = true
+		series.dsSeconds = ds.GetIntervalTimeInSeconds()
+	}
+
+	return series
 }
 
 func InitSeriesHolderForTags(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.ByteBuffer) *Series {
@@ -118,7 +126,11 @@ func (s *Series) GetIdx() int {
 }
 
 func (s *Series) AddEntry(ts uint32, dp float64) {
-	s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
+	if s.downsample {
+		s.entries[s.idx].downsampledTime = (ts / s.dsSeconds) * s.dsSeconds
+	} else {
+		s.entries[s.idx].downsampledTime = ts
+	}
 	s.entries[s.idx].dpVal = dp
 	s.idx++
 	if s.idx >= s.len {
@@ -157,7 +169,40 @@ func (s *Series) Merge(toJoin *Series) error {
 	return nil
 }
 
+func (s *Series) AsSeriesResult() (metricsevaluator.SeriesResult, error) {
+	s.sortEntries()
+	samples := make([]metricsevaluator.Sample, s.idx)
+	for i := 0; i < s.idx; i++ {
+		samples[i] = metricsevaluator.Sample{
+			Ts:    s.entries[i].downsampledTime,
+			Value: s.entries[i].dpVal,
+		}
+	}
+
+	return metricsevaluator.SeriesResult{
+		Labels: s.getLabels(),
+		Values: samples,
+	}, nil
+}
+
+func (s *Series) getLabels() map[string]string {
+	labels := make(map[string]string)
+
+	id := s.grpID.String()
+	if i := strings.Index(id, "{"); i > 0 {
+		labels["__name__"] = id[:i]
+	}
+
+	// TODO: extract the other labels.
+
+	return labels
+}
+
 func (s *Series) Downsample(downsampler structs.Downsampler) (*DownsampleSeries, error) {
+	if !s.downsample {
+		return nil, fmt.Errorf("Downsample: downsampler is not set")
+	}
+
 	// get downsampled series
 	s.sortEntries()
 	ds := initDownsampleSeries(downsampler.Aggregator)
