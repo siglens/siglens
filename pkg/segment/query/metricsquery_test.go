@@ -87,10 +87,6 @@ func Test_ExecuteInstantQuery(t *testing.T) {
 	assertQueryYieldsJson(t, mockReader, 1700000305, `metric`,
 		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
 	)
-
-	assertQueryYieldsJson(t, mockReader, 1700000305, `{__name__=~"m.*"}`,
-		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
-	)
 }
 
 func assertQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,

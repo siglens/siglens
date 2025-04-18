@@ -95,22 +95,24 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 		convertedDownsampleAggFn = utils.Sum
 	}
 	aggregationConstant := mQuery.FirstAggregator.FuncConstant
-	var dsSeconds uint32
-	if ds.Interval > 0 {
-		dsSeconds = ds.GetIntervalTimeInSeconds()
-	}
 
 	retVal := make([]Entry, initial_len, extend_capacity)
-	return &Series{
+	series := &Series{
 		idx:                      0,
 		len:                      initial_len,
 		entries:                  retVal,
-		dsSeconds:                dsSeconds,
 		sorted:                   false,
 		convertedDownsampleAggFn: convertedDownsampleAggFn,
 		aggregationConstant:      aggregationConstant,
 		grpID:                    tsGroupId,
 	}
+
+	if ds.Interval > 0 {
+		series.downsample = true
+		series.dsSeconds = ds.GetIntervalTimeInSeconds()
+	}
+
+	return series
 }
 
 func InitSeriesHolderForTags(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.ByteBuffer) *Series {
