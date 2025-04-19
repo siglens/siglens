@@ -136,9 +136,19 @@ const darkStyles = {
 };
 
 $(document).ready(() => {
-    let stDate = 'now-1h';
-    let endDate = 'now';
+    const urlParams = new URLSearchParams(window.location.search);
+    let stDate = urlParams.get('startEpoch') || 'now-1h';
+    let endDate = urlParams.get('endEpoch') || 'now';
+
+    if (!urlParams.has('startEpoch') || !urlParams.has('endEpoch')) {
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('startEpoch', stDate);
+        newUrl.searchParams.set('endEpoch', endDate);
+        window.history.replaceState({}, '', newUrl);
+    }
+
     datePickerHandler(stDate, endDate, stDate);
+    $('.inner-range #' + stDate).addClass('active');
 
     $('.theme-btn').on('click', themePickerHandler);
     $('.theme-btn').on('click', function () {
@@ -164,17 +174,37 @@ $(document).ready(() => {
     });
 
     $('.range-item').on('click', rangeItemHandler);
+
+    window.addEventListener('popstate', function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const stDate = urlParams.get('startEpoch') || 'now-1h';
+        const endDate = urlParams.get('endEpoch') || 'now';
+
+        $('.range-item').removeClass('active');
+        $('.inner-range #' + stDate).addClass('active');
+
+        datePickerHandler(stDate, endDate, stDate);
+
+        getServiceDependencyData(stDate, endDate);
+    });
+
 });
 
 function rangeItemHandler(evt) {
+    evt.preventDefault();
     $.each($('.range-item.active'), function () {
         $(this).removeClass('active');
     });
     $(evt.currentTarget).addClass('active');
-    const start = $(this).attr('id');
+    const start = $(evt.currentTarget).attr('id');
     const end = 'now';
-    const label = $(this).attr('id');
-    datePickerHandler(start, end, label);
+
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('startEpoch', start);
+    newUrl.searchParams.set('endEpoch', end);
+    window.history.pushState({}, '', newUrl);
+
+    datePickerHandler(start, end, start);
     getServiceDependencyData(start, end);
 }
 

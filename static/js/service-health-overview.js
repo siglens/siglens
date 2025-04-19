@@ -60,23 +60,89 @@ $(document).ready(() => {
         updateChartsTheme(gridLineColor, tickColor);
     });
 
+    $('.inner-range #' + startDate).addClass('active');
+    datePickerHandler(startDate, endDate, startDate);
+
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
-    $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
+    $('.range-item, #customrange-btn').on('click', isGraphsDatePickerHandler);
+    // $('.range-item').on('click', isGraphsDatePickerHandler);
+
+    window.addEventListener('popstate', function () {
+        const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
+        const endDate = getParameterFromUrl('endEpoch') || 'now';
+
+        $('.range-item, #customrange-btn').removeClass('active');
+        $('.inner-range #' + stDate).addClass('active');
+
+        datePickerHandler(stDate, endDate, stDate);
+
+        filterStartDate = stDate;
+        filterEndDate = endDate;
+
+        getOneServiceOverview();
+    });
 
     getOneServiceOverview();
 });
 
 function getTimeRange() {
+    const urlStartEpoch = getParameterFromUrl('startEpoch');
+    const urlEndEpoch = getParameterFromUrl('endEpoch');
+
     return {
-        startEpoch: filterStartDate || 'now-1h',
-        endEpoch: filterEndDate || 'now',
+        startEpoch: filterStartDate || urlStartEpoch || 'now-1h',
+        endEpoch: filterEndDate || urlEndEpoch || 'now',
     };
 }
 
 function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
+}
+
+function isGraphsDatePickerHandler(evt) {
+    evt.preventDefault();
+
+    const selectedElement = $(evt.currentTarget);
+    const selectedRange = selectedElement.attr('id');
+    let data;
+
+    if (selectedRange === 'customrange-btn') {
+        data = {
+            startEpoch: filterStartDate,
+            endEpoch: filterEndDate
+        };
+
+        $('.range-item').removeClass('active');
+        selectedElement.addClass('active');
+    }
+    else if (selectedRange && selectedRange.startsWith('now-')) {
+        filterStartDate = selectedRange;
+        filterEndDate = 'now';
+        data = {
+            startEpoch: selectedRange,
+            endEpoch: 'now'
+        };
+
+        $('.range-item').removeClass('active');
+        selectedElement.addClass('active');
+    }
+    else {
+        data = getTimeRange();
+    }
+
+    const url = new URL(window.location);
+    url.searchParams.set('startEpoch', data.startEpoch);
+    url.searchParams.set('endEpoch', data.endEpoch);
+    window.history.pushState({ path: url.href }, '', url.href);
+
+    datePickerHandler(data.startEpoch, data.endEpoch,
+                       selectedRange === 'customrange-btn' ? 'custom' : data.startEpoch);
+
+    getOneServiceOverview();
+
+    $('#daterangepicker').hide();
 }
 
 function getOneServiceOverview() {
