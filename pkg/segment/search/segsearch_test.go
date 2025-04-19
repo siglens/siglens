@@ -33,10 +33,9 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	. "github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	. "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,12 +52,14 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	numBuffers := 5
 	numEntriesForBuffer := 10
-	_, allBlockSummaries, _, allCols, blockMetadata, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
+	_, allBlockSummaries, _, allCols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
 
-	searchReq := &SegmentSearchRequest{
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+
+	searchReq := &structs.SegmentSearchRequest{
 		SegmentKey:        segKey,
-		AllBlocksToSearch: blockMetadata,
-		SearchMetadata: &SearchMetadataHolder{
+		AllBlocksToSearch: allBlocksToSearch,
+		SearchMetadata: &structs.SearchMetadataHolder{
 			BlockSummaries: allBlockSummaries,
 		},
 		VirtualTableName:   "evts",
@@ -66,26 +67,26 @@ func Test_simpleRawSearch(t *testing.T) {
 	}
 
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
-	value1, _ := CreateDtypeEnclosure("value1", 0)
-	query := &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "key1"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: value1},
+	value1, _ := segutils.CreateDtypeEnclosure("value1", 0)
+	query := &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key1"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: value1},
 		},
-		SearchType: SimpleExpression,
+		SearchType: structs.SimpleExpression,
 	}
 	timeRange := &dtu.TimeRange{
 		StartEpochMs: 1,
 		EndEpochMs:   5,
 	}
-	node := &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node := &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
-	allSegFileResults, err := segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err := segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	searchReq.SType = structs.RAW_SEARCH
 	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
@@ -138,95 +139,95 @@ func Test_simpleRawSearch(t *testing.T) {
 
 	config.SetPQSEnabled(false)
 
-	zero, _ := CreateDtypeEnclosure(false, 0)
-	query = &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "key3"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: zero},
+	zero, _ := segutils.CreateDtypeEnclosure(false, 0)
+	query = &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key3"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: zero},
 		},
-		SearchType: SimpleExpression,
+		SearchType: structs.SimpleExpression,
 	}
 
 	fullTimeRange := &dtu.TimeRange{
 		StartEpochMs: 0,
 		EndEpochMs:   uint64(numEntriesForBuffer),
 	}
-	node = &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node = &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
-	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err = segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 3, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, (numBuffers*numEntriesForBuffer)/2, len(allSegFileResults.GetResults()))
 
-	query = &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "invalid_column"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: zero},
+	query = &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "invalid_column"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: zero},
 		},
-		SearchType: SimpleExpression,
+		SearchType: structs.SimpleExpression,
 	}
 
-	node = &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node = &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 
-	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err = segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary, &structs.NodeResult{})
 	assert.NotEqual(t, 0, allSegFileResults.GetAllErrors(), "errors MUST happen")
 	assert.Equal(t, 0, len(allSegFileResults.GetResults()))
 
-	batchZero, _ := CreateDtypeEnclosure("batch-0-*", 0)
-	batchOne, _ := CreateDtypeEnclosure("batch-1-*", 0)
-	query = &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "key5"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: batchZero},
+	batchZero, _ := segutils.CreateDtypeEnclosure("batch-0-*", 0)
+	batchOne, _ := segutils.CreateDtypeEnclosure("batch-1-*", 0)
+	query = &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key5"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
-		SearchType: RegexExpression,
+		SearchType: structs.RegexExpression,
 	}
 
-	node = &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node = &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 
-	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err = segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	rawSearchColumnar(searchReq, node, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
 	assert.Equal(t, numEntriesForBuffer, len(allSegFileResults.GetResults()))
 
-	query = &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "*"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: batchZero},
+	query = &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "*"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
-		SearchType: RegexExpressionAllColumns,
+		SearchType: structs.RegexExpressionAllColumns,
 	}
 
-	node = &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node = &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 
-	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err = segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	searchReq.CmiPassedCnames = make(map[uint16]map[string]bool)
 	for blkNum := range searchReq.AllBlocksToSearch {
@@ -241,49 +242,49 @@ func Test_simpleRawSearch(t *testing.T) {
 	assert.Equal(t, numEntriesForBuffer, len(allSegFileResults.GetResults()))
 
 	// // (col5==batch-0-* OR col5==batch-1-*) AND key1=value1
-	batch0Query := &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "*"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: batchZero},
+	batch0Query := &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "*"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
-		SearchType: RegexExpressionAllColumns,
+		SearchType: structs.RegexExpressionAllColumns,
 	}
 
-	batch1Query := &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "*"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: batchOne},
+	batch1Query := &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "*"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchOne},
 		},
-		SearchType: RegexExpressionAllColumns,
+		SearchType: structs.RegexExpressionAllColumns,
 	}
 
-	valueQuery := &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "key1"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: value1},
+	valueQuery := &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key1"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: value1},
 		},
-		SearchType: SimpleExpression,
+		SearchType: structs.SimpleExpression,
 	}
 
-	orNode := &SearchNode{
-		OrSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{batch0Query, batch1Query},
+	orNode := &structs.SearchNode{
+		OrSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{batch0Query, batch1Query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 
-	nestedQuery := &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{valueQuery},
-			SearchNode:    []*SearchNode{orNode},
+	nestedQuery := &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{valueQuery},
+			SearchNode:    []*structs.SearchNode{orNode},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 
-	allSegFileResults, err = segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err = segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	rawSearchColumnar(searchReq, nestedQuery, fullTimeRange, 10000, nil, 1, allSegFileResults, 0, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
@@ -308,41 +309,43 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	numBuffers := 1
 	numEntriesForBuffer := 1
 	segKey := dataDir + "mock-host/raw_search_test_jaeger"
-	_, allBlockSummaries, _, allCols, blockMetadata := writer.WriteMockTraceFile(segKey, numBuffers, numEntriesForBuffer)
+	_, allBlockSummaries, _, allCols, allBmi := writer.WriteMockTraceFile(segKey, numBuffers, numEntriesForBuffer)
 
-	searchReq := &SegmentSearchRequest{
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+
+	searchReq := &structs.SegmentSearchRequest{
 		SegmentKey:        segKey,
-		AllBlocksToSearch: blockMetadata,
-		SearchMetadata: &SearchMetadataHolder{
+		AllBlocksToSearch: allBlocksToSearch,
+		SearchMetadata: &structs.SearchMetadataHolder{
 			BlockSummaries: allBlockSummaries,
 		},
 		VirtualTableName:   "jaeger-evts",
 		AllPossibleColumns: allCols,
 	}
-	value1, _ := CreateDtypeEnclosure("const", 0)
+	value1, _ := segutils.CreateDtypeEnclosure("const", 0)
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
-	query := &SearchQuery{
-		MatchFilter: &MatchFilter{
+	query := &structs.SearchQuery{
+		MatchFilter: &structs.MatchFilter{
 			MatchColumn: "tags",
-			MatchDictArray: &MatchDictArrayRequest{
+			MatchDictArray: &structs.MatchDictArrayRequest{
 				MatchKey:   []byte("sampler.type"),
 				MatchValue: value1,
 			},
-			MatchType: MATCH_DICT_ARRAY,
+			MatchType: structs.MATCH_DICT_ARRAY,
 		},
-		SearchType: MatchDictArraySingleColumn,
+		SearchType: structs.MatchDictArraySingleColumn,
 	}
 	timeRange := &dtu.TimeRange{
 		StartEpochMs: 1,
 		EndEpochMs:   5,
 	}
-	node := &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node := &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
-	allSegFileResults, err := segresults.InitSearchResults(10000, nil, RRCCmd, 1)
+	allSegFileResults, err := segresults.InitSearchResults(10000, nil, structs.RRCCmd, 1)
 	assert.NoError(t, err)
 	searchReq.SType = structs.RAW_SEARCH
 	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
@@ -351,24 +354,24 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	assert.Equal(t, numBuffers, len(allSegFileResults.GetResults()))
 	assert.Equal(t, allSegFileResults.GetTotalCount(), uint64(len(allSegFileResults.GetResults())))
 
-	value2, _ := CreateDtypeEnclosure("200", 1)
-	query2 := &SearchQuery{
-		MatchFilter: &MatchFilter{
+	value2, _ := segutils.CreateDtypeEnclosure("200", 1)
+	query2 := &structs.SearchQuery{
+		MatchFilter: &structs.MatchFilter{
 			MatchColumn: "tags",
-			MatchDictArray: &MatchDictArrayRequest{
+			MatchDictArray: &structs.MatchDictArrayRequest{
 				MatchKey:   []byte("http.status_code"),
 				MatchValue: value2,
 			},
-			MatchType: MATCH_DICT_ARRAY,
+			MatchType: structs.MATCH_DICT_ARRAY,
 		},
-		SearchType: MatchDictArraySingleColumn,
+		SearchType: structs.MatchDictArraySingleColumn,
 	}
 
-	node2 := &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query2},
+	node2 := &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query2},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 	assert.NoError(t, err)
 	searchReq.SType = structs.RAW_SEARCH
@@ -385,31 +388,31 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.SegmentSearchRequest) {
 	querySummary := summary.InitQuerySummary(summary.LOGS, 101010)
 
-	batchZero, _ := CreateDtypeEnclosure("batch-0-*", 0)
-	query := &SearchQuery{
-		ExpressionFilter: &SearchExpression{
-			LeftSearchInput:  &SearchExpressionInput{ColumnName: "key5"},
-			FilterOp:         Equals,
-			RightSearchInput: &SearchExpressionInput{ColumnValue: batchZero},
+	batchZero, _ := segutils.CreateDtypeEnclosure("batch-0-*", 0)
+	query := &structs.SearchQuery{
+		ExpressionFilter: &structs.SearchExpression{
+			LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: "key5"},
+			FilterOp:         segutils.Equals,
+			RightSearchInput: &structs.SearchExpressionInput{ColumnValue: batchZero},
 		},
-		SearchType: RegexExpression,
+		SearchType: structs.RegexExpression,
 	}
 	fullTimeRange := &dtu.TimeRange{
 		StartEpochMs: 0,
 		EndEpochMs:   uint64(numEntriesForBuffer),
 	}
 
-	node := &SearchNode{
-		AndSearchConditions: &SearchCondition{
-			SearchQueries: []*SearchQuery{query},
+	node := &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
+			SearchQueries: []*structs.SearchQuery{query},
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 	measureOps := make([]*structs.MeasureAggregator, 2)
-	measureOps[0] = &structs.MeasureAggregator{MeasureCol: "key0", MeasureFunc: utils.Cardinality}
-	measureOps[1] = &structs.MeasureAggregator{MeasureCol: "key6", MeasureFunc: utils.Min}
+	measureOps[0] = &structs.MeasureAggregator{MeasureCol: "key0", MeasureFunc: segutils.Cardinality}
+	measureOps[1] = &structs.MeasureAggregator{MeasureCol: "key6", MeasureFunc: segutils.Min}
 
-	allSegFileResults, err := segresults.InitSearchResults(10000, nil, SegmentStatsCmd, 1000)
+	allSegFileResults, err := segresults.InitSearchResults(10000, nil, structs.SegmentStatsCmd, 1000)
 	assert.Nil(t, err)
 
 	block0, err := RawComputeSegmentStats(searchReq, 5, node, fullTimeRange, measureOps, allSegFileResults, 123, querySummary, &structs.NodeResult{})
@@ -426,16 +429,16 @@ func testAggsQuery(t *testing.T, numEntriesForBuffer int, searchReq *structs.Seg
 	key6Block0Stats := block0["key6"]
 	assert.True(t, key6Block0Stats.IsNumeric)
 	assert.Equal(t, key6Block0Stats.Count, uint64(numEntriesForBuffer))
-	assert.Equal(t, key6Block0Stats.Min.Dtype, utils.SS_DT_SIGNED_NUM)
+	assert.Equal(t, key6Block0Stats.Min.Dtype, segutils.SS_DT_SIGNED_NUM)
 	assert.Equal(t, key6Block0Stats.Min.CVal, int64(0))
-	assert.Equal(t, key6Block0Stats.Max.Dtype, utils.SS_DT_SIGNED_NUM)
+	assert.Equal(t, key6Block0Stats.Max.Dtype, segutils.SS_DT_SIGNED_NUM)
 	assert.Equal(t, key6Block0Stats.Max.CVal, int64(numEntriesForBuffer-1)*2)
 }
 
 type BenchQueryConds struct {
 	colNameToSearch   string
 	colValStrToSearch string
-	queryType         SearchQueryType
+	queryType         structs.SearchQueryType
 	isRegex           bool
 }
 
@@ -445,8 +448,8 @@ func Benchmark_simpleRawSearch(b *testing.B) {
 
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
 
-	cond1 := &BenchQueryConds{colNameToSearch: "device_type", colValStrToSearch: "mobile", queryType: SimpleExpression, isRegex: false}
-	cond2 := &BenchQueryConds{colNameToSearch: "referer_medium", colValStrToSearch: "internal", queryType: SimpleExpression, isRegex: false}
+	cond1 := &BenchQueryConds{colNameToSearch: "device_type", colValStrToSearch: "mobile", queryType: structs.SimpleExpression, isRegex: false}
+	cond2 := &BenchQueryConds{colNameToSearch: "referer_medium", colValStrToSearch: "internal", queryType: structs.SimpleExpression, isRegex: false}
 	allconds := []*BenchQueryConds{cond1, cond2}
 
 	// cond1 := &BenchQueryConds{colNameToSearch: "*", colValStrToSearch: "chrome", queryType: MatchAll, isRegex: false}
@@ -462,7 +465,7 @@ func Benchmark_simpleRawSearch(b *testing.B) {
 
 	count := 50
 	for i := 0; i < count; i++ {
-		allSegFileResults, err := segresults.InitSearchResults(100, agg, RRCCmd, 8)
+		allSegFileResults, err := segresults.InitSearchResults(100, agg, structs.RRCCmd, 8)
 		assert.NoError(b, err)
 		rawSearchColumnar(searchReq, node, fullTimeRange, 100, agg, 8, allSegFileResults, uint64(i), querySummary, &structs.NodeResult{})
 		b := allSegFileResults.GetBucketResults()
@@ -496,17 +499,17 @@ func Benchmark_simpleAggregations(b *testing.B) {
 
 	querySummary := summary.InitQuerySummary(summary.LOGS, 1)
 
-	cond1 := &BenchQueryConds{colNameToSearch: "j", colValStrToSearch: "group 0", queryType: SimpleExpression, isRegex: false}
+	cond1 := &BenchQueryConds{colNameToSearch: "j", colValStrToSearch: "group 0", queryType: structs.SimpleExpression, isRegex: false}
 	allconds := []*BenchQueryConds{cond1}
 
 	segKey := "/Users/ssubramanian/Desktop/SigLens/siglens/data/Sris-MBP.lan/final/ind-0/0-3544697602014606120/0/0"
 	node, searchReq, fullTimeRange, _ := createBenchQuery(b, segKey, allconds)
 	agg := &structs.QueryAggregators{
-		GroupByRequest: &GroupByRequest{
+		GroupByRequest: &structs.GroupByRequest{
 			GroupByColumns: []string{"a", "d"},
 			MeasureOperations: []*structs.MeasureAggregator{
-				{MeasureCol: "a", MeasureFunc: utils.Count},
-				{MeasureCol: "a", MeasureFunc: utils.Avg},
+				{MeasureCol: "a", MeasureFunc: segutils.Count},
+				{MeasureCol: "a", MeasureFunc: segutils.Avg},
 			},
 			AggName: "test",
 		},
@@ -517,7 +520,7 @@ func Benchmark_simpleAggregations(b *testing.B) {
 
 	count := 50
 	for i := 0; i < count; i++ {
-		allSegFileResults, err := segresults.InitSearchResults(100, agg, RRCCmd, 8)
+		allSegFileResults, err := segresults.InitSearchResults(100, agg, structs.RRCCmd, 8)
 		assert.NoError(b, err)
 		rawSearchColumnar(searchReq, node, fullTimeRange, 100, agg, 8, allSegFileResults, uint64(i), querySummary, &structs.NodeResult{})
 		b := allSegFileResults.GetBucketResults()
@@ -549,17 +552,17 @@ func Benchmark_simpleAggregations(b *testing.B) {
 }
 
 func createBenchQuery(b *testing.B, segKey string,
-	allconds []*BenchQueryConds) (*SearchNode, *SegmentSearchRequest, *dtu.TimeRange, *QueryAggregators) {
+	allconds []*BenchQueryConds) (*structs.SearchNode, *structs.SegmentSearchRequest, *dtu.TimeRange, *structs.QueryAggregators) {
 
 	fullTimeRange := &dtu.TimeRange{
 		StartEpochMs: 0,
 		EndEpochMs:   math.MaxUint64,
 	}
 
-	allsqs := make([]*SearchQuery, 0)
+	allsqs := make([]*structs.SearchQuery, 0)
 
 	for _, cond := range allconds {
-		dtype, err := CreateDtypeEnclosure(cond.colValStrToSearch, 0)
+		dtype, err := segutils.CreateDtypeEnclosure(cond.colValStrToSearch, 0)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -572,11 +575,11 @@ func createBenchQuery(b *testing.B, segKey string,
 			dtype.SetRegexp(rexpC)
 		}
 
-		sq := &SearchQuery{
-			ExpressionFilter: &SearchExpression{
-				LeftSearchInput:  &SearchExpressionInput{ColumnName: cond.colNameToSearch},
-				FilterOp:         Equals,
-				RightSearchInput: &SearchExpressionInput{ColumnValue: dtype},
+		sq := &structs.SearchQuery{
+			ExpressionFilter: &structs.SearchExpression{
+				LeftSearchInput:  &structs.SearchExpressionInput{ColumnName: cond.colNameToSearch},
+				FilterOp:         segutils.Equals,
+				RightSearchInput: &structs.SearchExpressionInput{ColumnValue: dtype},
 			},
 			SearchType: cond.queryType,
 		}
@@ -584,35 +587,37 @@ func createBenchQuery(b *testing.B, segKey string,
 
 	}
 
-	node := &SearchNode{
-		AndSearchConditions: &SearchCondition{
+	node := &structs.SearchNode{
+		AndSearchConditions: &structs.SearchCondition{
 			SearchQueries: allsqs,
 		},
-		NodeType: ColumnValueQuery,
+		NodeType: structs.ColumnValueQuery,
 	}
 
-	agg := &QueryAggregators{
-		Sort: &SortRequest{
+	agg := &structs.QueryAggregators{
+		Sort: &structs.SortRequest{
 			ColName:   "timestamp",
 			Ascending: true,
 		},
-		TimeHistogram: &TimeBucket{
+		TimeHistogram: &structs.TimeBucket{
 			IntervalMillis: 60000,
 		},
 	}
 
 	bSumFile := structs.GetBsuFnameFromSegKey(segKey)
-	blockSummaries, allBlockInfo, err := microreader.ReadBlockSummaries(bSumFile, false)
+	blockSummaries, allBmi, err := microreader.ReadBlockSummaries(bSumFile, false)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	searchReq := &SegmentSearchRequest{
+	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+
+	searchReq := &structs.SegmentSearchRequest{
 		SegmentKey: segKey,
-		SearchMetadata: &SearchMetadataHolder{
+		SearchMetadata: &structs.SearchMetadataHolder{
 			BlockSummaries: blockSummaries,
 		},
-		AllBlocksToSearch: allBlockInfo,
+		AllBlocksToSearch: allBlocksToSearch,
 	}
 
 	allSearchColumns, _ := node.GetAllColumnsToSearch()

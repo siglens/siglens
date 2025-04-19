@@ -119,15 +119,20 @@ type ColOffAndLen struct {
 
 type BlockMetadataHolder struct {
 	BlkNum            uint16
-	ColBlockOffAndLen map[string]ColOffAndLen
+	ColBlockOffAndLen []ColOffAndLen
+}
+
+type AllBlksMetaInfo struct {
+	CnameDict map[string]int
+	AllBmh    map[uint16]*BlockMetadataHolder
 }
 
 // a struct for raw search to apply search on specific blocks within a file
 type SegmentSearchRequest struct {
 	SegmentKey           string
 	SearchMetadata       *SearchMetadataHolder
-	AllBlocksToSearch    map[uint16]*BlockMetadataHolder // maps all blocks needed to search to the BlockMetadataHolder needed to read
-	BlockToValidRecNums  map[uint16][]uint16             // If not nil, only search these records
+	AllBlocksToSearch    map[uint16]struct{} // maps all blocks needed to search
+	BlockToValidRecNums  map[uint16][]uint16 // If not nil, only search these records
 	VirtualTableName     string
 	AllPossibleColumns   map[string]bool // all possible columns for the segKey
 	LatestEpochMS        uint64          // latest epoch time - used for query planning
@@ -204,8 +209,8 @@ func (ssr *SegmentSearchRequest) JoinRequest(toJoin *SegmentSearchRequest, op Lo
 			}
 		}
 	} else {
-		for blockNum, blockMeta := range toJoin.AllBlocksToSearch {
-			ssr.AllBlocksToSearch[blockNum] = blockMeta
+		for blockNum := range toJoin.AllBlocksToSearch {
+			ssr.AllBlocksToSearch[blockNum] = struct{}{}
 			if _, ok := ssr.CmiPassedCnames[blockNum]; !ok {
 				ssr.CmiPassedCnames[blockNum] = make(map[string]bool)
 			}

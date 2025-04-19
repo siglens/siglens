@@ -93,25 +93,21 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 		return
 	}
 	// if not match_all then do search in N chunk of blocks
-	sortedAllBlks := make([]*structs.BlockMetadataHolder, len(req.AllBlocksToSearch))
+	sortedAllBlks := make([]uint16, len(req.AllBlocksToSearch))
 	var i int
-	for _, bmh := range req.AllBlocksToSearch {
-		if bmh == nil {
-			continue
-		}
-		sortedAllBlks[i] = bmh
+	for blkNum := range req.AllBlocksToSearch {
+		sortedAllBlks[i] = blkNum
 		i++
 	}
-	sortedAllBlks = sortedAllBlks[:i]
 	if aggs != nil && aggs.Sort != nil && aggs.Sort.Ascending {
-		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i].BlkNum < sortedAllBlks[j].BlkNum })
+		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i] < sortedAllBlks[j] })
 	} else {
-		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i].BlkNum > sortedAllBlks[j].BlkNum })
+		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i] > sortedAllBlks[j] })
 	}
 	for i := 0; i < len(sortedAllBlks); {
-		nm := make(map[uint16]*structs.BlockMetadataHolder, BLOCK_BATCH_SIZE)
+		nm := make(map[uint16]struct{}, BLOCK_BATCH_SIZE)
 		for j := 0; j < BLOCK_BATCH_SIZE && i < len(sortedAllBlks); {
-			nm[sortedAllBlks[i].BlkNum] = sortedAllBlks[i]
+			nm[sortedAllBlks[i]] = struct{}{}
 			j++
 			i++
 		}

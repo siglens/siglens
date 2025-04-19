@@ -26,6 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -55,11 +56,8 @@ func convertBlocksToSearchRequest(blocksForFile map[uint16]map[string]bool, file
 		LatestEpochMS:      segMicroIdx.LatestEpochMS,
 		CmiPassedCnames:    blocksForFile,
 	}
-	blockInfo := make(map[uint16]*structs.BlockMetadataHolder)
-	for blockNum := range blocksForFile {
-		blockInfo[blockNum] = segMicroIdx.BlockSearchInfo[blockNum]
-	}
-	finalReq.AllBlocksToSearch = blockInfo
+
+	finalReq.AllBlocksToSearch = toputils.MapToSet(blocksForFile)
 	return finalReq, nil
 }
 
@@ -83,7 +81,7 @@ func RunCmiCheck(segkey string, tableName string, timeRange *dtu.TimeRange,
 
 	smi.RLockSmi()
 
-	totalBlockCount := uint64(len(smi.BlockSummaries))
+	totalBlockCount := uint64(len(smi.BlockSearchInfo.AllBmh))
 	timeFilteredBlocks := metautils.FilterBlocksByTime(smi.BlockSummaries, blockTracker, timeRange)
 
 	var missingBlockCMI bool

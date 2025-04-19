@@ -36,8 +36,7 @@ func Test_readWriteMicroIndices(t *testing.T) {
 	segKey := segDir + "test"
 	blockSummariesFile := structs.GetBsuFnameFromSegKey(segKey)
 	numBlocks := 10
-	_, blockSummaries, _, _, allBmh, _ := writer.WriteMockColSegFile(segKey, segKey, numBlocks, 30)
-	writer.WriteMockBlockSummary(blockSummariesFile, blockSummaries, allBmh)
+	_, _, _, _, _, _ = writer.WriteMockColSegFile(segKey, segKey, numBlocks, 30)
 
 	blockSum, _, err := microreader.ReadBlockSummaries(blockSummariesFile, true)
 	assert.Nil(t, err)

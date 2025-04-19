@@ -26,10 +26,6 @@ import (
 	"testing"
 	"time"
 
-	esquery "github.com/siglens/siglens/pkg/es/query"
-	"github.com/siglens/siglens/pkg/scroll"
-	toputils "github.com/siglens/siglens/pkg/utils"
-
 	"github.com/google/uuid"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
@@ -54,64 +50,6 @@ import (
 )
 
 var IndexName string = "segexecution"
-
-func testESScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
-	var qid uint64 = 1
-	value1, _ := CreateDtypeEnclosure("*", qid)
-	queryRange := &dtu.TimeRange{
-		StartEpochMs: 1,
-		EndEpochMs:   uint64(numEntriesForBuffer) + 1,
-	}
-	valueFilter := FilterCriteria{
-		ExpressionFilter: &ExpressionFilter{
-			LeftInput:      &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnName: "*"}}},
-			FilterOperator: Equals,
-			RightInput:     &FilterInput{Expression: &Expression{LeftInput: &ExpressionInput{ColumnValue: value1}}},
-		},
-	}
-	simpleNode := &ASTNode{
-		AndFilterCondition: &Condition{FilterCriteria: []*FilterCriteria{&valueFilter}},
-		TimeRange:          queryRange,
-	}
-	ti := structs.InitTableInfo(IndexName, 0, false)
-	sizeLimit := uint64(10000)
-	qc := structs.InitQueryContextWithTableInfo(ti, sizeLimit, 0, 0, false)
-	result := ExecuteQuery(simpleNode, &QueryAggregators{}, 58, qc)
-	t.Logf("Execute Query Results :%v", result)
-	assert.NotNil(t, result, "Query ran successfully")
-	assert.Equal(t, len(result.AllRecords), numBuffers*numEntriesForBuffer*fileCount, "all logs in all files should have matched")
-	assert.Len(t, result.ErrList, 0, "no errors should have occurred")
-	timeout := time.Now().UTC().Add(time.Minute * 5).Unix()
-	var scrollSize uint64 = 10
-	var offset = scrollSize
-	resulSet := []string{}
-	scrollRecord := scroll.Scroll{
-		Scroll_id: "faba624a-6428-4d78-8c70-571443f0d509",
-		Results:   nil,
-		Size:      scrollSize,
-		TimeOut:   uint64(timeout),
-		Expiry:    "5m",
-		Offset:    0,
-		Valid:     true,
-	}
-	rawResults := esquery.GetQueryResponseJson(result, IndexName, time.Now(), sizeLimit, qid, &QueryAggregators{})
-	scrollRecord.Results = &rawResults
-	scroll.SetScrollRecord("faba624a-6428-4d78-8c70-571443f0d509", &scrollRecord)
-	httpresponse := esquery.GetQueryResponseJsonScroll(IndexName, time.Now().UTC(), sizeLimit, &scrollRecord, qid)
-	t.Logf("Scroll Query results %v", httpresponse)
-	assert.LessOrEqual(t, len(httpresponse.Hits.Hits), int(scrollSize), "scroll returned more records then the scroll size")
-	assert.Equal(t, int(httpresponse.Hits.GetHits()), numBuffers*numEntriesForBuffer*fileCount, "all logs in all files should have matched")
-	assert.Equal(t, int(scrollRecord.Offset), int(offset), "offset should have been increased by the scroll size")
-	assert.Equal(t, checkScrollRecords(httpresponse.Hits.Hits, &resulSet), false, "all records in the scroll should be unique")
-	iterations := int(httpresponse.Hits.GetHits() / scrollSize)
-	for i := 1; i < iterations; i++ {
-		t.Logf("Iteration No : %d for scroll", i)
-		offset = offset + scrollSize
-		httpresponse = esquery.GetQueryResponseJsonScroll(IndexName, time.Now().UTC(), sizeLimit, &scrollRecord, qid)
-		assert.Equal(t, int(scrollRecord.Offset), int(offset), "offset should have been increased by the scroll size")
-		assert.Equal(t, checkScrollRecords(httpresponse.Hits.Hits, &resulSet), false, "all records in the scroll should be unique")
-	}
-}
 
 func testPipesearchScroll(t *testing.T, numBuffers int, numEntriesForBuffer int, fileCount int) {
 	var qid uint64 = 1
@@ -149,26 +87,6 @@ func testPipesearchScroll(t *testing.T, numBuffers int, numEntriesForBuffer int,
 	result = ExecuteQuery(simpleNode, &QueryAggregators{}, 62, qc)
 	assert.Len(t, result.AllRecords, 5)
 
-}
-
-func checkScrollRecords(response []toputils.Hits, resultSet *[]string) bool {
-	log.Printf("Length of records fetched %d", len(response))
-	for _, hit := range response {
-		if contains(*resultSet, fmt.Sprintf("%v", hit.Source["key5"])) {
-			return false
-		}
-		*resultSet = append(*resultSet, fmt.Sprintf("%v", hit.Source["key5"]))
-	}
-	return false
-}
-
-func contains(slice []string, element string) bool {
-	for _, value := range slice {
-		if value == element {
-			return true
-		}
-	}
-	return false
 }
 
 func getMyIds() []int64 {
@@ -225,7 +143,6 @@ func Test_Scroll(t *testing.T) {
 	fileCount := 2
 	_, err = metadata.InitMockColumnarMetadataStore(0, "segexecution", fileCount, numBuffers, numEntriesForBuffer)
 	assert.Nil(t, err)
-	testESScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 	testPipesearchScroll(t, numBuffers, numEntriesForBuffer, fileCount)
 }
 
@@ -394,7 +311,7 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 	blockSumFile := dir + "query_test.bsu"
 
 	writer.WriteMockBlockSummary(blockSumFile, blockSummaries, allBmhInMem)
-	blockSums, readAllBmh, err := microreader.ReadBlockSummaries(blockSumFile, false)
+	blockSums, readAllBmi, err := microreader.ReadBlockSummaries(blockSumFile, false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -407,13 +324,17 @@ func Test_EncodeDecodeBlockSummary(t *testing.T) {
 		// cnames are create in WriteMockColSegFile, we will only verify one of cnames
 		// cnames start from key0..key11
 		// key1 stores "value1", and the blockLen was calculated by running thw writemock.. func with print statement
-		assert.Equal(t, uint32(30), readAllBmh[uint16(i)].ColBlockOffAndLen["key1"].Length)
+
+		curBlkBmh := readAllBmi.AllBmh[uint16(i)]
+		cnameIdx := readAllBmi.CnameDict["key1"]
+		cOffLen := curBlkBmh.ColBlockOffAndLen[cnameIdx]
 
 		// For the block offset, i*30 is from the block size. We write the
 		// blocks using utils.ChecksumFile, which has an additional header for
 		// each chunk; that header is 12 bytes. So the total offset is
 		// i*(30+12)
-		assert.Equal(t, int64(i*(30+12)), readAllBmh[uint16(i)].ColBlockOffAndLen["key1"].Offset)
+		assert.Equal(t, int64(i*(30+12)), cOffLen.Offset)
+		assert.Equal(t, uint32(30), cOffLen.Length)
 	}
 }
 

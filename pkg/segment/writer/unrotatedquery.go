@@ -36,7 +36,7 @@ import (
 type UnrotatedSegmentInfo struct {
 	blockSummaries      []*structs.BlockSummary
 	unrotatedPQSResults map[string]*pqmr.SegmentPQMRResults // maps qid to results
-	blockInfo           map[uint16]*structs.BlockMetadataHolder
+	blockInfo           *structs.AllBlksMetaInfo
 	allColumns          map[string]bool
 	unrotatedBlockCmis  []map[string]*structs.CmiContainer
 	tsRange             *dtu.TimeRange
@@ -136,7 +136,7 @@ func updateRecentlyRotatedSegmentFiles(segkey string, tableName string) {
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.BlockMetadataHolder, allCols map[string]uint32, blockNum uint16,
+	blockMetadata *structs.AllBlksMetaInfo, allCols map[string]uint32, blockNum uint16,
 	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid int64,
 	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
@@ -144,10 +144,15 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 
 	blkSumCpy := wipBlock.blockSummary.Copy()
 	tRange := &dtu.TimeRange{StartEpochMs: earliestTs, EndEpochMs: latestTs}
+	var allBmi *structs.AllBlksMetaInfo
 	if _, ok := AllUnrotatedSegmentInfo[segkey]; !ok {
+		allBmi = &structs.AllBlksMetaInfo{
+			CnameDict: make(map[string]int),
+			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
+		}
 		AllUnrotatedSegmentInfo[segkey] = &UnrotatedSegmentInfo{
 			blockSummaries:      make([]*structs.BlockSummary, 0),
-			blockInfo:           make(map[uint16]*structs.BlockMetadataHolder),
+			blockInfo:           allBmi,
 			allColumns:          make(map[string]bool),
 			unrotatedBlockCmis:  make([]map[string]*structs.CmiContainer, 0),
 			unrotatedPQSResults: make(map[string]*pqmr.SegmentPQMRResults),
@@ -155,11 +160,21 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 			isCmiLoaded:         true, // default loading is true
 			orgid:               orgid,
 		}
+	} else {
+		allBmi = AllUnrotatedSegmentInfo[segkey].blockInfo
 	}
 	AllUnrotatedSegmentInfo[segkey].blockSummaries = append(AllUnrotatedSegmentInfo[segkey].blockSummaries, blkSumCpy)
-	AllUnrotatedSegmentInfo[segkey].blockInfo[blockNum] = blockMetadata
 	AllUnrotatedSegmentInfo[segkey].tsRange = tRange
 	AllUnrotatedSegmentInfo[segkey].RecordCount = recordCount
+
+	bmh := &structs.BlockMetadataHolder{
+		BlkNum:            blockNum,
+		ColBlockOffAndLen: utils.ShallowCopySlice(blockMetadata.AllBmh[blockNum].ColBlockOffAndLen),
+	}
+
+	allBmi.AllBmh[blockNum] = bmh
+	// if new cnames got added in this block, then copy them over
+	utils.MergeMapsRetainingFirst(allBmi.CnameDict, blockMetadata.CnameDict)
 
 	for col := range allCols {
 		AllUnrotatedSegmentInfo[segkey].allColumns[col] = true
@@ -221,7 +236,7 @@ func CheckAndGetColsForUnrotatedSegKey(key string) (map[string]bool, bool) {
 }
 
 // returns a copy of the unrotated block search info. This is to prevent concurrent modification
-func GetBlockSearchInfoForKey(key string) (map[uint16]*structs.BlockMetadataHolder, error) {
+func GetBlockSearchInfoForKey(key string) (*structs.AllBlksMetaInfo, error) {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
 
@@ -230,9 +245,13 @@ func GetBlockSearchInfoForKey(key string) (map[uint16]*structs.BlockMetadataHold
 		return nil, errors.New("failed to get block search info for key")
 	}
 
-	retVal := make(map[uint16]*structs.BlockMetadataHolder)
-	for blkNum, blkInfo := range segInfo.blockInfo {
-		retVal[blkNum] = blkInfo
+	retVal := &structs.AllBlksMetaInfo{
+		CnameDict: segInfo.blockInfo.CnameDict,
+		AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
+	}
+
+	for blkNum, blkInfo := range segInfo.blockInfo.AllBmh {
+		retVal.AllBmh[blkNum] = blkInfo
 	}
 	return retVal, nil
 }
@@ -456,17 +475,23 @@ This information will be used for unrotated queries. This will return copies of 
 
 This assumes the caller has already acquired the lock on UnrotatedInfoLock
 */
-func (usi *UnrotatedSegmentInfo) GetUnrotatedBlockInfoForQuery() ([]*structs.BlockSummary, map[uint16]*structs.BlockMetadataHolder, map[string]bool) {
+func (usi *UnrotatedSegmentInfo) GetUnrotatedBlockInfoForQuery() ([]*structs.BlockSummary,
+	*structs.AllBlksMetaInfo, map[string]bool) {
 
 	retBlkSum := make([]*structs.BlockSummary, len(usi.blockSummaries))
 	for i := 0; i < len(usi.blockSummaries); i++ {
 		retBlkSum[i] = usi.blockSummaries[i].Copy()
 	}
 
-	retBlkInfo := make(map[uint16]*structs.BlockMetadataHolder, len(usi.blockInfo))
-	for k, v := range usi.blockInfo {
-		retBlkInfo[k] = v
+	retBlkInfo := &structs.AllBlksMetaInfo{
+		CnameDict: usi.blockInfo.CnameDict,
+		AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
 	}
+
+	for k, v := range usi.blockInfo.AllBmh {
+		retBlkInfo.AllBmh[k] = v
+	}
+
 	retBlkCols := make(map[string]bool, len(usi.allColumns))
 	for k, v := range usi.allColumns {
 		retBlkCols[k] = v
@@ -641,10 +666,12 @@ func GetTSRangeForMissingBlocks(segKey string, tRange *dtu.TimeRange, spqmr *pqm
 	return fRange
 }
 
-// returns block search info, block summaries, and any errors encountered
+// returns blockNums to search, block summaries, and any errors encountered
 // block search info will be loaded for all possible columns
-func GetSearchInfoForPQSQuery(key string, spqmr *pqmr.SegmentPQMRResults) (map[uint16]*structs.BlockMetadataHolder,
+func GetSearchInfoForPQSQuery(key string,
+	spqmr *pqmr.SegmentPQMRResults) (map[uint16]struct{},
 	[]*structs.BlockSummary, error) {
+
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
 
@@ -653,17 +680,18 @@ func GetSearchInfoForPQSQuery(key string, spqmr *pqmr.SegmentPQMRResults) (map[u
 		return nil, nil, errors.New("failed to find key in all block micro")
 	}
 
-	retSearchInfo := make(map[uint16]*structs.BlockMetadataHolder)
+	allBlocksToSearch := make(map[uint16]struct{})
+
 	for _, blkNum := range spqmr.GetAllBlocks() {
-		if blkMetadata, ok := usi.blockInfo[blkNum]; ok {
-			retSearchInfo[blkNum] = blkMetadata
+		if _, ok := usi.blockInfo.AllBmh[blkNum]; ok {
+			allBlocksToSearch[blkNum] = struct{}{}
 		}
 	}
 
 	retBlkSum := make([]*structs.BlockSummary, len(usi.blockSummaries))
 	copy(retBlkSum, usi.blockSummaries)
 
-	return retSearchInfo, retBlkSum, nil
+	return allBlocksToSearch, retBlkSum, nil
 }
 
 func GetNumOfSearchedRecordsUnRotated(segKey string) uint64 {
