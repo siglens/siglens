@@ -454,6 +454,8 @@ function applyFieldsSidebarState(isHidden) {
     const fieldsSidebar = document.querySelector('.fields-sidebar');
     const customChartTab = document.querySelector('.custom-chart-tab');
     const container = document.querySelector('.custom-chart-container');
+    const resizer = document.querySelector('.fields-resizer');
+
 
     if (!fieldsSidebar) return;
 
@@ -465,6 +467,9 @@ function applyFieldsSidebarState(isHidden) {
         if (container) {
             container.classList.add('full-width-container');
         }
+        if (resizer) {
+            resizer.style.display = 'none';
+        }
     } else {
         fieldsSidebar.classList.remove('hidden');
         if (customChartTab) {
@@ -472,6 +477,9 @@ function applyFieldsSidebarState(isHidden) {
         }
         if (container) {
             container.classList.remove('full-width-container');
+        }
+        if (resizer) {
+            resizer.style.display = 'block';
         }
     }
 }

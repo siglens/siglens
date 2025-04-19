@@ -2972,7 +2972,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .expand-svg-container.before-tabs {
-    margin-right: 10px;
+    margin-right: 4px;
     padding: 0;
 }
 
@@ -7200,7 +7200,7 @@ p#versionInfo {
 }
 
 .json-popup.active {
-    width: 700px;
+    min-width: 400px;
     margin-left: 5px;
     border-left: 1px solid var(--panel-table-line-color);
     border-bottom: 1px solid var(--panel-table-line-color);
@@ -7443,15 +7443,16 @@ p#versionInfo {
 }
 
 .fields-sidebar {
-    min-width: 180px;
     width: 250px;
     background-color: var(--black1-to-white0);
-    border: 1px solid var(--panel-table-line-color);
+    border-top: 1px solid var(--panel-table-line-color);
+    border-right: 1px solid var(--panel-table-line-color);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    margin-right: 5px;
-    border-radius: 0 4px 0 0;
+    min-width: 190px;
+    max-width: 500px;
+    flex: 0 0 auto !important; 
 }
 
 .fields-sidebar.hidden {
@@ -7544,6 +7545,22 @@ p#versionInfo {
 .field-action-remove {
     color: var(--error);
     background-color: var(--black1-to-white0);
+}
+
+.fields-resizer {
+    width: 4px;
+    background: var(--datatable-header-bg-color);
+    cursor: col-resize;
+    margin: 0;
+    height: 100%;
+    position: relative;
+    flex: 0 0 4px;
+    z-index: 10;
+}
+
+.fields-resizer:hover,
+.fields-resizer.active {
+    background-color: #a0a0a0;
 }
 
 .sl-header {
