@@ -62,9 +62,11 @@ func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summa
 			}
 
 			retBlocks := make(map[uint16]bool)
+			retMBlockSummaries := make([]*structs.MBlockSummary, 0, len(msm.mBlockSummary))
 			for _, mbsu := range msm.mBlockSummary {
 				if tRange.CheckRangeOverLap(mbsu.LowTs, mbsu.HighTs) {
 					retBlocks[mbsu.Blknum] = true
+					retMBlockSummaries = append(retMBlockSummaries, mbsu)
 				}
 			}
 
@@ -78,10 +80,14 @@ func GetMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySummary *summa
 			}
 			finalReq := &structs.MetricsSearchRequest{
 				MetricsKeyBaseDir:    msm.MSegmentDir,
+				EarliestEpochSec:     msm.EarliestEpochSec,
+				LatestEpochSec:       msm.LatestEpochSec,
 				BlocksToSearch:       retBlocks,
+				BlockSummaries:       retMBlockSummaries,
 				BlkWorkerParallelism: uint(2),
 				QueryType:            structs.METRICS_SEARCH,
 				AllTagKeys:           allTagKeys,
+				TagsTreeDir:          msm.TTreeDir,
 			}
 
 			retUpdate.Lock()

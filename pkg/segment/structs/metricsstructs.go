@@ -25,6 +25,7 @@ import (
 	"path"
 	"sort"
 	"sync/atomic"
+	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
 
@@ -36,6 +37,8 @@ import (
 
 // https://github.com/prometheus/prometheus/blob/e483cff61ff1b68e8925db1059393c4d36af9df5/web/ui/react-app/src/pages/graph/Panel.tsx#L114
 const MAX_POINTS_TO_EVALUATE float64 = 250
+
+const DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR time.Duration = 5 * time.Minute // 5 mins
 
 /*
 Struct to represent a single metrics query request.
@@ -339,11 +342,15 @@ type MetricsSearchRequest struct {
 	Mid                  string
 	UnrotatedBlkToSearch map[uint16]bool
 	MetricsKeyBaseDir    string
+	EarliestEpochSec     uint32
+	LatestEpochSec       uint32
 	BlocksToSearch       map[uint16]bool
+	BlockSummaries       []*MBlockSummary
 	BlkWorkerParallelism uint
 	QueryType            SegType
 	AllTagKeys           map[string]bool
 	UnrotatedMetricNames map[string]bool
+	TagsTreeDir          string
 }
 
 /*
