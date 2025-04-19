@@ -201,3 +201,57 @@ function updateAvailableFieldsUI() {
         }
     });
 }
+
+jQuery(document).ready(function() {
+    //Resizing Fields Sidebar
+    const fieldsSidebar = jQuery('.fields-sidebar');
+    const chartContainer = jQuery('.custom-chart-container');
+
+    if (fieldsSidebar.length === 0 || chartContainer.length === 0) return;
+
+    const resizer = jQuery('<div>', {
+        class: 'fields-resizer'
+    });
+    fieldsSidebar.after(resizer);
+
+    let initialWidth = localStorage.getItem('fieldsSidebarWidth') || 250;
+    fieldsSidebar.css('width', initialWidth + 'px');
+
+    resizer.on('mousedown', function(e) {
+        e.preventDefault();
+        resizer.addClass('active');
+
+        const startX = e.clientX;
+        const sidebarWidth = fieldsSidebar.outerWidth();
+
+        function handleMouseMove(e) {
+            const newWidth = sidebarWidth + (e.clientX - startX);
+
+            if (newWidth >= 190 && newWidth <= 500) {
+                fieldsSidebar.css('width', newWidth + 'px');
+                localStorage.setItem('fieldsSidebarWidth', newWidth);
+            }
+        }
+
+        function handleMouseUp() {
+            resizer.removeClass('active');
+            jQuery(document).off('mousemove', handleMouseMove);
+            jQuery(document).off('mouseup', handleMouseUp);
+        }
+
+        jQuery(document).on('mousemove', handleMouseMove);
+        jQuery(document).on('mouseup', handleMouseUp);
+    });
+
+    const savedWidth = localStorage.getItem('fieldsSidebarWidth');
+    if (savedWidth) {
+        fieldsSidebar.css('width', savedWidth + 'px');
+    }
+
+    jQuery(window).on('resize', function() {
+        const savedWidth = localStorage.getItem('fieldsSidebarWidth');
+        if (savedWidth) {
+            fieldsSidebar.css('width', savedWidth + 'px');
+        }
+    });
+});
