@@ -1,19 +1,19 @@
 # Default owners for everything, unless a later match takes precedence.
-* @nkunal @sunitakawane @sonamgupta21 @AndrewHess
+* @nkunal @sonamgupta21 @AndrewHess
 
 # Backend
-pkg/* @Macbeth98 @AndrewHess
-cicd/* @Macbeth98 @AndrewHess
-*.go @Macbeth98 @AndrewHess
-*.mod @Macbeth98 @AndrewHess
-*.sum @Macbeth98 @AndrewHess
-*.proto @Macbeth98 @AndrewHess
-*.peg @Macbeth98 @AndrewHess
+pkg/* @AndrewHess
+cicd/* @AndrewHess
+*.go @AndrewHess
+*.mod @AndrewHess
+*.sum @AndrewHess
+*.proto @AndrewHess
+*.peg @AndrewHess
 
 # Frontend
-static/* @sunitakawane @sonamgupta21
+static/* @sonamgupta21
 static/assets/* @sonamgupta21
-*.js @sunitakawane @sonamgupta21
+*.js @sonamgupta21
 *.css @sonamgupta21
 *.html @sonamgupta21
 

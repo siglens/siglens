@@ -1464,7 +1464,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 </div>
                 <div class="json-popup-content">
                     <div id="json-tab" class="tab-content active">
-                        <div class="json-key-values">${syntaxHighlight(rowData)}</div>
+                        <div class="json-key-values">${syntaxHighlight(JSON.unflatten(rowData))}</div>
                     </div>
                     <div id="table-tab" class="tab-content">
                         <table border="1" class="json-table">

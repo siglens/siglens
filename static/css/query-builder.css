@@ -728,6 +728,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     background-color: var(--myOrg-input);
     padding: 3px !important;
     width: fit-content;
+    margin-left: 4px !important;
 }
 
 #logs-view-controls {
