@@ -347,7 +347,7 @@ func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 
 func getUsageStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
-		if hook := hooks.GlobalHooks.IngestStatsHandlerHook; hook != nil {
+		if hook := hooks.GlobalHooks.UsageStatsHandlerHook; hook != nil {
 			hook(ctx, 0)
 		} else {
 			serverutils.CallWithMyIdQuery(health.ProcessUsageStatsHandler, ctx)
