@@ -105,15 +105,26 @@ func Test_ExecuteInstantQuery(t *testing.T) {
 				},
 			},
 		}
-		assertInstantQueryYieldsJson(t, mockReader, 1700000001, `metric`,
-			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000001,"1"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000001,"3"]}]}}`,
-		)
-		assertInstantQueryYieldsJson(t, mockReader, 1700000010, `metric`,
-			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000010,"2"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000010,"3"]},{"metric":{"__name__":"metric","color":"blue","region":"us-east"},"value":[1700000010,"4"]}]}}`,
-		)
+
+		// Loop to check for flakiness.
+		for i := 0; i < 50; i++ {
+			assertInstantQueryYieldsJson(t, mockReader, 1700000001, `sort(metric)`, // Sort to force a deterministic order.
+				`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000001,"1"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000001,"3"]}]}}`,
+			)
+			assertInstantQueryYieldsJson(t, mockReader, 1700000010, `sort(metric)`, // Sort to force a deterministic order.
+				`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000010,"2"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000010,"3"]},{"metric":{"__name__":"metric","color":"blue","region":"us-east"},"value":[1700000010,"4"]}]}}`,
+			)
+		}
 	})
 }
 
+// Note: For most queries, series can be returned in any order. See
+// https://prometheus.io/docs/prometheus/latest/querying/api/#instant-vectors
+// > Series are not guaranteed to be returned in any particular order unless a
+// > function such as sort or sort_by_label is used.
+//
+// To avoid flakiness, your input query should have some sort function when
+// necessary.
 func assertInstantQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
 	evalTime uint32, query string, expectedJson string) {
 	t.Helper()

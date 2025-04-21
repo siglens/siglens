@@ -69,9 +69,9 @@ func NewEvaluator(reader DiskReader, startEpochSec, endEpochSec, step uint32, qu
 	}
 }
 
-func generateLabelKey(labels map[string]string) SeriesId {
-	keys := make([]string, 0, len(labels))
-	for k := range labels {
+func (sr *SeriesResult) GetSeriesId() SeriesId {
+	keys := make([]string, 0, len(sr.Labels))
+	for k := range sr.Labels {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -80,18 +80,19 @@ func generateLabelKey(labels map[string]string) SeriesId {
 	for _, k := range keys {
 		b.WriteString(k)
 		b.WriteString("=")
-		b.WriteString(labels[k])
+		b.WriteString(sr.Labels[k])
 		b.WriteString(",")
 	}
 	return SeriesId(b.String())
 }
 
-func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, error) {
+func (e *Evaluator) EvalExpr(expr parser.Expr) ([]*SeriesResult, error) {
 	if expr == nil {
 		return nil, nil
 	}
 
-	seriesMap := make(map[SeriesId]*SeriesResult)
+	allSeries := make([]*SeriesResult, 0)
+	idToIndex := make(map[SeriesId]int)
 
 	for evalTs := e.startEpochSec; evalTs <= e.endEpochSec; evalTs += e.step {
 		stream, err := e.evalStream(evalTs, expr)
@@ -110,19 +111,19 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) (map[SeriesId]*SeriesResult, erro
 				continue
 			}
 
-			labelKey := generateLabelKey(series.Labels)
-			if _, ok := seriesMap[labelKey]; !ok {
-				seriesMap[labelKey] = &SeriesResult{
-					Labels: series.Labels,
-					Values: make([]Sample, 0),
-				}
+			seriesId := series.GetSeriesId()
+			if i, ok := idToIndex[seriesId]; ok {
+				// Series already exists, append values.
+				allSeries[i].Values = append(allSeries[i].Values, series.Values...)
+			} else {
+				// New series, add to the list.
+				idToIndex[seriesId] = len(allSeries)
+				allSeries = append(allSeries, series)
 			}
-
-			seriesMap[labelKey].Values = append(seriesMap[labelKey].Values, series.Values...)
 		}
 	}
 
-	return seriesMap, nil
+	return allSeries, nil
 }
 
 // Evaluator entry point.

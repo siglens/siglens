@@ -74,6 +74,11 @@ type CallExprStream struct {
 	*BaseStream
 	expr        *parser.Call
 	inputStream SeriesStream
+
+	gotAllInputs    bool
+	sortedAllInputs bool
+	allInputs       []*SeriesResult
+	curIndex        int
 }
 
 type AggregateExprStream struct {
@@ -263,4 +268,87 @@ func (vss *VectorSelectorStream) Fetch() (*SeriesResult, error) {
 
 func isStale(ts, evalTs uint32) bool {
 	return ts+uint32(structs.PROMQL_LOOKBACK.Seconds()) <= evalTs
+}
+
+func (ces *CallExprStream) Fetch() (*SeriesResult, error) {
+	if ces == nil {
+		return nil, fmt.Errorf("CallExprStream: nil")
+	}
+
+	if ces.inputStream == nil {
+		return nil, fmt.Errorf("CallExprStream: input stream is nil")
+	}
+
+	switch ces.expr.Func.Name {
+	case "sort":
+		err := ces.sortAllInputs()
+		if err != nil {
+			return nil, fmt.Errorf("CallExprStream: cannot read all inputs: %v", err)
+		}
+
+		if ces.curIndex >= len(ces.allInputs) {
+			return nil, nil
+		}
+
+		defer func() {
+			ces.curIndex++
+		}()
+		return ces.allInputs[ces.curIndex], nil
+	default:
+		return nil, fmt.Errorf("unsupported function: %s", ces.expr.Func.Name)
+	}
+}
+
+func (ces *CallExprStream) sortAllInputs() error {
+	if ces.sortedAllInputs {
+		return nil
+	}
+
+	if !ces.gotAllInputs {
+		err := ces.readAllInputs()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Sort: https://prometheus.io/docs/prometheus/latest/querying/functions/#sort
+	// This should only be called on instant vectors, so each series should
+	// have only one value.
+	sort.Slice(ces.allInputs, func(i, j int) bool {
+		if len(ces.allInputs[i].Values) == 0 {
+			return false
+		} else if len(ces.allInputs[j].Values) == 0 {
+			return true
+		}
+
+		return ces.allInputs[i].Values[0].Value < ces.allInputs[j].Values[0].Value
+	})
+
+	ces.sortedAllInputs = true
+	ces.curIndex = 0
+
+	return nil
+}
+
+func (ces *CallExprStream) readAllInputs() error {
+	if ces.gotAllInputs {
+		return nil
+	}
+
+	allInputs := make([]*SeriesResult, 0)
+	for {
+		input, err := ces.inputStream.Fetch()
+		if err != nil {
+			return err
+		}
+		if input == nil {
+			break
+		}
+		allInputs = append(allInputs, input)
+	}
+
+	ces.allInputs = allInputs
+	ces.gotAllInputs = true
+
+	return nil
 }

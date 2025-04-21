@@ -28,7 +28,6 @@ import (
 	"time"
 
 	parser "github.com/prometheus/prometheus/promql/parser"
-
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
