@@ -242,11 +242,11 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
 		httpResp.ChartStats[k]["TotalBytesCount"] = float64(entry.TotalBytesCount)
-		totalLogsByteCount += entry.TotalBytesCount
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
 		totalDatapointCount += entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsBytesCount"] = float64(entry.LogsBytesCount)
+		totalLogsByteCount += entry.LogsBytesCount
 		httpResp.ChartStats[k]["MetricsBytesCount"] = float64(entry.MetricsBytesCount)
 		httpResp.ChartStats[k]["TraceBytesCount"] = float64(entry.TraceBytesCount)
 		totalTracesByteCount += entry.TraceBytesCount
