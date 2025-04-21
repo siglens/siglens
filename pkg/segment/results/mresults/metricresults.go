@@ -736,12 +736,12 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 		}
 
 		for _, val := range tagValues {
-			keyValue := strings.Split(removeMetricNameFromGroupID(val), ":")
+			keyValue := strings.Split(removeMetricNameFromGroupID(val), "=")
 			if len(keyValue) != 2 {
 				log.Errorf("GetResults: Invalid tag keyvalue: %v", val)
 				continue
 			}
-			tags[keyValue[0]] = keyValue[1]
+			tags[keyValue[0]] = strings.Trim(keyValue[1], `"`)
 		}
 		retVal[idx] = &structs.MetricsQueryResponse{
 			MetricName: mQuery.MetricName,
