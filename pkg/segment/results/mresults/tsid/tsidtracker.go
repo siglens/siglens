@@ -20,6 +20,7 @@ package tsidtracker
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/valyala/bytebufferpool"
 )
@@ -69,7 +70,7 @@ func (tr *AllMatchedTSIDs) AddTSID(tsid uint64, groupIdStr string, tagKey string
 			if err != nil {
 				return err
 			}
-			_, err = buff.WriteString(fmt.Sprintf("%+v:%+v", tagKey, groupIdStr))
+			_, err = buff.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(groupIdStr, `"`, `\"`)))
 			if err != nil {
 				return err
 			}
@@ -91,7 +92,7 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 					return err
 				}
 
-				_, err = buff.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+				_, err = buff.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(tagValue, `"`, `\"`)))
 				if err != nil {
 					return err
 				}
@@ -113,7 +114,7 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 					shouldKeep = true
 					valid++
 
-					_, err := tsidInfo.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+					_, err := tsidInfo.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(tagValue, `"`, `\"`)))
 					if err != nil {
 						return err
 					}
@@ -216,7 +217,7 @@ func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]
 				}
 				tr.allTSIDs[id] = buf
 			}
-			_, err = buf.WriteString(fmt.Sprintf("%+v:%+v", tagKey, tagValue))
+			_, err = buf.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(tagValue, `"`, `\"`)))
 			if err != nil {
 				return err
 			}
