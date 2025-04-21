@@ -24,5 +24,6 @@ pkgs.mkShell {
     pkgs.git
     pkgs.go_1_22
     pkgs.gotools
+    pkgs.pigeon
   ];
 }
