@@ -26,7 +26,8 @@ $(document).ready(() => {
     datePickerHandler(stDate, endDate, stDate);
     setupEventHandlers();
 
-    $('.range-item, #customrange-btn').on('click', fetchAllMetrics);
+    $('.range-item').on('click', fetchAllMetrics);
+    $('#customrange-btn').on('dateRangeValid', fetchAllMetrics);
 
     fetchAllMetrics();
 

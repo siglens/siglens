@@ -252,7 +252,7 @@ function setupRefreshHandlers() {
     });
 
     // Handle custom range apply button
-    $('#customrange-btn').on('click', function () {
+    $('#customrange-btn').on('dateRangeValid', function () {
         refreshDashboard();
     });
 

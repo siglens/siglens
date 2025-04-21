@@ -200,14 +200,6 @@ func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[st
 
 func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
-	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
-		orgId, err = hook(ctx)
-		if err != nil {
-			log.Errorf("ProcessUsageStatsHandler: failed to extract orgId from context. Err=%+v", err)
-			utils.SetBadMsg(ctx, "")
-			return
-		}
-	}
 
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
@@ -235,24 +227,42 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	granularity, startTs, endTs := parseIngestionStatsRequest(readJSON)
 	rStats, _ := usageStats.GetUsageStats(startTs, endTs, granularity, orgId)
 
-	pastXhours := uint64((endTs - startTs) / 3600)
 	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
-		hook(rStats, pastXhours, uint8(granularity), orgId)
+		hook(rStats, startTs, endTs, uint8(granularity), orgId)
 	}
 
 	httpResp.ChartStats = make(map[string]map[string]interface{})
+
+	totalLogsByteCount := uint64(0)
+	totalTracesByteCount := uint64(0)
+	totalDatapointCount := uint64(0)
+	// todo rStats should provide this number across the whole time interval that was selected
+	p95ActiveSeriesCount := uint64(0)
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
 		httpResp.ChartStats[k]["TotalBytesCount"] = float64(entry.TotalBytesCount)
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
+		totalDatapointCount += entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsBytesCount"] = float64(entry.LogsBytesCount)
+		totalLogsByteCount += entry.LogsBytesCount
 		httpResp.ChartStats[k]["MetricsBytesCount"] = float64(entry.MetricsBytesCount)
 		httpResp.ChartStats[k]["TraceBytesCount"] = float64(entry.TraceBytesCount)
+		totalTracesByteCount += entry.TraceBytesCount
 		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
 		httpResp.ChartStats[k]["ActiveSeriesCount"] = entry.ActiveSeriesCount
 	}
+
+	httpResp.IngestionStats = make(map[string]interface{})
+	httpResp.MetricsStats = make(map[string]interface{})
+	httpResp.TraceStats = make(map[string]interface{})
+
+	httpResp.IngestionStats["Log Incoming Volume"] = totalLogsByteCount
+	httpResp.TraceStats["Total Trace Volume"] = float64(totalTracesByteCount)
+	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(totalDatapointCount))
+	httpResp.MetricsStats["P95 Active Series Count"] = humanize.Comma(int64(p95ActiveSeriesCount))
+
 	utils.WriteJsonResponse(ctx, httpResp)
 }
 

@@ -58,6 +58,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/popper.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/chart.umd.min.js"></script>
+    <script src="./js/lib/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
         $('html').attr('data-theme', defaultTheme);
@@ -137,7 +138,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="chart-container">
                         <div class="stats-header">
                             <div>Logs Volume</div>
-                            <div>Total: <span class="logs-total"></span></div>
+                            <div>Selected Range Total: <span class="logs-total"></span></div>
                         </div>
                         <div class="canvas-container">
                             <canvas id="logsVolumeChart"></canvas>
@@ -146,7 +147,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="chart-container mt-5">
                         <div class="stats-header">
                             <div>Traces Volume</div>
-                            <div>Total: <span class="traces-total"></span></div>
+                            <div>Selected Range Total: <span class="traces-total"></span></div>
                         </div>
                         <div class="canvas-container">
                             <canvas id="tracesVolumeChart"></canvas>
@@ -155,7 +156,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="chart-container mt-5">
                         <div class="stats-header">
                             <div>Active Series & Datapoints</div>
-                            <div>Total Datapoints: <span class="datapoints-total"></span></div>
+                            <div>Selected Range Total Datapoints: <span class="datapoints-total"></span></div>
                         </div>
                         <div class="canvas-container">
                             <canvas id="stackedChart"></canvas>

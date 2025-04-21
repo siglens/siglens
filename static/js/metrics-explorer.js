@@ -114,7 +114,7 @@ $(document).ready(async function () {
         isMetricsScreen = true;
     }
 
-    $('#metrics-container #customrange-btn').on('click', refreshMetricsGraphs);
+    $('#metrics-container #customrange-btn').on('dateRangeValid', refreshMetricsGraphs);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
 
     $('.theme-btn').on('click', themePickerHandler);
