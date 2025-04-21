@@ -11621,3 +11621,37 @@ func Test_Field_With_SpecialChars(t *testing.T) {
 	assert.Equal(t, pipeCommands.FieldsExpr.IncludeColumns[0], string(`last@name`))
 
 }
+
+func Test_searchField_Dash(t *testing.T) {
+	query := []byte(`search status-1="ok"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "status-1", filterNode.Comparison.Field)
+	assert.Equal(t, `"ok"`, filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "status-1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
+
+func Test_searchField_Slash(t *testing.T) {
+	query := []byte(`search status/1="ok"`)
+	res, err := spl.Parse("", query)
+	assert.Nil(t, err)
+	filterNode := res.(ast.QueryStruct).SearchFilter
+
+	assert.NotNil(t, filterNode)
+	assert.Equal(t, "=", filterNode.Comparison.Op)
+	assert.Equal(t, "status/1", filterNode.Comparison.Field)
+	assert.Equal(t, `"ok"`, filterNode.Comparison.Values)
+
+	expressionFilter := extractExpressionFilter(t, filterNode)
+	assert.Equal(t, "status/1", expressionFilter.LeftInput.Expression.LeftInput.ColumnName)
+	assert.Equal(t, utils.Equals, expressionFilter.FilterOperator)
+	assert.Equal(t, "ok", expressionFilter.RightInput.Expression.LeftInput.ColumnValue.StringVal)
+}
