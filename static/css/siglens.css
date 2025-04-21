@@ -3851,8 +3851,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     transition: transform 0.3s ease;
 }
 
-.nav-dropdown-icon.rotated,
-.kubernetes-arrow.rotated {
+.nav-dropdown-icon.rotated{
     transform: rotate(180deg) !important;
 }
 
