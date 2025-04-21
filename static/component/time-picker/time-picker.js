@@ -133,11 +133,6 @@
             initializeDatePicker();
         }
 
-        function hideDatePickerHandler() {
-            $('#date-picker-btn').removeClass('active');
-            resetTempValues();
-        }
-
         function resetDatePickerHandler(evt) {
             evt.stopPropagation();
             resetCustomDateRange();

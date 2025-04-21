@@ -68,7 +68,7 @@ function setupEventHandlers() {
     $('#customrange-btn').off('click').on('click', customRangeHandler);
 
     $('.range-item').on('click', rangeItemHandler);
-    $('.db-range-item').off('click').on('click', dashboardRangeItemHandler);
+    $('.db-range-item').off('click').on('click', rangeItemHandler);
 
     $('.ui-widget input').on('keyup', saveqInputHandler);
 
@@ -176,14 +176,27 @@ function customRangeHandler(evt) {
     if (!tempStartDate || !tempEndDate) {
         evt.preventDefault();
         evt.stopPropagation();
-        if (!tempStartDate) $('#date-start').addClass('error');
-        if (!tempEndDate) $('#date-end').addClass('error');
+        if (!tempStartDate) {
+            $('#date-start').addClass('error');
+            $('.panelEditor-container #date-start').addClass('error');
+        }
+        if (!tempEndDate) {
+            $('#date-end').addClass('error');
+            $('.panelEditor-container #date-end').addClass('error');
+        }
 
         $('#daterange-to').after('<div id="date-range-error" class="date-range-error">Please select both start and end dates</div>');
+        $('.panelEditor-container #daterange-to').after('<div id="date-range-error" class="date-range-error">Please select both start and end dates</div>');
 
         setTimeout(function () {
             $('#date-start, #date-end').removeClass('error');
-            $('#date-range-error').fadeOut(300, function() { $(this).remove(); });
+            $('.panelEditor-container #date-start,.panelEditor-container #date-end').removeClass('error');
+            $('#date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
+            $('.panelEditor-container #date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
         }, 2000);
         $(this).trigger('dateRangeInvalid');
         return;
@@ -214,13 +227,19 @@ function customRangeHandler(evt) {
         $('#date-end').addClass('error');
         $('.panelEditor-container #date-start').addClass('error');
         $('.panelEditor-container #date-end').addClass('error');
-        
+
         $('#daterange-to').after('<div id="date-range-error" class="date-range-error">End date must be after start date</div>');
+        $('.panelEditor-container #daterange-to').after('<div id="date-range-error" class="date-range-error">End date must be after start date</div>');
 
         setTimeout(function () {
             $('#date-start, #date-end').removeClass('error');
             $('.panelEditor-container #date-start, .panelEditor-container #date-end').removeClass('error');
-            $('#date-range-error').fadeOut(300, function() { $(this).remove(); });
+            $('#date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
+            $('.panelEditor-container #date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
         }, 2000);
         $(this).trigger('dateRangeInvalid');
         return;
@@ -236,77 +255,7 @@ function customRangeHandler(evt) {
     // For dashboards
     const currentUrl = window.location.href;
     if (currentUrl.includes('dashboard.html')) {
-        if (currentPanel) {
-            if (currentPanel.queryData) {
-                if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                    const startDateStr = filterStartDate.toString();
-                    const endDateStr = filterEndDate.toString();
-
-                    // Update start and end for queryData
-                    if (currentPanel.queryData) {
-                        currentPanel.queryData.start = startDateStr;
-                        currentPanel.queryData.end = endDateStr;
-
-                        // Update start and end for each item in queriesData
-                        if (Array.isArray(currentPanel.queryData.queriesData)) {
-                            currentPanel.queryData.queriesData.forEach((query) => {
-                                query.start = startDateStr;
-                                query.end = endDateStr;
-                            });
-                        }
-
-                        // Update start and end for each item in formulasData
-                        if (Array.isArray(currentPanel.queryData.formulasData)) {
-                            currentPanel.queryData.formulasData.forEach((formula) => {
-                                formula.start = startDateStr;
-                                formula.end = endDateStr;
-                            });
-                        }
-                    }
-                } else {
-                    currentPanel.queryData.startEpoch = filterStartDate;
-                    currentPanel.queryData.endEpoch = filterEndDate;
-                }
-                runQueryBtnHandler();
-            }
-        } else if (!currentPanel) {
-            // if user is on dashboard screen
-            localPanels.forEach((panel) => {
-                delete panel.queryRes;
-                if (panel.queryData) {
-                    if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                        const startDateStr = filterStartDate.toString();
-                        const endDateStr = filterEndDate.toString();
-
-                        // Update start and end for queryData
-                        if (panel.queryData) {
-                            panel.queryData.start = startDateStr;
-                            panel.queryData.end = endDateStr;
-
-                            // Update start and end for each item in queriesData
-                            if (Array.isArray(panel.queryData.queriesData)) {
-                                panel.queryData.queriesData.forEach((query) => {
-                                    query.start = startDateStr;
-                                    query.end = endDateStr;
-                                });
-                            }
-
-                            // Update start and end for each item in formulasData
-                            if (Array.isArray(panel.queryData.formulasData)) {
-                                panel.queryData.formulasData.forEach((formula) => {
-                                    formula.start = startDateStr;
-                                    formula.end = endDateStr;
-                                });
-                            }
-                        }
-                    } else {
-                        panel.queryData.startEpoch = filterStartDate;
-                        panel.queryData.endEpoch = filterEndDate;
-                    }
-                }
-            });
-            displayPanels();
-        }
+        updateDashboardDateRange(filterStartDate, filterEndDate);
     }
 }
 
@@ -317,29 +266,25 @@ function rangeItemHandler(evt) {
     });
     $(evt.currentTarget).addClass('active');
     datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
+
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('dashboard.html')) {
+        updateDashboardDateRange(filterStartDate, filterEndDate);
+    }
 }
 
-async function dashboardRangeItemHandler(evt) {
-    resetCustomDateRange();
-    $.each($('.db-range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    $(evt.currentTarget).addClass('active');
-    datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
+function updateDashboardDateRange(startTimestamp, endTimestamp) {
+    const startDateStr = startTimestamp.toString();
+    const endDateStr = endTimestamp.toString();
 
     // if user is on edit panel screen
     if (currentPanel) {
         if (currentPanel.queryData) {
             if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                const startDateStr = filterStartDate.toString();
-                const endDateStr = filterEndDate.toString();
-
-                // Update start and end for queryData
                 if (currentPanel.queryData) {
                     currentPanel.queryData.start = startDateStr;
                     currentPanel.queryData.end = endDateStr;
 
-                    // Update start and end for each item in queriesData
                     if (Array.isArray(currentPanel.queryData.queriesData)) {
                         currentPanel.queryData.queriesData.forEach((query) => {
                             query.start = startDateStr;
@@ -347,7 +292,6 @@ async function dashboardRangeItemHandler(evt) {
                         });
                     }
 
-                    // Update start and end for each item in formulasData
                     if (Array.isArray(currentPanel.queryData.formulasData)) {
                         currentPanel.queryData.formulasData.forEach((formula) => {
                             formula.start = startDateStr;
@@ -356,26 +300,21 @@ async function dashboardRangeItemHandler(evt) {
                     }
                 }
             } else {
-                currentPanel.queryData.startEpoch = filterStartDate;
-                currentPanel.queryData.endEpoch = filterEndDate;
+                currentPanel.queryData.startEpoch = startTimestamp;
+                currentPanel.queryData.endEpoch = endTimestamp;
             }
             runQueryBtnHandler();
         }
     } else if (!currentPanel) {
-        // if user is on dashboard screen
+        // If user is on dashboard screen
         localPanels.forEach((panel) => {
             delete panel.queryRes;
             if (panel.queryData) {
                 if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                    const startDateStr = filterStartDate.toString();
-                    const endDateStr = filterEndDate.toString();
-
-                    // Update start and end for queryData
                     if (panel.queryData) {
                         panel.queryData.start = startDateStr;
                         panel.queryData.end = endDateStr;
 
-                        // Update start and end for each item in queriesData
                         if (Array.isArray(panel.queryData.queriesData)) {
                             panel.queryData.queriesData.forEach((query) => {
                                 query.start = startDateStr;
@@ -383,7 +322,6 @@ async function dashboardRangeItemHandler(evt) {
                             });
                         }
 
-                        // Update start and end for each item in formulasData
                         if (Array.isArray(panel.queryData.formulasData)) {
                             panel.queryData.formulasData.forEach((formula) => {
                                 formula.start = startDateStr;
@@ -392,12 +330,11 @@ async function dashboardRangeItemHandler(evt) {
                         }
                     }
                 } else {
-                    panel.queryData.startEpoch = filterStartDate;
-                    panel.queryData.endEpoch = filterEndDate;
+                    panel.queryData.startEpoch = startTimestamp;
+                    panel.queryData.endEpoch = endTimestamp;
                 }
             }
         });
-
         displayPanels();
     }
 }
