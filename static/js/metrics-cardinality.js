@@ -31,7 +31,7 @@ $(document).ready(function () {
         fetchData(filterStartDate, filterEndDate);
     });
 
-    $('#customrange-btn').on('click', function () {
+    $('#customrange-btn').on('dateRangeValid', function () {
         fetchData(filterStartDate / 1000, filterEndDate / 1000);
     });
 });

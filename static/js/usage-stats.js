@@ -30,7 +30,7 @@ $(document).ready(() => {
     datePickerHandler(stDate, endDate, stDate);
 
     $('.range-item').on('click', getUsageStats);
-    $('#customrange-btn').on('click', getUsageStats);
+    $('#customrange-btn').on('dateRangeValid', getUsageStats);
 
     getUsageStats();
 
