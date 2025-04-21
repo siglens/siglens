@@ -9,3 +9,13 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yaml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
+
+  server:
+    image: python:3.9-slim
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./server.py:/app/server.py
+    working_dir: /app
+    command: python server.py
+    init: true
