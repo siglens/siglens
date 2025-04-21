@@ -196,7 +196,6 @@ input.form-control {
     color: var(--text-color);
 }
 
-.symbol,
 .value-first,
 .column-first {
     min-width: 120px;
@@ -280,7 +279,7 @@ input.form-control {
 
 .ui-menu.ui-widget.ui-widget-content.ui-autocomplete.ui-front {
     width: max-content !important;
-    min-width: 120px;
+    min-width: 80px;
     border: 1px solid var(--ui-widget-border-color);
 }
 
@@ -728,6 +727,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     background-color: var(--myOrg-input);
     padding: 3px !important;
     width: fit-content;
+    margin-left: 4px !important;
 }
 
 #logs-view-controls {
@@ -883,4 +883,11 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 #empty-response {
     display: none;
+}
+
+#symbol{
+    width: 50px;
+    height: 26px;
+    color: var(--text-color) !important;
+    margin-right: 5px;
 }

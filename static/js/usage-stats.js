@@ -30,10 +30,9 @@ $(document).ready(() => {
     datePickerHandler(stDate, endDate, stDate);
 
     $('.range-item').on('click', getUsageStats);
-    $('#customrange-btn').on('click', getUsageStats);
+    $('#customrange-btn').on('dateRangeValid', getUsageStats);
 
     getUsageStats();
-    getClusterStats();
 
     $('.granularity-tabs .tab').click(function () {
         $('.granularity-tabs .tab').removeClass('active');
@@ -41,25 +40,6 @@ $(document).ready(() => {
         getUsageStats();
     });
 });
-
-function getClusterStats() {
-    $.ajax({
-        method: 'get',
-        url: 'api/clusterStats',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-    })
-        .then((res) => {
-            displayTotal(res);
-        })
-        .catch((err) => {
-            console.error('error:', err);
-        });
-}
 
 function displayTotal(res) {
     const totalLogsVol = res.ingestionStats['Log Incoming Volume']; // Bytes
@@ -114,6 +94,7 @@ function setupUsageStatsCharts(data) {
     renderLogsVolumeChart(processedData.logs, gridLineColor, tickColor);
     renderTracesVolumeChart(processedData.traces, gridLineColor, tickColor);
     renderStackedChart(processedData.stacked, gridLineColor, tickColor);
+    displayTotal(data)
 }
 
 function updateChartsTheme(gridLineColor, tickColor) {

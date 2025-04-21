@@ -27,7 +27,8 @@ $(document).ready(() => {
 
     getAllServices();
     
-    $('.range-item, #customrange-btn').on('click', getAllServices);
+    $('.range-item').on('click', getAllServices);
+    $('#customrange-btn').on('dateRangeValid', getAllServices);
     $('.search-input').on('input', filterServicesBySearch);
 });
 

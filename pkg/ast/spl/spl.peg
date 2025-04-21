@@ -4330,10 +4330,11 @@ AbsoluteTimestamp <- timestamp:FullTimeStamp {
     return relTimeModifier, nil
 }
 
-// From https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
+// Based on https://docs.splunk.com/Documentation/Splunk/7.3.1/Knowledge/Aboutregularexpressionswithfieldextractions
+// But it also allows - and /.
 // This allows wildcards in a FieldName, but wildcard fields are not allowed in
 // some places; those rules should check whether the field has a wildcard.
-FieldName <- [a-zA-Z0-9:*][a-zA-Z0-9:_.*]* {
+FieldName <- [-/a-zA-Z0-9:*][-/a-zA-Z0-9:_.*]* {
     return string(c.text), nil
 }
 / QuotedString {
