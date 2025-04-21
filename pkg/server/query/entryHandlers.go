@@ -338,7 +338,7 @@ func pipeSearchWebsocketHandler() func(ctx *fasthttp.RequestCtx) {
 func getClusterStatsHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		if hook := hooks.GlobalHooks.StatsHandlerHook; hook != nil {
-			hook(ctx, 0)
+			serverutils.CallWithMyIdQuery(hook, ctx)
 		} else {
 			serverutils.CallWithMyIdQuery(health.ProcessClusterStatsHandler, ctx)
 		}

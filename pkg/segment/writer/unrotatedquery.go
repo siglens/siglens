@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
+	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	"github.com/siglens/siglens/pkg/segment/query/metadata/metautils"
 	"github.com/siglens/siglens/pkg/segment/structs"
@@ -146,6 +147,12 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 	tRange := &dtu.TimeRange{StartEpochMs: earliestTs, EndEpochMs: latestTs}
 	var allBmi *structs.AllBlksMetaInfo
 	if _, ok := AllUnrotatedSegmentInfo[segkey]; !ok {
+		isCmiLoaded := true // default loading is true
+		if config.IsLowMemoryModeEnabled() {
+			// in low mem mode, we don't want to load up all of the cmi for all of the columns
+			// for the in-process seg
+			isCmiLoaded = false
+		}
 		allBmi = &structs.AllBlksMetaInfo{
 			CnameDict: make(map[string]int),
 			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
@@ -157,7 +164,7 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 			unrotatedBlockCmis:  make([]map[string]*structs.CmiContainer, 0),
 			unrotatedPQSResults: make(map[string]*pqmr.SegmentPQMRResults),
 			TableName:           virtualTable,
-			isCmiLoaded:         true, // default loading is true
+			isCmiLoaded:         isCmiLoaded,
 			orgid:               orgid,
 		}
 	} else {
