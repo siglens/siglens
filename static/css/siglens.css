@@ -2672,11 +2672,6 @@ hr {
     margin-left: 10px;
 }
 
-#date-start.error,
-#date-end.error {
-    border: 1px solid var(--error-trace);
-}
-
 #date-start:hover,
 #date-end:hover,
 #time-start:hover,
@@ -2727,31 +2722,42 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: var(--search-bar-text-color-regular-or-hover);
 }
 
-
-#cstats-app-container .dropdown-menu.daterangepicker.show {
-    height: auto !important;
-    width: 300px !important;
-    padding: 8px;
+#date-start.error,
+#date-end.error {
+    border: 2px solid #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
 }
 
-#cstats-app-container .inner-range {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    column-gap: 50px;
+.date-range-error {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: rgba(220, 53, 69, 0.1);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
 }
 
-#cstats-app-container hr {
-    height: 2px;
-    background: var(--alerting-table-line-color);
-    margin: 30px 0;
+.date-range-error::before {
+    content: "⚠️";
+    margin-right: 0.5rem;
 }
 
-#cstats-app-container .ranges {
-    display: grid;
-    grid-template-rows: repeat(2, 1fr);
-    float: none !important;
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
+#date-range-error {
+    animation: fadeIn 0.3s ease-in-out;
+}
 
 .db-range-item.active {
     background-color: var(--index-drop-down-item-active-bg-color);
@@ -7452,7 +7458,7 @@ p#versionInfo {
     overflow-y: auto;
     min-width: 190px;
     max-width: 500px;
-    flex: 0 0 auto !important; 
+    flex: 0 0 auto !important;
 }
 
 .fields-sidebar.hidden {

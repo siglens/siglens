@@ -167,11 +167,22 @@
         }
 
         function customRangeHandler(evt) {
-            evt.stopPropagation();
+            $('#date-range-error').remove();
 
             if (!tempStartDate || !tempEndDate) {
+                evt.preventDefault();
+                evt.stopPropagation();
                 if (!tempStartDate) $('#date-start').addClass('error');
                 if (!tempEndDate) $('#date-end').addClass('error');
+
+                $('#daterange-to').after('<div id="date-range-error" class="date-range-error">Please select both start and end dates</div>');
+
+                setTimeout(function () {
+                    $('#date-start, #date-end').removeClass('error');
+                    $('#date-range-error').fadeOut(300, function () {
+                        $(this).remove();
+                    });
+                }, 2000);
                 $(this).trigger('dateRangeInvalid');
                 return;
             } else {
@@ -199,9 +210,15 @@
                 evt.stopPropagation();
                 $('#date-start').addClass('error');
                 $('#date-end').addClass('error');
-
+                $('.panelEditor-container #date-start').addClass('error');
+                $('.panelEditor-container #date-end').addClass('error');
+                
+                $('#daterange-to').after('<div id="date-range-error" class="date-range-error">End date must be after start date</div>');
+        
                 setTimeout(function () {
                     $('#date-start, #date-end').removeClass('error');
+                    $('.panelEditor-container #date-start, .panelEditor-container #date-end').removeClass('error');
+                    $('#date-range-error').fadeOut(300, function() { $(this).remove(); });
                 }, 2000);
                 $(this).trigger('dateRangeInvalid');
                 return;
