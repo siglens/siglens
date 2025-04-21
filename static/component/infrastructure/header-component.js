@@ -170,7 +170,7 @@ class DashboardHeader {
             window.history.pushState({}, '', currentUrl);
         });
         
-        this.container.on('click', '#customrange-btn', () => {
+        this.container.on('dateRangeValid', '#customrange-btn', () => {
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.set('startEpoch', filterStartDate);
             currentUrl.searchParams.set('endEpoch', filterEndDate);

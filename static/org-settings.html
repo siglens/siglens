@@ -60,7 +60,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     </script>
     {{ .RunCheck1 | safeHTML }}
 </head>
-
+{{ if not .EnterpriseEnabled }}
 <body>
     <div id="app-container">
         <div id="app-side-nav">
@@ -155,5 +155,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     {{ .RunCheck3 | safeHTML }}
 
 </body>
+{{ end }}
 
 </html>
