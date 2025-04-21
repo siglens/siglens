@@ -70,7 +70,7 @@ func (tr *AllMatchedTSIDs) AddTSID(tsid uint64, groupIdStr string, tagKey string
 			if err != nil {
 				return err
 			}
-			_, err = buff.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(groupIdStr, `"`, `\"`)))
+			err = writeTag(buff, tagKey, groupIdStr)
 			if err != nil {
 				return err
 			}
@@ -92,7 +92,7 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 					return err
 				}
 
-				_, err = buff.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(tagValue, `"`, `\"`)))
+				err = writeTag(buff, tagKey, tagValue)
 				if err != nil {
 					return err
 				}
@@ -114,7 +114,7 @@ func (tr *AllMatchedTSIDs) BulkAdd(rawTagValueToTSIDs map[string]map[uint64]stru
 					shouldKeep = true
 					valid++
 
-					_, err := tsidInfo.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(tagValue, `"`, `\"`)))
+					err := writeTag(tsidInfo, tagKey, tagValue)
 					if err != nil {
 						return err
 					}
@@ -217,7 +217,7 @@ func (tr *AllMatchedTSIDs) BulkAddStar(rawTagValueToTSIDs map[string]map[uint64]
 				}
 				tr.allTSIDs[id] = buf
 			}
-			_, err = buf.WriteString(fmt.Sprintf(`%+v="%+v"`, tagKey, strings.ReplaceAll(tagValue, `"`, `\"`)))
+			err = writeTag(buf, tagKey, tagValue)
 			if err != nil {
 				return err
 			}
@@ -279,4 +279,9 @@ func (tsidInfo *AllMatchedTSIDs) MergeTSIDs(other *AllMatchedTSIDs) {
 	for k, v := range other.tsidInfoMap {
 		tsidInfo.tsidInfoMap[k] = v
 	}
+}
+
+func writeTag(buf *bytebufferpool.ByteBuffer, key string, value string) error {
+	_, err := buf.WriteString(fmt.Sprintf(`%+v="%+v"`, key, strings.ReplaceAll(value, `"`, `\"`)))
+	return err
 }
