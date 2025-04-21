@@ -186,14 +186,32 @@ func (s *Series) AsSeriesResult() (metricsevaluator.SeriesResult, error) {
 }
 
 func (s *Series) getLabels() map[string]string {
+	seriesId := s.grpID.String()
 	labels := make(map[string]string)
 
-	id := s.grpID.String()
-	if i := strings.Index(id, "{"); i > 0 {
-		labels["__name__"] = id[:i]
+	// Split the seriesId into metric name and labels
+	parts := strings.SplitN(seriesId, "{", 2)
+	if len(parts) != 2 {
+		labels["__name__"] = strings.Trim(seriesId, "{}")
+		return labels
 	}
 
-	// TODO: extract the other labels.
+	labels["__name__"] = parts[0]
+
+	// Remove the closing brace
+	labelStr := strings.TrimSuffix(parts[1], "}")
+
+	// Split the labels into key=value pairs
+	labelPairs := strings.Split(labelStr, ",")
+	for _, pair := range labelPairs {
+		keyValue := strings.SplitN(pair, "=", 2)
+		if len(keyValue) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(keyValue[0])
+		value := strings.Trim(keyValue[1], `"`)
+		labels[key] = value
+	}
 
 	return labels
 }
