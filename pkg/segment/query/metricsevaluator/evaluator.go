@@ -113,10 +113,8 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) ([]*SeriesResult, error) {
 
 			seriesId := series.GetSeriesId()
 			if i, ok := idToIndex[seriesId]; ok {
-				// Series already exists, append values.
 				allSeries[i].Values = append(allSeries[i].Values, series.Values...)
 			} else {
-				// New series, add to the list.
 				idToIndex[seriesId] = len(allSeries)
 				allSeries = append(allSeries, series)
 			}
