@@ -182,22 +182,6 @@ func ProcessPromqlMetricsSearchRequest(ctx *fasthttp.RequestCtx, myid int64) {
 
 	startTime := endTime - uint32(structs.PROMQL_LOOKBACK.Seconds())
 	log.Infof("qid=%v, ProcessPromqlMetricsSearchRequest: InstantQuery; searchString=[%v] startEpochs=[%v] endEpochs=[%v]", qid, searchText, startTime, endTime)
-	metricQueryRequest, _, queryArithmetic, err := ConvertPromQLToMetricsQuery(searchText, startTime, endTime, myid)
-	if err != nil {
-		utils.SendError(ctx, "Error parsing promql query", fmt.Sprintf("qid=%v, Metrics Query: %+v", qid, searchText), err)
-		return
-	}
-	if len(metricQueryRequest) == 0 && len(queryArithmetic) == 0 {
-		ctx.SetContentType(ContentJson)
-		WriteJsonResponse(ctx, map[string]interface{}{})
-		return
-	}
-
-	for i := range metricQueryRequest {
-		metricQueryRequest[i].MetricsQuery.IsInstantQuery = true
-		segment.LogMetricsQuery("PromQL metrics query parser", &metricQueryRequest[i], qid)
-	}
-	segment.LogMetricsQueryOps("PromQL metrics query parser: Ops: ", queryArithmetic, qid)
 
 	qs := summary.InitQuerySummary(summary.METRICS, qid)
 	defer qs.LogMetricsQuerySummary(myid)

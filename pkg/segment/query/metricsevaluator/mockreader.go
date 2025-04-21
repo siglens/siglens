@@ -17,7 +17,11 @@
 
 package metricsevaluator
 
-import "github.com/prometheus/prometheus/model/labels"
+import (
+	"strings"
+
+	"github.com/prometheus/prometheus/model/labels"
+)
 
 type DiskReader interface {
 	Read(labels []*labels.Matcher, endTime uint32, lookback uint32) []SeriesResult
@@ -33,13 +37,41 @@ func (m *MockReader) Read(labels []*labels.Matcher, _endTime uint32, _lookback u
 	for id, series := range m.Data {
 		if id.Matches(labels) {
 			allSeries = append(allSeries, SeriesResult{
-				Labels: map[string]string{
-					"__name__": string(id), // TODO: get the other labels from the id.
-				},
+				Labels: parseLabels(id),
 				Values: series,
 			})
 		}
 	}
 
 	return allSeries
+}
+
+func parseLabels(seriesId SeriesId) map[string]string {
+	labels := make(map[string]string)
+
+	// Split the seriesId into metric name and labels
+	parts := strings.SplitN(string(seriesId), "{", 2)
+	if len(parts) != 2 {
+		labels["__name__"] = strings.Trim(string(seriesId), "{}")
+		return labels
+	}
+
+	labels["__name__"] = parts[0]
+
+	// Remove the closing brace
+	labelStr := strings.TrimSuffix(parts[1], "}")
+
+	// Split the labels into key=value pairs
+	labelPairs := strings.Split(labelStr, ",")
+	for _, pair := range labelPairs {
+		keyValue := strings.SplitN(pair, "=", 2)
+		if len(keyValue) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(keyValue[0])
+		value := strings.Trim(keyValue[1], `"`)
+		labels[key] = value
+	}
+
+	return labels
 }

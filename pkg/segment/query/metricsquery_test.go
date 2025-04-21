@@ -62,33 +62,69 @@ func Test_GetAllMetricNamesOverTheTimeRange(t *testing.T) {
 }
 
 func Test_ExecuteInstantQuery(t *testing.T) {
-	mockReader := &metricsevaluator.MockReader{
-		Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
-			"metric": {
-				{Ts: 1700000000, Value: 1.0},
-				{Ts: 1700000001, Value: 2.0},
-				{Ts: 1700000005, Value: 3.0},
+	t.Run("Simple", func(t *testing.T) {
+		mockReader := &metricsevaluator.MockReader{
+			Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+				"metric": {
+					{Ts: 1700000000, Value: 1.0},
+					{Ts: 1700000001, Value: 2.0},
+					{Ts: 1700000005, Value: 3.0},
+				},
 			},
-		},
-	}
+		}
 
-	assertInstantQueryYieldsJson(t, mockReader, 1699999999, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000000, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000003, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000003,"2"]}]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000304, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000304,"3"]}]}}`,
-	)
-	assertInstantQueryYieldsJson(t, mockReader, 1700000305, `metric`,
-		`{"status":"success","data":{"resultType":"vector","result":[]}}`,
-	)
+		assertInstantQueryYieldsJson(t, mockReader, 1699999999, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000000, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000000,"1"]}]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000003, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000003,"2"]}]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000304, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric"},"value":[1700000304,"3"]}]}}`,
+		)
+		assertInstantQueryYieldsJson(t, mockReader, 1700000305, `metric`,
+			`{"status":"success","data":{"resultType":"vector","result":[]}}`,
+		)
+	})
+
+	t.Run("Multiple Series", func(t *testing.T) {
+		mockReader := &metricsevaluator.MockReader{
+			Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+				`metric{color="red"}`: {
+					{Ts: 1700000000, Value: 1.0},
+					{Ts: 1700000003, Value: 2.0},
+				},
+				`metric{color="blue"}`: {
+					{Ts: 1700000001, Value: 3.0},
+				},
+				`metric{color="blue",region="us-east"}`: {
+					{Ts: 1700000004, Value: 4.0},
+				},
+			},
+		}
+
+		// Loop to check for flakiness.
+		for i := 0; i < 50; i++ {
+			assertInstantQueryYieldsJson(t, mockReader, 1700000001, `sort(metric)`, // Sort to force a deterministic order.
+				`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000001,"1"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000001,"3"]}]}}`,
+			)
+			assertInstantQueryYieldsJson(t, mockReader, 1700000010, `sort(metric)`, // Sort to force a deterministic order.
+				`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"metric","color":"red"},"value":[1700000010,"2"]},{"metric":{"__name__":"metric","color":"blue"},"value":[1700000010,"3"]},{"metric":{"__name__":"metric","color":"blue","region":"us-east"},"value":[1700000010,"4"]}]}}`,
+			)
+		}
+	})
 }
 
+// Note: For most queries, series can be returned in any order. See
+// https://prometheus.io/docs/prometheus/latest/querying/api/#instant-vectors
+// > Series are not guaranteed to be returned in any particular order unless a
+// > function such as sort or sort_by_label is used.
+//
+// To avoid flakiness, your input query should have some sort function when
+// necessary.
 func assertInstantQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
 	evalTime uint32, query string, expectedJson string) {
 	t.Helper()

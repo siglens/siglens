@@ -28,7 +28,42 @@ import (
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/valyala/bytebufferpool"
 )
+
+func Test_Series_GetLabels(t *testing.T) {
+	series := Series{
+		grpID: bytebufferpool.Get(),
+	}
+	series.grpID.SetString(`foo{bar="baz",hello="world"}`)
+
+	labels := series.getLabels()
+	assert.Equal(t, 3, len(labels))
+	assert.Equal(t, "foo", labels["__name__"])
+	assert.Equal(t, "baz", labels["bar"])
+	assert.Equal(t, "world", labels["hello"])
+
+	series.grpID.SetString(`foo{bar="baz",`)
+	labels = series.getLabels()
+	assert.Equal(t, 2, len(labels))
+	assert.Equal(t, "foo", labels["__name__"])
+	assert.Equal(t, "baz", labels["bar"])
+
+	series.grpID.SetString(`foo`)
+	labels = series.getLabels()
+	assert.Equal(t, 1, len(labels))
+	assert.Equal(t, "foo", labels["__name__"])
+
+	series.grpID.SetString(`foo{}`)
+	labels = series.getLabels()
+	assert.Equal(t, 1, len(labels))
+	assert.Equal(t, "foo", labels["__name__"])
+
+	series.grpID.SetString(`foo{`)
+	labels = series.getLabels()
+	assert.Equal(t, 1, len(labels))
+	assert.Equal(t, "foo", labels["__name__"])
+}
 
 func Test_applyRangeFunctionRate(t *testing.T) {
 	timeSeries := map[uint32]float64{

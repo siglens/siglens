@@ -628,7 +628,7 @@ func ExecuteRangeQuery(qid uint64, orgId int64, reader metricsevaluator.DiskRead
 	return asRangeQueryResponse(allSeries), nil
 }
 
-func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricsevaluator.SeriesResult) *structs.MetricsPromQLInstantQueryResponse {
+func asInstantQueryResponse(allSeries []*metricsevaluator.SeriesResult) *structs.MetricsPromQLInstantQueryResponse {
 	data := structs.PromQLInstantData{
 		ResultType:   "vector",
 		VectorResult: make([]structs.InstantVectorResult, 0, len(allSeries)),
@@ -653,7 +653,7 @@ func asInstantQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricseval
 	}
 }
 
-func asRangeQueryResponse(allSeries map[metricsevaluator.SeriesId]*metricsevaluator.SeriesResult) *structs.MetricsPromQLRangeQueryResponse {
+func asRangeQueryResponse(allSeries []*metricsevaluator.SeriesResult) *structs.MetricsPromQLRangeQueryResponse {
 	data := structs.PromQLRangeData{
 		ResultType: "matrix",
 		Result:     make([]structs.RangeVectorResult, 0, len(allSeries)),
