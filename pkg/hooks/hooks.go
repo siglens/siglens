@@ -49,8 +49,8 @@ type Hooks struct {
 	ShutdownSiglensExtrasHook func()
 	ShutdownSiglensPreHook    func(bool)
 
-	// Cluster health
-	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)
+	// Usage Stats
+	UsageStatsHandlerHook      func(ctx *fasthttp.RequestCtx, myid int64)
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid int64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (int64, error)
