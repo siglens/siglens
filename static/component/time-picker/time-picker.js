@@ -172,6 +172,7 @@
             if (!tempStartDate || !tempEndDate) {
                 if (!tempStartDate) $('#date-start').addClass('error');
                 if (!tempEndDate) $('#date-end').addClass('error');
+                $(this).trigger('dateRangeInvalid');
                 return;
             } else {
                 $.each($('.range-item.active, .db-range-item.active'), function () {
@@ -193,42 +194,26 @@
             filterStartDate = startDate.getTime();
             filterEndDate = endDate.getTime();
 
+            if (filterEndDate <= filterStartDate) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                $('#date-start').addClass('error');
+                $('#date-end').addClass('error');
+
+                setTimeout(function () {
+                    $('#date-start, #date-end').removeClass('error');
+                }, 2000);
+                $(this).trigger('dateRangeInvalid');
+                return;
+            }
+
             Cookies.set('customStartDate', appliedStartDate);
             Cookies.set('customStartTime', appliedStartTime);
             Cookies.set('customEndDate', appliedEndDate);
             Cookies.set('customEndTime', appliedEndTime);
 
             datePickerHandler(filterStartDate, filterEndDate, 'custom');
-            // For dashboards
-            const currentUrl = window.location.href;
-            if (currentUrl.includes('dashboard.html')) {
-                if (currentPanel) {
-                    if (currentPanel.queryData) {
-                        if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                            currentPanel.queryData.start = filterStartDate.toString();
-                            currentPanel.queryData.end = filterEndDate.toString();
-                        } else {
-                            currentPanel.queryData.startEpoch = filterStartDate;
-                            currentPanel.queryData.endEpoch = filterEndDate;
-                        }
-                    }
-                } else if (!currentPanel) {
-                    // if user is on dashboard screen
-                    localPanels.forEach((panel) => {
-                        delete panel.queryRes;
-                        if (panel.queryData) {
-                            if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                                panel.queryData.start = filterStartDate.toString();
-                                panel.queryData.end = filterEndDate.toString();
-                            } else {
-                                panel.queryData.startEpoch = filterStartDate;
-                                panel.queryData.endEpoch = filterEndDate;
-                            }
-                        }
-                    });
-                    displayPanels();
-                }
-            }
+
             $('#daterangepicker').removeClass('show').hide();
         }
 
@@ -242,7 +227,7 @@
             $(evt.currentTarget).addClass('active');
             datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
             $('#daterangepicker').removeClass('show').hide();
-            $('#date-picker-btn').removeClass('active')
+            $('#date-picker-btn').removeClass('active');
         }
 
         function resetCustomDateRange() {

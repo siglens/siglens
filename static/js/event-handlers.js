@@ -180,6 +180,7 @@ function customRangeHandler(evt) {
         setTimeout(function () {
             $('#date-start, #date-end').removeClass('error');
         }, 2000);
+        $(this).trigger('dateRangeInvalid');
         return;
     } else {
         $.each($('.range-item.active, .db-range-item.active'), function () {
@@ -201,12 +202,29 @@ function customRangeHandler(evt) {
     filterStartDate = startDate.getTime();
     filterEndDate = endDate.getTime();
 
+    if (filterEndDate <= filterStartDate) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        $('#date-start').addClass('error');
+        $('#date-end').addClass('error');
+        $('.panelEditor-container #date-start').addClass('error');
+        $('.panelEditor-container #date-end').addClass('error');
+        
+        setTimeout(function () {
+            $('#date-start, #date-end').removeClass('error');
+            $('.panelEditor-container #date-start, .panelEditor-container #date-end').removeClass('error');
+        }, 2000);
+        $(this).trigger('dateRangeInvalid');
+        return;
+    }
+
     Cookies.set('customStartDate', appliedStartDate);
     Cookies.set('customStartTime', appliedStartTime);
     Cookies.set('customEndDate', appliedEndDate);
     Cookies.set('customEndTime', appliedEndTime);
 
     datePickerHandler(filterStartDate, filterEndDate, 'custom');
+    $(this).trigger('dateRangeValid');
     // For dashboards
     const currentUrl = window.location.href;
     if (currentUrl.includes('dashboard.html')) {

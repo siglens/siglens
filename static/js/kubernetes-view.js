@@ -92,7 +92,7 @@ class KubernetesView {
             this.loadEventsData();
         });
 
-        $(document).on('click', '#customrange-btn', () => {
+        $(document).on('dateRangeValid', '#customrange-btn', () => {
             this.startTime = filterStartDate;
             this.endTime = filterEndDate;
             this.currentFrom = 0;

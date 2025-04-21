@@ -62,7 +62,8 @@ $(document).ready(() => {
 
     setupEventHandlers();
     datePickerHandler(startDate, endDate, startDate);
-    $('.range-item, #customrange-btn').on('click', getOneServiceOverview);
+    $('.range-item').on('click', getOneServiceOverview);
+    $('#customrange-btn').on('dateRangeValid', getOneServiceOverview);
 
     getOneServiceOverview();
 });
