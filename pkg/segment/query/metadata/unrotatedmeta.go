@@ -41,15 +41,15 @@ func createSearchRequestForUnrotated(fileName string, tableName string,
 
 	blkSum, blkMeta, unrotatedCols := unrotatedInfo.GetUnrotatedBlockInfoForQuery()
 
-	searchMeta := make(map[uint16]*structs.BlockMetadataHolder)
+	searchMeta := make(map[uint16]struct{})
 	for blkNum := range filteredBlocks {
-		currBlkMeta, ok := blkMeta[blkNum]
+		_, ok := blkMeta.AllBmh[blkNum]
 		if !ok {
 			log.Warnf("createSearchRequestForUnrotated: block %d does not exist in unrotated block list but passed initial filtering",
 				blkNum)
 			continue
 		}
-		searchMeta[blkNum] = currBlkMeta
+		searchMeta[blkNum] = struct{}{}
 	}
 
 	finalReq := &structs.SegmentSearchRequest{

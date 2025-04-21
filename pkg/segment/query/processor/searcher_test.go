@@ -273,13 +273,15 @@ func Test_getSSRs(t *testing.T) {
 	blockMeta2 := &structs.BlockMetadataHolder{BlkNum: 2}
 	blockMeta3 := &structs.BlockMetadataHolder{BlkNum: 3}
 
+	allBlocksToSearch := make(map[uint16]struct{})
+
+	allBlocksToSearch[1] = struct{}{}
+	allBlocksToSearch[2] = struct{}{}
+	allBlocksToSearch[3] = struct{}{}
+
 	ssr := &structs.SegmentSearchRequest{
-		SegmentKey: "segKey",
-		AllBlocksToSearch: map[uint16]*structs.BlockMetadataHolder{
-			1: blockMeta1,
-			2: blockMeta2,
-			3: blockMeta3,
-		},
+		SegmentKey:        "segKey",
+		AllBlocksToSearch: allBlocksToSearch,
 		AllPossibleColumns: map[string]bool{
 			"col1": true,
 			"col2": true,
@@ -288,19 +290,19 @@ func Test_getSSRs(t *testing.T) {
 
 	blocks := []*block{
 		{
-			BlockMetadataHolder: blockMeta1,
-			segkeyFname:         "file1",
-			parentSSR:           ssr,
+			BlkNum:      1,
+			segkeyFname: "file1",
+			parentSSR:   ssr,
 		},
 		{
-			BlockMetadataHolder: blockMeta2,
-			segkeyFname:         "file1",
-			parentSSR:           ssr,
+			BlkNum:      2,
+			segkeyFname: "file1",
+			parentSSR:   ssr,
 		},
 		{
-			BlockMetadataHolder: blockMeta3,
-			segkeyFname:         "file1",
-			parentSSR:           ssr,
+			BlkNum:      3,
+			segkeyFname: "file1",
+			parentSSR:   ssr,
 		},
 	}
 
@@ -308,9 +310,15 @@ func Test_getSSRs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(allSegRequests))
 	assert.Equal(t, 3, len(allSegRequests["file1"].AllBlocksToSearch))
-	assert.Equal(t, blockMeta1, allSegRequests["file1"].AllBlocksToSearch[1])
-	assert.Equal(t, blockMeta2, allSegRequests["file1"].AllBlocksToSearch[2])
-	assert.Equal(t, blockMeta3, allSegRequests["file1"].AllBlocksToSearch[3])
+
+	_, ok := allSegRequests["file1"].AllBlocksToSearch[blockMeta1.BlkNum]
+	assert.True(t, ok)
+
+	_, ok = allSegRequests["file1"].AllBlocksToSearch[blockMeta2.BlkNum]
+	assert.True(t, ok)
+
+	_, ok = allSegRequests["file1"].AllBlocksToSearch[blockMeta3.BlkNum]
+	assert.True(t, ok)
 
 	// Test when blocks are from different files.
 	blocks[0].segkeyFname = "file2"
@@ -319,9 +327,14 @@ func Test_getSSRs(t *testing.T) {
 	assert.Equal(t, 2, len(allSegRequests))
 	assert.Equal(t, 2, len(allSegRequests["file1"].AllBlocksToSearch))
 	assert.Equal(t, 1, len(allSegRequests["file2"].AllBlocksToSearch))
-	assert.Equal(t, blockMeta1, allSegRequests["file2"].AllBlocksToSearch[1])
-	assert.Equal(t, blockMeta2, allSegRequests["file1"].AllBlocksToSearch[2])
-	assert.Equal(t, blockMeta3, allSegRequests["file1"].AllBlocksToSearch[3])
+
+	_, ok = allSegRequests["file2"].AllBlocksToSearch[blockMeta1.BlkNum]
+	assert.True(t, ok)
+	_, ok = allSegRequests["file1"].AllBlocksToSearch[blockMeta2.BlkNum]
+	assert.True(t, ok)
+	_, ok = allSegRequests["file1"].AllBlocksToSearch[blockMeta3.BlkNum]
+	assert.True(t, ok)
+
 	blocks[0].segkeyFname = "file1" // Reset for next test.
 
 	// Test when blocks are from different SSRs.
@@ -335,8 +348,12 @@ func Test_getSSRs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(allSegRequests))
 	assert.Equal(t, 2, len(allSegRequests["file1"].AllBlocksToSearch))
-	assert.Equal(t, blockMeta1, allSegRequests["file1"].AllBlocksToSearch[1])
-	assert.Equal(t, blockMeta2, allSegRequests["file1"].AllBlocksToSearch[2])
+
+	_, ok = allSegRequests["file1"].AllBlocksToSearch[blockMeta1.BlkNum]
+	assert.True(t, ok)
+	_, ok = allSegRequests["file1"].AllBlocksToSearch[blockMeta2.BlkNum]
+	assert.True(t, ok)
+
 }
 
 func Test_getValidRRCs(t *testing.T) {
