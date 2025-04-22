@@ -45,7 +45,7 @@ function doLiveTailCancel(_data) {
 
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
-        $('#empty-response, #initial-response').hide();
+        $('#empty-response').hide();
         $('#custom-chart-tab').show().css({ height: '100%' });
         $('.tab-chart-list').show();
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
@@ -356,13 +356,12 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
 
-    // Get fieldsHidden from renderer state
     const sidebarRenderer = window.fieldssidebarRenderer;
     let fieldsHidden = false;
     if (sidebarRenderer) {
         fieldsHidden = sidebarRenderer.getState().isFieldsSidebarHidden;
     } else {
-        fieldsHidden = queryParams.get('fieldsHidden') === 'true'; // Fallback
+        fieldsHidden = queryParams.get('fieldsHidden') === 'true';
     }
     applyFieldsSidebarState(fieldsHidden);
 
@@ -385,11 +384,17 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let filterTab = queryParams.get('filterTab');
     handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab));
     let filterValue = queryParams.get('searchText');
+
     if (filterTab == '0' || filterTab == null) {
-        if (filterValue != '*') {
+        if (filterValue === '* | head 10') {
+            //Default search
+            isQueryBuilderSearch = false;
+        } else if (filterValue != '*') {
             codeToBuilderParsing(filterValue);
             $('#filter-input').val(filterValue).change();
             toggleClearButtonVisibility();
+            isQueryBuilderSearch = true;
+        } else {
             isQueryBuilderSearch = true;
         }
     } else {
@@ -455,7 +460,6 @@ function applyFieldsSidebarState(isHidden) {
     const customChartTab = document.querySelector('.custom-chart-tab');
     const container = document.querySelector('.custom-chart-container');
     const resizer = document.querySelector('.fields-resizer');
-
 
     if (!fieldsSidebar) return;
 
@@ -565,7 +569,7 @@ function getQueryBuilderCode() {
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
 //eslint-disable-next-line no-unused-vars
-function getSearchFilter(skipPushState, scrollingTrigger) {
+function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -591,9 +595,19 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         //concat the 3 input boxes
         filterValue = getQueryBuilderCode();
         isQueryBuilderSearch = true;
+
+        //Default search
+        if (isInitialLoad && (!filterValue || filterValue === '*')) {
+            filterValue = '* | head 10';
+        }
     } else {
-        filterValue = $('#filter-input').val().trim() || '*';
+        filterValue = $('#filter-input').val().trim() || '* | head 10';
         isQueryBuilderSearch = false;
+
+        //Default search
+        if (isInitialLoad && !$('#filter-input').val().trim()) {
+            $('#filter-input').val('* | head 10');
+        }
     }
 
     if (!skipPushState) {
@@ -636,8 +650,8 @@ function getSearchFilterForSave(qname, qdesc) {
         searchText: filterValue,
         indexName: selectedSearchIndex,
         filterTab: currentTab.toString(),
-        endTime: (data.endEpoch).toString(),
-        startTime: (data.startEpoch).toString(),
+        endTime: data.endEpoch.toString(),
+        startTime: data.startEpoch.toString(),
         queryLanguage: $('#query-language-options .query-language-option.active').html(),
     };
 }
@@ -795,7 +809,6 @@ function processEmptyQueryResults(message) {
     $('#empty-response').show();
     $('#save-query-div').children().hide();
     $('#show-record-intro-btn').show();
-    $('#initial-response').hide();
     let el = $('#empty-response');
     $('#empty-response').empty();
     $('.json-popup').hide();
@@ -936,7 +949,6 @@ function showErrorResponse(errorMsg, res) {
     $('#data-row-container').hide();
     $('#corner-popup').hide();
     $('#empty-response').show();
-    $('#initial-response').hide();
     $('#save-query-div').children().hide();
     $('#views-container, .fields-sidebar, .pagination-container').hide();
     $('#custom-chart-tab').hide();

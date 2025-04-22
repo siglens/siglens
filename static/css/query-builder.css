@@ -869,18 +869,6 @@ div.show-record-popup .ui-dialog-buttonpane button {
     background-color: var(--selected-filter-red);
 }
 
-#initial-response {
-    width: 100%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    color: var(--empty-response-text-color);
-    display: none;
-    text-align: center;
-}
-
 #empty-response {
     display: none;
 }
