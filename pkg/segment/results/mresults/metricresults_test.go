@@ -360,9 +360,9 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 }
 
 func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
-	seriesId := "demo_api_request_duration_seconds_bucket{instance:demo.promlabs.com:10000,job:demo,le:0.14778918800354002,method:POST,path:/api/foo,status:200,"
+	seriesId := `demo_api_request_duration_seconds_bucket{instance="demo.promlabs.com:10000",job="demo",le="0.14778918800354002",method="POST",path="/api/foo",status="200",`
 	expectedLeValue := 0.14778918800354002
-	expectedSeriesId := "demo_api_request_duration_seconds_bucket{instance:demo.promlabs.com:10000,job:demo,method:POST,path:/api/foo,status:200"
+	expectedSeriesId := `demo_api_request_duration_seconds_bucket{instance="demo.promlabs.com:10000",job="demo",method="POST",path="/api/foo",status="200"`
 
 	newSeriesId, leValue, hasLe, err := extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -370,9 +370,9 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	assert.Equal(t, expectedLeValue, leValue)
 	assert.Equal(t, expectedSeriesId, newSeriesId)
 
-	seriesId = "metric{k1:v1,k2:v2,le:+Inf,"
+	seriesId = `metric{k1="v1",k2="v2",le="+Inf",`
 	expectedLeValue = math.Inf(1)
-	expectedSeriesId = "metric{k1:v1,k2:v2"
+	expectedSeriesId = `metric{k1="v1",k2="v2"`
 
 	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -380,9 +380,9 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	assert.Equal(t, expectedLeValue, leValue)
 	assert.Equal(t, expectedSeriesId, newSeriesId)
 
-	seriesId = "metric{k1:v1,k2:v2,le:-Inf,"
+	seriesId = `metric{k1="v1",k2="v2",le="-Inf",`
 	expectedLeValue = math.Inf(-1)
-	expectedSeriesId = "metric{k1:v1,k2:v2"
+	expectedSeriesId = `metric{k1="v1",k2="v2"`
 
 	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -390,9 +390,9 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	assert.Equal(t, expectedLeValue, leValue)
 	assert.Equal(t, expectedSeriesId, newSeriesId)
 
-	seriesId = "metric{k1:v1,k2:v2,le:-0.134433,k3:v3,"
+	seriesId = `metric{k1="v1",k2="v2",le="-0.134433",k3="v3",`
 	expectedLeValue = -0.134433
-	expectedSeriesId = "metric{k1:v1,k2:v2,k3:v3"
+	expectedSeriesId = `metric{k1="v1",k2="v2",k3="v3"`
 
 	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -403,12 +403,12 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 
 func Test_getHistogramBins(t *testing.T) {
 	seriesIds := []string{
-		"test1{tk1:v1,tk2:v2,le:0.1,tk3:v3",
-		"test2{tk1:v1,tk2:v2,le:0.2,tk3:v3",
-		"test3{tk1:v1,tk2:v2,le:0.3,",
-		"test4{tk1:v1,tk2:v2,tk5:v5,", // missing le, should be ignored
-		"test1{tk1:v1,tk2:v2,le:0.2,tk3:v3",
-		"test2{tk1:v1,tk2:v2,le:0.3,tk3:v3",
+		`test1{tk1="v1",tk2="v2",le="0.1",tk3="v3"`,
+		`test2{tk1="v1",tk2="v2",le="0.2",tk3="v3"`,
+		`test3{tk1="v1",tk2="v2",le="0.3",`,
+		`test4{tk1="v1",tk2="v2",tk5="v5",`, // missing le, should be ignored
+		`test1{tk1="v1",tk2="v2",le="0.2",tk3="v3"`,
+		`test2{tk1="v1",tk2="v2",le="0.3",tk3="v3"`,
 	}
 
 	results := make(map[string]map[uint32]float64, 0)
@@ -424,7 +424,7 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(binsPerSeries))
 
-	bins1 := binsPerSeries["test1{tk1:v1,tk2:v2,tk3:v3"]
+	bins1 := binsPerSeries[`test1{tk1="v1",tk2="v2",tk3="v3"`]
 	assert.Equal(t, 3, len(bins1))
 	assert.Contains(t, bins1, uint32(1))
 	assert.Contains(t, bins1, uint32(2))
@@ -445,7 +445,7 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Equal(t, 3.0, bins1[3][1].count)
 	assert.Equal(t, 0.2, bins1[3][1].upperBound)
 
-	bins2 := binsPerSeries["test2{tk1:v1,tk2:v2,tk3:v3"]
+	bins2 := binsPerSeries[`test2{tk1="v1",tk2="v2",tk3="v3"`]
 	assert.Equal(t, 3, len(bins2))
 	assert.Contains(t, bins2, uint32(1))
 	assert.Contains(t, bins2, uint32(2))
@@ -466,7 +466,7 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Equal(t, 3.0, bins2[3][1].count)
 	assert.Equal(t, 0.3, bins2[3][1].upperBound)
 
-	bins3 := binsPerSeries["test3{tk1:v1,tk2:v2"]
+	bins3 := binsPerSeries[`test3{tk1="v1",tk2="v2"`]
 	assert.Equal(t, 3, len(bins3))
 	assert.Contains(t, bins3, uint32(1))
 	assert.Contains(t, bins3, uint32(2))
