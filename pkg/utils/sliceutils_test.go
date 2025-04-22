@@ -18,6 +18,9 @@
 package utils
 
 import (
+	"fmt"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -315,4 +318,46 @@ func Test_ReverseSlice(t *testing.T) {
 	slice2 := []string{"a", "b", "c", "d"}
 	ReverseSlice(slice2)
 	assert.Equal(t, []string{"d", "c", "b", "a"}, slice2)
+}
+
+func Test_SortByComputedKey(t *testing.T) {
+	items := []map[string]string{
+		{"name": "Alice", "state": "Georgia"},
+		{"name": "Bob", "state": "Alabama"},
+		{"name": "Charlie", "state": "Alabama"},
+		{"name": "Alice", "state": "Alabama"},
+		{"name": "Bob", "state": "Georgia"},
+		{"name": "Charlie", "state": "Georgia"},
+		{"name": "Alice"},
+		{"name": "Bob"},
+		{"state": "Georgia"},
+	}
+	getKey := func(item map[string]string) string {
+		keys := GetKeysOfMap(item)
+		sort.Strings(keys)
+
+		sortedValues := make([]string, len(keys))
+		for i, key := range keys {
+			sortedValues[i] = fmt.Sprintf("(%s, %s)", key, item[key])
+		}
+
+		return strings.Join(sortedValues, ", ")
+	}
+
+	less := func(a, b string) bool {
+		return a < b
+	}
+
+	sortedItems := SortByComputedKey(items, getKey, less)
+	assert.Equal(t, sortedItems, []map[string]string{
+		{"name": "Alice"},
+		{"name": "Alice", "state": "Alabama"},
+		{"name": "Alice", "state": "Georgia"},
+		{"name": "Bob"},
+		{"name": "Bob", "state": "Alabama"},
+		{"name": "Bob", "state": "Georgia"},
+		{"name": "Charlie", "state": "Alabama"},
+		{"name": "Charlie", "state": "Georgia"},
+		{"state": "Georgia"},
+	})
 }
