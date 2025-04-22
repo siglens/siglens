@@ -297,14 +297,14 @@ func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) (
 	var groupKeyValuePairs []string
 	var values []string
 	for _, field := range groupByFields {
-		pattern := field + "=\"([^\"]+)\""
+		pattern := regexp.QuoteMeta(field) + `="([^"]+)"`
 		re := regexp.MustCompile(pattern)
 		matches := re.FindStringSubmatch(seriesId)
 		if len(matches) < 2 {
 			continue
 		}
 		value := matches[1]
-		keyValuePair := fmt.Sprintf("%s=\"%s\"", field, value)
+		keyValuePair := fmt.Sprintf(`%s="%s"`, field, value)
 		values = append(values, value)
 		groupKeyValuePairs = append(groupKeyValuePairs, keyValuePair)
 	}
@@ -323,11 +323,11 @@ func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
 
 	splitVals := strings.SplitN(seriesId, "{", 2)
 	metricName := splitVals[0]
-	
+
 	if len(splitVals) < 2 {
 		return seriesId
 	}
-	
+
 	tagsString := splitVals[1]
 	tags := strings.Split(tagsString, ",")
 	var filteredTags []string
@@ -342,7 +342,7 @@ func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
 				continue
 			}
 		}
-		
+
 		if len(tag) > 0 {
 			filteredTags = append(filteredTags, tag)
 		}
@@ -755,11 +755,11 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 func getPromQLSeriesFormat(seriesId string) map[string]string {
 	metric := make(map[string]string)
 	metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
-	
+
 	// Extract tags using regex
 	re := regexp.MustCompile(`([^,{]+)="([^"]+)"`)
 	matches := re.FindAllStringSubmatch(seriesId, -1)
-	
+
 	for _, match := range matches {
 		if len(match) == 3 {
 			key := match[1]
