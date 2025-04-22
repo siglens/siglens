@@ -95,7 +95,6 @@ function showError(errorMsg) {
     $('#agg-result-container').hide();
     $('#data-row-container').hide();
     $('#empty-response').hide();
-    $('#initial-response').hide();
     $('#pagination-container').hide();
     let currentTab = $('#custom-chart-tab').tabs('option', 'active');
     if (currentTab == 0) {
