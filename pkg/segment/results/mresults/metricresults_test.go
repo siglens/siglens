@@ -28,7 +28,7 @@ import (
 )
 
 func Test_getAggSeriesId_SeriesWithGroupBy(t *testing.T) {
-	seriesId := "test{tk1:v1,tk2:v2"
+	seriesId := `test{tk1:v1,tk2:v2`
 	groupByFields := []string{"tk1", "tk2"}
 
 	aggregation := &structs.Aggregation{
@@ -36,23 +36,23 @@ func Test_getAggSeriesId_SeriesWithGroupBy(t *testing.T) {
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
+	assert.Equal(t, `test{tk1:v1,tk2:v2`, aggSeriesId)
 
 	// trailing comma
-	seriesId = "test{tk1:v1,tk2:v2,"
+	seriesId = `test{tk1:v1,tk2:v2,`
 	aggSeriesId = getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
+	assert.Equal(t, `test{tk1:v1,tk2:v2`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutGroupBy(t *testing.T) {
-	seriesId := "test{"
+	seriesId := `test{`
 
 	aggSeriesId := getAggSeriesId(seriesId, nil)
-	assert.Equal(t, "test{", aggSeriesId)
+	assert.Equal(t, `test{`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithGroupByAndNoGroupByFields(t *testing.T) {
-	seriesId := "test{tk1:v1,tk2:v2"
+	seriesId := `test{tk1:v1,tk2:v2`
 	groupByFields := make([]string, 0)
 
 	aggregation := &structs.Aggregation{
@@ -60,22 +60,22 @@ func Test_getAggSeriesId_SeriesWithGroupByAndNoGroupByFields(t *testing.T) {
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{", aggSeriesId)
+	assert.Equal(t, `test{`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutGroupByAndEmptyGroupByFields(t *testing.T) {
-	seriesId := "test{"
+	seriesId := `test{`
 
 	aggregation := &structs.Aggregation{
 		GroupByFields: []string{},
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{", aggSeriesId)
+	assert.Equal(t, `test{`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutFlagSet(t *testing.T) {
-	seriesId := "test{tk1:v1,tk2:v2,tk3:v3,tk4:v4,tk5:v5"
+	seriesId := `test{tk1:v1,tk2:v2,tk3:v3,tk4:v4,tk5:v5`
 
 	aggregation := &structs.Aggregation{
 		Without: true,
@@ -87,12 +87,12 @@ func Test_getAggSeriesId_SeriesWithoutFlagSet(t *testing.T) {
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk2:v2,tk4:v4", aggSeriesId)
+	assert.Equal(t, `test{tk2:v2,tk4:v4`, aggSeriesId)
 
 	// value has `:` in it
-	seriesId = "test{tk1:v1:1,tk2:v2,tk3:v3:3,tk4:v4,tk5:v5:5"
+	seriesId = `test{tk1:v1:1,tk2:v2,tk3:v3:3,tk4:v4,tk5:v5:5`
 	aggSeriesId = getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk2:v2,tk4:v4", aggSeriesId)
+	assert.Equal(t, `test{tk2:v2,tk4:v4`, aggSeriesId)
 }
 
 func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
@@ -105,7 +105,7 @@ func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId := "test{"
+	seriesId := `test{`
 
 	results[seriesId] = make(map[uint32]float64, 0)
 	results[seriesId][1] = 1.0
@@ -137,8 +137,8 @@ func Test_ApplyAggregationToResults_NoGroupBy_Multiple_Series(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2}"
-	seriesId2 := "test{tk1:v1,tk2:v3}"
+	seriesId1 := `test{tk1:v1,tk2:v2}`
+	seriesId2 := `test{tk1:v1,tk2:v3}`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -150,7 +150,7 @@ func Test_ApplyAggregationToResults_NoGroupBy_Multiple_Series(t *testing.T) {
 	results[seriesId2][2] = 5.0
 	results[seriesId2][3] = 6.0
 
-	aggSeriesId := "test{"
+	aggSeriesId := `test{`
 
 	mResult.Results = results
 
@@ -177,7 +177,7 @@ func Test_ApplyAggregationToResults_GroupBy_Single_Series(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId := "test{tk1:v1,tk2:v2"
+	seriesId := `test{tk1:v1,tk2:v2`
 
 	results[seriesId] = make(map[uint32]float64, 0)
 	results[seriesId][1] = 1.0
@@ -191,7 +191,7 @@ func Test_ApplyAggregationToResults_GroupBy_Single_Series(t *testing.T) {
 		GroupByFields:      []string{"tk1"},
 	}
 
-	aggSeriesId := "test{tk1:v1"
+	aggSeriesId := `test{tk1:v1`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -214,8 +214,8 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v1(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2}"
-	seriesId2 := "test{tk1:v1,tk2:v3}"
+	seriesId1 := `test{tk1:v1,tk2:v2}`
+	seriesId2 := `test{tk1:v1,tk2:v3}`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -234,7 +234,7 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v1(t *testing.T) {
 		GroupByFields:      []string{"tk1"},
 	}
 
-	aggSeriesId := "test{tk1:v1"
+	aggSeriesId := `test{tk1:v1`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -257,8 +257,8 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v2(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2}"
-	seriesId2 := "test{tk1:v2,tk2:v3}"
+	seriesId1 := `test{tk1:v1,tk2:v2}`
+	seriesId2 := `test{tk1:v2,tk2:v3}`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -277,8 +277,8 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v2(t *testing.T) {
 		GroupByFields:      []string{"tk1"},
 	}
 
-	aggSeriesId1 := "test{tk1:v1"
-	aggSeriesId2 := "test{tk1:v2"
+	aggSeriesId1 := `test{tk1:v1`
+	aggSeriesId2 := `test{tk1:v2`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -306,10 +306,10 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2"
-	seriesId2 := "test{tk1:v2,tk2:v3,"
-	seriesId3 := "test{tk1:v1,tk2:v2,tk3:v1"
-	seriesId4 := "test{tk1:v2,tk3:v3"
+	seriesId1 := `test{tk1:v1,tk2:v2`
+	seriesId2 := `test{tk1:v2,tk2:v3,`
+	seriesId3 := `test{tk1:v1,tk2:v2,tk3:v1`
+	seriesId4 := `test{tk1:v2,tk3:v3`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -338,9 +338,9 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 		GroupByFields:      []string{"tk1", "tk2"},
 	}
 
-	aggSeriesId1 := "test{tk1:v1,tk2:v2"
-	aggSeriesId2 := "test{tk1:v2,tk2:v3"
-	aggSeriesId3 := "test{tk1:v2"
+	aggSeriesId1 := `test{tk1:v1,tk2:v2`
+	aggSeriesId2 := `test{tk1:v2,tk2:v3`
+	aggSeriesId3 := `test{tk1:v2`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
