@@ -69,9 +69,9 @@ func NewEvaluator(reader DiskReader, startEpochSec, endEpochSec, step uint32, qu
 	}
 }
 
-func (sr *SeriesResult) GetSeriesId() SeriesId {
-	keys := make([]string, 0, len(sr.Labels))
-	for k := range sr.Labels {
+func GetSeriesId(labels map[string]string) SeriesId {
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -80,7 +80,7 @@ func (sr *SeriesResult) GetSeriesId() SeriesId {
 	for _, k := range keys {
 		b.WriteString(k)
 		b.WriteString("=")
-		b.WriteString(sr.Labels[k])
+		b.WriteString(labels[k])
 		b.WriteString(",")
 	}
 	return SeriesId(b.String())
@@ -111,7 +111,7 @@ func (e *Evaluator) EvalExpr(expr parser.Expr) ([]*SeriesResult, error) {
 				continue
 			}
 
-			seriesId := series.GetSeriesId()
+			seriesId := GetSeriesId(series.Labels)
 			if i, ok := idToIndex[seriesId]; ok {
 				allSeries[i].Values = append(allSeries[i].Values, series.Values...)
 			} else {

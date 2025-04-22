@@ -411,3 +411,40 @@ func NormalizeSlice[T any](slice []T) []T {
 
 	return slice
 }
+
+// This sorts items similar to sort.Slice(). The benefit of this is that the
+// sort keys are computed only once, which is useful if they're expensive to
+// compute.
+func SortByComputedKey[T, K any](items []T, getKey func(T) K, less func(K, K) bool) []T {
+	if len(items) < 2 || less == nil {
+		return items
+	}
+
+	// Create item-key pairs
+	type keyedItem struct {
+		item *T
+		key  K
+	}
+
+	// Precompute all keys once
+	pairs := make([]keyedItem, len(items))
+	for i, item := range items {
+		pairs[i] = keyedItem{
+			item: &items[i],
+			key:  getKey(item),
+		}
+	}
+
+	// Sort the pairs by their keys
+	sort.Slice(pairs, func(i, j int) bool {
+		return less(pairs[i].key, pairs[j].key)
+	})
+
+	// Extract the sorted items
+	result := make([]T, len(items))
+	for i, pair := range pairs {
+		result[i] = *pair.item
+	}
+
+	return result
+}

@@ -674,6 +674,14 @@ func asRangeQueryResponse(allSeries []*metricsevaluator.SeriesResult) *structs.M
 		data.Result = append(data.Result, matrixResult)
 	}
 
+	getKey := func(rvr structs.RangeVectorResult) metricsevaluator.SeriesId {
+		return metricsevaluator.GetSeriesId(rvr.Metric)
+	}
+	less := func(a, b metricsevaluator.SeriesId) bool {
+		return a < b
+	}
+	data.Result = toputils.SortByComputedKey(data.Result, getKey, less)
+
 	return &structs.MetricsPromQLRangeQueryResponse{
 		Status: "success",
 		Data:   &data,
