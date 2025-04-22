@@ -25,9 +25,9 @@ rad(testmetric2),now-90d,now,"",approx,"","",false
 "clamp(testmetric1{car_type=""Passenger car compact"",color=""aqua"",group=""group 1""}, -10, 100)",now-90d,now,"100",eq,"","",false
 "clamp_max(testmetric3, 99)",now-90d,now,"",approx,"","",false
 "clamp_min(testmetric3, 0)",now-90d,now,"",approx,"","",false
-"rate(testmetric3{color='black'}[48h:15m])",now-1h,now,"",approx,"","",true
+"rate(testmetric3{color=""black""}[48h:15m])",now-1h,now,"",approx,"","",true
 irate(testmetric3[48h]),now-90d,now,"0.0009225785356323284,0.005768872166720863",approx,"","",true
-"increase(testmetric3{color='black'}[48h:15m])",now-1h,now,"",approx,"","",true
+"increase(testmetric3{color=""black""}[48h:15m])",now-1h,now,"",approx,"","",true
 delta(testmetric3[48h]),now-90d,now,"79.71078547863307,578.1413406833155",approx,"","",true
 idelta(testmetric3[48h]),now-90d,now,"79.71078547863327,498.4305552046825",approx,"","",true
 changes(testmetric4[24h]),now-90d,now,"0,1,1",eq,"","",true
@@ -60,14 +60,14 @@ day_of_week(testmetric0),now-90d,now,"",gt,"","",false
 day_of_year(testmetric0),now-90d,now,"",gt,"","",false
 "days_in_month(testmetric1{car_type=""Passenger car compact"",color=""aqua"",group=""group 1""})",now-90d,now,"32",lt,"","",false
 days_in_month(testmetric0),now-90d,now,"",gt,"","",false
-"avg({__name__=~'testmetric.*'})",now-90d,now,"163.13171934207875,133.61927559580516,-20.18911392543914",approx,"*","",false
-"avg ({__name__!~'testmetric(2)', fuel_type='LPG', color='maroon'}) by (__name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric3","",false
-"avg ({__name__=~'testmetric(0|1|2|3|4)', color='maroon'}) by (color, group, __name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric2,testmetric3,testmetric4","color:maroon,group:group 1,__,color:maroon,group:group 0",false
-"avg ({__name__=~'testmetric(0|1|2|3|4)', color='maroon'}) by (color, group)",now-90d,now,"",approx,"*","color:maroon,group:group 1,__,color:maroon,group:group 0",false
-"avg ({__name__=~'testmetric(2|3)', fuel_type='LPG', color=~'g.*'}) by (__name__)",now-90d,now,"",approx,"testmetric2,testmetric3","",false
-"count(testmetric0{car_type='Passenger car compact'})",now-90d,now,"11,8,21",eq,"","",false
+"avg({__name__=~""testmetric.*""})",now-90d,now,"163.13171934207875,133.61927559580516,-20.18911392543914",approx,"*","",false
+"avg ({__name__!~""testmetric(2)"", fuel_type=""LPG"", color=""maroon""}) by (__name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric3","",false
+"avg ({__name__=~""testmetric(0|1|2|3|4)"", color=""maroon""}) by (color, group, __name__)",now-90d,now,"",approx,"testmetric0,testmetric1,testmetric2,testmetric3,testmetric4","color=""maroon"",group=""group 1"",__,color=""maroon"",group=""group 0""",false
+"avg ({__name__=~""testmetric(0|1|2|3|4)"", color=""maroon""}) by (color, group)",now-90d,now,"",approx,"*","color=""maroon"",group=""group 1"",__,color=""maroon"",group=""group 0""",false
+"avg ({__name__=~""testmetric(2|3)"", fuel_type=""LPG"", color=~""g.*""}) by (__name__)",now-90d,now,"",approx,"testmetric2,testmetric3","",false
+"count(testmetric0{car_type=""Passenger car compact""})",now-90d,now,"11,8,21",eq,"","",false
 "count(group by (car_type) (testmetric0))",now-90d,now,"8,8,8",eq,"","",false
-"count(group by (car_type) (testmetric0{color=~'.+'}))",now-90d,now,"8,8,8",eq,"","",false
-"count(testmetric0{color=~'.+'})",now-90d,now,"69,68,90",eq,"","",false
-"label_replace(testmetric0{model=~'.*[0-9]+ci.*', group='group 1'}, 'model_number', '$1', 'model', '([0-9]+)ci.*')",now-90d,now,"","approx","testmetric0","group:group 1,model: 330ci Convertible,car_type:Passenger car mini,color:aqua,fuel_type:Diesel,model_number:330,__,group:group 1,model: 650ci Convertible,car_type:Van,color:maroon,fuel_type:Gasoline,model_number:650",false
-"label_replace(testmetric0{model=~'.*[0-9]+ci.*', group='group 1'}, 'model', '$number', 'model', '(?P<number>[0-9]+)ci.*')",now-90d,now,"","approx","testmetric0","group:group 1,model:650,car_type:Van,color:maroon,fuel_type:Gasoline,__,group:group 1,model:330,car_type:Passenger car mini,color:aqua,fuel_type:Diesel",false
+"count(group by (car_type) (testmetric0{color=~"".+""}))",now-90d,now,"8,8,8",eq,"","",false
+"count(testmetric0{color=~"".+""})",now-90d,now,"69,68,90",eq,"","",false
+"label_replace(testmetric0{model=~"".*[0-9]+ci.*"", group=""group 1""}, ""model_number"", ""$1"", ""model"", ""([0-9]+)ci.*"")",now-90d,now,"","approx","testmetric0","group=""group 1"",model="" 330ci Convertible"",car_type=""Passenger car mini"",color=""aqua"",fuel_type=""Diesel"",model_number=""330"",__,group=""group 1"",model="" 650ci Convertible"",car_type=""Van"",color=""maroon"",fuel_type=""Gasoline"",model_number=""650""",false
+"label_replace(testmetric0{model=~"".*[0-9]+ci.*"", group=""group 1""}, ""model"", ""$number"", ""model"", ""(?P<number>[0-9]+)ci.*"")",now-90d,now,"","approx","testmetric0","group=""group 1"",model=""650"",car_type=""Van"",color=""maroon"",fuel_type=""Gasoline"",__,group=""group 1"",model=""330"",car_type=""Passenger car mini"",color=""aqua"",fuel_type=""Diesel""",false
