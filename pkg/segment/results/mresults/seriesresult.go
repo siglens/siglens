@@ -354,7 +354,7 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 	}
 
 	if labelFunction.SourceLabel == "" {
-		seriesId = fmt.Sprintf("%s,%s:%s", seriesId, labelFunction.DestinationLabel, labelFunction.Replacement.NameBasedVal)
+		seriesId = fmt.Sprintf(`%s,%s="%s"`, seriesId, labelFunction.DestinationLabel, labelFunction.Replacement.NameBasedVal)
 		return seriesId, nil
 	}
 
@@ -388,10 +388,10 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 		return seriesId, fmt.Errorf("applyLabelReplace: unsupported key type %v", labelFunction.Replacement.KeyType)
 	}
 
-	pattern := fmt.Sprintf(`\b%s:[^,]*`, labelFunction.DestinationLabel)
-	replacement := fmt.Sprintf("%s:%s", labelFunction.DestinationLabel, replacementValue)
+	pattern := fmt.Sprintf(`\b%s="[^"]*"`, labelFunction.DestinationLabel)
+	replacement := fmt.Sprintf(`%s="%s"`, labelFunction.DestinationLabel, replacementValue)
 
-	// Use regex to replace the entire "key:value" pair
+	// Use regex to replace the entire "key="value"" pair
 	re, err := regexp.Compile(pattern)
 	if err != nil {
 		return seriesId, fmt.Errorf("applyLabelReplace:  Error compiling regex pattern with destination label. Err=%v", err)
@@ -400,7 +400,7 @@ func applyLabelReplace(seriesId string, labelFunction *structs.LabelFunctionExpr
 		seriesId = re.ReplaceAllString(seriesId, replacement)
 	} else {
 		// If the key is not found, append it
-		seriesId = fmt.Sprintf("%s%s,", seriesId, replacement)
+		seriesId = fmt.Sprintf(`%s%s,`, seriesId, replacement)
 	}
 
 	return seriesId, nil

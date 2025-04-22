@@ -2024,7 +2024,7 @@ func Test_applyRangeFunctionMADOverTime(t *testing.T) {
 }
 
 func Test_applyLabelReplace(t *testing.T) {
-	initSeriesId := `process_runtime_go_goroutines{job:product-catalog,`
+	initSeriesId := `process_runtime_go_goroutines{job="product-catalog",`
 
 	labelFunctionExpr := &structs.LabelFunctionExpr{
 		FunctionType:     segutils.LabelReplace,
@@ -2042,7 +2042,7 @@ func Test_applyLabelReplace(t *testing.T) {
 	err := labelFunctionExpr.GobRegexp.SetRegex(rawRegex)
 	assert.Nil(t, err)
 
-	expectedSeriesId := `process_runtime_go_goroutines{job:product-catalog,newLabel:product,`
+	expectedSeriesId := `process_runtime_go_goroutines{job="product-catalog",newLabel="product",`
 
 	seriesId, err := applyLabelReplace(initSeriesId, labelFunctionExpr)
 	assert.Nil(t, err)
@@ -2055,7 +2055,7 @@ func Test_applyLabelReplace(t *testing.T) {
 	labelFunctionExpr.Replacement.KeyType = structs.IndexBased
 	labelFunctionExpr.Replacement.IndexBasedVal = 1
 
-	expectedSeriesId = `process_runtime_go_goroutines{job:product,`
+	expectedSeriesId = `process_runtime_go_goroutines{job="product",`
 
 	seriesId, err = applyLabelReplace(initSeriesId, labelFunctionExpr)
 	assert.Nil(t, err)

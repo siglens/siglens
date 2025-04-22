@@ -297,19 +297,15 @@ func ExtractGroupByFieldsFromSeriesId(seriesId string, groupByFields []string) (
 	var groupKeyValuePairs []string
 	var values []string
 	for _, field := range groupByFields {
-		start := strings.Index(seriesId, field+":")
-		if start == -1 {
+		pattern := regexp.QuoteMeta(field) + `="([^"]+)"`
+		re := regexp.MustCompile(pattern)
+		matches := re.FindStringSubmatch(seriesId)
+		if len(matches) < 2 {
 			continue
 		}
-		start += len(field) + 1 // +1 to skip the ':'
-		end := strings.Index(seriesId[start:], ",")
-		if end == -1 {
-			end = len(seriesId)
-		} else {
-			end += start
-		}
-		keyValuePair := fmt.Sprintf("%s:%s", field, seriesId[start:end])
-		values = append(values, seriesId[start:end])
+		value := matches[1]
+		keyValuePair := fmt.Sprintf(`%s="%s"`, field, value)
+		values = append(values, value)
 		groupKeyValuePairs = append(groupKeyValuePairs, keyValuePair)
 	}
 	return groupKeyValuePairs, values
@@ -325,37 +321,40 @@ func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
 		fieldsSet[field] = struct{}{}
 	}
 
-	parts := strings.Split(seriesId, ",")
-	var filteredParts []string
-	var metricName string
+	splitVals := strings.SplitN(seriesId, "{", 2)
+	metricName := splitVals[0]
 
-	for i, part := range parts {
-		if i == 0 {
-			splitVals := strings.SplitN(part, "{", 2)
-			metricName = splitVals[0]
+	if len(splitVals) < 2 {
+		return seriesId
+	}
 
-			if len(splitVals) == 2 {
-				part = splitVals[1]
-			}
-		}
+	tagsString := splitVals[1]
+	tags := strings.Split(tagsString, ",")
+	var filteredTags []string
 
-		keyValue := strings.SplitN(part, ":", 2)
-		if len(keyValue) == 2 {
-			if _, exists := fieldsSet[keyValue[0]]; exists {
+	for _, tag := range tags {
+		// Extract the tag key using regex
+		re := regexp.MustCompile(`^([^=]+)=`)
+		matches := re.FindStringSubmatch(tag)
+		if len(matches) >= 2 {
+			key := matches[1]
+			if _, exists := fieldsSet[key]; exists {
 				continue
 			}
 		}
 
-		filteredParts = append(filteredParts, part)
+		if len(tag) > 0 {
+			filteredTags = append(filteredTags, tag)
+		}
 	}
 
-	return metricName + "{" + strings.Join(filteredParts, ",")
+	return metricName + "{" + strings.Join(filteredTags, ",")
 }
 
 // getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
-// The seriesId is in the format of "metricName{key1:value1,key2:value2,..."
+// The seriesId is in the format of "metricName{key1="value1",key2="value2",..."
 // If groupByFields is empty, it returns the "metricName{" as the group seriesId
-// If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
+// If groupByFields is not empty, it returns the "metricName{key1="value1",key2="value2",..." as the group seriesId
 // Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
 // The groupByFields are extracted from the seriesId
 func getAggSeriesId(seriesId string, aggregation *structs.Aggregation) string {
@@ -625,7 +624,7 @@ func getHistogramBins(seriesIds []string, results map[string]map[uint32]float64)
 
 func extractAndRemoveLeFromSeriesId(seriesId string) (string, float64, bool, error) {
 	// Regex pattern to find le="VALUE" and capture the VALUE
-	re := regexp.MustCompile(`le:(\+?Inf|-?Inf|-?[0-9.]+),?`)
+	re := regexp.MustCompile(`le="(\+?Inf|-?Inf|-?[0-9.]+)",?`)
 
 	matches := re.FindStringSubmatch(seriesId)
 	var leValueStr string
@@ -754,20 +753,18 @@ func (r *MetricsResult) GetOTSDBResults(mQuery *structs.MetricsQuery) ([]*struct
 }
 
 func getPromQLSeriesFormat(seriesId string) map[string]string {
-	tagValues := strings.Split(RemoveTrailingComma(seriesId), tsidtracker.TAG_VALUE_DELIMITER_STR)
-
-	var keyValue []string
 	metric := make(map[string]string)
 	metric["__name__"] = ExtractMetricNameFromGroupID(seriesId)
-	for idx, val := range tagValues {
-		if idx == 0 {
-			keyValue = strings.SplitN(removeMetricNameFromGroupID(val), ":", 2)
-		} else {
-			keyValue = strings.SplitN(val, ":", 2)
-		}
 
-		if len(keyValue) > 1 {
-			metric[keyValue[0]] = keyValue[1]
+	// Extract tags using regex
+	re := regexp.MustCompile(`([^,{]+)="([^"]+)"`)
+	matches := re.FindAllStringSubmatch(seriesId, -1)
+
+	for _, match := range matches {
+		if len(match) == 3 {
+			key := match[1]
+			value := match[2]
+			metric[key] = value
 		}
 	}
 

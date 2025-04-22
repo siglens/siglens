@@ -28,7 +28,7 @@ import (
 )
 
 func Test_getAggSeriesId_SeriesWithGroupBy(t *testing.T) {
-	seriesId := "test{tk1:v1,tk2:v2"
+	seriesId := `test{tk1="v1",tk2="v2"`
 	groupByFields := []string{"tk1", "tk2"}
 
 	aggregation := &structs.Aggregation{
@@ -36,23 +36,23 @@ func Test_getAggSeriesId_SeriesWithGroupBy(t *testing.T) {
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
+	assert.Equal(t, `test{tk1="v1",tk2="v2"`, aggSeriesId)
 
 	// trailing comma
-	seriesId = "test{tk1:v1,tk2:v2,"
+	seriesId = `test{tk1="v1",tk2="v2",`
 	aggSeriesId = getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk1:v1,tk2:v2", aggSeriesId)
+	assert.Equal(t, `test{tk1="v1",tk2="v2"`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutGroupBy(t *testing.T) {
-	seriesId := "test{"
+	seriesId := `test{`
 
 	aggSeriesId := getAggSeriesId(seriesId, nil)
-	assert.Equal(t, "test{", aggSeriesId)
+	assert.Equal(t, `test{`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithGroupByAndNoGroupByFields(t *testing.T) {
-	seriesId := "test{tk1:v1,tk2:v2"
+	seriesId := `test{tk1="v1",tk2="v2"`
 	groupByFields := make([]string, 0)
 
 	aggregation := &structs.Aggregation{
@@ -60,22 +60,22 @@ func Test_getAggSeriesId_SeriesWithGroupByAndNoGroupByFields(t *testing.T) {
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{", aggSeriesId)
+	assert.Equal(t, `test{`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutGroupByAndEmptyGroupByFields(t *testing.T) {
-	seriesId := "test{"
+	seriesId := `test{`
 
 	aggregation := &structs.Aggregation{
 		GroupByFields: []string{},
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{", aggSeriesId)
+	assert.Equal(t, `test{`, aggSeriesId)
 }
 
 func Test_getAggSeriesId_SeriesWithoutFlagSet(t *testing.T) {
-	seriesId := "test{tk1:v1,tk2:v2,tk3:v3,tk4:v4,tk5:v5"
+	seriesId := `test{tk1="v1",tk2="v2",tk3="v3",tk4="v4",tk5="v5"`
 
 	aggregation := &structs.Aggregation{
 		Without: true,
@@ -87,12 +87,12 @@ func Test_getAggSeriesId_SeriesWithoutFlagSet(t *testing.T) {
 	}
 
 	aggSeriesId := getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk2:v2,tk4:v4", aggSeriesId)
+	assert.Equal(t, `test{tk2="v2",tk4="v4"`, aggSeriesId)
 
 	// value has `:` in it
-	seriesId = "test{tk1:v1:1,tk2:v2,tk3:v3:3,tk4:v4,tk5:v5:5"
+	seriesId = `test{tk1="v1"="1",tk2="v2",tk3="v3"="3",tk4="v4",tk5="v5"="5"`
 	aggSeriesId = getAggSeriesId(seriesId, aggregation)
-	assert.Equal(t, "test{tk2:v2,tk4:v4", aggSeriesId)
+	assert.Equal(t, `test{tk2="v2",tk4="v4"`, aggSeriesId)
 }
 
 func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
@@ -105,7 +105,7 @@ func Test_ApplyAggregationToResults_NoGroupBy_Single_Series(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId := "test{"
+	seriesId := `test{`
 
 	results[seriesId] = make(map[uint32]float64, 0)
 	results[seriesId][1] = 1.0
@@ -137,8 +137,8 @@ func Test_ApplyAggregationToResults_NoGroupBy_Multiple_Series(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2}"
-	seriesId2 := "test{tk1:v1,tk2:v3}"
+	seriesId1 := `test{tk1="v1",tk2="v2"}`
+	seriesId2 := `test{tk1="v1",tk2="v3"}`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -150,7 +150,7 @@ func Test_ApplyAggregationToResults_NoGroupBy_Multiple_Series(t *testing.T) {
 	results[seriesId2][2] = 5.0
 	results[seriesId2][3] = 6.0
 
-	aggSeriesId := "test{"
+	aggSeriesId := `test{`
 
 	mResult.Results = results
 
@@ -177,7 +177,7 @@ func Test_ApplyAggregationToResults_GroupBy_Single_Series(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId := "test{tk1:v1,tk2:v2"
+	seriesId := `test{tk1="v1",tk2="v2"`
 
 	results[seriesId] = make(map[uint32]float64, 0)
 	results[seriesId][1] = 1.0
@@ -191,7 +191,7 @@ func Test_ApplyAggregationToResults_GroupBy_Single_Series(t *testing.T) {
 		GroupByFields:      []string{"tk1"},
 	}
 
-	aggSeriesId := "test{tk1:v1"
+	aggSeriesId := `test{tk1="v1"`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -214,8 +214,8 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v1(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2}"
-	seriesId2 := "test{tk1:v1,tk2:v3}"
+	seriesId1 := `test{tk1="v1",tk2="v2"}`
+	seriesId2 := `test{tk1="v1",tk2="v3"}`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -234,7 +234,7 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v1(t *testing.T) {
 		GroupByFields:      []string{"tk1"},
 	}
 
-	aggSeriesId := "test{tk1:v1"
+	aggSeriesId := `test{tk1="v1"`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -257,8 +257,8 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v2(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2}"
-	seriesId2 := "test{tk1:v2,tk2:v3}"
+	seriesId1 := `test{tk1="v1",tk2="v2"}`
+	seriesId2 := `test{tk1="v2",tk2="v3"}`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -277,8 +277,8 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v2(t *testing.T) {
 		GroupByFields:      []string{"tk1"},
 	}
 
-	aggSeriesId1 := "test{tk1:v1"
-	aggSeriesId2 := "test{tk1:v2"
+	aggSeriesId1 := `test{tk1="v1"`
+	aggSeriesId2 := `test{tk1="v2"`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -306,10 +306,10 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 
 	results := make(map[string]map[uint32]float64, 0)
 
-	seriesId1 := "test{tk1:v1,tk2:v2"
-	seriesId2 := "test{tk1:v2,tk2:v3,"
-	seriesId3 := "test{tk1:v1,tk2:v2,tk3:v1"
-	seriesId4 := "test{tk1:v2,tk3:v3"
+	seriesId1 := `test{tk1="v1",tk2="v2"`
+	seriesId2 := `test{tk1="v2",tk2="v3",`
+	seriesId3 := `test{tk1="v1",tk2="v2",tk3="v1"`
+	seriesId4 := `test{tk1="v2",tk3="v3"`
 
 	results[seriesId1] = make(map[uint32]float64, 0)
 	results[seriesId1][1] = 1.0
@@ -338,9 +338,9 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 		GroupByFields:      []string{"tk1", "tk2"},
 	}
 
-	aggSeriesId1 := "test{tk1:v1,tk2:v2"
-	aggSeriesId2 := "test{tk1:v2,tk2:v3"
-	aggSeriesId3 := "test{tk1:v2"
+	aggSeriesId1 := `test{tk1="v1",tk2="v2"`
+	aggSeriesId2 := `test{tk1="v2",tk2="v3"`
+	aggSeriesId3 := `test{tk1="v2"`
 
 	errors := mResult.ApplyAggregationToResults(parallelism, aggregation)
 	assert.Equal(t, 0, len(errors))
@@ -360,9 +360,9 @@ func Test_ApplyAggregationToResults_GroupBy_Multiple_Series_v3(t *testing.T) {
 }
 
 func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
-	seriesId := "demo_api_request_duration_seconds_bucket{instance:demo.promlabs.com:10000,job:demo,le:0.14778918800354002,method:POST,path:/api/foo,status:200,"
+	seriesId := `demo_api_request_duration_seconds_bucket{instance="demo.promlabs.com:10000",job="demo",le="0.14778918800354002",method="POST",path="/api/foo",status="200",`
 	expectedLeValue := 0.14778918800354002
-	expectedSeriesId := "demo_api_request_duration_seconds_bucket{instance:demo.promlabs.com:10000,job:demo,method:POST,path:/api/foo,status:200"
+	expectedSeriesId := `demo_api_request_duration_seconds_bucket{instance="demo.promlabs.com:10000",job="demo",method="POST",path="/api/foo",status="200"`
 
 	newSeriesId, leValue, hasLe, err := extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -370,9 +370,9 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	assert.Equal(t, expectedLeValue, leValue)
 	assert.Equal(t, expectedSeriesId, newSeriesId)
 
-	seriesId = "metric{k1:v1,k2:v2,le:+Inf,"
+	seriesId = `metric{k1="v1",k2="v2",le="+Inf",`
 	expectedLeValue = math.Inf(1)
-	expectedSeriesId = "metric{k1:v1,k2:v2"
+	expectedSeriesId = `metric{k1="v1",k2="v2"`
 
 	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -380,9 +380,9 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	assert.Equal(t, expectedLeValue, leValue)
 	assert.Equal(t, expectedSeriesId, newSeriesId)
 
-	seriesId = "metric{k1:v1,k2:v2,le:-Inf,"
+	seriesId = `metric{k1="v1",k2="v2",le="-Inf",`
 	expectedLeValue = math.Inf(-1)
-	expectedSeriesId = "metric{k1:v1,k2:v2"
+	expectedSeriesId = `metric{k1="v1",k2="v2"`
 
 	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -390,9 +390,9 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 	assert.Equal(t, expectedLeValue, leValue)
 	assert.Equal(t, expectedSeriesId, newSeriesId)
 
-	seriesId = "metric{k1:v1,k2:v2,le:-0.134433,k3:v3,"
+	seriesId = `metric{k1="v1",k2="v2",le="-0.134433",k3="v3",`
 	expectedLeValue = -0.134433
-	expectedSeriesId = "metric{k1:v1,k2:v2,k3:v3"
+	expectedSeriesId = `metric{k1="v1",k2="v2",k3="v3"`
 
 	newSeriesId, leValue, hasLe, err = extractAndRemoveLeFromSeriesId(seriesId)
 	assert.Nil(t, err)
@@ -403,12 +403,12 @@ func Test_extractAndRemoveleFromSeriesId(t *testing.T) {
 
 func Test_getHistogramBins(t *testing.T) {
 	seriesIds := []string{
-		"test1{tk1:v1,tk2:v2,le:0.1,tk3:v3",
-		"test2{tk1:v1,tk2:v2,le:0.2,tk3:v3",
-		"test3{tk1:v1,tk2:v2,le:0.3,",
-		"test4{tk1:v1,tk2:v2,tk5:v5,", // missing le, should be ignored
-		"test1{tk1:v1,tk2:v2,le:0.2,tk3:v3",
-		"test2{tk1:v1,tk2:v2,le:0.3,tk3:v3",
+		`test1{tk1="v1",tk2="v2",le="0.1",tk3="v3"`,
+		`test2{tk1="v1",tk2="v2",le="0.2",tk3="v3"`,
+		`test3{tk1="v1",tk2="v2",le="0.3",`,
+		`test4{tk1="v1",tk2="v2",tk5="v5",`, // missing le, should be ignored
+		`test1{tk1="v1",tk2="v2",le="0.2",tk3="v3"`,
+		`test2{tk1="v1",tk2="v2",le="0.3",tk3="v3"`,
 	}
 
 	results := make(map[string]map[uint32]float64, 0)
@@ -424,7 +424,7 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(binsPerSeries))
 
-	bins1 := binsPerSeries["test1{tk1:v1,tk2:v2,tk3:v3"]
+	bins1 := binsPerSeries[`test1{tk1="v1",tk2="v2",tk3="v3"`]
 	assert.Equal(t, 3, len(bins1))
 	assert.Contains(t, bins1, uint32(1))
 	assert.Contains(t, bins1, uint32(2))
@@ -445,7 +445,7 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Equal(t, 3.0, bins1[3][1].count)
 	assert.Equal(t, 0.2, bins1[3][1].upperBound)
 
-	bins2 := binsPerSeries["test2{tk1:v1,tk2:v2,tk3:v3"]
+	bins2 := binsPerSeries[`test2{tk1="v1",tk2="v2",tk3="v3"`]
 	assert.Equal(t, 3, len(bins2))
 	assert.Contains(t, bins2, uint32(1))
 	assert.Contains(t, bins2, uint32(2))
@@ -466,7 +466,7 @@ func Test_getHistogramBins(t *testing.T) {
 	assert.Equal(t, 3.0, bins2[3][1].count)
 	assert.Equal(t, 0.3, bins2[3][1].upperBound)
 
-	bins3 := binsPerSeries["test3{tk1:v1,tk2:v2"]
+	bins3 := binsPerSeries[`test3{tk1="v1",tk2="v2"`]
 	assert.Equal(t, 3, len(bins3))
 	assert.Contains(t, bins3, uint32(1))
 	assert.Contains(t, bins3, uint32(2))
