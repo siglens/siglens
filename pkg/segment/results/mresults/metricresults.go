@@ -353,9 +353,9 @@ func GetSeriesIdWithoutFields(seriesId string, fields []string) string {
 }
 
 // getAggSeriesId returns the group seriesId for the aggregated series based on the given seriesId and groupByFields
-// The seriesId is in the format of "metricName{key1:value1,key2:value2,..."
+// The seriesId is in the format of "metricName{key1="value1",key2="value2",..."
 // If groupByFields is empty, it returns the "metricName{" as the group seriesId
-// If groupByFields is not empty, it returns the "metricName{key1:value1,key2:value2,..." as the group seriesId
+// If groupByFields is not empty, it returns the "metricName{key1="value1",key2="value2",..." as the group seriesId
 // Where key1, key2, ... are the groupByFields and value1, value2, ... are the values of the groupByFields in the seriesId
 // The groupByFields are extracted from the seriesId
 func getAggSeriesId(seriesId string, aggregation *structs.Aggregation) string {
