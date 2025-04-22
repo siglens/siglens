@@ -21,8 +21,6 @@
 /*eslint-disable*/
 let timestampDateFmt = 'MMM Do, YYYY @ HH:mm:ss';
 let defaultColumnCount = 2;
-// let dataTable = null;
-// let aggsDataTable = null;
 let shouldCloseAllDetails = false;
 let filterStartDate = 'now-15m';
 let filterEndDate = 'now';
@@ -770,20 +768,8 @@ function processMetricsSearchResult(res, startTime, panelId, chartType, panelInd
         }
     }
 }
-//eslint-disable-next-line no-unused-vars
-function processMetricsSearchError() {
-    showError(`Your query returned no data, adjust your query.`);
-}
-//eslint-disable-next-line no-unused-vars
-function createMetricsColorsArray() {
-    let root = document.querySelector(':root');
-    let rootStyles = getComputedStyle(root);
-    let colorArray = [];
-    for (let i = 1; i <= 20; i++) {
-        colorArray.push(rootStyles.getPropertyValue(`--graph-line-color-${i}`));
-    }
-    return colorArray;
-}
+
+
 //eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     function setDateTimeInputs(epochTime, dateId, timeId) {
@@ -811,13 +797,6 @@ function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
     Cookies.set('customEndTime', appliedEndTime);
 
     $('.range-item, .db-range-item').removeClass('active');
-}
-
-function addZero(i) {
-    if (i < 10) {
-        i = '0' + i;
-    }
-    return i;
 }
 
 //eslint-disable-next-line no-unused-vars
@@ -908,6 +887,7 @@ function findColumnIndex(columnsMap, columnName) {
     }
     return -1; // Return -1 if the column name is not found
 }
+
 //eslint-disable-next-line no-unused-vars
 function setIndexDisplayValue(selectedSearchIndex) {
     if (selectedSearchIndex) {
