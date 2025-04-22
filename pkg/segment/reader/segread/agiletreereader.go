@@ -36,8 +36,8 @@ const MAX_NODE_PTRS = 80_000
 
 type AgileTreeReader struct {
 	segKey         string
-	metaFd         *os.File // meta file descriptor
-	levDataFd      *os.File // level data file descriptor
+	metaFd         *toputils.ChecksumFile // meta file descriptor
+	levDataFd      *toputils.ChecksumFile // level data file descriptor
 	isMetaLoaded   bool
 	metaFileBuffer []byte // buffer re-used for file reads values
 	metaBuf        []byte // meta buff block
@@ -77,8 +77,10 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 	}
 
 	return &AgileTreeReader{
-		segKey:         segKey,
-		metaFd:         fd,
+		segKey: segKey,
+		metaFd: &toputils.ChecksumFile{
+			Fd: fd,
+		},
 		metaFileBuffer: *segreader.FileReadBufferPool.Get().(*[]byte),
 		isMetaLoaded:   false,
 		buckets:        aggsTreeBuckets{},
@@ -103,11 +105,11 @@ func (str *AgileTreeReader) SetBucketLimit(bucketLimit uint64) {
 }
 
 func (str *AgileTreeReader) Close() error {
-	if str.metaFd != nil {
-		str.metaFd.Close()
+	if str.metaFd.Fd != nil {
+		str.metaFd.Fd.Close()
 	}
-	if str.levDataFd != nil {
-		str.levDataFd.Close()
+	if str.levDataFd.Fd != nil {
+		str.levDataFd.Fd.Close()
 	}
 
 	str.returnBuffers()
@@ -156,7 +158,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 
 	str.resetBlkVars()
 
-	finfo, err := os.Stat(str.metaFd.Name())
+	finfo, err := os.Stat(str.metaFd.Fd.Name())
 	if err != nil {
 		log.Errorf("AgileTreeReader.ReadTreeMeta: could not get file size error: %+v", err)
 		return err
@@ -588,7 +590,10 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 		return fmt.Errorf("AgileTreeReader.computeAggsJit: failed to open STRLev %v  Error: %v.",
 			fName, err)
 	}
-	str.levDataFd = fd
+
+	str.levDataFd = &toputils.ChecksumFile{
+		Fd: fd,
+	}
 
 	myLevsOff := str.treeMeta.levsOffsets[desiredLevel]
 	myLevsSize := int64(str.treeMeta.levsSizes[desiredLevel])

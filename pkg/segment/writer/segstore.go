@@ -18,9 +18,9 @@
 package writer
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -1121,49 +1121,41 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	}
 	defer bffd.Close()
 
-	startOffset, err := bffd.Seek(0, io.SeekEnd)
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to seek at the end of the file fname=%v, err=%v", fname, err)
-		return 0
+	csf := &toputils.ChecksumFile{
+		Fd: bffd,
 	}
+
+	var dataBuf bytes.Buffer
 
 	// There is no accurate way to find the size of bloom before writing it to the file.
 	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
-	bytesWritten := uint32(0)
-
-	_, err = bffd.Write([]byte{0, 0, 0, 0})
-	if err != nil {
-		log.Errorf("flushBloomIndex: failed to skip bytes for bloom size fname=%v, err=%v", fname, err)
-		return 0
-	}
-	bytesWritten += 4
+	dataBuf.Write([]byte{0, 0, 0, 0})
 
 	// copy the blockNum
-	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
-		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
-		return 0
-	}
-	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
+	dataBuf.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks))
 
 	// write CMI type
-	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
-		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
-		return 0
-	}
-	bytesWritten += 1
+	dataBuf.Write(utils.CMI_BLOOM_INDEX)
 
 	// write the blockBloom
-	bloomSize, err := bi.Bf.WriteTo(bffd)
+	_, err = bi.Bf.WriteTo(&dataBuf)
 	if err != nil {
 		log.Errorf("flushBloomIndex: write blockbloom failed fname=%v, err=%v", fname, err)
 		return 0
 	}
-	bytesWritten += uint32(bloomSize)
 
-	// write the correct bloom size
-	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
+	finalBytes := dataBuf.Bytes()
+	bloomTotalSize := uint32(dataBuf.Len()) - 4 // exclude the 4-byte placeholder
+	copy(finalBytes[0:4], toputils.Uint32ToBytesLittleEndian(bloomTotalSize))
+
+	err = csf.AppendPartialChunk(finalBytes)
 	if err != nil {
-		log.Errorf("flushBloomIndex: failed to write bloom size to fname=%v, err=%v", fname, err)
+		log.Errorf("flushBloomIndex: AppendPartialChunk failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	err = csf.Flush()
+	if err != nil {
+		log.Errorf("flushBloomIndex: Flush failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 
@@ -1176,7 +1168,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-utils.BLOOM_SIZE_HISTORY:]
 
 	}
-	return uint64(bytesWritten)
+	return uint64(dataBuf.Len())
 }
 
 // returns the number of bytes written
@@ -1220,6 +1212,9 @@ func (segstore *SegStore) flushBlockRangeIndex(cname string, ri *RangeIndex) uin
 		log.Errorf("flushBlockRangeIndex: open failed fname=%v, err=%v", fname, err)
 		return 0
 	}
+	csf := &toputils.ChecksumFile{
+		Fd: fr,
+	}
 
 	packedLen, blkRIBuf, err := EncodeRIBlock(ri.Ranges, segstore.numBlocks)
 	if err != nil {
@@ -1227,8 +1222,13 @@ func (segstore *SegStore) flushBlockRangeIndex(cname string, ri *RangeIndex) uin
 		return 0
 	}
 
-	if _, err := fr.Write(blkRIBuf[0:packedLen]); err != nil {
-		log.Errorf("flushBlockRangeIndex:  write failed blockRangeIndexFname=%v, err=%v", fname, err)
+	if err := csf.AppendPartialChunk(blkRIBuf[:packedLen]); err != nil {
+		log.Errorf("flushBlockRangeIndex: AppendPartialChunk failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+
+	if err := csf.Flush(); err != nil {
+		log.Errorf("flushBlockRangeIndex: Flush failed fname=%v, err=%v", fname, err)
 		return 0
 	}
 	fr.Close()
@@ -1487,9 +1487,10 @@ func (ss *SegStore) FlushSegStats() error {
 		return err
 	}
 	defer fd.Close()
+	csf := &toputils.ChecksumFile{Fd: fd}
 
 	// version
-	_, err = fd.Write(utils.VERSION_SEGSTATS)
+	err = csf.AppendPartialChunk(utils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1498,14 +1499,15 @@ func (ss *SegStore) FlushSegStats() error {
 	for cname, sst := range ss.AllSst {
 
 		// cname len
-		_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(cname))))
+		cnameLen := toputils.Uint16ToBytesLittleEndian(uint16(len(cname)))
+		err = csf.AppendPartialChunk(cnameLen)
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write cnamelen cname=%v err=%v", cname, err)
 			return err
 		}
 
 		// cname
-		_, err = fd.WriteString(cname)
+		err = csf.AppendPartialChunk([]byte(cname))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write cname cname=%v err=%v", cname, err)
 			return err
@@ -1518,18 +1520,25 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencodinglen
-		_, err = fd.Write(toputils.Uint32ToBytesLittleEndian(idx))
+		colsegencodlen := toputils.Uint32ToBytesLittleEndian(idx)
+		err = csf.AppendPartialChunk(colsegencodlen)
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencodlen cname=%v err=%v", cname, err)
 			return err
 		}
 
 		// colsegencoding
-		_, err = fd.Write(ss.segStatsWorkBuf[0:idx])
+		err = csf.AppendPartialChunk(ss.segStatsWorkBuf[0:idx])
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencoding cname=%v err=%v", cname, err)
 			return err
 		}
+	}
+
+	err = csf.Flush()
+	if err != nil {
+		log.Errorf("FlushSegStats: Flush() failed, err=%v", err)
+		return err
 	}
 
 	finalName := fmt.Sprintf("%v.sst", ss.SegmentKey)

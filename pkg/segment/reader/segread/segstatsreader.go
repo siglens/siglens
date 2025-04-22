@@ -38,6 +38,7 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	}
 
 	fdata, err := os.ReadFile(fName)
+	fd, err := os.Open(fName)
 	if err != nil {
 		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to read sst file: %+v, err: %v", qid, fName, err)
 	}
@@ -54,6 +55,11 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	}
 
 	rIdx := uint32(0)
+	csf := &toputils.ChecksumFile{Fd: fd}
+	fileInfo, err := fd.Stat()
+	fileSize := fileInfo.Size()
+	fdata = make([]byte, fileSize-12)
+	_, err = csf.ReadAt(fdata, 0)
 
 	// version
 	version := fdata[rIdx]
