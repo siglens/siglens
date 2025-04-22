@@ -143,25 +143,56 @@ func assertInstantQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.Moc
 }
 
 func Test_ExecuteRangeQuery(t *testing.T) {
-	mockReader := &metricsevaluator.MockReader{
-		Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
-			"metric": {
-				{Ts: 1700000000, Value: 1.0},
-				{Ts: 1700000001, Value: 2.0},
-				{Ts: 1700000005, Value: 3.0},
+	t.Run("Simple", func(t *testing.T) {
+		mockReader := &metricsevaluator.MockReader{
+			Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+				"metric": {
+					{Ts: 1700000000, Value: 1.0},
+					{Ts: 1700000001, Value: 2.0},
+					{Ts: 1700000005, Value: 3.0},
+				},
 			},
-		},
-	}
+		}
 
-	assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000006, 1, `metric`,
-		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000000,"1"],[1700000001,"2"],[1700000002,"2"],[1700000003,"2"],[1700000004,"2"],[1700000005,"3"],[1700000006,"3"]]}]}}`,
-	)
-	assertRangeQueryYieldsJson(t, mockReader, 1700000298, 1700000306, 1, `metric`,
-		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000298,"3"],[1700000299,"3"],[1700000300,"3"],[1700000301,"3"],[1700000302,"3"],[1700000303,"3"],[1700000304,"3"]]}]}}`,
-	)
-	assertRangeQueryYieldsJson(t, mockReader, 1700000005, 1700000010, 2, `metric`,
-		`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000005,"3"],[1700000007,"3"],[1700000009,"3"]]}]}}`,
-	)
+		assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000006, 1, `metric`,
+			`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000000,"1"],[1700000001,"2"],[1700000002,"2"],[1700000003,"2"],[1700000004,"2"],[1700000005,"3"],[1700000006,"3"]]}]}}`,
+		)
+		assertRangeQueryYieldsJson(t, mockReader, 1700000298, 1700000306, 1, `metric`,
+			`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000298,"3"],[1700000299,"3"],[1700000300,"3"],[1700000301,"3"],[1700000302,"3"],[1700000303,"3"],[1700000304,"3"]]}]}}`,
+		)
+		assertRangeQueryYieldsJson(t, mockReader, 1700000005, 1700000010, 2, `metric`,
+			`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric"},"values":[[1700000005,"3"],[1700000007,"3"],[1700000009,"3"]]}]}}`,
+		)
+	})
+
+	t.Run("Multiple Series", func(t *testing.T) {
+		mockReader := &metricsevaluator.MockReader{
+			Data: map[metricsevaluator.SeriesId][]metricsevaluator.Sample{
+				`metric{bucket="b1"}`: {
+					{Ts: 1700000000, Value: 10.0},
+				},
+				`metric{bucket="b2"}`: {
+					{Ts: 1700000000, Value: 20.0},
+				},
+				`metric{bucket="b9"}`: {
+					{Ts: 1700000000, Value: 90.0},
+				},
+				`metric{bucket="b10"}`: {
+					{Ts: 1700000000, Value: 100.0},
+				},
+				`metric{bucket="b11"}`: {
+					{Ts: 1700000000, Value: 110.0},
+				},
+				`metric{bucket="b20"}`: {
+					{Ts: 1700000000, Value: 200.0},
+				},
+			},
+		}
+
+		assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000002, 1, `metric`,
+			`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric","bucket":"b1"},"values":[[1700000000,"10"],[1700000001,"10"],[1700000002,"10"]]},{"metric":{"__name__":"metric","bucket":"b10"},"values":[[1700000000,"100"],[1700000001,"100"],[1700000002,"100"]]},{"metric":{"__name__":"metric","bucket":"b11"},"values":[[1700000000,"110"],[1700000001,"110"],[1700000002,"110"]]},{"metric":{"__name__":"metric","bucket":"b2"},"values":[[1700000000,"20"],[1700000001,"20"],[1700000002,"20"]]},{"metric":{"__name__":"metric","bucket":"b20"},"values":[[1700000000,"200"],[1700000001,"200"],[1700000002,"200"]]},{"metric":{"__name__":"metric","bucket":"b9"},"values":[[1700000000,"90"],[1700000001,"90"],[1700000002,"90"]]}]}}`,
+		)
+	})
 }
 
 func assertRangeQueryYieldsJson(t *testing.T, mockReader *metricsevaluator.MockReader,
