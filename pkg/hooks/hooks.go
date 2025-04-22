@@ -177,7 +177,10 @@ type JsSnippets struct {
 var GlobalHooks = Hooks{
 	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
 		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/*.html"))
+		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/management/*.html"))
+	
 		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/js/*.js"))
+		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/management/js/*.js"))
 	},
 	JsSnippets: JsSnippets{
 		ShowSLO: true,
