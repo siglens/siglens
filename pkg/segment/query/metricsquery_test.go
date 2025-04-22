@@ -189,9 +189,12 @@ func Test_ExecuteRangeQuery(t *testing.T) {
 			},
 		}
 
-		assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000002, 1, `metric`,
-			`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric","bucket":"b1"},"values":[[1700000000,"10"],[1700000001,"10"],[1700000002,"10"]]},{"metric":{"__name__":"metric","bucket":"b10"},"values":[[1700000000,"100"],[1700000001,"100"],[1700000002,"100"]]},{"metric":{"__name__":"metric","bucket":"b11"},"values":[[1700000000,"110"],[1700000001,"110"],[1700000002,"110"]]},{"metric":{"__name__":"metric","bucket":"b2"},"values":[[1700000000,"20"],[1700000001,"20"],[1700000002,"20"]]},{"metric":{"__name__":"metric","bucket":"b20"},"values":[[1700000000,"200"],[1700000001,"200"],[1700000002,"200"]]},{"metric":{"__name__":"metric","bucket":"b9"},"values":[[1700000000,"90"],[1700000001,"90"],[1700000002,"90"]]}]}}`,
-		)
+		// Loop to check for flakiness.
+		for i := 0; i < 50; i++ {
+			assertRangeQueryYieldsJson(t, mockReader, 1699999998, 1700000002, 1, `metric`,
+				`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"metric","bucket":"b1"},"values":[[1700000000,"10"],[1700000001,"10"],[1700000002,"10"]]},{"metric":{"__name__":"metric","bucket":"b10"},"values":[[1700000000,"100"],[1700000001,"100"],[1700000002,"100"]]},{"metric":{"__name__":"metric","bucket":"b11"},"values":[[1700000000,"110"],[1700000001,"110"],[1700000002,"110"]]},{"metric":{"__name__":"metric","bucket":"b2"},"values":[[1700000000,"20"],[1700000001,"20"],[1700000002,"20"]]},{"metric":{"__name__":"metric","bucket":"b20"},"values":[[1700000000,"200"],[1700000001,"200"],[1700000002,"200"]]},{"metric":{"__name__":"metric","bucket":"b9"},"values":[[1700000000,"90"],[1700000001,"90"],[1700000002,"90"]]}]}}`,
+			)
+		}
 	})
 }
 
