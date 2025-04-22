@@ -28,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1155,8 +1156,8 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		assert.NotNil(t, mName)
 		assert.Equal(t, "*", mName)
 
-		assert.True(t, strings.Contains(seriesId, "color:"))
-		assert.True(t, strings.Contains(seriesId, "shape:"))
+		assert.True(t, strings.Contains(seriesId, "color="))
+		assert.True(t, strings.Contains(seriesId, "shape="))
 
 		keyValueSet, values := mresults.ExtractGroupByFieldsFromSeriesId(seriesId, groupByKeys)
 		assert.NotNil(t, keyValueSet)
@@ -1167,7 +1168,8 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByTag_v1(t *tes
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
-		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		colorVal, err := strconv.Unquote(strings.Split(colorKeyVal[0], "=")[1])
+		assert.Nil(t, err)
 		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpValues := make([]float64, 0)
@@ -1275,7 +1277,8 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Regex_Filter_GroupByTag_v2(
 		assert.NotNil(t, colorKeyVal)
 		assert.Equal(t, 1, len(colorKeyVal))
 
-		colorVal := strings.Split(colorKeyVal[0], ":")[1]
+		colorVal, err := strconv.Unquote(strings.Split(colorKeyVal[0], "=")[1])
+		assert.Nil(t, err)
 		assert.Equal(t, colorValues[0], colorVal)
 
 		seriesDpStructSlice := make([]*seriesDataPoint, 0)
@@ -1368,7 +1371,8 @@ func Test_SimpleMetricQuery_Regex_on_MetricName_Plus_Filter_GroupByMetric_plus_G
 		assert.NotNil(t, shapeKeyVal)
 		assert.Equal(t, 1, len(shapeKeyVal))
 
-		shapeVal := strings.Split(shapeKeyVal[0], ":")[1]
+		shapeVal, err := strconv.Unquote(strings.Split(shapeKeyVal[0], "=")[1])
+		assert.Nil(t, err)
 		assert.Equal(t, "solid", shapeVal)
 		assert.Equal(t, 1, len(values))
 		assert.Equal(t, "solid", values[0])
@@ -1501,7 +1505,7 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	expectedQueryResult1 := &expectedQueryResult{
 		resultSize: 1,
 		expectedResults: map[string][]float64{
-			"testmetric0{color:red,shape:circle": {2, 1, 1, 1},
+			`testmetric0{color="red",shape="circle"`: {2, 1, 1, 1},
 		},
 	}
 
@@ -1509,8 +1513,8 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	expectedQueryResult2 := &expectedQueryResult{
 		resultSize: 2,
 		expectedResults: map[string][]float64{
-			"*{size:small,shape:circle":   {1, 1, 1, 1},
-			"*{size:large,shape:triangle": {1, 1, 1, 1},
+			`*{size="small",shape="circle"`:   {1, 1, 1, 1},
+			`*{size="large",shape="triangle"`: {1, 1, 1, 1},
 		},
 	}
 
@@ -1519,15 +1523,15 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 	expectedQueryResult3 := &expectedQueryResult{
 		resultSize: 2,
 		expectedResults: map[string][]float64{
-			"testmetric0{size:small,shape:circle":   {1, 1, 1, 1},
-			"testmetric2{size:large,shape:triangle": {1, 1, 1, 1},
+			`testmetric0{size="small",shape="circle"`:   {1, 1, 1, 1},
+			`testmetric2{size="large",shape="triangle"`: {1, 1, 1, 1},
 		},
 	}
 
 	expectedQueryResult4 := &expectedQueryResult{
 		resultSize: 1,
 		expectedResults: map[string][]float64{
-			"*{size:small,shape:circle": {1, 1, 1, 1},
+			`*{size="small",shape="circle"`: {1, 1, 1, 1},
 		},
 	}
 
@@ -1552,8 +1556,9 @@ func Test_SimpleMetricQuery_Regex_on_TagFilters_Plus_Filter_Plus_GroupByTag_v1(t
 			assert.NotNil(t, seriesDp)
 			assert.Greater(t, len(seriesDp), 0)
 
+			t.Logf("expectedReults: %v, seriesId: %v", expectedResult.expectedResults, seriesId)
 			expectedSeriesDpValues, ok := expectedResult.expectedResults[seriesId]
-			assert.True(t, ok, "Query Index: ", ind, "SeriesId: ", seriesId)
+			assert.True(t, ok, "Query Index: %v, SeriesId: %v", ind, seriesId)
 
 			seriesDpStructSlice := make([]*seriesDataPoint, 0)
 			for ts, dp := range seriesDp {
@@ -1608,8 +1613,8 @@ func Test_SimpleMetricQueryGroupByWithout(t *testing.T) {
 	assert.Equal(t, 1, len(metricQueryRequest))
 
 	expectedResults := map[string][]float64{
-		"testmetric0{color:red,size:small,type:solid": {10, 50, 60, 70},
-		"testmetric0{color:red,type:solid":            {40},
+		`testmetric0{color="red",size="small",type="solid"`: {10, 50, 60, 70},
+		`testmetric0{color="red",type="solid"`:              {40},
 	}
 
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
@@ -1671,8 +1676,8 @@ func Test_SimpleMetricQueryUnrotatedBlockData(t *testing.T) {
 	assert.Equal(t, 1, len(metricQueryRequest))
 
 	expectedResults := map[string][]float64{
-		"testmetric0{color:red,radius:10,shape:circle,type:solid,":  {40},
-		"testmetric0{color:red,shape:circle,size:small,type:solid,": {10, 50, 60, 70},
+		`testmetric0{color="red",radius="10",shape="circle",type="solid",`:  {40},
+		`testmetric0{color="red",shape="circle",size="small",type="solid",`: {10, 50, 60, 70},
 	}
 
 	res := segment.ExecuteMetricsQuery(&metricQueryRequest[0].MetricsQuery, &metricQueryRequest[0].TimeRange, getNextQid())
