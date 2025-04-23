@@ -119,8 +119,6 @@ $(document).ready(async () => {
         } else {
             datePickerHandler(stDate, endDate, '');
         }
-        $('#run-filter-btn').html(' ');
-        $('#query-builder-btn').html(' ');
         $('#custom-chart-tab').hide();
 
         //No query string found, using default search filter

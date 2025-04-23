@@ -26,12 +26,8 @@ function wsURL(path) {
 function doCancel(data) {
     socket.send(JSON.stringify(data));
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     $('#progress-div').html(``);
     $('#record-searched').html(``);
 }
@@ -94,11 +90,8 @@ function doSearch(data) {
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
-            $('#run-filter-btn').addClass('cancel-search');
-            $('#run-filter-btn').addClass('active');
-            $('#query-builder-btn').html('   ');
-            $('#query-builder-btn').addClass('cancel-search');
-            $('#query-builder-btn').addClass('active');
+            $('#run-filter-btn').addClass('cancel-search').addClass('active');
+            $('#query-builder-btn').addClass('cancel-search').addClass('active');
 
             try {
                 socket.send(JSON.stringify(data));
@@ -831,12 +824,8 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents);
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
@@ -893,12 +882,8 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     }
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents, columnCount);
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
@@ -927,43 +912,34 @@ function processSearchErrorLog(res) {
 }
 
 function processEmptyQueryResults() {
-    $('#logs-result-container').hide();
-    $('#custom-chart-tab').show().css({ height: 'auto' });
-    $('.tab-chart-list, #views-container, .fields-sidebar, #pagination-container').hide();
-    $('#agg-result-container').hide();
-    $('#corner-popup').hide();
-    $('#empty-response').show();
+    $('#views-container, .fields-sidebar, .pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
     $('#save-query-div').children().hide();
-    $('#show-record-intro-btn').show();
-    $('#initial-response').hide();
+    $('#custom-chart-tab').hide();
     $('.json-popup').hide();
-    $('#empty-response').empty();
+
+    $('#show-record-intro-btn').show();
+    $('#empty-response').empty().show();
 
     addEmptyMessagePopup();
 }
 
 function showErrorResponse(res) {
-    $('#logs-result-container').hide();
-    $('#agg-result-container').hide();
-    $('#corner-popup').hide();
-    $('#empty-response').show();
+    $('#views-container, .fields-sidebar, .pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
     $('#save-query-div').children().hide();
-    $('#views-container, .fields-sidebar, .pagination-container').hide();
     $('#custom-chart-tab').hide();
-    $('#empty-response').empty();
+    $('.json-popup').hide();
+
+    $('#empty-response').empty().show();
     if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
         addEmptyMessagePopup();
     } else {
         showError(`Message: ${res.message}`);
     }
+
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
-    $('.json-popup').hide();
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
+
     wsState = 'query';
 }
 

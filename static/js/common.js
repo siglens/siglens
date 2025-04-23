@@ -92,8 +92,8 @@ function showError(mainText, subText) {
     $('#corner-popup .corner-text').html(mainText);
     $('#corner-popup .sub-message').html(subText);
     $('#corner-popup').show();
+
     $('body').css('cursor', 'default');
-    $('#run-filter-btn, #query-builder-btn').html(' ');
     $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     $('#logs-result-container, #agg-result-container, #views-container, .fields-sidebar, #empty-response, #custom-chart-tab').hide();
