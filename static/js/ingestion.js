@@ -146,6 +146,23 @@ function formatMethodName(methodParam, type) {
 }
 
 function navigateToLogDetails(source, ingestURL) {
+    if (source === 'Promtail' || source === 'OpenTelemetry Collector' || source === 'Filebeat') {
+        switch (source) {
+            case 'Promtail':
+                mdFileName = 'promtail';
+                break;
+            case 'OpenTelemetry Collector':
+                mdFileName = 'opentelemetry';
+                break;
+            case 'Filebeat':
+                mdFileName = 'filebeat';
+                break;
+        }
+        
+        window.open(`instructions.html?type=logs&method=${mdFileName}`, '_self');
+        return;
+    }
+
     $('#logs-cards-view').hide();
     $('#logs-ingestion-details').show();
 
@@ -188,10 +205,6 @@ function navigateToLogDetails(source, ingestURL) {
     let urlParam = '';
 
     switch (source) {
-        case 'OpenTelemetry Collector':
-            docPath = 'log-ingestion/open-telemetry';
-            urlParam = 'opentelemetry';
-            break;
         case 'Vector':
             docPath = 'log-ingestion/vector';
             urlParam = 'vector';
@@ -203,14 +216,6 @@ function navigateToLogDetails(source, ingestURL) {
         case 'Fluentd':
             docPath = 'log-ingestion/fluentd';
             urlParam = 'fluentd';
-            break;
-        case 'Filebeat':
-            docPath = 'log-ingestion/filebeat';
-            urlParam = 'filebeat';
-            break;
-        case 'Promtail':
-            docPath = 'log-ingestion/promtail';
-            urlParam = 'promtail';
             break;
         case 'Elastic Bulk':
             docPath = 'migration/elasticsearch/fluentd';

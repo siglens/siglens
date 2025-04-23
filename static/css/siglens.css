@@ -4096,13 +4096,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .copy-button .copy-icon {
     top: 6px;
     right: 5px;
-    height: 12px;
-    width: 12px;
 }
 
 .copy-button .copy-icon.success {
-    width: 14px;
-    height: 10px;
     top: 8px;
 }
 
@@ -5840,8 +5836,8 @@ p#versionInfo {
 .copy-icon {
     position: absolute;
     display: inline-block;
-    width: 14px;
-    height: 14px;
+    height: 12px;
+    width: 12px;
     background-size: cover;
     background-image: var(--copy-icon);
     cursor: pointer;
@@ -5852,8 +5848,8 @@ p#versionInfo {
 
 .copy-icon.success {
     background-image: url("../assets/tick-icon.svg");
-    width: 16px;
-    height: 12px;
+    width: 14px;
+    height: 10px;
     top: 9px;
 }
 
