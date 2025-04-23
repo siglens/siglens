@@ -88,50 +88,16 @@ let aggGridOptions = {
 /*eslint-enable*/
 {{ .CommonExtraFunctions }}
 
-function showError(errorMsg) {
-    $('#logs-result-container').hide();
-    $('#agg-result-container').hide();
-    $('#data-row-container').hide();
-    $('#empty-response').hide();
-    $('#pagination-container').hide();
-    let currentTab = $('#custom-chart-tab').tabs('option', 'active');
-    if (currentTab == 0) {
-        $('#save-query-div').children().show();
-        $('#views-container, .fields-sidebar').show();
-    } else {
-        $('#save-query-div').children().hide();
-        $('#views-container, .fields-sidebar').show();
-    }
-    $('#custom-chart-tab').show().css({ height: '100%' });
-    $('#corner-popup .corner-text').html(errorMsg);
+function showError(mainText, subText) {
+    $('#corner-popup .corner-text').html(mainText);
+    $('#corner-popup .sub-message').html(subText);
     $('#corner-popup').show();
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
-    $('#live-tail-btn').html('Live Tail');
-    $('#live-tail-btn').removeClass('active');
-
-    wsState = 'query';
-}
-//eslint-disable-next-line no-unused-vars
-function showInfo(infoMsg) {
-    $('#corner-popup .corner-text').html(infoMsg);
-    $('#corner-popup').show();
-    $('#corner-popup').css('position', 'absolute');
-    $('#corner-popup').css('bottom', '3rem');
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
-    $('#live-tail-btn').html('Live Tail');
-    $('#live-tail-btn').removeClass('active');
+    $('#run-filter-btn, #query-builder-btn').html(' ');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
+    $('#logs-result-container, #agg-result-container, #views-container, .fields-sidebar, #empty-response, #custom-chart-tab').hide();
+    $('#save-query-div').children().hide();
     wsState = 'query';
 }
 
@@ -139,13 +105,6 @@ function hideError() {
     $('#corner-popup').hide();
 }
 
-function hideCornerPopupError() {
-    let message = $('.corner-text').text();
-    $('#corner-popup').hide();
-    $('#progress-div').html(``);
-    $('#record-searched').html(``);
-    processEmptyQueryResults(message);
-}
 //eslint-disable-next-line no-unused-vars
 function decodeJwt(token) {
     let base64Payload = token.split('.')[1];

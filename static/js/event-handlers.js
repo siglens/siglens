@@ -31,8 +31,6 @@ function setupEventHandlers() {
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
-    $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
-
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
     $('#query-language-btn').on('hide.bs.dropdown', qLangOnHideHandler);
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
