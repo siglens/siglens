@@ -431,8 +431,8 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 			if int(recNum) >= len(sfr.deRecToTlv) {
 				numErrors++
 				if err == nil {
-					err = fmt.Errorf("recNum %+v exceeds the number of records %+v in block %+v",
-						recNum, sfr.blockSummaries[blockNum].RecCount, blockNum)
+					err = fmt.Errorf("recNum %+v exceeds the number of records %+v in block %+v, fileName: %v, colname: %v",
+						recNum, sfr.blockSummaries[blockNum].RecCount, blockNum, sfr.fileName, sfr.ColName)
 				}
 
 				continue
