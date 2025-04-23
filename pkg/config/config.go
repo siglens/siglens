@@ -1336,13 +1336,13 @@ func setGoMemLimit(cfg *common.Configuration) {
 		return
 	}
 
-	limitStr := strconv.FormatUint(cfg.MemoryConfig.GoMemLimit, 10)
-	if err := os.Setenv("GOMEMLIMIT", limitStr); err != nil {
-		log.Infof("failed to set GOMEMLIMIT=%s: %v", limitStr, err)
+	limit := strconv.FormatUint(cfg.MemoryConfig.GoMemLimit, 10)
+	if err := os.Setenv("GOMEMLIMIT", limit); err != nil {
+		log.Infof("setGoMemLimit : failed to set GOMEMLIMIT=%s: %v", limit, err)
 		return
 	}
 
-	log.Infof("GOMEMLIMIT set to %s (from configuration)", limitStr)
+	log.Infof("setGoMemLimit : GOMEMLIMIT set to %s (from configuration)", limit)
 }
 
 func ExtractCmdLineInput() string {
