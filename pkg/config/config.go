@@ -1265,6 +1265,8 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
+	setGoMemLimit(&config)
+
 	if os.Getenv("TRACE_SAMPLING_PERCENTAGE") != "" {
 		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PERCENTAGE"), 64)
 		if err != nil {
@@ -1322,6 +1324,25 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 func SetConfig(config common.Configuration) {
 	runningConfig = config
+}
+
+// Ensure GOMEMLIMIT is set from configuration when the env var is absent.
+func setGoMemLimit(cfg *common.Configuration) {
+	if os.Getenv("GOMEMLIMIT") != "" {
+		return
+	}
+
+	if cfg == nil || cfg.MemoryConfig.GoMemLimit == 0 {
+		return
+	}
+
+	limitStr := strconv.FormatUint(cfg.MemoryConfig.GoMemLimit, 10)
+	if err := os.Setenv("GOMEMLIMIT", limitStr); err != nil {
+		log.Infof("failed to set GOMEMLIMIT=%s: %v", limitStr, err)
+		return
+	}
+
+	log.Infof("GOMEMLIMIT set to %s (from configuration)", limitStr)
 }
 
 func ExtractCmdLineInput() string {
