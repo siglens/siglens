@@ -26,12 +26,8 @@ function wsURL(path) {
 function doCancel(data) {
     socket.send(JSON.stringify(data));
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     $('#progress-div').html(``);
     $('#record-searched').html(``);
 }
@@ -57,7 +53,6 @@ function resetDataTable(firstQUpdate) {
             $('#views-container, .fields-sidebar').show();
         }
         $('#agg-result-container').hide();
-        $('#data-row-container').hide();
         hideError();
     }
 }
@@ -95,11 +90,8 @@ function doSearch(data) {
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
-            $('#run-filter-btn').addClass('cancel-search');
-            $('#run-filter-btn').addClass('active');
-            $('#query-builder-btn').html('   ');
-            $('#query-builder-btn').addClass('cancel-search');
-            $('#query-builder-btn').addClass('active');
+            $('#run-filter-btn').addClass('cancel-search').addClass('active');
+            $('#query-builder-btn').addClass('cancel-search').addClass('active');
 
             try {
                 socket.send(JSON.stringify(data));
@@ -177,7 +169,7 @@ function doSearch(data) {
                 default:
                     console.log(`[message] Unknown state received from server: ` + JSON.stringify(jsonEvent));
                     if (jsonEvent.message.includes('expected')) {
-                        jsonEvent.message = 'Your query contains syntax error';
+                        addSyntaxMessagePopup();
                     } else if (jsonEvent.message.includes('not present')) {
                         jsonEvent['no_data_err'] = 'No data found for the query';
                     }
@@ -799,22 +791,6 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
     $('body').css('cursor', 'default');
 }
 
-function processEmptyQueryResults(message) {
-    $('#logs-result-container').hide();
-    $('#custom-chart-tab').show().css({ height: 'auto' });
-    $('.tab-chart-list, #views-container, .fields-sidebar, #pagination-container').hide();
-    $('#agg-result-container').hide();
-    $('#data-row-container').hide();
-    $('#corner-popup').hide();
-    $('#empty-response').show();
-    $('#save-query-div').children().hide();
-    $('#show-record-intro-btn').show();
-    let el = $('#empty-response');
-    $('#empty-response').empty();
-    $('.json-popup').hide();
-    el.append(`<span>${message}</span>`);
-}
-
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
     let columnOrder = [];
     let totalHits = res.totalMatched.value + logsRowData.length;
@@ -848,12 +824,8 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents);
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
@@ -863,7 +835,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     let columnOrder = [];
     let totalHits = res.totalMatched.value;
     if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
-        processEmptyQueryResults('Your query returned no data, adjust your query.');
+        processEmptyQueryResults();
     } else {
         handleSearchResultsForPagination(res);
     }
@@ -910,12 +882,8 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     }
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents, columnCount);
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
@@ -924,10 +892,10 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 }
 
 function processTimeoutUpdate(res) {
-    showError(`Query ${res.qid} reached the timeout limit of ${res.timeoutSeconds} seconds`);
+    showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
 }
 function processCancelUpdate(res) {
-    showError(`Query ${res.qid} was cancelled`);
+    showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
 }
 function processErrorUpdate(res) {
@@ -936,38 +904,85 @@ function processErrorUpdate(res) {
 
 function processSearchErrorLog(res) {
     if (res.can_scroll_more === false) {
-        showInfo(`You've reached maximum scroll limit (10,000).`);
+        showError('Scroll limit reached (10,000 logs)', `You've reached the maximum number of logs that can be displayed.`);
     } else if (res.message != '') {
-        showErrorResponse(`Message: ${res.message}`, res);
+        showErrorResponse(res);
         resetDashboard();
     }
 }
 
-function showErrorResponse(errorMsg, res) {
-    $('#logs-result-container').hide();
-    $('#agg-result-container').hide();
-    $('#data-row-container').hide();
-    $('#corner-popup').hide();
-    $('#empty-response').show();
+function processEmptyQueryResults() {
+    $('#views-container, .fields-sidebar, .pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
     $('#save-query-div').children().hide();
-    $('#views-container, .fields-sidebar, .pagination-container').hide();
     $('#custom-chart-tab').hide();
-    let el = $('#empty-response');
-    $('#empty-response').empty();
-    if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
-        el.html(`${res.no_data_err} <br> ` + errorMsg);
-    } else {
-        el.html(errorMsg);
-    }
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
     $('.json-popup').hide();
+
+    $('#show-record-intro-btn').show();
+    $('#empty-response').empty().show();
+
+    addEmptyMessagePopup();
+}
+
+function showErrorResponse(res) {
+    $('#views-container, .fields-sidebar, .pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
+    $('#save-query-div').children().hide();
+    $('#custom-chart-tab').hide();
+    $('.json-popup').hide();
+
+    $('#empty-response').empty().show();
+    if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
+        addEmptyMessagePopup();
+    } else {
+        showError(`Message: ${res.message}`);
+    }
+
+    $('body').css('cursor', 'default');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
+
     wsState = 'query';
+}
+
+function addEmptyMessagePopup() {
+    let el = $('#empty-response');
+    el.append(`
+    <div class="no-results-container">
+        <div class="icon-container">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6449D6" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        </div>
+        <div class="main-message">No results found for your current query</div>
+        <div class="sub-message">We couldn't find any logs matching your criteria. Try the following:</div>
+        <div class="suggestions-container">
+            <div class="suggestion-item"><span>⏰</span><span class="suggestion-text">Expand the time range</span></div>
+            <div class="suggestion-item"><span>🔍</span><span class="suggestion-text">Remove some filters</span></div>
+        </div>
+    </div>
+`);
+}
+
+function addSyntaxMessagePopup() {
+    let el = $('#empty-response');
+    el.append(`
+        <div class="syntax-error-container">
+        <div class="icon-container">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        </div>
+        <div class="main-message">Your query contains syntax error</div>
+        <div class="sub-message">Please check your query for:</div>
+        <div class="suggestions-container">
+            <div class="suggestion-item"><span class="suggestion-text">Missing quotes or brackets</span></div>            
+            <div class="suggestion-item"><span class="suggestion-text">Invalid operators</span></div>
+            <div class="suggestion-item"><span class="suggestion-text">Incorrect function syntax</span></div>
+        </div>
+    </div>
+`);
 }
 
 function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype, totalPossibleEvents, columnCount) {

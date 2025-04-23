@@ -1434,39 +1434,24 @@ progress.hidden {
 
 #corner-popup {
     display: none;
-    box-sizing: border-box;
-    max-height: 200px;
-    min-height: 50px;
-    z-index: 9999;
     position: absolute;
-    top: 30%;
-    right: 50%;
-    transform: translate(50%, 50%);
-    min-width: 300px;
-    max-width: 95vw;
-    padding: 38px 70px;
-    overflow: hidden;
-    align-self: center;
-    background: var(--ui-widget-bg-color);
-    border: 1px solid var(--ui-widget-border-color);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    padding: 40px 20px;
+    background-color: var(--qb-box-bg);
+    max-width: 600px;
+    border: 1px solid var(--logs-expand-icon-box-color);
+    box-shadow: 0 2px 4px var(--shadow-1);
     border-radius: 8px !important;
 }
 
 .corner-text {
-    color: var(--text-color);
-    font-size: 12px;
-    line-height: 24px;
-    text-align: center;
-}
-
-#corner-popup .corner-container {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 28px;
-    column-gap: 3px;
-    flex-wrap: nowrap;
-    align-self: center;
+    font-size: 25px;
     font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 8px;
 }
 
 #empty-qsearch-response,
@@ -1474,12 +1459,13 @@ progress.hidden {
     text-align: center;
     font-size: 24px;
     font-weight: 500;
-    color: var(--empty-response-text-color);
+    color: var(--text-color);
     width: 100%;
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    padding: 30px;
 }
 
 /* Save Query Dialog box */
@@ -3317,14 +3303,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--datatable-bg-color);
     font-size: 24px;
     font-weight: bold;
-    color: var(--empty-response-text-color);
+    color: var(--text-color);
     z-index: 1;
     transform: none;
 }
 
 .panel-body #empty-response {
-    font-weight: bold;
-    color: var(--empty-response-text-color);
+    font-weight: 500;
+    color: var(--text-color);
 }
 
 .dropdown-style {
@@ -3851,7 +3837,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     transition: transform 0.3s ease;
 }
 
-.nav-dropdown-icon.rotated{
+.nav-dropdown-icon.rotated {
     transform: rotate(180deg) !important;
 }
 
@@ -7560,7 +7546,7 @@ p#versionInfo {
     height: 100%;
     position: relative;
     flex: 0 0 4px;
-    z-index: 10;
+    z-index: 1;
 }
 
 .fields-resizer:hover,
