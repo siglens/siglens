@@ -1459,7 +1459,7 @@ progress.hidden {
     text-align: center;
     font-size: 24px;
     font-weight: 500;
-    color: var(--empty-response-text-color);
+    color: var(--text-color);
     width: 100%;
     position: absolute;
     top: 50%;
@@ -3303,14 +3303,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--datatable-bg-color);
     font-size: 24px;
     font-weight: bold;
-    color: var(--empty-response-text-color);
+    color: var(--text-color);
     z-index: 1;
     transform: none;
 }
 
 .panel-body #empty-response {
-    font-weight: bold;
-    color: var(--empty-response-text-color);
+    font-weight: 500;
+    color: var(--text-color);
 }
 
 .dropdown-style {
