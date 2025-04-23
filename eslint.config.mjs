@@ -232,6 +232,8 @@ export default [
                 tippy: true,
                 getGraphGridColors: true,
                 updateChartColorsBasedOnTheme: true,
+                hljs: true,
+                marked: true
             },
         },
         rules: {
