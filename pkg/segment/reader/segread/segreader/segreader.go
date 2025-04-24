@@ -393,9 +393,7 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 	idx += 2
 
 	sfr.deTlv = toputils.ResizeSlice(sfr.deTlv, int(numWords))
-	//  blockSummaries.RecCount is actually recNumbers and starts from 0
-	// hence we add 1
-	sfr.deRecToTlv = toputils.ResizeSlice(sfr.deRecToTlv, int(1+sfr.blockSummaries[blockNum].RecCount))
+	sfr.deRecToTlv = toputils.ResizeSlice(sfr.deRecToTlv, int(sfr.blockSummaries[blockNum].RecCount))
 
 	var numRecs uint16
 	var soffW uint32
