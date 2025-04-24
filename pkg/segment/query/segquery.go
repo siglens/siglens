@@ -141,11 +141,12 @@ func GetQueryTypeFromAggs(aggs *structs.QueryAggregators) structs.QueryType {
 	}
 
 	if aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
-		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns == nil {
-			return structs.SegmentStatsCmd
-		}
-		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns != nil {
-			return structs.GroupByCmd
+		if aggs.GroupByRequest.MeasureOperations != nil {
+			if aggs.GroupByRequest.GroupByColumns == nil {
+				return structs.SegmentStatsCmd
+			} else {
+				return structs.GroupByCmd
+			}
 		}
 	}
 	if aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
