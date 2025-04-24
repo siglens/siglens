@@ -132,19 +132,22 @@ func initSyncSegMetaForAllIds(getMyIds func() []int64, allSegmentsHook func() (m
 }
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
+	return sNode.NodeType, GetQueryTypeFromAggs(aggs)
+}
 
+func GetQueryTypeFromAggs(aggs *structs.QueryAggregators) structs.QueryType {
 	if aggs != nil && aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
 		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns == nil {
-			return sNode.NodeType, structs.SegmentStatsCmd
+			return structs.SegmentStatsCmd
 		}
 		if aggs != nil && aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns != nil {
-			return sNode.NodeType, structs.GroupByCmd
+			return structs.GroupByCmd
 		}
 	}
 	if aggs != nil && aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
-		return sNode.NodeType, structs.SegmentStatsCmd
+		return structs.SegmentStatsCmd
 	}
-	return sNode.NodeType, structs.RRCCmd
+	return structs.RRCCmd
 }
 
 func IsLogsQuery(firstAgg *structs.QueryAggregators) bool {
