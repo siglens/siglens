@@ -5,7 +5,7 @@
              "value": 3,
              "relation": "eq"
          },
-         "qtype": "segstats-query",
+         "qtype": "aggs-query",
          "groupByCols": ["response_category"],
          "measureFunctions": ["avg_response", "count(*)"],
          "measure": [
@@ -37,6 +37,7 @@
                 }
             }
         ],
+        "bucketCount": 3,
          "allColumns": [
             "avg_response",
             "count(*)",

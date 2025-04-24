@@ -5,7 +5,7 @@
             "value": 94,
             "relation": "eq"
         },
-        "qtype": "segstats-query",
+        "qtype": "aggs-query",
         "groupByCols": ["env"],
         "measureFunctions": ["RestartCount", "count", "podNames"],
         "measure": [
