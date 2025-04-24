@@ -1055,7 +1055,8 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 				log.Fatalf("WriteMockColSegFile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
 			}
 
-			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
+			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf,
+				segStore.wipBlock.blockSummary.RecCount)
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)
 			}
@@ -1199,7 +1200,8 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			} else {
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
-			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
+			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf,
+				segStore.wipBlock.blockSummary.RecCount)
 			if err != nil {
 				log.Errorf("WriteMockTraceFile: failed to write tracer filename=%v, err=%v", csgFname, err)
 			}
@@ -1564,7 +1566,7 @@ func SetCardinalityLimit(val uint16) {
 	   dEntry1 -- format
 	   [word1Len 2B] [ActualWord] [numRecs 2B] [recNum1 2B][recNum2 2B]....
 */
-func PackDictEnc(colWip *ColWip) {
+func PackDictEnc(colWip *ColWip, blkReCount uint16) {
 
 	localIdx := 0
 	colWip.dePackingBuf.Reset()
@@ -1584,6 +1586,11 @@ func PackDictEnc(colWip *ColWip) {
 		numRecs := uint16(len(recNumsArr))
 		colWip.dePackingBuf.AppendUint16LittleEndian(numRecs)
 		localIdx += 2
+
+		if numRecs > blkReCount {
+			log.Errorf("PackDictEnc: UNEXPECTED numRecs: %v is more than blkReCount: %v for csg: %v",
+				numRecs, blkReCount, colWip.csgFname)
+		}
 
 		for i := uint16(0); i < numRecs; i++ {
 			// copy the recNum
