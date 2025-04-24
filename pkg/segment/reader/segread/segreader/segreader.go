@@ -393,7 +393,9 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 	idx += 2
 
 	sfr.deTlv = toputils.ResizeSlice(sfr.deTlv, int(numWords))
-	sfr.deRecToTlv = toputils.ResizeSlice(sfr.deRecToTlv, int(sfr.blockSummaries[blockNum].RecCount))
+	//  blockSummaries.RecCount is actually recNumbers and starts from 0
+	// hence we add 1
+	sfr.deRecToTlv = toputils.ResizeSlice(sfr.deRecToTlv, int(1 + sfr.blockSummaries[blockNum].RecCount))
 
 	var numRecs uint16
 	var soffW uint32
@@ -432,7 +434,7 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 				numErrors++
 				if err == nil {
 					err = fmt.Errorf("recNum %+v exceeds the number of records %+v in block %+v, fileName: %v, colname: %v",
-						recNum, sfr.blockSummaries[blockNum].RecCount, blockNum, sfr.fileName, sfr.ColName)
+						recNum, len(sfr.deRecToTlv), blockNum, sfr.fileName, sfr.ColName)
 				}
 
 				continue
