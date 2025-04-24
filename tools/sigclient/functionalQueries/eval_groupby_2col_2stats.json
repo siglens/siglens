@@ -5,7 +5,7 @@
              "value": 4,
              "relation": "eq"
          },
-         "qtype": "logs-query",
+         "qtype": "aggs-query",
          "uniqueKeyCols": ["gender", "temp_value"],
          "records": [
             {

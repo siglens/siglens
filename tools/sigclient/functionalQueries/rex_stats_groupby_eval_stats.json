@@ -5,7 +5,7 @@
              "value": 3,
              "relation": "eq"
          },
-         "qtype": "logs-query",
+         "qtype": "segstats-query",
          "records": [
             {
                 "avg_response": 270119.76666666666,

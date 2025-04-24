@@ -3,7 +3,7 @@
     "expectedResult": {
          "verifyMinimal": true,
          "bucketCount": 0,
-         "qtype": "logs-query",
+         "qtype": "aggs-query",
          "allColumns": [
             "list(variable_col_2)",
             "range(num_col_15)",

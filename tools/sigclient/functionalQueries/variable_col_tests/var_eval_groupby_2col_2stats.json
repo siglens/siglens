@@ -5,7 +5,7 @@
             "value": 78,
             "relation": "eq"
         },
-         "qtype": "logs-query",
+         "qtype": "aggs-query",
          "records": [
             {
                 "count": 4327,

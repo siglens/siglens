@@ -4,7 +4,7 @@
         "verifyMinimal": true,
          "totalMatched": {
          },
-         "qtype": "logs-query",
+         "qtype": "segstats-query",
          "records": [
         ],
          "allColumns": [
@@ -19,4 +19,3 @@
         ]
      }
 }
-  

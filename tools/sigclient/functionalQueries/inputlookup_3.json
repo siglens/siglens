@@ -5,7 +5,7 @@
             "value": 1,
             "relation": "eq"
         },
-        "qtype": "logs-query",
+        "qtype": "segstats-query",
         "records": [
             {
                 "cnt": 9

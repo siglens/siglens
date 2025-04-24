@@ -5,7 +5,7 @@
             "value": 3,
             "relation": "eq"
         },
-        "qtype": "logs-query",
+        "qtype": "aggs-query",
         "records": [
             {
                 "cnt": 1,

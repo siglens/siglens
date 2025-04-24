@@ -5,7 +5,7 @@
             "value": 94,
             "relation": "eq"
         },
-        "qtype": "logs-query",
+        "qtype": "segstats-query",
         "records": [
             {
                 "RestartCount": [
