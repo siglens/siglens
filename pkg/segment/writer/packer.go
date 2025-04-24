@@ -1587,15 +1587,18 @@ func PackDictEnc(colWip *ColWip, blkReCount uint16) {
 		colWip.dePackingBuf.AppendUint16LittleEndian(numRecs)
 		localIdx += 2
 
-		if numRecs > blkReCount {
-			log.Errorf("PackDictEnc: UNEXPECTED numRecs: %v is more than blkReCount: %v for csg: %v",
-				numRecs, blkReCount, colWip.csgFname)
-		}
-
+		foundBadRec := false
 		for i := uint16(0); i < numRecs; i++ {
 			// copy the recNum
 			colWip.dePackingBuf.AppendUint16LittleEndian(recNumsArr[i])
 			localIdx += 2
+			if recNumsArr[i] >= blkReCount {
+				foundBadRec = true
+			}
+		}
+		if foundBadRec {
+			log.Errorf("PackDictEnc: BAD recNums, csg: %v,  dword: [%v], blkReCount: %v, recNumsArr: %v",
+				colWip.csgFname, string(dword), blkReCount, recNumsArr)
 		}
 	}
 	colWip.cbuf.Reset()
