@@ -6,6 +6,7 @@
             "relation": "eq"
         },
         "qtype": "aggs-query",
+        "bucketCount": 10,
         "groupByCols": ["env"],
         "measureFunctions": ["RestartCount", "count", "podNames"],
         "measure": [
