@@ -149,6 +149,10 @@ func GetQueryTypeOfFullChain(aggs *structs.QueryAggregators) structs.QueryType {
 }
 
 func getQueryTypeOfCurrentAgg(aggs *structs.QueryAggregators) structs.QueryType {
+	if aggs == nil {
+		return structs.RRCCmd
+	}
+
 	if aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
 		if aggs.GroupByRequest.MeasureOperations != nil {
 			if aggs.GroupByRequest.GroupByColumns == nil {

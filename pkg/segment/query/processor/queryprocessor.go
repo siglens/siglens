@@ -45,7 +45,7 @@ const (
 )
 
 type QueryProcessor struct {
-	queryType structs.QueryType // Considers all aggs.
+	queryType structs.QueryType
 	DataProcessor
 	chain        []*DataProcessor // This shouldn't be modified after initialization.
 	qid          uint64
