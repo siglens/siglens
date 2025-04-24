@@ -23,9 +23,11 @@ import (
 	"io"
 	"os"
 	"sync"
+	"unsafe"
 
 	"github.com/cespare/xxhash"
 	"github.com/klauspost/compress/zstd"
+	"github.com/siglens/siglens/pkg/memorypool"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/utils"
@@ -34,25 +36,50 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var UncompressedReadBufferPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		slice := make([]byte, 0, utils.WIP_SIZE)
-		return &slice
-	},
-}
+const (
+	// TODO do some heuristics to figure out what buffer sizes are typically needed
+	S_1_KB   = 1024
+	S_4_KB   = 4096
+	S_32_KB  = 32768
+	S_64_KB  = 65536
+	S_128_KB = 131072
+	S_256_KB = 262144
+	S_512_KB = 524288
+	S_1_MB   = 1048576
+	S_2_MB   = 2097152
+)
 
-var FileReadBufferPool = sync.Pool{
-	New: func() interface{} {
-		// The Pool's New function should generally only return pointer
-		// types, since a pointer can be put into the return interface
-		// value without an allocation:
-		slice := make([]byte, utils.FILE_READ_BUFFER_SIZE)
-		return &slice
-	},
-}
+var (
+	pool1K   = memorypool.NewMemoryPool(0, S_1_KB)
+	pool4K   = memorypool.NewMemoryPool(0, S_4_KB)
+	pool32K  = memorypool.NewMemoryPool(0, S_32_KB)
+	pool64K  = memorypool.NewMemoryPool(0, S_64_KB)
+	pool128K = memorypool.NewMemoryPool(0, S_128_KB)
+	pool256K = memorypool.NewMemoryPool(0, S_256_KB)
+	pool512K = memorypool.NewMemoryPool(0, S_512_KB)
+	pool1M   = memorypool.NewMemoryPool(0, S_1_MB)
+	pool2M   = memorypool.NewMemoryPool(0, S_2_MB)
+
+	UncompressedReadBufferPool = sync.Pool{
+		New: func() interface{} {
+			// The Pool's New function should generally only return pointer
+			// types, since a pointer can be put into the return interface
+			// value without an allocation:
+			slice := make([]byte, 0, utils.WIP_SIZE)
+			return &slice
+		},
+	}
+
+	FileReadBufferPool = sync.Pool{
+		New: func() interface{} {
+			// The Pool's New function should generally only return pointer
+			// types, since a pointer can be put into the return interface
+			// value without an allocation:
+			slice := make([]byte, utils.FILE_READ_BUFFER_SIZE)
+			return &slice
+		},
+	}
+)
 
 // Use zstd.WithDecoderConcurrency(0) so that it can have GOMAXPROCS goroutines.
 // If this option is not given it defaults to 4 or GOMAXPROCS, whichever is
@@ -81,6 +108,57 @@ type SegmentFileReader struct {
 	blockSummaries     []*structs.BlockSummary
 	someBlksAbsent     bool // this is used to not log some errors
 	allBmi             *structs.AllBlksMetaInfo
+}
+
+func GetBufFromPool(size int64) []byte {
+	switch {
+	case size <= S_1_KB:
+		return pool1K.Get(S_1_KB)[:size]
+	case size <= S_4_KB:
+		return pool4K.Get(S_4_KB)[:size]
+	case size <= S_32_KB:
+		return pool32K.Get(S_32_KB)[:size]
+	case size <= S_64_KB:
+		return pool64K.Get(S_64_KB)[:size]
+	case size <= S_128_KB:
+		return pool128K.Get(S_128_KB)[:size]
+	case size <= S_256_KB:
+		return pool256K.Get(S_256_KB)[:size]
+	case size <= S_512_KB:
+		return pool512K.Get(S_512_KB)[:size]
+	case size <= S_1_MB:
+		return pool1M.Get(S_1_MB)[:size]
+	case size <= S_2_MB:
+		return pool2M.Get(S_2_MB)[:size]
+	default: // TODO release
+		return make([]byte, 0, size) // too big, don't pool
+	}
+}
+
+func PutBufToPool(buf []byte) error {
+	switch cap(buf) {
+	case S_1_KB:
+		return pool1K.Put(buf)
+	case S_4_KB:
+		return pool4K.Put(buf)
+	case S_32_KB:
+		return pool32K.Put(buf)
+	case S_64_KB:
+		return pool64K.Put(buf)
+	case S_128_KB:
+		return pool128K.Put(buf)
+	case S_256_KB:
+		return pool256K.Put(buf)
+	case S_512_KB:
+		return pool512K.Put(buf)
+	case S_1_MB:
+		return pool1M.Put(buf)
+	case S_2_MB:
+		return pool2M.Put(buf)
+	default:
+		// TODO - log error??
+		return nil
+	}
 }
 
 // Returns a map of blockNum -> slice, where each element of the slice has the
@@ -140,8 +218,8 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 // The returned SegmentFileReader must call .Close() when finished using it to close the fd
 func InitNewSegFileReader(fd *os.File, colName string, allBlocksToSearch map[uint16]struct{},
 	qid uint64, blockSummaries []*structs.BlockSummary, colValueRecLen uint32,
-	allBmi *structs.AllBlksMetaInfo) (*SegmentFileReader, error) {
-
+	allBmi *structs.AllBlksMetaInfo,
+) (*SegmentFileReader, error) {
 	fileName := ""
 	if fd != nil {
 		fileName = fd.Name()
@@ -154,7 +232,7 @@ func InitNewSegFileReader(fd *os.File, colName string, allBlocksToSearch map[uin
 		allBlocksToSearch:     allBlocksToSearch,
 		currOffset:            0,
 		currFileBuffer:        *FileReadBufferPool.Get().(*[]byte),
-		currRawBlockBuffer:    *UncompressedReadBufferPool.Get().(*[]byte),
+		currRawBlockBuffer:    nil,
 		consistentColValueLen: colValueRecLen,
 		isBlockLoaded:         false,
 		encType:               255,
@@ -169,13 +247,21 @@ func (sfr *SegmentFileReader) Close() error {
 	if sfr.currFD == nil {
 		return errors.New("SegmentFileReader.Close: tried to close an unopened segment file reader")
 	}
-	sfr.ReturnBuffers()
+	err := sfr.ReturnBuffers()
+	if err != nil {
+		return err
+	}
 	return sfr.currFD.Close()
 }
 
-func (sfr *SegmentFileReader) ReturnBuffers() {
-	UncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
+func (sfr *SegmentFileReader) ReturnBuffers() error {
+	// UncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
 	FileReadBufferPool.Put(&sfr.currFileBuffer)
+	err := PutBufToPool(sfr.currRawBlockBuffer)
+	if err != nil {
+		return fmt.Errorf("Error putting Raw Block Buffer back to pool")
+	}
+	return nil
 }
 
 // returns a bool indicating if blockNum is valid, and any error encountered
@@ -226,6 +312,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	if cOffAndLen.Length == 0 {
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: offset was 0, colName: %v, cnameIdx: %v, fname: %v", sfr.ColName, cnameIdx, sfr.fileName)
 	}
+	sfr.currRawBlockBuffer = GetBufFromPool(int64(cOffAndLen.Length))
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
@@ -251,7 +338,6 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 
 // Returns the raw bytes of the record in the currently loaded block
 func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
-
 	// if dict encoding, we use the dictmapping
 	if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
 		ret, err := sfr.deGetRec(recordNum)
@@ -366,7 +452,6 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 }
 
 func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
-
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 		valid, err := sfr.readBlock(blockNum)
 		if !valid {
@@ -385,7 +470,6 @@ func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
 }
 
 func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
-
 	idx := uint32(0)
 
 	// read num of dict words
@@ -449,9 +533,14 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 }
 
 func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
+	initialBufferPtr := unsafe.SliceData(sfr.currRawBlockBuffer)
 	uncompressed, err := decoder.DecodeAll(buf[0:], sfr.currRawBlockBuffer[:0])
 	if err != nil {
 		return fmt.Errorf("SegmentFileReader.unpackRawCsg: decompress error: %+v", err)
+	}
+
+	if initialBufferPtr != unsafe.SliceData(uncompressed) {
+		log.Errorf("Uncomressed buffer is different than originally allocated ")
 	}
 
 	sfr.currRawBlockBuffer = uncompressed
@@ -470,8 +559,8 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 }
 
 func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileOldPipeline(results map[uint16]map[string]interface{},
-	blockNum uint16, orderedRecNums []uint16) bool {
-
+	blockNum uint16, orderedRecNums []uint16,
+) bool {
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 		valid, err := sfr.readBlock(blockNum)
 		if !valid {
@@ -490,8 +579,8 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileOldPipeline(results map[
 }
 
 func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]utils.CValueEnclosure,
-	blockNum uint16, orderedRecNums []uint16) bool {
-
+	blockNum uint16, orderedRecNums []uint16,
+) bool {
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
 		valid, err := sfr.readBlock(blockNum)
 		if !valid {
@@ -510,8 +599,8 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]ut
 }
 
 func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[string]interface{},
-	orderedRecNums []uint16) bool {
-
+	orderedRecNums []uint16,
+) bool {
 	for _, rn := range orderedRecNums {
 		dwIdx := sfr.deRecToTlv[rn]
 		dWord := sfr.deTlv[dwIdx]
@@ -538,8 +627,8 @@ func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[strin
 }
 
 func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclosure,
-	orderedRecNums []uint16) bool {
-
+	orderedRecNums []uint16,
+) bool {
 	for recIdx, rn := range orderedRecNums {
 		dwIdx := sfr.deRecToTlv[rn]
 		dWord := sfr.deTlv[dwIdx]
@@ -569,7 +658,6 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 }
 
 func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
-
 	if rn >= uint16(len(sfr.deRecToTlv)) {
 		return nil, fmt.Errorf("SegmentFileReader.deGetRec: recNum %+v does not exist, len: %+v", rn, len(sfr.deRecToTlv))
 	}
