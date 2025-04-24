@@ -1450,27 +1450,6 @@ function ExpandableJsonCellRenderer(type = 'events') {
     }
 }
 
-function determineUnit(data) {
-    let maxBytes = 0;
-    data.forEach(point => {
-        if (point.y > maxBytes) {
-            maxBytes = point.y;
-        }
-    });
-
-    if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-
-    const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
-
-    return {
-        unit: sizes[i],
-        divisor: Math.pow(k, i)
-    };
-}
-
 function formatByteSize(bytes) {
     if (bytes === 0) return '0 Bytes';
 

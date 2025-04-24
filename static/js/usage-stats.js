@@ -39,7 +39,31 @@ $(document).ready(() => {
         $(this).addClass('active');
         getUsageStats();
     });
+
+    $('#csv-block').on('click', downloadUsageStatsCSV);
 });
+
+function fetchUsageStatsData() {
+    const selectedGranularity = $('.granularity-tabs .tab.active').data('tab');
+
+    const requestBody = {
+        startEpoch: filterStartDate,
+        endEpoch: filterEndDate,
+        granularity: selectedGranularity,
+    };
+
+    return $.ajax({
+        method: 'post',
+        url: 'api/usageStats',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: '*/*',
+        },
+        crossDomain: true,
+        dataType: 'json',
+        data: JSON.stringify(requestBody),
+    });
+}
 
 function displayTotal(res) {
     const totalLogsVol = res.ingestionStats['Log Incoming Volume']; // Bytes
@@ -94,7 +118,7 @@ function setupUsageStatsCharts(data) {
     renderLogsVolumeChart(processedData.logs, gridLineColor, tickColor);
     renderTracesVolumeChart(processedData.traces, gridLineColor, tickColor);
     renderStackedChart(processedData.stacked, gridLineColor, tickColor);
-    displayTotal(data)
+    displayTotal(data);
 }
 
 function updateChartsTheme(gridLineColor, tickColor) {
@@ -121,6 +145,27 @@ function updateChartColors(chart, gridLineColor, tickColor) {
     chart.update();
 }
 
+function determineUnit(data) {
+    let maxBytes = 0;
+    data.forEach(point => {
+        if (point.y > maxBytes) {
+            maxBytes = point.y;
+        }
+    });
+
+    if (maxBytes === 0) return { unit: 'Bytes', divisor: 1 };
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+
+    const i = Math.min(Math.floor(Math.log(maxBytes) / Math.log(k)), sizes.length - 1);
+
+    return {
+        unit: sizes[i],
+        divisor: Math.pow(k, i)
+    };
+}
+
 function createVolumeChart(chartId, data, options) {
     const ctx = document.getElementById(chartId).getContext('2d');
     const { chartType, color, gridLineColor, tickColor, title } = options;
@@ -135,7 +180,6 @@ function createVolumeChart(chartId, data, options) {
         y: data.gbCount[index],
     }));
 
-    //eslint-disable-next-line no-undef
     const scale = determineUnit(chartData.map((item) => ({ y: item.y })));
 
     const scaledData = chartData.map((item) => ({
@@ -344,29 +388,13 @@ function renderStackedChart(data, gridLineColor, tickColor) {
 }
 
 function getUsageStats() {
-    const selectedGranularity = $('.granularity-tabs .tab.active').data('tab');
-
-    const requestBody = {
-        startEpoch: filterStartDate,
-        endEpoch: filterEndDate,
-        granularity: selectedGranularity,
-    };
-    $.ajax({
-        method: 'post',
-        url: 'api/usageStats',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(requestBody),
-    })
+    fetchUsageStatsData()
         .then((res) => {
             setupUsageStatsCharts(res);
         })
         .catch((err) => {
-            console.error('error:', err);
+            console.error('Error fetching usage stats:', err);
+            showToast(`Error downloading usage stats:${err}`, 'error');
         });
 }
 
@@ -377,7 +405,7 @@ function formatTooltipTimestamp(timestamp, granularity) {
     const day = date.getDate();
     const year = date.getFullYear();
 
-    if (granularity === 'hour') {
+    if (granularity === 'hour' || granularity === 'hourly') {
         const hours = date.getHours();
         const ampm = hours >= 12 ? 'PM' : 'AM';
         const hour12 = hours % 12 || 12;
@@ -536,4 +564,59 @@ function configureTimeAxis(data, granularity) {
     };
 
     return config;
+}
+
+function downloadUsageStatsCSV() {
+    fetchUsageStatsData()
+        .then((res) => {
+            if (!res || !res.chartStats) {
+                console.error('No chart data available for CSV download');
+                return;
+            }
+
+            const csvContent = convertStatsToCSV(res.chartStats);
+            const fileName = `usage_stats.csv`;
+
+            downloadCSV(csvContent, fileName);
+        })
+        .catch((err) => {
+            console.error('Error downloading usage stats:', err);
+            showToast(`Error downloading usage stats:${err}`, 'error');
+        });
+}
+
+function convertStatsToCSV(chartStats) {
+    const timestamps = Object.keys(chartStats).sort((a, b) => parseInt(a) - parseInt(b));
+
+    const logsUnit = determineUnit(timestamps.map((ts) => ({ y: chartStats[ts].LogsBytesCount || 0 })));
+    const tracesUnit = determineUnit(timestamps.map((ts) => ({ y: chartStats[ts].TraceBytesCount || 0 })));
+
+    const headers = ['Date', `Logs (${logsUnit.unit})`, `Traces (${tracesUnit.unit})`, 'Active Series', 'Metrics Datapoints'].join(',');
+
+    const granularity = $('.granularity-tabs .tab.active').data('tab');
+
+    const rows = timestamps.map((timestamp) => {
+        const stats = chartStats[timestamp];
+        const date = formatTooltipTimestamp(parseInt(timestamp), granularity);
+        return [`"${date}"`, ((stats.LogsBytesCount || 0) / logsUnit.divisor).toFixed(2), ((stats.TraceBytesCount || 0) / tracesUnit.divisor).toFixed(2), stats.ActiveSeriesCount || 0, stats.MetricsDatapointsCount || 0].join(',');
+    });
+
+    return headers + '\n' + rows.join('\n');
+}
+
+function downloadCSV(csvContent, fileName) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+
+    setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, 100);
 }
