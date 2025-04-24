@@ -45,7 +45,6 @@ const (
 )
 
 type QueryProcessor struct {
-	queryType     structs.QueryType // Considers only the first agg. TODO: deprecate this.
 	fullQueryType structs.QueryType // Considers all aggs.
 	DataProcessor
 	chain        []*DataProcessor // This shouldn't be modified after initialization.
@@ -227,7 +226,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(queryType, fullQueryType, lastStreamer,
+	queryProcessor, err := newQueryProcessorHelper(fullQueryType, lastStreamer,
 		dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute)
 	if err != nil {
 		return nil, err
@@ -241,7 +240,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	return queryProcessor, nil
 }
 
-func newQueryProcessorHelper(queryType, fullQueryType structs.QueryType, input Streamer,
+func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	chain []*DataProcessor, qid uint64, scrollFrom int, includeNulls bool, shoulDistribute bool) (*QueryProcessor, error) {
 
 	var limit uint64
@@ -282,8 +281,7 @@ func newQueryProcessorHelper(queryType, fullQueryType structs.QueryType, input S
 	}
 
 	return &QueryProcessor{
-		queryType:     queryType,
-		fullQueryType: fullQueryType,
+		fullQueryType: queryType,
 		DataProcessor: *fetchDp,
 		chain:         chain,
 		qid:           qid,
