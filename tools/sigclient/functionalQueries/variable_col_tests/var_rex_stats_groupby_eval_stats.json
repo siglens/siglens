@@ -4,11 +4,30 @@
         "verifyMinimal": true,
          "totalMatched": {
          },
-         "qtype": "segstats-query",
+         "qtype": "aggs-query",
          "groupByCols": ["response_category"],
          "measureFunctions": ["avg_response", "count(*)"],
+         "bucketCount": 1,
+         "groupByCols": [
+           "response_category"
+         ],
          "measure": [
-        ],
+           {
+             "IGroupByValues": [
+               {
+                 "Dtype": 5,
+                 "CVal": "Fast"
+               }
+             ],
+             "GroupByValues": [
+               "Fast"
+             ],
+             "MeasureVal": {
+               "avg_response": 2.45902590142276,
+               "count(*)": 1
+             }
+           }
+         ],
          "allColumns": [
             "avg_response",
             "count(*)",

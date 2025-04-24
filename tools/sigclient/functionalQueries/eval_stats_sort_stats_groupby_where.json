@@ -1,28 +1,63 @@
 {
     "queryText": "search gender=*male* | earliest=-20m@m latest=now | search \"South*\" | eval host=mvindex(split(user_agent, \"/\"), -1) | eval podname=mvindex(split(user_agent,\";\"), 0) | eval env=mvindex(split(podname,\"(\"), 0) | eval env = trim(env, \"[] \") | eval podMachine=mvindex(split(podname,\"(\"),-1) | eval podMachine = trim(podMachine, \"[]\") | where podMachine in(\"X11\", \"iPhone\", \"Macintosh\", \"Windows NT 5.0\") | stats count as cnt by podname, env | sort podname, cnt | stats list(podname) as podNames, list(cnt) as RestartCount by env | eval count = mvcount(podNames) | where count > 2 | sort env",
     "expectedResult": {
-        "totalMatched": {
-            "value": 94,
+        "totalMatched":
+        {
+            "value": 0,
             "relation": "eq"
         },
         "qtype": "aggs-query",
-        "bucketCount": 10,
-        "groupByCols": ["env"],
-        "measureFunctions": ["RestartCount", "count", "podNames"],
-        "measure": [
+        "bucketCount": 94,
+        "groupByCols":
+        [
+            "env"
+        ],
+        "allColumns":
+        [
+            "podNames",
+            "env",
+            "count",
+            "RestartCount"
+        ],
+        "columnsOrder":
+        [
+            "RestartCount",
+            "count",
+            "env",
+            "podNames"
+        ],
+        "measureFunctions":
+        [
+            "RestartCount",
+            "count",
+            "podNames"
+        ],
+        "measure":
+        [
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Mozilla/5.0"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Mozilla/5.0"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "4993",
                         "97",
                         "3745",
                         "587"
                     ],
                     "count": "4",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Mozilla/5.0 (Macintosh]",
                         "[Mozilla/5.0 (Windows NT 5.0]",
                         "[Mozilla/5.0 (X11]",
@@ -31,17 +66,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.14"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.14"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "4",
                         "1",
                         "2"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.14 (Macintosh]",
                         "[Opera/10.14 (Windows NT 5.0]",
                         "[Opera/10.14 (X11]"
@@ -49,17 +95,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.16"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.16"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "5",
                         "1",
                         "7"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.16 (Macintosh]",
                         "[Opera/10.16 (Windows NT 5.0]",
                         "[Opera/10.16 (X11]"
@@ -67,17 +124,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.18"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.18"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "8",
                         "1",
                         "6"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.18 (Macintosh]",
                         "[Opera/10.18 (Windows NT 5.0]",
                         "[Opera/10.18 (X11]"
@@ -85,17 +153,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.19"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.19"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "5",
                         "1",
                         "2"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.19 (Macintosh]",
                         "[Opera/10.19 (Windows NT 5.0]",
                         "[Opera/10.19 (X11]"
@@ -103,17 +182,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.24"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.24"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "3",
                         "1",
                         "5"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.24 (Macintosh]",
                         "[Opera/10.24 (Windows NT 5.0]",
                         "[Opera/10.24 (X11]"
@@ -121,17 +211,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.25"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.25"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "2",
                         "2",
                         "4"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.25 (Macintosh]",
                         "[Opera/10.25 (Windows NT 5.0]",
                         "[Opera/10.25 (X11]"
@@ -139,17 +240,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.29"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.29"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "3",
                         "1",
                         "4"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.29 (Macintosh]",
                         "[Opera/10.29 (Windows NT 5.0]",
                         "[Opera/10.29 (X11]"
@@ -157,17 +269,28 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.35"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.35"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "2",
                         "1",
                         "7"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.35 (Macintosh]",
                         "[Opera/10.35 (Windows NT 5.0]",
                         "[Opera/10.35 (X11]"
@@ -175,36 +298,2470 @@
                 }
             },
             {
-                "GroupByValues": [
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.38"
+                    }
+                ],
+                "GroupByValues":
+                [
                     "Opera/10.38"
                 ],
-                "MeasureVal": {
-                    "RestartCount": [
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
                         "7",
                         "2",
                         "4"
                     ],
                     "count": "3",
-                    "podNames": [
+                    "podNames":
+                    [
                         "[Opera/10.38 (Macintosh]",
                         "[Opera/10.38 (Windows NT 5.0]",
                         "[Opera/10.38 (X11]"
                     ]
                 }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.45"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.45"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "1"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.45 (Macintosh]",
+                        "[Opera/10.45 (Windows NT 5.0]",
+                        "[Opera/10.45 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.46"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.46"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "2",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.46 (Macintosh]",
+                        "[Opera/10.46 (Windows NT 5.0]",
+                        "[Opera/10.46 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.50"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.50"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.50 (Macintosh]",
+                        "[Opera/10.50 (Windows NT 5.0]",
+                        "[Opera/10.50 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.53"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.53"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.53 (Macintosh]",
+                        "[Opera/10.53 (Windows NT 5.0]",
+                        "[Opera/10.53 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.54"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.54"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.54 (Macintosh]",
+                        "[Opera/10.54 (Windows NT 5.0]",
+                        "[Opera/10.54 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.56"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.56"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.56 (Macintosh]",
+                        "[Opera/10.56 (Windows NT 5.0]",
+                        "[Opera/10.56 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.57"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.57"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.57 (Macintosh]",
+                        "[Opera/10.57 (Windows NT 5.0]",
+                        "[Opera/10.57 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.61"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.61"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "2",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.61 (Macintosh]",
+                        "[Opera/10.61 (Windows NT 5.0]",
+                        "[Opera/10.61 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.62"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.62"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.62 (Macintosh]",
+                        "[Opera/10.62 (Windows NT 5.0]",
+                        "[Opera/10.62 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.64"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.64"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "2",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.64 (Macintosh]",
+                        "[Opera/10.64 (Windows NT 5.0]",
+                        "[Opera/10.64 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.69"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.69"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "2",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.69 (Macintosh]",
+                        "[Opera/10.69 (Windows NT 5.0]",
+                        "[Opera/10.69 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.70"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.70"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "1"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.70 (Macintosh]",
+                        "[Opera/10.70 (Windows NT 5.0]",
+                        "[Opera/10.70 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.73"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.73"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.73 (Macintosh]",
+                        "[Opera/10.73 (Windows NT 5.0]",
+                        "[Opera/10.73 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.74"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.74"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.74 (Macintosh]",
+                        "[Opera/10.74 (Windows NT 5.0]",
+                        "[Opera/10.74 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.75"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.75"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.75 (Macintosh]",
+                        "[Opera/10.75 (Windows NT 5.0]",
+                        "[Opera/10.75 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.76"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.76"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.76 (Macintosh]",
+                        "[Opera/10.76 (Windows NT 5.0]",
+                        "[Opera/10.76 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.77"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.77"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.77 (Macintosh]",
+                        "[Opera/10.77 (Windows NT 5.0]",
+                        "[Opera/10.77 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.83"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.83"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.83 (Macintosh]",
+                        "[Opera/10.83 (Windows NT 5.0]",
+                        "[Opera/10.83 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.88"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.88"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.88 (Macintosh]",
+                        "[Opera/10.88 (Windows NT 5.0]",
+                        "[Opera/10.88 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.90"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.90"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "2",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.90 (Macintosh]",
+                        "[Opera/10.90 (Windows NT 5.0]",
+                        "[Opera/10.90 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/10.97"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/10.97"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/10.97 (Macintosh]",
+                        "[Opera/10.97 (Windows NT 5.0]",
+                        "[Opera/10.97 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.19"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.19"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "2",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.19 (Macintosh]",
+                        "[Opera/8.19 (Windows NT 5.0]",
+                        "[Opera/8.19 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.20"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.20"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "10",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.20 (Macintosh]",
+                        "[Opera/8.20 (Windows NT 5.0]",
+                        "[Opera/8.20 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.22"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.22"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.22 (Macintosh]",
+                        "[Opera/8.22 (Windows NT 5.0]",
+                        "[Opera/8.22 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.23"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.23"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.23 (Macintosh]",
+                        "[Opera/8.23 (Windows NT 5.0]",
+                        "[Opera/8.23 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.25"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.25"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "2",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.25 (Macintosh]",
+                        "[Opera/8.25 (Windows NT 5.0]",
+                        "[Opera/8.25 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.32"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.32"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.32 (Macintosh]",
+                        "[Opera/8.32 (Windows NT 5.0]",
+                        "[Opera/8.32 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.33"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.33"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.33 (Macintosh]",
+                        "[Opera/8.33 (Windows NT 5.0]",
+                        "[Opera/8.33 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.35"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.35"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.35 (Macintosh]",
+                        "[Opera/8.35 (Windows NT 5.0]",
+                        "[Opera/8.35 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.42"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.42"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "1",
+                        "1",
+                        "1"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.42 (Macintosh]",
+                        "[Opera/8.42 (Windows NT 5.0]",
+                        "[Opera/8.42 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.43"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.43"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.43 (Macintosh]",
+                        "[Opera/8.43 (Windows NT 5.0]",
+                        "[Opera/8.43 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.52"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.52"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "8",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.52 (Macintosh]",
+                        "[Opera/8.52 (Windows NT 5.0]",
+                        "[Opera/8.52 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.54"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.54"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.54 (Macintosh]",
+                        "[Opera/8.54 (Windows NT 5.0]",
+                        "[Opera/8.54 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.61"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.61"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "7",
+                        "1",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.61 (Macintosh]",
+                        "[Opera/8.61 (Windows NT 5.0]",
+                        "[Opera/8.61 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.68"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.68"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.68 (Macintosh]",
+                        "[Opera/8.68 (Windows NT 5.0]",
+                        "[Opera/8.68 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.69"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.69"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "9"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.69 (Macintosh]",
+                        "[Opera/8.69 (Windows NT 5.0]",
+                        "[Opera/8.69 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.70"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.70"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "9"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.70 (Macintosh]",
+                        "[Opera/8.70 (Windows NT 5.0]",
+                        "[Opera/8.70 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.73"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.73"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.73 (Macintosh]",
+                        "[Opera/8.73 (Windows NT 5.0]",
+                        "[Opera/8.73 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.75"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.75"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "7",
+                        "1",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.75 (Macintosh]",
+                        "[Opera/8.75 (Windows NT 5.0]",
+                        "[Opera/8.75 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.76"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.76"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.76 (Macintosh]",
+                        "[Opera/8.76 (Windows NT 5.0]",
+                        "[Opera/8.76 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.78"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.78"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.78 (Macintosh]",
+                        "[Opera/8.78 (Windows NT 5.0]",
+                        "[Opera/8.78 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.81"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.81"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.81 (Macintosh]",
+                        "[Opera/8.81 (Windows NT 5.0]",
+                        "[Opera/8.81 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.82"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.82"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "10"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.82 (Macintosh]",
+                        "[Opera/8.82 (Windows NT 5.0]",
+                        "[Opera/8.82 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.83"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.83"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "1",
+                        "2",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.83 (Macintosh]",
+                        "[Opera/8.83 (Windows NT 5.0]",
+                        "[Opera/8.83 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.84"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.84"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "8",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.84 (Macintosh]",
+                        "[Opera/8.84 (Windows NT 5.0]",
+                        "[Opera/8.84 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.85"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.85"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.85 (Macintosh]",
+                        "[Opera/8.85 (Windows NT 5.0]",
+                        "[Opera/8.85 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.88"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.88"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "3",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.88 (Macintosh]",
+                        "[Opera/8.88 (Windows NT 5.0]",
+                        "[Opera/8.88 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.90"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.90"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.90 (Macintosh]",
+                        "[Opera/8.90 (Windows NT 5.0]",
+                        "[Opera/8.90 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.93"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.93"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "7",
+                        "1",
+                        "1"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.93 (Macintosh]",
+                        "[Opera/8.93 (Windows NT 5.0]",
+                        "[Opera/8.93 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/8.94"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/8.94"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/8.94 (Macintosh]",
+                        "[Opera/8.94 (Windows NT 5.0]",
+                        "[Opera/8.94 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.12"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.12"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "1",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.12 (Macintosh]",
+                        "[Opera/9.12 (Windows NT 5.0]",
+                        "[Opera/9.12 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.14"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.14"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.14 (Macintosh]",
+                        "[Opera/9.14 (Windows NT 5.0]",
+                        "[Opera/9.14 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.18"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.18"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "7",
+                        "1",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.18 (Macintosh]",
+                        "[Opera/9.18 (Windows NT 5.0]",
+                        "[Opera/9.18 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.20"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.20"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.20 (Macintosh]",
+                        "[Opera/9.20 (Windows NT 5.0]",
+                        "[Opera/9.20 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.21"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.21"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.21 (Macintosh]",
+                        "[Opera/9.21 (Windows NT 5.0]",
+                        "[Opera/9.21 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.25"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.25"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "1"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.25 (Macintosh]",
+                        "[Opera/9.25 (Windows NT 5.0]",
+                        "[Opera/9.25 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.28"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.28"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "1"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.28 (Macintosh]",
+                        "[Opera/9.28 (Windows NT 5.0]",
+                        "[Opera/9.28 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.29"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.29"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "2",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.29 (Macintosh]",
+                        "[Opera/9.29 (Windows NT 5.0]",
+                        "[Opera/9.29 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.31"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.31"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "10",
+                        "2",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.31 (Macintosh]",
+                        "[Opera/9.31 (Windows NT 5.0]",
+                        "[Opera/9.31 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.32"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.32"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.32 (Macintosh]",
+                        "[Opera/9.32 (Windows NT 5.0]",
+                        "[Opera/9.32 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.39"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.39"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.39 (Macintosh]",
+                        "[Opera/9.39 (Windows NT 5.0]",
+                        "[Opera/9.39 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.41"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.41"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.41 (Macintosh]",
+                        "[Opera/9.41 (Windows NT 5.0]",
+                        "[Opera/9.41 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.55"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.55"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.55 (Macintosh]",
+                        "[Opera/9.55 (Windows NT 5.0]",
+                        "[Opera/9.55 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.56"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.56"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "3",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.56 (Macintosh]",
+                        "[Opera/9.56 (Windows NT 5.0]",
+                        "[Opera/9.56 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.58"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.58"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "1",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.58 (Macintosh]",
+                        "[Opera/9.58 (Windows NT 5.0]",
+                        "[Opera/9.58 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.61"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.61"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "5"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.61 (Macintosh]",
+                        "[Opera/9.61 (Windows NT 5.0]",
+                        "[Opera/9.61 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.63"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.63"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.63 (Macintosh]",
+                        "[Opera/9.63 (Windows NT 5.0]",
+                        "[Opera/9.63 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.65"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.65"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.65 (Macintosh]",
+                        "[Opera/9.65 (Windows NT 5.0]",
+                        "[Opera/9.65 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.66"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.66"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.66 (Macintosh]",
+                        "[Opera/9.66 (Windows NT 5.0]",
+                        "[Opera/9.66 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.69"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.69"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "9"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.69 (Macintosh]",
+                        "[Opera/9.69 (Windows NT 5.0]",
+                        "[Opera/9.69 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.70"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.70"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.70 (Macintosh]",
+                        "[Opera/9.70 (Windows NT 5.0]",
+                        "[Opera/9.70 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.71"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.71"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.71 (Macintosh]",
+                        "[Opera/9.71 (Windows NT 5.0]",
+                        "[Opera/9.71 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.74"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.74"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "5",
+                        "1",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.74 (Macintosh]",
+                        "[Opera/9.74 (Windows NT 5.0]",
+                        "[Opera/9.74 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.76"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.76"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.76 (Macintosh]",
+                        "[Opera/9.76 (Windows NT 5.0]",
+                        "[Opera/9.76 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.82"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.82"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.82 (Macintosh]",
+                        "[Opera/9.82 (Windows NT 5.0]",
+                        "[Opera/9.82 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.83"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.83"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "3",
+                        "1",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.83 (Macintosh]",
+                        "[Opera/9.83 (Windows NT 5.0]",
+                        "[Opera/9.83 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.84"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.84"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "2",
+                        "1",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.84 (Macintosh]",
+                        "[Opera/9.84 (Windows NT 5.0]",
+                        "[Opera/9.84 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.87"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.87"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "4",
+                        "1",
+                        "3"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.87 (Macintosh]",
+                        "[Opera/9.87 (Windows NT 5.0]",
+                        "[Opera/9.87 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.88"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.88"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "1",
+                        "1",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.88 (Macintosh]",
+                        "[Opera/9.88 (Windows NT 5.0]",
+                        "[Opera/9.88 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.89"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.89"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "8",
+                        "1",
+                        "7"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.89 (Macintosh]",
+                        "[Opera/9.89 (Windows NT 5.0]",
+                        "[Opera/9.89 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.93"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.93"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "6",
+                        "3",
+                        "4"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.93 (Macintosh]",
+                        "[Opera/9.93 (Windows NT 5.0]",
+                        "[Opera/9.93 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.94"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.94"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "8",
+                        "1",
+                        "6"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.94 (Macintosh]",
+                        "[Opera/9.94 (Windows NT 5.0]",
+                        "[Opera/9.94 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.97"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.97"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "7",
+                        "3",
+                        "2"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.97 (Macintosh]",
+                        "[Opera/9.97 (Windows NT 5.0]",
+                        "[Opera/9.97 (X11]"
+                    ]
+                }
+            },
+            {
+                "IGroupByValues":
+                [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Opera/9.99"
+                    }
+                ],
+                "GroupByValues":
+                [
+                    "Opera/9.99"
+                ],
+                "MeasureVal":
+                {
+                    "RestartCount":
+                    [
+                        "7",
+                        "1",
+                        "8"
+                    ],
+                    "count": "3",
+                    "podNames":
+                    [
+                        "[Opera/9.99 (Macintosh]",
+                        "[Opera/9.99 (Windows NT 5.0]",
+                        "[Opera/9.99 (X11]"
+                    ]
+                }
             }
-        ],
-        "allColumns": [
-            "podNames",
-            "env",
-            "count",
-            "RestartCount"
-        ],
-        "columnsOrder": [
-            "RestartCount",
-            "count",
-            "env",
-            "podNames"
         ]
     }
 }
-  

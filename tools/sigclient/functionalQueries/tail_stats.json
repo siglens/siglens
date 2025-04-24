@@ -5,14 +5,15 @@
             "value": 1,
             "relation": "eq"
         },
-        "qtype": "aggs-query",
+        "qtype": "segstats-query",
         "bucketCount": 1,
         "groupByCols": [],
         "measureFunctions": ["avg_latency", "count(*)", "sum"],
         "measure": [
             {
-                "IGroupByValues": [],
-                "GroupByValues": [],
+                "GroupByValues": [
+                    "*"
+                ],
                 "MeasureVal": {
                     "avg_latency": 5004659.7287,
                     "count(*)": 30000,

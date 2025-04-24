@@ -1,5 +1,5 @@
 {
-    "queryText": "variable_col_3=female | eval temp_value = variable_col_19%2 | stats count as count, sum(variable_col_18) BY variable_col_9, temp_value | sort -count",
+    "queryText": "variable_col_3=female | eval temp_value = variable_col_19%2 | stats count as count, sum(variable_col_18) BY variable_col_9, temp_value | sort -count | head 8",
     "expectedResult": {
          "totalMatched": {
             "value": 78,
@@ -11,8 +11,19 @@
          "measureFunctions": ["count", "sum(variable_col_18)"],
          "measure": [
             {
-                "IGroupByValues": [],
-                "GroupByValues": [],
+                "IGroupByValues": [
+                    {
+                        "Dtype": 8,
+                        "CVal": null
+                    },
+                    {
+                        "Dtype": 8,
+                        "CVal": null
+                    }
+                ],
+                "GroupByValues": [
+                    "", ""
+                ],
                 "MeasureVal": {
                     "count": 4327,
                     "sum(variable_col_18)": 7963.379249999995
@@ -21,12 +32,16 @@
             {
                 "IGroupByValues": [
                     {
+                        "Dtype": 8,
+                        "CVal": null
+                    },
+                    {
                         "Dtype": 2,
                         "CVal": "0"
                     }
                 ],
                 "GroupByValues": [
-                    "0"
+                    "", "0"
                 ],
                 "MeasureVal": {
                     "count": 2222,
@@ -36,12 +51,16 @@
             {
                 "IGroupByValues": [
                     {
+                        "Dtype": 8,
+                        "CVal": null
+                    },
+                    {
                         "Dtype": 2,
                         "CVal": "1"
                     }
                 ],
                 "GroupByValues": [
-                    "1"
+                    "", "1"
                 ],
                 "MeasureVal": {
                     "count": 2188,
