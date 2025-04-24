@@ -136,22 +136,21 @@ func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregat
 }
 
 func GetQueryTypeFromAggs(aggs *structs.QueryAggregators) structs.QueryType {
-	if aggs == nil {
-		return structs.RRCCmd
-	}
-
-	if aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
-		if aggs.GroupByRequest.MeasureOperations != nil {
-			if aggs.GroupByRequest.GroupByColumns == nil {
-				return structs.SegmentStatsCmd
-			} else {
-				return structs.GroupByCmd
+	for agg := aggs; agg != nil; agg = agg.Next {
+		if agg.GroupByRequest != nil && agg.StreamStatsOptions == nil {
+			if agg.GroupByRequest.MeasureOperations != nil {
+				if agg.GroupByRequest.GroupByColumns == nil {
+					return structs.SegmentStatsCmd
+				} else {
+					return structs.GroupByCmd
+				}
 			}
 		}
+		if agg.MeasureOperations != nil && agg.GroupByRequest == nil && agg.StreamStatsOptions == nil {
+			return structs.SegmentStatsCmd
+		}
 	}
-	if aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
-		return structs.SegmentStatsCmd
-	}
+
 	return structs.RRCCmd
 }
 

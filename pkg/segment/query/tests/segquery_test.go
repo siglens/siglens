@@ -28,7 +28,9 @@ import (
 )
 
 func Test_getQueryType(t *testing.T) {
+	assertQueryType(t, `latency<10000 | where city="Boston"`, structs.RRCCmd)
 	assertQueryType(t, `latency<10000 | where city="Boston" | stats count`, structs.SegmentStatsCmd)
+	assertQueryType(t, `latency<10000 | where city="Boston" | stats count by weekday`, structs.GroupByCmd)
 }
 
 func assertQueryType(t *testing.T, splQuery string, expectedType structs.QueryType) {
