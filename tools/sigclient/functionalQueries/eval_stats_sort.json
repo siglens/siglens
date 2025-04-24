@@ -6,18 +6,51 @@
             "relation": "eq"
         },
         "qtype": "aggs-query",
-        "records": [
+        "bucketCount": 3,
+        "groupByCols": ["hobby_http"],
+        "measureFunctions": ["cnt"],
+        "measure": [
             {
-                "cnt": 1,
-                "hobby_http": "Bus spotting@GET"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Bus spotting@GET"
+                    }
+                ],
+                "GroupByValues": [
+                    "Bus spotting@GET"
+                ],
+                "MeasureVal": {
+                    "cnt": 1
+                }
             },
             {
-                "cnt": 1,
-                "hobby_http": "Flower arranging@PUT"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Flower arranging@PUT"
+                    }
+                ],
+                "GroupByValues": [
+                    "Flower arranging@PUT"
+                ],
+                "MeasureVal": {
+                    "cnt": 1
+                }
             },
             {
-                "cnt": 1,
-                "hobby_http": "Knitting@POST"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Knitting@POST"
+                    }
+                ],
+                "GroupByValues": [
+                    "Knitting@POST"
+                ],
+                "MeasureVal": {
+                    "cnt": 1
+                }
             }
         ],
         "allColumns": [

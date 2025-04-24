@@ -6,11 +6,18 @@
             "relation": "eq"
         },
         "qtype": "aggs-query",
-        "records": [
+        "bucketCount": 1,
+        "groupByCols": [],
+        "measureFunctions": ["avg_latency", "count(*)", "sum"],
+        "measure": [
             {
-                "avg_latency": 5004659.7287,
-                "count(*)": 30000,
-                "sum": 150139791861
+                "IGroupByValues": [],
+                "GroupByValues": [],
+                "MeasureVal": {
+                    "avg_latency": 5004659.7287,
+                    "count(*)": 30000,
+                    "sum": 150139791861
+                }
             }
         ],
         "allColumns": [

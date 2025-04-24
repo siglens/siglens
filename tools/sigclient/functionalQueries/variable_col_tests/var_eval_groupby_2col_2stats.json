@@ -6,50 +6,147 @@
             "relation": "eq"
         },
          "qtype": "aggs-query",
-         "records": [
+         "bucketCount": 8,
+         "groupByCols": ["variable_col_9", "temp_value"],
+         "measureFunctions": ["count", "sum(variable_col_18)"],
+         "measure": [
             {
-                "count": 4327,
-                "sum(variable_col_18)": 7963.379249999995
+                "IGroupByValues": [],
+                "GroupByValues": [],
+                "MeasureVal": {
+                    "count": 4327,
+                    "sum(variable_col_18)": 7963.379249999995
+                }
             },
             {
-                "count": 2222,
-                "sum(variable_col_18)": 2205.750571000004,
-                "temp_value": 0
+                "IGroupByValues": [
+                    {
+                        "Dtype": 2,
+                        "CVal": "0"
+                    }
+                ],
+                "GroupByValues": [
+                    "0"
+                ],
+                "MeasureVal": {
+                    "count": 2222,
+                    "sum(variable_col_18)": 2205.750571000004
+                }
             },
             {
-                "count": 2188,
-                "sum(variable_col_18)": -38.05810400000433,
-                "temp_value": 1
+                "IGroupByValues": [
+                    {
+                        "Dtype": 2,
+                        "CVal": "1"
+                    }
+                ],
+                "GroupByValues": [
+                    "1"
+                ],
+                "MeasureVal": {
+                    "count": 2188,
+                    "sum(variable_col_18)": -38.05810400000433
+                }
             },
             {
-                "count": 299,
-                "sum(variable_col_18)": 1646.705761000001,
-                "temp_value": 0,
-                "variable_col_9": "Analyst"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Analyst"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": "0"
+                    }
+                ],
+                "GroupByValues": [
+                    "Analyst",
+                    "0"
+                ],
+                "MeasureVal": {
+                    "count": 299,
+                    "sum(variable_col_18)": 1646.705761000001
+                }
             },
             {
-                "count": 289,
-                "sum(variable_col_18)": 1553.5745749999983,
-                "temp_value": 1,
-                "variable_col_9": "Strategist"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Strategist"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": "1"
+                    }
+                ],
+                "GroupByValues": [
+                    "Strategist",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "count": 289,
+                    "sum(variable_col_18)": 1553.5745749999983
+                }
             },
             {
-                "count": 288,
-                "sum(variable_col_18)": 3578.956563000001,
-                "temp_value": 1,
-                "variable_col_9": "Developer"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Developer"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": "1"
+                    }
+                ],
+                "GroupByValues": [
+                    "Developer",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "count": 288,
+                    "sum(variable_col_18)": 3578.956563000001
+                }
             },
             {
-                "count": 282,
-                "sum(variable_col_18)": 347.6613399999994,
-                "temp_value": 1,
-                "variable_col_9": "Analyst"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Analyst"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": "1"
+                    }
+                ],
+                "GroupByValues": [
+                    "Analyst",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "count": 282,
+                    "sum(variable_col_18)": 347.6613399999994
+                }
             },
             {
-                "count": 281,
-                "sum(variable_col_18)": -822.7911539999999,
-                "temp_value": 1,
-                "variable_col_9": "Representative"
+                "IGroupByValues": [
+                    {
+                        "Dtype": 5,
+                        "CVal": "Representative"
+                    },
+                    {
+                        "Dtype": 2,
+                        "CVal": "1"
+                    }
+                ],
+                "GroupByValues": [
+                    "Representative",
+                    "1"
+                ],
+                "MeasureVal": {
+                    "count": 281,
+                    "sum(variable_col_18)": -822.7911539999999
+                }
             }
         ],
          "allColumns": [

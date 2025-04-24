@@ -5,7 +5,9 @@
          "totalMatched": {
          },
          "qtype": "segstats-query",
-         "records": [
+         "groupByCols": ["response_category"],
+         "measureFunctions": ["avg_response", "count(*)"],
+         "measure": [
         ],
          "allColumns": [
             "avg_response",

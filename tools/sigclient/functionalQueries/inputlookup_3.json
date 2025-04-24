@@ -6,9 +6,15 @@
             "relation": "eq"
         },
         "qtype": "segstats-query",
-        "records": [
+        "measureFunctions": ["cnt"],
+        "measure": [
             {
-                "cnt": 9
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "cnt": 9
+                }
             }
         ],
         "allColumns": [

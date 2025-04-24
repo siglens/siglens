@@ -6,21 +6,35 @@
              "relation": "eq"
          },
          "qtype": "segstats-query",
-         "records": [
+         "groupByCols": ["response_category"],
+         "measureFunctions": ["avg_response", "count(*)"],
+         "measure": [
             {
-                "avg_response": 270119.76666666666,
-                "count(*)": 45,
-                "response_category": "Fast"
+                "GroupByValues": [
+                    "Fast"
+                ],
+                "MeasureVal": {
+                    "avg_response": 270119.76666666666,
+                    "count(*)": 45
+                }
             },
             {
-                "avg_response": 734689.2452830189,
-                "count(*)": 53,
-                "response_category": "Medium"
+                "GroupByValues": [
+                    "Medium"
+                ],
+                "MeasureVal": {
+                    "avg_response": 734689.2452830189,
+                    "count(*)": 53
+                }
             },
             {
-                "avg_response": 5409060.590245777,
-                "count(*)": 868,
-                "response_category": "Slow"
+                "GroupByValues": [
+                    "Slow"
+                ],
+                "MeasureVal": {
+                    "avg_response": 5409060.590245777,
+                    "count(*)": 868
+                }
             }
         ],
          "allColumns": [

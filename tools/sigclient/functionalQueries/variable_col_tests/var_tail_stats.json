@@ -5,7 +5,8 @@
         "totalMatched": {
         },
         "qtype": "segstats-query",
-        "records": [
+        "measureFunctions": ["avg_latency", "count(*)", "sum"],
+        "measure": [
         ],
         "allColumns": [
             "avg_latency",

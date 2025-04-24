@@ -4,6 +4,8 @@
          "verifyMinimal": true,
          "bucketCount": 0,
          "qtype": "aggs-query",
+         "groupByCols": ["list(variable_col_2)", "num_col_1"],
+         "measureFunctions": ["count(*)", "range(num_col_15)"],
          "allColumns": [
             "list(variable_col_2)",
             "range(num_col_15)",
