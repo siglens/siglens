@@ -132,23 +132,34 @@ func initSyncSegMetaForAllIds(getMyIds func() []int64, allSegmentsHook func() (m
 }
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
-	return sNode.NodeType, GetQueryTypeFromAggs(aggs)
+	return sNode.NodeType, getQueryTypeOfCurrentAgg(aggs)
 }
 
-func GetQueryTypeFromAggs(aggs *structs.QueryAggregators) structs.QueryType {
+func GetQueryTypeOfFullChain(aggs *structs.QueryAggregators) structs.QueryType {
 	for agg := aggs; agg != nil; agg = agg.Next {
-		if agg.GroupByRequest != nil && agg.StreamStatsOptions == nil {
-			if agg.GroupByRequest.MeasureOperations != nil {
-				if agg.GroupByRequest.GroupByColumns == nil {
-					return structs.SegmentStatsCmd
-				} else {
-					return structs.GroupByCmd
-				}
+		switch qType := getQueryTypeOfCurrentAgg(agg); qType {
+		case structs.SegmentStatsCmd, structs.GroupByCmd, structs.InvalidCmd:
+			return qType
+		case structs.RRCCmd:
+			// Do nothing.
+		}
+	}
+
+	return structs.RRCCmd
+}
+
+func getQueryTypeOfCurrentAgg(aggs *structs.QueryAggregators) structs.QueryType {
+	if aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
+		if aggs.GroupByRequest.MeasureOperations != nil {
+			if aggs.GroupByRequest.GroupByColumns == nil {
+				return structs.SegmentStatsCmd
+			} else {
+				return structs.GroupByCmd
 			}
 		}
-		if agg.MeasureOperations != nil && agg.GroupByRequest == nil && agg.StreamStatsOptions == nil {
-			return structs.SegmentStatsCmd
-		}
+	}
+	if aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
+		return structs.SegmentStatsCmd
 	}
 
 	return structs.RRCCmd

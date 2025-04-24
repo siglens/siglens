@@ -40,6 +40,6 @@ func assertQueryType(t *testing.T, splQuery string, expectedType structs.QueryTy
 	res, err := spl.Parse("", queryBytes)
 	assert.Nil(t, err)
 	filter := res.(ast.QueryStruct)
-	qType := query.GetQueryTypeFromAggs(filter.PipeCommands)
+	qType := query.GetQueryTypeOfFullChain(filter.PipeCommands)
 	assert.Equal(t, expectedType, qType, "Expected %s but got %s for query %s", expectedType, qType, splQuery)
 }

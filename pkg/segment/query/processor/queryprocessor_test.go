@@ -77,7 +77,7 @@ func Test_GetFullResult_notTruncated(t *testing.T) {
 	queryInfo, err := query.InitQueryInformation(searchNode, nil, nil, nil, 0, 0, qid, nil, 0, 0, false)
 	assert.NoError(t, err)
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0, false, true)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, structs.RRCCmd, stream, nil, qid, 0, false, true)
 	assert.NoError(t, err)
 	queryProcessor.queryInfo = queryInfo
 	queryProcessor.querySummary = querySummary
@@ -128,7 +128,7 @@ func Test_GetFullResult_truncated(t *testing.T) {
 	queryInfo, err := query.InitQueryInformation(searchNode, nil, nil, nil, 0, 0, qid, nil, 0, 0, false)
 	assert.NoError(t, err)
 
-	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, stream, nil, qid, 0, false, true)
+	queryProcessor, err := newQueryProcessorHelper(structs.RRCCmd, structs.RRCCmd, stream, nil, qid, 0, false, true)
 	assert.NoError(t, err)
 	queryProcessor.queryInfo = queryInfo
 	queryProcessor.querySummary = querySummary
