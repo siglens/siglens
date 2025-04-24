@@ -45,7 +45,7 @@ const (
 )
 
 type QueryProcessor struct {
-	fullQueryType structs.QueryType // Considers all aggs.
+	queryType structs.QueryType // Considers all aggs.
 	DataProcessor
 	chain        []*DataProcessor // This shouldn't be modified after initialization.
 	qid          uint64
@@ -281,7 +281,7 @@ func newQueryProcessorHelper(queryType structs.QueryType, input Streamer,
 	}
 
 	return &QueryProcessor{
-		fullQueryType: queryType,
+		queryType:     queryType,
 		DataProcessor: *fetchDp,
 		chain:         chain,
 		qid:           qid,
@@ -371,7 +371,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 				return nil, utils.TeeErrorf("GetFullResult: failed to append iqr to the finalIQR, err: %v", appendErr)
 			}
 		}
-		if qp.fullQueryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
+		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
 			if err != nil {
 				return nil, utils.TeeErrorf("GetFullResult: failed to increment records sent, err: %v", err)
@@ -381,9 +381,9 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	}
 
 	if finalIQR == nil {
-		return createEmptyResponse(qp.fullQueryType), nil
+		return createEmptyResponse(qp.queryType), nil
 	}
-	response, err := finalIQR.AsResult(qp.fullQueryType, qp.includeNulls, qp.isLogsQuery)
+	response, err := finalIQR.AsResult(qp.queryType, qp.includeNulls, qp.isLogsQuery)
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get result; err=%v", err)
 	}
@@ -394,7 +394,7 @@ func (qp *QueryProcessor) GetFullResult() (*structs.PipeSearchResponseOuter, err
 	if err != nil {
 		return nil, utils.TeeErrorf("GetFullResult: failed to get status params; err=%v", err)
 	}
-	if qp.fullQueryType == structs.RRCCmd {
+	if qp.queryType == structs.RRCCmd {
 		response.Hits.TotalMatched = utils.HitsCount{Value: uint64(totalRecords), Relation: relation}
 		response.CanScrollMore = canScrollMore
 	}
@@ -415,7 +415,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 
 	var iqr *iqr.IQR
 	completeResp := &structs.PipeSearchCompleteResponse{
-		Qtype: qp.fullQueryType.String(),
+		Qtype: qp.queryType.String(),
 	}
 
 	defer qp.logQuerySummary()
@@ -438,13 +438,13 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 			}
 		}
 
-		if qp.fullQueryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
+		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))
 			if err != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to increment records sent, err: %v", err)
 			}
 			totalRecords += iqr.NumberOfRecords()
-			result, wsErr := iqr.AsWSResult(qp.fullQueryType, qp.scrollFrom, qp.includeNulls, qp.isLogsQuery)
+			result, wsErr := iqr.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls, qp.isLogsQuery)
 			if wsErr != nil {
 				return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr, wsErr: %v", err)
 			}
@@ -457,8 +457,8 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		}
 	}
 
-	if qp.fullQueryType != structs.RRCCmd {
-		result, err := finalIQR.AsWSResult(qp.fullQueryType, qp.scrollFrom, qp.includeNulls, qp.isLogsQuery)
+	if qp.queryType != structs.RRCCmd {
+		result, err := finalIQR.AsWSResult(qp.queryType, qp.scrollFrom, qp.includeNulls, qp.isLogsQuery)
 		if err != nil {
 			return utils.TeeErrorf("GetStreamedResult: failed to get WSResult from iqr; err: %v", err)
 		}
@@ -476,7 +476,7 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 		return utils.TeeErrorf("GetStreamedResult: failed to get status params, err: %v", err)
 	}
 
-	if qp.fullQueryType == structs.RRCCmd {
+	if qp.queryType == structs.RRCCmd {
 		completeResp.TotalMatched = utils.HitsCount{Value: uint64(progress.RecordsSent), Relation: relation}
 	}
 	completeResp.State = query.COMPLETE.String()
