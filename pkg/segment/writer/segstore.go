@@ -202,7 +202,10 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		cwip.cstartidx = 0
 		cwip.cbuf.Reset()
 
-		clear(cwip.deData.deMap)
+		for dword := range cwip.deData.deMap {
+			delete(cwip.deData.deMap, dword)
+		}
+
 		cwip.deData.deCount = 0
 	}
 
@@ -1882,12 +1885,13 @@ func ReadDictEnc(buf []byte, blockNum uint16, recCount uint16, csgFname string,
 			deRecToTlv[recNum] = w
 		}
 		if err != nil {
-			log.Infof("Writer ReadDictEnc: for word: [%v], recsArr: %v", string(deTlv[w]), recsArr)
+			log.Infof("Writer ReadDictEnc: ERROR cname: %v for word: [%v], recsArr: %v",
+				cname, string(deTlv[w]), recsArr)
 		}
 	}
 
 	if err != nil {
-		log.Errorf("Writer ReadDictEnc: got %v errors like: %v", numErrors, err)
+		log.Errorf("Writer ReadDictEnc: ERROR got %v errors like: %v", numErrors, err)
 	}
 
 	return err
