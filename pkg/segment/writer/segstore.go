@@ -600,7 +600,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						}
 					}
 
-					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
+					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf,
+						segstore.wipBlock.blockSummary.RecCount)
 					if err != nil {
 						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
 						return

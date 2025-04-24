@@ -126,7 +126,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
 	colWip.SetDeDataForTest(deCount, deMap)
 
-	writer.PackDictEnc(colWip)
+	writer.PackDictEnc(colWip, recCounts)
 	buf, idx := colWip.GetBufAndIdx()
 
 	err = sfr.ReadDictEnc(buf[0:idx], 0)
