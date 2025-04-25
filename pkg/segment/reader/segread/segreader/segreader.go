@@ -224,7 +224,8 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	cOffAndLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
 	if cOffAndLen.Length == 0 {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: offset was 0, colName: %v, cnameIdx: %v, fname: %v", sfr.ColName, cnameIdx, sfr.fileName)
+		// This is an invalid block & not an error because this column never existed for this block
+		return false, nil
 	}
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))

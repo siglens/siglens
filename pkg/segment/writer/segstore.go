@@ -765,6 +765,12 @@ func (segstore *SegStore) initBmh() {
 		segstore.wipBlock.bmiColOffLen = append(segstore.wipBlock.bmiColOffLen,
 			make([]structs.ColOffAndLen, numCols-arrLen+1)...)
 	}
+
+	// walk through the array and mark all lengths as 0, it is a proxy
+	// for telling whether this specific column name idx is present for this block
+	for i := 0; i < len(segstore.wipBlock.bmiColOffLen); i++ {
+		segstore.wipBlock.bmiColOffLen[i].Length = 0
+	}
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {

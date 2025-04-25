@@ -1453,7 +1453,11 @@ func EncodeBlocksum(bsum *BlockSummary,
 
 	clen := 0
 	numCols := uint16(0)
-	for cname := range bmiCnameIdxDict {
+	for cname, cnameIdx := range bmiCnameIdxDict {
+		if bmiColOffLen[cnameIdx].Length == 0 {
+			// blkLen of 0 for this cnameidx means it was not present for this block
+			continue
+		}
 		clen += len(cname)
 		numCols++
 	}
@@ -1477,6 +1481,10 @@ func EncodeBlocksum(bsum *BlockSummary,
 	idx += 2
 
 	for cname, cnameIdx := range bmiCnameIdxDict {
+		if bmiColOffLen[cnameIdx].Length == 0 {
+			// blkLen of 0 for this cnameidx means it was not present for this block
+			continue
+		}
 		cOffLen := bmiColOffLen[cnameIdx]
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cname)), blockSummBuf[idx:])
 		idx += 2
