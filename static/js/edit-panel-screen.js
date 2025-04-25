@@ -478,9 +478,13 @@ $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
         const data = getMetricsQData();
         currentPanel.queryData = data;
         currentPanel.style = {};
+        //eslint-disable-next-line no-undef
         currentPanel.style.display = chartType;
+        //eslint-disable-next-line no-undef
         currentPanel.style.color = selectedTheme;
+        //eslint-disable-next-line no-undef
         currentPanel.style.lineStroke = selectedStroke;
+        //eslint-disable-next-line no-undef
         currentPanel.style.lineStyle = selectedLineStyle;
     } else if (currentPanel.queryType === 'logs') {
         const data = getQueryParamsData();
