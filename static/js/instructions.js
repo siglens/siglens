@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 const instructionData = [
     {
         id: 'promtail',
@@ -30,6 +29,50 @@ const instructionData = [
         id: 'filebeat',
         title: 'Filebeat',
     },
+    {
+        id: 'fluentd',
+        title: 'Fluentd',
+    },
+    {
+        id: 'fluent-bit',
+        title: 'Fluent-bit',
+    },
+    {
+        id: 'logstash',
+        title: 'Logstash',
+    },
+    {
+        id: 'vector',
+        title: 'Vector',
+    },
+    {
+        id: 'vector-metrics',
+        title: 'Vector Metrics',
+    },
+    {
+        id: 'open-telemetry',
+        title: 'OpenTelemetry Collector',
+    },
+    {
+        id: 'go-app',
+        title: 'Go App',
+    },
+    {
+        id: 'dotnet-app',
+        title: '.Net App',
+    },
+    {
+        id: 'java-app',
+        title: 'Java App',
+    },
+    {
+        id: 'js-app',
+        title: 'Javascript App',
+    },
+    {
+        id: 'python-app',
+        title: 'Python App',
+    },
 ];
 
 const languageMap = {
@@ -40,13 +83,23 @@ const languageMap = {
     sh: 'bash',
 };
 
-
 async function loadInstruction(instructionId) {
     try {
         document.getElementById('content-container').innerHTML = '<div class="loading-indicator">Loading...</div>';
 
-        const response = await fetch(`../../content/log-ingestion-methods/${instructionId}.md`);
+        // Determine the path based on instructionId
+        let path;
+        if (['promtail', 'opentelemetry', 'filebeat', 'fluentd', 'fluent-bit', 'logstash', 'vector'].includes(instructionId)) {
+            path = `../../content/log-ingestion-methods/${instructionId}.md`;
+        } else if (['vector-metrics', 'open-telemetry'].includes(instructionId)) {
+            path = `/content/metric-ingestion-methods/${instructionId}.md`;
+        } else if (['dotnet-app', 'go-app', 'java-app', 'js-app', 'python-app', 'opentelemetry'].includes(instructionId)) {
+            path = `/content/trace-ingestion-methods/${instructionId}.md`;
+        } else {
+            throw new Error(`Unknown instruction ID: ${instructionId}`);
+        }
 
+        const response = await fetch(path);
         if (!response.ok) {
             throw new Error(`Failed to load instruction: ${response.status}`);
         }
@@ -78,6 +131,23 @@ async function loadInstruction(instructionId) {
 
         document.getElementById('content-container').innerHTML = htmlContent;
         processCustomComponents();
+
+        // Inject CSS for markdown images
+        const styleId = 'markdown-image-styles';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = `
+                .markdown-image {
+                    width: 100%;
+                    max-width: 800px;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     } catch (error) {
         console.error('Failed to load instruction:', error);
         document.getElementById('content-container').innerHTML = `
@@ -89,7 +159,7 @@ async function loadInstruction(instructionId) {
     }
 }
 
-//  Pre-process markdown content to handle custom components
+// Pre-process markdown content to handle custom components and image paths
 function preprocessMarkdown(markdown) {
     // Process import statements (remove them)
     let processed = markdown.replace(/import\s+.*?from\s+['"].*?['"];?\n?/g, '');
@@ -98,6 +168,15 @@ function preprocessMarkdown(markdown) {
     processed = processed.replace(/:::(note|tip|info|warning|danger|caution)\n([\s\S]*?):::/g, function (match, type, content) {
         const cleanContent = content.replace(/^\s+/gm, '').trim();
         return `<div class="admonition ${type}"><div class="admonition-heading">${type.charAt(0).toUpperCase() + type.slice(1)}</div><div class="admonition-content">${cleanContent}</div></div>`;
+    });
+
+    // Process image paths
+    processed = processed.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (match, alt, imgPath) {
+        if (!imgPath.startsWith('http') && !imgPath.startsWith('data:')) {
+            const correctedPath = `/content/tutorials/${imgPath.split('/').pop()}`;
+            return `![${alt}](${correctedPath})`;
+        }
+        return match;
     });
 
     // Process Tabs component
@@ -186,6 +265,14 @@ function preprocessMarkdown(markdown) {
 
 function createCustomRenderer() {
     const renderer = new marked.Renderer();
+
+    // Customize image rendering to add CSS class
+    renderer.image = function (href, title, text) {
+        const escapedHref = href.replace(/"/g, '&quot;');
+        const escapedText = text.replace(/"/g, '&quot;');
+        const titleAttr = title ? ` title="${title.replace(/"/g, '&quot;')}"` : '';
+        return `<img src="${escapedHref}" alt="${escapedText}" class="markdown-image"${titleAttr}>`;
+    };
 
     // Handle titles in code blocks
     const originalCodeRenderer = renderer.code;
@@ -327,7 +414,19 @@ function initializeBreadcrumbsForType(type, methodName) {
     const instructionItem = instructionData.find((item) => item.id === methodName);
     const methodTitle = instructionItem ? instructionItem.title : methodName;
 
-    switch (type) {
+    // Determine type dynamically if not provided
+    let resolvedType = type;
+    if (!resolvedType && methodName) {
+        if (['promtail', 'opentelemetry', 'filebeat', 'fluentd', 'fluent-bit', 'logstash', 'vector'].includes(methodName)) {
+            resolvedType = 'logs';
+        } else if (['vector-metrics', 'open-telemetry'].includes(methodName)) {
+            resolvedType = 'metrics';
+        } else if (['dotnet-app', 'go-app', 'java-app', 'js-app', 'python-app', 'opentelemetry'].includes(methodName)) {
+            resolvedType = 'traces';
+        }
+    }
+
+    switch (resolvedType) {
         case 'logs':
             title = 'Log Ingestion Methods';
             breadcrumbConfig = [{ name: 'Ingestion', url: './ingestion.html' }, { name: title, url: './log-ingestion.html' }, { name: methodTitle }];
@@ -341,6 +440,11 @@ function initializeBreadcrumbsForType(type, methodName) {
         case 'traces':
             title = 'Traces Ingestion Methods';
             breadcrumbConfig = [{ name: 'Ingestion', url: './ingestion.html' }, { name: title, url: './traces-ingestion.html' }, { name: methodTitle }];
+            break;
+
+        default:
+            title = 'Ingestion Methods';
+            breadcrumbConfig = [{ name: 'Ingestion', url: './ingestion.html' }, { name: methodTitle }];
             break;
     }
 
