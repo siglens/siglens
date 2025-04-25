@@ -927,7 +927,21 @@ function addPanel(chartIndex) {
     let unit = '';
 
     switch (chartIndex) {
-        case 0: // Line chart
+        case 0: // Bar chart
+            chartType = 'Bar Chart';
+            queryType = 'logs';
+            queryData = {
+                state: 'query',
+                searchText: 'city=Boston | stats count AS Count BY weekday',
+                startEpoch: filterStartDate,
+                endEpoch: filterEndDate,
+                indexName: selectedSearchIndex,
+                from: 0,
+                queryLanguage: 'Splunk QL',
+                queryMode: 'Code',
+            };
+            break;
+        case 1: // Line chart
             chartType = 'Line Chart';
             queryType = 'metrics';
             queryData = {
@@ -952,78 +966,6 @@ function addPanel(chartIndex) {
                 ],
                 start: 'now-1h',
             };
-            break;
-        case 1: // Bar chart
-            chartType = 'Bar Chart';
-            queryType = 'logs';
-            queryData = {
-                state: 'query',
-                searchText: 'city=Boston | stats count AS Count BY weekday',
-                startEpoch: filterStartDate,
-                endEpoch: filterEndDate,
-                indexName: selectedSearchIndex,
-                from: 0,
-                queryLanguage: 'Splunk QL',
-                queryMode: 'Code',
-            };
-            break;
-        case 2: // Pie chart
-            chartType = 'Pie Chart';
-            queryType = 'logs';
-            queryData = {
-                state: 'query',
-                searchText: 'city=Boston | stats count AS Count BY http_status',
-                startEpoch: filterStartDate,
-                endEpoch: filterEndDate,
-                indexName: selectedSearchIndex,
-                from: 0,
-                queryLanguage: 'Splunk QL',
-                queryMode: 'Code',
-            };
-            break;
-        case 3: // Data Table
-            chartType = 'Data Table';
-            queryType = 'logs';
-            queryData = {
-                state: 'query',
-                searchText: '*',
-                startEpoch: filterStartDate,
-                endEpoch: filterEndDate,
-                indexName: selectedSearchIndex,
-                from: 0,
-                queryLanguage: 'Splunk QL',
-                queryMode: 'Builder',
-            };
-            break;
-        case 4: // Number
-            chartType = 'number';
-            queryType = 'logs';
-            queryData = {
-                state: 'query',
-                searchText: 'city=Boston | stats avg(latency)',
-                startEpoch: filterStartDate,
-                endEpoch: filterEndDate,
-                indexName: selectedSearchIndex,
-                from: 0,
-                queryLanguage: 'Splunk QL',
-                queryMode: 'Code',
-            };
-            unit = 'misc';
-            break;
-        case 5: // Log Lines
-            chartType = 'loglines';
-            queryType = 'logs';
-            queryData = {
-                state: 'query',
-                searchText: '*',
-                startEpoch: filterStartDate,
-                endEpoch: filterEndDate,
-                indexName: selectedSearchIndex,
-                from: 0,
-                queryLanguage: 'Splunk QL',
-                queryMode: 'Builder',
-            };
-            logLinesViewType = 'Single line display view';
             break;
     }
 

@@ -199,28 +199,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="close-widget-popup">×</div>
                 </div>
                 <div class="editPanelMenu-options widget-option" data-index="0">
-                    <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display" />
-                    <li>Line Chart</li>
+                    <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display"/>
+                    <li>Logs Panel</li>
                 </div>
                 <div class="editPanelMenu-options widget-option" data-index="1">
-                    <img src="./assets/bar-chart.svg" alt="bar chart icon" class="chart-display"/>
-                    <li>Bar Chart</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="2">
-                    <img src="./assets/pie-chart.svg" alt="pie chart icon" class="chart-display"/>
-                    <li>Pie Chart</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="3">
-                    <img src="./assets/data-table.svg" alt="data table icon" class="chart-display"/>
-                    <li>Data Table</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="4">
-                    <img src="./assets/number-chart.svg" alt="number chart icon" class="chart-display" />
-                    <li>Number</li>
-                </div>
-                <div class="editPanelMenu-options widget-option" data-index="5">
-                    <img src="./assets/log-lines.svg" alt="log lines icon" class="chart-display" />
-                    <li>Log Lines</li>
+                    <img src="./assets/line-chart.svg" alt="line chart icon" class="chart-display" />
+                    <li>Metrics Panel</li>
                 </div>
             </ul>
         </div>
@@ -241,6 +225,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <span class="panEdit-dbName over-title">DBName</span>
                             <span class="over-title"> / </span>
                             <span class="panelTitle over-title">Panel 1</span>
+                            <span class="grey-text mx-1 panel-type" style="font-size: 12px; color: var(--white-4);"></span>
                         </div>
                         <div class="navbar-options">
                             <div class="index-container">
@@ -313,13 +298,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <div class="fields"></div>
                                 </div>
                             </div>
-                            <div class="table-view-toggle-container btn btn-grey">
-                                <label class="label-table-view">Table view</label>
-                                <label class="switch">
-                                    <input type="checkbox" id="toggle-switch">
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
                             <div>
                                 <button class="btn settings-btn panEdit-btn" title="Open dashboard settings" id="db-settings-btn"></button>
                             </div>
@@ -377,26 +355,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div>Graph your data</div>
                         </div>
                         <div class="section-content">
-                            <div class="dropDown-container mb-2 position-relative">
-                                <div class="dropDownTitle dropDown-dataSource active">
-                                    <span>Data Source</span>
-                                    <div class="caret"></div>
-                                </div>
-                                <ul class="editPanelMenu editPanelMenu-dataSource">
-                                    <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="0">
-                                        <li data-value="Metrics">Metrics</li>
-                                    </div>
-                                    <div class="editPanelMenu-options logs-options" id="datasource-options" data-index="1">
-                                        <li data-value="Logs">Logs</li>
-                                    </div>
-                                </ul>
-                            </div>
                             <div class="queryInputs">
                                 <div class="queryInput-container">
                                     <div class="queryInput-InnerContainer">
                                         <div id = "custom-code-tab" class="custom-code-tab">
                                             <div class="query-builder-container">
-                                                <div class="d-flex justify-content-end">
+                                                <div class="d-flex justify-content-end mb-3">
                                                     <ul class="tab-list">
                                                         <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
                                                         <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
@@ -481,15 +445,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                     <div id = "tabs-2">
                                                         <div class="filter-container">
                                                             <div class="position-relative search-bar-container">
-                                                                <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql" style="display: none;"
-                                                                    title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
-                                                                                                        SELECT * FROM `ind-0`
-                                                                                                        SELECT * FROM `ind-0` ORDER BY latency ASC
-                                                                                                        SELECT first_name AS firstnames, country AS origincountry FROM `ind-0`
-                                                                                                        SELECT MAX(latency), COUNT(city) FROM `*` WHERE gender = male GROUP BY country LIMIT 10
-                                                                                                        SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
-
-                                                                </i>
                                                                 <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
                                                                     title=' {app="mysql",name="mysql-backup"}
                                                                                                         {job="mysql"} |= "error"
@@ -520,10 +475,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- <div>
-                                        <button type="submit" id="run-query-btn" class="btn-runQuery">Run Query</button>
-                                    </div> -->
-                                </div>
                                 <div id="metrics-query-language">
                                     <div id="metrics-explorer">
                                         <div id="metrics-queries"></div>

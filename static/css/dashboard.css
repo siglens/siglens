@@ -315,12 +315,6 @@
   justify-content: flex-end;
 }
 
-.editPanelMenu-dataSource {
-  width: 120px;
-  position: absolute;
-  z-index: 10;
-}
-
 .queryInput-container {
   width: 100%;
   display: flex;
@@ -330,11 +324,6 @@
   display: flex;
   flex-direction: row;
   width: 100%;
-}
-
-.dropDown-dataSource {
-  width: 120px;
-  height: 24px;
 }
 
 .queryInput {
@@ -998,9 +987,6 @@
 #date-picker-btn{
   line-height: 6px !important;
 }
-.logs-options{
-  padding: 0;
-}
 
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
@@ -1025,10 +1011,6 @@
 .panel{
   border: 1px solid var(--border-color-regular) !important;
 }
-.logs-options{
-  background-color: var(--dropdown-bg-color-new);
-  color: var(--drop-down-text-color-new);
-}
 
 .panel div.panel-header .dropdown-btn{
   background-image: url('../assets/other-options-icon.svg') !important;
@@ -1049,11 +1031,11 @@
   color: var(--text-color-regular);
 }
 .chart-options.selected{
-  background-color: var(--edit-panel-option-bg-color) !important;
+  background-color: var(--drop-down-btn-bg-hover) !important;
   color: var(--text-color-regular);
 }
 .chart-options:hover {
-  background-color: var(--edit-panel-option-bg-color) !important;
+  background-color: var(--drop-down-btn-bg-hover) !important;
   color: var(--text-color-regular);
 }
 .dropdown-menu{
