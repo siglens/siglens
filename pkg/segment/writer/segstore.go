@@ -651,6 +651,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			}
 		}
 
+		segstore.verifyCsg()
+
 		allColsToFlush.Wait()
 		blkSumLen := segstore.flushBlockSummary(allBmi, segstore.numBlocks)
 		if !isKibana {
@@ -696,7 +698,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			}
 		}
 
-		segstore.doReadVerification()
 		err = segstore.resetWipBlock(forceRotate)
 		if err != nil {
 			return err
@@ -712,7 +713,7 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 	return nil
 }
 
-func (segstore *SegStore) doReadVerification() {
+func (segstore *SegStore) verifyCsg() {
 
 	gotErr := false
 	allBmi := segstore.wipBlock.currAllBmi
@@ -723,7 +724,7 @@ func (segstore *SegStore) doReadVerification() {
 
 		cnameIdx, ok := allBmi.CnameDict[cname]
 		if !ok {
-			log.Errorf("doReadVerification: ERROR could not find cname: %v", cname)
+			log.Errorf("verifyCsg: ERROR could not find cname: %v", cname)
 			return
 		}
 
@@ -732,13 +733,13 @@ func (segstore *SegStore) doReadVerification() {
 			cname)
 		if err != nil {
 			gotErr = true
-			log.Errorf("doReadVerification: verification ERROR blkNum: %v cname: %v, err: %v",
+			log.Errorf("verifyCsg: verification ERROR blkNum: %v cname: %v, err: %v",
 				segstore.numBlocks, cname, err)
 		}
 	}
 
 	if !gotErr {
-		log.Infof("doReadVerification: SUCCESS segKey: %v, blkNum: %v, blkRecCount: %v",
+		log.Infof("verifyCsg: SUCCESS segKey: %v, blkNum: %v, blkRecCount: %v",
 			segstore.SegmentKey, segstore.numBlocks, segstore.wipBlock.blockSummary.RecCount)
 	}
 }
@@ -751,29 +752,16 @@ func (segstore *SegStore) initBmh() {
 			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
 		}
 	}
-	var bmh *structs.BlockMetadataHolder
-	// reuse old val to save on mem
-	for _, v := range segstore.wipBlock.currAllBmi.AllBmh {
-		bmh = v
-		break
-	}
-	if bmh == nil {
-		bmh = &structs.BlockMetadataHolder{
-			BlkNum:            segstore.numBlocks,
-			ColBlockOffAndLen: make([]structs.ColOffAndLen, len(segstore.wipBlock.colWips)),
-		}
-	}
+
 	// delete the old keys since we don;t need them anymore
 	clear(segstore.wipBlock.currAllBmi.AllBmh)
 
-	// extend array in cases where we get new columns names that were
-	// not there in previous blocks
-	arrLen := len(bmh.ColBlockOffAndLen)
 	numCols := len(segstore.wipBlock.colWips)
-	if arrLen <= numCols {
-		bmh.ColBlockOffAndLen = append(bmh.ColBlockOffAndLen,
-			make([]structs.ColOffAndLen, numCols-arrLen+1)...)
+	bmh := &structs.BlockMetadataHolder{
+		BlkNum:            segstore.numBlocks,
+		ColBlockOffAndLen: make([]structs.ColOffAndLen, numCols+1),
 	}
+
 	segstore.wipBlock.currAllBmi.AllBmh[segstore.numBlocks] = bmh
 }
 
