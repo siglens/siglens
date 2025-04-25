@@ -259,7 +259,7 @@ function customRangeHandler(evt) {
 
 function rangeItemHandler(evt) {
     resetCustomDateRange();
-    $.each($('.range-item.active'), function () {
+    $.each($('.range-item.active, .db-range-item.active'), function () {
         $(this).removeClass('active');
     });
     $(evt.currentTarget).addClass('active');
