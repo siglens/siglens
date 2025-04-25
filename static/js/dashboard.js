@@ -560,7 +560,6 @@ function setTimePickerValue() {
                 } else {
                     start = panel.queryData.startEpoch;
                     end = panel.queryData.endEpoch;
-                    datePickerHandler(start, end, 'custom');
                     return true;
                 }
             }
