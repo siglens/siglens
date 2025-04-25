@@ -202,9 +202,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		cwip.cstartidx = 0
 		cwip.cbuf.Reset()
 
-		for dword := range cwip.deData.deMap {
-			delete(cwip.deData.deMap, dword)
-		}
+		clear(cwip.deData.deMap)
 		cwip.deData.deCount = 0
 	}
 
@@ -212,9 +210,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 		bi.uniqueWordCount = 0
 	}
 
-	for k := range segstore.wipBlock.columnRangeIndexes {
-		delete(segstore.wipBlock.columnRangeIndexes, k)
-	}
+	clear(segstore.wipBlock.columnRangeIndexes)
 
 	segstore.wipBlock.blockSummary.HighTs = 0
 	segstore.wipBlock.blockSummary.LowTs = 0
@@ -222,9 +218,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 	segstore.lastWipFlushTime = time.Now()
 
 	// delete keys from map to keep underlying storage
-	for col := range segstore.wipBlock.columnsInBlock {
-		delete(segstore.wipBlock.columnsInBlock, col)
-	}
+	clear(segstore.wipBlock.columnsInBlock)
 
 	// Reset PQBitmaps
 	for pqid := range segstore.pqMatches {
@@ -245,9 +239,7 @@ func (segstore *SegStore) resetWipBlock(forceRotate bool) error {
 
 func clearTRollups(rrmap map[uint64]*RolledRecs) {
 	// delete keys from map to keep underlying storage
-	for k := range rrmap {
-		delete(rrmap, k)
-	}
+	clear(rrmap)
 }
 
 // do not call this function on its own, since it may result in race condition. It should be called from
@@ -330,6 +322,11 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	err = segstore.resetWipBlock(false)
 	if err != nil {
 		return err
+	}
+
+	if segstore.wipBlock.bmiCnameIdxDict != nil {
+		clear(segstore.wipBlock.bmiCnameIdxDict)
+		segstore.wipBlock.bmiColOffLen = nil
 	}
 
 	return nil
@@ -543,10 +540,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		var totalMetadata uint64 = 0
 		allColsToFlush := &sync.WaitGroup{}
 		wipBlockLock := sync.Mutex{}
-		wipBlockMetadata := &structs.BlockMetadataHolder{
-			BlkNum:            segstore.numBlocks,
-			ColBlockOffAndLen: make(map[string]structs.ColOffAndLen),
-		}
+
+		segstore.initBmh()
+
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
 			err := vtable.AddVirtualTable(&segstore.VirtualTableName, segstore.OrgId)
@@ -603,7 +599,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						}
 					}
 
-					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf)
+					blkLen, blkOffset, err := writeWip(colWip, encType, compBuf,
+						segstore.wipBlock.blockSummary.RecCount)
 					if err != nil {
 						log.Errorf("AppendWipToSegfile: failed to write colsegfilename=%v, err=%v", colWip.csgFname, err)
 						return
@@ -611,7 +608,15 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 
 					atomic.AddUint64(&totalBytesWritten, uint64(blkLen))
 					wipBlockLock.Lock()
-					wipBlockMetadata.ColBlockOffAndLen[cname] = structs.ColOffAndLen{Offset: blkOffset,
+
+					cnameIdx, ok := segstore.wipBlock.bmiCnameIdxDict[cname]
+					if !ok {
+						cnameIdx = len(segstore.wipBlock.bmiCnameIdxDict)
+						segstore.wipBlock.bmiCnameIdxDict[cname] = cnameIdx
+					}
+
+					segstore.wipBlock.bmiColOffLen[cnameIdx] = structs.ColOffAndLen{
+						Offset: blkOffset,
 						Length: blkLen,
 					}
 					wipBlockLock.Unlock()
@@ -642,11 +647,12 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 
 		allColsToFlush.Wait()
-		blkSumLen := segstore.flushBlockSummary(wipBlockMetadata, segstore.numBlocks)
+		blkSumLen := segstore.flushBlockSummary(segstore.numBlocks)
 		if !isKibana {
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
-				wipBlockMetadata, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
+				segstore.wipBlock.bmiCnameIdxDict, segstore.wipBlock.bmiColOffLen,
+				segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
 				segstore.latest_millis, segstore.RecordCount, segstore.OrgId, segstore.pqMatches)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
@@ -697,6 +703,29 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		}
 	}
 	return nil
+}
+
+func (segstore *SegStore) initBmh() {
+
+	numCols := len(segstore.wipBlock.colWips)
+	if segstore.wipBlock.bmiCnameIdxDict == nil {
+		segstore.wipBlock.bmiCnameIdxDict = make(map[string]int)
+		segstore.wipBlock.bmiColOffLen = make([]structs.ColOffAndLen, numCols)
+	}
+
+	// extend array in cases where we get new columns names that were
+	// not there in previous blocks
+	arrLen := len(segstore.wipBlock.bmiColOffLen)
+	if arrLen <= numCols {
+		segstore.wipBlock.bmiColOffLen = append(segstore.wipBlock.bmiColOffLen,
+			make([]structs.ColOffAndLen, numCols-arrLen+1)...)
+	}
+
+	// walk through the array and mark all lengths as 0, it is a proxy
+	// for telling whether this specific column name idx is present for this block
+	for i := 0; i < len(segstore.wipBlock.bmiColOffLen); i++ {
+		segstore.wipBlock.bmiColOffLen[i].Length = 0
+	}
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
@@ -1180,7 +1209,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 }
 
 // returns the number of bytes written
-func (segstore *SegStore) flushBlockSummary(bmh *structs.BlockMetadataHolder, blkNum uint16) uint64 {
+func (segstore *SegStore) flushBlockSummary(blkNum uint16) uint64 {
 
 	fname := structs.GetBsuFnameFromSegKey(segstore.SegmentKey)
 
@@ -1193,7 +1222,9 @@ func (segstore *SegStore) flushBlockSummary(bmh *structs.BlockMetadataHolder, bl
 	defer fd.Close()
 
 	blkSumBuf := make([]byte, utils.BLOCK_SUMMARY_SIZE)
-	packedLen, blkSumBuf, err := EncodeBlocksum(bmh, &segstore.wipBlock.blockSummary, blkSumBuf[0:], blkNum)
+	packedLen, blkSumBuf, err := EncodeBlocksum(&segstore.wipBlock.blockSummary,
+		blkSumBuf[0:], blkNum, segstore.wipBlock.bmiCnameIdxDict,
+		segstore.wipBlock.bmiColOffLen)
 	if err != nil {
 		log.Errorf("flushBlockSummary: EncodeBlocksum: Failed to encode blocksummary=%+v, err=%v",
 			segstore.wipBlock.blockSummary, err)

@@ -25,6 +25,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/siglens/siglens/pkg/segment/writer"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,10 +38,12 @@ func Test_timeReader(t *testing.T) {
 
 	numBlocks := 10
 	numEntriesInBlock := 10
-	_, bSum, _, cols, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	assert.Greater(t, len(cols), 1)
-	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), blockmeta, bSum, 0)
+	timeReader, err := InitNewTimeReaderFromBlockSummaries(segKey, config.GetTimeStampKey(), allBlocksToSearch, bSum, 0, allBmi)
 	assert.Nil(t, err)
 
 	// test across multiple columns types
@@ -67,10 +70,12 @@ func Test_readTimeStamps(t *testing.T) {
 
 	numBlocks := 10
 	numEntriesInBlock := 2000
-	_, blockSums, _, _, blockmeta, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+	_, blockSums, _, _, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
+
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	colName := config.GetTimeStampKey()
-	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, blockmeta, blockSums, 0)
+	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, allBlocksToSearch, blockSums, 0, allBmi)
 	assert.Nil(t, err)
 
 	totalRead := uint64(0)
@@ -99,12 +104,14 @@ func Benchmark_readTimeFile(b *testing.B) {
 	segKey := "/Users/ssubramanian/Desktop/SigLens/siglens/data/Sris-MacBook-Pro.local/final/2022/02/21/01/valtix2/10005995996882630313/0"
 	sumFile := structs.GetBsuFnameFromSegKey(segKey)
 
-	blockSums, allBlockInfo, err := microreader.ReadBlockSummaries(sumFile, false)
+	blockSums, allBmi, err := microreader.ReadBlockSummaries(sumFile, false)
 	assert.Nil(b, err)
+
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	colName := config.GetTimeStampKey()
 
-	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, allBlockInfo, blockSums, 0)
+	fileReader, err := InitNewTimeReaderFromBlockSummaries(segKey, colName, allBlocksToSearch, blockSums, 0, allBmi)
 	assert.Nil(b, err)
 
 	// b.ResetTimer()

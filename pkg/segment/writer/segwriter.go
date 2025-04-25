@@ -129,6 +129,8 @@ type WipBlock struct {
 	tohRollup          map[uint64]*RolledRecs // top-of-hour rollup
 	todRollup          map[uint64]*RolledRecs // top-of-day rollup
 	bb                 *bbp.ByteBuffer        // byte buffer pool for HLL byte inserts
+	bmiCnameIdxDict    map[string]int
+	bmiColOffLen       []structs.ColOffAndLen
 }
 
 type ParsedLogEvent struct {
@@ -899,7 +901,8 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 */
 // returns number of written bytes, offset of block in file, and any errors
 
-func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, error) {
+func writeWip(colWip *ColWip, encType []byte, compBuf []byte,
+	blkRecCount uint16) (uint32, int64, error) {
 
 	blkLen := uint32(0)
 	// todo better error handling should not exit
@@ -924,7 +927,7 @@ func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, er
 	}
 	blkLen += 1 // for compression type
 
-	compressed, compLen, err := compressWip(colWip, encType, compBuf)
+	compressed, compLen, err := compressWip(colWip, encType, compBuf, blkRecCount)
 	if err != nil {
 		log.Errorf("WriteWip: compression of wip failed fname=%v, err=%v", colWip.csgFname, err)
 		return 0, blkOffset, err
@@ -944,7 +947,8 @@ func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, er
 	return blkLen, blkOffset, nil
 }
 
-func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32, error) {
+func compressWip(colWip *ColWip, encType []byte, compBuf []byte,
+	blkRecCount uint16) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
 
@@ -954,7 +958,7 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
 		compressed = colWip.cbuf.Slice(0, int(colWip.cbufidx))
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {
-		PackDictEnc(colWip)
+		PackDictEnc(colWip, blkRecCount)
 		compressed = colWip.cbuf.Slice(0, int(colWip.cbufidx))
 	} else {
 		log.Errorf("compressWip got an unknown encoding type: %+v", encType)

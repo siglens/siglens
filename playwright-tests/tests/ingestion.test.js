@@ -30,16 +30,7 @@ test.describe('Logs Ingestion Page Tests', () => {
         await page.waitForTimeout(1000);
 
         await expect(page.locator('#logs-cards-view')).not.toBeVisible();
-        await expect(page.locator('#logs-ingestion-details')).toBeVisible();
-
-        if ((await page.locator('#data-ingestion').count()) > 0) {
-            await expect(page.locator('#data-ingestion')).toBeVisible();
-        }
-
-        const sampleDataExists = (await page.locator('#sample-data').count()) > 0;
-        if (!sampleDataExists) {
-            console.log('Warning: #sample-data element not found');
-        }
+        await expect(page.locator('#content-container')).toBeVisible();
 
         expect(page.url()).toContain('method=opentelemetry');
     });

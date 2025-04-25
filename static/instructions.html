@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+
+    gtag('config', 'G-5SBJC04YFB');
+</script>
+
+<head>
+    <meta charset="UTF-8">
+    <title>SigLens</title>
+
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <link rel="mask-icon" href="assets/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+
+    <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="./css/lib/github.min.css" />
+    <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/instructions.css?cb={{ AppVersion }}" />
+
+    <script src="./js/lib/jquery-3.6.0.min.js"></script>
+    <script src="./js/lib/jquery-ui.min.js"></script>
+    <script src="./js/lib/js.cookie.min.js"></script>
+    <script src="./js/lib/moment.min.js"></script>
+    <script src="./js/lib/bootstrap.bundle.min.js"></script>
+    <script src="./js/lib/marked.min.js"></script>
+    <script src="./js/lib/highlight.min.js"></script>
+    <script>
+        var defaultTheme = Cookies.get('theme') || 'light';
+        $('html').attr('data-theme', defaultTheme);
+    </script>
+    {{ .RunCheck1 | safeHTML }}
+</head>
+
+<body>
+    <div id="app-container">
+        <div id="app-side-nav">
+        </div>
+        <div id="dashboard">
+            <main class="content">
+                <div id="content-container">
+                    <div class="loading-indicator">Loading...</div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="./js/navbar.js?cb={{ AppVersion }}"></script>
+    <script src="./js/common.js?cb={{ AppVersion }}"></script>
+    <script src="./js/event-handlers.js?cb={{ AppVersion }}"></script>
+    <script src="./js/instructions.js?cb={{ AppVersion }}"></script>
+</body>
+
+</html>

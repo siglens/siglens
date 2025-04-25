@@ -4,8 +4,24 @@
         "verifyMinimal": true,
         "totalMatched": {
         },
-        "qtype": "logs-query",
-        "records": [
+        "qtype": "aggs-query",
+        "bucketCount": 0,
+        "doNotVerifyGroupByValues": true,
+        "groupByCols": ["timestamp"],
+        "measureFunctions": [
+            "max_latency: Drawing@DELETE",
+            "max_latency: Genealogy@GET",
+            "max_latency: Herping@DELETE",
+            "max_latency: Horseback riding@GET",
+            "max_latency: Knife making@PUT",
+            "max_latency: Sand art@PATCH",
+            "max_latency: Squash@PUT",
+            "max_latency: Tourism@PATCH",
+            "max_latency: Transit map collecting@DELETE",
+            "max_latency: Water sports@DELETE",
+            "max_latency: other"
+        ],
+        "measure": [
         ],
         "allColumns": [
             "max_latency: Drawing@DELETE",

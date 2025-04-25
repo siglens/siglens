@@ -156,6 +156,7 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 
 	isLogsQuery := query.IsLogsQuery(firstAgg)
 	_, queryType := query.GetNodeAndQueryTypes(&structs.SearchNode{}, firstAgg)
+	fullQueryType := query.GetQueryTypeOfFullChain(firstAgg)
 
 	if queryType != structs.RRCCmd {
 		// If query Type is GroupByCmd/SegmentStatsCmd, this agg must be a Stats Agg and will be processed by the searcher.
@@ -225,7 +226,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 		lastStreamer = dataProcessors[len(dataProcessors)-1]
 	}
 
-	queryProcessor, err := newQueryProcessorHelper(queryType, lastStreamer, dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute)
+	queryProcessor, err := newQueryProcessorHelper(fullQueryType, lastStreamer,
+		dataProcessors, queryInfo.GetQid(), scrollFrom, includeNulls, shouldDistribute)
 	if err != nil {
 		return nil, err
 	}

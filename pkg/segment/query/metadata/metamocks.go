@@ -57,8 +57,7 @@ func initMockColumnarMetadataStoreInternal(myid int64, indexName string, count i
 			return nil, fmt.Errorf("initMockColumnarMetadataStoreInternal: MkdirAll failed err=%v", err)
 		}
 		segkey := config.GetSegKeyFromVTableDir(vTableBaseDir, fmt.Sprint(i))
-		bsumFname := segkey + ".bsu"
-		colBlooms, blockSummaries, colRis, cnames, allBmh, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
+		colBlooms, _, colRis, cnames, _, allColsSizes := writer.WriteMockColSegFile(segBaseDir, segkey,
 			numBlocks, entryCount)
 
 		for colName := range cnames {
@@ -94,8 +93,6 @@ func initMockColumnarMetadataStoreInternal(myid int64, indexName string, count i
 				continue
 			}
 		}
-
-		writeMockBlockSummary(allBmh, bsumFname, blockSummaries)
 
 		sInfo := &structs.SegMeta{
 			SegmentKey:       segkey,
@@ -227,36 +224,5 @@ func writeMockBlockRI(file string, blockRange []map[string]*structs.Numbers) {
 			log.Errorf("writeMockBlockRI:  write failed blockRangeIndexFname=%v, err=%v", file, err)
 			return
 		}
-	}
-}
-
-func writeMockBlockSummary(allbmh map[uint16]*structs.BlockMetadataHolder, file string,
-	blockSums []*structs.BlockSummary) {
-
-	fd, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		log.Errorf("flushBlockSummary: open failed blockSummaryFname=%v, err=%v", file, err)
-		return
-	}
-
-	defer fd.Close()
-
-	for blkNum, block := range blockSums {
-		blkSumBuf := make([]byte, segutils.BLOCK_SUMMARY_SIZE)
-		packedLen, blkSumBuf, err := writer.EncodeBlocksum(allbmh[uint16(blkNum)], block,
-			blkSumBuf[0:], uint16(blkNum))
-
-		if err != nil {
-			log.Errorf("writeMockBlockSummary: EncodeBlocksum: Failed to encode blocksummary=%+v, err=%v", block, err)
-			return
-		}
-		if _, err := fd.Write(blkSumBuf[:packedLen]); err != nil {
-			log.Errorf("WriteBlockSummary:  write failed blockSummaryFname=%v, err=%v", file, err)
-			return
-		}
-	}
-	err = fd.Sync()
-	if err != nil {
-		log.Fatal(err)
 	}
 }
