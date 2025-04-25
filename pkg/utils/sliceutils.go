@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -419,4 +420,38 @@ func ShallowCopySlice[T any](src []T) []T {
 	dst := make([]T, len(src))
 	copy(dst, src)
 	return dst
+}
+
+// If there's multiple errors, one of them is returned, but it's not guaranteed
+// which one.
+func ProcessWithParallelism[T any](parallelism int, items []T, processor func(T) error) error {
+	var finalErr error
+	waitGroup := sync.WaitGroup{}
+	itemChan := make(chan T)
+
+	// Add the items to a channel.
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+		for _, item := range items {
+			itemChan <- item
+		}
+		close(itemChan)
+	}()
+
+	// Process the items.
+	waitGroup.Add(parallelism)
+	for i := 0; i < parallelism; i++ {
+		go func() {
+			defer waitGroup.Done()
+			for item := range itemChan {
+				if err := processor(item); err != nil {
+					finalErr = err
+				}
+			}
+		}()
+	}
+	waitGroup.Wait()
+
+	return finalErr
 }
