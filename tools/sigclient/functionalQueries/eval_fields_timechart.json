@@ -5,15 +5,27 @@
             "value": 1,
             "relation": "eq"
         },
-        "qtype": "logs-query",
-        "uniqueKeyCols": [
-            "avg_lat_http: PATCH"
-        ],
-        "records": [
+        "qtype": "aggs-query",
+        "bucketCount": 1,
+        "doNotVerifyGroupByValues": true,
+        "groupByCols": ["timestamp"],
+        "measureFunctions": ["avg_lat_http: PATCH", "avg_lat_http: POST", "avg_lat_http: PUT"],
+        "measure": [
             {
-                "avg_lat_http: PATCH": -2.262244897959184,
-                "avg_lat_http: POST": -2.141111111111112,
-                "avg_lat_http: PUT": -0.38511111111111107
+                "IGroupByValues": [
+                    {
+                        "Dtype": 3,
+                        "CVal": "timestamp_value"
+                    }
+                ],
+                "GroupByValues": [
+                    "timestamp_value"
+                ],
+                "MeasureVal": {
+                    "avg_lat_http: PATCH": -2.262244897959184,
+                    "avg_lat_http: POST": -2.141111111111112,
+                    "avg_lat_http: PUT": -0.38511111111111107
+                }
             }
         ],
         "allColumns": [
