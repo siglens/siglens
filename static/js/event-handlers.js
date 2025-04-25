@@ -480,14 +480,22 @@ function runFilterBtnHandler(evt) {
 
 function filterInputHandler(evt) {
     if (!evt.shiftKey && evt.keyCode === 13) {
-        evt.preventDefault();
-        resetDashboard();
-        logsRowData = [];
-        accumulatedRecords = [];
-        totalLoadedRecords = 0;
-        data = getSearchFilter(false, false);
-        initialSearchData = data;
-        doSearch(data);
+        const currentUrl = window.location.href;
+        const url = new URL(currentUrl);
+        const pathOnly = url.pathname;
+
+        const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
+
+        if (isIndexPage) {
+            evt.preventDefault();
+            resetDashboard();
+            logsRowData = [];
+            accumulatedRecords = [];
+            totalLoadedRecords = 0;
+            data = getSearchFilter(false, false);
+            initialSearchData = data;
+            doSearch(data);
+        }
     }
 }
 
