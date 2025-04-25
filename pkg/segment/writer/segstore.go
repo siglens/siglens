@@ -327,9 +327,9 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		return err
 	}
 
-	if segstore.wipBlock.currAllBmi != nil {
-		clear(segstore.wipBlock.currAllBmi.AllBmh)
-		clear(segstore.wipBlock.currAllBmi.CnameDict)
+	if segstore.wipBlock.bmiCnameIdxDict != nil {
+		clear(segstore.wipBlock.bmiCnameIdxDict)
+		segstore.wipBlock.bmiColOffLen = nil
 	}
 
 	return nil
@@ -545,7 +545,6 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		wipBlockLock := sync.Mutex{}
 
 		segstore.initBmh()
-		allBmi := segstore.wipBlock.currAllBmi
 
 		// If the virtual table name is not present(possibly due to deletion of indices without segments), then add it back.
 		if !vtable.IsVirtualTablePresent(&segstore.VirtualTableName, segstore.OrgId) {
@@ -613,14 +612,13 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 					atomic.AddUint64(&totalBytesWritten, uint64(blkLen))
 					wipBlockLock.Lock()
 
-					cnameIdx, ok := allBmi.CnameDict[cname]
+					cnameIdx, ok := segstore.wipBlock.bmiCnameIdxDict[cname]
 					if !ok {
-						cnameIdx = len(allBmi.CnameDict)
-						allBmi.CnameDict[cname] = cnameIdx
+						cnameIdx = len(segstore.wipBlock.bmiCnameIdxDict)
+						segstore.wipBlock.bmiCnameIdxDict[cname] = cnameIdx
 					}
 
-					bmh := allBmi.AllBmh[segstore.numBlocks]
-					bmh.ColBlockOffAndLen[cnameIdx] = structs.ColOffAndLen{
+					segstore.wipBlock.bmiColOffLen[cnameIdx] = structs.ColOffAndLen{
 						Offset: blkOffset,
 						Length: blkLen,
 					}
@@ -654,11 +652,12 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		allColsToFlush.Wait()
 		segstore.verifyCsg()
 
-		blkSumLen := segstore.flushBlockSummary(allBmi, segstore.numBlocks)
+		blkSumLen := segstore.flushBlockSummary(segstore.numBlocks)
 		if !isKibana {
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
 			updateUnrotatedBlockInfo(segstore.SegmentKey, segstore.VirtualTableName, &segstore.wipBlock,
-				allBmi, segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
+				segstore.wipBlock.bmiCnameIdxDict, segstore.wipBlock.bmiColOffLen,
+				segstore.AllSeenColumnSizes, segstore.numBlocks, totalMetadata, segstore.earliest_millis,
 				segstore.latest_millis, segstore.RecordCount, segstore.OrgId, segstore.pqMatches)
 		}
 		atomic.AddUint64(&totalBytesWritten, blkSumLen)
@@ -716,20 +715,19 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 func (segstore *SegStore) verifyCsg() {
 
 	gotErr := false
-	allBmi := segstore.wipBlock.currAllBmi
 	for cname, cwip := range segstore.wipBlock.colWips {
 		if cname == config.GetTimeStampKey() {
 			continue
 		}
 
-		cnameIdx, ok := allBmi.CnameDict[cname]
+		cnameIdx, ok := segstore.wipBlock.bmiCnameIdxDict[cname]
 		if !ok {
 			log.Errorf("verifyCsg: ERROR could not find cname: %v, blkNum: %v",
 				cname, segstore.numBlocks)
 			continue
 		}
 
-		cOffLen := allBmi.AllBmh[segstore.numBlocks].ColBlockOffAndLen[cnameIdx]
+		cOffLen := segstore.wipBlock.bmiColOffLen[cnameIdx]
 		_, err := segstore.loadBlockUsingBuffer(cOffLen.Offset, cOffLen.Length, cwip.csgFname,
 			cname)
 		if err != nil {
@@ -747,36 +745,19 @@ func (segstore *SegStore) verifyCsg() {
 
 func (segstore *SegStore) initBmh() {
 
-	if segstore.wipBlock.currAllBmi == nil {
-		segstore.wipBlock.currAllBmi = &structs.AllBlksMetaInfo{
-			CnameDict: make(map[string]int),
-			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
-		}
+	numCols := len(segstore.wipBlock.colWips)
+	if segstore.wipBlock.bmiCnameIdxDict == nil {
+		segstore.wipBlock.bmiCnameIdxDict = make(map[string]int)
+		segstore.wipBlock.bmiColOffLen = make([]structs.ColOffAndLen, numCols)
 	}
-	var bmh *structs.BlockMetadataHolder
-	// reuse old val to save on mem
-	for _, v := range segstore.wipBlock.currAllBmi.AllBmh {
-		bmh = v
-		break
-	}
-	if bmh == nil {
-		bmh = &structs.BlockMetadataHolder{
-			BlkNum:            segstore.numBlocks,
-			ColBlockOffAndLen: make([]structs.ColOffAndLen, len(segstore.wipBlock.colWips)),
-		}
-	}
-	// delete the old keys since we don;t need them anymore
-	clear(segstore.wipBlock.currAllBmi.AllBmh)
 
 	// extend array in cases where we get new columns names that were
 	// not there in previous blocks
-	arrLen := len(bmh.ColBlockOffAndLen)
-	numCols := len(segstore.wipBlock.colWips)
+	arrLen := len(segstore.wipBlock.bmiColOffLen)
 	if arrLen <= numCols {
-		bmh.ColBlockOffAndLen = append(bmh.ColBlockOffAndLen,
+		segstore.wipBlock.bmiColOffLen = append(segstore.wipBlock.bmiColOffLen,
 			make([]structs.ColOffAndLen, numCols-arrLen+1)...)
 	}
-	segstore.wipBlock.currAllBmi.AllBmh[segstore.numBlocks] = bmh
 }
 
 func removePqmrFilesAndDirectory(pqid string, segKey string) error {
@@ -1260,8 +1241,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 }
 
 // returns the number of bytes written
-func (segstore *SegStore) flushBlockSummary(allBmi *structs.AllBlksMetaInfo,
-	blkNum uint16) uint64 {
+func (segstore *SegStore) flushBlockSummary(blkNum uint16) uint64 {
 
 	fname := structs.GetBsuFnameFromSegKey(segstore.SegmentKey)
 
@@ -1274,8 +1254,9 @@ func (segstore *SegStore) flushBlockSummary(allBmi *structs.AllBlksMetaInfo,
 	defer fd.Close()
 
 	blkSumBuf := make([]byte, utils.BLOCK_SUMMARY_SIZE)
-	packedLen, blkSumBuf, err := EncodeBlocksum(allBmi, &segstore.wipBlock.blockSummary,
-		blkSumBuf[0:], blkNum)
+	packedLen, blkSumBuf, err := EncodeBlocksum(&segstore.wipBlock.blockSummary,
+		blkSumBuf[0:], blkNum, segstore.wipBlock.bmiCnameIdxDict,
+		segstore.wipBlock.bmiColOffLen)
 	if err != nil {
 		log.Errorf("flushBlockSummary: EncodeBlocksum: Failed to encode blocksummary=%+v, err=%v",
 			segstore.wipBlock.blockSummary, err)
