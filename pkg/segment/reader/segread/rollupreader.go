@@ -56,39 +56,39 @@ func InitNewRollupReader(segKey string, tsKey string, qid uint64) (*RollupReader
 	fName := fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"m"))
 	err := blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to download min rollup file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		err1 := fmt.Errorf("qid=%d, InitNewRollupReader: failed to download min rollup file: %+v, err: %v", qid, fName, err)
+		return nil, err1
 	}
 	minRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to open min rollup file: %s, err: %+v", qid, fName, err)
-		return &RollupReader{}, err
+		err1 := fmt.Errorf("qid=%d, InitNewRollupReader: failed to open min rollup file: %s, err: %+v", qid, fName, err)
+		return &RollupReader{}, err1
 	}
 	allInUseFiles = append(allInUseFiles, fName)
 
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"h"))
 	err = blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to download hour rollup file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		err1 := fmt.Errorf("qid=%d, InitNewRollupReader: failed to download hour rollup file: %+v, err: %v", qid, fName, err)
+		return nil, err1
 	}
 	hourRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to open hour rollup file: %s, err: %+v", qid, fName, err)
-		return &RollupReader{}, err
+		err1 := fmt.Errorf("qid=%d, InitNewRollupReader: failed to open hour rollup file: %s, err: %+v", qid, fName, err)
+		return &RollupReader{}, err1
 	}
 	allInUseFiles = append(allInUseFiles, fName)
 
 	fName = fmt.Sprintf("%v/rups/%v.crup", path.Dir(segKey), xxhash.Sum64String(tsKey+"d"))
 	err = blob.DownloadSegmentBlob(fName, true)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to download day rollup file: %+v, err: %v", qid, fName, err)
-		return nil, err
+		err1 := fmt.Errorf("qid=%d, InitNewRollupReader: failed to download day rollup file: %+v, err: %v", qid, fName, err)
+		return nil, err1
 	}
 	dayRupFd, err := os.OpenFile(fName, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Errorf("qid=%d, InitNewRollupReader: failed to open day rollup file: %s, err: %+v", qid, fName, err)
-		return &RollupReader{}, err
+		err1 := fmt.Errorf("qid=%d, InitNewRollupReader: failed to open day rollup file: %s, err: %+v", qid, fName, err)
+		return &RollupReader{}, err1
 	}
 	allInUseFiles = append(allInUseFiles, fName)
 

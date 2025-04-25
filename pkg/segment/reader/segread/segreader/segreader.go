@@ -224,7 +224,8 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	cOffAndLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
 	if cOffAndLen.Length == 0 {
-		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: offset was 0, colName: %v, cnameIdx: %v, fname: %v", sfr.ColName, cnameIdx, sfr.fileName)
+		// This is an invalid block & not an error because this column never existed for this block
+		return false, nil
 	}
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
@@ -432,7 +433,7 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 				numErrors++
 				if err == nil {
 					err = fmt.Errorf("recNum %+v exceeds the number of records %+v in block %+v, fileName: %v, colname: %v",
-						recNum, sfr.blockSummaries[blockNum].RecCount, blockNum, sfr.fileName, sfr.ColName)
+						recNum, len(sfr.deRecToTlv), blockNum, sfr.fileName, sfr.ColName)
 				}
 
 				continue
@@ -542,6 +543,11 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 
 	for recIdx, rn := range orderedRecNums {
 		dwIdx := sfr.deRecToTlv[rn]
+		if int(dwIdx) >= len(sfr.deTlv) {
+			log.Debugf("deToResults: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
+				dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+			return false
+		}
 		dWord := sfr.deTlv[dwIdx]
 
 		switch dWord[0] {
@@ -570,10 +576,16 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 
 func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
 
-	if rn >= uint16(len(sfr.deRecToTlv)) {
+	if int(rn) >= len(sfr.deRecToTlv) {
 		return nil, fmt.Errorf("SegmentFileReader.deGetRec: recNum %+v does not exist, len: %+v", rn, len(sfr.deRecToTlv))
 	}
 	dwIdx := sfr.deRecToTlv[rn]
+
+	if int(dwIdx) >= len(sfr.deTlv) {
+		return nil, fmt.Errorf("SegmentFileReader.deGetRec: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
+			dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+	}
+
 	dWord := sfr.deTlv[dwIdx]
 	return dWord, nil
 }

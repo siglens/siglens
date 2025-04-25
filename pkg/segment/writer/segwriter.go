@@ -129,7 +129,8 @@ type WipBlock struct {
 	tohRollup          map[uint64]*RolledRecs // top-of-hour rollup
 	todRollup          map[uint64]*RolledRecs // top-of-day rollup
 	bb                 *bbp.ByteBuffer        // byte buffer pool for HLL byte inserts
-	currAllBmi         *structs.AllBlksMetaInfo
+	bmiCnameIdxDict    map[string]int
+	bmiColOffLen       []structs.ColOffAndLen
 }
 
 type ParsedLogEvent struct {
