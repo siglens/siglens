@@ -86,7 +86,7 @@ let aggGridOptions = {
     },
 };
 /*eslint-enable*/
-// {{ .CommonExtraFunctions }}
+{{ .CommonExtraFunctions }}
 
 function showError(mainText, subText) {
     $('#corner-popup .corner-text').html(mainText);
@@ -209,7 +209,6 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
                 }
             }
             $('#avail-field-container ').css('display', 'none');
-            console.log('renderPanelAggsGrid');
             renderPanelAggsGrid(columnOrder, res, panelId);
         }
         //for logs-query
@@ -292,7 +291,7 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
 }
 
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
-    console.log(panelId);
+
     let msg;
     if (errorMsg !== '') {
         msg = errorMsg;
@@ -323,7 +322,6 @@ function panelProcessEmptyQueryResults(errorMsg, panelId) {
     }
     $('body').css('cursor', 'default');
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
-    console.log('Dispaly the error message');
 }
 
 function panelProcessSearchError(res, panelId) {
@@ -423,9 +421,6 @@ function getCookie(cname) {
 }
 
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
-    console.log(res);
-    console.log('renderPanelAggsQueryRes');
-    console.log('chartType', chartType);
     resetQueryResAttr(res, panelId);
 
     if (res.qtype === 'logs-query') {
