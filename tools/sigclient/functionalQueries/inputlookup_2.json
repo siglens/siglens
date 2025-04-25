@@ -5,16 +5,22 @@
             "value": 1,
             "relation": "eq"
         },
-        "qtype": "logs-query",
-        "records": [
+        "qtype": "segstats-query",
+        "measureFunctions": ["avg", "cnt", "dc", "max(Salary)", "min(EmployeeID)", "sum", "values(Department)"],
+        "measure": [
             {
-                "avg": 4.125,
-                "cnt": 4,
-                "dc": 4,
-                "max(Salary)": 92000,
-                "min(EmployeeID)": 1002,
-                "sum": 308000,
-                "values(Department)": "[Engineering Finance Marketing Product]"
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "avg": 4.125,
+                    "cnt": 4,
+                    "dc": 4,
+                    "max(Salary)": 92000,
+                    "min(EmployeeID)": 1002,
+                    "sum": 308000,
+                    "values(Department)": "[Engineering Finance Marketing Product]"
+                }
             }
         ],
         "allColumns": [

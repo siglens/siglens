@@ -824,33 +824,6 @@ func RunQueryFromFile(dest string, numIterations int, prefix string, continuous,
 						} else {
 							log.Fatalf("RunQueryFromFile: specified group item not found for query %v", rec[0])
 						}
-					} else if strings.HasPrefix(evaluationType, "countRecord") && eKey == "hits" {
-						groupData := strings.Split(evaluationType, ":")
-						col := groupData[1]
-						_ = col
-						if readEvent["hits"] == nil {
-							log.Fatalf("RunQueryFromFile: No hits found for query %v", rec[0])
-						}
-						hits := readEvent["hits"].(map[string]interface{})
-						records := hits["records"].([]interface{})
-						if len(records) != 1 {
-							log.Fatalf("RunQueryFromFile: Expected records for this special case is 1 found: %v. Query= %v", len(records), rec[0])
-						}
-						data := records[0].(map[string]interface{})
-						if len(data) == 0 {
-							log.Fatalf("RunQueryFromFile: Expected number of columns for this special case to be not zero. Query= %v", rec[0])
-						}
-						actualValue, ok := data[col]
-						if !ok {
-							log.Fatalf("RunQueryFromFile: Expected col %v is not in the data record", col)
-						}
-						validated := verifyResults(actualValue, relation, expectedValue, rec[0])
-
-						if validated {
-							log.Infof("RunQueryFromFile: Query %v was succesful. In %+v", rec[0], time.Since(sTime))
-						} else {
-							log.Fatalf("RunQueryFromFile: Error validating the query %v", rec[0])
-						}
 					}
 				}
 			default:

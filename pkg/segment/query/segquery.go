@@ -132,19 +132,41 @@ func initSyncSegMetaForAllIds(getMyIds func() []int64, allSegmentsHook func() (m
 }
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
+	return sNode.NodeType, getQueryTypeOfCurrentAgg(aggs)
+}
 
-	if aggs != nil && aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
-		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns == nil {
-			return sNode.NodeType, structs.SegmentStatsCmd
-		}
-		if aggs != nil && aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns != nil {
-			return sNode.NodeType, structs.GroupByCmd
+func GetQueryTypeOfFullChain(aggs *structs.QueryAggregators) structs.QueryType {
+	for agg := aggs; agg != nil; agg = agg.Next {
+		switch qType := getQueryTypeOfCurrentAgg(agg); qType {
+		case structs.SegmentStatsCmd, structs.GroupByCmd, structs.InvalidCmd:
+			return qType
+		case structs.RRCCmd:
+			// Do nothing.
 		}
 	}
-	if aggs != nil && aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
-		return sNode.NodeType, structs.SegmentStatsCmd
+
+	return structs.RRCCmd
+}
+
+func getQueryTypeOfCurrentAgg(aggs *structs.QueryAggregators) structs.QueryType {
+	if aggs == nil {
+		return structs.RRCCmd
 	}
-	return sNode.NodeType, structs.RRCCmd
+
+	if aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
+		if aggs.GroupByRequest.MeasureOperations != nil {
+			if aggs.GroupByRequest.GroupByColumns == nil {
+				return structs.SegmentStatsCmd
+			} else {
+				return structs.GroupByCmd
+			}
+		}
+	}
+	if aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
+		return structs.SegmentStatsCmd
+	}
+
+	return structs.RRCCmd
 }
 
 func IsLogsQuery(firstAgg *structs.QueryAggregators) bool {

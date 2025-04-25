@@ -5136,8 +5136,8 @@ p#versionInfo {
 
 .clear-icon {
     position: absolute;
-    top: 8px;
-    right: 35px;
+    top: 7px;
+    right: 28px;
     cursor: pointer;
     background: url(../assets/cross-btn-icon.svg);
     height: 11px;
