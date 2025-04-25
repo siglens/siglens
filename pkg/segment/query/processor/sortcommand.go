@@ -247,13 +247,11 @@ func (p *sortProcessor) less(a, b *iqr.Record) bool {
 	for i, element := range p.options.SortEles {
 		valA, err := a.ReadColumn(element.Field)
 		if err != nil {
-			p.err = fmt.Errorf("cannot read column %v from record A; err=%v", element.Field, err)
 			return false
 		}
 		valB, err := b.ReadColumn(element.Field)
 		if err != nil {
-			p.err = fmt.Errorf("cannot read column %v from record B; err=%v", element.Field, err)
-			return false
+			return true
 		}
 
 		// From https://docs.splunk.com/Documentation/Splunk/9.1.1/SearchReference/Sort#Sort_field_options
