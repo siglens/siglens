@@ -651,9 +651,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 			}
 		}
 
+		allColsToFlush.Wait()
 		segstore.verifyCsg()
 
-		allColsToFlush.Wait()
 		blkSumLen := segstore.flushBlockSummary(allBmi, segstore.numBlocks)
 		if !isKibana {
 			// everytime we write compressedWip to segfile, we write a corresponding blockBloom
@@ -724,8 +724,9 @@ func (segstore *SegStore) verifyCsg() {
 
 		cnameIdx, ok := allBmi.CnameDict[cname]
 		if !ok {
-			log.Errorf("verifyCsg: ERROR could not find cname: %v", cname)
-			return
+			log.Errorf("verifyCsg: ERROR could not find cname: %v, blkNum: %v",
+				cname, segstore.numBlocks)
+			continue
 		}
 
 		cOffLen := allBmi.AllBmh[segstore.numBlocks].ColBlockOffAndLen[cnameIdx]
@@ -752,16 +753,29 @@ func (segstore *SegStore) initBmh() {
 			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
 		}
 	}
-
+	var bmh *structs.BlockMetadataHolder
+	// reuse old val to save on mem
+	for _, v := range segstore.wipBlock.currAllBmi.AllBmh {
+		bmh = v
+		break
+	}
+	if bmh == nil {
+		bmh = &structs.BlockMetadataHolder{
+			BlkNum:            segstore.numBlocks,
+			ColBlockOffAndLen: make([]structs.ColOffAndLen, len(segstore.wipBlock.colWips)),
+		}
+	}
 	// delete the old keys since we don;t need them anymore
 	clear(segstore.wipBlock.currAllBmi.AllBmh)
 
+	// extend array in cases where we get new columns names that were
+	// not there in previous blocks
+	arrLen := len(bmh.ColBlockOffAndLen)
 	numCols := len(segstore.wipBlock.colWips)
-	bmh := &structs.BlockMetadataHolder{
-		BlkNum:            segstore.numBlocks,
-		ColBlockOffAndLen: make([]structs.ColOffAndLen, numCols+1),
+	if arrLen <= numCols {
+		bmh.ColBlockOffAndLen = append(bmh.ColBlockOffAndLen,
+			make([]structs.ColOffAndLen, numCols-arrLen+1)...)
 	}
-
 	segstore.wipBlock.currAllBmi.AllBmh[segstore.numBlocks] = bmh
 }
 
