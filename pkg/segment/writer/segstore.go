@@ -718,6 +718,11 @@ func (segstore *SegStore) verifyCsg() {
 
 	gotErr := false
 	for cname, cwip := range segstore.wipBlock.colWips {
+
+		if cwip.cbufidx <= 0 {
+			continue
+		}
+
 		if cname == config.GetTimeStampKey() {
 			continue
 		}
