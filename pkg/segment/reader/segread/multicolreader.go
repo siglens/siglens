@@ -81,8 +81,8 @@ Can also be used to get the timestamp for any arbitrary record in the Segment
 func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
 	allBlocksToSearch map[uint16]struct{},
 	blockSummaries []*structs.BlockSummary,
-	allColumnsRecSize map[string]uint32, qid uint64) (*MultiColSegmentReader, error) {
-
+	allColumnsRecSize map[string]uint32, qid uint64,
+) (*MultiColSegmentReader, error) {
 	readCols := make([]*ColumnInfo, 0)
 	readColsReverseIndex := make(map[string]*ColumnInfo)
 	colRevserseIndex := make(map[string]int)
@@ -166,7 +166,8 @@ It is up to the caller to close the open FDs using .Close()
 */
 func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool,
 	allBlocksToSearch map[uint16]struct{},
-	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64, nodeRes *structs.NodeResult) (*SharedMultiColReaders, error) {
+	blockSummaries []*structs.BlockSummary, numReaders int, consistentCValLen map[string]uint32, qid uint64, nodeRes *structs.NodeResult,
+) (*SharedMultiColReaders, error) {
 	allInUseSegSetFiles := make([]string, 0)
 
 	maxOpenFds := int64(0)
@@ -262,7 +263,6 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool,
 
 // Returns all buffers to the pools, closes all FDs shared across multi readers, and updates global semaphore
 func (scr *SharedMultiColReaders) Close() {
-
 	for _, multiReader := range scr.MultiColReaders {
 		if multiReader != nil {
 			multiReader.returnBuffers()
@@ -288,7 +288,6 @@ func (scr *SharedMultiColReaders) GetColumnsErrorsMap() map[string]error {
 }
 
 func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, recordNum uint16, qid uint64) (uint64, error) {
-
 	if mcsr.timeReader == nil {
 		return 0, fmt.Errorf("qid=%v, MultiColSegmentReader.GetTimeStampForRecord: Tried to get timestamp using a multi reader without an initialized timeReader, blockNum: %v recordNum: %v", qid, blockNum, recordNum)
 	}
@@ -296,7 +295,6 @@ func (mcsr *MultiColSegmentReader) GetTimeStampForRecord(blockNum uint16, record
 }
 
 func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]uint64, error) {
-
 	if mcsr.timeReader == nil {
 		return nil, errors.New("MultiColSegmentReader.GetAllTimeStampsForBlock: uninitialized timerange reader")
 	}
@@ -305,7 +303,6 @@ func (mcsr *MultiColSegmentReader) GetAllTimeStampsForBlock(blockNum uint16) ([]
 
 // Reads the raw value and returns the []byte in TLV format (type-[length]-value encoding)
 func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, blockNum uint16, recordNum uint16, qid uint64, isTsCol bool) ([]byte, error) {
-
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
@@ -328,7 +325,8 @@ func (mcsr *MultiColSegmentReader) ReadRawRecordFromColumnFile(colKeyIndex int, 
 
 // Reads the request value and converts it to a *utils.CValueEnclosure
 func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, blockNum uint16,
-	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure) error {
+	recordNum uint16, qid uint64, isTsCol bool, retCVal *utils.CValueEnclosure,
+) error {
 	if isTsCol {
 		ts, err := mcsr.GetTimeStampForRecord(blockNum, recordNum, qid)
 		if err != nil {
@@ -353,11 +351,13 @@ func (mcsr *MultiColSegmentReader) ExtractValueFromColumnFile(colKeyIndex int, b
 }
 
 func (mcsr *MultiColSegmentReader) returnBuffers() {
-
 	if mcsr.allFileReaders != nil {
 		for _, reader := range mcsr.allFileReaders {
 			if reader != nil {
-				reader.ReturnBuffers()
+				err := reader.ReturnBuffers()
+				if err != nil {
+					log.Errorf("returnBuffers: Error returning buffer back to memory: %v", err)
+				}
 			}
 		}
 	}
@@ -382,8 +382,8 @@ func (mcsr *MultiColSegmentReader) ReorderColumnUsage() {
 }
 
 func (mcsr *MultiColSegmentReader) IsBlkDictEncoded(cname string,
-	blkNum uint16) (bool, error) {
-
+	blkNum uint16,
+) (bool, error) {
 	// reads the csg file and decides whether this particular block is encoded via dictionary encoding
 	// or raw csg encoding, and returns if it is dict-enc, along with the map of each dict-key => recNums pairing
 
@@ -410,8 +410,8 @@ returns:
 	bool: if we are able to find the requested column in dict encoding
 */
 func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFileOldPipeline(results map[uint16]map[string]interface{},
-	col string, blockNum uint16, orderedRecNums []uint16, qid uint64) bool {
-
+	col string, blockNum uint16, orderedRecNums []uint16, qid uint64,
+) bool {
 	keyIndex, ok := mcsr.allColsReverseIndex[col]
 	if !ok {
 		return false
@@ -421,8 +421,8 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFileOldPipeline(results
 }
 
 func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string][]utils.CValueEnclosure,
-	col string, blockNum uint16, orderedRecNums []uint16, qid uint64) bool {
-
+	col string, blockNum uint16, orderedRecNums []uint16, qid uint64,
+) bool {
 	keyIndex, ok := mcsr.allColsReverseIndex[col]
 	if !ok {
 		return false
@@ -433,8 +433,8 @@ func (mcsr *MultiColSegmentReader) GetDictEncCvalsFromColFile(results map[string
 }
 
 func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *structs.MatchFilter,
-	bsh *structs.BlockSearchHelper, cname string, isCaseInsensitive bool) (bool, error) {
-
+	bsh *structs.BlockSearchHelper, cname string, isCaseInsensitive bool,
+) (bool, error) {
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
 		return false, errors.New("could not find sfr for cname")
@@ -446,8 +446,8 @@ func (mcsr *MultiColSegmentReader) ApplySearchToMatchFilterDictCsg(match *struct
 
 func (mcsr *MultiColSegmentReader) ApplySearchToExpressionFilterDictCsg(qValDte *utils.DtypeEnclosure,
 	fop utils.FilterOperator, isRegexSearch bool, bsh *structs.BlockSearchHelper,
-	cname string, isCaseInsensitive bool) (bool, error) {
-
+	cname string, isCaseInsensitive bool,
+) (bool, error) {
 	keyIndex, ok := mcsr.allColsReverseIndex[cname]
 	if !ok {
 		return false, fmt.Errorf("MultiColSegmentReader.ApplySearchToExpressionFilterDictCsg: could not find sfr for cname: %v", cname)
