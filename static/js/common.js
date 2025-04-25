@@ -178,11 +178,6 @@ function resetQueryResAttr(res, panelId) {
 }
 
 function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
-    //if data source is metrics
-    if (!res.qtype) {
-        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
-        return;
-    }
     if (res.hits) {
         if (panelId == -1) {
             // for panel on the editPanelScreen page
@@ -199,6 +194,7 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             $(`#panel${panelId} #empty-response`).hide();
             $(`#panel${panelId} .panEdit-panel`).hide();
         }
+
         //for aggs-query and segstats-query
         if (res.measure && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query')) {
             let columnOrder = [];
@@ -214,7 +210,8 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
             }
             $('#avail-field-container ').css('display', 'none');
             renderPanelAggsGrid(columnOrder, res, panelId);
-        } //for logs-query
+        } 
+        //for logs-query
         else if (res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
             let columnOrder = [];
             if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
@@ -425,10 +422,7 @@ function getCookie(cname) {
 
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
     resetQueryResAttr(res, panelId);
-    //if data source is metrics
-    if (!res.qtype && chartType != 'number') {
-        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
-    }
+
     if (res.qtype === 'logs-query') {
         panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
     }
@@ -540,34 +534,8 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
         $(`#panel${panelId} .panEdit-panel`).show();
     }
     var chartType = currentPanel.chartType;
-    if (chartType === 'number') {
-        let bigNumVal = null;
-        let dataType = currentPanel.dataType;
-        let rawTimeSeriesData;
-        for (const queryData of data.queriesData) {
-            $('metrics-queries').empty();
-            rawTimeSeriesData = await fetchTimeSeriesData(queryData);
-            const parsedQueryObject = parsePromQL(queryData.queries[0]);
-            await addQueryElementForAlertAndPanel(queryData.queries[0].name, parsedQueryObject);
-        }
-        $.each(rawTimeSeriesData.values, function (_index, valueArray) {
-            $.each(valueArray, function (_index, value) {
-                if (value > bigNumVal) {
-                    bigNumVal = value;
-                }
-            });
-        });
-        if (bigNumVal === undefined || bigNumVal === null) {
-            panelProcessEmptyQueryResults('', panelId);
-        } else {
-            displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
-            allResultsDisplayed--;
-            if (allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
-            }
-            $(`#panel${panelId} .panel-body #panel-loading`).hide();
-        }
-    } else if (chartType === 'Line Chart') {
+
+    if (chartType === 'Line Chart') {
         chartDataCollection = {};
         if (panelId === -1) {
             formulas = {};
@@ -643,90 +611,8 @@ async function runMetricsQuery(data, panelId, currentPanel, _queryRes) {
             $('body').css('cursor', 'default');
         }
         $('body').css('cursor', 'default');
-    } else {
-        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
-        return;
     }
 }
-
-function processMetricsSearchResult(res, startTime, panelId, chartType, panelIndex, queryType) {
-    if (queryType === 'logs') {
-        panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
-        return;
-    }
-    resetQueryResAttr(res, panelId);
-    let bigNumVal = null;
-    if (panelId == -1) {
-        // for panel on the editPanelScreen page
-        $('.panelDisplay #panelLogResultsGrid').hide();
-        $('.panelDisplay #empty-response').empty();
-        $('.panelDisplay #corner-popup').hide();
-        $('.panelDisplay #empty-response').hide();
-        $('.panelDisplay .panEdit-panel').show();
-    } else {
-        // for panels on the dashboard page
-        $(`#panel${panelId} #panelLogResultsGrid`).hide();
-        $(`#panel${panelId} #empty-response`).empty();
-        $(`#panel${panelId} #corner-popup`).hide();
-        $(`#panel${panelId} #empty-response`).hide();
-        $(`#panel${panelId} .panEdit-panel`).show();
-    }
-
-    if (res.series && res.series.length === 0) {
-        panelProcessEmptyQueryResults('', panelId);
-        allResultsDisplayed--;
-        $('body').css('cursor', 'default');
-        $(`#panel${panelId} .panel-body #panel-loading`).hide();
-    } else {
-        if (chartType === 'number') {
-            $.each(res.values, function (index, valueArray) {
-                $.each(valueArray, function (index, value) {
-                    if (value > bigNumVal) {
-                        bigNumVal = value;
-                    }
-                });
-            });
-            if (bigNumVal === undefined || bigNumVal === null) {
-                panelProcessEmptyQueryResults('', panelId);
-            } else {
-                displayBigNumber(bigNumVal.toString(), panelId, dataType, panelIndex);
-                allResultsDisplayed--;
-                if (allResultsDisplayed <= 0 || panelId === -1) {
-                    $('body').css('cursor', 'default');
-                }
-                $(`#panel${panelId} .panel-body #panel-loading`).hide();
-            }
-        } else {
-            hideError();
-            let seriesArray = [];
-            if (Object.prototype.hasOwnProperty.call(res, 'series') && Object.prototype.hasOwnProperty.call(res, 'timestamps') && Object.prototype.hasOwnProperty.call(res, 'values')) {
-                for (let i = 0; i < res.series.length; i++) {
-                    let series = {
-                        seriesName: res.series[i],
-                        values: {},
-                    };
-
-                    for (let j = 0; j < res.timestamps.length; j++) {
-                        // Convert epoch seconds to milliseconds by multiplying by 1000
-                        let timestampInMilliseconds = res.timestamps[j] * 1000;
-                        let localDate = new Date(timestampInMilliseconds);
-                        let formattedDate = localDate.toLocaleString();
-
-                        series.values[formattedDate] = res.values[i][j];
-                    }
-
-                    seriesArray.push(series);
-                }
-            }
-            renderLineChart(seriesArray, panelId);
-            allResultsDisplayed--;
-            if (allResultsDisplayed <= 0 || panelId === -1) {
-                $('body').css('cursor', 'default');
-            }
-        }
-    }
-}
-
 
 //eslint-disable-next-line no-unused-vars
 function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
@@ -802,11 +688,8 @@ function getOrgConfig() {
     });
 }
 
-//renders the response from logs or metrics query to respective selected chart type
+//renders the response from Logs query to respective selected chart type
 function renderChartByChartType(data, queryRes, panelId, currentPanel) {
-    if (!currentPanel.chartType) {
-        panelProcessEmptyQueryResults('Please select a suitable chart type.', panelId);
-    }
     switch (currentPanel.chartType) {
         case 'Data Table':
         case 'loglines':
@@ -817,21 +700,12 @@ function renderChartByChartType(data, queryRes, panelId, currentPanel) {
         case 'Pie Chart':
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             break;
-        case 'Line Chart': {
-            let startTime = new Date().getTime();
-            processMetricsSearchResult(queryRes, startTime, panelId, currentPanel.chartType, currentPanel.panelIndex, currentPanel.queryType);
-            break;
-        }
         case 'number':
             if (currentPanel.unit === '' || currentPanel.dataType === 'none' || currentPanel.dataType === '') {
                 currentPanel.unit = 'misc';
                 currentPanel.dataType = 'none';
             }
-            if (currentPanel.queryType == 'metrics') {
-                runMetricsQuery(data, panelId, currentPanel);
-            } else {
-                renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
-            }
+            renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             break;
     }
 }
@@ -1661,7 +1535,6 @@ const getCollapseSvg = () => `
 window.ExpandableFieldsSidebarRenderer = ExpandableFieldsSidebarRenderer;
 fieldssidebarRenderer = ExpandableFieldsSidebarRenderer();
 window.fieldssidebarRenderer = fieldssidebarRenderer;
-window.panelProcessEmptyQueryResults= panelProcessEmptyQueryResults;
 
 function getGraphGridColors() {
     const rootStyles = getComputedStyle(document.documentElement);
