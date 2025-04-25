@@ -259,7 +259,7 @@ func (sfr *SegmentFileReader) ReturnBuffers() error {
 	FileReadBufferPool.Put(&sfr.currFileBuffer)
 	err := PutBufToPool(sfr.currRawBlockBuffer)
 	if err != nil {
-		return fmt.Errorf("Error putting Raw Block Buffer back to pool")
+		return fmt.Errorf("ReturnBuffers: Error putting raw block buffer back to pool, err: %v", err)
 	}
 	return nil
 }
@@ -312,7 +312,15 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	if cOffAndLen.Length == 0 {
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: offset was 0, colName: %v, cnameIdx: %v, fname: %v", sfr.ColName, cnameIdx, sfr.fileName)
 	}
-	sfr.currRawBlockBuffer = GetBufFromPool(int64(cOffAndLen.Length))
+	if sfr.currRawBlockBuffer == nil {
+		sfr.currRawBlockBuffer = GetBufFromPool(int64(cOffAndLen.Length))
+	} else if len(sfr.currRawBlockBuffer) < int(cOffAndLen.Length) {
+		err := PutBufToPool(sfr.currRawBlockBuffer)
+		if err != nil {
+			log.Errorf("loadBlockUsingBuffer: Error putting raw block buffer back to pool, err: %v", err)
+		}
+		sfr.currRawBlockBuffer = GetBufFromPool(int64(cOffAndLen.Length))
+	}
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
@@ -540,7 +548,11 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 	}
 
 	if initialBufferPtr != unsafe.SliceData(uncompressed) {
-		log.Errorf("Uncomressed buffer is different than originally allocated ")
+		log.Debugf("SegmentFileReader.unpackRawCsg: Uncomressed buffer after decoding is different than originally allocated ")
+		err := PutBufToPool(sfr.currRawBlockBuffer)
+		if err != nil {
+			log.Errorf("unpackRawCsg: Error putting raw block buffer back to pool, err: %v", err)
+		}
 	}
 
 	sfr.currRawBlockBuffer = uncompressed
