@@ -546,8 +546,8 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 		if int(dwIdx) >= len(sfr.deTlv) {
 			log.Debugf("deToResults: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
 				dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+			return false
 		}
-		return false
 		dWord := sfr.deTlv[dwIdx]
 
 		switch dWord[0] {
