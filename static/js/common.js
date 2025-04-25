@@ -464,7 +464,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
         } else {
             let resultVal;
             if (chartType === 'number') {
-                resultVal = Object.values(res.measure[0].MeasureVal)[0];
+                resultVal = Object.values(res?.measure?.[0]?.MeasureVal || {})[0] || null;
             }
 
             if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
