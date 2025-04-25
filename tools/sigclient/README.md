@@ -180,6 +180,8 @@ Options:
 -q, --queryDest string         Query server URL in the form IP:PORT.
 -f, --queriesToRunFile string  Path to the file containing paths of functional query files to be tested.
 -l, --longer bool              Run a longer functional test.
+-i, --doIngest bool            Perform ingestion for functional Test (default true)
+-u, --doQuery bool             Perform query for functional Test (default true)
 ```
 
 To run longer functional test use the following command
