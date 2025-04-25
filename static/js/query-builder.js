@@ -550,11 +550,11 @@ function getValuesofColumn(chooseColumn) {
     valuesOfColumn.clear();
     let param = {
         state: 'query',
-        searchText: `SELECT DISTINCT \`${chooseColumn}\` FROM \`${selectedSearchIndex}\``,
+        searchText: `*| dedup ${chooseColumn} | fields ${chooseColumn}`,
         startEpoch: filterStartDate,
         endEpoch: filterEndDate,
         indexName: selectedSearchIndex,
-        queryLanguage: 'SQL',
+        queryLanguage: 'Spunk QL',
         from: 0,
         size: 1000,
     };
