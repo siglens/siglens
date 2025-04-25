@@ -5,21 +5,47 @@
             "value": 1,
             "relation": "eq"
         },
-        "qtype": "logs-query",
-        "records": [
+        "qtype": "aggs-query",
+        "bucketCount": 1,
+        "doNotVerifyGroupByValues": true,
+        "groupByCols": ["timestamp"],
+        "measureFunctions": [
+            "max_latency: Badminton@DELETE",
+            "max_latency: Cartophily@GET",
+            "max_latency: Coffee roasting@PUT",
+            "max_latency: Do it yourself@HEAD", 
+            "max_latency: Gunsmithing@DELETE",
+            "max_latency: Herping@POST",
+            "max_latency: Horseback riding@PUT",
+            "max_latency: Jumping rope@GET",
+            "max_latency: Needlepoint@POST",
+            "max_latency: Social media@GET",
+            "max_latency: other"
+        ],
+        "measure": [
             {
-                "max_latency: Badminton@DELETE": 8759660,
-                "max_latency: Cartophily@GET": 8641518,
-                "max_latency: Coffee roasting@PUT": 9471193,
-                "max_latency: Do it yourself@HEAD": 9546174,
-                "max_latency: Gunsmithing@DELETE": 8930058,
-                "max_latency: Herping@POST": 9713014,
-                "max_latency: Horseback riding@PUT": 8922095,
-                "max_latency: Jumping rope@GET": 8682089,
-                "max_latency: Needlepoint@POST": 9027009,
-                "max_latency: Social media@GET": 8880014,
-                "max_latency: other": 466903822,
-                "timestamp": 1730760300000
+                "IGroupByValues": [
+                    {
+                        "Dtype": 3,
+                        "CVal": 1730760300000
+                    }
+                ],
+                "GroupByValues": [
+                    "1730760300000"
+                ],
+                "MeasureVal": {
+                    "max_latency: Badminton@DELETE": 8759660,
+                    "max_latency: Cartophily@GET": 8641518,
+                    "max_latency: Coffee roasting@PUT": 9471193,
+                    "max_latency: Do it yourself@HEAD": 9546174,
+                    "max_latency: Gunsmithing@DELETE": 8930058,
+                    "max_latency: Herping@POST": 9713014,
+                    "max_latency: Horseback riding@PUT": 8922095,
+                    "max_latency: Jumping rope@GET": 8682089,
+                    "max_latency: Needlepoint@POST": 9027009,
+                    "max_latency: Social media@GET": 8880014,
+                    "max_latency: other": 466903822
+                }
             }
         ],
         "allColumns": [
