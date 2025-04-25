@@ -622,6 +622,8 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						Offset: blkOffset,
 						Length: blkLen,
 					}
+					log.Infof("kunal: AppendWipToSegfile: blkNum: %v, cname: %v, cnameIdx: %v, off: %v, len: %v",
+						segstore.numBlocks, cname, cnameIdx, blkOffset, blkLen)
 					wipBlockLock.Unlock()
 
 					if !isKibana {
@@ -732,8 +734,8 @@ func (segstore *SegStore) verifyCsg() {
 			cname)
 		if err != nil {
 			gotErr = true
-			log.Errorf("verifyCsg: verification ERROR blkNum: %v cname: %v, err: %v",
-				segstore.numBlocks, cname, err)
+			log.Errorf("verifyCsg: verification ERROR blkNum: %v cname: %v, cnameIdx: %v, offset: %v, len: %v, err: %v",
+				segstore.numBlocks, cname, cnameIdx, cOffLen.Offset, cOffLen.Length, err)
 		}
 	}
 
@@ -1841,12 +1843,11 @@ func ReadDictEnc(buf []byte, blockNum uint16, recCount uint16, csgFname string,
 		case utils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
-			return fmt.Errorf("ReadDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
+			return fmt.Errorf("Writer.ReadDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
 		}
 
 		deTlv[w] = buf[soffW:idx]
 
-		recsArr := make([]uint16, 0)
 		// read num of records
 		numRecs = toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
 		idx += 2
@@ -1856,25 +1857,20 @@ func ReadDictEnc(buf []byte, blockNum uint16, recCount uint16, csgFname string,
 			recNum := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
 			idx += 2
 
-			recsArr = append(recsArr, recNum)
 			if int(recNum) >= len(deRecToTlv) {
 				numErrors++
 				if err == nil {
-					err = fmt.Errorf("Writer : recNum %+v exceeds the number of records %+v in block %+v, fileName: %v, colname: %v",
+					err = fmt.Errorf("Writer.ReadDictEnc recNum %+v exceeds the number of records %+v in block %+v, fileName: %v, colname: %v",
 						recNum, len(deRecToTlv), blockNum, csgFname, cname)
 				}
 				continue
 			}
 			deRecToTlv[recNum] = w
 		}
-		if err != nil {
-			log.Infof("Writer ReadDictEnc: ERROR cname: %v for word: [%v], recsArr: %v",
-				cname, string(deTlv[w]), recsArr)
-		}
 	}
 
 	if err != nil {
-		log.Errorf("Writer ReadDictEnc: ERROR got %v errors like: %v", numErrors, err)
+		log.Errorf("Writer.ReadDictEnc: ERROR got %v errors like: %v", numErrors, err)
 	}
 
 	return err
