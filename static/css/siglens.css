@@ -842,6 +842,7 @@ body {
 }
 
 /* Navigation */
+.icon-org-administration,
 .icon-myorg,
 .icon-cstats,
 .icon-search,
@@ -974,6 +975,13 @@ body {
     background-size: 51%;
 }
 
+.icon-org-administration{
+    background-image: url("../assets/my-org-icon-inactive.svg");
+    height: 18px;
+    width: 18px;
+    background-size: 51%;
+}
+
 .icon-ingest {
     background-image: url("../assets/ingestion-icon-inactive.svg");
     height: 18px;
@@ -1075,6 +1083,15 @@ body {
 .icon-myorg:hover,
 .menu.nav-myorg.active .icon-myorg,
 .menu.nav-myorg:hover .icon-myorg {
+    background-image: url("../assets/my-org-icon-active.svg");
+    height: 18px;
+    width: 18px;
+    background-size: 51%;
+}
+
+.icon-org-administration:hover,
+.icon-org-administration.active,
+.nav-org-administration .menu-header:hover .icon-org-administration{
     background-image: url("../assets/my-org-icon-active.svg");
     height: 18px;
     width: 18px;
@@ -3582,6 +3599,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 
+.nav-org-administration,
 .nav-metrics,
 .nav-traces,
 .nav-ingest,
@@ -3626,6 +3644,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 /* Specific styling for Submenu dropdown */
+#app-side-nav .nav-org-administration .menu-header,
 #app-side-nav .nav-traces .menu-header,
 #app-side-nav .nav-metrics .menu-header,
 #app-side-nav .nav-ingest .menu-header,
@@ -3639,6 +3658,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
+#app-side-nav .nav-org-administration.active,
 #app-side-nav .nav-traces.active,
 #app-side-nav .nav-metrics.active,
 #app-side-nav .nav-ingest.active,
@@ -3650,6 +3670,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: transparent !important;
 }
 
+#app-side-nav .nav-org-administration.active .nav-link-text-drpdwn,
 #app-side-nav .nav-metrics.active .nav-link-text-drpdwn,
 #app-side-nav .nav-traces.active .nav-link-text-drpdwn,
 #app-side-nav .nav-ingest.active .nav-link-text-drpdwn,
@@ -3659,6 +3680,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     color: white !important;
 }
 
+#app-side-nav .nav-org-administration .menu-header:hover,
 #app-side-nav .nav-traces .menu-header:hover,
 #app-side-nav .nav-metrics .menu-header:hover,
 #app-side-nav .nav-ingest .menu-header:hover,
@@ -3670,6 +3692,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
+#app-side-nav .nav-org-administration.active .org-administration-dropdown,
+#app-side-nav .nav-traces.active .traces-dropdown,
 #app-side-nav .nav-traces.active .traces-dropdown,
 #app-side-nav .nav-metrics.active .metrics-dropdown,
 #app-side-nav .nav-ingest.active .ingestion-dropdown,
@@ -3681,6 +3705,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: var(--side-nav-bg-color-regular) !important;
 }
 
+.org-administration-dropdown,
 .traces-dropdown,
 .metrics-dropdown,
 .ingestion-dropdown,
@@ -3699,6 +3724,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
+.org-administration-dropdown a,
 .traces-dropdown a,
 .metrics-dropdown a,
 .ingestion-dropdown a,
@@ -3709,6 +3735,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     padding-left: 20px;
 }
 
+.org-administration-dropdown li,
 .traces-dropdown li,
 .metrics-dropdown li,
 .ingestion-dropdown li,
@@ -3723,6 +3750,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-radius: 0 5px 5px 0;
 }
 
+.org-administration-dropdown li:hover,
 .traces-dropdown li:hover,
 .metrics-dropdown li:hover,
 .ingestion-dropdown li:hover,
@@ -3734,6 +3762,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 /* Active state for submenu items */
+.org-administration-dropdown li.active,
 .traces-dropdown li.active,
 .metrics-dropdown li.active,
 .ingestion-dropdown li.active,
