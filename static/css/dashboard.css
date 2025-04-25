@@ -900,14 +900,6 @@
   font-size: 16px;
 }
 
-.queryInput-InnerContainer .info-icon{
-  right: 5px;
-}
-
-.label-table-view{
-  padding-right: 10px;
-}
-
 .navbar-options{
   display: flex;
   gap:8px;
@@ -983,10 +975,6 @@
 .dropdown-dash{
   width: 32px;
 }
-#query-language-btn,
-#date-picker-btn{
-  line-height: 6px !important;
-}
 
 #save-db-btn{
   background: var(--top-save-btn-bg-img) var(--drop-down-btn-bg-regular) center center no-repeat !important;
@@ -996,9 +984,6 @@
 
 #add-panel-btn:hover,#add-panel-btn.active {
   background: var(--btn-hover-or-click-bg-color) !important;
-}
-.info-icon{
-  line-height: 20px !important;
 }
 
 .panel div.panel-header p{
@@ -1142,8 +1127,8 @@
 }
 .button-section{
   border-top: 1px solid var(--alerting-table-line-color);
-  /* position: absolute; */
-  /* bottom: 0; */
+  position: absolute;
+  bottom: 0;
   width: 100%;
   flex-shrink: 0;
 }
