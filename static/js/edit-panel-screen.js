@@ -320,7 +320,7 @@ async function editPanelInit(redirectedFromViewScreen) {
 
     // Logs Panel
     if (currentPanel.queryType === 'logs') {
-        $('.panEdit-navBar .panel-type').html("(Logs Panel)");
+        $('.panEdit-navBar .panel-type').html('(Logs Panel)');
 
         // Search Text
         if (currentPanel.queryData && (currentPanel.queryData.searchText !== undefined || currentPanel.queryData?.queries?.[0]?.query !== undefined)) {
@@ -367,6 +367,15 @@ async function editPanelInit(redirectedFromViewScreen) {
                 $('.dropDown-time-options span').html('Time');
                 $('.dropDown-data-rate-options span').html('Data Rate');
                 prevSelectedDataTypeIndex = -2;
+            }
+
+            if (selectedDataTypeIndex != -1 && selectedDataTypeIndex !== undefined) {
+                if (currentPanelUnit === 'misc') refreshNestedMiscMenuOptions();
+                else if (currentPanelUnit === 'data') refreshNestedDataMenuOptions();
+                else if (currentPanelUnit === 'throughput') refreshNestedTptMenuOptions();
+                else if (currentPanelUnit === 'percent') refreshNestedPercentMenuOptions();
+                else if (currentPanelUnit === 'time') refreshNestedTimeMenuOptions();
+                else if (currentPanelUnit === 'data Rate') refreshNestedDataRateMenuOptions();
             }
         } else {
             $('#nestedDropDownContainer').css('display', 'none');
@@ -423,7 +432,7 @@ async function editPanelInit(redirectedFromViewScreen) {
         setIndexDisplayValue(selectedSearchIndex);
         $('#index-listing').autocomplete('option', 'source', indexValues);
     } else if (currentPanel.queryType === 'metrics') {
-        $('.panEdit-navBar .panel-type').html("(Metrics Panel)");
+        $('.panEdit-navBar .panel-type').html('(Metrics Panel)');
 
         $('#metrics-query-language').css('display', 'inline-block');
         $('.index-container, .queryInput-container, #query-language-btn').css('display', 'none');
@@ -433,15 +442,6 @@ async function editPanelInit(redirectedFromViewScreen) {
     // Refreshing all the dropdown and menus
     if (selectedChartTypeIndex != -1 && selectedChartTypeIndex !== undefined) refreshChartMenuOptions();
     if (selectedUnitTypeIndex != -1 && selectedUnitTypeIndex !== undefined) refreshUnitMenuOptions();
-
-    if (selectedDataTypeIndex != -1 && selectedDataTypeIndex !== undefined) {
-        if (currentPanelUnit === 'misc') refreshNestedMiscMenuOptions();
-        else if (currentPanelUnit === 'data') refreshNestedDataMenuOptions();
-        else if (currentPanelUnit === 'throughput') refreshNestedTptMenuOptions();
-        else if (currentPanelUnit === 'percent') refreshNestedPercentMenuOptions();
-        else if (currentPanelUnit === 'time') refreshNestedTimeMenuOptions();
-        else if (currentPanelUnit === 'data Rate') refreshNestedDataRateMenuOptions();
-    }
 
     // Setting Event Handlers
     if ($('.dropDown-unit.active').length) handleUnitDropDownClick();

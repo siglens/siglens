@@ -86,7 +86,7 @@ let aggGridOptions = {
     },
 };
 /*eslint-enable*/
-{{ .CommonExtraFunctions }}
+// {{ .CommonExtraFunctions }}
 
 function showError(mainText, subText) {
     $('#corner-popup .corner-text').html(mainText);
@@ -209,8 +209,9 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
                 }
             }
             $('#avail-field-container ').css('display', 'none');
+            console.log('renderPanelAggsGrid');
             renderPanelAggsGrid(columnOrder, res, panelId);
-        } 
+        }
         //for logs-query
         else if (res.hits && res.hits.records !== null && res.hits.records.length >= 1) {
             let columnOrder = [];
@@ -239,8 +240,7 @@ function renderPanelLogsQueryRes(data, panelId, currentPanel, res) {
 
     // Only show empty results error if this is the first request (not a scroll request)
     // or if there's no existing data in panelLogsRowData
-    if ((res.hits.totalMatched.value === 0 || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) &&
-        (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
+    if (((res.hits.totalMatched.value === 0 && res.qtype === 'logs-query') || (!res.bucketCount && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query'))) && (!data.from || data.from === 0 || panelLogsRowData.length === 0)) {
         panelProcessEmptyQueryResults('', panelId);
     }
 
@@ -292,6 +292,7 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
 }
 
 function panelProcessEmptyQueryResults(errorMsg, panelId) {
+    console.log(panelId);
     let msg;
     if (errorMsg !== '') {
         msg = errorMsg;
@@ -322,6 +323,7 @@ function panelProcessEmptyQueryResults(errorMsg, panelId) {
     }
     $('body').css('cursor', 'default');
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
+    console.log('Dispaly the error message');
 }
 
 function panelProcessSearchError(res, panelId) {
@@ -421,6 +423,9 @@ function getCookie(cname) {
 }
 
 function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex, res) {
+    console.log(res);
+    console.log('renderPanelAggsQueryRes');
+    console.log('chartType', chartType);
     resetQueryResAttr(res, panelId);
 
     if (res.qtype === 'logs-query') {
@@ -459,6 +464,7 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
                 columnsOrder = _.uniq(_.concat(columnsOrder, res.measureFunctions));
             }
         }
+
         if (res.errors) {
             panelProcessEmptyQueryResults(res.errors[0], panelId);
         } else {
@@ -467,16 +473,16 @@ function renderPanelAggsQueryRes(data, panelId, chartType, dataType, panelIndex,
                 resultVal = Object.values(res?.measure?.[0]?.MeasureVal || {})[0] || null;
             }
 
-            if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && (res.hits.totalMatched === 0 || res.hits.totalMatched.value === 0)) {
-                if (res.qtype === 'segstats-query') {
-                    panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
-                } else {
-                    panelProcessEmptyQueryResults('', panelId);
-                }
+            // Check if no measure data exists
+            if (!res.measure || !Array.isArray(res.measure) || res.measure.length === 0) {
+                panelProcessEmptyQueryResults('', panelId);
+            } else if ((chartType === 'Pie Chart' || chartType === 'Bar Chart') && res.qtype === 'segstats-query') {
+                // Bar or Pie chart with segstats query is not compatible
+                panelProcessEmptyQueryResults('This chart type is not compatible with your query. Please select a different chart type.', panelId);
             } else if (chartType === 'number' && (resultVal === undefined || resultVal === null)) {
+                // Number chart with no valid value
                 panelProcessEmptyQueryResults('', panelId);
             } else {
-                // for number, bar and pie charts
                 if (panelId === -1) renderPanelAggsGrid(columnsOrder, res, panelId);
                 panelChart = renderBarChart(columnsOrder, res, panelId, chartType, dataType, panelIndex);
             }
@@ -729,7 +735,7 @@ function setIndexDisplayValue(selectedSearchIndex) {
         selectedIndexes.forEach(function (index) {
             addSelectedIndex(index);
             // Remove the selectedSearchIndex from indexValues
-            if(indexValues && indexValues.length > 0){
+            if (indexValues && indexValues.length > 0) {
                 const indexIndex = indexValues.indexOf(index);
                 if (indexIndex !== -1) {
                     indexValues.splice(indexIndex, 1);
@@ -1037,9 +1043,9 @@ function createTooltip(selector, content) {
 
 function handleRelatedTraces(traceId, timestamp, newTab) {
     const url = `trace.html?trace_id=${traceId}&timestamp=${timestamp}`;
-    if (newTab){
+    if (newTab) {
         window.open(url, '_blank'); // Opens in a new tab
-    }else{
+    } else {
         window.location.href = url;
     }
 }
@@ -1052,9 +1058,7 @@ function handleRelatedLogs(id, traceStartTime, type = 'trace') {
     const startEpoch = traceStartEpoch - fifteenMinutesMs;
     const endEpoch = traceStartEpoch + fifteenMinutesMs;
 
-    const searchQuery = type === 'span'
-        ? `span_id="${id}"`
-        : `trace_id="${id}"`;
+    const searchQuery = type === 'span' ? `span_id="${id}"` : `trace_id="${id}"`;
 
     const searchParams = new URLSearchParams({
         searchText: searchQuery,
@@ -1084,7 +1088,7 @@ function syntaxHighlight(json) {
 
 function ExpandableJsonCellRenderer(type = 'events') {
     const state = {
-        currentExpandedCell: null
+        currentExpandedCell: null,
     };
 
     return class {
@@ -1095,9 +1099,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
             this.isExpanded = false;
             this.rowElement = null;
 
-            const displayValue = type === 'logs' && params.column.colId === 'timestamp'
-                ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value)
-                : params.value;
+            const displayValue = type === 'logs' && params.column.colId === 'timestamp' ? (typeof params.value === 'number' ? moment(params.value).format(timestampDateFmt) : params.value) : params.value;
 
             this.eGui.innerHTML = `
                 <span class="expand-icon-box">
@@ -1181,9 +1183,10 @@ function ExpandableJsonCellRenderer(type = 'events') {
             this.updateIcon();
             state.currentExpandedCell = this;
 
-            window.copyJsonToClipboard = function() {
+            window.copyJsonToClipboard = function () {
                 const jsonContent = document.querySelector('#json-tab div').innerText;
-                navigator.clipboard.writeText(jsonContent)
+                navigator.clipboard
+                    .writeText(jsonContent)
                     .then(() => {
                         const copyIcon = $('.copy-icon');
                         copyIcon.addClass('success');
@@ -1191,12 +1194,12 @@ function ExpandableJsonCellRenderer(type = 'events') {
                             copyIcon.removeClass('success');
                         }, 1000);
                     })
-                    .catch(err => console.error('Failed to copy: ', err));
+                    .catch((err) => console.error('Failed to copy: ', err));
             };
 
-            window.switchTab = function(tab) {
-                document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-                document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            window.switchTab = function (tab) {
+                document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('active'));
+                document.querySelectorAll('.tab-button').forEach((el) => el.classList.remove('active'));
                 document.getElementById(tab + '-tab').classList.add('active');
                 document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
                 if (tab === 'table') populateTable();
@@ -1232,7 +1235,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
 
                     keyCell.textContent = key;
                     valueCell.textContent = formattedValue;
-                    [keyCell, valueCell].forEach(cell => {
+                    [keyCell, valueCell].forEach((cell) => {
                         cell.style.border = '1px solid #ddd';
                         cell.style.padding = '6px';
                     });
@@ -1243,27 +1246,33 @@ function ExpandableJsonCellRenderer(type = 'events') {
                 });
             }
 
-            const showRelatedTraceButton = type === 'logs' && Object.keys(rowData).some(key => {
-                if (key.toLowerCase() === 'timestamp') {
-                    time_stamp = rowData[key];
-                }
-                if (key.toLowerCase() === 'trace_id') {
-                    trace_id = rowData[key];
-                    return trace_id !== null && trace_id !== '';
-                }
-                return false;
-            });
+            const showRelatedTraceButton =
+                type === 'logs' &&
+                Object.keys(rowData).some((key) => {
+                    if (key.toLowerCase() === 'timestamp') {
+                        time_stamp = rowData[key];
+                    }
+                    if (key.toLowerCase() === 'trace_id') {
+                        trace_id = rowData[key];
+                        return trace_id !== null && trace_id !== '';
+                    }
+                    return false;
+                });
 
             jsonPopup.innerHTML = `
                 <div class="json-popup-header">
                     <div class="json-popup-header-buttons">
-                        ${showRelatedTraceButton ? `
+                        ${
+                            showRelatedTraceButton
+                                ? `
                             <div>
                                 <button class="btn-related-trace btn btn-purple" onclick="handleRelatedTraces('${trace_id}', ${time_stamp}, true)">
                                     <i class="fa fa-file-text"></i>&nbsp; Related Trace
                                 </button>
                             </div>
-                        ` : ''}
+                        `
+                                : ''
+                        }
                         <div><button class="json-popup-close">×</button></div>
                     </div>
                 </div>
@@ -1321,7 +1330,7 @@ function ExpandableJsonCellRenderer(type = 'events') {
         refresh() {
             return false;
         }
-    }
+    };
 }
 
 function formatByteSize(bytes) {
@@ -1331,9 +1340,7 @@ function formatByteSize(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
 
     // Format with 2 decimal places for larger units, round to integers for bytes
-    return i === 0
-        ? bytes + ' ' + units[i]
-        : (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
+    return i === 0 ? bytes + ' ' + units[i] : (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
 }
 
 //eslint-disable-next-line no-unused-vars
@@ -1353,7 +1360,7 @@ const ExpandableFieldsSidebarRenderer = () => {
             expandBtn: null,
             expandIcon: null,
             tooltipInstance: null,
-            isFieldsSidebarHidden: isFieldsSidebarHidden
+            isFieldsSidebarHidden: isFieldsSidebarHidden,
         };
     };
 
@@ -1368,7 +1375,7 @@ const ExpandableFieldsSidebarRenderer = () => {
     </svg>
 `;
 
-const getCollapseSvg = () => `
+    const getCollapseSvg = () => `
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close">
         <rect width="16" height="16" x="4" y="4" rx="1.5"/>
         <path d="M8 4v16"/>
@@ -1381,7 +1388,7 @@ const getCollapseSvg = () => `
         customChartTab: document.querySelector('.custom-chart-tab'),
         container: document.querySelector('.custom-chart-container'),
         tabList: document.querySelector('.tab-chart-list'),
-        selectedFieldsHeader: document.getElementById('selected-fields-header')
+        selectedFieldsHeader: document.getElementById('selected-fields-header'),
     });
 
     const createGuiElement = (isHidden) => {
@@ -1418,7 +1425,7 @@ const getCollapseSvg = () => `
                     if (!instance.reference.contains(event.target)) {
                         instance.hide();
                     }
-                }
+                },
             });
         }
     };
@@ -1528,7 +1535,7 @@ const getCollapseSvg = () => `
     return {
         init,
         getGui: () => state.eGui,
-        getState: () => ({ ...state })
+        getState: () => ({ ...state }),
     };
 };
 
