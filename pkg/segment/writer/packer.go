@@ -1453,7 +1453,12 @@ func EncodeBlocksum(bsum *BlockSummary,
 
 	clen := 0
 	numCols := uint16(0)
+	coffArrLen := len(bmiColOffLen)
 	for cname, cnameIdx := range bmiCnameIdxDict {
+		if cnameIdx >= coffArrLen {
+			return 0, nil, fmt.Errorf("EncodeBlocksum: cnameIdx: %v was > coffArrLen: %v for cname: %v",
+				cnameIdx, coffArrLen, cname)
+		}
 		if bmiColOffLen[cnameIdx].Length == 0 {
 			// blkLen of 0 for this cnameidx means it was not present for this block
 			continue

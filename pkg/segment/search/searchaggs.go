@@ -73,11 +73,12 @@ func applyAggregationsToResult(aggs *structs.QueryAggregators, segmentSearchReco
 
 	rupReader, err := segread.InitNewRollupReader(searchReq.SegmentKey, config.GetTimeStampKey(), qid)
 	if err != nil {
-		log.Errorf("qid=%d, applyAggregationsToResult: failed initialize rollup reader segkey %s. Error: %v",
+		return fmt.Errorf("qid=%d, applyAggregationsToResult: failed initialize rollup reader segkey %s. Error: %v",
 			qid, searchReq.SegmentKey, err)
-	} else {
-		defer rupReader.Close()
 	}
+
+	defer rupReader.Close()
+
 	allBlocksToXRollup, aggsHasTimeHt, aggsHasNonTimeHt := getRollupForAggregation(aggs, rupReader)
 	for i := int64(0); i < fileParallelism; i++ {
 		blkWG.Add(1)

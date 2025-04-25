@@ -543,6 +543,11 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 
 	for recIdx, rn := range orderedRecNums {
 		dwIdx := sfr.deRecToTlv[rn]
+		if int(dwIdx) >= len(sfr.deTlv) {
+			log.Debugf("deToResults: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
+				dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+		}
+		return false
 		dWord := sfr.deTlv[dwIdx]
 
 		switch dWord[0] {
@@ -571,10 +576,16 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 
 func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
 
-	if rn >= uint16(len(sfr.deRecToTlv)) {
+	if int(rn) >= len(sfr.deRecToTlv) {
 		return nil, fmt.Errorf("SegmentFileReader.deGetRec: recNum %+v does not exist, len: %+v", rn, len(sfr.deRecToTlv))
 	}
 	dwIdx := sfr.deRecToTlv[rn]
+
+	if int(dwIdx) >= len(sfr.deTlv) {
+		return nil, fmt.Errorf("SegmentFileReader.deGetRec: dwIdx: %v was greater than len(sfr.deTlv): %v, cname: %v, csgfname: %v",
+			dwIdx, len(sfr.deTlv), sfr.ColName, sfr.fileName)
+	}
+
 	dWord := sfr.deTlv[dwIdx]
 	return dWord, nil
 }
