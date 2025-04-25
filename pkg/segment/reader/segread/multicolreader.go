@@ -102,34 +102,15 @@ func initNewMultiColumnReader(segKey string, colFDs map[string]*os.File,
 	var err error
 	// todo blockSummaries don't need to be passed, we could just pick from this
 	// below function
-	var freshBsum []*structs.BlockSummary
 	if writer.IsSegKeyUnrotated(segKey) {
 		allBmi, err = writer.GetBlockSearchInfoForKey(segKey)
 		if err != nil {
 			return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get allBmi for unrotated segKey %s; err=%v", segKey, err)
 		}
-		freshBsum, err = writer.GetBlockSummaryForKey(segKey)
-		if err != nil {
-			return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get nsum for unrotated segKey %s; err=%v", segKey, err)
-		}
-
 	} else {
-		allBmi, freshBsum, err = segmetadata.GetSearchInfoAndSummary(segKey)
+		allBmi, _, err = segmetadata.GetSearchInfoAndSummary(segKey)
 		if err != nil {
 			return nil, fmt.Errorf("InitSharedMultiColumnReaders: failed to get allBmi segKey: %s. Error: %+v", segKey, err)
-		}
-	}
-
-	if len(freshBsum) != len(blockSummaries) {
-		log.Errorf("InitSharedMultiColumnReaders: len(freshBsum): %v, != len(blockSummaries): %v, segkey: %v",
-			len(freshBsum), len(blockSummaries), segKey)
-
-	} else {
-		for blkNum, bsum := range freshBsum {
-			if bsum.RecCount != blockSummaries[blkNum].RecCount {
-				log.Errorf("InitSharedMultiColumnReaders: bsum.RecCount: %v, != blockSummaries[blkNum].RecCount: %v for blkNum: %v, segkey: %v",
-					bsum.RecCount, blockSummaries[blkNum].RecCount, blkNum, segKey)
-			}
 		}
 	}
 
