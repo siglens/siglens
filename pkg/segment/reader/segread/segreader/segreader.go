@@ -47,6 +47,8 @@ const (
 	S_512_KB = 524288
 	S_1_MB   = 1048576
 	S_2_MB   = 2097152
+
+	COMPRESSION_FACTOR = 8 // SegmentFileReader.currRawBlockBuffer holds uncompressed block.
 )
 
 var (
@@ -313,13 +315,13 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		return false, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: offset was 0, colName: %v, cnameIdx: %v, fname: %v", sfr.ColName, cnameIdx, sfr.fileName)
 	}
 	if sfr.currRawBlockBuffer == nil {
-		sfr.currRawBlockBuffer = GetBufFromPool(int64(cOffAndLen.Length))
-	} else if len(sfr.currRawBlockBuffer) < int(cOffAndLen.Length) {
+		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
+	} else if len(sfr.currRawBlockBuffer) < COMPRESSION_FACTOR*int(cOffAndLen.Length) {
 		err := PutBufToPool(sfr.currRawBlockBuffer)
 		if err != nil {
 			log.Errorf("loadBlockUsingBuffer: Error putting raw block buffer back to pool, err: %v", err)
 		}
-		sfr.currRawBlockBuffer = GetBufFromPool(int64(cOffAndLen.Length))
+		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
 	}
 
 	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
