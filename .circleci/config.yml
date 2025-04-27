@@ -4,7 +4,11 @@ setup: true
 
 orbs:
   path-filtering: circleci/path-filtering@1.1.0
-  python: dialogue/python@3.27.1
+
+executors:
+  my-python-executor:
+    docker:
+      - image: cimg/python:3.9
 
 workflows:
   setup-workflow:
