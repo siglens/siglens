@@ -17,15 +17,15 @@ jobs:
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
-#      - run:
-#          name: Check if tests should be run
-#          command: |
-#            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
-#              echo "Skipping tests"
-#              circleci-agent step halt
-#            else
-#              echo "Running tests"
-#            fi
+      - run:
+          name: Check if tests should be run
+          command: |
+            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
+              echo "Skipping tests"
+              circleci-agent step halt
+            else
+              echo "Running tests"
+            fi
       - checkout
       - setup_remote_docker:
           version: docker23
@@ -78,15 +78,15 @@ jobs:
     docker:
       - image: cimg/go:1.21
     steps:
-#      - run:
-#          name: Check if tests should be run
-#          command: |
-#            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
-#              echo "Skipping tests"
-#              circleci-agent step halt
-#            else
-#              echo "Running tests"
-#            fi
+      - run:
+          name: Check if tests should be run
+          command: |
+            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
+              echo "Skipping tests"
+              circleci-agent step halt
+            else
+              echo "Running tests"
+            fi
       - checkout
       - setup_remote_docker:
           version: docker23
