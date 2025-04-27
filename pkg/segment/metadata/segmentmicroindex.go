@@ -308,6 +308,12 @@ func (sm *SegmentMicroIndex) GetColumns() map[string]bool {
 	return retVal
 }
 
+func (sm *SegmentMicroIndex) CollectColumnNames(resCnames map[string]struct{}) {
+	for colName := range sm.ColumnNames {
+		resCnames[colName] = struct{}{}
+	}
+}
+
 func (sm *SegmentMicroIndex) getAllColumnsRecSize() map[string]uint32 {
 	retVal := make(map[string]uint32, len(sm.ColumnNames))
 	for colName, colSizeInfo := range sm.ColumnNames {
