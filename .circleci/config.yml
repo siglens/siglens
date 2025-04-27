@@ -4,9 +4,11 @@ setup: true
 
 orbs:
   path-filtering: circleci/path-filtering@1.1.0
-executor:
-  name: python/default
-  tag: "3.9"
+
+executors:
+  my-python-executor:
+    docker:
+      - image: cimg/python:3.9
 
 workflows:
   setup-workflow:
