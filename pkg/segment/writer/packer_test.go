@@ -70,21 +70,13 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 		}
 
 		encoded := make([]byte, WIP_SIZE)
-		allBmi := &structs.AllBlksMetaInfo{
-			CnameDict: make(map[string]int),
-			AllBmh:    make(map[uint16]*structs.BlockMetadataHolder),
-		}
-		bmh := &structs.BlockMetadataHolder{
-			ColBlockOffAndLen: make([]structs.ColOffAndLen, 1),
-		}
-		bmh.ColBlockOffAndLen[0] = structs.ColOffAndLen{Offset: 29,
+		cnameDict := make(map[string]int)
+		cOffLen := make([]structs.ColOffAndLen, 1)
+		cOffLen[0] = structs.ColOffAndLen{Offset: 29,
 			Length: 22,
 		}
 
-		allBmi.CnameDict["mycol"] = 0
-		allBmi.AllBmh[23] = bmh
-
-		packedLen, _, err := EncodeBlocksum(allBmi, record_json, encoded, 23)
+		packedLen, _, err := EncodeBlocksum(record_json, encoded, 23, cnameDict, cOffLen)
 
 		t.Logf("encoded len: %v, origlen=%v", packedLen, len(test.input))
 
