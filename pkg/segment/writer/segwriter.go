@@ -129,7 +129,8 @@ type WipBlock struct {
 	tohRollup          map[uint64]*RolledRecs // top-of-hour rollup
 	todRollup          map[uint64]*RolledRecs // top-of-day rollup
 	bb                 *bbp.ByteBuffer        // byte buffer pool for HLL byte inserts
-	currAllBmi         *structs.AllBlksMetaInfo
+	bmiCnameIdxDict    map[string]int
+	bmiColOffLen       []structs.ColOffAndLen
 }
 
 type ParsedLogEvent struct {
@@ -371,13 +372,7 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			colWip.cbufidx += 1
 			colWip.cbuf.Append(ple.allCvals[i][0:1])
 			colWip.cbufidx += 1
-			boolVal := utils.BytesToBoolLittleEndian(ple.allCvals[i][0:1])
-			var asciiBytesBuf bytes.Buffer
-			_, err := fmt.Fprintf(&asciiBytesBuf, "%v", boolVal)
-			if err != nil {
-				return false, err
-			}
-			addSegStatsBool(segstats, cname, asciiBytesBuf.Bytes())
+			addSegStatsBool(segstats, cname, ple.allCvals[i][0:1])
 			if !ss.skipDe {
 				ss.checkAddDictEnc(colWip, colWip.cbuf.Slice(int(startIdx), int(colWip.cbufidx)), ss.wipBlock.blockSummary.RecCount, startIdx, false)
 			}
@@ -398,36 +393,22 @@ func (ss *SegStore) doLogEventFilling(ple *ParsedLogEvent, tsKey *string) (bool,
 			var intVal int64
 			var uintVal uint64
 			var floatVal float64
-			// TODO: store the ascii in ple.allCvals to avoid recomputation
-			var asciiBytesBuf bytes.Buffer
 			switch ctype {
 			case VALTYPE_ENC_INT64[0]:
 				numType = SS_INT64
 				intVal = utils.BytesToInt64LittleEndian(ple.allCvalsTypeLen[i][1:9])
-				_, err := fmt.Fprintf(&asciiBytesBuf, "%d", intVal)
-				if err != nil {
-					return false, utils.TeeErrorf("doLogEventFilling: cannot write intVal %v: %v", intVal, err)
-				}
 			case VALTYPE_ENC_UINT64[0]:
 				numType = SS_UINT64
 				uintVal = utils.BytesToUint64LittleEndian(ple.allCvalsTypeLen[i][1:9])
-				_, err := fmt.Fprintf(&asciiBytesBuf, "%d", uintVal)
-				if err != nil {
-					return false, utils.TeeErrorf("doLogEventFilling: cannot write uintVal %v: %v", uintVal, err)
-				}
 			case VALTYPE_ENC_FLOAT64[0]:
 				numType = SS_FLOAT64
 				floatVal = utils.BytesToFloat64LittleEndian(ple.allCvalsTypeLen[i][1:9])
-				_, err := fmt.Fprintf(&asciiBytesBuf, "%f", floatVal)
-				if err != nil {
-					return false, utils.TeeErrorf("doLogEventFilling: cannot write floatVal %v: %v", floatVal, err)
-				}
 			default:
 				return false, utils.TeeErrorf("doLogEventFilling: shouldn't get here; ctype: %v", ctype)
 			}
 
 			updateRangeIndex(cname, ri.Ranges, numType, intVal, uintVal, floatVal)
-			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, asciiBytesBuf.Bytes())
+			addSegStatsNums(segstats, cname, numType, intVal, uintVal, floatVal, ple.allCvalsTypeLen[i][1:9])
 			ss.updateColValueSizeInAllSeenColumns(cname, 9)
 			if !ss.skipDe {
 				ss.checkAddDictEnc(colWip, colWip.cbuf.Slice(int(startIdx), int(colWip.cbufidx)), ss.wipBlock.blockSummary.RecCount, startIdx, false)
@@ -900,7 +881,8 @@ func addFloatToRangeIndex(key string, incomingVal float64, rangeIndexPtr map[str
 */
 // returns number of written bytes, offset of block in file, and any errors
 
-func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, error) {
+func writeWip(colWip *ColWip, encType []byte, compBuf []byte,
+	blkRecCount uint16) (uint32, int64, error) {
 
 	blkLen := uint32(0)
 	// todo better error handling should not exit
@@ -925,7 +907,7 @@ func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, er
 	}
 	blkLen += 1 // for compression type
 
-	compressed, compLen, err := compressWip(colWip, encType, compBuf)
+	compressed, compLen, err := compressWip(colWip, encType, compBuf, blkRecCount)
 	if err != nil {
 		log.Errorf("WriteWip: compression of wip failed fname=%v, err=%v", colWip.csgFname, err)
 		return 0, blkOffset, err
@@ -945,7 +927,8 @@ func writeWip(colWip *ColWip, encType []byte, compBuf []byte) (uint32, int64, er
 	return blkLen, blkOffset, nil
 }
 
-func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32, error) {
+func compressWip(colWip *ColWip, encType []byte, compBuf []byte,
+	blkRecCount uint16) ([]byte, uint32, error) {
 	var compressed []byte
 	if bytes.Equal(encType, ZSTD_COMLUNAR_BLOCK) {
 
@@ -955,7 +938,7 @@ func compressWip(colWip *ColWip, encType []byte, compBuf []byte) ([]byte, uint32
 	} else if bytes.Equal(encType, TIMESTAMP_TOPDIFF_VARENC) {
 		compressed = colWip.cbuf.Slice(0, int(colWip.cbufidx))
 	} else if bytes.Equal(encType, ZSTD_DICTIONARY_BLOCK) {
-		PackDictEnc(colWip)
+		PackDictEnc(colWip, blkRecCount)
 		compressed = colWip.cbuf.Slice(0, int(colWip.cbufidx))
 	} else {
 		log.Errorf("compressWip got an unknown encoding type: %+v", encType)

@@ -43,6 +43,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <link rel="stylesheet" href="./css/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="./css/lib/jquery-ui.min.css" />
     <link rel="stylesheet" href="./css/siglens.css?cb={{ AppVersion }}" />
+    <link rel="stylesheet" href="./css/query-builder.css?cb={{ AppVersion }}" />
     <style>
         .chart-container {
             height: 300px;
@@ -130,6 +131,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             type="button">Apply</button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        <div class="dropdown download-btn">
+                            <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                data-bs-toggle="dropdown">
+                            </button>
+                            <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn"
+                                id="save-query-options">
+                                <li id="csv-block" class="query-language-option">Download as CSV</li>
                             </div>
                         </div>
                     </div>

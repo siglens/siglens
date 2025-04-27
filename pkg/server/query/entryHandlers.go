@@ -87,6 +87,12 @@ func listIndicesHandler() func(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func listColumnNamesHandler() func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		serverutils.CallWithMyIdQuery(pipesearch.ListColumnNamesHandler, ctx)
+	}
+}
+
 func otsdbMetricQueryHandler() func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		serverutils.CallWithMyIdQuery(otsdbquery.MetricsQueryParser, ctx)

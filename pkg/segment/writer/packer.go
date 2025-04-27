@@ -1055,7 +1055,8 @@ func WriteMockColSegFile(segBaseDir string, segkey string, numBlocks int, entryC
 				log.Fatalf("WriteMockColSegFile: failed to writeToBloom colsegfilename=%v, err=%v", colWip.csgFname, err)
 			}
 
-			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
+			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf,
+				segStore.wipBlock.blockSummary.RecCount)
 			if err != nil {
 				log.Errorf("WriteMockColSegFile: failed to write colsegfilename=%v, err=%v", csgFname, err)
 			}
@@ -1199,7 +1200,8 @@ func WriteMockTraceFile(segkey string, numBlocks int, entryCount int) ([]map[str
 			} else {
 				encType = ZSTD_COMLUNAR_BLOCK
 			}
-			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf)
+			blkLen, blkOffset, err := writeWip(colWip, encType, compWorkBuf,
+				segStore.wipBlock.blockSummary.RecCount)
 			if err != nil {
 				log.Errorf("WriteMockTraceFile: failed to write tracer filename=%v, err=%v", csgFname, err)
 			}
@@ -1438,8 +1440,9 @@ func createMockTsRollupWipBlock(t *testing.T, segkey string) *WipBlock {
 
 */
 
-func EncodeBlocksum(allBmi *AllBlksMetaInfo, bsum *BlockSummary,
-	blockSummBuf []byte, blkNum uint16) (uint32, []byte, error) {
+func EncodeBlocksum(bsum *BlockSummary,
+	blockSummBuf []byte, blkNum uint16, bmiCnameIdxDict map[string]int,
+	bmiColOffLen []ColOffAndLen) (uint32, []byte, error) {
 
 	var idx uint32
 
@@ -1450,22 +1453,22 @@ func EncodeBlocksum(allBmi *AllBlksMetaInfo, bsum *BlockSummary,
 
 	clen := 0
 	numCols := uint16(0)
-	for cname := range allBmi.CnameDict {
+	coffArrLen := len(bmiColOffLen)
+	for cname, cnameIdx := range bmiCnameIdxDict {
+		if cnameIdx >= coffArrLen {
+			return 0, nil, fmt.Errorf("EncodeBlocksum: cnameIdx: %v was > coffArrLen: %v for cname: %v",
+				cnameIdx, coffArrLen, cname)
+		}
+		if bmiColOffLen[cnameIdx].Length == 0 {
+			// blkLen of 0 for this cnameidx means it was not present for this block
+			continue
+		}
 		clen += len(cname)
 		numCols++
 	}
 
-	bmh, ok := allBmi.AllBmh[blkNum]
-	if !ok {
-		return idx, blockSummBuf, fmt.Errorf("EncodeBlocksum: could not find blkNum: %v in allBmi", blkNum)
-	}
-
-	if bmh == nil {
-		return idx, blockSummBuf, fmt.Errorf("EncodeBlocksum: bmh was nil for blkNum: %v", blkNum)
-	}
-
 	// summLen + blkNum + highTs + lowTs + recCount + numCols + totalCnamesLen + N * (cnameLenHolder + blkOff + blkLen)
-	requiredLen := 4 + 2 + 8 + 8 + 2 + 2 + clen + len(bmh.ColBlockOffAndLen)*(2+8+4)
+	requiredLen := 4 + 2 + 8 + 8 + 2 + 2 + clen + len(bmiColOffLen)*(2+8+4)
 	blockSummBuf = utils.ResizeSlice(blockSummBuf, requiredLen)
 
 	// reserve first 4 bytes for BLOCK_SUMMARY_LEN.
@@ -1482,8 +1485,12 @@ func EncodeBlocksum(allBmi *AllBlksMetaInfo, bsum *BlockSummary,
 	utils.Uint16ToBytesLittleEndianInplace(numCols, blockSummBuf[idx:])
 	idx += 2
 
-	for cname, cnameIdx := range allBmi.CnameDict {
-		cOffLen := bmh.ColBlockOffAndLen[cnameIdx]
+	for cname, cnameIdx := range bmiCnameIdxDict {
+		if bmiColOffLen[cnameIdx].Length == 0 {
+			// blkLen of 0 for this cnameidx means it was not present for this block
+			continue
+		}
+		cOffLen := bmiColOffLen[cnameIdx]
 		utils.Uint16ToBytesLittleEndianInplace(uint16(len(cname)), blockSummBuf[idx:])
 		idx += 2
 		copy(blockSummBuf[idx:], cname)
@@ -1512,8 +1519,10 @@ func WriteMockBlockSummary(file string, blockSums []*BlockSummary,
 
 	for blkNum, block := range blockSums {
 		blkSumBuf := make([]byte, BLOCK_SUMMARY_SIZE)
-		packedLen, _, err := EncodeBlocksum(allBmi, block, blkSumBuf[0:], uint16(blkNum))
-
+		cnameDict := allBmi.CnameDict
+		cOfflen := allBmi.AllBmh[uint16(blkNum)].ColBlockOffAndLen
+		packedLen, _, err := EncodeBlocksum(block, blkSumBuf[0:], uint16(blkNum), cnameDict,
+			cOfflen)
 		if err != nil {
 			log.Errorf("WriteMockBlockSummary: EncodeBlocksum: Failed to encode blocksummary=%+v, err=%v", block, err)
 			return
@@ -1564,7 +1573,7 @@ func SetCardinalityLimit(val uint16) {
 	   dEntry1 -- format
 	   [word1Len 2B] [ActualWord] [numRecs 2B] [recNum1 2B][recNum2 2B]....
 */
-func PackDictEnc(colWip *ColWip) {
+func PackDictEnc(colWip *ColWip, blkReCount uint16) {
 
 	localIdx := 0
 	colWip.dePackingBuf.Reset()
@@ -1585,10 +1594,18 @@ func PackDictEnc(colWip *ColWip) {
 		colWip.dePackingBuf.AppendUint16LittleEndian(numRecs)
 		localIdx += 2
 
+		foundBadRec := false
 		for i := uint16(0); i < numRecs; i++ {
 			// copy the recNum
 			colWip.dePackingBuf.AppendUint16LittleEndian(recNumsArr[i])
 			localIdx += 2
+			if recNumsArr[i] >= blkReCount {
+				foundBadRec = true
+			}
+		}
+		if foundBadRec {
+			log.Errorf("PackDictEnc: BAD recNums, csg: %v,  dword: [%v], blkReCount: %v, recNumsArr: %v",
+				colWip.csgFname, string(dword), blkReCount, recNumsArr)
 		}
 	}
 	colWip.cbuf.Reset()
