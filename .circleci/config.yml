@@ -4,6 +4,7 @@ setup: true
 
 orbs:
   path-filtering: circleci/path-filtering@1.1.0
+  python: circleci/python@3.9
 
 workflows:
   setup-workflow:
