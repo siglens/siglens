@@ -611,6 +611,31 @@ func GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, index
 	return allColumns
 }
 
+func CollectUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange,
+	indexNames []string, orgid int64, resAllColumns map[string]struct{}) {
+
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+	for _, usi := range AllUnrotatedSegmentInfo {
+		var foundIndex bool
+		for _, idxName := range indexNames {
+			if idxName == usi.TableName {
+				foundIndex = true
+				break
+			}
+		}
+		if !foundIndex {
+			continue
+		}
+		if !timeRange.CheckRangeOverLap(usi.tsRange.StartEpochMs, usi.tsRange.EndEpochMs) || usi.orgid != orgid {
+			continue
+		}
+		for col := range usi.allColumns {
+			resAllColumns[col] = struct{}{}
+		}
+	}
+}
+
 func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
