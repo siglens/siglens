@@ -47,6 +47,15 @@ const (
 	S_512_KB = 524288
 	S_1_MB   = 1048576
 	S_2_MB   = 2097152
+	S_4_MB   = 4194304
+	S_6_MB   = 6291456
+	S_8_MB   = 8388608
+	S_10_MB  = 10485760
+	S_12_MB  = 12582912
+	S_14_MB  = 14680064
+	S_16_MB  = 16777216
+	S_18_MB  = 18874368
+	S_20_MB  = 20971520
 
 	COMPRESSION_FACTOR = 8 // SegmentFileReader.currRawBlockBuffer holds uncompressed block.
 )
@@ -61,6 +70,15 @@ var (
 	pool512K = memorypool.NewMemoryPool(0, S_512_KB)
 	pool1M   = memorypool.NewMemoryPool(0, S_1_MB)
 	pool2M   = memorypool.NewMemoryPool(0, S_2_MB)
+	pool4M   = memorypool.NewMemoryPool(0, S_4_MB)
+	pool6M   = memorypool.NewMemoryPool(0, S_6_MB)
+	pool8M   = memorypool.NewMemoryPool(0, S_8_MB)
+	pool10M  = memorypool.NewMemoryPool(0, S_10_MB)
+	pool12M  = memorypool.NewMemoryPool(0, S_12_MB)
+	pool14M  = memorypool.NewMemoryPool(0, S_14_MB)
+	pool16M  = memorypool.NewMemoryPool(0, S_16_MB)
+	pool18M  = memorypool.NewMemoryPool(0, S_18_MB)
+	pool20M  = memorypool.NewMemoryPool(0, S_20_MB)
 
 	UncompressedReadBufferPool = sync.Pool{
 		New: func() interface{} {
@@ -132,6 +150,24 @@ func GetBufFromPool(size int64) []byte {
 		return pool1M.Get(S_1_MB)[:size]
 	case size <= S_2_MB:
 		return pool2M.Get(S_2_MB)[:size]
+	case size <= S_4_MB:
+		return pool4M.Get(S_4_MB)[:size]
+	case size <= S_6_MB:
+		return pool6M.Get(S_6_MB)[:size]
+	case size <= S_8_MB:
+		return pool8M.Get(S_8_MB)[:size]
+	case size <= S_10_MB:
+		return pool10M.Get(S_10_MB)[:size]
+	case size <= S_12_MB:
+		return pool12M.Get(S_12_MB)[:size]
+	case size <= S_14_MB:
+		return pool14M.Get(S_14_MB)[:size]
+	case size <= S_16_MB:
+		return pool16M.Get(S_16_MB)[:size]
+	case size <= S_18_MB:
+		return pool18M.Get(S_18_MB)[:size]
+	case size <= S_20_MB:
+		return pool20M.Get(S_20_MB)[:size]
 	default: // TODO release
 		return make([]byte, 0, size) // too big, don't pool
 	}
@@ -157,6 +193,24 @@ func PutBufToPool(buf []byte) error {
 		return pool1M.Put(buf)
 	case S_2_MB:
 		return pool2M.Put(buf)
+	case S_4_MB:
+		return pool4M.Put(buf)
+	case S_6_MB:
+		return pool6M.Put(buf)
+	case S_8_MB:
+		return pool8M.Put(buf)
+	case S_10_MB:
+		return pool10M.Put(buf)
+	case S_12_MB:
+		return pool12M.Put(buf)
+	case S_14_MB:
+		return pool14M.Put(buf)
+	case S_16_MB:
+		return pool16M.Put(buf)
+	case S_18_MB:
+		return pool18M.Put(buf)
+	case S_20_MB:
+		return pool20M.Put(buf)
 	default:
 		// TODO - log error??
 		return nil
@@ -257,7 +311,7 @@ func (sfr *SegmentFileReader) Close() error {
 }
 
 func (sfr *SegmentFileReader) ReturnBuffers() error {
-	// UncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
+	UncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
 	FileReadBufferPool.Put(&sfr.currFileBuffer)
 	err := PutBufToPool(sfr.currRawBlockBuffer)
 	if err != nil {
@@ -678,7 +732,6 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 }
 
 func (sfr *SegmentFileReader) deGetRec(rn uint16) ([]byte, error) {
-
 	if int(rn) >= len(sfr.deRecToTlv) {
 		return nil, fmt.Errorf("SegmentFileReader.deGetRec: recNum %+v does not exist, len: %+v", rn, len(sfr.deRecToTlv))
 	}
