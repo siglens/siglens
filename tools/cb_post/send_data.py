@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger()
 
-# Target URL for data ingestion service 
+# Target URL for data ingestion service
 url = "http://localhost:8081/elastic/_bulk"
 
 buffer_limit = 10 * 1024 * 1024

@@ -5,6 +5,8 @@ TRIES=3
 QUERY_NUM=0
 
 cat 'queries.spl' | while read -r QUERYTXT; do
+  sync
+  echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
 
   echo -n "["
 
