@@ -168,7 +168,7 @@ func GetBufFromPool(size int64) []byte {
 		return pool18M.Get(S_18_MB)[:size]
 	case size <= S_20_MB:
 		return pool20M.Get(S_20_MB)[:size]
-	default: // TODO release
+	default:
 		return make([]byte, 0, size) // too big, don't pool
 	}
 }
@@ -212,7 +212,6 @@ func PutBufToPool(buf []byte) error {
 	case S_20_MB:
 		return pool20M.Put(buf)
 	default:
-		// TODO - log error??
 		return nil
 	}
 }
@@ -311,7 +310,6 @@ func (sfr *SegmentFileReader) Close() error {
 }
 
 func (sfr *SegmentFileReader) ReturnBuffers() error {
-	UncompressedReadBufferPool.Put(&sfr.currRawBlockBuffer)
 	FileReadBufferPool.Put(&sfr.currFileBuffer)
 	err := PutBufToPool(sfr.currRawBlockBuffer)
 	if err != nil {

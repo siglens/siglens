@@ -356,7 +356,7 @@ func (mcsr *MultiColSegmentReader) returnBuffers() {
 			if reader != nil {
 				err := reader.ReturnBuffers()
 				if err != nil {
-					log.Errorf("returnBuffers: Error returning buffer back to memory: %v", err)
+					log.Errorf("MultiColSegmentReader.returnBuffers: Error returning buffer back to memory: %v", err)
 				}
 			}
 		}
