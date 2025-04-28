@@ -452,6 +452,7 @@ function runFilterBtnHandler(evt) {
             alertChart(res);
         });
     } else if (currentPage === '/dashboard.html') {
+        console.log("I am also clicked");
         runQueryBtnHandler();
     } else {
         // index.html
@@ -487,6 +488,7 @@ function filterInputHandler(evt) {
         const pathOnly = url.pathname;
 
         const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
+        const isDashboardPage = pathOnly.includes('dashboard.html');
 
         if (isIndexPage) {
             evt.preventDefault();
@@ -498,6 +500,10 @@ function filterInputHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             doSearch(data);
+        }else if (isDashboardPage) {
+            evt.preventDefault();
+            // runFilterBtnHandler();
+            runQueryBtnHandler();
         }
     }
 }

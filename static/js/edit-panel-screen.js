@@ -1159,6 +1159,7 @@ function displayQueryToolTip() {
 }
 
 async function runQueryBtnHandler() {
+    console.log("I am clicked");
     // reset the current panel's queryRes attribute
     delete currentPanel.queryRes;
     resetEditPanel();
