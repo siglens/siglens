@@ -71,3 +71,15 @@ func Test_ReadLine_BlankLines(t *testing.T) {
 	assert.Equal(t, "world", string(line))
 	assert.Len(t, rest, 0)
 }
+
+func Test_ContainsAnyCase(t *testing.T) {
+	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("h")))
+	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("hello")))
+	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("world")))
+	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("lo, wo")))
+	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("lO, Wo")))
+	assert.False(t, ContainsAnyCase([]byte("hello, world!"), []byte("x")))
+	assert.False(t, ContainsAnyCase([]byte("hello, world!"), []byte("hey")))
+	assert.False(t, ContainsAnyCase([]byte("hello, world!"), []byte("HELLO,!")))
+	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("HELLO, WORLD!")))
+}

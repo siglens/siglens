@@ -27,3 +27,21 @@ func ReadLine(buf []byte) ([]byte, []byte) {
 
 	return buf[:end], buf[end+1:]
 }
+
+func ContainsAnyCase(buf []byte, word []byte) bool {
+	if len(word) == 0 {
+		return true
+	}
+
+	if bytes.Contains(buf, word) {
+		return true
+	}
+
+	for i := 0; i < len(buf)-len(word)+1; i++ {
+		if bytes.EqualFold(buf[i:i+len(word)], word) {
+			return true
+		}
+	}
+
+	return false
+}
