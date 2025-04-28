@@ -98,7 +98,7 @@ type MemoryConfig struct {
 	MetadataPercent uint64 `yaml:"metadataPercent"`
 	MetricsPercent  uint64 `yaml:"metricsPercent"`
 
-	GoMemLimit uint64 `yaml:"GOMEMLIMIT"`
+	GoMemLimit int64 `yaml:"GOMEMLIMIT"`
 }
 
 /*  If you add a new config parameters to the Configuration struct below, make sure to add the default value

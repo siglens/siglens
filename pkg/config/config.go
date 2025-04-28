@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -1328,21 +1329,13 @@ func SetConfig(config common.Configuration) {
 
 // Ensure GOMEMLIMIT is set from configuration when the env var is absent.
 func setGoMemLimit(cfg *common.Configuration) {
-	if os.Getenv("GOMEMLIMIT") != "" {
+	memLimit := cfg.MemoryConfig.GoMemLimit
+	if memLimit == 0 {
 		return
 	}
 
-	if cfg == nil || cfg.MemoryConfig.GoMemLimit == 0 {
-		return
-	}
-
-	limit := strconv.FormatUint(cfg.MemoryConfig.GoMemLimit, 10)
-	if err := os.Setenv("GOMEMLIMIT", limit); err != nil {
-		log.Infof("setGoMemLimit : failed to set GOMEMLIMIT=%s: %v", limit, err)
-		return
-	}
-
-	log.Infof("setGoMemLimit : GOMEMLIMIT set to %s (from configuration)", limit)
+	debug.SetMemoryLimit(memLimit)
+	log.Infof("GOMEMLIMIT set to %s (from configuration)", memLimit)
 }
 
 func ExtractCmdLineInput() string {
