@@ -645,7 +645,7 @@ function loadCustomDateTimeFromEpoch(startEpoch, endEpoch) {
 }
 
 //eslint-disable-next-line no-unused-vars
-function showToast(msg, type = 'error') {
+function showToast(msg, type = 'error', autoCloseTime = null) {
     let toastTypeClass = type === 'success' ? 'toast-success' : 'toast-error';
     let toast = `
         <div class="${toastTypeClass}" id="message-toast">
@@ -658,7 +658,9 @@ function showToast(msg, type = 'error') {
 
     $('body').prepend(toast);
 
-    if (type === 'success') {
+    if (autoCloseTime !== null) {
+        setTimeout(removeToast, autoCloseTime);
+    } else if (type === 'success') {
         setTimeout(removeToast, 3000);
     }
     $('.toast-close').on('click', removeToast);
