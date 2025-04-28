@@ -80,16 +80,6 @@ var (
 	pool18M  = memorypool.NewMemoryPool(0, S_18_MB)
 	pool20M  = memorypool.NewMemoryPool(0, S_20_MB)
 
-	UncompressedReadBufferPool = sync.Pool{
-		New: func() interface{} {
-			// The Pool's New function should generally only return pointer
-			// types, since a pointer can be put into the return interface
-			// value without an allocation:
-			slice := make([]byte, 0, utils.WIP_SIZE)
-			return &slice
-		},
-	}
-
 	FileReadBufferPool = sync.Pool{
 		New: func() interface{} {
 			// The Pool's New function should generally only return pointer
