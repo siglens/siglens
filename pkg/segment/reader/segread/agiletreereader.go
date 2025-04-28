@@ -66,7 +66,6 @@ type StarTreeMetadata struct {
 // returns a new AgileTreeReader and any errors encountered
 // The returned AgileTreeReader must call .Close() when finished using it to close the fd
 func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error) {
-
 	// Open the FD for AgileTree
 	// todo add download code for agileTree file
 	// fName, err := blob.DownloadSegmentBlobAsInUse(segKey, colName, structs.Str)
@@ -79,7 +78,7 @@ func InitNewAgileTreeReader(segKey string, qid uint64) (*AgileTreeReader, error)
 	return &AgileTreeReader{
 		segKey:         segKey,
 		metaFd:         fd,
-		metaFileBuffer: *segreader.FileReadBufferPool.Get().(*[]byte),
+		metaFileBuffer: nil,
 		isMetaLoaded:   false,
 		buckets:        aggsTreeBuckets{},
 	}, nil
@@ -115,11 +114,13 @@ func (str *AgileTreeReader) Close() error {
 }
 
 func (str *AgileTreeReader) returnBuffers() {
-	segreader.FileReadBufferPool.Put(&str.metaFileBuffer)
+	err := segreader.PutBufToPool(str.metaFileBuffer)
+	if err != nil {
+		log.Errorf("AgileTreeReader.returnBuffers: Error putting buffer back to pool, err: %v", err))
+	}
 }
 
 func (str *AgileTreeReader) resetBlkVars() {
-
 	str.treeMeta = nil
 	str.isMetaLoaded = false
 }
@@ -149,7 +150,6 @@ returns:
 	err
 */
 func (str *AgileTreeReader) ReadTreeMeta() error {
-
 	if str.isMetaLoaded {
 		return nil
 	}
@@ -163,8 +163,9 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	}
 	fileSize := uint32(finfo.Size())
 
-	str.metaFileBuffer = toputils.ResizeSlice(str.metaFileBuffer, int(fileSize))
-
+  if str.metaFileBuffer == nil {
+	str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))
+  }
 	_, err = str.metaFd.ReadAt(str.metaFileBuffer[:fileSize], 0)
 	if err != nil {
 		log.Errorf("AgileTreeReader.ReadTreeMeta: read file error: %+v", err)
@@ -222,7 +223,6 @@ returns:
 Func: If any colname either in grp or measure is not present will return false
 */
 func (str *AgileTreeReader) CanUseAgileTree(grpReq *structs.GroupByRequest) (bool, error) {
-
 	if len(grpReq.GroupByColumns) == 0 && len(grpReq.MeasureOperations) == 0 {
 		return false, nil
 	}
@@ -262,7 +262,6 @@ func (str *AgileTreeReader) CanUseAgileTree(grpReq *structs.GroupByRequest) (boo
 }
 
 func (str *AgileTreeReader) decodeMetadata(buf []byte) (*StarTreeMetadata, error) {
-
 	tmeta := StarTreeMetadata{}
 
 	idx := uint32(0)
@@ -361,7 +360,6 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 	desiredLevel uint16, combiner map[string][]utils.NumTypeEnclosure,
 	measResIndices []int, lenMri int, grpTreeLevels []uint16, grpColNames []string) error {
-
 	var wvInt64 int64
 	var wvFloat64 float64
 	var dtype utils.SS_DTYPE
@@ -469,7 +467,6 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	internalMops []*structs.MeasureAggregator, blkResults *blockresults.BlockResults,
 	qid uint64, agileTreeBuf []byte) error {
-
 	// make sure meta is loaded
 	_ = str.ReadTreeMeta()
 
@@ -579,7 +576,6 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEnclosure,
 	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16,
 	grpColNames []string) error {
-
 	numAggValues := len(str.treeMeta.measureColNames) * writer.TotalMeasFns
 
 	fName := str.segKey + ".strl"
@@ -608,7 +604,6 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 
 func (str *AgileTreeReader) decodeRawValBytes(mkey string, usedGrpDictEncodings []map[uint32][]byte,
 	grpColNames []string) (string, error) {
-
 	// Estimate how much space we need for the string builder to avoid
 	// reallocations. An int or float groupby column will take 9 bytes, and
 	// a string groupby column could take more or less space.

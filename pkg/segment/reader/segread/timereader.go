@@ -95,7 +95,7 @@ func InitNewTimeReader(segKey string, tsKey string, allBlocksToSearch map[uint16
 		allBlocksToSearch:       allBlocksToSearch,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
-		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
+		blockReadBuffer:         nil,
 		blockUncompressedBuffer: nil,
 		loadedBlock:             false,
 		allInUseFiles:           allInUseFiles,
@@ -112,7 +112,7 @@ func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, allBlocksToSearch map[
 		allBlocksToSearch:       allBlocksToSearch,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
-		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
+		blockReadBuffer:         nil,
 		blockUncompressedBuffer: nil,
 		loadedBlock:             false,
 		allBmi:                  allBmi,
@@ -175,7 +175,9 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 
 	cOffLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
-	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(cOffLen.Length))
+	if trr.blockReadBuffer == nil {
+		trr.blockReadBuffer = segreader.GetBufFromPool(int64(cOffLen.Length))
+	}
 	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
 	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:cOffLen.Length], cOffLen.Offset)
 	if err != nil {
@@ -225,9 +227,12 @@ func (trr *TimeRangeReader) Close() error {
 }
 
 func (trr *TimeRangeReader) returnBuffers() {
-	segreader.FileReadBufferPool.Put(&trr.blockReadBuffer)
 	rawTimestampsBufferPool.Put(&trr.blockTimestamps)
-	err := segreader.PutBufToPool(trr.blockUncompressedBuffer)
+	err := segreader.PutBufToPool(trr.blockReadBuffer)
+	if err != nil {
+		log.Errorf("TimeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
+	}
+	err = segreader.PutBufToPool(trr.blockUncompressedBuffer)
 	if err != nil {
 		log.Errorf("Timereader.returnBuffers: Error putting raw block buffer back to pool, err: %v", err)
 	}
@@ -317,7 +322,8 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 // When the caller of this function is done with retVal, they should call
 // ReturnTimeBuffers(retVal) to return the buffers to rawTimestampsBufferPool.
 func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, retVal map[uint16][]uint64,
-	retLock *sync.Mutex) {
+	retLock *sync.Mutex,
+) {
 	defer wg.Done()
 	var err error
 	var decoded []uint64

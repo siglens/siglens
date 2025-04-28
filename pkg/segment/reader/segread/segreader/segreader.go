@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
+	"strings"
 	"unsafe"
 
 	"github.com/cespare/xxhash"
@@ -79,16 +79,6 @@ var (
 	pool16M  = memorypool.NewMemoryPool(0, S_16_MB)
 	pool18M  = memorypool.NewMemoryPool(0, S_18_MB)
 	pool20M  = memorypool.NewMemoryPool(0, S_20_MB)
-
-	FileReadBufferPool = sync.Pool{
-		New: func() interface{} {
-			// The Pool's New function should generally only return pointer
-			// types, since a pointer can be put into the return interface
-			// value without an allocation:
-			slice := make([]byte, utils.FILE_READ_BUFFER_SIZE)
-			return &slice
-		},
-	}
 )
 
 // Use zstd.WithDecoderConcurrency(0) so that it can have GOMAXPROCS goroutines.
@@ -276,7 +266,7 @@ func InitNewSegFileReader(fd *os.File, colName string, allBlocksToSearch map[uin
 		currFD:                fd,
 		allBlocksToSearch:     allBlocksToSearch,
 		currOffset:            0,
-		currFileBuffer:        *FileReadBufferPool.Get().(*[]byte),
+		currFileBuffer:        nil,
 		currRawBlockBuffer:    nil,
 		consistentColValueLen: colValueRecLen,
 		isBlockLoaded:         false,
@@ -300,11 +290,22 @@ func (sfr *SegmentFileReader) Close() error {
 }
 
 func (sfr *SegmentFileReader) ReturnBuffers() error {
-	FileReadBufferPool.Put(&sfr.currFileBuffer)
-	err := PutBufToPool(sfr.currRawBlockBuffer)
+	var errorMessages []string
+	err := PutBufToPool(sfr.currFileBuffer)
 	if err != nil {
-		return fmt.Errorf("ReturnBuffers: Error putting raw block buffer back to pool, err: %v", err)
+		errorMessages = append(errorMessages, fmt.Sprintf("Segreader.ReturnBuffers: Error putting buffer back to pool, err: %v", err))
 	}
+
+	err = PutBufToPool(sfr.currRawBlockBuffer)
+	if err != nil {
+		errorMessages = append(errorMessages, fmt.Sprintf("ReturnBuffers: Error putting raw block buffer back to pool, err: %v", err))
+	}
+
+	if len(errorMessages) > 0 {
+		combinedMessage := strings.Join(errorMessages, "\n")
+		return fmt.Errorf("%s", combinedMessage)
+	}
+
 	return nil
 }
 
@@ -367,7 +368,9 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
 	}
 
-	sfr.currFileBuffer = toputils.ResizeSlice(sfr.currFileBuffer, int(cOffAndLen.Length))
+	if sfr.currFileBuffer == nil {
+		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
+	}
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
 	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:cOffAndLen.Length], cOffAndLen.Offset)
 	if err != nil {
