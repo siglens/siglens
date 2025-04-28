@@ -33,10 +33,6 @@ func ContainsAnyCase(buf []byte, word []byte) bool {
 		return true
 	}
 
-	if bytes.Contains(buf, word) {
-		return true
-	}
-
 	for i := 0; i < len(buf)-len(word)+1; i++ {
 		if EqualAnyCase(buf[i:i+len(word)], word) {
 			return true
