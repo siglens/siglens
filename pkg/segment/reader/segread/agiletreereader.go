@@ -116,7 +116,7 @@ func (str *AgileTreeReader) Close() error {
 func (str *AgileTreeReader) returnBuffers() {
 	err := segreader.PutBufToPool(str.metaFileBuffer)
 	if err != nil {
-		log.Errorf("AgileTreeReader.returnBuffers: Error putting buffer back to pool, err: %v", err))
+		log.Errorf("AgileTreeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
 	}
 }
 
@@ -163,9 +163,9 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	}
 	fileSize := uint32(finfo.Size())
 
-  if str.metaFileBuffer == nil {
-	str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))
-  }
+	if str.metaFileBuffer == nil {
+		str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))
+	}
 	_, err = str.metaFd.ReadAt(str.metaFileBuffer[:fileSize], 0)
 	if err != nil {
 		log.Errorf("AgileTreeReader.ReadTreeMeta: read file error: %+v", err)
@@ -359,7 +359,8 @@ func (str *AgileTreeReader) getRawVal(key uint32, dictEncoding map[uint32][]byte
 
 func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 	desiredLevel uint16, combiner map[string][]utils.NumTypeEnclosure,
-	measResIndices []int, lenMri int, grpTreeLevels []uint16, grpColNames []string) error {
+	measResIndices []int, lenMri int, grpTreeLevels []uint16, grpColNames []string,
+) error {
 	var wvInt64 int64
 	var wvFloat64 float64
 	var dtype utils.SS_DTYPE
@@ -466,7 +467,8 @@ func (str *AgileTreeReader) decodeNodeDetailsJit(buf []byte, numAggValues int,
 // first applies the first groupby column. For all returned nodes, apply second & so on until no more groupby exists
 func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 	internalMops []*structs.MeasureAggregator, blkResults *blockresults.BlockResults,
-	qid uint64, agileTreeBuf []byte) error {
+	qid uint64, agileTreeBuf []byte,
+) error {
 	// make sure meta is loaded
 	_ = str.ReadTreeMeta()
 
@@ -575,7 +577,8 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 
 func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEnclosure,
 	desiredLevel uint16, measResIndices []int, agileTreeBuf []byte, grpTreeLevels []uint16,
-	grpColNames []string) error {
+	grpColNames []string,
+) error {
 	numAggValues := len(str.treeMeta.measureColNames) * writer.TotalMeasFns
 
 	fName := str.segKey + ".strl"
@@ -603,7 +606,8 @@ func (str *AgileTreeReader) computeAggsJit(combiner map[string][]utils.NumTypeEn
 }
 
 func (str *AgileTreeReader) decodeRawValBytes(mkey string, usedGrpDictEncodings []map[uint32][]byte,
-	grpColNames []string) (string, error) {
+	grpColNames []string,
+) (string, error) {
 	// Estimate how much space we need for the string builder to avoid
 	// reallocations. An int or float groupby column will take 9 bytes, and
 	// a string groupby column could take more or less space.
