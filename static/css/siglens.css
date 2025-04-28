@@ -1691,13 +1691,11 @@ progress.hidden {
     font-style: normal;
 }
 
-.query-table,
-.metrics-table {
+.query-table {
     margin-top: 12px;
 }
 
-.query-table tbody td,
-.metrics-table tbody td {
+.query-table tbody td {
     padding-left: 15px;
     width: 334px;
     height: 50px;
@@ -1705,29 +1703,24 @@ progress.hidden {
     background-color: var(--cstats-table-bg-color);
 }
 
-.query-table tbody tr,
-.metrics-table tbody tr {
+.query-table tbody tr {
     padding-bottom: 20px;
     line-height: 18px;
 }
 
-.query-table tbody tr:nth-child(1) td:nth-child(1),
-.metrics-table tbody tr:nth-child(1) td:nth-child(1) {
+.query-table tbody tr:nth-child(1) td:nth-child(1) {
     border-radius: 10px 0 0 0;
 }
 
-.query-table tbody tr:nth-child(1) td:nth-child(2),
-.metrics-table tbody tr:nth-child(1) td:nth-child(2) {
+.query-table tbody tr:nth-child(1) td:nth-child(2) {
     border-radius: 0 10px 0 0;
 }
 
-.query-table tbody tr:nth-child(2) td:nth-child(1),
-.metrics-table tbody tr:nth-child(2) td:nth-child(1) {
+.query-table tbody tr:nth-child(2) td:nth-child(1) {
     border-radius: 0 0 0 10px;
 }
 
-.query-table tbody tr:nth-child(2) td:nth-child(2),
-.metrics-table tbody tr:nth-child(2) td:nth-child(2) {
+.query-table tbody tr:nth-child(2) td:nth-child(2) {
     border-radius: 0 0 10px 0;
 }
 
@@ -1757,7 +1750,7 @@ progress.hidden {
     margin: auto;
     float: left;
     width: 100%;
-    margin-bottom: 28px;
+    margin-bottom: 50px;
 }
 
 .index-data-table {
@@ -1770,22 +1763,29 @@ progress.hidden {
     font-weight: 500;
 }
 
+.dataTables_wrapper {
+    border-radius: 8px;
+    box-shadow: var(--box-shadow);
+    overflow: hidden;
+    border: 1px solid var(--border-color-regular);
+}
+
 .index-data-table {
     margin: 0 !important;
 }
 
 .index-data-table thead th {
-    background: var(--table-header-bg-color) !important;
+    background: var(--hits-summary-bg-regular) !important;
     padding-left: 15px !important;
     border-bottom: none !important;
 }
 
 .index-data-table tbody tr {
-    background: var(--cstats-table-bg-color) !important;
+    background: var(--bg-color) !important;
 }
 
 .index-data-table .even {
-    background: var(--cstats-table-bg-color) !important;
+    background: var(--bg-color) !important;
     padding-left: 15px !important;
 }
 
@@ -1795,7 +1795,7 @@ progress.hidden {
 }
 
 .index-data-table tbody>tr:nth-child(1) td {
-    color: var(--lavender-2) !important;
+    color: var(--purple-1) !important;
     font-weight: 500 !important;
 }
 
@@ -1804,31 +1804,39 @@ progress.hidden {
     font-weight: normal !important;
 }
 
-.index-data-table thead tr th:nth-child(1) {
-    border-radius: 10px 0 0 0 !important;
-}
-
-.index-data-table thead tr th:last-child {
-    border-radius: 0 10px 0 0 !important;
-}
-
-.index-data-table tbody tr:last-child td:nth-child(1) {
-    border-radius: 0 0 0 10px !important;
-}
-
-.index-data-table tbody tr:last-child td:last-child {
-    border-radius: 0 0 10px 0 !important;
-}
-
 div.dts div.dataTables_scrollBody table {
     z-index: 0 !important;
 }
 
 table.dataTable thead th,
 table.dataTable thead td {
-    padding: 6px;
+    padding: 10px 15px;
 }
 
+.index-data-table tbody td {
+    color: var(--table-or-regular-text-color) !important;
+    font-weight: normal;
+    padding: 10px 15px !important;
+    border-bottom: none !important;
+}
+
+.index-data-table tbody tr {
+    position: relative;
+}
+
+.index-data-table tbody tr::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 1%;
+    width: 98%;
+    height: 1px;
+    background-color: var(--border-color-regular, #e2e8f0);
+}
+
+.index-data-table tbody tr:last-child::after {
+    display: none;
+}
 
 .dataTables_wrapper.no-footer .index-data-table {
     border-bottom: none !important;
@@ -1839,7 +1847,18 @@ table.dataTable thead td {
 .dataTables_info {
     color: var(--text-color) !important;
     font-size: 10px;
-    margin-top: -4px;
+    border-top: 1px solid var(--border-color-regular) !important;
+    width: 100%;
+    padding: 3px 15px !important;
+    background-color: var(--hits-summary-bg-regular);
+}
+
+#index-data-table_wrapper .dataTables_info {
+    margin-top: 14px;
+}
+
+#metrics-data-table_wrapper .dataTables_info {
+    display: none !important;
 }
 
 .chart_container {
@@ -4454,13 +4473,24 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .index-name {
-    color: var(--table-or-regular-text-color);
     text-decoration: none;
+    color: var(--purple-1);
+    font-weight: 500;
 }
 
 .index-name:hover {
-    color: var(--lavender-2);
-    font-weight: bold;
+    color: var(--purple-1);
+    font-weight: 500;
+    text-decoration: underline;
+}
+
+.index-name::after {
+    content: "ⓘ";
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 14px;
+    color: var(--purple-1);
+    opacity: 0.8;
 }
 
 /*SignUP Form*/
