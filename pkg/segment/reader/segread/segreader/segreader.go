@@ -370,7 +370,14 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 
 	if sfr.currFileBuffer == nil {
 		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
+	} else if len(sfr.currFileBuffer) < int(cOffAndLen.Length) {
+		err := PutBufToPool(sfr.currFileBuffer)
+		if err != nil {
+			log.Errorf("loadBlockUsingBuffer: Error putting file buffer back to pool, err: %v", err)
+		}
+		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
 	}
+
 	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
 	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:cOffAndLen.Length], cOffAndLen.Offset)
 	if err != nil {

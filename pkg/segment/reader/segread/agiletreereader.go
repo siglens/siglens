@@ -165,6 +165,12 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 
 	if str.metaFileBuffer == nil {
 		str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))
+	} else if len(str.metaFileBuffer) < int(fileSize) {
+		err := segreader.PutBufToPool(str.metaFileBuffer)
+		if err != nil {
+			log.Errorf("AgileTreeReader.ReadTreeMeta: Error putting meta file buffer back to pool, err: %v", err)
+		}
+		str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))
 	}
 	_, err = str.metaFd.ReadAt(str.metaFileBuffer[:fileSize], 0)
 	if err != nil {
