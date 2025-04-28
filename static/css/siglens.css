@@ -1795,7 +1795,7 @@ progress.hidden {
 }
 
 .index-data-table tbody>tr:nth-child(1) td {
-    color: var(--lavender-2) !important;
+    color: var(--purple-1) !important;
     font-weight: 500 !important;
 }
 
@@ -1851,6 +1851,10 @@ table.dataTable thead td {
     width: 100%;
     padding: 3px 15px !important;
     background-color: var(--hits-summary-bg-regular);
+}
+
+#index-data-table_wrapper .dataTables_info {
+    margin-top: 14px;
 }
 
 #metrics-data-table_wrapper .dataTables_info {
@@ -4469,13 +4473,24 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .index-name {
-    color: var(--table-or-regular-text-color);
     text-decoration: none;
+    color: var(--purple-1);
+    font-weight: 500;
 }
 
 .index-name:hover {
-    color: var(--lavender-2);
-    font-weight: bold;
+    color: var(--purple-1);
+    font-weight: 500;
+    text-decoration: underline;
+}
+
+.index-name::after {
+    content: "ⓘ";
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 14px;
+    color: var(--purple-1);
+    opacity: 0.8;
 }
 
 /*SignUP Form*/
