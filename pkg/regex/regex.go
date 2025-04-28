@@ -33,7 +33,7 @@ type simpleRegex struct {
 	wildcardAfter  bool
 }
 
-var simpleRe = regexp.MustCompile(`^(\(i\?\))?` + // Optional case-insensitive flag
+var simpleRe = regexp.MustCompile(`^(\(\?i\))?` + // Optional case-insensitive flag
 	`(\^)?` + // Optional anchor
 	`(\.\*)?` + // Optional wildcard
 	`([a-zA-Z0-9_]+)` + // Main word to find
