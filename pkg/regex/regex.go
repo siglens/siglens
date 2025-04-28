@@ -29,10 +29,12 @@ type Regex interface {
 type simpleRegex struct {
 	wildcardBefore bool
 	word           []byte
+	caseSensitive  bool
 	wildcardAfter  bool
 }
 
-var simpleRe = regexp.MustCompile(`^(\^)?` + // Optional anchor
+var simpleRe = regexp.MustCompile(`^(\(i\?\))?` + // Optional case-insensitive flag
+	`(\^)?` + // Optional anchor
 	`(\.\*)?` + // Optional wildcard
 	`([a-zA-Z0-9_]+)` + // Main word to find
 	`(\.\*)?` + // Optional wildcard
@@ -46,9 +48,10 @@ func New(pattern string) (Regex, error) {
 	}
 
 	return &simpleRegex{
-		wildcardBefore: matches[1] == "" || matches[2] == ".*",
-		word:           []byte(matches[3]),
-		wildcardAfter:  matches[4] == ".*" || matches[5] == "",
+		caseSensitive:  matches[1] == "(i?)",
+		wildcardBefore: matches[2] != "^" || matches[3] == ".*",
+		word:           []byte(matches[4]),
+		wildcardAfter:  matches[5] == ".*" || matches[6] != "$",
 	}, nil
 }
 
