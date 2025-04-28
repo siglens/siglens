@@ -94,10 +94,13 @@ test.describe('Logs Ingestion Page Tests', () => {
 test.describe('Metrics Ingestion Page Tests', () => {
     test('should display metrics ingestion cards view by default', async ({ page }) => {
         await page.goto('http://localhost:5122/metrics-ingestion.html');
-        await page.waitForTimeout(1000); 
-
         await expect(page.locator('#app-side-nav')).toBeVisible();
         await expect(page.locator('#metrics-cards-view')).toBeVisible();
+        await page.waitForTimeout(1000); 
+
+        if ((await page.locator('#data-ingestion').count()) > 0) {
+            await expect(page.locator('#data-ingestion')).not.toBeVisible();
+        }
 
         await testThemeToggle(page);
     });
@@ -121,10 +124,14 @@ test.describe('Metrics Ingestion Page Tests', () => {
 test.describe('Traces Ingestion Page Tests', () => {
     test('should display traces ingestion cards view by default', async ({ page }) => {
         await page.goto('http://localhost:5122/traces-ingestion.html');
-        await page.waitForTimeout(1000); 
-
         await expect(page.locator('#app-side-nav')).toBeVisible();
         await expect(page.locator('#traces-cards-view')).toBeVisible();
+
+        await page.waitForTimeout(1000); 
+
+        if ((await page.locator('#data-ingestion').count()) > 0) {
+            await expect(page.locator('#data-ingestion')).not.toBeVisible();
+        }
 
         await testThemeToggle(page);
     });
