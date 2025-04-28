@@ -19,6 +19,7 @@ package utils
 
 import (
 	"errors"
+	"math"
 )
 
 var INVALID_FLOAT_ERR = errors.New("invalid float")
@@ -93,15 +94,7 @@ func FastParseFloat(val []byte) (float64, error) {
 				return 0, INVALID_FLOAT_ERR
 			}
 		}
-
-		multiplier := 1.0
-		for j := 0; j < exp; j++ {
-			if expSign == 1 {
-				multiplier *= 10
-			} else {
-				multiplier /= 10
-			}
-		}
+		multiplier := math.Pow(10, float64(exp)*float64(expSign))
 		result *= multiplier
 	}
 
