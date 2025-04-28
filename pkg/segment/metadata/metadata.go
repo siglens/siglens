@@ -676,17 +676,17 @@ func CollectColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange,
 	}
 }
 
-// returns the a map with columns as keys and returns a bool if the segkey/table was found
-func CheckAndGetColsForSegKey(segKey string) (map[string]bool, bool) {
+func CheckAndCollectColNamesForSegKey(segKey string, resCnames map[string]struct{}) bool {
 
 	globalMetadata.updateLock.RLock()
 	segmentMetadata, segKeyOk := globalMetadata.segmentMetadataReverseIndex[segKey]
 	globalMetadata.updateLock.RUnlock()
 	if !segKeyOk {
-		return nil, false
+		return false
 	}
 
-	return segmentMetadata.GetColumns(), true
+	segmentMetadata.CollectColumnNames(resCnames)
+	return true
 }
 
 func DoesColumnExistForTable(cName string, indices []string) bool {
