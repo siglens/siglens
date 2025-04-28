@@ -17,7 +17,10 @@
 
 package regex
 
-import "regexp"
+import (
+	"bytes"
+	"regexp"
+)
 
 type Regex interface {
 	Match([]byte) bool
@@ -29,6 +32,38 @@ type simpleRegex struct {
 	wildcardAfter  bool
 }
 
+var simpleRe = regexp.MustCompile(`^(\^)?` + // Optional anchor
+	`(\.\*)?` + // Optional wildcard
+	`([a-zA-Z0-9_]+)` + // Main word to find
+	`(\.\*)?` + // Optional wildcard
+	`(\$)?$`, // Optional anchor
+)
+
 func New(pattern string) (Regex, error) {
-	return regexp.Compile(pattern)
+	matches := simpleRe.FindStringSubmatch(pattern)
+	if len(matches) == 0 {
+		return regexp.Compile(pattern)
+	}
+
+	return &simpleRegex{
+		wildcardBefore: matches[1] == "" || matches[2] == ".*",
+		word:           []byte(matches[3]),
+		wildcardAfter:  matches[4] == ".*" || matches[5] == "",
+	}, nil
+}
+
+func (r *simpleRegex) Match(buf []byte) bool {
+	if r.wildcardBefore && r.wildcardAfter {
+		return bytes.Contains(buf, r.word)
+	}
+
+	if r.wildcardBefore {
+		return len(buf) >= len(r.word) && bytes.Contains(buf[len(buf)-len(r.word):], r.word)
+	}
+
+	if r.wildcardAfter {
+		return len(buf) >= len(r.word) && bytes.Contains(buf[:len(r.word)], r.word)
+	}
+
+	return bytes.Equal(buf, r.word)
 }

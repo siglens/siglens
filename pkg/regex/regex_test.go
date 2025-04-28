@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Regex_Match(t *testing.T) {
+func Test_Match(t *testing.T) {
 	assertMatches(t, `.*`, `abc`, true)
 	assertMatches(t, `.*foo.*`, `abc`, false)
 	assertMatches(t, `.*foo.*`, `foo`, true)
@@ -44,5 +44,33 @@ func assertMatches(t *testing.T, pattern string, str string, expectedMatch bool)
 		assert.True(t, regex.Match([]byte(str)), "Pattern %s should match %s", pattern, str)
 	} else {
 		assert.False(t, regex.Match([]byte(str)), "Pattern %s should not match %s", pattern, str)
+	}
+}
+
+func Test_UsesOptimizedRegex(t *testing.T) {
+	assertUsesOptimizedRegex(t, `.*`, false)
+	assertUsesOptimizedRegex(t, `.*foo.*`, true)
+	assertUsesOptimizedRegex(t, `foo.*`, true)
+	assertUsesOptimizedRegex(t, `^foo.*`, true)
+	assertUsesOptimizedRegex(t, `^.*foo.*`, true)
+	assertUsesOptimizedRegex(t, `^.*foo$`, true)
+	assertUsesOptimizedRegex(t, `^.*foo.*$`, true)
+	assertUsesOptimizedRegex(t, `^foo$`, true)
+
+	assertUsesOptimizedRegex(t, `foo.*bar.*`, false) // TODO: maybe we'll want to handle this.
+	assertUsesOptimizedRegex(t, `(.*foo.*|.*bar.*)`, false)
+}
+
+func assertUsesOptimizedRegex(t *testing.T, pattern string, expected bool) {
+	t.Helper()
+
+	regex, err := New(pattern)
+	assert.NoError(t, err)
+
+	_, ok := regex.(*simpleRegex)
+	if expected {
+		assert.True(t, ok, "Pattern %s should use optimized regex", pattern)
+	} else {
+		assert.False(t, ok, "Pattern %s should not use optimized regex", pattern)
 	}
 }
