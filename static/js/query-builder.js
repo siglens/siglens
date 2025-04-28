@@ -155,14 +155,8 @@ $(document).mouseup(function (e) {
     }
 });
 var calculations = ['min', 'max', 'count', 'avg', 'sum'];
-var numericColumns = [];
 var ifCurIsNum = false;
 var availSymbol = [];
-let valuesOfColumn = new Set();
-let columnsNames = [];
-let previousStartEpoch = null;
-let previousEndEpoch = null;
-let previousIndexName = null;
 
 async function filterStart(evt) {
     evt.preventDefault();
@@ -172,38 +166,35 @@ async function filterStart(evt) {
     $('#add-filter').show();
     $('#add-filter').css({ visibility: 'visible' });
     $('#filter-box-1').addClass('select-box');
-    // fetch columns if empty or startTime, endTime or Index is changed
-    if (columnsNames.length === 0 || filterStartDate !== previousStartEpoch || filterEndDate !== previousEndEpoch || selectedSearchIndex !== previousIndexName) {
-        await getColumns();
-        previousStartEpoch = filterStartDate;
-        previousEndEpoch = filterEndDate;
-        previousIndexName = selectedSearchIndex;
-    }
+
+    const columnsNames = await getColumns();
+
     $('#column-first')
         .autocomplete({
             source: columnsNames.sort(),
             minLength: 0,
             maxheight: 100,
-            select: function (event, ui) {
+            select: async function (event, ui) {
                 $('#symbol').attr('type', 'text');
-                //when the column name is not a number, the symbols can only be = && !=
-                availSymbol = ['=', '!='];
-                valuesOfColumn.clear();
-                let curIsNum = false;
-                for (let i = 0; i < columnsNames.length; i++) {
-                    if (ui.item.value == numericColumns[i]) {
-                        curIsNum = true;
-                        availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
-                        break;
-                    }
+
+                let chooseColumn = ui.item.value.trim();
+                const columnData = await getValuesForColumn(chooseColumn);
+                const columnValues = columnData.values;
+                const isNumericColumn = columnData.isNumeric;
+
+                // Set available symbols based on column type
+                if (isNumericColumn) {
+                    availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
+                    ifCurIsNum = true;
+                } else {
+                    availSymbol = ['=', '!='];
+                    ifCurIsNum = false;
                 }
-                ifCurIsNum = curIsNum;
+
                 $('#symbol').val('');
                 $('#value-first').val('');
                 //check if complete btn can click
                 checkFirstBox(0);
-                let chooseColumn = ui.item.value.trim();
-                getValuesofColumn(chooseColumn);
 
                 $('#symbol')
                     .autocomplete({
@@ -214,7 +205,19 @@ async function filterStart(evt) {
                             checkFirstBox(1);
                             $('#value-first').attr('type', 'text');
                             $('#completed').show();
-                            valuesOfColumn.clear();
+
+                            $('#value-first')
+                                .autocomplete({
+                                    source: columnValues,
+                                    minLength: 0,
+                                    select: function (_event, _ui) {
+                                        //check if complete btn can click
+                                        checkFirstBox(2);
+                                    },
+                                })
+                                .on('focus', function () {
+                                    if (!$(this).val().trim()) $(this).keydown();
+                                });
                         },
                     })
                     .on('focus', function () {
@@ -227,6 +230,7 @@ async function filterStart(evt) {
         });
     $('#column-first').focus();
 }
+
 function secondFilterStart(evt) {
     evt.preventDefault();
     $('#filter-box-2').addClass('select-box');
@@ -237,6 +241,7 @@ function secondFilterStart(evt) {
     $('#add-filter-second').css({ visibility: 'visible' });
     $('#column-second').focus();
 }
+
 async function ThirdFilterStart(evt) {
     evt.preventDefault();
     $('#filter-box-3').addClass('select-box');
@@ -244,16 +249,11 @@ async function ThirdFilterStart(evt) {
     $('#add-con-third').hide();
     $('#add-filter-third').show();
     $('#add-filter-third').css({ visibility: 'visible' });
-    // fetch columns if empty or startTime, endTime or index is changed
-    if (columnsNames.length === 0 || filterStartDate !== previousStartEpoch || filterEndDate !== previousEndEpoch || selectedSearchIndex !== previousIndexName) {
-        await getColumns();
-        previousStartEpoch = filterStartDate;
-        previousEndEpoch = filterEndDate;
-        previousIndexName = selectedSearchIndex;
-    }
+
+    const columnsNames = await getColumns();
     $('#column-third')
         .autocomplete({
-            source: columnsNames.sort(),
+            source: columnsNames,
             minLength: 0,
             maxheight: 100,
             select: function (event, ui) {
@@ -467,9 +467,13 @@ $('#column-second')
             $('#value-second').attr('type', 'text');
             $('#completed-second').show();
             $('#value-second').val('');
-            if (columnsNames.length === 0 || numericColumns.length == 0) await getColumns();
+
+            const columnsNames = await getColumns();
+
             let columnInfo = columnsNames;
-            if (ui.item.value != 'count') columnInfo = numericColumns;
+            if (ui.item.value != 'count') {
+                columnInfo = await getNumericColumns();
+            }
             $('#completed-second').attr('disabled', true);
             $('#value-second')
                 .autocomplete({
@@ -489,114 +493,174 @@ $('#column-second')
     .on('focus', function () {
         if (!$(this).val().trim()) $(this).keydown();
     });
+
 /**
  * get cur column names from back-end for first input box
  *
  */
 async function getColumns() {
     const data = {
-        state: 'query',
-        searchText: '*',
         startEpoch: filterStartDate,
         endEpoch: filterEndDate,
         indexName: selectedSearchIndex,
-        from: 0,
-        size: 1,
-        queryLanguage: 'Splunk QL',
     };
 
-    const res = await $.ajax({
-        method: 'post',
-        url: 'api/search/',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(data),
-    });
+    try {
+        const res = await $.ajax({
+            method: 'post',
+            url: 'api/listColumnNames',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(data),
+        });
 
-    if (res) {
-        columnsNames = res.allColumns.filter((column) => column !== '_index' && column !== 'timestamp'); // remove '_index' and 'timestamp' column from query builder
-        getNumericColumns(res);
+        if (res) {
+            const columnsList = res.filter((column) => column !== '_index' && column !== 'timestamp');
+            if (columnsList.length === 0) {
+                showToast('No columns found in the selected time range.', 'error', 5000);
+            }
+            return columnsList;
+        }
+        showToast('No columns found in the selected time range.', 'error', 5000);
+        return [];
+    } catch (error) {
+        console.error('Error fetching columns:', error);
+        showToast('Error fetching columns: ' + error.message, 'error', 5000);
+        return [];
     }
 }
+
 /**
  * get numeric column names from back-end for second input box (aggregation)
  *
  */
-function getNumericColumns(data) {
-    function areAllNumerical(values) {
-        return values.every((value) => typeof value === 'number');
-    }
-    numericColumns = [];
-    for (const column of data.allColumns) {
-        // Skip the "timestamp" column
-        if (column === 'timestamp') continue;
+async function getNumericColumns() {
+    const data = {
+        searchText: '* | head 10',
+        startEpoch: filterStartDate,
+        endEpoch: filterEndDate,
+        indexName: selectedSearchIndex,
+        queryLanguage: 'Splunk QL',
+    };
 
-        const values = data.hits.records.map((record) => record[column]);
+    try {
+        const res = await $.ajax({
+            method: 'post',
+            url: 'api/search/',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(data),
+        });
 
-        if (areAllNumerical(values)) {
-            numericColumns.push(column);
+        if (!res.allColumns || !res.hits || !res.hits.records || res.hits.records.length === 0) {
+            return [];
         }
+
+        const numericColumns = [];
+
+        for (const column of res.allColumns) {
+            if (column === '_index' || column === 'timestamp') continue;
+
+            let isNumeric = true;
+
+            for (const record of res.hits.records) {
+                const value = record[column];
+                if (value !== null && value !== undefined) {
+                    if (typeof value !== 'number') {
+                        isNumeric = false;
+                        break;
+                    }
+                }
+            }
+
+            if (isNumeric) {
+                numericColumns.push(column);
+            }
+        }
+
+        return numericColumns;
+    } catch (error) {
+        console.error('Error determining numeric columns:', error);
+        return [];
     }
 }
 /**
  * get values of cur column names from back-end for first input box
  *
  */
-function getValuesofColumn(chooseColumn) {
-    valuesOfColumn.clear();
-    let param = {
-        state: 'query',
-        searchText: `SELECT DISTINCT \`${chooseColumn}\` FROM \`${selectedSearchIndex}\``,
+async function getValuesForColumn(chooseColumn) {
+    const param = {
+        searchText: `*| dedup ${chooseColumn} | fields ${chooseColumn}`,
         startEpoch: filterStartDate,
         endEpoch: filterEndDate,
         indexName: selectedSearchIndex,
-        queryLanguage: 'SQL',
+        queryLanguage: 'Splunk QL',
         from: 0,
-        size: 1000,
+        size: 100,
     };
-    startQueryTime = new Date().getTime();
-    $.ajax({
-        method: 'post',
-        url: 'api/search',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: '*/*',
-        },
-        crossDomain: true,
-        dataType: 'json',
-        data: JSON.stringify(param),
-    }).then((res) => {
+
+    try {
+        const res = await $.ajax({
+            method: 'post',
+            url: 'api/search',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                Accept: '*/*',
+            },
+            crossDomain: true,
+            dataType: 'json',
+            data: JSON.stringify(param),
+        });
+
+        const columnValues = new Set();
+        let isNumeric = true;
+
         if (res && res.hits && res.hits.records) {
             for (let i = 0; i < res.hits.records.length; i++) {
                 let cur = res.hits.records[i][chooseColumn];
 
                 // Check if cur is not null or undefined before processing
                 if (cur !== null && cur !== undefined) {
-                    if (typeof cur == 'string') valuesOfColumn.add(cur);
-                    else valuesOfColumn.add(cur.toString());
+                    if (typeof cur === 'string') {
+                        isNumeric = false; // Found a string value, mark as non-numeric
+                        columnValues.add(cur);
+                    } else if (typeof cur === 'number') {
+                        columnValues.add(cur.toString());
+                    } else {
+                        // Any other type (object, boolean, etc.) is considered non-numeric
+                        isNumeric = false;
+                        columnValues.add(cur.toString());
+                    }
                 }
             }
         }
-        let arr = Array.from(valuesOfColumn);
-        $('#value-first')
-            .autocomplete({
-                source: arr.sort(),
-                minLength: 0,
-                select: function (_event, _ui) {
-                    //check if complete btn can click
-                    checkFirstBox(2);
-                    valuesOfColumn.clear();
-                },
-            })
-            .on('focus', function () {
-                if (!$(this).val().trim()) $(this).keydown();
-            });
-    });
+
+        if (columnValues.size === 0) {
+            showToast(`No values found for column "${chooseColumn}" in the selected time range.`, 'error', 5000);
+        }
+
+        return {
+            values: Array.from(columnValues).sort(),
+            isNumeric: isNumeric,
+        };
+    } catch (error) {
+        console.error('Error fetching column values:', error);
+        showToast('Error fetching column values: ' + error.message, 'error', 5000);
+        return {
+            values: [],
+            isNumeric: false,
+        };
+    }
 }
+
 function setShowColumnInfoDialog() {
     $('#show-record-popup').dialog({
         autoOpen: false,
