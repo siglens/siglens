@@ -1327,7 +1327,7 @@ func SetConfig(config common.Configuration) {
 	runningConfig = config
 }
 
-// Ensure GOMEMLIMIT is set from configuration when the env var is absent.
+// GOMEMLIMIT is set from configuration
 func setGoMemLimit(cfg *common.Configuration) {
 	memLimit := cfg.MemoryConfig.GoMemLimit
 	if memLimit == 0 {
