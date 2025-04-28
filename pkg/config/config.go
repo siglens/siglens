@@ -1335,7 +1335,7 @@ func setGoMemLimit(cfg *common.Configuration) {
 	}
 
 	debug.SetMemoryLimit(memLimit)
-	log.Infof("GOMEMLIMIT set to %s (from configuration)", memLimit)
+	log.Infof("GOMEMLIMIT set to %d (from configuration)", memLimit)
 }
 
 func ExtractCmdLineInput() string {
