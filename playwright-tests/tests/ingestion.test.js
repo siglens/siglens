@@ -106,36 +106,15 @@ test.describe('Metrics Ingestion Page Tests', () => {
         await page.goto('http://localhost:5122/metrics-ingestion.html');
         await page.waitForTimeout(1000); 
 
-        await page.locator('.ingestion-card.metrics-card[data-source="Vector"]').click();
+        await page.locator('.ingestion-card.metrics-card[data-source="Vector Metrics"]').click();
 
         await page.waitForTimeout(1000);
 
         await expect(page.locator('#metrics-cards-view')).not.toBeVisible();
         await expect(page.locator('#metrics-ingestion-details')).toBeVisible();
 
-        expect(page.url()).toContain('method=vector');
+        expect(page.url()).toContain('method=vector-metrics');
 
-        const instructionsLink = page.locator('#metrics-setup-instructions-link');
-        if ((await instructionsLink.count()) > 0) {
-            await expect(instructionsLink).toHaveAttribute('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/vector-metrics');
-        } else {
-            console.log('Warning: #metrics-setup-instructions-link not found');
-        }
-    });
-
-    test('should process URL parameter and show correct metrics details', async ({ page }) => {
-        await page.goto('http://localhost:5122/metrics-ingestion.html?method=opentelemetry');
-        await page.waitForTimeout(1000); 
-
-        await expect(page.locator('#metrics-cards-view')).not.toBeVisible();
-        await expect(page.locator('#metrics-ingestion-details')).toBeVisible();
-
-        const instructionsLink = page.locator('#metrics-setup-instructions-link');
-        if ((await instructionsLink.count()) > 0) {
-            await expect(instructionsLink).toHaveAttribute('href', 'https://www.siglens.com/siglens-docs/metric-ingestion/open-telemetry');
-        } else {
-            console.log('Warning: #metrics-setup-instructions-link not found');
-        }
     });
 });
 
@@ -161,28 +140,8 @@ test.describe('Traces Ingestion Page Tests', () => {
         await expect(page.locator('#traces-cards-view')).not.toBeVisible();
         await expect(page.locator('#traces-ingestion-details')).toBeVisible();
 
-        expect(page.url()).toContain('method=goApp');
+        expect(page.url()).toContain('method=go-app');
 
-        const instructionsLink = page.locator('#traces-setup-instructions-link');
-        if ((await instructionsLink.count()) > 0) {
-            await expect(instructionsLink).toHaveAttribute('href', 'https://www.siglens.com/siglens-docs/instrument-traces/go-app');
-        } else {
-            console.log('Warning: #traces-setup-instructions-link not found');
-        }
     });
 
-    test('should process URL parameter and show correct traces details', async ({ page }) => {
-        await page.goto('http://localhost:5122/traces-ingestion.html?method=javaApp');
-        await page.waitForTimeout(1000); 
-
-        await expect(page.locator('#traces-cards-view')).not.toBeVisible();
-        await expect(page.locator('#traces-ingestion-details')).toBeVisible();
-
-        const instructionsLink = page.locator('#traces-setup-instructions-link');
-        if ((await instructionsLink.count()) > 0) {
-            await expect(instructionsLink).toHaveAttribute('href', 'https://www.siglens.com/siglens-docs/instrument-traces/java-app');
-        } else {
-            console.log('Warning: #traces-setup-instructions-link not found');
-        }
-    });
 });

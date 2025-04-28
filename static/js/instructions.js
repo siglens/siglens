@@ -173,7 +173,7 @@ function preprocessMarkdown(markdown) {
     // Process image paths
     processed = processed.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (match, alt, imgPath) {
         if (!imgPath.startsWith('http') && !imgPath.startsWith('data:')) {
-            const correctedPath = `/content/tutorials/${imgPath.split('/').pop()}`;
+            const correctedPath = `../content/tutorials/${imgPath.split('/').pop()}`;
             return `![${alt}](${correctedPath})`;
         }
         return match;
