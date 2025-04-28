@@ -46,7 +46,6 @@ import (
 
 type block struct {
 	*structs.BlockSummary
-	*structs.BlockMetadataHolder
 	parentQSR *query.QuerySegmentRequest
 
 	// For PQS blocks, these must be set.
@@ -55,6 +54,7 @@ type block struct {
 	// For raw search blocks, these must be set.
 	parentSSR   *structs.SegmentSearchRequest
 	segkeyFname string
+	BlkNum      uint16
 }
 
 type sortIndexState struct {
@@ -598,10 +598,10 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	searchResults.NextSegKeyEnc = encoding
 
 	canUsePQMR := false
-	var blockToMetadata map[uint16]*structs.BlockMetadataHolder
+	var allBlocksToSearch map[uint16]struct{}
 	var blockSummaries []*structs.BlockSummary
 	if pqmr != nil {
-		blockToMetadata, blockSummaries, err = metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
+		allBlocksToSearch, blockSummaries, err = metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
 		if err != nil {
 			log.Errorf("qid=%v, fetchSortedRRCsForQSR: failed to get search info and summary for PQS: %v",
 				s.qid, err)
@@ -609,7 +609,7 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 		}
 		canUsePQMR = true
 		for blkNum := range blockToValidRecNums {
-			if _, ok := blockToMetadata[blkNum]; !ok {
+			if _, ok := allBlocksToSearch[blkNum]; !ok {
 				canUsePQMR = false
 				break
 			}
@@ -617,7 +617,8 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 	}
 
 	if canUsePQMR {
-		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, blockToMetadata, blockSummaries, sizeLimit, aggs, blockToValidRecNums)
+		err = s.applyPQSForSortedIndex(qsr, searchResults, pqmr, allBlocksToSearch,
+			blockSummaries, sizeLimit, aggs, blockToValidRecNums)
 		if err != nil {
 			return nil, fmt.Errorf("fetchSortedRRCsForQSR: failed to apply PQS, err: %v", err)
 		}
@@ -640,20 +641,21 @@ func (s *Searcher) handleSortIndexWithFilter(qsr *query.QuerySegmentRequest, lin
 }
 
 func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, searchResults *segresults.SearchResults,
-	pqmrResults *pqmr.SegmentPQMRResults, searchMetadata map[uint16]*structs.BlockMetadataHolder, blkSummaries []*structs.BlockSummary,
+	pqmrResults *pqmr.SegmentPQMRResults, allBlocksToSearch map[uint16]struct{},
+	blkSummaries []*structs.BlockSummary,
 	sizeLimit uint64, aggs *structs.QueryAggregators, blockToValidRecNums map[uint16][]uint16) error {
 
-	if len(searchMetadata) == 0 {
+	if len(allBlocksToSearch) == 0 {
 		log.Infof("qid=%d, applyPQSForSortedIndex: segKey %+v has 0 blocks in segment PQMR results", s.qid, qsr.GetSegKey())
 		return nil
 	}
 
 	// Remove blockNums that are not required to be processed.
-	searchMetadataToSend := make(map[uint16]*structs.BlockMetadataHolder)
+	allBlocksToSearchToSend := make(map[uint16]struct{})
 	validBlkNums := []uint16{}
-	for blockNum := range searchMetadata {
+	for blockNum := range allBlocksToSearch {
 		if _, ok := blockToValidRecNums[blockNum]; ok {
-			searchMetadataToSend[blockNum] = searchMetadata[blockNum]
+			allBlocksToSearchToSend[blockNum] = struct{}{}
 			validBlkNums = append(validBlkNums, blockNum)
 		}
 	}
@@ -663,7 +665,7 @@ func (s *Searcher) applyPQSForSortedIndex(qsr *query.QuerySegmentRequest, search
 		SegmentKey:          qsr.GetSegKey(),
 		VirtualTableName:    qsr.GetTableName(),
 		AllPossibleColumns:  s.queryInfo.GetColsToSearch(),
-		AllBlocksToSearch:   searchMetadataToSend,
+		AllBlocksToSearch:   allBlocksToSearchToSend,
 		BlockToValidRecNums: blockToValidRecNums,
 		SearchMetadata: &structs.SearchMetadataHolder{
 			BlockSummaries:    blkSummaries,
@@ -1077,14 +1079,14 @@ func (s *Searcher) getBlocks() ([]*block, error) {
 	for i, qsr := range qsrs {
 		pqmrBlockNumbers := make(map[uint16]struct{})
 		if pqmr, ok := pqmrs[i].Get(); ok {
-			blockToMetadata, blockSummaries, err := metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
+			allBlocksToSearch, blockSummaries, err := metadata.GetSearchInfoAndSummaryForPQS(qsr.GetSegKey(), pqmr)
 			if err != nil {
 				log.Errorf("qid=%v, searcher.getBlocks: failed to get search info and summary for PQS: %v",
 					s.qid, err)
 				return nil, err
 			}
 
-			blocks := makeBlocksFromPQMR(blockToMetadata, blockSummaries, qsr, pqmr)
+			blocks := makeBlocksFromPQMR(allBlocksToSearch, blockSummaries, qsr, pqmr)
 			allBlocksInBatch = append(allBlocksInBatch, blocks...)
 
 			for _, block := range blocks {
@@ -1134,17 +1136,17 @@ func (s *Searcher) getSegKeyEncoding(segKey string) uint32 {
 	return encoding
 }
 
-func makeBlocksFromPQMR(blockToMetadata map[uint16]*structs.BlockMetadataHolder,
+func makeBlocksFromPQMR(allBlocksToSearch map[uint16]struct{},
 	blockSummaries []*structs.BlockSummary, qsr *query.QuerySegmentRequest,
 	pqmr *pqmr.SegmentPQMRResults) []*block {
 
-	blocks := make([]*block, 0, len(blockToMetadata))
-	for blkNum, blockMeta := range blockToMetadata {
+	blocks := make([]*block, 0, len(allBlocksToSearch))
+	for blkNum := range allBlocksToSearch {
 		blocks = append(blocks, &block{
-			BlockSummary:        blockSummaries[blkNum],
-			BlockMetadataHolder: blockMeta,
-			parentQSR:           qsr,
-			parentPQMR:          toputils.NewOptionWithValue(pqmr),
+			BlockSummary: blockSummaries[blkNum],
+			BlkNum:       blkNum,
+			parentQSR:    qsr,
+			parentPQMR:   toputils.NewOptionWithValue(pqmr),
 		})
 	}
 
@@ -1156,13 +1158,13 @@ func makeBlocksFromSSR(qsr *query.QuerySegmentRequest, segkeyFname string,
 
 	blocks := make([]*block, 0, len(ssr.AllBlocksToSearch))
 
-	for blockNum, blockMeta := range ssr.AllBlocksToSearch {
+	for blockNum := range ssr.AllBlocksToSearch {
 		blocks = append(blocks, &block{
-			BlockSummary:        ssr.SearchMetadata.BlockSummaries[blockNum],
-			BlockMetadataHolder: blockMeta,
-			parentQSR:           qsr,
-			parentSSR:           ssr,
-			segkeyFname:         segkeyFname,
+			BlockSummary: ssr.SearchMetadata.BlockSummaries[blockNum],
+			BlkNum:       blockNum,
+			parentQSR:    qsr,
+			parentSSR:    ssr,
+			segkeyFname:  segkeyFname,
 		})
 	}
 
@@ -1372,10 +1374,10 @@ func (s *Searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, bloc
 		return nil
 	}
 
-	metas := make(map[uint16]*structs.BlockMetadataHolder)
+	allBlocksToSearch := make(map[uint16]struct{})
 	summaries := make([]*structs.BlockSummary, 0)
 	for _, block := range blocks {
-		metas[block.BlkNum] = block.BlockMetadataHolder
+		allBlocksToSearch[block.BlkNum] = struct{}{}
 		if block.BlkNum >= uint16(len(summaries)) {
 			summaries = toputils.ResizeSlice(summaries, int(block.BlkNum+1))
 		}
@@ -1394,7 +1396,7 @@ func (s *Searcher) addRRCsFromPQMR(searchResults *segresults.SearchResults, bloc
 	}
 
 	err = query.ApplySinglePQSRawSearch(blocks[0].parentQSR, searchResults, pqmr,
-		metas, summaries, s.querySummary)
+		allBlocksToSearch, summaries, s.querySummary)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.addRRCsFromPQMR: failed to apply PQS: %v", s.qid, err)
 		return err
@@ -1485,12 +1487,12 @@ func getSSRs(blocks []*block, blockToValidRecNums map[uint16][]uint16) (map[stri
 		ssr, ok := fileToSSR[block.segkeyFname]
 		if !ok {
 			ssrCopy := *firstSSR
-			ssrCopy.AllBlocksToSearch = make(map[uint16]*structs.BlockMetadataHolder)
+			ssrCopy.AllBlocksToSearch = make(map[uint16]struct{})
 			fileToSSR[block.segkeyFname] = &ssrCopy
 			ssr = &ssrCopy
 		}
 
-		ssr.AllBlocksToSearch[block.BlkNum] = block.BlockMetadataHolder
+		ssr.AllBlocksToSearch[block.BlkNum] = struct{}{}
 		ssr.BlockToValidRecNums = blockToValidRecNums
 	}
 

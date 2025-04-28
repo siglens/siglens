@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -315,4 +316,42 @@ func Test_ReverseSlice(t *testing.T) {
 	slice2 := []string{"a", "b", "c", "d"}
 	ReverseSlice(slice2)
 	assert.Equal(t, []string{"d", "c", "b", "a"}, slice2)
+}
+
+func Test_ShallowCopySlice(t *testing.T) {
+	slice := []int{1, 2, 3, 4, 5}
+	newSlice := ShallowCopySlice(slice)
+
+	assert.Len(t, newSlice, len(slice))
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, newSlice)
+
+	// modify original slice and make sure new one is unchanged
+	slice[0] = 299
+	slice[3] = 456
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, newSlice)
+
+	// modify new slice and make sure original one is unchanged
+	newSlice[4] = 456
+	assert.Equal(t, 5, slice[4])
+}
+
+func Test_ProcessWithParallelism(t *testing.T) {
+	slice := []int{1, 3, 5, 7, 9, 11, 13, 15}
+	results := make([]int, 0, len(slice))
+	lock := &sync.Mutex{}
+
+	operation := func(i int) error {
+		lock.Lock()
+		results = append(results, i*2)
+		lock.Unlock()
+
+		return nil
+	}
+
+	err := ProcessWithParallelism(3, slice, operation)
+	assert.NoError(t, err)
+	assert.Len(t, results, len(slice))
+	for _, original := range slice {
+		assert.Contains(t, results, original*2)
+	}
 }

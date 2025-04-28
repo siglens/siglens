@@ -42,6 +42,9 @@ gofmt :
 	$(GO) install golang.org/x/tools/cmd/goimports@latest
 	~/go/bin/goimports -w .
 
+%.go: %.peg
+	pigeon -o $@ $<
+
 all: lint test_all build
 
 pr: all gofmt

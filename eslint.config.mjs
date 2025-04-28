@@ -68,7 +68,6 @@ export default [
                 removeToast: true,
                 shouldCloseAllDetails: true,
                 moment: true,
-                showInfo: true,
                 gridDiv: true,
                 eGridDiv: true,
                 currentPanel: true,
@@ -131,7 +130,6 @@ export default [
                 alertChart: true,
                 logsRowData: true,
                 hideError: true,
-                hideCornerPopupError: true,
                 liveTailState: true,
                 initialSearchData: true,
                 total_liveTail_searched: true,
@@ -234,6 +232,8 @@ export default [
                 tippy: true,
                 getGraphGridColors: true,
                 updateChartColorsBasedOnTheme: true,
+                hljs: true,
+                marked: true
             },
         },
         rules: {

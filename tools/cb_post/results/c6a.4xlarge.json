@@ -3,12 +3,9 @@
     "date": "2025-03-07",
     "machine": "c6a.4xlarge, 700gb gp2",
     "cluster_size": 1,
- 
-    "tags": ["Go", "logs", "search", "SigLens"],
-
-    "load_time": 105m45.886s,
+    "tags": ["Go", "logs", "search", "SigLens", "observability"],
+    "load_time": 6345.886,
     "data_size": 28396387,
-
     "result": [
         [0.166, 0.079, 0.090],
         [0.730, 0.423, 0.411],
@@ -53,5 +50,5 @@
         [2.111, 1.500, 1.496],
         [2.427, 1.745, 1.738],
         [null, null, null]
-        ]
+    ]
 }

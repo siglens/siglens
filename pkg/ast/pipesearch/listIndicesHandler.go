@@ -20,7 +20,10 @@ package pipesearch
 import (
 	"sort"
 
+	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/hooks"
+	"github.com/siglens/siglens/pkg/segment/metadata"
+	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -32,6 +35,8 @@ type IndexInfo struct {
 }
 
 type AllIndicesInfoResponse []*IndexInfo
+
+type AllColumnNamesResponse []string
 
 func ListIndicesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var httpResp AllIndicesInfoResponse
@@ -126,4 +131,48 @@ func SendClusterDetails(ctx *fasthttp.RequestCtx) {
 	}
 
 	utils.WriteJsonResponse(ctx, esRes)
+}
+
+func ListColumnNamesHandler(ctx *fasthttp.RequestCtx, orgId int64) {
+
+	rawJSON := ctx.PostBody()
+	if rawJSON == nil {
+		log.Errorf("ListColumnNamesHandler: received empty search request body")
+		utils.SetBadMsg(ctx, "")
+		return
+	}
+
+	readJSON, err := utils.DecodeJsonToMap(rawJSON)
+	if err != nil {
+		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		_, err = ctx.WriteString(err.Error())
+		if err != nil {
+			log.Errorf("ListColumnNamesHandler: could not write error message, err: %v", err)
+		}
+		log.Errorf("ListColumnNamesHandler: failed to decode search request body! err: %+v", err)
+		return
+	}
+
+	nowTs := utils.GetCurrentTimeInMs()
+	_, startEpoch, endEpoch, _, indexNameIn, _, _, _ := ParseSearchBody(readJSON, nowTs)
+
+	// todo get indexnames from multinode
+	allIndexNames := vtable.ExpandAndReturnIndexNames(indexNameIn, orgId, false)
+
+	tRange := new(dtu.TimeRange)
+	tRange.StartEpochMs = startEpoch
+	tRange.EndEpochMs = endEpoch
+
+	resAllColumns := make(map[string]struct{})
+	metadata.CollectColumnsForTheIndexesByTimeRange(tRange, allIndexNames, orgId, resAllColumns)
+	writer.CollectUnrotatedColumnsForTheIndexesByTimeRange(tRange, allIndexNames, orgId,
+		resAllColumns)
+
+	allCnamesResp := utils.GetKeysOfMap(resAllColumns)
+
+	sort.Strings(allCnamesResp)
+
+	ctx.SetStatusCode(fasthttp.StatusOK)
+	ctx.Response.Header.Set("Content-Type", "application/json")
+	utils.WriteJsonResponse(ctx, allCnamesResp)
 }

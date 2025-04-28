@@ -47,9 +47,9 @@ func mockRecCountBlockSummaries(numBlocks uint16, numRecsPerBlock uint16) []*str
 }
 
 func mockSSR(numBlocks uint16) *structs.SegmentSearchRequest {
-	bMeta := make(map[uint16]*structs.BlockMetadataHolder)
+	bMeta := make(map[uint16]struct{})
 	for i := uint16(0); i < numBlocks; i++ {
-		bMeta[i] = &structs.BlockMetadataHolder{}
+		bMeta[i] = struct{}{}
 	}
 	return &structs.SegmentSearchRequest{
 		AllBlocksToSearch: bMeta,

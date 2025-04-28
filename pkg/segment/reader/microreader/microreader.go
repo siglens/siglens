@@ -48,25 +48,28 @@ func internCnamesBytes(b []byte) string {
 	return safe
 }
 
-func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSummary,
-	map[uint16]*structs.BlockMetadataHolder, error) {
+func ReadBlockSummaries(fileName string,
+	summaryOnly bool) ([]*structs.BlockSummary, *structs.AllBlksMetaInfo, error) {
 
 	blockSummaries := make([]*structs.BlockSummary, 0)
-	var allBmh map[uint16]*structs.BlockMetadataHolder
+	var allBmi *structs.AllBlksMetaInfo
 
 	if !summaryOnly {
-		allBmh = make(map[uint16]*structs.BlockMetadataHolder)
+		allBmi = &structs.AllBlksMetaInfo{CnameDict: make(map[string]int),
+			AllBmh: make(map[uint16]*structs.BlockMetadataHolder),
+		}
 	}
+
 	err := blob.DownloadSegmentBlob(fileName, false)
 	if err != nil {
 		log.Errorf("ReadBlockSummaries: Error downloading block summary file at %s, err: %v", fileName, err)
-		return blockSummaries, allBmh, err
+		return blockSummaries, allBmi, err
 	}
 
 	finfo, err := os.Stat(fileName)
 	if err != nil {
 		log.Errorf("ReadBlockSummaries: error when trying to stat file=%+v. Error=%+v", fileName, err)
-		return blockSummaries, allBmh, err
+		return blockSummaries, allBmi, err
 	}
 
 	fileSize := finfo.Size()
@@ -76,14 +79,14 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 	if err != nil {
 		log.Infof("ReadBlockSummaries: failed to open fileName: %v  Error: %v.",
 			fileName, err)
-		return blockSummaries, allBmh, err
+		return blockSummaries, allBmi, err
 	}
 	defer fd.Close()
 
 	_, err = fd.ReadAt(rbuf[:fileSize], 0)
 	if err != nil {
 		log.Errorf("ReadBlockSummaries: Error reading bsu file: %v, err: %v", fileName, err)
-		return blockSummaries, allBmh, err
+		return blockSummaries, allBmi, err
 	}
 
 	offset := int64(0)
@@ -96,7 +99,7 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 		if len(rbuf[offset:]) < 2+8+8+2+2 {
 			log.Errorf("ReadBlockSummaries: expected at least %d more bytes for block header, got %d more bytes; file=%v, offset=%d",
 				2+8+8+2+2, len(rbuf[offset:]), fileName, offset)
-			return blockSummaries, allBmh, errors.New("bad data")
+			return blockSummaries, allBmi, errors.New("bad data")
 		}
 
 		// read blknum
@@ -123,7 +126,7 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 		if !summaryOnly {
 			bmh = &structs.BlockMetadataHolder{
 				BlkNum:            blkNum,
-				ColBlockOffAndLen: make(map[string]structs.ColOffAndLen, numCols),
+				ColBlockOffAndLen: make([]structs.ColOffAndLen, numCols),
 			}
 		}
 
@@ -131,7 +134,7 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 			if len(rbuf[offset:]) < 2 {
 				log.Errorf("ReadBlockSummaries: expected at least %d more bytes for column name length, got %d more bytes; file=%v, offset=%d",
 					2, len(rbuf[offset:]), fileName, offset)
-				return blockSummaries, allBmh, errors.New("bad data")
+				return blockSummaries, allBmi, errors.New("bad data")
 			}
 			cnamelen := toputils.BytesToUint16LittleEndian(rbuf[offset:])
 			offset += 2
@@ -139,7 +142,7 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 			if minLen := int(offset + int64(cnamelen) + 12); len(rbuf) < minLen {
 				log.Errorf("ReadBlockSummaries: expected at least size %d, got %d; file=%v, offset=%d",
 					minLen, len(rbuf), fileName, offset)
-				return blockSummaries, allBmh, errors.New("bad data")
+				return blockSummaries, allBmi, errors.New("bad data")
 			}
 
 			if summaryOnly {
@@ -153,13 +156,27 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 				offset += 8
 				blkLen := toputils.BytesToUint32LittleEndian(rbuf[offset:])
 				offset += 4
-				bmh.ColBlockOffAndLen[cname] = structs.ColOffAndLen{Offset: blkOff,
+
+				cnameIdx, ok := allBmi.CnameDict[cname]
+				if !ok {
+					cnameIdx = len(allBmi.CnameDict)
+					allBmi.CnameDict[cname] = cnameIdx
+				}
+
+				// extend array in cases where we get new columns names that were
+				// not there in previous blocks
+				arrLen := len(bmh.ColBlockOffAndLen)
+				if arrLen <= cnameIdx {
+					bmh.ColBlockOffAndLen = append(bmh.ColBlockOffAndLen,
+						make([]structs.ColOffAndLen, cnameIdx-arrLen+1)...)
+				}
+				bmh.ColBlockOffAndLen[cnameIdx] = structs.ColOffAndLen{Offset: blkOff,
 					Length: blkLen,
 				}
 			}
 		}
 		if !summaryOnly {
-			allBmh[blkNum] = bmh
+			allBmi.AllBmh[blkNum] = bmh
 		}
 
 		blkSumm := &structs.BlockSummary{HighTs: highTs,
@@ -169,7 +186,7 @@ func ReadBlockSummaries(fileName string, summaryOnly bool) ([]*structs.BlockSumm
 		blockSummaries = append(blockSummaries, blkSumm)
 	}
 
-	return blockSummaries, allBmh, nil
+	return blockSummaries, allBmi, nil
 }
 
 func ReadSegMeta(fname string) (*structs.SegMeta, error) {

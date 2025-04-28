@@ -921,8 +921,10 @@ func (e *CValueEnclosure) Hash() uint64 {
 		bytes = append(bytes, []byte(strconv.FormatFloat(e.CVal.(float64), 'f', -1, 64))...)
 	case SS_DT_BACKFILL:
 		// Do nothing.
+	case SS_INVALID:
+		// Do nothing.
 	default:
-		log.Errorf("CValueEnclosure.Hash: unsupported Dtype: %v", e.Dtype)
+		log.Debugf("CValueEnclosure.Hash: unsupported Dtype: %v", e.Dtype)
 		return 0
 	}
 

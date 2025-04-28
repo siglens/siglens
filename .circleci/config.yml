@@ -1,16 +1,127 @@
 version: 2.1
-
-setup: true
-
 orbs:
-  path-filtering: circleci/path-filtering@1.1.0
+  browser-tools: circleci/browser-tools@1.4.4
 
+parameters:
+  run-tests:
+    type: boolean
+    default: true
+
+jobs:
+  e2e-server:
+    working_directory: ~/repo
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    docker:
+      - image: cimg/go:1.21
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+#      - run:
+#          name: Check if tests should be run
+#          command: |
+#            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
+#              echo "Skipping tests"
+#              circleci-agent step halt
+#            else
+#              echo "Running tests"
+#            fi
+      - checkout
+      - setup_remote_docker:
+          version: docker23
+      - run:
+          name: Build Siglens
+          command: make build
+      - run:
+          name: Run Siglens
+          command: ./siglens --config server.yaml
+          background: true
+      - run:
+          name: Tail logs file
+          command: |
+            sleep 10
+            ls -l
+            tail -f logs/siglens.log
+          background: true
+      - run:
+          name: Run E2E Test
+          command: |
+            cd tools/sigclient
+            go run main.go ingest esbulk -n 1 -g benchmark -d http://localhost:8081/elastic -t 100_000
+            go run main.go ingest metrics -d http://localhost:8081/otsdb -t 1_000 -m 5 -p 1 -b 10_000 -g benchmark
+            sleep 40
+            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv -l ../../cicd/test_lookup.csv
+            go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
+            go run main.go query otsdb -d http://localhost:5122/metrics-explorer/api/v1/timeseries -f ../../cicd/metrics_test.csv
+            go run main.go query promql -d http://localhost:5122/promql/api/v1/query_range -v -f ../../cicd/promql_test.csv
+            go run main.go alerts e2e -d http://localhost:5122
+      - run:
+          name: Kill Siglens
+          command: |
+            pkill siglens
+            sleep 2
+      - run:
+          name: Restart Siglens
+          command: make run
+          background: true
+
+      - run:
+          name: Run Restart CI/CD tests
+          command: |
+            cd tools/sigclient
+            sleep 5
+            go run main.go query esbulk -d http://localhost:5122 -f ../../cicd/ingest.csv -l ../../cicd/test_lookup.csv
+            go run main.go query otsdb -d http://localhost:5122/otsdb -n 5 -y
+
+  functional-test:
+    working_directory: ~/repo
+    docker:
+      - image: cimg/go:1.21
+    steps:
+#      - run:
+#          name: Check if tests should be run
+#          command: |
+#            if [ "<< pipeline.parameters.run-tests >>" = "false" ]; then
+#              echo "Skipping tests"
+#              circleci-agent step halt
+#            else
+#              echo "Running tests"
+#            fi
+      - checkout
+      - setup_remote_docker:
+          version: docker23
+      - run:
+          name: Build Siglens
+          command: make build
+      - run:
+          name: Update config.yml
+          command: |
+            echo -e "\nisNewQueryPipelineEnabled: true" >> server.yaml
+      - run:
+          name: Run Siglens
+          command: ./siglens --config server.yaml
+          background: true
+
+      - run:
+          name: Run Functional Test
+          command: |
+            sleep 5  # Wait for Siglens to start
+            cd tools/sigclient
+            go run main.go functional -d http://localhost:8081/elastic -f functionalQueries/functionalQueries.yml -q localhost:5122
+
+
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
-  setup-workflow:
+  test_and_lint:
     jobs:
-      - path-filtering/filter:
-          base-revision: develop
-          config-path: .circleci/continue-config.yml
-          mapping: |
-            .* run-tests true
-            pkg/config/version.go run-tests false
+      - functional-test:
+          filters:
+            branches:
+              ignore:
+                - main
+      - e2e-server:
+          filters:
+            branches:
+              ignore:
+                - main
