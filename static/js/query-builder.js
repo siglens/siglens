@@ -520,11 +520,16 @@ async function getColumns() {
 
         if (res) {
             const columnsList = res.filter((column) => column !== '_index' && column !== 'timestamp');
+            if (columnsList.length === 0) {
+                showToast('No columns found in the selected time range.', 'error', 5000);
+            }
             return columnsList;
         }
+        showToast('No columns found in the selected time range.', 'error', 5000);
         return [];
     } catch (error) {
         console.error('Error fetching columns:', error);
+        showToast('Error fetching columns: ' + error.message, 'error', 5000);
         return [];
     }
 }
@@ -638,12 +643,17 @@ async function getValuesForColumn(chooseColumn) {
             }
         }
 
+        if (columnValues.size === 0) {
+            showToast(`No values found for column "${chooseColumn}" in the selected time range.`, 'error', 5000);
+        }
+
         return {
             values: Array.from(columnValues).sort(),
             isNumeric: isNumeric,
         };
     } catch (error) {
         console.error('Error fetching column values:', error);
+        showToast('Error fetching column values: ' + error.message, 'error', 5000);
         return {
             values: [],
             isNumeric: false,
