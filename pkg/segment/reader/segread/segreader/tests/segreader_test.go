@@ -126,7 +126,7 @@ func Test_packUnpackDictEnc(t *testing.T) {
 	colWip.CopyWipForTestOnly(tempWipCbuf, wipIdx)
 	colWip.SetDeDataForTest(deCount, deMap)
 
-	writer.PackDictEnc(colWip)
+	writer.PackDictEnc(colWip, recCounts)
 	buf, idx := colWip.GetBufAndIdx()
 
 	err = sfr.ReadDictEnc(buf[0:idx], 0)
@@ -183,11 +183,11 @@ func Test_readDictEncDiscardsOldData(t *testing.T) {
 	err = segFileReader.ReadDictEnc(encodeDict(block0Strings, [][]uint16{[]uint16{0, 1, 2, 3}, []uint16{4, 5}, []uint16{6, 7}}), 0)
 	assert.NoError(t, err)
 	assert.Equal(t, len(block0Strings), len(segFileReader.GetDeTlv()))
-	assert.Equal(t, uint16(len(segFileReader.GetDeRecToTlv())), block0RecordCount)
+	assert.Equal(t, block0RecordCount, uint16(len(segFileReader.GetDeRecToTlv())))
 
 	block1Strings := []string{"alphabet", "zebra"}
 	err = segFileReader.ReadDictEnc(encodeDict(block1Strings, [][]uint16{[]uint16{0, 3, 4}, []uint16{1, 2}}), 1)
 	assert.NoError(t, err)
 	assert.Equal(t, len(block1Strings), len(segFileReader.GetDeTlv()))
-	assert.Equal(t, uint16(len(segFileReader.GetDeRecToTlv())), block1RecordCount)
+	assert.Equal(t, block1RecordCount, uint16(len(segFileReader.GetDeRecToTlv())))
 }

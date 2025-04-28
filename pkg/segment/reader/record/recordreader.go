@@ -20,6 +20,8 @@ package record
 import (
 	"errors"
 	"fmt"
+	"runtime"
+	"sync"
 
 	"github.com/cespare/xxhash"
 	"github.com/siglens/siglens/pkg/blob"
@@ -91,21 +93,29 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 	}()
 
 	colToValues := make(map[string][]utils.CValueEnclosure)
-	for cname := range allCols {
+	mapLock := sync.Mutex{}
+	cnames := toputils.GetKeysOfMap(allCols)
+	parallelism := runtime.GOMAXPROCS(0)
+
+	err = toputils.ProcessWithParallelism(parallelism, cnames, func(cname string) error {
 		if _, ignore := ignoredCols[cname]; ignore {
-			continue
+			return nil
 		}
 		columnValues, err := reader.ReadColForRRCs(segKey, rrcs, cname, qid, false)
 		if err != nil {
 			log.Errorf("qid=%v, ReadAllColsForRRCs: failed to read column %s for segKey %s; err=%v",
 				qid, cname, segKey, err)
-			return nil, err
+			return err
 		}
 
+		mapLock.Lock()
 		colToValues[cname] = columnValues
-	}
+		mapLock.Unlock()
 
-	return colToValues, nil
+		return nil
+	})
+
+	return colToValues, err
 }
 
 func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {

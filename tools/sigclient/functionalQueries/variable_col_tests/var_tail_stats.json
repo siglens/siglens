@@ -4,8 +4,9 @@
         "verifyMinimal": true,
         "totalMatched": {
         },
-        "qtype": "logs-query",
-        "records": [
+        "qtype": "segstats-query",
+        "measureFunctions": ["avg_latency", "count(*)", "sum"],
+        "measure": [
         ],
         "allColumns": [
             "avg_latency",

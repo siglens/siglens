@@ -137,7 +137,8 @@ func updateRecentlyRotatedSegmentFiles(segkey string, tableName string) {
 }
 
 func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipBlock,
-	blockMetadata *structs.AllBlksMetaInfo, allCols map[string]uint32, blockNum uint16,
+	bmiCnameIdxDict map[string]int, bmiColOffLen []structs.ColOffAndLen,
+	allCols map[string]uint32, blockNum uint16,
 	metadataSize uint64, earliestTs uint64, latestTs uint64, recordCount int, orgid int64,
 	pqMatches map[string]*pqmr.PQMatchResults) {
 	UnrotatedInfoLock.Lock()
@@ -176,12 +177,12 @@ func updateUnrotatedBlockInfo(segkey string, virtualTable string, wipBlock *WipB
 
 	bmh := &structs.BlockMetadataHolder{
 		BlkNum:            blockNum,
-		ColBlockOffAndLen: utils.ShallowCopySlice(blockMetadata.AllBmh[blockNum].ColBlockOffAndLen),
+		ColBlockOffAndLen: utils.ShallowCopySlice(bmiColOffLen),
 	}
 
 	allBmi.AllBmh[blockNum] = bmh
 	// if new cnames got added in this block, then copy them over
-	utils.MergeMapsRetainingFirst(allBmi.CnameDict, blockMetadata.CnameDict)
+	utils.MergeMapsRetainingFirst(allBmi.CnameDict, bmiCnameIdxDict)
 
 	for col := range allCols {
 		AllUnrotatedSegmentInfo[segkey].allColumns[col] = true
@@ -608,6 +609,31 @@ func GetUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, index
 		}
 	}
 	return allColumns
+}
+
+func CollectUnrotatedColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange,
+	indexNames []string, orgid int64, resAllColumns map[string]struct{}) {
+
+	UnrotatedInfoLock.RLock()
+	defer UnrotatedInfoLock.RUnlock()
+	for _, usi := range AllUnrotatedSegmentInfo {
+		var foundIndex bool
+		for _, idxName := range indexNames {
+			if idxName == usi.TableName {
+				foundIndex = true
+				break
+			}
+		}
+		if !foundIndex {
+			continue
+		}
+		if !timeRange.CheckRangeOverLap(usi.tsRange.StartEpochMs, usi.tsRange.EndEpochMs) || usi.orgid != orgid {
+			continue
+		}
+		for col := range usi.allColumns {
+			resAllColumns[col] = struct{}{}
+		}
+	}
 }
 
 func DoesSegKeyHavePqidResults(segKey string, pqid string) bool {
