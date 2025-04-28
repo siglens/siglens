@@ -26,6 +26,7 @@ import (
 
 type Regex interface {
 	Match([]byte) bool
+	String() string
 }
 
 type simpleRegex struct {
@@ -33,6 +34,8 @@ type simpleRegex struct {
 	word           []byte
 	caseSensitive  bool
 	wildcardAfter  bool
+
+	fullPattern string
 }
 
 var simpleRe = regexp.MustCompile(`^(\(\?i\))?` + // Optional case-insensitive flag
@@ -54,6 +57,7 @@ func New(pattern string) (Regex, error) {
 		wildcardBefore: matches[2] != "^" || matches[3] == ".*",
 		word:           []byte(matches[4]),
 		wildcardAfter:  matches[5] == ".*" || matches[6] != "$",
+		fullPattern:    pattern,
 	}, nil
 }
 
@@ -81,4 +85,8 @@ func (r *simpleRegex) Match(buf []byte) bool {
 	}
 
 	return equal(buf, r.word)
+}
+
+func (r *simpleRegex) String() string {
+	return r.fullPattern
 }
