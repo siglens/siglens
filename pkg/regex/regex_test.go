@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 SigScalr, Inc.
+// Copyright (c) 2021-2025 SigScalr, Inc.
 //
 // This file is part of SigLens Observability Solution
 //
