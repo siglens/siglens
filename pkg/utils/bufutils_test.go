@@ -83,3 +83,13 @@ func Test_ContainsAnyCase(t *testing.T) {
 	assert.False(t, ContainsAnyCase([]byte("hello, world!"), []byte("HELLO,!")))
 	assert.True(t, ContainsAnyCase([]byte("hello, world!"), []byte("HELLO, WORLD!")))
 }
+
+func Test_equalAsciiAnyCase(t *testing.T) {
+	assert.True(t, equalAsciiAnyCase('a', 'a'))
+	assert.True(t, equalAsciiAnyCase('A', 'A'))
+	assert.True(t, equalAsciiAnyCase('a', 'A'))
+	assert.True(t, equalAsciiAnyCase('A', 'a'))
+	assert.False(t, equalAsciiAnyCase('*', '*'+32))
+	assert.False(t, equalAsciiAnyCase('*', '*'-32))
+	assert.False(t, equalAsciiAnyCase('a', 'b'))
+}
