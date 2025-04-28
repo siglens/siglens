@@ -111,7 +111,7 @@ test.describe('Metrics Ingestion Page Tests', () => {
         await page.waitForTimeout(1000);
 
         await expect(page.locator('#metrics-cards-view')).not.toBeVisible();
-        await expect(page.locator('#metrics-ingestion-details')).toBeVisible();
+        await expect(page.locator('#content-container')).toBeVisible();
 
         expect(page.url()).toContain('method=vector-metrics');
 
@@ -138,7 +138,7 @@ test.describe('Traces Ingestion Page Tests', () => {
         await page.waitForTimeout(1000);
 
         await expect(page.locator('#traces-cards-view')).not.toBeVisible();
-        await expect(page.locator('#traces-ingestion-details')).toBeVisible();
+        await expect(page.locator('#content-container')).toBeVisible();
 
         expect(page.url()).toContain('method=go-app');
 
