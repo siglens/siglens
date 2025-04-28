@@ -119,19 +119,17 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 }
 
 func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
-	var allCols map[string]bool
-	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
+	allCols := make(map[string]struct{})
+	exists := writer.CheckAndCollectColNamesForSegKey(segKey, allCols)
 	if !exists {
-		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey)
+		exists = segmetadata.CheckAndCollectColNamesForSegKey(segKey, allCols)
 		if !exists {
 			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
-	allCols[config.GetTimeStampKey()] = true
+	allCols[config.GetTimeStampKey()] = struct{}{}
 
-	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
-	// of a map[string]bool so we don't have to do the conversion here
-	return toputils.MapToSet(allCols), nil
+	return allCols, nil
 }
 
 func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
