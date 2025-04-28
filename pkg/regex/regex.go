@@ -20,6 +20,8 @@ package regex
 import (
 	"bytes"
 	"regexp"
+
+	"github.com/siglens/siglens/pkg/utils"
 )
 
 type Regex interface {
@@ -48,7 +50,7 @@ func New(pattern string) (Regex, error) {
 	}
 
 	return &simpleRegex{
-		caseSensitive:  matches[1] == "(i?)",
+		caseSensitive:  matches[1] != "(?i)",
 		wildcardBefore: matches[2] != "^" || matches[3] == ".*",
 		word:           []byte(matches[4]),
 		wildcardAfter:  matches[5] == ".*" || matches[6] != "$",
@@ -56,17 +58,27 @@ func New(pattern string) (Regex, error) {
 }
 
 func (r *simpleRegex) Match(buf []byte) bool {
+	var contains func([]byte, []byte) bool
+	var equal func([]byte, []byte) bool
+	if r.caseSensitive {
+		contains = bytes.Contains
+		equal = bytes.Equal
+	} else {
+		contains = utils.ContainsAnyCase
+		equal = bytes.EqualFold
+	}
+
 	if r.wildcardBefore && r.wildcardAfter {
-		return bytes.Contains(buf, r.word)
+		return contains(buf, r.word)
 	}
 
 	if r.wildcardBefore {
-		return len(buf) >= len(r.word) && bytes.Contains(buf[len(buf)-len(r.word):], r.word)
+		return len(buf) >= len(r.word) && contains(buf[len(buf)-len(r.word):], r.word)
 	}
 
 	if r.wildcardAfter {
-		return len(buf) >= len(r.word) && bytes.Contains(buf[:len(r.word)], r.word)
+		return len(buf) >= len(r.word) && contains(buf[:len(r.word)], r.word)
 	}
 
-	return bytes.Equal(buf, r.word)
+	return equal(buf, r.word)
 }

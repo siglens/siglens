@@ -33,6 +33,7 @@ func Test_Match(t *testing.T) {
 	assertMatches(t, `^foo.*`, `abcfooxyz`, false)
 	assertMatches(t, `^.*foo.*`, `abcfooxyz`, true)
 	assertMatches(t, `(?i).*bar$`, `abcBaR`, true)
+	assertMatches(t, `.*bar$`, `abcBaR`, false)
 }
 
 func assertMatches(t *testing.T, pattern string, str string, expectedMatch bool) {
