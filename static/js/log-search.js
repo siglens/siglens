@@ -105,7 +105,6 @@ $(document).ready(async () => {
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
         initialSearchData = data;
-        doSearch(data);
     } else {
         setIndexDisplayValue(selectedSearchIndex);
         let stDate = Cookies.get('startEpoch') || 'now-15m';
@@ -120,11 +119,13 @@ $(document).ready(async () => {
         } else {
             datePickerHandler(stDate, endDate, '');
         }
-        $('#run-filter-btn').html(' ');
-        $('#query-builder-btn').html(' ');
         $('#custom-chart-tab').hide();
-        $('#initial-response').show();
+
+        //No query string found, using default search filter
+        data = getSearchFilter(false, false, true);
     }
+
+    doSearch(data);
 
     initializePagination();
     const pageSizeSelect = document.getElementById('page-size-select');
@@ -225,5 +226,3 @@ $(document).ready(async () => {
 
     initializeFilterInputEvents();
 });
-
-

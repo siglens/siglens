@@ -93,25 +93,21 @@ func RawSearchSegmentFileWrapper(req *structs.SegmentSearchRequest, parallelismP
 		return
 	}
 	// if not match_all then do search in N chunk of blocks
-	sortedAllBlks := make([]*structs.BlockMetadataHolder, len(req.AllBlocksToSearch))
+	sortedAllBlks := make([]uint16, len(req.AllBlocksToSearch))
 	var i int
-	for _, bmh := range req.AllBlocksToSearch {
-		if bmh == nil {
-			continue
-		}
-		sortedAllBlks[i] = bmh
+	for blkNum := range req.AllBlocksToSearch {
+		sortedAllBlks[i] = blkNum
 		i++
 	}
-	sortedAllBlks = sortedAllBlks[:i]
 	if aggs != nil && aggs.Sort != nil && aggs.Sort.Ascending {
-		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i].BlkNum < sortedAllBlks[j].BlkNum })
+		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i] < sortedAllBlks[j] })
 	} else {
-		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i].BlkNum > sortedAllBlks[j].BlkNum })
+		sort.Slice(sortedAllBlks, func(i, j int) bool { return sortedAllBlks[i] > sortedAllBlks[j] })
 	}
 	for i := 0; i < len(sortedAllBlks); {
-		nm := make(map[uint16]*structs.BlockMetadataHolder, BLOCK_BATCH_SIZE)
+		nm := make(map[uint16]struct{}, BLOCK_BATCH_SIZE)
 		for j := 0; j < BLOCK_BATCH_SIZE && i < len(sortedAllBlks); {
-			nm[sortedAllBlks[i].BlkNum] = sortedAllBlks[i]
+			nm[sortedAllBlks[i]] = struct{}{}
 			j++
 			i++
 		}
@@ -159,22 +155,22 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	sizeLimit uint64, aggs *structs.QueryAggregators, fileParallelism int64, allSearchResults *segresults.SearchResults, qid uint64,
 	querySummary *summary.QuerySummary, nodeRes *structs.NodeResult) {
 	if fileParallelism <= 0 {
-		log.Errorf("qid=%d, RawSearchSegmentFile: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
+		log.Errorf("qid=%d, rawSearchColumnar: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))
 		return
 	} else if searchReq == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: received a nil search request for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, rawSearchColumnar: received a nil search request for %s", qid, searchReq.SegmentKey)
 		allSearchResults.AddError(errors.New("nil search request"))
 		return
 	} else if searchReq.SearchMetadata == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: search metadata not provided for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, rawSearchColumnar: search metadata not provided for %s", qid, searchReq.SegmentKey)
 		allSearchResults.AddError(errors.New("search metadata not provided"))
 		return
 	}
 
 	blockSummaries := searchReq.SearchMetadata.BlockSummaries
 	if blockSummaries == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: received empty blocksummaries for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, rawSearchColumnar: received empty blocksummaries for %s", qid, searchReq.SegmentKey)
 		allSearchResults.AddError(errors.New("block summaries not provided"))
 		return
 	}
@@ -191,7 +187,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	queryMetrics.SetNumRecordsToRawSearch(numBlockFilteredRecords)
 
 	if len(segmentSearchRecords.AllBlockStatus) == 0 {
-		log.Debugf("qid=%d, RawSearchSegmentFile: no blocks to search for %s", qid, searchReq.SegmentKey)
+		log.Debugf("qid=%d, rawSearchColumnar: no blocks to search for %s", qid, searchReq.SegmentKey)
 		return
 	}
 	allBlockSearchHelpers := structs.InitAllBlockSearchHelpers(fileParallelism)
@@ -201,7 +197,6 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	err := applyAggregationsToResult(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
 		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults, nodeRes)
 	if err != nil {
-		log.Errorf("qid=%d RawSearchColumnar failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
 		return
 	}
@@ -675,22 +670,22 @@ func aggsFastPath(searchReq *structs.SegmentSearchRequest, searchNode *structs.S
 	querySummary *summary.QuerySummary) {
 
 	if fileParallelism <= 0 {
-		log.Errorf("qid=%d, AggsFastPath: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
+		log.Errorf("qid=%d, aggsFastPath: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		allSearchResults.AddError(errors.New("invalid fileParallelism - must be > 0"))
 		return
 	} else if searchReq == nil {
-		log.Errorf("qid=%d, AggsFastPath: received a nil search request for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, aggsFastPath: received a nil search request for %s", qid, searchReq.SegmentKey)
 		allSearchResults.AddError(errors.New("nil search request"))
 		return
 	} else if searchReq.SearchMetadata == nil {
-		log.Errorf("qid=%d, AggsFastPath: search metadata not provided for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, aggsFastPath: search metadata not provided for %s", qid, searchReq.SegmentKey)
 		allSearchResults.AddError(errors.New("search metadata not provided"))
 		return
 	}
 
 	blockSummaries := searchReq.SearchMetadata.BlockSummaries
 	if blockSummaries == nil {
-		log.Errorf("qid=%d, AggsFastPath: received empty blocksummaries for %s", qid, searchReq.SegmentKey)
+		log.Errorf("qid=%d, aggsFastPath: received empty blocksummaries for %s", qid, searchReq.SegmentKey)
 		allSearchResults.AddError(errors.New("block summaries not provided"))
 		return
 	}
@@ -716,7 +711,7 @@ func aggsFastPath(searchReq *structs.SegmentSearchRequest, searchNode *structs.S
 	err := applyAggregationsToResultFastPath(aggs, segmentSearchRecords, searchReq, blockSummaries, timeRange,
 		sizeLimit, fileParallelism, queryMetrics, qid, allSearchResults)
 	if err != nil {
-		log.Errorf("qid=%d RawSearchColumnar failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
+		log.Errorf("qid=%d aggsFastPath: failed to apply aggregations to result for segKey %+v. Error: %v", qid, searchReq.SegmentKey, err)
 		allSearchResults.AddError(err)
 		return
 	}
@@ -749,19 +744,19 @@ func RawComputeSegmentStats(req *structs.SegmentSearchRequest, fileParallelism i
 	defer numConcurrentRawSearch.Release(1)
 
 	if fileParallelism <= 0 {
-		log.Errorf("qid=%d, RawSearchSegmentFile: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
+		log.Errorf("qid=%d, RawComputeSegmentStats: invalid fileParallelism of %d - must be > 0", qid, fileParallelism)
 		return nil, errors.New("invalid fileParallelism - must be > 0")
 	} else if req == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: received a nil search request for %s", qid, req.SegmentKey)
+		log.Errorf("qid=%d, RawComputeSegmentStats: received a nil search request for %s", qid, req.SegmentKey)
 		return nil, errors.New("received a nil search request")
 	} else if req.SearchMetadata == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: search metadata not provided for %s", qid, req.SegmentKey)
+		log.Errorf("qid=%d, RawComputeSegmentStats: search metadata not provided for %s", qid, req.SegmentKey)
 		return nil, errors.New("search metadata not provided")
 	}
 
 	blockSummaries := req.SearchMetadata.BlockSummaries
 	if blockSummaries == nil {
-		log.Errorf("qid=%d, RawSearchSegmentFile: received empty blocksummaries for %s", qid, req.SegmentKey)
+		log.Errorf("qid=%d, RawComputeSegmentStats: received empty blocksummaries for %s", qid, req.SegmentKey)
 		return nil, errors.New("search metadata not provided")
 	}
 

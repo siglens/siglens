@@ -183,3 +183,10 @@ var GlobalHooks = Hooks{
 		ShowSLO: true,
 	},
 }
+
+var ManagementGlobalHooks = Hooks{
+	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
+		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/management/*.html"))
+		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/management/js/*.js"))
+	},
+}

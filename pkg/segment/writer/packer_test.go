@@ -31,12 +31,12 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/config"
-	. "github.com/siglens/siglens/pkg/segment/structs"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/utils"
 )
 
 func TestBlockSumEncodeDecode(t *testing.T) {
-	rangeIndex = map[string]*Numbers{}
+	rangeIndex = map[string]*structs.Numbers{}
 	cases := []struct {
 		input string
 	}{
@@ -59,7 +59,7 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 
 	for i, test := range cases {
 
-		record_json := &BlockSummary{}
+		record_json := &structs.BlockSummary{}
 		var json = jsoniter.ConfigCompatibleWithStandardLibrary
 		decoder := json.NewDecoder(bytes.NewReader([]byte(test.input)))
 		decoder.UseNumber()
@@ -70,14 +70,13 @@ func TestBlockSumEncodeDecode(t *testing.T) {
 		}
 
 		encoded := make([]byte, WIP_SIZE)
-		bmh := &BlockMetadataHolder{
-			ColBlockOffAndLen: make(map[string]ColOffAndLen),
-		}
-		bmh.ColBlockOffAndLen["mycol"] = ColOffAndLen{Offset: 29,
+		cnameDict := make(map[string]int)
+		cOffLen := make([]structs.ColOffAndLen, 1)
+		cOffLen[0] = structs.ColOffAndLen{Offset: 29,
 			Length: 22,
 		}
 
-		packedLen, _, err := EncodeBlocksum(bmh, record_json, encoded, 23)
+		packedLen, _, err := EncodeBlocksum(record_json, encoded, 23, cnameDict, cOffLen)
 
 		t.Logf("encoded len: %v, origlen=%v", packedLen, len(test.input))
 
@@ -441,7 +440,7 @@ func TestTimestampRollups(t *testing.T) {
 
 func Test_addSegStatsStr(t *testing.T) {
 	cname := "mycol1"
-	sst := make(map[string]*SegStats)
+	sst := make(map[string]*structs.SegStats)
 	numRecs := uint64(2000)
 
 	for i := uint64(0); i < numRecs; i++ {
@@ -454,7 +453,7 @@ func Test_addSegStatsStr(t *testing.T) {
 func Test_addSegStatsNums(t *testing.T) {
 
 	cname := "mycol1"
-	sst := make(map[string]*SegStats)
+	sst := make(map[string]*structs.SegStats)
 
 	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
 	assert.NotEqual(t, SS_DT_FLOAT, sst[cname].Min.Dtype)
@@ -473,7 +472,7 @@ func Test_addSegStatsNums(t *testing.T) {
 func Test_addSegStatsNumsMixed(t *testing.T) {
 
 	cname := "mycol1"
-	sst := make(map[string]*SegStats)
+	sst := make(map[string]*structs.SegStats)
 
 	addSegStatsStrIngestion(sst, cname, []byte("abc"))
 	addSegStatsNums(sst, cname, SS_UINT64, 0, uint64(100), 0, []byte("100"))

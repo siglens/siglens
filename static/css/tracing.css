@@ -69,10 +69,9 @@
 
 #error-msg-container p {
     text-align: center;
-    font-size: 20px;
+    font-size: 22px;
     line-height: 31px;
-    font-weight: var(--fw-500);
-    color: var(--empty-response-text-color);
+    font-weight: 500;
     margin: auto;
     margin-top: 50px;
 }
@@ -299,9 +298,9 @@
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    color: var(--empty-response-text-color);
     height: 100%;
     font-size: 22px;
+    font-weight: 500;
 }
 
 .warn-box {

@@ -37,37 +37,30 @@ function loadBarOptions(xAxisData, yAxisData) {
             name: dataset.name,
             type: 'bar',
             data: dataset.data,
-            barWidth: 10,
+            barWidth: '60%',
             itemStyle: {
                 color: colorList[index % colorList.length],
             },
-            barCategoryGap: '10%', // space between bars
+            barCategoryGap: '40%', // space between bars
             barGap: '15%',
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'shadow',
-                },
-                formatter: function (params) {
-                    return params[0].name + ': ' + params[0].value;
-                },
-            },
             emphasis: {
                 itemStyle: {
                     color: colorList[index % colorList.length],
-                },
-                label: {
-                    show: false,
-                    position: 'top',
-                    formatter: function (params) {
-                        return params.value;
-                    },
-                },
+                }
             },
         });
     });
 
     let barOptions = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'shadow',
+            },
+            formatter: function (params) {
+                return params[0].name + ': ' + params[0].value;
+            },
+        },
         legend: {
             data: legendData,
             textStyle: {
@@ -88,7 +81,7 @@ function loadBarOptions(xAxisData, yAxisData) {
             },
             axisLabel: {
                 interval: 0,
-                rotate: 45,
+                rotate: 30,
                 margin: 10,
                 color: function () {
                     return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
