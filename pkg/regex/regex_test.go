@@ -18,31 +18,37 @@
 package regex
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_Match(t *testing.T) {
-	assertMatches(t, `.*`, `abc`, true)
-	assertMatches(t, `.*foo.*`, `abc`, false)
-	assertMatches(t, `.*foo.*`, `foo`, true)
-	assertMatches(t, `.*foo.*`, `abcfooxyz`, true)
-	assertMatches(t, `foo.*`, `foobar`, true)
-	assertMatches(t, `foo.*`, `abcfooxyz`, true)
-	assertMatches(t, `^foo.*`, `abcfooxyz`, false)
-	assertMatches(t, `^.*foo.*`, `abcfooxyz`, true)
-	assertMatches(t, `(?i).*bar$`, `abcBaR`, true)
-	assertMatches(t, `.*bar$`, `abcBaR`, false)
+	assertMatches(t, `.*`, `abc`)
+	assertMatches(t, `.*foo.*`, `abc`)
+	assertMatches(t, `.*foo.*`, `foo`)
+	assertMatches(t, `.*foo.*`, `abcfooxyz`)
+	assertMatches(t, `foo.*`, `foobar`)
+	assertMatches(t, `foo.*`, `abcfooxyz`)
+	assertMatches(t, `^foo.*`, `abcfooxyz`)
+	assertMatches(t, `^.*foo.*`, `abcfooxyz`)
+	assertMatches(t, `(?i).*bar$`, `abcBaR`)
+	assertMatches(t, `.*bar$`, `abcBaR`)
+
 }
 
-func assertMatches(t *testing.T, pattern string, str string, expectedMatch bool) {
+func assertMatches(t *testing.T, pattern string, str string) {
 	t.Helper()
 
 	regex, err := New(pattern)
 	assert.NoError(t, err)
 
-	if expectedMatch {
+	actualRegex, err := regexp.Compile(pattern)
+	assert.NoError(t, err)
+	shouldMatch := actualRegex.Match([]byte(str))
+
+	if shouldMatch {
 		assert.True(t, regex.Match([]byte(str)), "Pattern %s should match %s", pattern, str)
 	} else {
 		assert.False(t, regex.Match([]byte(str)), "Pattern %s should not match %s", pattern, str)
