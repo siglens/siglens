@@ -57,8 +57,13 @@ test.describe('Dashboard Page Tests', () => {
 
         // Edit panel
         const panelHeader = page.locator('.panel-header').first();
-        await panelHeader.hover();
-        await page.waitForTimeout(1000);
+        await page.waitForFunction(() => {
+            const header = document.querySelector('.panel-header');
+            const emptyResponse = document.querySelector('#empty-response');
+            return header && !emptyResponse;
+        }, {}, { timeout: 30000 });
+        await panelHeader.hover({ timeout: 15000 }); 
+        await page.waitForTimeout(500); 
 
         const editIcon = panelHeader.locator('img.panel-edit-li');
         await expect(editIcon).toBeVisible({ timeout: 15000 });

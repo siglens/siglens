@@ -452,7 +452,6 @@ function runFilterBtnHandler(evt) {
             alertChart(res);
         });
     } else if (currentPage === '/dashboard.html') {
-        console.log("I am also clicked");
         runQueryBtnHandler();
     } else {
         // index.html
