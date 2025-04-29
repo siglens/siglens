@@ -52,7 +52,7 @@ function resetDataTable(firstQUpdate) {
             $('#views-container, .fields-sidebar').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar').show();
+            $('#views-container, .fields-sidebar').hide();
         }
         $('#agg-result-container').hide();
         hideError();
@@ -74,21 +74,6 @@ function doSearch(data) {
         const timerName = `socket timing ${doSearchCounter}`;
         doSearchCounter++;
         console.time(timerName);
-
-        // Get the current fieldsHidden state from the renderer and update URL
-        const sidebarRenderer = window.fieldssidebarRenderer;
-        if (sidebarRenderer) {
-            const { isFieldsSidebarHidden } = sidebarRenderer.getState();
-            data.fieldsHidden = isFieldsSidebarHidden; // Update data object
-
-            // Update URL with fieldsHidden only if search is active
-            const searchParams = new URLSearchParams(window.location.search);
-            if (searchParams.has('searchText') && searchParams.has('indexName')) {
-                const url = new URL(window.location);
-                url.searchParams.set('fieldsHidden', isFieldsSidebarHidden);
-                window.history.pushState({ path: url.href }, document.title, url);
-            }
-        }
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -350,13 +335,7 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
 
-    const sidebarRenderer = window.fieldssidebarRenderer;
-    let fieldsHidden = false;
-    if (sidebarRenderer) {
-        fieldsHidden = sidebarRenderer.getState().isFieldsSidebarHidden;
-    } else {
-        fieldsHidden = queryParams.get('fieldsHidden') === 'true';
-    }
+    let fieldsHidden = queryParams.get('fieldsHidden') || true;
     applyFieldsSidebarState(fieldsHidden);
 
     queryLanguage = queryLanguage.replace('"', '');
@@ -448,40 +427,6 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     };
 }
 
-// Helper function to apply fieldsHidden state to the UI
-function applyFieldsSidebarState(isHidden) {
-    const fieldsSidebar = document.querySelector('.fields-sidebar');
-    const customChartTab = document.querySelector('.custom-chart-tab');
-    const container = document.querySelector('.custom-chart-container');
-    const resizer = document.querySelector('.fields-resizer');
-
-    if (!fieldsSidebar) return;
-
-    if (isHidden) {
-        fieldsSidebar.classList.add('hidden');
-        if (customChartTab) {
-            customChartTab.classList.add('full-width');
-        }
-        if (container) {
-            container.classList.add('full-width-container');
-        }
-        if (resizer) {
-            resizer.style.display = 'none';
-        }
-    } else {
-        fieldsSidebar.classList.remove('hidden');
-        if (customChartTab) {
-            customChartTab.classList.remove('full-width');
-        }
-        if (container) {
-            container.classList.remove('full-width-container');
-        }
-        if (resizer) {
-            resizer.style.display = 'block';
-        }
-    }
-}
-
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
     let filterValue = $('#filter-input').val().trim() || '*';
     let endDate = 'now';
@@ -562,6 +507,7 @@ function getQueryBuilderCode() {
     else $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
+
 //eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
@@ -611,6 +557,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
+        addQSParm('fieldsHidden', false);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -743,7 +690,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
 
             $('#logs-result-container').show();
             $('#agg-result-container').hide();
-            $('#views-container, .fields-sidebar').show();
+            $('#views-container, .fields-sidebar, .fields-resizer').show();
 
             //eslint-disable-next-line no-undef
             updatePaginationState(res);
@@ -754,11 +701,6 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
         }
     }
 
-    if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.measure) {
-        aggsColumnDefs = [];
-        segStatsRowData = [];
-        $('#views-container, .fields-sidebar').hide();
-    }
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
@@ -849,7 +791,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
 
             if (res.bucketCount) {
                 totalHits = res.bucketCount;
-                $('#views-container, .fields-sidebar').hide();
+                $('#views-container, .fields-sidebar, .fields-resizer').hide();
                 columnCount = Math.max(columnCount, lastColumnsOrder.length);
             }
         } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
