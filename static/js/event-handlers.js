@@ -473,6 +473,7 @@ function runFilterBtnHandler(evt) {
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
+            $('#pagination-container').hide();
             doSearch(data);
         }
         $('#daterangepicker').hide();

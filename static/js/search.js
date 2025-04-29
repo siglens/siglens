@@ -541,12 +541,14 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
             filterValue = '* | head 10';
         }
     } else {
-        filterValue = $('#filter-input').val().trim() || '* | head 10';
-        isQueryBuilderSearch = false;
+        const inputValue = $('#filter-input').val().trim();
 
-        //Default search
-        if (isInitialLoad && !$('#filter-input').val().trim()) {
+        // If it's initial load and the field is empty (Default search)
+        if (isInitialLoad && !inputValue) {
             $('#filter-input').val('* | head 10');
+            filterValue = '* | head 10';
+        } else {
+            filterValue = inputValue || '*';
         }
     }
 
