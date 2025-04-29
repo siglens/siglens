@@ -662,28 +662,48 @@ function refreshColumnVisibility() {
     const logView = Cookies.get('log-view') || VIEW_TYPES.SINGLE;
     const isTableView = logView === VIEW_TYPES.TABLE;
 
-    // Hide all non-essential columns first
     const allColumns = gridOptions.columnApi.getColumns();
+    if (!allColumns) return;
+
+    const columnsToHide = [];
+    const columnsToShow = [];
+
     allColumns.forEach((column) => {
         const colId = column.getColId();
-        if (colId !== 'timestamp' && colId !== 'logs') {
-            gridOptions.columnApi.setColumnVisible(colId, false);
+
+        if (colId === 'timestamp') {
+            // Timestamp is always visible
+            columnsToShow.push(colId);
+        } else if (colId === 'logs') {
+            // Logs column visibility depends on view type
+            if (isTableView) {
+                columnsToHide.push(colId);
+            } else {
+                columnsToShow.push(colId);
+            }
+        } else if (isTableView) {
+            // For table view, show selected fields
+            const isVisible = selectedFieldsList.length === 0 || selectedFieldsList.includes(colId);
+            if (isVisible) {
+                columnsToShow.push(colId);
+            } else {
+                columnsToHide.push(colId);
+            }
+        } else {
+            // For single/multi view, hide all other columns
+            columnsToHide.push(colId);
         }
     });
 
-    gridOptions.columnApi.setColumnVisible('timestamp', true);
-    gridOptions.columnApi.setColumnVisible('logs', !isTableView);
+    if (columnsToHide.length > 0) {
+        gridOptions.columnApi.setColumnsVisible(columnsToHide, false);
+    }
 
-    if (isTableView) {
-        // Show selected columns in table view
-        availColNames.forEach((colName) => {
-            if (colName !== 'timestamp' && colName !== 'logs') {
-                const isVisible = selectedFieldsList.length === 0 || selectedFieldsList.includes(colName);
-                gridOptions.columnApi.setColumnVisible(colName, isVisible);
-            }
-        });
-    } else {
-        // Update logs column for single/multi view
+    if (columnsToShow.length > 0) {
+        gridOptions.columnApi.setColumnsVisible(columnsToShow, true);
+    }
+
+    if (!isTableView) {
         updateLogsViewColumn(logView);
     }
 
