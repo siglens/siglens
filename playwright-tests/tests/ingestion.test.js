@@ -58,7 +58,7 @@ test.describe('Logs Ingestion Page Tests', () => {
     });
 
     test('should process URL parameter and show correct logs details', async ({ page }) => {
-        await page.goto('http://localhost:5122/log-ingestion.html?method=elasticbulk');
+        await page.goto('http://localhost:5122/log-ingestion.html?method=sendtestdata');
         await page.waitForTimeout(1000); 
 
         await expect(page.locator('#logs-cards-view')).not.toBeVisible();
