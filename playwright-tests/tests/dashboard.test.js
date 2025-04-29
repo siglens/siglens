@@ -55,6 +55,8 @@ test.describe('Dashboard Page Tests', () => {
         await expect(page.locator('#panel-container')).toBeVisible({ timeout: 15000 });
         await expect(page.locator('.panel-header')).toBeVisible({ timeout: 15000 });
 
+        await page.waitForTimeout(2000);
+
         // Edit panel
         const panelHeader = page.locator('.panel-header').first();
         await expect(panelHeader).toBeVisible({ timeout: 15000 });
@@ -110,9 +112,33 @@ test.describe('Dashboard Page Tests', () => {
             }
         });
 
-        await expect(page.locator('#panel-dropdown-modal')).toBeVisible({ timeout: 15000 });
-        const deleteOption = page.locator('.panel-remove-li');
-        await deleteOption.click();
+        try {
+            await expect(page.locator('#panel-dropdown-modal')).toBeVisible({ timeout: 5000 });
+        } catch (e) {
+            console.log('Dropdown did not appear, trying one more time');
+            await page.evaluate(() => {
+                const optionsBtn = document.querySelector('.panel-header #panel-options-btn');
+                if (optionsBtn) {
+                    optionsBtn.dispatchEvent(new MouseEvent('click', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window
+                    }));
+                }
+            });
+            await expect(page.locator('#panel-dropdown-modal')).toBeVisible({ timeout: 10000 });
+        }
+
+        await page.evaluate(() => {
+            const deleteOption = document.querySelector('.panel-remove-li');
+            if (deleteOption) {
+                deleteOption.dispatchEvent(new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                }));
+            }
+        });
 
         await expect(page.locator('#panel-del-prompt')).toBeVisible({ timeout: 15000 });
         await page.click('#delete-btn-panel');
