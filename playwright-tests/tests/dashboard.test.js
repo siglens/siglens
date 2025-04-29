@@ -56,14 +56,6 @@ test.describe('Dashboard Page Tests', () => {
         await expect(page.locator('.panel-header')).toBeVisible({ timeout: 15000 });
 
         // Edit panel
-        const panelHeader = page.locator('.panel-header').first();
-        await page.waitForFunction(() => {
-            const header = document.querySelector('.panel-header');
-            const emptyResponse = document.querySelector('#empty-response');
-            return header && !emptyResponse;
-        }, {}, { timeout: 30000 });
-        await panelHeader.hover({ timeout: 15000 }); 
-        await page.waitForTimeout(500); 
 
         const editIcon = panelHeader.locator('img.panel-edit-li');
         await expect(editIcon).toBeVisible({ timeout: 15000 });
@@ -77,8 +69,6 @@ test.describe('Dashboard Page Tests', () => {
         await expect(page.locator('.panel-header p')).toContainText('Updated Panel Name', { timeout: 20000 });
 
         // View panel
-        await panelHeader.hover();
-        await page.waitForTimeout(1000);
 
         const viewIcon = panelHeader.locator('img.panel-view-li');
         await expect(viewIcon).toBeVisible({ timeout: 15000 });
@@ -89,9 +79,6 @@ test.describe('Dashboard Page Tests', () => {
 
         await page.click('#discard-btn');
         // Delete panel
-
-        await panelHeader.hover();
-        await page.waitForTimeout(1000);
 
         const optionsBtn = panelHeader.locator('#panel-options-btn');
         await expect(optionsBtn).toBeVisible({ timeout: 15000 });
