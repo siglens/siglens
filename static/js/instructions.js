@@ -46,6 +46,14 @@ const instructionData = [
         title: 'Vector',
     },
     {
+        id: 'elasticbulk',
+        title: 'Elastic Bulk',
+    },
+    {
+        id: 'splunkhec',
+        title: 'Splunk HEC',
+    },
+    {
         id: 'vector-metrics',
         title: 'Vector Metrics',
     },
@@ -89,7 +97,7 @@ async function loadInstruction(instructionId) {
 
         // Determine the path based on instructionId
         let path;
-        if (['promtail', 'opentelemetry', 'filebeat', 'fluentd', 'fluent-bit', 'logstash', 'vector'].includes(instructionId)) {
+        if (['promtail', 'opentelemetry', 'filebeat', 'fluentd', 'fluent-bit', 'logstash', 'vector', 'elasticbulk', 'splunkhec'].includes(instructionId)) {
             path = `../../content/log-ingestion-methods/${instructionId}.md`;
         } else if (['vector-metrics', 'open-telemetry'].includes(instructionId)) {
             path = `/content/metric-ingestion-methods/${instructionId}.md`;
@@ -417,7 +425,7 @@ function initializeBreadcrumbsForType(type, methodName) {
     // Determine type dynamically if not provided
     let resolvedType = type;
     if (!resolvedType && methodName) {
-        if (['promtail', 'opentelemetry', 'filebeat', 'fluentd', 'fluent-bit', 'logstash', 'vector'].includes(methodName)) {
+        if (['promtail', 'opentelemetry', 'filebeat', 'fluentd', 'fluent-bit', 'logstash', 'vector', 'elasticbulk', 'splunkhec'].includes(methodName)) {
             resolvedType = 'logs';
         } else if (['vector-metrics', 'open-telemetry'].includes(methodName)) {
             resolvedType = 'metrics';

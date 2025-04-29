@@ -113,8 +113,6 @@ function formatMethodName(methodParam, type) {
     if (methodParam === 'opentelemetry') return 'OpenTelemetry Collector';
     
     if (type === 'log') {
-        if (methodParam === 'elasticbulk') return 'Elastic Bulk';
-        if (methodParam === 'splunkhec') return 'Splunk HEC';
         if (methodParam === 'sendtestdata') return 'Send Test Data';
         if (methodParam === 'verifyconnection') return 'Verify Connection';
     }
@@ -123,7 +121,7 @@ function formatMethodName(methodParam, type) {
 }
 
 function navigateToLogDetails(source, ingestURL) {
-    if (source === 'Promtail' || source === 'OpenTelemetry Collector' || source === 'Filebeat' || source === 'Fluentd' || source === 'Fluent-bit' || source === 'Logstash' || source === 'Vector') {
+    if (source === 'Promtail' || source === 'OpenTelemetry Collector' || source === 'Filebeat' || source === 'Fluentd' || source === 'Fluent-bit' || source === 'Logstash' || source === 'Vector' || source === 'Elastic Bulk' || source === 'Splunk HEC') {
         switch (source) {
             case 'Promtail':
                 mdFileName = 'promtail';
@@ -145,6 +143,12 @@ function navigateToLogDetails(source, ingestURL) {
                 break;
             case 'Vector':
                 mdFileName = 'vector';
+                break;
+            case 'Elastic Bulk':
+                mdFileName = 'elasticbulk';
+                break;
+            case 'Splunk HEC':
+                mdFileName = 'splunkhec';
                 break;
         }
         
