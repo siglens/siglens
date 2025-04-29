@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 let lastQType = '';
+let lastColumnsOrder = [];
+
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -725,70 +727,42 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
     $('body').css('cursor', 'default');
 }
+
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
-    let columnOrder = [];
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = _.uniq(
-                _.concat(
-                    // make timestamp the first column
-                    'timestamp',
-                    // make logs the second column
-                    'logs',
-                    res.columnsOrder
-                )
-            );
+            lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.columnsOrder]);
         } else {
-            columnOrder = _.uniq(
-                _.concat(
-                    // make timestamp the first column
-                    'timestamp',
-                    // make logs the second column
-                    'logs',
-                    res.allColumns
-                )
-            );
+            lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.allColumns]);
         }
 
-        columnCount = Math.max(columnCount, columnOrder.length) - 2; // Excluding timestamp and logs
+        columnCount = Math.max(columnCount, lastColumnsOrder.length) - 2;
 
-        handleSearchResultsForPagination(res);
-        renderLogsGrid(columnOrder, accumulatedRecords);
+        if (res.hits && res.hits.records) {
+            accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
 
-        //eslint-disable-next-line no-undef
-        initializeAvailableFieldsSidebar(columnOrder);
+            $('#logs-result-container').show();
+            $('#agg-result-container').hide();
+            $('#views-container, .fields-sidebar').show();
 
-        $('#logs-result-container').show();
-        $('#agg-result-container').hide();
+            updatePaginationState(res);
 
-        if (res && res.hits && res.hits.totalMatched) {
-            totalHits = res.hits.totalMatched;
-        }
-        $('#views-container, .fields-sidebar').show();
-    } else if (res.measure && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query')) {
-        let columnOrder = [];
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+            if (res.hits.totalMatched) {
+                totalHits = res.hits.totalMatched;
             }
         }
+    }
 
+    if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.measure) {
         aggsColumnDefs = [];
         segStatsRowData = [];
         $('#views-container, .fields-sidebar').hide();
-        renderMeasuresGrid(columnOrder, res);
     }
-    timeChart(res.qtype);
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
+
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents, columnCount);
-    $('body').css('cursor', 'default');
 }
 
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
@@ -831,57 +805,70 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         scrollFrom = 0;
     }
 }
+
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
-    let columnOrder = [];
-    let totalHits = res.totalMatched.value;
-    if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
+    let totalHits = res.totalMatched ? res.totalMatched.value : 0;
+
+    if (res.qtype === 'logs-query' && res.hits && res.hits.records) {
+        accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
+    }
+
+    updatePaginationState(res);
+
+    if ((totalHits === 0 || totalHits === undefined) && res.measure === undefined && accumulatedRecords.length === 0) {
         processEmptyQueryResults();
     } else {
-        handleSearchResultsForPagination(res);
-    }
-
-    if (res.measureFunctions && res.measureFunctions.length > 0) {
-        measureFunctions = res.measureFunctions;
-    }
-
-    if (res.measure) {
-        measureInfo = res.measure;
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-            }
+        if (res.measureFunctions && res.measureFunctions.length > 0) {
+            measureFunctions = res.measureFunctions;
         }
-        resetDashboard();
-        $('#logs-result-container').hide();
-        $('#custom-chart-tab').show().css({ height: '100%' });
-        $('#agg-result-container').show();
-        aggsColumnDefs = [];
-        segStatsRowData = [];
-        renderMeasuresGrid(columnOrder, res);
 
-        if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.bucketCount) {
-            totalHits = res.bucketCount;
-            $('#views-container, .fields-sidebar').hide();
-            columnCount = Math.max(columnCount, columnOrder.length);
+        if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
+            measureInfo = res.measure;
+
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                lastColumnsOrder = res.columnsOrder;
+            } else {
+                if (res.groupByCols) {
+                    lastColumnsOrder = _.uniq(_.concat(res.groupByCols));
+                }
+                if (res.measureFunctions) {
+                    lastColumnsOrder = _.uniq(_.concat(lastColumnsOrder, res.measureFunctions));
+                }
+            }
+
+            resetDashboard();
+            $('#logs-result-container').hide();
+            $('#custom-chart-tab').show().css({ height: '100%' });
+            $('#agg-result-container').show();
+            aggsColumnDefs = [];
+            segStatsRowData = [];
+
+            renderMeasuresGrid(lastColumnsOrder, res);
+
+            if (res.bucketCount) {
+                totalHits = res.bucketCount;
+                $('#views-container, .fields-sidebar').hide();
+                columnCount = Math.max(columnCount, lastColumnsOrder.length);
+            }
+        } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
+            renderLogsGrid(lastColumnsOrder, accumulatedRecords);
+            initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
-    } else {
-        measureInfo = [];
+
+        isTimechart = res.isTimechart;
+        lastQType = res.qtype;
+        timeChart(res.qtype);
     }
-    isTimechart = res.isTimechart;
-    lastQType = res.qtype;
-    timeChart(res.qtype);
+
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
     }
     let totalPossibleEvents = res.total_possible_events;
+
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents, columnCount);
+
     $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
@@ -890,14 +877,15 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     }
     $('body').css('cursor', 'default');
 }
-
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
 }
+
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
 }
+
 function processErrorUpdate(res) {
     showError(`Message: ${res.message}`);
 }

@@ -468,6 +468,7 @@ function runFilterBtnHandler(evt) {
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
+            lastColumnsOrder = [];
             totalLoadedRecords = 0;
             wsState = 'query';
             data = getSearchFilter(false, false);
@@ -491,6 +492,7 @@ function filterInputHandler(evt) {
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
+            lastColumnsOrder = [];
             totalLoadedRecords = 0;
             data = getSearchFilter(false, false);
             initialSearchData = data;
