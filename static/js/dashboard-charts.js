@@ -51,6 +51,9 @@ function loadBarOptions(xAxisData, yAxisData) {
         });
     });
 
+    const shouldRotateLabels = xAxisData.length > 1;
+    const rotationAngle = xAxisData.length > 5 ? 30 : 0;
+
     let barOptions = {
         tooltip: {
             trigger: 'axis',
@@ -81,8 +84,8 @@ function loadBarOptions(xAxisData, yAxisData) {
             },
             axisLabel: {
                 interval: 0,
-                rotate: 30,
-                margin: 10,
+                rotate: shouldRotateLabels ? rotationAngle : 0,
+                margin: shouldRotateLabels ? 10 : 5,
                 color: function () {
                     return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
                 },
