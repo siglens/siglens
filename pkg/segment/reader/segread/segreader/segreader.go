@@ -291,13 +291,11 @@ func (sfr *SegmentFileReader) Close() error {
 
 func (sfr *SegmentFileReader) ReturnBuffers() error {
 	var errorMessages []string
-	err := PutBufToPool(sfr.currFileBuffer)
-	if err != nil {
+	if err := PutBufToPool(sfr.currFileBuffer); sfr.currFileBuffer != nil && err != nil {
 		errorMessages = append(errorMessages, fmt.Sprintf("Segreader.ReturnBuffers: Error putting buffer back to pool, err: %v", err))
 	}
 
-	err = PutBufToPool(sfr.currRawBlockBuffer)
-	if err != nil {
+	if err := PutBufToPool(sfr.currRawBlockBuffer); sfr.currRawBlockBuffer != nil && err != nil {
 		errorMessages = append(errorMessages, fmt.Sprintf("ReturnBuffers: Error putting raw block buffer back to pool, err: %v", err))
 	}
 
@@ -361,8 +359,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	if sfr.currRawBlockBuffer == nil {
 		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
 	} else if len(sfr.currRawBlockBuffer) < COMPRESSION_FACTOR*int(cOffAndLen.Length) {
-		err := PutBufToPool(sfr.currRawBlockBuffer)
-		if err != nil {
+		if err := PutBufToPool(sfr.currRawBlockBuffer); sfr.currRawBlockBuffer != nil && err != nil {
 			log.Errorf("loadBlockUsingBuffer: Error putting raw block buffer back to pool, err: %v", err)
 		}
 		sfr.currRawBlockBuffer = GetBufFromPool(int64(COMPRESSION_FACTOR * cOffAndLen.Length))
@@ -371,8 +368,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	if sfr.currFileBuffer == nil {
 		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
 	} else if len(sfr.currFileBuffer) < int(cOffAndLen.Length) {
-		err := PutBufToPool(sfr.currFileBuffer)
-		if err != nil {
+		if err := PutBufToPool(sfr.currFileBuffer); sfr.currFileBuffer != nil && err != nil {
 			log.Errorf("loadBlockUsingBuffer: Error putting file buffer back to pool, err: %v", err)
 		}
 		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
@@ -604,8 +600,7 @@ func (sfr *SegmentFileReader) unpackRawCsg(buf []byte, blockNum uint16) error {
 
 	if initialBufferPtr != unsafe.SliceData(uncompressed) {
 		log.Debugf("SegmentFileReader.unpackRawCsg: Uncomressed buffer after decoding is different than originally allocated ")
-		err := PutBufToPool(sfr.currRawBlockBuffer)
-		if err != nil {
+		if err := PutBufToPool(sfr.currRawBlockBuffer); sfr.currRawBlockBuffer != nil && err != nil {
 			log.Errorf("unpackRawCsg: Error putting raw block buffer back to pool, err: %v", err)
 		}
 	}

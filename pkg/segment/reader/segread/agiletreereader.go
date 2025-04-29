@@ -114,8 +114,7 @@ func (str *AgileTreeReader) Close() error {
 }
 
 func (str *AgileTreeReader) returnBuffers() {
-	err := segreader.PutBufToPool(str.metaFileBuffer)
-	if err != nil {
+	if err := segreader.PutBufToPool(str.metaFileBuffer); str.metaFileBuffer != nil && err != nil {
 		log.Errorf("AgileTreeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
 	}
 }
@@ -166,8 +165,7 @@ func (str *AgileTreeReader) ReadTreeMeta() error {
 	if str.metaFileBuffer == nil {
 		str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))
 	} else if len(str.metaFileBuffer) < int(fileSize) {
-		err := segreader.PutBufToPool(str.metaFileBuffer)
-		if err != nil {
+		if err := segreader.PutBufToPool(str.metaFileBuffer); str.metaFileBuffer != nil && err != nil {
 			log.Errorf("AgileTreeReader.ReadTreeMeta: Error putting meta file buffer back to pool, err: %v", err)
 		}
 		str.metaFileBuffer = segreader.GetBufFromPool(int64(fileSize))

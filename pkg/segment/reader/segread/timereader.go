@@ -181,8 +181,7 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 	if trr.blockReadBuffer == nil {
 		trr.blockReadBuffer = segreader.GetBufFromPool(int64(cOffLen.Length))
 	} else if len(trr.blockReadBuffer) < int(cOffLen.Length) {
-		err := segreader.PutBufToPool(trr.blockReadBuffer)
-		if err != nil {
+		if err := segreader.PutBufToPool(trr.blockReadBuffer); trr.blockReadBuffer != nil && err != nil {
 			log.Errorf("TimeReader.readAllTimestampsForBlock: Error putting block buffer back to pool, err: %v", err)
 		}
 		trr.blockReadBuffer = segreader.GetBufFromPool(int64(cOffLen.Length))
@@ -237,12 +236,10 @@ func (trr *TimeRangeReader) Close() error {
 
 func (trr *TimeRangeReader) returnBuffers() {
 	rawTimestampsBufferPool.Put(&trr.blockTimestamps)
-	err := segreader.PutBufToPool(trr.blockReadBuffer)
-	if err != nil {
+	if err := segreader.PutBufToPool(trr.blockReadBuffer); trr.blockReadBuffer != nil && err != nil {
 		log.Errorf("TimeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
 	}
-	err = segreader.PutBufToPool(trr.blockUncompressedBuffer)
-	if err != nil {
+	if err := segreader.PutBufToPool(trr.blockUncompressedBuffer); trr.blockUncompressedBuffer != nil && err != nil {
 		log.Errorf("Timereader.returnBuffers: Error putting raw block buffer back to pool, err: %v", err)
 	}
 }
