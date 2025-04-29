@@ -745,6 +745,7 @@ function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte
             $('#agg-result-container').hide();
             $('#views-container, .fields-sidebar').show();
 
+            //eslint-disable-next-line no-undef
             updatePaginationState(res);
 
             if (res.hits.totalMatched) {
@@ -813,6 +814,7 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
         accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
     }
 
+    //eslint-disable-next-line no-undef
     updatePaginationState(res);
 
     if ((totalHits === 0 || totalHits === undefined) && res.measure === undefined && accumulatedRecords.length === 0) {
@@ -852,6 +854,8 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
             }
         } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
             renderLogsGrid(lastColumnsOrder, accumulatedRecords);
+
+            //eslint-disable-next-line no-undef
             initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
 
