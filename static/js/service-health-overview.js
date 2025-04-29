@@ -60,24 +60,30 @@ $(document).ready(() => {
         updateChartsTheme(gridLineColor, tickColor);
     });
 
-    $('.inner-range #' + startDate).addClass('active');
-    datePickerHandler(startDate, endDate, startDate);
-
+    $('.inner-range #' + (startDate || 'now-15m')).addClass('active');
     setupEventHandlers();
-    datePickerHandler(startDate, endDate, startDate);
+    if (startDate && !startDate.startsWith('now-') && endDate && endDate !== 'now') {
+        setupCustomRangeFromUrl(startDate, endDate);
+    } else {
+        datePickerHandler(startDate || 'now-15m', endDate || 'now', startDate || 'now-15m');
+    }
+
     $('.range-item, #customrange-btn').on('click', isGraphsDatePickerHandler);
-    // $('.range-item').on('click', isGraphsDatePickerHandler);
 
     window.addEventListener('popstate', function () {
-        const stDate = getParameterFromUrl('startEpoch') || 'now-1h';
+        const startDate = getParameterFromUrl('startEpoch') || 'now-1h';
         const endDate = getParameterFromUrl('endEpoch') || 'now';
 
         $('.range-item, #customrange-btn').removeClass('active');
-        $('.inner-range #' + stDate).addClass('active');
 
-        datePickerHandler(stDate, endDate, stDate);
+        if (startDate && !startDate.startsWith('now-') && endDate && endDate !== 'now') {
+            setupCustomRangeFromUrl(startDate, endDate);
+        } else {
+            $('.inner-range #' + (startDate || 'now-15m')).addClass('active');
+            datePickerHandler(startDate, endDate || 'now', startDate);
+        }
 
-        filterStartDate = stDate;
+        filterStartDate = startDate;
         filterEndDate = endDate;
 
         getOneServiceOverview();
@@ -85,6 +91,49 @@ $(document).ready(() => {
 
     getOneServiceOverview();
 });
+
+function setupCustomRangeFromUrl(startDate, endDate) {
+    $('#customrange-btn').addClass('active');
+    $('.range-item').removeClass('active');
+    
+    try {
+        const startTimestamp = isNaN(startDate) ? startDate : parseInt(startDate);
+        const endTimestamp = isNaN(endDate) ? endDate : parseInt(endDate);
+        
+        const startMoment = moment(startTimestamp);
+        const endMoment = moment(endTimestamp);
+        
+        if (startMoment.isValid() && endMoment.isValid()) {
+            const startDateStr = startMoment.format('YYYY-MM-DD');
+            const startTimeStr = startMoment.format('HH:mm');
+            const endDateStr = endMoment.format('YYYY-MM-DD');
+            const endTimeStr = endMoment.format('HH:mm');
+            
+            $('#date-start').val(startDateStr).addClass('active');
+            $('#time-start').val(startTimeStr).addClass('active');
+            $('#date-end').val(endDateStr).addClass('active');
+            $('#time-end').val(endTimeStr).addClass('active');
+            
+            tempStartDate = appliedStartDate = startDateStr;
+            tempStartTime = appliedStartTime = startTimeStr;
+            tempEndDate = appliedEndDate = endDateStr;
+            tempEndTime = appliedEndTime = endTimeStr;
+            
+            Cookies.set('customStartDate', startDateStr);
+            Cookies.set('customStartTime', startTimeStr);
+            Cookies.set('customEndDate', endDateStr);
+            Cookies.set('customEndTime', endTimeStr);
+            
+            filterStartDate = startTimestamp;
+            filterEndDate = endTimestamp;
+            
+            datePickerHandler(startTimestamp, endTimestamp, 'custom');
+        }
+    } catch (e) {
+        console.error('Error parsing date timestamps:', e);
+    }
+}
+
 
 function getTimeRange() {
     const urlStartEpoch = getParameterFromUrl('startEpoch');
@@ -153,7 +202,7 @@ function getOneServiceOverview() {
     let requestBody = {
         indexName: 'red-traces',
         queryLanguage: 'Splunk QL',
-        stDate: data.startEpoch,
+        startDate: data.startEpoch,
         endDate: data.endEpoch,
         searchText: serviceName,
     };
