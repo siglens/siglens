@@ -478,7 +478,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 				// The column doesn't exist.
 				return nil, nil
 			}
-			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %w", cname, err)
+			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
 		return values, nil
