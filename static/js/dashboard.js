@@ -931,7 +931,7 @@ function addPanel(chartIndex) {
             queryType = 'logs';
             queryData = {
                 state: 'query',
-                searchText: '',
+                searchText: 'city=Boston | stats count AS Count BY weekday',
                 startEpoch: filterStartDate,
                 endEpoch: filterEndDate,
                 indexName: selectedSearchIndex,

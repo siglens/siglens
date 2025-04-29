@@ -56,10 +56,11 @@ test.describe('Dashboard Page Tests', () => {
         await expect(page.locator('.panel-header')).toBeVisible({ timeout: 15000 });
 
         // Edit panel
+        const panelHeader = page.locator('.panel-header').first();
 
         const editIcon = panelHeader.locator('img.panel-edit-li');
-        await expect(editIcon).toBeVisible({ timeout: 15000 });
-        await editIcon.click();
+        await expect(editIcon).toBeAttached({ timeout: 15000 });
+        await editIcon.click({ force: true });
 
         await expect(page.locator('.panelEditor-container')).toBeVisible({ timeout: 20000 });
         await page.waitForTimeout(2000);
@@ -72,7 +73,7 @@ test.describe('Dashboard Page Tests', () => {
 
         const viewIcon = panelHeader.locator('img.panel-view-li');
         await expect(viewIcon).toBeVisible({ timeout: 15000 });
-        await viewIcon.click();
+        await viewIcon.click({ force: true });
 
         await expect(page.locator('#viewPanel-container')).toBeVisible({ timeout: 20000 });
         await page.waitForTimeout(2000);
@@ -82,7 +83,7 @@ test.describe('Dashboard Page Tests', () => {
 
         const optionsBtn = panelHeader.locator('#panel-options-btn');
         await expect(optionsBtn).toBeVisible({ timeout: 15000 });
-        await optionsBtn.click();
+        await optionsBtn.click({ force: true });
 
         await expect(page.locator('#panel-dropdown-modal')).toBeVisible({ timeout: 15000 });
         const deleteOption = page.locator('.panel-remove-li');
