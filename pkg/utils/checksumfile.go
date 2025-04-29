@@ -235,7 +235,7 @@ func readUint32At(fd *os.File, offset int64) (uint32, error) {
 	return BytesToUint32LittleEndian(buf), nil
 }
 
-// We will remove this method after all files have read data from the checksum files.
+// Will remove this method once all files read data through checksum files.
 func (csf *ChecksumFile) ReadBlock(buf []byte, offset int64) (int, error) {
 	magic, err := readUint32At(csf.Fd, csf.curCSFMetaLen+offset)
 	if err != nil {

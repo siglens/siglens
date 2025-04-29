@@ -221,6 +221,9 @@ func writeMockBlockRI(file string, blockRange []map[string]*structs.Numbers) {
 
 	for blkNum, blockRI := range blockRange {
 		packedLen, blkRIBuf, err := writer.EncodeRIBlock(blockRI, uint16(blkNum))
+		if err != nil {
+			log.Errorf("writeMockBlockRI: EncodeRIBlock: Failed to encode BlockRangeIndex=%+v, err=%v", blockRI, err)
+		}
 		err = csf.AppendPartialChunk(toputils.Uint32ToBytesLittleEndian(packedLen))
 		if err != nil {
 			log.Errorf("writeMockBlockRI: Error appending partial chunk for block number: %d, err=%v", blkNum, err)
