@@ -1245,9 +1245,6 @@ func WriteMockMetricsSegment(forceRotate bool, entryCount int) ([]*metrics.Metri
 
 func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, []byte, error) {
 	var idx uint32
-
-	idx += uint32(RI_BLK_LEN_SIZE)
-
 	// 255 for key + 1 (type) + 8 (MinVal) + 8 (MaxVal)
 	riSizeEstimate := (255 + 17) * len(blockRangeIndex)
 	blkRIBuf := make([]byte, riSizeEstimate)
@@ -1292,8 +1289,6 @@ func EncodeRIBlock(blockRangeIndex map[string]*Numbers, blkNum uint16) (uint32, 
 			idx += 8
 		}
 	}
-	// copy the recordlen at the start of the buf
-	utils.Uint32ToBytesLittleEndianInplace(uint32(idx-RI_BLK_LEN_SIZE), blkRIBuf[0:])
 	// log.Infof("EncodeRIBlock EncodeRIBlock=%v", blkRIBuf[:idx])
 	return idx, blkRIBuf, nil
 }

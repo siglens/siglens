@@ -1129,7 +1129,6 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 
 	// There is no accurate way to find the size of bloom before writing it to the file.
 	// So, we will first write a dummy 4 bytes of size and then write the actual bloom size later.
-	dataBuf.Write([]byte{0, 0, 0, 0})
 
 	// copy the blockNum
 	dataBuf.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks))
@@ -1145,8 +1144,18 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	}
 
 	finalBytes := dataBuf.Bytes()
-	bloomTotalSize := uint32(dataBuf.Len()) - 4 // exclude the 4-byte placeholder
-	copy(finalBytes[0:4], toputils.Uint32ToBytesLittleEndian(bloomTotalSize))
+	bloomTotalSize := uint32(dataBuf.Len())
+	err = csf.AppendPartialChunk(toputils.Uint32ToBytesLittleEndian(bloomTotalSize))
+	if err != nil {
+		log.Errorf("flushBloomIndex : failed to append partial chunk: %v", err)
+		return 0
+	}
+
+	err = csf.Flush()
+	if err != nil {
+		log.Errorf("flushBloomIndex : failed to flush partial chunk: %v", err)
+		return 0
+	}
 
 	err = csf.AppendPartialChunk(finalBytes)
 	if err != nil {
@@ -1168,7 +1177,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-utils.BLOOM_SIZE_HISTORY:]
 
 	}
-	return uint64(dataBuf.Len())
+	return uint64(dataBuf.Len() + 4)
 }
 
 // returns the number of bytes written
@@ -1207,7 +1216,7 @@ func (segstore *SegStore) flushBlockRangeIndex(cname string, ri *RangeIndex) uin
 
 	fname := fmt.Sprintf("%s_%v.cmi", segstore.SegmentKey, xxhash.Sum64String(cname))
 
-	fr, err := os.OpenFile(fname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	fr, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("flushBlockRangeIndex: open failed fname=%v, err=%v", fname, err)
 		return 0
@@ -1222,6 +1231,15 @@ func (segstore *SegStore) flushBlockRangeIndex(cname string, ri *RangeIndex) uin
 		return 0
 	}
 
+	if err := csf.AppendPartialChunk(toputils.Uint32ToBytesLittleEndian(packedLen)); err != nil {
+		log.Errorf("flushBlockRangeIndex: AppendPartialChunk failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+	if err := csf.Flush(); err != nil {
+		log.Errorf("flushBlockRangeIndex: Flush failed fname=%v, err=%v", fname, err)
+		return 0
+	}
+
 	if err := csf.AppendPartialChunk(blkRIBuf[:packedLen]); err != nil {
 		log.Errorf("flushBlockRangeIndex: AppendPartialChunk failed fname=%v, err=%v", fname, err)
 		return 0
@@ -1232,7 +1250,7 @@ func (segstore *SegStore) flushBlockRangeIndex(cname string, ri *RangeIndex) uin
 		return 0
 	}
 	fr.Close()
-	return uint64(packedLen)
+	return uint64(packedLen + 4)
 }
 
 func initPQTracker() *PQTracker {
@@ -1383,13 +1401,14 @@ func (ss *SegStore) writeWipTsRollups(cname string) error {
 }
 
 func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) error {
-	fd, err := os.OpenFile(fname, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	fd, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("writeSingleRup: open failed fname=%v, err=%v", fname, err)
 		return err
 	}
 
 	defer fd.Close()
+	csf := toputils.ChecksumFile{Fd: fd}
 
 	_, err = fd.Seek(0, 2) // go to the end of the file
 	if err != nil {
@@ -1397,33 +1416,47 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 		return err
 	}
 
-	// write blkNum
-	_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(blkNum))
+	// Append blkNum (2 bytes)
+	if err := csf.AppendPartialChunk(toputils.Uint16ToBytesLittleEndian(blkNum)); err != nil {
+		log.Errorf("writeSingleRup: blkNum write failed err=%v", err)
+		return err
+	}
+	err = csf.Flush()
 	if err != nil {
-		log.Errorf("writeSingleRup: blkNum write failed fname=%v, err=%v", fname, err)
+		log.Errorf("writeSingleRup : failed to flush chunk: %v", err)
 		return err
 	}
 
-	// write num of bucketKeys
-	_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(tRup))))
+	// Append number of bucket keys (2 bytes)
+	if err := csf.AppendPartialChunk(toputils.Uint16ToBytesLittleEndian(uint16(len(tRup)))); err != nil {
+		log.Errorf("writeSingleRup: bucket key count write failed err=%v", err)
+		return err
+	}
+
+	err = csf.Flush()
 	if err != nil {
-		log.Errorf("writeSingleRup: failed to write num of bucket keys %+v", err)
+		log.Errorf("writeSingleRup : failed to flush chunk: %v", err)
 		return err
 	}
 
 	for bkey, rr := range tRup {
 
 		// write bucketKey ts
-		if _, err = fd.Write(toputils.Uint64ToBytesLittleEndian(bkey)); err != nil {
+		if err := csf.AppendPartialChunk(toputils.Uint64ToBytesLittleEndian(bkey)); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v write failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
 			return err
 		}
 
 		// write encoding type
-		if _, err = fd.Write([]byte{utils.RR_ENC_BITSET}); err != nil {
+		if err := csf.AppendPartialChunk([]byte{utils.RR_ENC_BITSET}); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v enc type failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
+			return err
+		}
+		err = csf.Flush()
+		if err != nil {
+			log.Errorf("writeSingleRup : failed to flush chunk: %v", err)
 			return err
 		}
 
@@ -1432,17 +1465,32 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 		// pad an extra word (64 bits) so that shrink does not loose data
 		cb := rr.MatchedRes.Shrink(uint(rr.lastRecNum + 64))
 		mrSize := uint16(cb.GetInMemSize())
-		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(mrSize))); err != nil {
+		if err := csf.AppendPartialChunk(toputils.Uint16ToBytesLittleEndian(mrSize)); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v mrsize write failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
 			return err
 		}
 
-		// write actual bitset
-		err = cb.WriteTo(fd)
+		err = csf.Flush()
 		if err != nil {
+			log.Errorf("writeSingleRup : failed to flush chunk: %v", err)
+			return err
+		}
+
+		// write actual bitset
+		var bitsetBuf bytes.Buffer
+		if err := cb.WriteTo(&bitsetBuf); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v bitset write failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
+			return err
+		}
+		if err := csf.AppendPartialChunk(bitsetBuf.Bytes()); err != nil {
+			log.Errorf("writeSingleRup: bitset data append failed bkey=%v err=%v", bkey, err)
+			return err
+		}
+		err = csf.Flush()
+		if err != nil {
+			log.Errorf("writeSingleRup : failed to flush chunk: %v", err)
 			return err
 		}
 	}

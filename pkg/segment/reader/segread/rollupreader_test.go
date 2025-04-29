@@ -27,6 +27,7 @@ import (
 
 func TestTimestampRollupReads(t *testing.T) {
 	segkey := "data/rollup-readtest"
+	os.RemoveAll("data")
 	err := writer.WriteMockTsRollup(t, segkey)
 	assert.Nil(t, err)
 

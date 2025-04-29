@@ -58,7 +58,18 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	csf := &toputils.ChecksumFile{Fd: fd}
 	fileInfo, err := fd.Stat()
 	fileSize := fileInfo.Size()
-	fdata = make([]byte, fileSize-12)
+	magicNumBuf := make([]byte, 4)
+	_, err = csf.Fd.ReadAt(magicNumBuf, 0)
+	if err != nil {
+		return nil, fmt.Errorf("ReadSegStats: failed to read magic number from sst file: %v", fName)
+	}
+	magic := toputils.BytesToUint32LittleEndian(magicNumBuf)
+	if magic == toputils.MagicNumber {
+		fdata = make([]byte, fileSize-12) // 12 bytes for the checksum file metadata.
+	} else {
+		fdata = make([]byte, fileSize)
+	}
+
 	_, err = csf.ReadAt(fdata, 0)
 
 	// version
