@@ -931,7 +931,7 @@ function addPanel(chartIndex) {
             queryType = 'logs';
             queryData = {
                 state: 'query',
-                searchText: '*',
+                searchText: '',
                 startEpoch: filterStartDate,
                 endEpoch: filterEndDate,
                 indexName: selectedSearchIndex,
