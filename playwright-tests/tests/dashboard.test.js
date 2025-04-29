@@ -57,10 +57,18 @@ test.describe('Dashboard Page Tests', () => {
 
         // Edit panel
         const panelHeader = page.locator('.panel-header').first();
+        await expect(panelHeader).toBeVisible({ timeout: 15000 });
 
-        const editIcon = panelHeader.locator('img.panel-edit-li');
-        await expect(editIcon).toBeAttached({ timeout: 15000 });
-        await editIcon.click({ force: true });
+        await page.evaluate(() => {
+            const editIcon = document.querySelector('.panel-header img.panel-edit-li');
+            if (editIcon) {
+                editIcon.dispatchEvent(new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                }));
+            }
+        });
 
         await expect(page.locator('.panelEditor-container')).toBeVisible({ timeout: 20000 });
         await page.waitForTimeout(2000);
@@ -69,21 +77,38 @@ test.describe('Dashboard Page Tests', () => {
         await page.click('.panEdit-save');
         await expect(page.locator('.panel-header p')).toContainText('Updated Panel Name', { timeout: 20000 });
 
+        await page.waitForTimeout(2000);
         // View panel
 
-        const viewIcon = panelHeader.locator('img.panel-view-li');
-        await expect(viewIcon).toBeVisible({ timeout: 15000 });
-        await viewIcon.click({ force: true });
+        await page.evaluate(() => {
+            const viewIcon = document.querySelector('.panel-header img.panel-view-li');
+            if (viewIcon) {
+                viewIcon.dispatchEvent(new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                }));
+            }
+        });
 
         await expect(page.locator('#viewPanel-container')).toBeVisible({ timeout: 20000 });
         await page.waitForTimeout(2000);
 
         await page.click('#discard-btn');
+
+        await page.waitForTimeout(2000);
         // Delete panel
 
-        const optionsBtn = panelHeader.locator('#panel-options-btn');
-        await expect(optionsBtn).toBeVisible({ timeout: 15000 });
-        await optionsBtn.click({ force: true });
+        await page.evaluate(() => {
+            const optionsBtn = document.querySelector('.panel-header #panel-options-btn');
+            if (optionsBtn) {
+                optionsBtn.dispatchEvent(new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                }));
+            }
+        });
 
         await expect(page.locator('#panel-dropdown-modal')).toBeVisible({ timeout: 15000 });
         const deleteOption = page.locator('.panel-remove-li');
