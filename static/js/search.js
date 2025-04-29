@@ -676,6 +676,8 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
 }
 
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
+    lastQType = res.qtype;
+
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
             lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.columnsOrder]);
