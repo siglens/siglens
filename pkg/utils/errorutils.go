@@ -18,6 +18,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -234,4 +235,15 @@ func IsNotExistError(err error) bool {
 	}
 
 	return os.IsNotExist(err)
+}
+
+func FullUnwrapError(err error) error {
+	for {
+		e := errors.Unwrap(err)
+		if e == nil {
+			return err
+		}
+
+		err = e
+	}
 }
