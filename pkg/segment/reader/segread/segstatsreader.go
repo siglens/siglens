@@ -77,6 +77,9 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 	}
 
 	_, err = csf.ReadAt(fdata, 0)
+	if err != nil {
+		log.Errorf("ReadSegStats: failed to read data from file: %v", err)
+	}
 
 	// version
 	version := fdata[rIdx]
