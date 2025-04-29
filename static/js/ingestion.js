@@ -193,29 +193,15 @@ function navigateToLogDetails(source, ingestURL) {
     $('#verify-command-hec').text(hecCommand);
     $('#platform-input').val(source);
 
-    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
-    let docPath = '';
     let urlParam = '';
 
     switch (source) {
-        case 'Elastic Bulk':
-            docPath = 'migration/elasticsearch/fluentd';
-            urlParam = 'elasticbulk';
-            break;
-        case 'Splunk HEC':
-            docPath = 'migration/splunk/fluentd';
-            urlParam = 'splunkhec';
-            break;
         case 'Send Test Data':
             urlParam = 'sendtestdata';
             break;
         case 'Verify Connection':
             urlParam = 'verifyconnection';
             break;
-    }
-
-    if (docPath) {
-        $('#logs-setup-instructions-link').attr('href', docsBaseUrl + docPath);
     }
 
     updateUrlParameter('method', urlParam);
