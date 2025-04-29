@@ -289,7 +289,6 @@ function applyFieldsSidebarState(isHidden) {
     } else {
         fieldsSidebar.classList.remove('hidden');
         if (resizer) {
-            console.log('resizer hide');
             resizer.style.display = 'block';
         }
     }
