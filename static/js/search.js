@@ -1298,11 +1298,7 @@ function updateGridView() {
     const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
 
     if (currentPageData.length > 0 && gridOptions?.api) {
-        if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
-            gridOptions.api.setRowData(currentPageData);
-        } else {
-            gridOptions.api.setRowData(currentPageData);
-        }
+        gridOptions.api.setRowData(currentPageData);
 
         const allColumnIds = [];
         gridOptions.columnApi.getColumns().forEach((column) => {
