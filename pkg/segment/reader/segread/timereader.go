@@ -425,7 +425,7 @@ func ReadAllTimestampsForBlock(blkNums map[uint16]struct{}, segKey string,
 				break
 			}
 		}
-		buffer := segreader.GetBufFromPool(int64(segreader.COMPRESSION_FACTOR * blkLen))
+		buffer := segreader.GetBufFromPool(int64(blkLen))
 		rawChunk, err := readChunkFromFile(fd, buffer, blkLen, firstBlkOff)
 		if err != nil {
 			retErr = fmt.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
