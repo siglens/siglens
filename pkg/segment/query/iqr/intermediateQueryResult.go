@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"reflect"
 	"sort"
 
@@ -449,22 +450,20 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 
 // If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
-	allColumns, err := iqr.getColumnsInternal()
-	if err != nil {
-		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error getting all columns: %v", err)
-	}
-
-	if _, ok := allColumns[cname]; !ok {
+	if _, ok := iqr.deletedColumns[cname]; ok {
 		return nil, nil
 	}
 
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
+		if rrc == nil {
+			return NIL_RRC_SEGKEY
+		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
-		if len(rrcs) == 0 {
+		if len(rrcs) == 0 || rrcs[0] == nil {
 			return nil, nil
 		}
 
@@ -475,6 +474,10 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
+			if os.IsNotExist(toputils.FullUnwrapError(err)) {
+				// The column doesn't exist.
+				return nil, nil
+			}
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
