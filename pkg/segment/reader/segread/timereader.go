@@ -431,6 +431,12 @@ func ReadAllTimestampsForBlock(blkNums map[uint16]struct{}, segKey string,
 			retErr = fmt.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
 			continue
 		}
+		defer func() {
+			err := segreader.PutBufToPool(rawChunk)
+			if err != nil {
+				log.Errorf("Timereader.ReadAllTimestampsForBlock: Error putting raw block buffer back to pool, err: %v", err)
+			}
+		}()
 
 		readOffset := int64(0)
 		for currBlk := minBlkNum; currBlk <= allBlocks[maxIdx]; currBlk++ {
@@ -440,11 +446,6 @@ func ReadAllTimestampsForBlock(blkNums map[uint16]struct{}, segKey string,
 			allReadJob <- &timeBlockRequest{tsRec: rawBlock, blkNum: currBlk, numRecs: numRecs}
 			readOffset += readLen
 		}
-		err = segreader.PutBufToPool(rawChunk)
-		if err != nil {
-			log.Errorf("Timereader.ReadAllTimestampsForBlock: Error putting raw block buffer back to pool, err: %v", err)
-		}
-
 	}
 	close(allReadJob)
 	readerWG.Wait()
