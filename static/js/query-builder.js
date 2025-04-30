@@ -56,10 +56,13 @@ $('#custom-chart-tab').tabs({
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#save-query-div').children().show();
-            $('#views-container, .fields-sidebar, #pagination-container').show();
+            if(lastQType === 'logs-query'){
+                $('#views-container, .fields-sidebar, .expand-svg-container').show();
+            }
+            $('#pagination-container').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar, #pagination-container').hide();
+            $('#views-container, .fields-sidebar, .fields-resizer, .expand-svg-container , #pagination-container').hide();
 
             timeChart();
         }

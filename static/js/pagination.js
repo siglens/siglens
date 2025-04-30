@@ -66,72 +66,55 @@ function goToPage(page) {
 }
 
 //eslint-disable-next-line no-unused-vars
-function handleSearchResultsForPagination(results) {
+function updatePaginationState(results) {
     $('#pagination-container').show();
-    // For aggs and segstats queries
-    if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
-        if (!accumulatedRecords.length) {
-            accumulatedRecords = [];
-            currentPage = 1;
-        }
-        if (results.state === 'QUERY_UPDATE' && results.measure) {
-            if (Array.isArray(results.measure)) {
-                accumulatedRecords = [...accumulatedRecords, ...results.measure];
+
+    if (results.qtype === 'logs-query') {
+        if (results.state === 'QUERY_UPDATE' && results.hits) {
+            // Only reset records if this is a new search (not a load more)
+            if (totalLoadedRecords === 0) {
+                currentPage = 1;
             }
 
-            totalLoadedRecords = accumulatedRecords.length;
-            updateGridView();
-            updatePaginationDisplay();
+            // Update total loaded records
+            if (results.hits.records) {
+                totalLoadedRecords = accumulatedRecords.length;
+
+                if (results.from > 0) {
+                    const totalPages = Math.ceil(totalLoadedRecords / pageSize);
+
+                    // If we're on the last page, stay there
+                    if (currentPage === Math.ceil(results.from / pageSize)) {
+                        currentPage = totalPages;
+                    }
+                }
+            }
+
+            if (results.hits.totalMatched) {
+                hasMoreRecords = results.hits.totalMatched.relation === 'gte';
+            }
+        } else if (results.state === 'COMPLETE') {
+            if (results.totalMatched) {
+                totalLoadedRecords = accumulatedRecords.length;
+                hasMoreRecords = results.totalMatched.relation === 'gte';
+            }
+        }
+    } else if (results.qtype === 'aggs-query' || results.qtype === 'segstats-query') {
+        if (results.state === 'QUERY_UPDATE' && results.measure) {
+            if (totalLoadedRecords === 0) {
+                currentPage = 1;
+            }
         } else if (results.state === 'COMPLETE') {
             if (results.bucketCount) {
                 totalLoadedRecords = results.bucketCount;
                 hasMoreRecords = false;
             }
-
-            updateGridView();
-            updatePaginationDisplay();
-            updateLoadMoreMessage();
         }
-        return;
     }
 
-    // For logs-query
-    if (results.state === 'QUERY_UPDATE' && results.hits) {
-        // Only reset records if this is a new search (not a load more)
-        if (totalLoadedRecords === 0) {
-            accumulatedRecords = [];
-            currentPage = 1;
-        }
+    updatePaginationDisplay();
 
-        // Add new records if available
-        if (results.hits.records && Array.isArray(results.hits.records)) {
-            accumulatedRecords = [...accumulatedRecords, ...results.hits.records];
-            logsRowData = accumulatedRecords;
-            totalLoadedRecords = accumulatedRecords.length;
-
-            if (results.from > 0) {
-                const totalPages = Math.ceil(totalLoadedRecords / pageSize);
-
-                // If we're on the last page, stay there
-                if (currentPage === Math.ceil(results.from / pageSize)) {
-                    currentPage = totalPages;
-                }
-            }
-        }
-
-        if (results.hits.totalMatched) {
-            hasMoreRecords = results.hits.totalMatched.relation === 'gte';
-        }
-
-        updateGridView();
-        updatePaginationDisplay();
-    } else if (results.state === 'COMPLETE') {
-        if (results.totalMatched) {
-            totalLoadedRecords = results.totalMatched.value;
-            hasMoreRecords = results.totalMatched.relation === 'gte';
-        }
-        updateGridView();
-        updatePaginationDisplay();
+    if (results.state === 'COMPLETE') {
         updateLoadMoreMessage();
     }
 }
