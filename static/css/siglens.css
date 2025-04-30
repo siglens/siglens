@@ -7196,14 +7196,6 @@ p#versionInfo {
     overflow: hidden;
 }
 
-.custom-chart-tab.expanded {
-    width: 100%;
-}
-
-.custom-chart-container.full-width {
-    padding-left: 0;
-}
-
 .json-popup {
     width: 0;
     background-color: var(--black1-to-white0);
