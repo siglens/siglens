@@ -181,13 +181,6 @@ func getRank(CValEnc *segutils.CValueEnclosure, op string) dTypeRank {
 
 // Returns A comparison B
 func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool, op string) compare {
-	switch valueA.Dtype {
-	case segutils.SS_DT_STRING:
-		switch valueB.Dtype {
-		case segutils.SS_DT_STRING:
-			return compareString(valueA.CVal.(string), valueB.CVal.(string))
-		}
-	}
 	var result compare
 	rankA := getRank(valueA, op)
 	rankB := getRank(valueB, op)
