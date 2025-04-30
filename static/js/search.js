@@ -149,7 +149,7 @@ function doSearch(data) {
                 case 'ERROR':
                     console.time('ERROR');
                     console.log(`[message] Error state received from server: ${jsonEvent}`);
-                    processErrorUpdate(jsonEvent);
+                    processErrorUpdate(jsonEvent.message);
                     console.timeEnd('ERROR');
                     errorMessages.push(`Error: ${jsonEvent}`);
                     break;
@@ -166,11 +166,21 @@ function doSearch(data) {
         };
 
         socket.onclose = function (event) {
+            const reasonText = event.reason ? event.reason : 'No reason provided';
+            
             if (event.wasClean) {
-                console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+                console.log(`[close] Connection closed cleanly, code=${event.code} reason=${reasonText}`);
             } else {
-                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
-                errorMessages.push(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+                let errorMessage;
+                if (event.code === 1006) {
+                    errorMessage = 'Connection failed - The server may be down or unreachable';
+                } else {
+                    errorMessage = `Connection closed abnormally (code: ${event.code}, reason: ${reasonText})`;
+                }
+                console.log(`Abnormal WebSocket close: code=${event.code}, reason=${reasonText}`);
+                errorMessages.push(errorMessage);
+
+                processErrorUpdate(errorMessage);
             }
 
             if (errorMessages.length === 0) {
@@ -293,7 +303,7 @@ function doLiveTailSearch(data) {
             case 'ERROR':
                 console.time('ERROR');
                 console.log(`[message] Error state received from server: ${jsonEvent}`);
-                processErrorUpdate(jsonEvent);
+                processErrorUpdate(jsonEvent.message);
                 console.timeEnd('ERROR');
                 break;
             default:
@@ -838,8 +848,8 @@ function processCancelUpdate(res) {
     $('#show-record-intro-btn').hide();
 }
 
-function processErrorUpdate(res) {
-    showError(`Message: ${res.message}`);
+function processErrorUpdate(message) {
+    showError(`Message: ${message}`);
 }
 
 function processSearchErrorLog(res) {
