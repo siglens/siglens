@@ -82,7 +82,7 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 
 	allFiles, err := reader.ReadSegFilesFromBlob(segKey, allCols)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%v", qid, err)
+		return nil, toputils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%w", qid, err)
 	}
 
 	defer func() {
