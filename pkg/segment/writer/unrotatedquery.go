@@ -227,20 +227,18 @@ func IsSegKeyUnrotated(key string) bool {
 	return ok
 }
 
-// Returns a copy of AllColumns seen for a given key from the unrotated segment infos
-// If no key exists, returns an error
-func CheckAndGetColsForUnrotatedSegKey(key string) (map[string]bool, bool) {
+// If no segkey exists, returns false
+func CheckAndCollectColNamesForSegKey(key string, resCnames map[string]struct{}) bool {
 	UnrotatedInfoLock.RLock()
 	defer UnrotatedInfoLock.RUnlock()
 	cols, keyOk := AllUnrotatedSegmentInfo[key]
 	if !keyOk {
-		return nil, false
+		return false
 	}
-	colsCopy := make(map[string]bool, len(cols.allColumns))
 	for colName := range cols.allColumns {
-		colsCopy[colName] = true
+		resCnames[colName] = struct{}{}
 	}
-	return colsCopy, true
+	return true
 }
 
 // returns a copy of the unrotated block search info. This is to prevent concurrent modification

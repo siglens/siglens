@@ -229,7 +229,7 @@ func InitSharedMultiColumnReaders(segKey string, colNames map[string]bool,
 			currFd, rotatedErr = os.OpenFile(rotatedFName, os.O_RDONLY, 0644)
 			if rotatedErr != nil {
 				err := fmt.Errorf("qid=%d, InitSharedMultiColumnReaders: failed to open file %s for column %s."+
-					" Error: %v. Also failed to open rotated file %s with error: %v",
+					" Error: %w. Also failed to open rotated file %s with error: %v",
 					qid, fName, colName, err, rotatedFName, rotatedErr)
 				if len(sharedReader.columnErrorMap) < utils.MAX_SIMILAR_ERRORS_TO_LOG {
 					sharedReader.columnErrorMap[colName] = err
