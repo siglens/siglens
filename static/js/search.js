@@ -336,6 +336,8 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryMode = Cookies.get('queryMode') || 'Builder';
 
     let fieldsHidden = queryParams.get('fieldsHidden') || true;
+
+    //eslint-disable-next-line no-undef
     applyFieldsSidebarState(fieldsHidden);
 
     queryLanguage = queryLanguage.replace('"', '');

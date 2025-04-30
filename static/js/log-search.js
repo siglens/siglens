@@ -120,7 +120,7 @@ $(document).ready(async () => {
     }
 
     doSearch(data);
-
+    //eslint-disable-next-line no-undef
     initSidebarToggle();
     initializePagination();
     const pageSizeSelect = document.getElementById('page-size-select');

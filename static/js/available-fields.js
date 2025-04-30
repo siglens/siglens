@@ -393,6 +393,7 @@ function positionToggleButton(buttonElement, isHidden) {
     }, 50);
 }
 
+//eslint-disable-next-line no-unused-vars
 function initSidebarToggle() {
     // Check URL for initial state
     const searchParams = new URLSearchParams(window.location.search);
