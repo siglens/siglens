@@ -745,7 +745,8 @@ func (sfr *SegmentFileReader) AddRecNumsToMr(dwordIdx uint16, bsh *structs.Block
 	validRecords := bsh.GetValidRecords()
 
 	if validRecords == nil {
-		for i := uint16(0); i < sfr.blockSummaries[sfr.currBlockNum].RecCount; i++ {
+		recCount := sfr.blockSummaries[sfr.currBlockNum].RecCount
+		for i := uint16(0); i < recCount; i++ {
 			if sfr.deRecToTlv[i] == dwordIdx {
 				bsh.AddMatchedRecord(uint(i))
 			}
