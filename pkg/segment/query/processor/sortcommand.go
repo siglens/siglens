@@ -37,6 +37,15 @@ type sortProcessor struct {
 	hasFinalResult bool
 }
 
+func (p *sortProcessor) getSortColumns() []string {
+	cnames := make([]string, len(p.options.SortEles))
+	for i, element := range p.options.SortEles {
+		cnames[i] = element.Field
+	}
+
+	return cnames
+}
+
 func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	if inputIQR == nil {
 		// There's no more input, so we can send the results.
@@ -44,7 +53,7 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		return p.resultsSoFar, io.EOF
 	}
 
-	err := inputIQR.Sort(p.less)
+	err := inputIQR.Sort(p.getSortColumns(), p.lessGivenColumns)
 	if err != nil {
 		log.Errorf("sort.Process: cannot sort IQR; err=%v", err)
 		return nil, err
@@ -237,6 +246,20 @@ func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool, op string
 	}
 
 	return result
+}
+
+func (p *sortProcessor) lessGivenColumns(a, b *iqr.Record) bool {
+	for i, element := range p.options.SortEles {
+		valA := a.SortValues[i][a.Index]
+		valB := b.SortValues[i][b.Index]
+
+		comparison := compareValues(&valA, &valB, element.SortByAsc, element.Op)
+		if comparison != EQUAL {
+			return comparison == LESS
+		}
+	}
+
+	return false
 }
 
 // This function cannot return an error, so it stores any error in the
