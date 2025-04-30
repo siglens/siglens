@@ -675,7 +675,6 @@ func (iqr *IQR) GetRecord(index int) *Record {
 }
 
 func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) error {
-	// log.Errorf("andrew sorting %v items in IQR", iqr.NumberOfRecords())
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
