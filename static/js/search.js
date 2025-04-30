@@ -1299,11 +1299,5 @@ function updateGridView() {
 
     if (currentPageData.length > 0 && gridOptions?.api) {
         gridOptions.api.setRowData(currentPageData);
-
-        const allColumnIds = [];
-        gridOptions.columnApi.getColumns().forEach((column) => {
-            allColumnIds.push(column.getId());
-        });
-        gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
     }
 }
