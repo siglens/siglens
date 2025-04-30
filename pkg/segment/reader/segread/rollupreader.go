@@ -174,17 +174,18 @@ func readRollupFile(fd *os.File,
 	var blkNum uint16
 	bbBlkNum := make([]byte, 2) // blkNum (2)
 	var bKey uint64
-	bbBKey := make([]byte, 9) // for bucket key timestamp + RR_ENC_BITSET
+	bbBKey := make([]byte, 9) // for bucket key timestamp + RR_ENC_TYPE
 	var numBucks uint16
 	bbNumBucks := make([]byte, 2) // for num of buckets
 	var mrSize uint16
 	bbMrSize := make([]byte, 2) // for bitset match result size
 
 	bsBlk := make([]byte, segutils.WIP_NUM_RECS/8)
-
+	curCSFMetaLen := int64(0)
+	var err error
 	for {
 		// read blkNum
-		_, err := f.ReadBlock(bbBlkNum, offset)
+		_, curCSFMetaLen, err = f.ReadChunkAt(bbBlkNum, offset, curCSFMetaLen)
 		if err != nil {
 			if err != io.EOF {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read blkNum err: %+v",
@@ -198,7 +199,7 @@ func readRollupFile(fd *os.File,
 		allBlks[blkNum] = toxRollup
 
 		// read num of buckets
-		_, err = f.ReadBlock(bbNumBucks, offset)
+		_, curCSFMetaLen, err = f.ReadChunkAt(bbNumBucks, offset, curCSFMetaLen)
 		if err != nil {
 			if err != io.EOF {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read num of buckets, err: %+v", qid, err)
@@ -210,7 +211,7 @@ func readRollupFile(fd *os.File,
 
 		for i := uint16(0); i < numBucks; i++ {
 			// read bucketKey timestamp
-			_, err = f.ReadBlock(bbBKey, offset)
+			_, curCSFMetaLen, err = f.ReadChunkAt(bbBKey, offset, curCSFMetaLen)
 			if err != nil {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read bKey err: %+v",
 					qid, err)
@@ -222,7 +223,7 @@ func readRollupFile(fd *os.File,
 			offset += 1
 
 			// read matched result bitset size
-			_, err = f.ReadBlock(bbMrSize, offset)
+			_, curCSFMetaLen, err = f.ReadChunkAt(bbMrSize, offset, curCSFMetaLen)
 			if err != nil {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read mrsize for blk, err: %+v",
 					qid, err)
@@ -233,7 +234,7 @@ func readRollupFile(fd *os.File,
 			bsBlk = utils.ResizeSlice(bsBlk, int(mrSize))
 
 			// read the actual bitset
-			_, err = f.ReadBlock(bsBlk[:mrSize], offset)
+			_, curCSFMetaLen, err = f.ReadChunkAt(bsBlk[:mrSize], offset, curCSFMetaLen)
 			if err != nil {
 				if err != io.EOF {
 					return fmt.Errorf("qid=%d, readRollupFile: failed to read bitset, err: %+v",

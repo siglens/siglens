@@ -257,8 +257,9 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 		csf := toputils.ChecksumFile{Fd: fd}
 
 		offset := int64(0)
+		curCSFMetaLen := int64(0)
 		for {
-			_, err = csf.ReadBlock(bb, offset)
+			_, curCSFMetaLen, err = csf.ReadChunkAt(bb, offset, curCSFMetaLen)
 			if err != nil {
 				if err != io.EOF {
 					log.Errorf("readCmis: failed to read cmilen err=[%+v], continuing with rest cmis", err)
@@ -270,7 +271,7 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 			cmilen := toputils.BytesToUint32LittleEndian(bb[0:utils.LEN_BLOCK_CMI_SIZE])
 			cmbuf = toputils.ResizeSlice(cmbuf, int(cmilen))
 
-			_, err = csf.ReadBlock(cmbuf[:cmilen], offset)
+			_, curCSFMetaLen, err = csf.ReadChunkAt(cmbuf[:cmilen], offset, curCSFMetaLen)
 			if err != nil {
 				if err != io.EOF {
 					log.Errorf("readCmis: failed to read cmi err=[%+v], continuing with rest cmis", err)

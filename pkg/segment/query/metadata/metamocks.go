@@ -224,26 +224,14 @@ func writeMockBlockRI(file string, blockRange []map[string]*structs.Numbers) {
 		if err != nil {
 			log.Errorf("writeMockBlockRI: EncodeRIBlock: Failed to encode BlockRangeIndex=%+v, err=%v", blockRI, err)
 		}
-		err = csf.AppendPartialChunk(toputils.Uint32ToBytesLittleEndian(packedLen))
+		err = csf.AppendChunk(toputils.Uint32ToBytesLittleEndian(packedLen))
 		if err != nil {
-			log.Errorf("writeMockBlockRI: Error appending partial chunk for block number: %d, err=%v", blkNum, err)
+			log.Errorf("writeMockBlockRI: Error appending chunk for block number: %d, err=%v", blkNum, err)
 			return
 		}
 
-		err = csf.Flush()
-		if err != nil {
-			log.Errorf("writeMockBlockRI : failed to fulsh block err %v", err)
-			return
-		}
-
-		if err := csf.AppendPartialChunk(blkRIBuf[0:packedLen]); err != nil {
+		if err := csf.AppendChunk(blkRIBuf[0:packedLen]); err != nil {
 			log.Errorf("writeMockBlockRI:  write failed blockRangeIndexFname=%v, err=%v", file, err)
-			return
-		}
-
-		err = csf.Flush()
-		if err != nil {
-			log.Errorf("writeMockBlockRI : failed to fulsh block err %v", err)
 			return
 		}
 	}

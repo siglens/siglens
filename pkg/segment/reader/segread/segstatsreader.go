@@ -37,14 +37,14 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to download sst file: %+v, err: %v", qid, fName, err)
 	}
 
-	fdata, err := os.ReadFile(fName)
-	if err != nil {
-		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to read sst file: %+v, err: %v", qid, fName, err)
-	}
 	fd, err := os.Open(fName)
 	if err != nil {
-		log.Errorf("ReadSegStats: failed to open file %s: %v", fName, err)
+		log.Errorf("qid=%d, ReadSegStats: failed to open file %s: %v", qid, fName, err)
+		return retVal, err
 	}
+	defer fd.Close()
+
+	csf := toputils.ChecksumFile{Fd: fd}
 
 	defer func() {
 		err := blob.SetSegSetFilesAsNotInUse([]string{fName})
@@ -53,35 +53,43 @@ func ReadSegStats(segkey string, qid uint64) (map[string]*structs.SegStats, erro
 		}
 	}()
 
-	if len(fdata) == 0 {
-		return nil, fmt.Errorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
-	}
-
-	rIdx := uint32(0)
-	csf := &toputils.ChecksumFile{Fd: fd}
 	fileInfo, err := fd.Stat()
 	if err != nil {
-		log.Errorf("ReadSegStats: failed to get file info for %s: %v", fName, err)
+		log.Errorf("qid=%d, ReadSegStats: failed to stat file %s: %v", qid, fName, err)
+		return retVal, err
 	}
 	fileSize := fileInfo.Size()
+	if fileSize == 0 {
+		return retVal, fmt.Errorf("qid=%d, ReadSegStats: empty sst file: %v", qid, fName)
+	}
+
 	magicNumBuf := make([]byte, 4)
 	_, err = csf.Fd.ReadAt(magicNumBuf, 0)
 	if err != nil {
-		return nil, fmt.Errorf("ReadSegStats: failed to read magic number from sst file: %v", fName)
+		return retVal, fmt.Errorf("qid=%d, ReadSegStats: failed to read magic number: %v", qid, err)
 	}
 	magic := toputils.BytesToUint32LittleEndian(magicNumBuf)
+
+	var dataSize int64
 	if magic == toputils.MagicNumber {
-		fdata = make([]byte, fileSize-12) // 12 bytes for the checksum file metadata.
+		const checksumMetadataSize int64 = 12
+		if fileSize < checksumMetadataSize {
+			return retVal, fmt.Errorf("qid=%d, ReadSegStats: file too small for checksum format: %v", qid, fName)
+		}
+		dataSize = fileSize - checksumMetadataSize
 	} else {
-		fdata = make([]byte, fileSize)
+		dataSize = fileSize
 	}
 
+	fdata := make([]byte, dataSize)
 	_, err = csf.ReadAt(fdata, 0)
 	if err != nil {
-		log.Errorf("ReadSegStats: failed to read data from file: %v", err)
+		log.Errorf("qid=%d, ReadSegStats: failed to read file data: %v", qid, err)
+		return retVal, err
 	}
 
 	// version
+	rIdx := uint32(0)
 	version := fdata[rIdx]
 	rIdx++
 
