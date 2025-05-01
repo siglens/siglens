@@ -242,7 +242,8 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
 	}
 
-	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation, true)
+	maxParallelism := runtime.GOMAXPROCS(0)
+	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation, maxParallelism)
 	return enclosures, nil
 }
 

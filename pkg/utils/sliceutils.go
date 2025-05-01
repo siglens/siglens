@@ -150,7 +150,11 @@ type orderedItems[T any] struct {
 //
 // The output order is the same as the input order.
 func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
-	batchKeyLess Option[func(K, K) bool], operation func([]T) ([]R, error), allowParallel bool) ([]R, error) {
+	batchKeyLess Option[func(K, K) bool], operation func([]T) ([]R, error), maxParallelism int) ([]R, error) {
+
+	if maxParallelism < 1 {
+		maxParallelism = 1
+	}
 
 	// Batch the items, but track their original order.
 	batches := make(map[K]*orderedItems[T])
@@ -180,7 +184,7 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 	wg := sync.WaitGroup{}
 	var finalErr error
 	results := make([]R, len(slice))
-	for _, key := range batchKeys {
+	for i, key := range batchKeys {
 		wg.Add(1)
 		go func(key K) {
 			defer wg.Done()
@@ -196,7 +200,7 @@ func BatchProcess[T any, K comparable, R any](slice []T, batchBy func(T) K,
 			}
 		}(key)
 
-		if !allowParallel {
+		if (i+1)%maxParallelism == 0 {
 			wg.Wait()
 		}
 	}
