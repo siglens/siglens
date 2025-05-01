@@ -707,7 +707,7 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 
 	// If we only want to keep a few records, use a heap to save CPU. If we
 	// want to keep a lot, sort in place to save memory.
-	threshold := 10000 // TODO: tune this
+	threshold := 1000 // TODO: tune this
 	if limit <= threshold {
 		records = toputils.GetTopN(limit, records, less)
 	} else {
