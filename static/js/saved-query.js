@@ -102,7 +102,7 @@ function setSaveQueriesDialog() {
         height: 307,
         width: 464,
         modal: true,
-        title: 'Saved Query',
+        title: 'Save Query',
         position: {
             my: 'center',
             at: 'center',
