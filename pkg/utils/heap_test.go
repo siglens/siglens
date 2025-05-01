@@ -28,7 +28,7 @@ func Test_ImplementsHeap(t *testing.T) {
 	var _ heap.Interface = NewHeap(func(a, b int) bool { return a < b })
 }
 
-func TestHeapBasicOperations(t *testing.T) {
+func Test_HeapBasicOperations(t *testing.T) {
 	// Max heap for integers
 	h := NewHeap(func(a, b int) bool { return a > b })
 
@@ -71,7 +71,7 @@ func TestHeapBasicOperations(t *testing.T) {
 	}
 }
 
-func TestHeapConvenienceMethods(t *testing.T) {
+func Test_HeapConvenienceMethods(t *testing.T) {
 	// Min heap for strings
 	h := NewHeap(func(a, b string) bool { return a < b })
 	heap.Init(h)
@@ -97,7 +97,7 @@ func TestHeapConvenienceMethods(t *testing.T) {
 	}
 }
 
-func TestTopN(t *testing.T) {
+func Test_TopN(t *testing.T) {
 	data := []int{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9}
 
 	top5 := GetTopN(5, data, func(a, b int) bool {
