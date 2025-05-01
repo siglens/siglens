@@ -268,6 +268,12 @@ function runPanelLogsQuery(data, panelId, currentPanel, queryRes) {
     return new Promise(function (resolve, reject) {
         $('body').css('cursor', 'progress');
 
+        if (currentPanel && currentPanel.isNewPanel === true && (!data.searchText || data.searchText.trim() === '')) {
+            $('body').css('cursor', 'default');
+            resolve();
+            return;
+        }
+
         if (queryRes) {
             renderChartByChartType(data, queryRes, panelId, currentPanel);
             $('body').css('cursor', 'default');

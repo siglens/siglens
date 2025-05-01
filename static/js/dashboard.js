@@ -985,9 +985,10 @@ function addPanel(chartIndex) {
         queryData: queryData,
         logLinesViewType: logLinesViewType,
         unit: unit,
+        isNewPanel: true, // Keep the flag for log panels
     });
 
-    editPanelInit(panelIndex);
+    editPanelInit(panelIndex, true);
     $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
     handlePanelEdit();

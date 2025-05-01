@@ -257,7 +257,7 @@ function checkChartType(currentPanel) {
     }
 }
 //eslint-disable-next-line no-unused-vars
-async function editPanelInit(redirectedFromViewScreen) {
+async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
     queries = {};
     formulas = {};
     if (redirectedFromViewScreen === -1) {
@@ -456,8 +456,12 @@ async function editPanelInit(redirectedFromViewScreen) {
     // Pause the Refresh when on Edit Panel Screen
     pauseRefreshInterval();
 
-    //  Run the query
-    await runQueryBtnHandler();
+    // Run the query only if not a new log panel with an empty query
+    if (currentPanel.queryType === 'logs' && isNewPanel && (!currentPanel.queryData.searchText || currentPanel.queryData.searchText.trim() === '')) {
+        $('.panelDisplay #empty-response').show().html('<div>Please enter a query to run.</div>').css('background-color', 'var(--datatable-bg-color)');
+    } else {
+        await runQueryBtnHandler();
+    }
 }
 
 function loadVisualizationOptions(panelType) {
