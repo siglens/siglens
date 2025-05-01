@@ -259,7 +259,7 @@ func (iqrRdr *IQRReader) readColumnsForRRCs(segKey string, vTable string, rrcs [
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: cannot read columns for segKey=%v; err=%v", segKey, err)
+		return nil, fmt.Errorf("iqrReader.ReadAllColsForRRCs: cannot read columns for segKey=%v; err=%w", segKey, err)
 	}
 
 	return knownValues, nil
@@ -312,7 +312,7 @@ func (iqrRdr *IQRReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResul
 
 	knownValues, err := iqrRdr.readColumnsForRRCs(segKey, "", rrcs, qid, nil, &cname)
 	if err != nil {
-		return nil, fmt.Errorf("iqrReader.ReadColForRRCs: cannot read column %v for segKey=%v; err=%v", cname, segKey, err)
+		return nil, fmt.Errorf("iqrReader.ReadColForRRCs: cannot read column %v for segKey=%v; err=%w", cname, segKey, err)
 	}
 
 	if values, ok := knownValues[cname]; ok {

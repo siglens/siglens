@@ -202,7 +202,7 @@ function updateAvailableFieldsUI() {
     });
 }
 
-jQuery(document).ready(function() {
+jQuery(document).ready(function () {
     //Resizing Fields Sidebar
     const fieldsSidebar = jQuery('.fields-sidebar');
     const chartContainer = jQuery('.custom-chart-container');
@@ -210,14 +210,14 @@ jQuery(document).ready(function() {
     if (fieldsSidebar.length === 0 || chartContainer.length === 0) return;
 
     const resizer = jQuery('<div>', {
-        class: 'fields-resizer'
+        class: 'fields-resizer',
     });
     fieldsSidebar.after(resizer);
 
     let initialWidth = localStorage.getItem('fieldsSidebarWidth') || 250;
     fieldsSidebar.css('width', initialWidth + 'px');
 
-    resizer.on('mousedown', function(e) {
+    resizer.on('mousedown', function (e) {
         e.preventDefault();
         resizer.addClass('active');
 
@@ -248,10 +248,164 @@ jQuery(document).ready(function() {
         fieldsSidebar.css('width', savedWidth + 'px');
     }
 
-    jQuery(window).on('resize', function() {
+    jQuery(window).on('resize', function () {
         const savedWidth = localStorage.getItem('fieldsSidebarWidth');
         if (savedWidth) {
             fieldsSidebar.css('width', savedWidth + 'px');
         }
     });
 });
+
+const expandSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-open">
+    <rect width="16" height="16" x="4" y="4" rx="1.5"/>
+    <path d="M8 4v16"/>
+    <path d="m14 13-2-2 2-2"/>
+</svg>`;
+
+const collapseSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-panel-left-close">
+    <rect width="16" height="16" x="4" y="4" rx="1.5"/>
+    <path d="M8 4v16"/>
+    <path d="m12 9 2 2-2 2"/>
+</svg>`;
+
+let isFieldsSidebarHidden = false;
+let tooltipInstance = null;
+let toggleButton = null;
+
+// Apply the sidebar visibility state to the DOM
+function applyFieldsSidebarState(isHidden) {
+    const fieldsSidebar = document.querySelector('.fields-sidebar');
+    const resizer = document.querySelector('.fields-resizer');
+
+    if (!fieldsSidebar) return;
+
+    if (isHidden) {
+        fieldsSidebar.classList.add('hidden');
+        if (resizer) {
+            resizer.style.display = 'none';
+        }
+    } else {
+        fieldsSidebar.classList.remove('hidden');
+        if (resizer) {
+            resizer.style.display = 'block';
+        }
+    }
+
+    updateToggleButton(isHidden);
+}
+
+// Update the toggle button's icon and tooltip
+function updateToggleButton(isHidden) {
+    if (!toggleButton) return;
+
+    toggleButton.innerHTML = isHidden ? collapseSvg : expandSvg;
+
+    const tooltipText = isHidden ? 'Show Fields' : 'Hide Fields';
+    if (tooltipInstance) {
+        tooltipInstance.setContent(tooltipText);
+    } else if (typeof tippy !== 'undefined') {
+        tooltipInstance = tippy(toggleButton, {
+            content: tooltipText,
+            trigger: 'mouseenter focus',
+        });
+    }
+}
+
+// Update the URL with the current sidebar state
+function updateUrlState(isHidden) {
+    const searchParams = new URLSearchParams(window.location.search);
+
+    if (searchParams.has('searchText') && searchParams.has('indexName')) {
+        const url = new URL(window.location);
+        url.searchParams.set('fieldsHidden', isHidden);
+        window.history.pushState({}, document.title, url);
+    }
+}
+
+function toggleFieldsSidebar(event) {
+    if (event) {
+        event.stopPropagation();
+    }
+
+    isFieldsSidebarHidden = !isFieldsSidebarHidden;
+
+    applyFieldsSidebarState(isFieldsSidebarHidden);
+
+    const buttonElement = document.querySelector('.expand-svg-container');
+    if (buttonElement) {
+        positionToggleButton(buttonElement, isFieldsSidebarHidden);
+    }
+
+    updateUrlState(isFieldsSidebarHidden);
+}
+
+function createToggleButton() {
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'expand-svg-container';
+
+    buttonContainer.innerHTML = `
+        <span class="expand-svg-box">
+            <button id="expand-toggle-svg" class="btn expand-svg-button below-btn-img">
+                ${isFieldsSidebarHidden ? collapseSvg : expandSvg}
+            </button>
+        </span>
+    `;
+
+    toggleButton = buttonContainer.querySelector('#expand-toggle-svg');
+    toggleButton.addEventListener('click', toggleFieldsSidebar);
+
+    return buttonContainer;
+}
+
+function positionToggleButton(buttonElement, isHidden) {
+    if (!buttonElement) return;
+
+    if (buttonElement.parentNode) {
+        buttonElement.parentNode.removeChild(buttonElement);
+    }
+
+    if (isHidden) {
+        // Position before tabs when sidebar is hidden
+        const tabList = document.querySelector('.tab-chart-list');
+        if (tabList) {
+            tabList.parentNode.insertBefore(buttonElement, tabList);
+            buttonElement.classList.add('before-tabs');
+            // Make sure it's visible
+            buttonElement.style.display = 'block';
+        }
+    } else {
+        // Position near the selected fields header when sidebar is shown
+        const selectedFieldsHeader = document.getElementById('selected-fields-header');
+        if (selectedFieldsHeader) {
+            selectedFieldsHeader.parentNode.insertBefore(buttonElement, selectedFieldsHeader);
+            buttonElement.classList.remove('before-tabs');
+            // Make sure it's visible
+            buttonElement.style.display = 'block';
+        }
+    }
+
+    setTimeout(() => {
+        if (buttonElement) {
+            buttonElement.style.display = 'block';
+        }
+    }, 50);
+}
+
+//eslint-disable-next-line no-unused-vars
+function initSidebarToggle() {
+    // Check URL for initial state
+    const searchParams = new URLSearchParams(window.location.search);
+    const isSearchActive = searchParams.has('searchText') && searchParams.has('indexName');
+
+    if (isSearchActive && searchParams.has('fieldsHidden')) {
+        isFieldsSidebarHidden = searchParams.get('fieldsHidden') === 'true';
+    }
+
+    const toggleButtonElement = createToggleButton();
+
+    positionToggleButton(toggleButtonElement, isFieldsSidebarHidden);
+
+    applyFieldsSidebarState(isFieldsSidebarHidden);
+}
