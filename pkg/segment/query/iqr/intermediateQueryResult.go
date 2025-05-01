@@ -534,7 +534,7 @@ func (iqr *IQR) Append(other *IQR) error {
 		other = newIQR
 	}
 
-	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other}, false)
 	if err != nil {
 		log.Errorf("qid=%v, IQR.Append: error merging metadata: %v", iqr.qid, err)
 		return err
@@ -794,7 +794,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, toputils.TeeErrorf("MergeIQRs: the less function is nil")
 	}
 
-	iqr, err := mergeMetadata(iqrs)
+	iqr, err := mergeMetadata(iqrs, true)
 	if err != nil {
 		log.Errorf("MergeIQRs: error merging metadata: %v", err)
 		return nil, 0, err
@@ -864,7 +864,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	}
 }
 
-func mergeMetadata(iqrs []*IQR) (*IQR, error) {
+func mergeMetadata(iqrs []*IQR, willUseRecords bool) (*IQR, error) {
 	if len(iqrs) == 0 {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
@@ -877,8 +877,19 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		result.encodingToSegKey[encoding] = segKey
 	}
 
+	numRecords := 0
+	if willUseRecords {
+		for _, iqr := range iqrs {
+			numRecords += iqr.NumberOfRecords()
+		}
+	}
+
+	if result.mode == withRRCs {
+		result.rrcs = make([]*utils.RecordResultContainer, 0, numRecords)
+	}
+
 	for cname := range iqrs[0].knownValues {
-		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+		result.knownValues[cname] = make([]utils.CValueEnclosure, 0, numRecords)
 	}
 
 	for _, iqrToMerge := range iqrs {
@@ -906,7 +917,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 		for cname := range iqr.knownValues {
 			if _, ok := result.knownValues[cname]; !ok {
-				result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+				result.knownValues[cname] = make([]utils.CValueEnclosure, 0, numRecords)
 			}
 		}
 
