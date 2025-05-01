@@ -44,7 +44,8 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		return p.resultsSoFar, io.EOF
 	}
 
-	err := inputIQR.Sort(p.less)
+	p.validate()
+	err := inputIQR.Sort(p.getSortColumns(), p.less)
 	if err != nil {
 		log.Errorf("sort.Process: cannot sort IQR; err=%v", err)
 		return nil, err
@@ -62,7 +63,7 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	// Merge the two IQRs.
-	result, firstExhausted, err := iqr.MergeIQRs([]*iqr.IQR{p.resultsSoFar, inputIQR}, p.less)
+	result, firstExhausted, err := iqr.MergeIQRs([]*iqr.IQR{p.resultsSoFar, inputIQR}, p.lessDirectRead)
 	if err != nil {
 		log.Errorf("sort.Process: cannot merge IQRs; err=%v", err)
 		return nil, err
@@ -239,12 +240,48 @@ func compareValues(valueA, valueB *segutils.CValueEnclosure, asc bool, op string
 	return result
 }
 
-// This function cannot return an error, so it stores any error in the
-// processor to avoid flooding the logs with the same error.
-func (p *sortProcessor) less(a, b *iqr.Record) bool {
-	// Compare the values of the first sort element.
-	// If they are equal, compare the values of the second sort element, and so on.
+func (p *sortProcessor) getSortColumns() []string {
+	cnames := make([]string, len(p.options.SortEles))
 	for i, element := range p.options.SortEles {
+		cnames[i] = element.Field
+	}
+
+	return cnames
+}
+
+// Note: before this is used, the input records must have valid SortValues.
+func (p *sortProcessor) less(a, b *iqr.Record) bool {
+	for i, element := range p.options.SortEles {
+		valA := a.SortValues[i][a.Index]
+		valB := b.SortValues[i][b.Index]
+
+		comparison := compareValues(&valA, &valB, element.SortByAsc, element.Op)
+		if comparison != EQUAL {
+			return comparison == LESS
+		}
+	}
+
+	return false
+}
+
+func (p *sortProcessor) validate() {
+	for _, element := range p.options.SortEles {
+		// From https://docs.splunk.com/Documentation/Splunk/9.1.1/SearchReference/Sort#Sort_field_options
+		switch element.Op {
+		case "", "auto", "str", "num":
+			// Do nothing. Valid operations.
+		case "ip":
+			p.err = fmt.Errorf("IP comparison not implemented")
+		default:
+			p.err = fmt.Errorf("invalid sort operation: %v", element.Op)
+			log.Errorf("sortProcessor.validate: invalid operation %v", element.Op)
+		}
+	}
+}
+
+// TODO: Use the `less()` method instead, and delete this one.
+func (p *sortProcessor) lessDirectRead(a, b *iqr.Record) bool {
+	for _, element := range p.options.SortEles {
 		valA, err := a.ReadColumn(element.Field)
 		if err != nil {
 			return false
@@ -254,23 +291,9 @@ func (p *sortProcessor) less(a, b *iqr.Record) bool {
 			return true
 		}
 
-		// From https://docs.splunk.com/Documentation/Splunk/9.1.1/SearchReference/Sort#Sort_field_options
-		switch p.options.SortEles[i].Op {
-		case "", "auto", "str", "num":
-			// Try as number first, then as string.
-			// TODO: try as IP before generic string?
-			comparison := compareValues(valA, valB, element.SortByAsc, p.options.SortEles[i].Op)
-			if comparison == EQUAL {
-				continue
-			}
-
+		comparison := compareValues(valA, valB, element.SortByAsc, element.Op)
+		if comparison != EQUAL {
 			return comparison == LESS
-		case "ip": // TODO
-			p.err = fmt.Errorf("IP comparison not implemented")
-		default:
-			p.err = fmt.Errorf("invalid sort operation: %v", p.options.SortEles[i].Op)
-			log.Errorf("sortProcessor.less: invalid operation %v", p.options.SortEles[i].Op)
-			return false
 		}
 	}
 
