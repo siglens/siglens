@@ -71,7 +71,8 @@ type TimeRangeReader struct {
 // returns a new TimeRangeReader and any errors encountered
 // the caller is responsible for calling TimeRangeReader.Close() when finished using it to close the fd
 func InitNewTimeReader(segKey string, tsKey string, allBlocksToSearch map[uint16]struct{},
-	blkRecCount map[uint16]uint16, qid uint64, allBmi *structs.AllBlksMetaInfo) (*TimeRangeReader, error) {
+	blkRecCount map[uint16]uint16, qid uint64, allBmi *structs.AllBlksMetaInfo,
+) (*TimeRangeReader, error) {
 	allInUseFiles := make([]string, 0)
 	var err error
 	fName := fmt.Sprintf("%v_%v.csg", segKey, xxhash.Sum64String(tsKey))
@@ -95,8 +96,8 @@ func InitNewTimeReader(segKey string, tsKey string, allBlocksToSearch map[uint16
 		allBlocksToSearch:       allBlocksToSearch,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
-		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
-		blockUncompressedBuffer: *segreader.UncompressedReadBufferPool.Get().(*[]byte),
+		blockReadBuffer:         nil,
+		blockUncompressedBuffer: nil,
 		loadedBlock:             false,
 		allInUseFiles:           allInUseFiles,
 		allBmi:                  allBmi,
@@ -105,16 +106,16 @@ func InitNewTimeReader(segKey string, tsKey string, allBlocksToSearch map[uint16
 
 func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, allBlocksToSearch map[uint16]struct{},
 	blkRecCount map[uint16]uint16, qid uint64,
-	allBmi *structs.AllBlksMetaInfo) (*TimeRangeReader, error) {
-
+	allBmi *structs.AllBlksMetaInfo,
+) (*TimeRangeReader, error) {
 	return &TimeRangeReader{
 		timeFD:                  tsFD,
 		timestampKey:            tsKey,
 		allBlocksToSearch:       allBlocksToSearch,
 		blockRecCount:           blkRecCount,
 		blockTimestamps:         *rawTimestampsBufferPool.Get().(*[]uint64),
-		blockReadBuffer:         *segreader.FileReadBufferPool.Get().(*[]byte),
-		blockUncompressedBuffer: *segreader.UncompressedReadBufferPool.Get().(*[]byte),
+		blockReadBuffer:         nil,
+		blockUncompressedBuffer: nil,
 		loadedBlock:             false,
 		allBmi:                  allBmi,
 	}, nil
@@ -123,8 +124,8 @@ func InitNewTimeReaderWithFD(tsFD *os.File, tsKey string, allBlocksToSearch map[
 func InitNewTimeReaderFromBlockSummaries(segKey string, tsKey string,
 	allBlocksToSearch map[uint16]struct{},
 	blockSummaries []*structs.BlockSummary, qid uint64,
-	allBmi *structs.AllBlksMetaInfo) (*TimeRangeReader, error) {
-
+	allBmi *structs.AllBlksMetaInfo,
+) (*TimeRangeReader, error) {
 	blkRecCount := make(map[uint16]uint16)
 	for blkIdx, blkSum := range blockSummaries {
 		blkRecCount[uint16(blkIdx)] = blkSum.RecCount
@@ -159,7 +160,6 @@ func (trr *TimeRangeReader) GetAllTimeStampsForBlock(blockNum uint16) ([]uint64,
 }
 
 func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
-
 	err := trr.resizeSliceForBlock(blockNum)
 	if err != nil {
 		return errors.New("TimeRangeReader.readAllTimestampsForBlock: failed to resize internal")
@@ -178,7 +178,14 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 
 	cOffLen := blockMeta.ColBlockOffAndLen[cnameIdx]
 
-	trr.blockReadBuffer = toputils.ResizeSlice(trr.blockReadBuffer, int(cOffLen.Length))
+	if trr.blockReadBuffer == nil {
+		trr.blockReadBuffer = segreader.GetBufFromPool(int64(cOffLen.Length))
+	} else if len(trr.blockReadBuffer) < int(cOffLen.Length) {
+		if err := segreader.PutBufToPool(trr.blockReadBuffer); trr.blockReadBuffer != nil && err != nil {
+			log.Errorf("TimeReader.readAllTimestampsForBlock: Error putting block buffer back to pool, err: %v", err)
+		}
+		trr.blockReadBuffer = segreader.GetBufFromPool(int64(cOffLen.Length))
+	}
 	checksumFile := &toputils.ChecksumFile{Fd: trr.timeFD}
 	_, err = checksumFile.ReadAt(trr.blockReadBuffer[:cOffLen.Length], cOffLen.Offset)
 	if err != nil {
@@ -205,7 +212,6 @@ func (trr *TimeRangeReader) readAllTimestampsForBlock(blockNum uint16) error {
 }
 
 func (trr *TimeRangeReader) resizeSliceForBlock(blockNum uint16) error {
-
 	numRecs, ok := trr.blockRecCount[blockNum]
 	if !ok {
 		return errors.New("TimeRangeReader.resizeSliceForBlock blockNum not found")
@@ -229,9 +235,13 @@ func (trr *TimeRangeReader) Close() error {
 }
 
 func (trr *TimeRangeReader) returnBuffers() {
-	segreader.UncompressedReadBufferPool.Put(&trr.blockUncompressedBuffer)
-	segreader.FileReadBufferPool.Put(&trr.blockReadBuffer)
 	rawTimestampsBufferPool.Put(&trr.blockTimestamps)
+	if err := segreader.PutBufToPool(trr.blockReadBuffer); trr.blockReadBuffer != nil && err != nil {
+		log.Errorf("TimeReader.returnBuffers: Error putting buffer back to pool, err: %v", err)
+	}
+	if err := segreader.PutBufToPool(trr.blockUncompressedBuffer); trr.blockUncompressedBuffer != nil && err != nil {
+		log.Errorf("Timereader.returnBuffers: Error putting raw block buffer back to pool, err: %v", err)
+	}
 }
 
 func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uint64) ([]uint64, error) {
@@ -306,10 +316,6 @@ func convertRawRecordsToTimestamps(rawRec []byte, numRecs uint16, bufToUse []uin
 }
 
 func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]byte, error) {
-	if uint32(len(buf)) < blkLen {
-		newArr := make([]byte, blkLen-uint32(len(buf)))
-		buf = append(buf, newArr...)
-	}
 	buf = buf[:blkLen]
 	checksumFile := &toputils.ChecksumFile{Fd: fd}
 	_, err := checksumFile.ReadAt(buf, blkOff)
@@ -322,7 +328,8 @@ func readChunkFromFile(fd *os.File, buf []byte, blkLen uint32, blkOff int64) ([]
 // When the caller of this function is done with retVal, they should call
 // ReturnTimeBuffers(retVal) to return the buffers to rawTimestampsBufferPool.
 func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, retVal map[uint16][]uint64,
-	retLock *sync.Mutex) {
+	retLock *sync.Mutex,
+) {
 	defer wg.Done()
 	var err error
 	var decoded []uint64
@@ -345,8 +352,8 @@ func processTimeBlocks(allRequests chan *timeBlockRequest, wg *sync.WaitGroup, r
 // When the caller of this function is done with the returned map, they should
 // call ReturnTimeBuffers() on it to return the buffers to rawTimestampsBufferPool.
 func ReadAllTimestampsForBlock(blkNums map[uint16]struct{}, segKey string,
-	blockSummaries []*structs.BlockSummary, parallelism int64) (map[uint16][]uint64, error) {
-
+	blockSummaries []*structs.BlockSummary, parallelism int64,
+) (map[uint16][]uint64, error) {
 	if len(blkNums) == 0 {
 		return make(map[uint16][]uint64), nil
 	}
@@ -418,13 +425,18 @@ func ReadAllTimestampsForBlock(blkNums map[uint16]struct{}, segKey string,
 				break
 			}
 		}
-		buffer := *segreader.UncompressedReadBufferPool.Get().(*[]byte)
+		buffer := segreader.GetBufFromPool(int64(blkLen))
 		rawChunk, err := readChunkFromFile(fd, buffer, blkLen, firstBlkOff)
-		defer segreader.UncompressedReadBufferPool.Put(&rawChunk)
 		if err != nil {
 			retErr = fmt.Errorf("ReadAllTimestampsForBlock: Failed to read chunk from file: %v of length: %v and offset: %v, err: %+v", fName, blkLen, firstBlkOff, err)
 			continue
 		}
+		defer func() {
+			err := segreader.PutBufToPool(rawChunk)
+			if err != nil {
+				log.Errorf("Timereader.ReadAllTimestampsForBlock: Error putting raw block buffer back to pool, err: %v", err)
+			}
+		}()
 
 		readOffset := int64(0)
 		for currBlk := minBlkNum; currBlk <= allBlocks[maxIdx]; currBlk++ {
