@@ -60,14 +60,18 @@ $(document).ready(() => {
         updateChartsTheme(gridLineColor, tickColor);
     });
 
-    $('.inner-range #' + (startDate || 'now-15m')).addClass('active');
-    setupEventHandlers();
-    if (startDate && !startDate.startsWith('now-') && endDate && endDate !== 'now') {
-        setupCustomRangeFromUrl(startDate, endDate);
+    if (startDate && endDate && !isNaN(startDate) && !isNaN(endDate)) {
+        filterStartDate = Number(startDate); 
+        filterEndDate = Number(endDate);     
+        datePickerHandler(filterStartDate, filterEndDate, 'custom'); 
+        loadCustomDateTimeFromEpoch(filterStartDate, filterEndDate);
     } else {
-        datePickerHandler(startDate || 'now-15m', endDate || 'now', startDate || 'now-15m');
+        filterStartDate = startDate || 'now-15m';
+        filterEndDate = endDate || 'now';
+        datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
     }
 
+    setupEventHandlers();
     $('.range-item, #customrange-btn').on('click', isGraphsDatePickerHandler);
 
     window.addEventListener('popstate', function () {
@@ -76,64 +80,24 @@ $(document).ready(() => {
 
         $('.range-item, #customrange-btn').removeClass('active');
 
-        if (startDate && !startDate.startsWith('now-') && endDate && endDate !== 'now') {
-            setupCustomRangeFromUrl(startDate, endDate);
+        if (startDate && endDate && !isNaN(startDate) && !isNaN(endDate)) {
+            $('.inner-range #' + startDate).removeClass('active'); 
+            filterStartDate = Number(startDate);
+            filterEndDate = Number(endDate);
+            datePickerHandler(filterStartDate, filterEndDate, 'custom');
+            loadCustomDateTimeFromEpoch(filterStartDate, filterEndDate);
         } else {
-            $('.inner-range #' + (startDate || 'now-15m')).addClass('active');
-            datePickerHandler(startDate, endDate || 'now', startDate);
+            $('.inner-range #' + startDate).addClass('active');
+            filterStartDate = startDate;
+            filterEndDate = endDate;
+            datePickerHandler(filterStartDate, filterEndDate, startDate);
         }
-
-        filterStartDate = startDate;
-        filterEndDate = endDate;
 
         getOneServiceOverview();
     });
 
     getOneServiceOverview();
 });
-
-function setupCustomRangeFromUrl(startDate, endDate) {
-    $('#customrange-btn').addClass('active');
-    $('.range-item').removeClass('active');
-    
-    try {
-        const startTimestamp = isNaN(startDate) ? startDate : parseInt(startDate);
-        const endTimestamp = isNaN(endDate) ? endDate : parseInt(endDate);
-        
-        const startMoment = moment(startTimestamp);
-        const endMoment = moment(endTimestamp);
-        
-        if (startMoment.isValid() && endMoment.isValid()) {
-            const startDateStr = startMoment.format('YYYY-MM-DD');
-            const startTimeStr = startMoment.format('HH:mm');
-            const endDateStr = endMoment.format('YYYY-MM-DD');
-            const endTimeStr = endMoment.format('HH:mm');
-            
-            $('#date-start').val(startDateStr).addClass('active');
-            $('#time-start').val(startTimeStr).addClass('active');
-            $('#date-end').val(endDateStr).addClass('active');
-            $('#time-end').val(endTimeStr).addClass('active');
-            
-            tempStartDate = appliedStartDate = startDateStr;
-            tempStartTime = appliedStartTime = startTimeStr;
-            tempEndDate = appliedEndDate = endDateStr;
-            tempEndTime = appliedEndTime = endTimeStr;
-            
-            Cookies.set('customStartDate', startDateStr);
-            Cookies.set('customStartTime', startTimeStr);
-            Cookies.set('customEndDate', endDateStr);
-            Cookies.set('customEndTime', endTimeStr);
-            
-            filterStartDate = startTimestamp;
-            filterEndDate = endTimestamp;
-            
-            datePickerHandler(startTimestamp, endTimestamp, 'custom');
-        }
-    } catch (e) {
-        console.error('Error parsing date timestamps:', e);
-    }
-}
-
 
 function getTimeRange() {
     const urlStartEpoch = getParameterFromUrl('startEpoch');
