@@ -350,8 +350,9 @@ function setDownloadLogsDialog() {
     dialog = $('#download-info').dialog({
         autoOpen: false,
         resizable: false,
-        width: 460,
+        width: 464,
         modal: true,
+        title: 'Download Logs',
         position: {
             my: 'center',
             at: 'center',
@@ -374,6 +375,9 @@ function setDownloadLogsDialog() {
         close: function () {
             form[0].reset();
             allFields.removeClass('ui-state-error');
+        },
+        create: function () {
+            $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
         },
     });
 

@@ -668,7 +668,7 @@ function setShowColumnInfoDialog() {
     $('#show-record-popup').dialog({
         autoOpen: false,
         resizable: false,
-        title: false,
+        title: 'Query Results Information',
         maxHeight: 307,
         height: 307,
         width: 464,
@@ -690,6 +690,9 @@ function setShowColumnInfoDialog() {
                     }
                 },
             },
+        },
+        create: function (event, ui) {
+            $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
         },
     });
     $('#show-record-intro-btn').on('click', function () {

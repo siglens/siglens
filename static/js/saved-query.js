@@ -102,6 +102,7 @@ function setSaveQueriesDialog() {
         height: 307,
         width: 464,
         modal: true,
+        title: 'Saved Query',
         position: {
             my: 'center',
             at: 'center',
@@ -129,6 +130,9 @@ function setSaveQueriesDialog() {
             form[0].reset();
             allFields.removeClass('ui-state-error');
             hideTooltip();
+        },
+        create: function () {
+            $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
         },
     });
 
