@@ -864,7 +864,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	}
 }
 
-func mergeMetadata(iqrs []*IQR, willUseRecords bool) (*IQR, error) {
+func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 	if len(iqrs) == 0 {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
@@ -878,7 +878,7 @@ func mergeMetadata(iqrs []*IQR, willUseRecords bool) (*IQR, error) {
 	}
 
 	numRecords := 0
-	if willUseRecords {
+	if allocateForAllRecords {
 		for _, iqr := range iqrs {
 			numRecords += iqr.NumberOfRecords()
 		}
