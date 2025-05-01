@@ -691,7 +691,7 @@ function setShowColumnInfoDialog() {
                 },
             },
         },
-        create: function (event, ui) {
+        create: function () {
             $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
         },
     });
