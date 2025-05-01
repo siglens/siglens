@@ -70,8 +70,9 @@ async function getAlertForEdit(id) {
     });
     if (window.location.href.includes('alert-details.html')) {
         initializeBreadcrumbs([
-            { name: 'Alerting', url: './all-alerts.html' },
-            { name: res.alert.alert_name, url: '#' }
+            { name: 'Alerting', url: './alerting.html' },
+            { name: 'Alert Rules', url: './all-alerts.html' },
+            { name: res.alert.alert_name, url: '#' },
         ]);
         fetchAlertProperties(res);
         fetchAlertHistory();
