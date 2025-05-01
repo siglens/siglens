@@ -620,6 +620,42 @@
     border: none !important;
 }
 
+.border-bottom {
+    border-bottom: 1px solid var(--search-input-border) !important;
+}
+
+.grey-text {
+    color: var(--empty-response-text-color);
+}
+
+.note-box {
+    padding: 15px 20px 15px 50px;
+    border-left: 1px solid #418CE4;
+    background: rgba(65, 140, 228, 0.30);
+    color: var(--text-color);
+    border-radius: 0 5px 5px 0;
+    position: relative;
+}
+
+.note-box::before {
+    content: "i";
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: #418CE4;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: bold;
+}
+
 /* Upper Navbar Tabs */
 .section-buttons {
     display: flex;
@@ -1221,11 +1257,24 @@ input {
     color: var(--text-color)
 }
 
-input.form-control:focus {
+input.form-control:focus,
+textarea.focus {
     color: var(--search-bar-text-color-active);
     border-radius: 5px;
     background: var(--search-bar-bg);
     border-color: var(--purple-1);
+}
+
+textarea {
+    border: 1px solid var(--search-input-border);
+    background: var(--search-bar-bg);
+    font-size: 12px;
+    border-radius: 5px;
+    padding: 8px;
+}
+
+textarea:focus-visible {
+    outline: none;
 }
 
 /* Logs Screen */
@@ -1513,7 +1562,7 @@ progress.hidden {
 
 .ui-dialog-buttonset {
     display: flex;
-    padding: 8px;
+    gap: 16px;
     float: inline-end;
 }
 
@@ -1540,6 +1589,14 @@ progress.hidden {
     font-weight: bold;
 }
 
+.ui-widget-content a{
+    color: #0d6efd;
+}
+
+.ui-widget.ui-widget-content{
+    border: 1px solid var(--ui-widget-border-color);
+}
+
 /* Corner radius */
 
 .ui-corner-all {
@@ -1548,8 +1605,10 @@ progress.hidden {
 
 .ui-widget-content .ui-state-highlight {
     border: 1px solid var(--error);
-    background: var(--accent-color);
-    color: var(--white-0);
+    background: var(--bg-color);
+    color: var(--accent-color);
+    font-size: 11px !important;
+    font-weight: 500;
 }
 
 .ui-widget-header .ui-state-highlight {
@@ -2122,17 +2181,14 @@ table.dataTable thead td {
 }
 
 .rule-name-error {
-    color: #6449D6;
     display: none;
-    font-size: 13px;
-    margin-bottom: 6px;
-
 }
 
 .rule-name-error.active {
     display: block;
     color: #6449D6;
-    font-size: 13px;
+    font-size: 11px;
+    font-weight: 500;
     margin-bottom: 4px;
 }
 
@@ -2180,8 +2236,8 @@ table.dataTable thead td {
 .mypopupContent .header {
     color: var(--text-color);
     margin-bottom: 16px;
-    font-weight: bold;
-    font-size: 14px;
+    font-weight: 600;
+    font-size: 18px;
 }
 
 #buttons-popupContent {
@@ -2402,17 +2458,15 @@ table.dataTable thead td {
 }
 
 div#save-queries {
-    width: 280px !important;
-    height: 90px !important;
+    height: 220px !important;
     margin: 16px !important;
     padding: 0 !important;
     overflow-x: hidden;
 }
 
 div#download-info {
-    width: 280px !important;
     height: 40px !important;
-    margin: 16px !important;
+    margin: 20px !important;
     padding: 0 !important;
 }
 
@@ -2454,26 +2508,9 @@ input[type="text"].active {
     color: var(--search-bar-text-color-active);
 }
 
-#qname,
-#qnameDL,
-#description {
-    width: 280px;
-    /* height: 32px; */
-    border-radius: 5px;
-}
-
-#description {
-    margin-top: 20px !important;
-}
-
-
-div[aria-describedby="save-queries"],
 div[aria-describedby="download-info"] {
     width: 320px !important;
 }
-
-
-
 
 /* end save query dialog  */
 
@@ -5296,21 +5333,9 @@ p#versionInfo {
     margin-bottom: 2px;
 }
 
-#create-db-popup .create-db {
-    width: 195px !important;
-    border-radius: 5px;
-    border: none;
-    background: var(--btn-regular-bg-color);
-    color: var(--component-text-color) !important;
-    margin-left: 20px;
-}
-
-#create-db-popup #cancel-dbbtn {
-    width: 195px !important;
-    border-radius: 5px;
-    border: none;
-    background: var(--component-bg-color);
-    color: var(--component-text-color) !important;
+#create-db-popup {
+    padding: 0;
+    width: 464px !important;
 }
 
 #create-db-popup .error-tip {
@@ -5320,13 +5345,15 @@ p#versionInfo {
 #create-db-popup .error-tip.active {
     display: block;
     color: #6449D6;
-    font-size: 10px;
+    font-size: 11px;
     margin-bottom: 0px;
+    font-weight: 500;
 }
 
 #create-db-popup .section-buttons,
 #create-db-popup .section-button {
-    background-color: var(--dashboard-tab-bg);
+    background-color: var(--alert-background);
+    width: 100%;
 }
 
 #create-db-popup .section-button.active {
@@ -6011,7 +6038,7 @@ p#versionInfo {
 }
 
 .addrulepopupContent {
-    width: 326px !important;
+    width: 464px !important;
 }
 
 .form-control.error-border {
