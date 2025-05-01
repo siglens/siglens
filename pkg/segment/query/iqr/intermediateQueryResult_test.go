@@ -453,7 +453,7 @@ func Test_Sort(t *testing.T) {
 		return aVal.CVal.(string) < bVal.CVal.(string)
 	}
 
-	err = iqr.Sort([]string{"col1", "col2"}, less)
+	err = iqr.Sort([]string{"col1", "col2"}, less, 100)
 	assert.NoError(t, err)
 
 	expected := map[string][]utils.CValueEnclosure{
@@ -529,7 +529,7 @@ func Test_Sort_multipleColumns(t *testing.T) {
 		return aVal2.CVal.(uint64) < bVal2.CVal.(uint64)
 	}
 
-	err = iqr.Sort([]string{"col1", "col2"}, less)
+	err = iqr.Sort([]string{"col1", "col2"}, less, 100)
 	assert.NoError(t, err)
 	values, err := iqr.ReadAllColumns()
 	assert.NoError(t, err)
