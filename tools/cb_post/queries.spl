@@ -32,7 +32,7 @@ SearchPhrase != \"\" | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by
 SearchPhrase != \"\" | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by WatchID, ClientIP | sort -c | head 10
 * | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by WatchID, ClientIP | sort -c | head 10
 * | stats count as c by URL | sort -c | head 10
-* | eval n = 1 | stats count as c by n, URL | sort -c | head 10
+* | stats count AS c by URL | sort -c | head 10 | eval n=1 | fields n, URL, c
 * | eval cp = ClientIP-1, cp2 = ClientIP-2, cp3 = ClientIP-3 | stats count as c by ClientIP, cp, cp2, cp3 | sort -c | head 10
 CounterID = 62 AND DontCountHits = 0 AND IsRefresh = 0 AND URL != \"\" | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\")  | stats count as PageViews by URL | sort -PageViews | head 10
 CounterID = 62 AND DontCountHits = 0 AND IsRefresh = 0 AND Title != \"\" | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\")  AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by Title | sort -PageViews | head 10
