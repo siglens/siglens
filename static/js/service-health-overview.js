@@ -60,24 +60,102 @@ $(document).ready(() => {
         updateChartsTheme(gridLineColor, tickColor);
     });
 
+    if (startDate && endDate && !isNaN(startDate) && !isNaN(endDate)) {
+        filterStartDate = Number(startDate); 
+        filterEndDate = Number(endDate);     
+        datePickerHandler(filterStartDate, filterEndDate, 'custom'); 
+        loadCustomDateTimeFromEpoch(filterStartDate, filterEndDate);
+    } else {
+        filterStartDate = startDate || 'now-15m';
+        filterEndDate = endDate || 'now';
+        datePickerHandler(filterStartDate, filterEndDate, filterStartDate);
+    }
+
     setupEventHandlers();
-    datePickerHandler(startDate, endDate, startDate);
-    $('.range-item').on('click', getOneServiceOverview);
-    $('#customrange-btn').on('dateRangeValid', getOneServiceOverview);
+    $('.range-item, #customrange-btn').on('click', isGraphsDatePickerHandler);
+
+    window.addEventListener('popstate', function () {
+        const startDate = getParameterFromUrl('startEpoch') || 'now-1h';
+        const endDate = getParameterFromUrl('endEpoch') || 'now';
+
+        $('.range-item, #customrange-btn').removeClass('active');
+
+        if (startDate && endDate && !isNaN(startDate) && !isNaN(endDate)) {
+            $('.inner-range #' + startDate).removeClass('active'); 
+            filterStartDate = Number(startDate);
+            filterEndDate = Number(endDate);
+            datePickerHandler(filterStartDate, filterEndDate, 'custom');
+            loadCustomDateTimeFromEpoch(filterStartDate, filterEndDate);
+        } else {
+            $('.inner-range #' + startDate).addClass('active');
+            filterStartDate = startDate;
+            filterEndDate = endDate;
+            datePickerHandler(filterStartDate, filterEndDate, startDate);
+        }
+
+        getOneServiceOverview();
+    });
 
     getOneServiceOverview();
 });
 
 function getTimeRange() {
+    const urlStartEpoch = getParameterFromUrl('startEpoch');
+    const urlEndEpoch = getParameterFromUrl('endEpoch');
+
     return {
-        startEpoch: filterStartDate || 'now-1h',
-        endEpoch: filterEndDate || 'now',
+        startEpoch: filterStartDate || urlStartEpoch || 'now-1h',
+        endEpoch: filterEndDate || urlEndEpoch || 'now',
     };
 }
 
 function getParameterFromUrl(param) {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get(param);
+}
+
+function isGraphsDatePickerHandler(evt) {
+    evt.preventDefault();
+
+    const selectedElement = $(evt.currentTarget);
+    const selectedRange = selectedElement.attr('id');
+    let data;
+
+    if (selectedRange === 'customrange-btn') {
+        data = {
+            startEpoch: filterStartDate,
+            endEpoch: filterEndDate
+        };
+
+        $('.range-item').removeClass('active');
+        selectedElement.addClass('active');
+    }
+    else if (selectedRange && selectedRange.startsWith('now-')) {
+        filterStartDate = selectedRange;
+        filterEndDate = 'now';
+        data = {
+            startEpoch: selectedRange,
+            endEpoch: 'now'
+        };
+
+        $('.range-item').removeClass('active');
+        selectedElement.addClass('active');
+    }
+    else {
+        data = getTimeRange();
+    }
+
+    const url = new URL(window.location);
+    url.searchParams.set('startEpoch', data.startEpoch);
+    url.searchParams.set('endEpoch', data.endEpoch);
+    window.history.pushState({ path: url.href }, '', url.href);
+
+    datePickerHandler(data.startEpoch, data.endEpoch,
+                       selectedRange === 'customrange-btn' ? 'custom' : data.startEpoch);
+
+    getOneServiceOverview();
+
+    $('#daterangepicker').hide();
 }
 
 function getOneServiceOverview() {
@@ -88,7 +166,7 @@ function getOneServiceOverview() {
     let requestBody = {
         indexName: 'red-traces',
         queryLanguage: 'Splunk QL',
-        stDate: data.startEpoch,
+        startDate: data.startEpoch,
         endDate: data.endEpoch,
         searchText: serviceName,
     };
