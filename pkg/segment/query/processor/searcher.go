@@ -412,7 +412,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 		var firstExhaustedIndex int
 		var err error
-		result, firstExhaustedIndex, err = iqr.MergeIQRs(iqrs, sorter.less)
+		result, firstExhaustedIndex, err = iqr.MergeIQRs(iqrs, sorter.lessDirectRead)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to merge IQRs: %v", s.qid, err)
 			return nil, err

@@ -95,7 +95,7 @@ func (dp *DataProcessor) SetLessFuncBasedOnStream(stream Streamer) {
 	if streamDP, ok := stream.(*DataProcessor); ok {
 		switch streamDP.processor.(type) {
 		case *sortProcessor:
-			dp.less = streamDP.processor.(*sortProcessor).less
+			dp.less = streamDP.processor.(*sortProcessor).lessDirectRead
 		default:
 			dp.setDefaultLessFunc()
 		}

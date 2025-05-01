@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 let lastQType = '';
+let lastColumnsOrder = [];
+
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -50,7 +52,7 @@ function resetDataTable(firstQUpdate) {
             $('#views-container, .fields-sidebar').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar').show();
+            $('#views-container, .fields-sidebar').hide();
         }
         $('#agg-result-container').hide();
         hideError();
@@ -72,21 +74,6 @@ function doSearch(data) {
         const timerName = `socket timing ${doSearchCounter}`;
         doSearchCounter++;
         console.time(timerName);
-
-        // Get the current fieldsHidden state from the renderer and update URL
-        const sidebarRenderer = window.fieldssidebarRenderer;
-        if (sidebarRenderer) {
-            const { isFieldsSidebarHidden } = sidebarRenderer.getState();
-            data.fieldsHidden = isFieldsSidebarHidden; // Update data object
-
-            // Update URL with fieldsHidden only if search is active
-            const searchParams = new URLSearchParams(window.location.search);
-            if (searchParams.has('searchText') && searchParams.has('indexName')) {
-                const url = new URL(window.location);
-                url.searchParams.set('fieldsHidden', isFieldsSidebarHidden);
-                window.history.pushState({ path: url.href }, document.title, url);
-            }
-        }
 
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
@@ -162,7 +149,7 @@ function doSearch(data) {
                 case 'ERROR':
                     console.time('ERROR');
                     console.log(`[message] Error state received from server: ${jsonEvent}`);
-                    processErrorUpdate(jsonEvent);
+                    processErrorUpdate(jsonEvent.message);
                     console.timeEnd('ERROR');
                     errorMessages.push(`Error: ${jsonEvent}`);
                     break;
@@ -179,11 +166,21 @@ function doSearch(data) {
         };
 
         socket.onclose = function (event) {
-            if (event.wasClean) {
-                console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+            if (event.code === 1000 || event.code === 1001) {
+                console.log(`[close] Connection closed normally with code ${event.code}`);
+            } else if (event.wasClean) {
+                console.log(`[close] Connection closed cleanly, code=${event.code}`);
             } else {
-                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
-                errorMessages.push(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+                let errorMessage;
+                if (event.code === 1006) {
+                    errorMessage = 'Connection failed - The server may be down or unreachable';
+                } else {
+                    errorMessage = `Connection closed abnormally (code: ${event.code})`;
+                }
+                console.log(`Abnormal WebSocket close: code=${event.code}`);
+                errorMessages.push(errorMessage);
+
+                processErrorUpdate(errorMessage);
             }
 
             if (errorMessages.length === 0) {
@@ -306,7 +303,7 @@ function doLiveTailSearch(data) {
             case 'ERROR':
                 console.time('ERROR');
                 console.log(`[message] Error state received from server: ${jsonEvent}`);
-                processErrorUpdate(jsonEvent);
+                processErrorUpdate(jsonEvent.message);
                 console.timeEnd('ERROR');
                 break;
             default:
@@ -348,13 +345,9 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
 
-    const sidebarRenderer = window.fieldssidebarRenderer;
-    let fieldsHidden = false;
-    if (sidebarRenderer) {
-        fieldsHidden = sidebarRenderer.getState().isFieldsSidebarHidden;
-    } else {
-        fieldsHidden = queryParams.get('fieldsHidden') === 'true';
-    }
+    let fieldsHidden = queryParams.get('fieldsHidden') || true;
+
+    //eslint-disable-next-line no-undef
     applyFieldsSidebarState(fieldsHidden);
 
     queryLanguage = queryLanguage.replace('"', '');
@@ -446,40 +439,6 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     };
 }
 
-// Helper function to apply fieldsHidden state to the UI
-function applyFieldsSidebarState(isHidden) {
-    const fieldsSidebar = document.querySelector('.fields-sidebar');
-    const customChartTab = document.querySelector('.custom-chart-tab');
-    const container = document.querySelector('.custom-chart-container');
-    const resizer = document.querySelector('.fields-resizer');
-
-    if (!fieldsSidebar) return;
-
-    if (isHidden) {
-        fieldsSidebar.classList.add('hidden');
-        if (customChartTab) {
-            customChartTab.classList.add('full-width');
-        }
-        if (container) {
-            container.classList.add('full-width-container');
-        }
-        if (resizer) {
-            resizer.style.display = 'none';
-        }
-    } else {
-        fieldsSidebar.classList.remove('hidden');
-        if (customChartTab) {
-            customChartTab.classList.remove('full-width');
-        }
-        if (container) {
-            container.classList.remove('full-width-container');
-        }
-        if (resizer) {
-            resizer.style.display = 'block';
-        }
-    }
-}
-
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
     let filterValue = $('#filter-input').val().trim() || '*';
     let endDate = 'now';
@@ -560,6 +519,7 @@ function getQueryBuilderCode() {
     else $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
+
 //eslint-disable-next-line no-unused-vars
 function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
@@ -593,12 +553,14 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
             filterValue = '* | head 10';
         }
     } else {
-        filterValue = $('#filter-input').val().trim() || '* | head 10';
-        isQueryBuilderSearch = false;
+        const inputValue = $('#filter-input').val().trim();
 
-        //Default search
-        if (isInitialLoad && !$('#filter-input').val().trim()) {
+        // If it's initial load and the field is empty (Default search)
+        if (isInitialLoad && !inputValue) {
             $('#filter-input').val('* | head 10');
+            filterValue = '* | head 10';
+        } else {
+            filterValue = inputValue || '*';
         }
     }
 
@@ -609,6 +571,7 @@ function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false)
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
+        addQSParm('fieldsHidden', false);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -725,70 +688,40 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
     $('body').css('cursor', 'default');
 }
+
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
-    let columnOrder = [];
+    lastQType = res.qtype;
+
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = _.uniq(
-                _.concat(
-                    // make timestamp the first column
-                    'timestamp',
-                    // make logs the second column
-                    'logs',
-                    res.columnsOrder
-                )
-            );
+            lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.columnsOrder]);
         } else {
-            columnOrder = _.uniq(
-                _.concat(
-                    // make timestamp the first column
-                    'timestamp',
-                    // make logs the second column
-                    'logs',
-                    res.allColumns
-                )
-            );
+            lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.allColumns]);
         }
 
-        columnCount = Math.max(columnCount, columnOrder.length) - 2; // Excluding timestamp and logs
+        columnCount = Math.max(columnCount, lastColumnsOrder.length) - 2;
 
-        handleSearchResultsForPagination(res);
-        renderLogsGrid(columnOrder, accumulatedRecords);
+        if (res.hits && res.hits.records) {
+            accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
 
-        //eslint-disable-next-line no-undef
-        initializeAvailableFieldsSidebar(columnOrder);
+            $('#logs-result-container').show();
+            $('#agg-result-container').hide();
+            $('#views-container, .fields-sidebar, .fields-resizer').show();
 
-        $('#logs-result-container').show();
-        $('#agg-result-container').hide();
+            //eslint-disable-next-line no-undef
+            updatePaginationState(res);
 
-        if (res && res.hits && res.hits.totalMatched) {
-            totalHits = res.hits.totalMatched;
-        }
-        $('#views-container, .fields-sidebar').show();
-    } else if (res.measure && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query')) {
-        let columnOrder = [];
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+            if (res.hits.totalMatched) {
+                totalHits = res.hits.totalMatched;
             }
         }
-
-        aggsColumnDefs = [];
-        segStatsRowData = [];
-        $('#views-container, .fields-sidebar').hide();
-        renderMeasuresGrid(columnOrder, res);
     }
-    timeChart(res.qtype);
+
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
+
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents, columnCount);
-    $('body').css('cursor', 'default');
 }
 
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
@@ -831,57 +764,73 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
         scrollFrom = 0;
     }
 }
+
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
-    let columnOrder = [];
-    let totalHits = res.totalMatched.value;
-    if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
+    let totalHits = res.totalMatched ? res.totalMatched.value : 0;
+
+    if (res.qtype === 'logs-query' && res.hits && res.hits.records) {
+        accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
+    }
+
+    //eslint-disable-next-line no-undef
+    updatePaginationState(res);
+
+    if ((totalHits === 0 || totalHits === undefined) && res.measure === undefined && accumulatedRecords.length === 0) {
         processEmptyQueryResults();
     } else {
-        handleSearchResultsForPagination(res);
-    }
-
-    if (res.measureFunctions && res.measureFunctions.length > 0) {
-        measureFunctions = res.measureFunctions;
-    }
-
-    if (res.measure) {
-        measureInfo = res.measure;
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-            }
+        if (res.measureFunctions && res.measureFunctions.length > 0) {
+            measureFunctions = res.measureFunctions;
         }
-        resetDashboard();
-        $('#logs-result-container').hide();
-        $('#custom-chart-tab').show().css({ height: '100%' });
-        $('#agg-result-container').show();
-        aggsColumnDefs = [];
-        segStatsRowData = [];
-        renderMeasuresGrid(columnOrder, res);
 
-        if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.bucketCount) {
-            totalHits = res.bucketCount;
-            $('#views-container, .fields-sidebar').hide();
-            columnCount = Math.max(columnCount, columnOrder.length);
+        if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
+            measureInfo = res.measure;
+
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                lastColumnsOrder = res.columnsOrder;
+            } else {
+                if (res.groupByCols) {
+                    lastColumnsOrder = _.uniq(_.concat(res.groupByCols));
+                }
+                if (res.measureFunctions) {
+                    lastColumnsOrder = _.uniq(_.concat(lastColumnsOrder, res.measureFunctions));
+                }
+            }
+
+            resetDashboard();
+            $('#logs-result-container').hide();
+            $('#custom-chart-tab').show().css({ height: '100%' });
+            $('#agg-result-container').show();
+            aggsColumnDefs = [];
+            segStatsRowData = [];
+
+            renderMeasuresGrid(lastColumnsOrder, res);
+
+            if (res.bucketCount) {
+                totalHits = res.bucketCount;
+                $('#views-container, .fields-sidebar, .fields-resizer').hide();
+                columnCount = Math.max(columnCount, lastColumnsOrder.length);
+            }
+        } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
+            renderLogsGrid(lastColumnsOrder, accumulatedRecords);
+
+            //eslint-disable-next-line no-undef
+            initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
-    } else {
-        measureInfo = [];
+
+        isTimechart = res.isTimechart;
+        lastQType = res.qtype;
+        timeChart(res.qtype);
     }
-    isTimechart = res.isTimechart;
-    lastQType = res.qtype;
-    timeChart(res.qtype);
+
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
     }
     let totalPossibleEvents = res.total_possible_events;
+
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents, columnCount);
+
     $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
     $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
@@ -890,16 +839,17 @@ function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstB
     }
     $('body').css('cursor', 'default');
 }
-
 function processTimeoutUpdate(res) {
     showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
 }
+
 function processCancelUpdate(res) {
     showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
 }
-function processErrorUpdate(res) {
-    showError(`Message: ${res.message}`);
+
+function processErrorUpdate(message) {
+    showError(`Message: ${message}`);
 }
 
 function processSearchErrorLog(res) {
@@ -1360,16 +1310,6 @@ function updateGridView() {
     const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
 
     if (currentPageData.length > 0 && gridOptions?.api) {
-        if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
-            gridOptions.api.setRowData(currentPageData);
-        } else {
-            gridOptions.api.setRowData(currentPageData);
-        }
-
-        const allColumnIds = [];
-        gridOptions.columnApi.getColumns().forEach((column) => {
-            allColumnIds.push(column.getId());
-        });
-        gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
+        gridOptions.api.setRowData(currentPageData);
     }
 }

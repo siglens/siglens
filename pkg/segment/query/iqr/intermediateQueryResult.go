@@ -671,10 +671,10 @@ func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 }
 
 func (iqr *IQR) GetRecord(index int) *Record {
-	return &Record{iqr: iqr, index: index}
+	return &Record{iqr: iqr, Index: index}
 }
 
-func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
+func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
@@ -688,9 +688,18 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 		return nil
 	}
 
+	sortColumnValues := make([][]utils.CValueEnclosure, len(sortColumns))
+	for i, cname := range sortColumns {
+		var err error
+		sortColumnValues[i], err = iqr.ReadColumn(cname)
+		if err != nil {
+			return err
+		}
+	}
+
 	records := make([]*Record, iqr.NumberOfRecords())
 	for i := 0; i < iqr.NumberOfRecords(); i++ {
-		records[i] = &Record{iqr: iqr, index: i}
+		records[i] = &Record{iqr: iqr, Index: i, SortValues: sortColumnValues}
 	}
 
 	sort.Slice(records, func(i, j int) bool {
@@ -700,7 +709,7 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	if iqr.mode == withRRCs {
 		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
 		for i, record := range records {
-			newRRCs[i] = iqr.rrcs[record.index]
+			newRRCs[i] = iqr.rrcs[record.Index]
 		}
 
 		iqr.rrcs = newRRCs
@@ -709,7 +718,7 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	for cname, values := range iqr.knownValues {
 		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
 		for i, record := range records {
-			newValues[i] = values[record.index]
+			newValues[i] = values[record.Index]
 		}
 
 		iqr.knownValues[cname] = newValues
@@ -812,7 +821,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	nextRecords := make([]*Record, len(iqrs))
 	numRecordsTaken := make([]int, len(iqrs))
 	for i, iqr := range iqrs {
-		nextRecords[i] = &Record{iqr: iqr, index: 0}
+		nextRecords[i] = &Record{iqr: iqr, Index: 0}
 		numRecordsTaken[i] = 0
 	}
 
@@ -823,7 +832,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 
 		// Append the record.
 		if iqr.mode == withRRCs {
-			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
+			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.Index])
 		}
 
 		for _, cname := range originalKnownColumns {
@@ -837,10 +846,10 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		}
 
 		// Prepare for the next iteration.
-		record.index++
+		record.Index++
 
 		// Check if this IQR is out of records.
-		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
+		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].Index {
 			// Discard all the records that were merged.
 			for i, numTaken := range numRecordsTaken {
 				err := iqrs[i].Discard(numTaken)
