@@ -667,6 +667,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
 
 .ui-dialog-buttonpane {
     position: relative;
+    padding: 16px;
 }
 
 .ag-theme-mycustomtheme .ag-root-wrapper {
