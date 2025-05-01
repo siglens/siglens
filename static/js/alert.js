@@ -232,7 +232,7 @@ async function initializeFromUrl() {
         alertType = 'logs';
     }
 
-    if (!isEditMode && !isFromMetrics) {
+    if (!isEditMode && !isFromMetrics && alertType !== 'logs') {
         addQueryElement();
     }
 

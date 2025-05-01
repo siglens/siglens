@@ -274,6 +274,7 @@ function appendFormulaFunctionDiv(formulaElement, fnName) {
     var newDiv = $('<div class="selected-function-formula">' + fnName + '<span class="close">×</span></div>');
     formulaElement.find('.all-selected-functions-formula').append(newDiv);
 }
+
 async function metricsExplorerDatePickerHandler(evt) {
     evt.preventDefault();
     resetCustomDateRange();
@@ -283,7 +284,13 @@ async function metricsExplorerDatePickerHandler(evt) {
     var selectedId = $(evt.currentTarget).attr('id');
     $(evt.currentTarget).addClass('active');
     datePickerHandler(selectedId, 'now', selectedId);
-    await refreshMetricsGraphs();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (isAlertScreen && urlParams.get('type') === 'metrics') {
+        await alertsDatePickerHandler();
+    } else if (isMetricsURL || isMetricsScreen) {
+        await refreshMetricsGraphs();
+    }
 
     $('#daterangepicker').hide();
 }
@@ -1353,9 +1360,29 @@ async function initializeAutocomplete(queryElement, previousQuery = {}) {
     queryElement
         .find('#functions-search-box')
         .autocomplete({
-            source: allFunctions.map(function (item) {
-                return item.name;
-            }),
+            source: function (request, response) {
+                if (allFunctions && allFunctions.length > 0) {
+                    response(
+                        allFunctions.map(function (item) {
+                            return item.name;
+                        })
+                    );
+                } else {
+                    getFunctions()
+                        .then((functions) => {
+                            allFunctions = functions;
+                            response(
+                                allFunctions.map(function (item) {
+                                    return item.name;
+                                })
+                            );
+                        })
+                        .catch((error) => {
+                            console.error('Error fetching functions:', error);
+                            response([]);
+                        });
+                }
+            },
             minLength: 0,
             select: function (event, ui) {
                 var selectedItem = allFunctions.find(function (item) {
@@ -1520,7 +1547,7 @@ const ChartUtils = (function () {
     let activeTooltip = {
         datasetIndex: -1,
         pointIndex: -1,
-        distance: Infinity
+        distance: Infinity,
     };
 
     // Create crosshair plugin
@@ -1529,7 +1556,10 @@ const ChartUtils = (function () {
         beforeDraw: (chart) => {
             if (!chart.crosshair) return;
 
-            const { ctx, chartArea: { top, bottom, left, right } } = chart;
+            const {
+                ctx,
+                chartArea: { top, bottom, left, right },
+            } = chart;
             const { x, y } = chart.crosshair;
 
             if (x >= left && x <= right && y >= top && y <= bottom) {
@@ -1554,14 +1584,16 @@ const ChartUtils = (function () {
 
                 ctx.restore();
             }
-        }
+        },
     };
 
     // Public API
     return {
         getActiveTooltip: () => activeTooltip,
-        setActiveTooltip: (newTooltip) => { activeTooltip = newTooltip; },
-        getCrosshairPlugin: () => crosshairPlugin
+        setActiveTooltip: (newTooltip) => {
+            activeTooltip = newTooltip;
+        },
+        getCrosshairPlugin: () => crosshairPlugin,
     };
 })();
 
@@ -1673,7 +1705,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                     },
                 },
                 ...annotationConfig,
-                crosshair: {}
+                crosshair: {},
             },
             scales: {
                 x: {
@@ -1752,7 +1784,7 @@ function initializeChart(canvas, seriesData, queryName, chartType) {
                 intersect: false,
             },
         },
-        plugins: [ChartUtils.getCrosshairPlugin()]
+        plugins: [ChartUtils.getCrosshairPlugin()],
     });
 
     // mouseout event listener to clear crosshair
@@ -2341,7 +2373,6 @@ function mergeGraphs(chartType, panelId = -1) {
     $('.merged-graph-name').html(graphNames.join(', '));
     const { gridLineColor, tickColor } = getGraphGridColors();
 
-
     var mergedLineChart = new Chart(mergedCtx, {
         type: chartType === 'Area chart' ? 'line' : chartType === 'Bar chart' ? 'bar' : 'line',
         data: mergedData,
@@ -2372,7 +2403,7 @@ function mergeGraphs(chartType, panelId = -1) {
                         },
                     },
                 },
-                crosshair: {}
+                crosshair: {},
             },
             scales: {
                 x: {
@@ -2434,7 +2465,7 @@ function mergeGraphs(chartType, panelId = -1) {
                 intersect: false,
             },
         },
-        plugins: [ChartUtils.getCrosshairPlugin()]
+        plugins: [ChartUtils.getCrosshairPlugin()],
     });
 
     // Add mouseout event listener to clear crosshair and tooltip with flickering fix
@@ -3033,6 +3064,43 @@ async function refreshMetricsGraphs() {
     }
 }
 
+async function alertsDatePickerHandler() {
+    dayCnt7 = 0;
+    dayCnt2 = 0;
+    await getMetricNames();
+
+    isLoadingMore = false;
+
+    const firstKey = Object.keys(queries)[0];
+    if (Object.keys(formulas).length > 0) {
+        for (const formulaId of Object.keys(formulas)) {
+            const formulaDetails = formulas[formulaId];
+            funcApplied = false;
+            formulaDetails.functions = formulaDetailsMap[formulaId].functions;
+            getMetricsDataForFormula(formulaId, formulaDetails);
+        }
+    } else if (queries[firstKey].metrics || queries[firstKey].state === 'raw') {
+        const activeQueryElement = $('#metrics-queries .metrics-query .query-name.active');
+        const queryName1 = activeQueryElement.text();
+
+        for (const queryName of Object.keys(queries)) {
+            const queryDetails = queries[queryName];
+            if (queryName1 === queryName) {
+                if (queryDetails.metrics) {
+                    const tagsAndValue = await getTagKeyValue(queryDetails.metrics);
+                    availableEverywhere = tagsAndValue.availableEverywhere.sort();
+                    availableEverything = tagsAndValue.availableEverything[0].sort();
+                    const queryElement = $(`.metrics-query .query-name:contains(${queryName})`).closest('.metrics-query');
+                    queryElement.find('.everywhere').autocomplete('option', 'source', availableEverywhere);
+                    queryElement.find('.everything').autocomplete('option', 'source', availableEverything);
+                }
+
+                await handleQueryAndVisualize(queryName, queryDetails);
+            }
+        }
+    }
+}
+
 function updateChartColorsBasedOnTheme() {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
@@ -3599,7 +3667,7 @@ document.addEventListener('DOMContentLoaded', resizeAllTextareas);
 function setupRawQueryKeyboardHandlers() {
     $(document).off('keydown.rawQuerySearch', '.raw-query-input');
 
-    $(document).on('keydown.rawQuerySearch', '.raw-query-input', function(event) {
+    $(document).on('keydown.rawQuerySearch', '.raw-query-input', function (event) {
         // Check if Enter key is pressed
         if (event.key === 'Enter') {
             // If Shift key is also pressed (new line)
