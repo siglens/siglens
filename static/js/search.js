@@ -166,18 +166,18 @@ function doSearch(data) {
         };
 
         socket.onclose = function (event) {
-            const reasonText = event.reason ? event.reason : 'No reason provided';
-            
-            if (event.wasClean) {
-                console.log(`[close] Connection closed cleanly, code=${event.code} reason=${reasonText}`);
+            if (event.code === 1000 || event.code === 1001) {
+                console.log(`[close] Connection closed normally with code ${event.code}`);
+            } else if (event.wasClean) {
+                console.log(`[close] Connection closed cleanly, code=${event.code}`);
             } else {
                 let errorMessage;
                 if (event.code === 1006) {
                     errorMessage = 'Connection failed - The server may be down or unreachable';
                 } else {
-                    errorMessage = `Connection closed abnormally (code: ${event.code}, reason: ${reasonText})`;
+                    errorMessage = `Connection closed abnormally (code: ${event.code})`;
                 }
-                console.log(`Abnormal WebSocket close: code=${event.code}, reason=${reasonText}`);
+                console.log(`Abnormal WebSocket close: code=${event.code}`);
                 errorMessages.push(errorMessage);
 
                 processErrorUpdate(errorMessage);
