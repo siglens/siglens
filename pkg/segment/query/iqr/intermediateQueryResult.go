@@ -675,7 +675,8 @@ func (iqr *IQR) GetRecord(index int) *Record {
 }
 
 // Only the first `limit` records are guaranteed to be in the correct order
-// when this function returns.
+// when this function returns. Records after that may not even exist
+// afterwards.
 func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, limit int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
@@ -706,7 +707,8 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, lim
 
 	// If we only want to keep a few records, use a heap to save CPU. If we
 	// want to keep a lot, sort in place to save memory.
-	if limit <= 10000 /* TODO: tune this */ {
+	threshold := 10000 // TODO: tune this
+	if limit <= threshold {
 		records = toputils.GetTopN(limit, records, less)
 	} else {
 		sort.Slice(records, func(i, j int) bool {

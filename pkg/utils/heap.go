@@ -69,15 +69,17 @@ func (h *Heap[T]) Pop() any {
 	old := h.items
 	n := len(old)
 	item := old[n-1]
-	old[n-1] = nil  // avoid memory leak
-	item.index = -1 // for safety
+	old[n-1] = nil
+	item.index = -1
 	h.items = old[0 : n-1]
+
 	return item
 }
 
 func (h *Heap[T]) PushValue(v T) *HeapItem[T] {
 	item := &HeapItem[T]{Value: v}
 	heap.Push(h, item)
+
 	return item
 }
 
@@ -101,13 +103,13 @@ func GetTopN[T any](N int, items []T, less lessFunc[T]) []T {
 		}
 	}
 
-	// Extract results in reverse order (smallest to largest)
+	// Extract results in reverse order
 	result := make([]T, 0, h.Len())
 	for h.Len() > 0 {
 		result = append(result, h.PopValue())
 	}
 
-	// Reverse to get descending order
+	// Reverse to get correct order
 	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
 		result[i], result[j] = result[j], result[i]
 	}

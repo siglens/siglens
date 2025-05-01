@@ -85,20 +85,13 @@ func Test_HeapConvenienceMethods(t *testing.T) {
 		t.Errorf("Expected 3 elements, got %d", h.Len())
 	}
 
-	// Verify order with PopValue
-	if val := h.PopValue(); val != "apple" {
-		t.Errorf("Expected 'apple', got '%s'", val)
-	}
-	if val := h.PopValue(); val != "banana" {
-		t.Errorf("Expected 'banana', got '%s'", val)
-	}
-	if val := h.PopValue(); val != "cherry" {
-		t.Errorf("Expected 'cherry', got '%s'", val)
-	}
+	assert.Equal(t, "apple", h.PopValue())
+	assert.Equal(t, "banana", h.PopValue())
+	assert.Equal(t, "cherry", h.PopValue())
 }
 
 func Test_TopN(t *testing.T) {
-	data := []int{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9}
+	data := []int{3, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 1, 4, 7, 9}
 
 	top5 := GetTopN(5, data, func(a, b int) bool {
 		return a > b
