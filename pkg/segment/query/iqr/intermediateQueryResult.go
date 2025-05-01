@@ -524,7 +524,7 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	if iqr.mode == withRRCs && other.mode == withoutRRCs {
 		if iqr.qid != other.qid {
-			return toputils.TeeErrorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, other.qid)
+			return toputils.TeeErrorf("IQR.Append: inconsistent qids (%v and %v)", iqr.qid, other.qid)
 		}
 		newIQR, err := other.getRRCIQR()
 		if err != nil {
