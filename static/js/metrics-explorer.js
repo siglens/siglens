@@ -288,7 +288,9 @@ async function metricsExplorerDatePickerHandler(evt) {
     const urlParams = new URLSearchParams(window.location.search);
     if (isAlertScreen && urlParams.get('type') === 'metrics') {
         await alertsDatePickerHandler();
-    } else if (isMetricsURL || isMetricsScreen) {
+    }
+    //eslint-disable-next-line no-undef
+    else if (isMetricsURL || isMetricsScreen) {
         await refreshMetricsGraphs();
     }
 
