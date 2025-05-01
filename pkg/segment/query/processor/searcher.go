@@ -775,7 +775,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, nil
 	}
 
-	_, err = toputils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation)
+	_, err = toputils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation, false)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to batch process blocks: %v", s.qid, err)
 		return nil, err

@@ -126,7 +126,7 @@ func Test_BatchProcess(t *testing.T) {
 	input := []int{1, 2, 3, 20, 42, 100, 47}
 	expected := []int{4, 5, 6, 21, 44, 101, 49}
 	expectedBatchSizes := []int{1, 2, 1, 3} // Batches should be 100s, 40s, 20s, 0s
-	actual, err := BatchProcess(input, batchingFunc, batchOrderingFunc, operation)
+	actual, err := BatchProcess(input, batchingFunc, batchOrderingFunc, operation, false)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
 	assert.Equal(t, expectedBatchSizes, actualBatchSizes)
