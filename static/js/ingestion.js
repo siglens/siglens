@@ -20,6 +20,7 @@ let selectedLogSource = '';
 let selectedMetricsSource = '';
 let selectedTracesSource = '';
 let iToken = '';
+let mdFileName = '';
 
 $(document).ready(async function () {
     let pageName = window.location.pathname.split('/').pop() || 'index.html';
@@ -121,37 +122,45 @@ function formatMethodName(methodParam, type) {
 }
 
 function navigateToLogDetails(source, ingestURL) {
-    if (source === 'Promtail' || source === 'OpenTelemetry Collector' || source === 'Filebeat' || source === 'Fluentd' || source === 'Fluent-bit' || source === 'Logstash' || source === 'Vector' || source === 'Elastic Bulk' || source === 'Splunk HEC') {
-        switch (source) {
-            case 'Promtail':
-                mdFileName = 'promtail';
-                break;
-            case 'OpenTelemetry Collector':
-                mdFileName = 'opentelemetry';
-                break;
-            case 'Filebeat':
-                mdFileName = 'filebeat';
-                break;
-            case 'Fluentd':
-                mdFileName = 'fluentd';
-                break;
-            case 'Fluent-bit':
-                mdFileName = 'fluent-bit';
-                break;
-            case 'Logstash':
-                mdFileName = 'logstash';
-                break;
-            case 'Vector':
-                mdFileName = 'vector';
-                break;
-            case 'Elastic Bulk':
-                mdFileName = 'elasticbulk';
-                break;
-            case 'Splunk HEC':
-                mdFileName = 'splunkhec';
-                break;
-        }
+    let urlParam = '';
+
+    switch (source) {
+        case 'Promtail':
+            mdFileName = 'promtail';
+            break;
+        case 'OpenTelemetry Collector':
+            mdFileName = 'opentelemetry';
+            break;
+        case 'Filebeat':
+            mdFileName = 'filebeat';
+            break;
+        case 'Fluentd':
+            mdFileName = 'fluentd';
+            break;
+        case 'Fluent-bit':
+            mdFileName = 'fluent-bit';
+            break;
+        case 'Logstash':
+            mdFileName = 'logstash';
+            break;
+        case 'Vector':
+            mdFileName = 'vector';
+            break;
+        case 'Elastic Bulk':
+            mdFileName = 'elasticbulk';
+            break;
+        case 'Splunk HEC':
+            mdFileName = 'splunkhec';
+            break;
+        case 'Send Test Data':
+            urlParam = 'sendtestdata';
+            break;
+        case 'Verify Connection':
+            urlParam = 'verifyconnection';
+            break;
+    }
         
+    if (mdFileName) {
         window.open(`instructions.html?type=logs&method=${mdFileName}`, '_self');
         return;
     }
@@ -193,32 +202,21 @@ function navigateToLogDetails(source, ingestURL) {
     $('#verify-command-hec').text(hecCommand);
     $('#platform-input').val(source);
 
-    let urlParam = '';
-
-    switch (source) {
-        case 'Send Test Data':
-            urlParam = 'sendtestdata';
-            break;
-        case 'Verify Connection':
-            urlParam = 'verifyconnection';
-            break;
-    }
-
     updateUrlParameter('method', urlParam);
 }
 
 function navigateToMetricsDetails(source) {
 
-    if (source === 'Vector Metrics' || source === 'OpenTelemetry Collector') {
-        switch (source) {
-            case 'Vector Metrics':
-                mdFileName = 'vector-metrics';
-                break;
-            case 'OpenTelemetry Collector':
-                mdFileName = 'open-telemetry';
-                break;
-        }
+    switch (source) {
+        case 'Vector Metrics':
+            mdFileName = 'vector-metrics';
+            break;
+        case 'OpenTelemetry Collector':
+            mdFileName = 'open-telemetry';
+            break;
+    }
         
+    if (mdFileName) {
         window.open(`instructions.html?type=metrics&method=${mdFileName}`, '_self');
         return;
     }
@@ -231,33 +229,32 @@ function navigateToMetricsDetails(source) {
     }, 500);
     
     updateBreadcrumbsForIngestion('Metrics Ingestion Methods', source);
-    
-    updateUrlParameter('method', urlParam);
 }
 
 function navigateToTracesDetails(source) {
-    if (source === 'Go App' || source === 'Java App' || source === 'Python App' || source === '.Net App' || source === 'Javascript App' || source === 'Vector' || source === 'OpenTelemetry Collector') {
-        switch (source) {
-            case 'Go App':
-                mdFileName = 'go-app';
-                break;
-            case 'Java App':
-                mdFileName = 'java-app';
-                break;
-            case 'Python App':
-                mdFileName = 'python-app';
-                break;
-            case '.Net App':
-                mdFileName = 'dotnet-app';
-                break;
-            case 'Javascript App':
-                mdFileName = 'js-app';
-                break;
-            case 'OpenTelemetry Collector':
-                mdFileName = 'opentelemetry';
-                break;
-        }
+    
+    switch (source) {
+        case 'Go App':
+            mdFileName = 'go-app';
+            break;
+        case 'Java App':
+            mdFileName = 'java-app';
+            break;
+        case 'Python App':
+            mdFileName = 'python-app';
+            break;
+        case '.Net App':
+            mdFileName = 'dotnet-app';
+            break;
+        case 'Javascript App':
+            mdFileName = 'js-app';
+            break;
+        case 'OpenTelemetry Collector':
+            mdFileName = 'opentelemetry';
+            break;
+    }
         
+    if (mdFileName) {
         window.open(`instructions.html?type=traces&method=${mdFileName}`, '_self');
         return;
     }
@@ -270,8 +267,7 @@ function navigateToTracesDetails(source) {
     }, 500);
     
     updateBreadcrumbsForIngestion('Traces Ingestion Methods', source);
-    
-    updateUrlParameter('method', urlParam);
+
 }
 
 function updateUrlParameter(key, value) {
