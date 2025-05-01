@@ -132,25 +132,50 @@ func initSyncSegMetaForAllIds(getMyIds func() []int64, allSegmentsHook func() (m
 }
 
 func GetNodeAndQueryTypes(sNode *structs.SearchNode, aggs *structs.QueryAggregators) (structs.SearchNodeType, structs.QueryType) {
+	return sNode.NodeType, getQueryTypeOfCurrentAgg(aggs)
+}
 
-	if aggs != nil && aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
-		if aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns == nil {
-			return sNode.NodeType, structs.SegmentStatsCmd
-		}
-		if aggs != nil && aggs.GroupByRequest.MeasureOperations != nil && aggs.GroupByRequest.GroupByColumns != nil {
-			return sNode.NodeType, structs.GroupByCmd
+func GetQueryTypeOfFullChain(aggs *structs.QueryAggregators) structs.QueryType {
+	for agg := aggs; agg != nil; agg = agg.Next {
+		switch qType := getQueryTypeOfCurrentAgg(agg); qType {
+		case structs.SegmentStatsCmd, structs.GroupByCmd, structs.InvalidCmd:
+			return qType
+		case structs.RRCCmd:
+			// Do nothing.
 		}
 	}
-	if aggs != nil && aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
-		return sNode.NodeType, structs.SegmentStatsCmd
+
+	return structs.RRCCmd
+}
+
+func getQueryTypeOfCurrentAgg(aggs *structs.QueryAggregators) structs.QueryType {
+	if aggs == nil {
+		return structs.RRCCmd
 	}
-	return sNode.NodeType, structs.RRCCmd
+
+	if aggs.GroupByRequest != nil && aggs.StreamStatsOptions == nil {
+		if aggs.GroupByRequest.MeasureOperations != nil {
+			if aggs.GroupByRequest.GroupByColumns == nil {
+				return structs.SegmentStatsCmd
+			} else {
+				return structs.GroupByCmd
+			}
+		}
+	}
+	if aggs.MeasureOperations != nil && aggs.GroupByRequest == nil && aggs.StreamStatsOptions == nil {
+		return structs.SegmentStatsCmd
+	}
+
+	return structs.RRCCmd
 }
 
 func IsLogsQuery(firstAgg *structs.QueryAggregators) bool {
 	for curAgg := firstAgg; curAgg != nil; curAgg = curAgg.Next {
 		_, qType := GetNodeAndQueryTypes(&structs.SearchNode{}, curAgg)
 		if qType != structs.RRCCmd {
+			return false
+		}
+		if firstAgg.IndexName == "traces" || firstAgg.IndexName == "service-dependency" || firstAgg.IndexName == "red-traces" {
 			return false
 		}
 	}
@@ -1371,31 +1396,34 @@ func filterUnrotatedSegKeysToQueryRequests(qInfo *QueryInformation, allPossibleK
 // gets search metadata for a segKey and runs raw search
 func applyPQSToRotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
 
-	searchMetadata, blkSummaries, err := segmetadata.GetSearchInfoAndSummaryForPQS(qsr.segKey, spqmr)
+	allBlocksToSearch, blkSummaries, err := segmetadata.GetSearchInfoAndSummaryForPQS(qsr.segKey, spqmr)
 	if err != nil {
 		log.Errorf("qid=%d, applyPQSToRotatedRequest: failed to get search info for pqs query %+v. Error: %+v",
 			qsr.qid, qsr.segKey, err)
 		return err
 	}
 
-	return ApplySinglePQSRawSearch(qsr, allSearchResults, spqmr, searchMetadata, blkSummaries, qs)
+	return ApplySinglePQSRawSearch(qsr, allSearchResults, spqmr, allBlocksToSearch,
+		blkSummaries, qs)
 }
 
 // gets search metadata for a segKey and runs raw search
 func applyPQSToUnrotatedRequest(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, qs *summary.QuerySummary) error {
 
-	searchMetadata, blkSummaries, err := writer.GetSearchInfoForPQSQuery(qsr.segKey, spqmr)
+	allBlocksToSearch, blkSummaries, err := writer.GetSearchInfoForPQSQuery(qsr.segKey, spqmr)
 	if err != nil {
 		log.Errorf("qid=%d, applyPQSToUnrotatedRequest: failed to get search info for pqs query %+v. Error: %+v",
 			qsr.qid, qsr.segKey, err)
 		return err
 	}
-	return ApplySinglePQSRawSearch(qsr, allSearchResults, spqmr, searchMetadata, blkSummaries, qs)
+	return ApplySinglePQSRawSearch(qsr, allSearchResults, spqmr, allBlocksToSearch, blkSummaries, qs)
 }
 
-func ApplySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults, spqmr *pqmr.SegmentPQMRResults, searchMetadata map[uint16]*structs.BlockMetadataHolder,
+func ApplySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresults.SearchResults,
+	spqmr *pqmr.SegmentPQMRResults, allBlocksToSearch map[uint16]struct{},
 	blkSummaries []*structs.BlockSummary, qs *summary.QuerySummary) error {
-	if len(searchMetadata) == 0 {
+
+	if len(allBlocksToSearch) == 0 {
 		log.Infof("qid=%d, ApplySinglePQSRawSearch: segKey %+v has 0 blocks in segment PQMR results", qsr.qid, qsr.segKey)
 		return nil
 	}
@@ -1403,7 +1431,7 @@ func ApplySinglePQSRawSearch(qsr *QuerySegmentRequest, allSearchResults *segresu
 		SegmentKey:         qsr.segKey,
 		VirtualTableName:   qsr.tableName,
 		AllPossibleColumns: qsr.colsToSearch,
-		AllBlocksToSearch:  searchMetadata,
+		AllBlocksToSearch:  allBlocksToSearch,
 		SearchMetadata: &structs.SearchMetadataHolder{
 			BlockSummaries:    blkSummaries,
 			SearchTotalMemory: uint64(len(blkSummaries) * 16), // TODO: add bitset size here

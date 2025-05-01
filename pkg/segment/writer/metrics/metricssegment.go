@@ -1517,7 +1517,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
-	if forceRotate {
+	if forceRotate && metricsMEntryWalState.wal != nil {
 		err = metricsMEntryWalState.wal.DeleteWAL()
 		if err != nil {
 			log.Errorf("rotateSegment: failed to delete metrics meta entry wal err = %v", err)

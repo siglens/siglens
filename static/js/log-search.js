@@ -23,12 +23,6 @@ let indexValues = [];
 $(document).ready(async () => {
     toggleClearButtonVisibility();
 
-    if (window.fieldssidebarRenderer) {
-        window.fieldssidebarRenderer.init();
-    } else {
-        console.error('fieldssidebarRenderer is not defined. Ensure common.js initializes it correctly.');
-    }
-
     // Call the function for each tooltip
     createTooltip('#add-index', 'Add New Index');
     createTooltip('#date-picker-btn', 'Pick the Time Window');
@@ -105,7 +99,6 @@ $(document).ready(async () => {
     if (window.location.search) {
         data = getInitialSearchFilter(false, false);
         initialSearchData = data;
-        doSearch(data);
     } else {
         setIndexDisplayValue(selectedSearchIndex);
         let stDate = Cookies.get('startEpoch') || 'now-15m';
@@ -120,12 +113,15 @@ $(document).ready(async () => {
         } else {
             datePickerHandler(stDate, endDate, '');
         }
-        $('#run-filter-btn').html(' ');
-        $('#query-builder-btn').html(' ');
         $('#custom-chart-tab').hide();
-        $('#initial-response').show();
+
+        //No query string found, using default search filter
+        data = getSearchFilter(false, false, true);
     }
 
+    doSearch(data);
+    //eslint-disable-next-line no-undef
+    initSidebarToggle();
     initializePagination();
     const pageSizeSelect = document.getElementById('page-size-select');
     if (pageSizeSelect) {
@@ -225,5 +221,3 @@ $(document).ready(async () => {
 
     initializeFilterInputEvents();
 });
-
-

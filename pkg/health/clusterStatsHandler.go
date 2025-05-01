@@ -58,15 +58,6 @@ func GetTraceStatsForAllSegments(myid int64) (utils.AllIndexesStats, int64, floa
 
 func ProcessClusterStatsHandler(ctx *fasthttp.RequestCtx, myid int64) {
 	var httpResp utils.ClusterStatsResponseInfo
-	var err error
-	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
-		myid, err = hook(ctx)
-		if err != nil {
-			log.Errorf("ProcessClusterStatsHandler: failed to extract orgId from context. Err=%+v", err)
-			utils.SetBadMsg(ctx, "")
-			return
-		}
-	}
 
 	segmentsRLockFunc := hooks.GlobalHooks.AcquireOwnedSegmentRLockHook
 	segmentsRUnlockFunc := hooks.GlobalHooks.ReleaseOwnedSegmentRLockHook
@@ -209,14 +200,6 @@ func convertTraceIndexDataToSlice(traceIndexData utils.AllIndexesStats) []map[st
 
 func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 	var err error
-	if hook := hooks.GlobalHooks.MiddlewareExtractOrgIdHook; hook != nil {
-		orgId, err = hook(ctx)
-		if err != nil {
-			log.Errorf("ProcessUsageStatsHandler: failed to extract orgId from context. Err=%+v", err)
-			utils.SetBadMsg(ctx, "")
-			return
-		}
-	}
 
 	var httpResp utils.ClusterStatsResponseInfo
 	rawJSON := ctx.PostBody()
@@ -241,42 +224,62 @@ func ProcessUsageStatsHandler(ctx *fasthttp.RequestCtx, orgId int64) {
 		return
 	}
 
-	pastXhours, granularity := parseIngestionStatsRequest(readJSON)
-	rStats, _ := usageStats.GetUsageStats(pastXhours, granularity, orgId)
+	granularity, startTs, endTs := parseIngestionStatsRequest(readJSON)
+	rStats, _ := usageStats.GetUsageStats(startTs, endTs, granularity, orgId)
 
 	if hook := hooks.GlobalHooks.AddMultinodeIngestStatsHook; hook != nil {
-		hook(rStats, pastXhours, uint8(granularity), orgId)
+		hook(rStats, startTs, endTs, uint8(granularity), orgId)
 	}
 
 	httpResp.ChartStats = make(map[string]map[string]interface{})
+
+	totalLogsByteCount := uint64(0)
+	totalTracesByteCount := uint64(0)
+	totalDatapointCount := uint64(0)
+	// todo rStats should provide this number across the whole time interval that was selected
+	p95ActiveSeriesCount := uint64(0)
 
 	for k, entry := range rStats {
 		httpResp.ChartStats[k] = make(map[string]interface{}, 2)
 		httpResp.ChartStats[k]["TotalBytesCount"] = float64(entry.TotalBytesCount)
 		httpResp.ChartStats[k]["LogsEventCount"] = entry.EventCount
 		httpResp.ChartStats[k]["MetricsDatapointsCount"] = entry.MetricsDatapointsCount
+		totalDatapointCount += entry.MetricsDatapointsCount
 		httpResp.ChartStats[k]["LogsBytesCount"] = float64(entry.LogsBytesCount)
+		totalLogsByteCount += entry.LogsBytesCount
 		httpResp.ChartStats[k]["MetricsBytesCount"] = float64(entry.MetricsBytesCount)
 		httpResp.ChartStats[k]["TraceBytesCount"] = float64(entry.TraceBytesCount)
+		totalTracesByteCount += entry.TraceBytesCount
 		httpResp.ChartStats[k]["TraceSpanCount"] = entry.TraceSpanCount
 		httpResp.ChartStats[k]["ActiveSeriesCount"] = entry.ActiveSeriesCount
 	}
+
+	httpResp.IngestionStats = make(map[string]interface{})
+	httpResp.MetricsStats = make(map[string]interface{})
+	httpResp.TraceStats = make(map[string]interface{})
+
+	httpResp.IngestionStats["Log Incoming Volume"] = totalLogsByteCount
+	httpResp.TraceStats["Total Trace Volume"] = float64(totalTracesByteCount)
+	httpResp.MetricsStats["Datapoints Count"] = humanize.Comma(int64(totalDatapointCount))
+	httpResp.MetricsStats["P95 Active Series Count"] = humanize.Comma(int64(p95ActiveSeriesCount))
+
 	utils.WriteJsonResponse(ctx, httpResp)
 }
 
-func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usageStats.UsageStatsGranularity) {
-	defaultPastHours := uint64(7 * 24) // 7 days default
-
+func parseIngestionStatsRequest(jsonSource map[string]interface{}) (usageStats.UsageStatsGranularity, int64, int64) {
 	startEpoch, hasStart := jsonSource["startEpoch"]
 	endEpoch, hasEnd := jsonSource["endEpoch"]
 	granularity, hasGranularity := jsonSource["granularity"]
 
+	defaultStartTs := time.Now().AddDate(0, 0, -7).Unix() // 7 days default
+	defaultEndTs := time.Now().Unix()
+
 	// Handle missing values
 	if !hasStart || !hasEnd || startEpoch == nil || endEpoch == nil {
 		if hasGranularity {
-			return defaultPastHours, parseGranularity(granularity)
+			return parseGranularity(granularity), defaultStartTs, defaultEndTs
 		}
-		return defaultPastHours, determineGranularity(defaultPastHours)
+		return usageStats.Daily, defaultStartTs, defaultEndTs
 	}
 
 	// Parse timestamps
@@ -286,17 +289,17 @@ func parseIngestionStatsRequest(jsonSource map[string]interface{}) (uint64, usag
 	// Validate timestamps
 	if startTs == -1 || endTs == -1 || endTs <= startTs {
 		if hasGranularity {
-			return defaultPastHours, parseGranularity(granularity)
+			return parseGranularity(granularity), defaultStartTs, defaultEndTs
 		}
-		return defaultPastHours, determineGranularity(defaultPastHours)
+		return usageStats.Daily, defaultStartTs, defaultEndTs
 	}
 
 	// Calculate hours difference
 	hours := uint64((endTs - startTs) / 3600)
 	if hasGranularity {
-		return hours, parseGranularity(granularity)
+		return parseGranularity(granularity), startTs, endTs
 	}
-	return hours, determineGranularity(hours)
+	return determineGranularity(hours), startTs, endTs
 }
 
 func determineGranularity(hours uint64) usageStats.UsageStatsGranularity {

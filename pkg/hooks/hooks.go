@@ -49,8 +49,8 @@ type Hooks struct {
 	ShutdownSiglensExtrasHook func()
 	ShutdownSiglensPreHook    func(bool)
 
-	// Cluster health
-	IngestStatsHandlerHook     func(ctx *fasthttp.RequestCtx, myid int64)
+	// Usage Stats
+	UsageStatsHandlerHook      func(ctx *fasthttp.RequestCtx, myid int64)
 	StatsHandlerHook           func(ctx *fasthttp.RequestCtx, myid int64)
 	SetExtraIngestionStatsHook func(map[string]interface{})
 	MiddlewareExtractOrgIdHook func(ctx *fasthttp.RequestCtx) (int64, error)
@@ -63,7 +63,7 @@ type Hooks struct {
 
 	AddMultinodeSystemInfoHook func(ctx *fasthttp.RequestCtx)
 	// rStats is of type usageStats.ReadStats
-	AddMultinodeIngestStatsHook func(rStats interface{}, pastXhours uint64, granularity uint8, orgId int64)
+	AddMultinodeIngestStatsHook func(rStats interface{}, startTs int64, endTs int64, granularity uint8, orgId int64)
 	AddMultiNodeIndexHook       func(orgId int64) []string
 
 	AcquireOwnedSegmentRLockHook func()
@@ -181,5 +181,12 @@ var GlobalHooks = Hooks{
 	},
 	JsSnippets: JsSnippets{
 		ShowSLO: true,
+	},
+}
+
+var ManagementGlobalHooks = Hooks{
+	ParseTemplatesHook: func(htmlTemplate *htmltemplate.Template, textTemplate *texttemplate.Template) {
+		*htmlTemplate = *htmltemplate.Must(htmlTemplate.ParseGlob("./static/management/*.html"))
+		*textTemplate = *texttemplate.Must(textTemplate.ParseGlob("./static/management/js/*.js"))
 	},
 }

@@ -114,7 +114,7 @@ $(document).ready(async function () {
         isMetricsScreen = true;
     }
 
-    $('#metrics-container #customrange-btn').on('click', refreshMetricsGraphs);
+    $('#metrics-container #customrange-btn').on('dateRangeValid', refreshMetricsGraphs);
     $('.range-item').on('click', metricsExplorerDatePickerHandler);
 
     $('.theme-btn').on('click', themePickerHandler);
@@ -2268,44 +2268,6 @@ function mergeGraphs(chartType, panelId = -1) {
         if (currentPanel) {
             const data = getMetricsQData();
             currentPanel.queryData = data;
-
-            // Handle number chart type in dashboard mode
-            if (currentPanel?.chartType === 'number') {
-                const panelChartEl = panelId === -1 ? $(`.panelDisplay .panEdit-panel`) : $(`#panel${panelId} .panEdit-panel`);
-                panelChartEl.hide();
-
-                setTimeout(async () => {
-                    let bigNumVal = null;
-                    let dataType = currentPanel.dataType;
-
-                    if (currentPanel.queryData && currentPanel.queryData.queriesData && currentPanel.queryData.queriesData.length) {
-                        if (rawTimeSeriesData && rawTimeSeriesData.values) {
-                            $.each(rawTimeSeriesData.values, function (_index, valueArray) {
-                                $.each(valueArray, function (_index, value) {
-                                    if (value > bigNumVal || bigNumVal === null) {
-                                        bigNumVal = value;
-                                    }
-                                });
-                            });
-                        }
-                    }
-
-                    if (bigNumVal === null || bigNumVal === undefined) {
-                        window.panelProcessEmptyQueryResults('', panelId);
-                    } else {
-                        if (panelId == -1) {
-                            $('.panelDisplay #empty-response').empty().hide();
-                            $('.panelDisplay #corner-popup').hide();
-                        } else {
-                            $(`#panel${panelId} #empty-response`).empty().hide();
-                            $(`#panel${panelId} #corner-popup`).hide();
-                        }
-                        displayBigNumber(bigNumVal.toString(), panelId, dataType, currentPanel.panelIndex);
-                    }
-                }, 0);
-
-                return;
-            }
         }
         var panelChartEl;
         if (panelId === -1) {

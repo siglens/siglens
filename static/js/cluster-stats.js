@@ -155,28 +155,9 @@ function renderTotalCharts(label, totalIncomingVolume, totalStorageUsed) {
 
 function processClusterStats(res) {
     {{ .ClusterStatsSetUserRole }}
-    _.forEach(res, (value, key) => {
-        if (key === 'ingestionStats') {
-            let table = $('#ingestion-table');
-            _.forEach(value, (v, k) => {
-                let tr = $('<tr>');
-                tr.append('<td>' + k + '</td>');
-                tr.append('<td class="health-stats-value">' + v + '</td>');
-                table.find('tbody').append(tr);
-            });
-        }
-        if (key === 'metricsStats') {
-            let table = $('#metrics-table');
-            _.forEach(value, (v, k) => {
-                let tr = $('<tr>');
-                tr.append('<td>' + k + '</td>');
-                tr.append('<td class="health-stats-value">' + v + '</td>');
-                table.find('tbody').append(tr);
-            });
-        }
-    });
 
-    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', 'Column Count', ''];
+
+    let indexColumnOrder = ['Index Name', 'Incoming Volume', 'Event Count', 'Segment Count', 'Column Count', 'Actions'];
     let metricsColumnOrder = ['Index Name', 'Incoming Volume', 'Datapoint Count'];
     let traceColumnOrder = ['Index Name', 'Incoming Volume', 'Span Count', 'Segment Count'];
 
@@ -268,7 +249,7 @@ function processClusterStats(res) {
             { targets: 2, width: '20%', className: 'dt-head-right dt-body-right' }, // Event Count
             { targets: 3, width: '15%', className: 'dt-head-right dt-body-right' }, // Segment Count
             { targets: 4, width: '15%', className: 'dt-head-right dt-body-right' }, // Column Count
-            { targets: 5, width: '15%', className: 'dt-body-center' }, // Delete
+            { targets: 5, width: '15%', className: 'dt-head-center dt-body-center' }, // Delete
         ],
     });
 
@@ -282,8 +263,8 @@ function processClusterStats(res) {
         ...commonDataTablesConfig,
         columns: tracesDataTableColumns,
         columnDefs: [
-            { targets: 0, width: '20%' },
-            { targets: [1, 2, 3], width: '20%', className: 'dt-head-right dt-body-right' },
+            { targets: 0, width: '25%' },
+            { targets: [1, 2, 3], width: '25%', className: 'dt-head-right dt-body-right' },
         ],
     });
 

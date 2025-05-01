@@ -5,10 +5,16 @@
             "value": 1,
             "relation": "eq"
         },
-        "qtype": "logs-query",
-        "records": [
+        "qtype": "segstats-query",
+        "measureFunctions": ["count(*)"],
+        "measure": [
             {
-                "count(*)": 1837
+                "GroupByValues": [
+                    "*"
+                ],
+                "MeasureVal": {
+                    "count(*)": 1837
+                }
             }
         ],
         "allColumns": [

@@ -74,6 +74,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 
 	//aggs
 	if queryAggs != nil {
+		queryAggs.IndexName = indexName
 		// if groupby request or segment stats exist, dont early exist and no sort is needed
 		if queryAggs.GroupByRequest != nil && queryAggs.StreamStatsOptions == nil {
 			queryAggs.GroupByRequest.BucketCount = 10_000
@@ -111,6 +112,7 @@ func ParseRequest(searchText string, startEpoch, endEpoch uint64, qid uint64, qu
 		}
 	} else {
 		queryAggs = structs.InitDefaultQueryAggregations()
+		queryAggs.IndexName = indexName
 	}
 
 	segment.LogASTNode(queryLanguageType+"query parser", boolNode, qid)

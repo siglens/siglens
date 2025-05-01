@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"reflect"
 	"sort"
 
@@ -449,22 +450,20 @@ func (iqr *IQR) readAllColumnsWithRRCs() (map[string][]utils.CValueEnclosure, er
 
 // If the column doesn't exist, `nil, nil` is returned.
 func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error) {
-	allColumns, err := iqr.getColumnsInternal()
-	if err != nil {
-		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error getting all columns: %v", err)
-	}
-
-	if _, ok := allColumns[cname]; !ok {
+	if _, ok := iqr.deletedColumns[cname]; ok {
 		return nil, nil
 	}
 
 	// Prepare to call BatchProcess().
 	getBatchKey := func(rrc *utils.RecordResultContainer) uint32 {
+		if rrc == nil {
+			return NIL_RRC_SEGKEY
+		}
 		return rrc.SegKeyInfo.SegKeyEnc
 	}
 	batchKeyLess := toputils.NewUnsetOption[func(uint32, uint32) bool]()
 	batchOperation := func(rrcs []*utils.RecordResultContainer) ([]utils.CValueEnclosure, error) {
-		if len(rrcs) == 0 {
+		if len(rrcs) == 0 || rrcs[0] == nil {
 			return nil, nil
 		}
 
@@ -475,6 +474,10 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 
 		values, err := iqr.reader.ReadColForRRCs(segKey, rrcs, cname, iqr.qid)
 		if err != nil {
+			if os.IsNotExist(toputils.FullUnwrapError(err)) {
+				// The column doesn't exist.
+				return nil, nil
+			}
 			return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error reading column %s: %v", cname, err)
 		}
 
@@ -668,10 +671,10 @@ func (iqr *IQR) getColumnsInternal() (map[string]struct{}, error) {
 }
 
 func (iqr *IQR) GetRecord(index int) *Record {
-	return &Record{iqr: iqr, index: index}
+	return &Record{iqr: iqr, Index: index}
 }
 
-func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
+func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
@@ -685,9 +688,18 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 		return nil
 	}
 
+	sortColumnValues := make([][]utils.CValueEnclosure, len(sortColumns))
+	for i, cname := range sortColumns {
+		var err error
+		sortColumnValues[i], err = iqr.ReadColumn(cname)
+		if err != nil {
+			return err
+		}
+	}
+
 	records := make([]*Record, iqr.NumberOfRecords())
 	for i := 0; i < iqr.NumberOfRecords(); i++ {
-		records[i] = &Record{iqr: iqr, index: i}
+		records[i] = &Record{iqr: iqr, Index: i, SortValues: sortColumnValues}
 	}
 
 	sort.Slice(records, func(i, j int) bool {
@@ -697,7 +709,7 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	if iqr.mode == withRRCs {
 		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
 		for i, record := range records {
-			newRRCs[i] = iqr.rrcs[record.index]
+			newRRCs[i] = iqr.rrcs[record.Index]
 		}
 
 		iqr.rrcs = newRRCs
@@ -706,7 +718,7 @@ func (iqr *IQR) Sort(less func(*Record, *Record) bool) error {
 	for cname, values := range iqr.knownValues {
 		newValues := make([]utils.CValueEnclosure, iqr.NumberOfRecords())
 		for i, record := range records {
-			newValues[i] = values[record.index]
+			newValues[i] = values[record.Index]
 		}
 
 		iqr.knownValues[cname] = newValues
@@ -809,7 +821,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	nextRecords := make([]*Record, len(iqrs))
 	numRecordsTaken := make([]int, len(iqrs))
 	for i, iqr := range iqrs {
-		nextRecords[i] = &Record{iqr: iqr, index: 0}
+		nextRecords[i] = &Record{iqr: iqr, Index: 0}
 		numRecordsTaken[i] = 0
 	}
 
@@ -820,7 +832,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 
 		// Append the record.
 		if iqr.mode == withRRCs {
-			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.index])
+			iqr.rrcs = append(iqr.rrcs, record.iqr.rrcs[record.Index])
 		}
 
 		for _, cname := range originalKnownColumns {
@@ -834,10 +846,10 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		}
 
 		// Prepare for the next iteration.
-		record.index++
+		record.Index++
 
 		// Check if this IQR is out of records.
-		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].index {
+		if iqrs[iqrIndex].NumberOfRecords() <= nextRecords[iqrIndex].Index {
 			// Discard all the records that were merged.
 			for i, numTaken := range numRecordsTaken {
 				err := iqrs[i].Discard(numTaken)

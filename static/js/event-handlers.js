@@ -31,8 +31,6 @@ function setupEventHandlers() {
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
     $('#live-tail-btn').on('click', runLiveTailBtnHandler);
 
-    $('#corner-popup').on('click', '.corner-btn-close', hideCornerPopupError);
-
     $('#query-language-btn').on('show.bs.dropdown', qLangOnShowHandler);
     $('#query-language-btn').on('hide.bs.dropdown', qLangOnHideHandler);
     $('#query-language-options .query-language-option').on('click', setQueryLangHandler);
@@ -68,7 +66,7 @@ function setupEventHandlers() {
     $('#customrange-btn').off('click').on('click', customRangeHandler);
 
     $('.range-item').on('click', rangeItemHandler);
-    $('.db-range-item').off('click').on('click', dashboardRangeItemHandler);
+    $('.db-range-item').off('click').on('click', rangeItemHandler);
 
     $('.ui-widget input').on('keyup', saveqInputHandler);
 
@@ -171,15 +169,34 @@ function getEndTimeHandler() {
 }
 
 function customRangeHandler(evt) {
+    $('#date-range-error').remove();
+
     if (!tempStartDate || !tempEndDate) {
         evt.preventDefault();
         evt.stopPropagation();
-        if (!tempStartDate) $('#date-start').addClass('error');
-        if (!tempEndDate) $('#date-end').addClass('error');
+        if (!tempStartDate) {
+            $('#date-start').addClass('error');
+            $('.panelEditor-container #date-start').addClass('error');
+        }
+        if (!tempEndDate) {
+            $('#date-end').addClass('error');
+            $('.panelEditor-container #date-end').addClass('error');
+        }
+
+        $('#daterange-to').after('<div id="date-range-error" class="date-range-error">Please select both start and end dates</div>');
+        $('.panelEditor-container #daterange-to').after('<div id="date-range-error" class="date-range-error">Please select both start and end dates</div>');
 
         setTimeout(function () {
             $('#date-start, #date-end').removeClass('error');
+            $('.panelEditor-container #date-start,.panelEditor-container #date-end').removeClass('error');
+            $('#date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
+            $('.panelEditor-container #date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
         }, 2000);
+        $(this).trigger('dateRangeInvalid');
         return;
     } else {
         $.each($('.range-item.active, .db-range-item.active'), function () {
@@ -201,119 +218,71 @@ function customRangeHandler(evt) {
     filterStartDate = startDate.getTime();
     filterEndDate = endDate.getTime();
 
+    if (filterEndDate <= filterStartDate) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        $('#date-start').addClass('error');
+        $('#date-end').addClass('error');
+        $('.panelEditor-container #date-start').addClass('error');
+        $('.panelEditor-container #date-end').addClass('error');
+
+        $('#daterange-to').after('<div id="date-range-error" class="date-range-error">End date must be after start date</div>');
+        $('.panelEditor-container #daterange-to').after('<div id="date-range-error" class="date-range-error">End date must be after start date</div>');
+
+        setTimeout(function () {
+            $('#date-start, #date-end').removeClass('error');
+            $('.panelEditor-container #date-start, .panelEditor-container #date-end').removeClass('error');
+            $('#date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
+            $('.panelEditor-container #date-range-error').fadeOut(300, function () {
+                $(this).remove();
+            });
+        }, 2000);
+        $(this).trigger('dateRangeInvalid');
+        return;
+    }
+
     Cookies.set('customStartDate', appliedStartDate);
     Cookies.set('customStartTime', appliedStartTime);
     Cookies.set('customEndDate', appliedEndDate);
     Cookies.set('customEndTime', appliedEndTime);
 
     datePickerHandler(filterStartDate, filterEndDate, 'custom');
+    $(this).trigger('dateRangeValid');
     // For dashboards
     const currentUrl = window.location.href;
     if (currentUrl.includes('dashboard.html')) {
-        if (currentPanel) {
-            if (currentPanel.queryData) {
-                if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                    const startDateStr = filterStartDate.toString();
-                    const endDateStr = filterEndDate.toString();
-
-                    // Update start and end for queryData
-                    if (currentPanel.queryData) {
-                        currentPanel.queryData.start = startDateStr;
-                        currentPanel.queryData.end = endDateStr;
-
-                        // Update start and end for each item in queriesData
-                        if (Array.isArray(currentPanel.queryData.queriesData)) {
-                            currentPanel.queryData.queriesData.forEach((query) => {
-                                query.start = startDateStr;
-                                query.end = endDateStr;
-                            });
-                        }
-
-                        // Update start and end for each item in formulasData
-                        if (Array.isArray(currentPanel.queryData.formulasData)) {
-                            currentPanel.queryData.formulasData.forEach((formula) => {
-                                formula.start = startDateStr;
-                                formula.end = endDateStr;
-                            });
-                        }
-                    }
-                } else {
-                    currentPanel.queryData.startEpoch = filterStartDate;
-                    currentPanel.queryData.endEpoch = filterEndDate;
-                }
-                runQueryBtnHandler();
-            }
-        } else if (!currentPanel) {
-            // if user is on dashboard screen
-            localPanels.forEach((panel) => {
-                delete panel.queryRes;
-                if (panel.queryData) {
-                    if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                        const startDateStr = filterStartDate.toString();
-                        const endDateStr = filterEndDate.toString();
-
-                        // Update start and end for queryData
-                        if (panel.queryData) {
-                            panel.queryData.start = startDateStr;
-                            panel.queryData.end = endDateStr;
-
-                            // Update start and end for each item in queriesData
-                            if (Array.isArray(panel.queryData.queriesData)) {
-                                panel.queryData.queriesData.forEach((query) => {
-                                    query.start = startDateStr;
-                                    query.end = endDateStr;
-                                });
-                            }
-
-                            // Update start and end for each item in formulasData
-                            if (Array.isArray(panel.queryData.formulasData)) {
-                                panel.queryData.formulasData.forEach((formula) => {
-                                    formula.start = startDateStr;
-                                    formula.end = endDateStr;
-                                });
-                            }
-                        }
-                    } else {
-                        panel.queryData.startEpoch = filterStartDate;
-                        panel.queryData.endEpoch = filterEndDate;
-                    }
-                }
-            });
-            displayPanels();
-        }
+        updateDashboardDateRange(filterStartDate, filterEndDate);
     }
 }
 
 function rangeItemHandler(evt) {
     resetCustomDateRange();
-    $.each($('.range-item.active'), function () {
+    $.each($('.range-item.active, .db-range-item.active'), function () {
         $(this).removeClass('active');
     });
     $(evt.currentTarget).addClass('active');
     datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
+
+    const currentUrl = window.location.href;
+    if (currentUrl.includes('dashboard.html')) {
+        updateDashboardDateRange(filterStartDate, filterEndDate);
+    }
 }
 
-async function dashboardRangeItemHandler(evt) {
-    resetCustomDateRange();
-    $.each($('.db-range-item.active'), function () {
-        $(this).removeClass('active');
-    });
-    $(evt.currentTarget).addClass('active');
-    datePickerHandler($(this).attr('id'), 'now', $(this).attr('id'));
+function updateDashboardDateRange(startTimestamp, endTimestamp) {
+    const startDateStr = startTimestamp.toString();
+    const endDateStr = endTimestamp.toString();
 
     // if user is on edit panel screen
     if (currentPanel) {
         if (currentPanel.queryData) {
             if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
-                const startDateStr = filterStartDate.toString();
-                const endDateStr = filterEndDate.toString();
-
-                // Update start and end for queryData
                 if (currentPanel.queryData) {
                     currentPanel.queryData.start = startDateStr;
                     currentPanel.queryData.end = endDateStr;
 
-                    // Update start and end for each item in queriesData
                     if (Array.isArray(currentPanel.queryData.queriesData)) {
                         currentPanel.queryData.queriesData.forEach((query) => {
                             query.start = startDateStr;
@@ -321,7 +290,6 @@ async function dashboardRangeItemHandler(evt) {
                         });
                     }
 
-                    // Update start and end for each item in formulasData
                     if (Array.isArray(currentPanel.queryData.formulasData)) {
                         currentPanel.queryData.formulasData.forEach((formula) => {
                             formula.start = startDateStr;
@@ -330,26 +298,21 @@ async function dashboardRangeItemHandler(evt) {
                     }
                 }
             } else {
-                currentPanel.queryData.startEpoch = filterStartDate;
-                currentPanel.queryData.endEpoch = filterEndDate;
+                currentPanel.queryData.startEpoch = startTimestamp;
+                currentPanel.queryData.endEpoch = endTimestamp;
             }
             runQueryBtnHandler();
         }
     } else if (!currentPanel) {
-        // if user is on dashboard screen
+        // If user is on dashboard screen
         localPanels.forEach((panel) => {
             delete panel.queryRes;
             if (panel.queryData) {
                 if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
-                    const startDateStr = filterStartDate.toString();
-                    const endDateStr = filterEndDate.toString();
-
-                    // Update start and end for queryData
                     if (panel.queryData) {
                         panel.queryData.start = startDateStr;
                         panel.queryData.end = endDateStr;
 
-                        // Update start and end for each item in queriesData
                         if (Array.isArray(panel.queryData.queriesData)) {
                             panel.queryData.queriesData.forEach((query) => {
                                 query.start = startDateStr;
@@ -357,7 +320,6 @@ async function dashboardRangeItemHandler(evt) {
                             });
                         }
 
-                        // Update start and end for each item in formulasData
                         if (Array.isArray(panel.queryData.formulasData)) {
                             panel.queryData.formulasData.forEach((formula) => {
                                 formula.start = startDateStr;
@@ -366,12 +328,11 @@ async function dashboardRangeItemHandler(evt) {
                         }
                     }
                 } else {
-                    panel.queryData.startEpoch = filterStartDate;
-                    panel.queryData.endEpoch = filterEndDate;
+                    panel.queryData.startEpoch = startTimestamp;
+                    panel.queryData.endEpoch = endTimestamp;
                 }
             }
         });
-
         displayPanels();
     }
 }
@@ -507,10 +468,12 @@ function runFilterBtnHandler(evt) {
             resetDashboard();
             logsRowData = [];
             accumulatedRecords = [];
+            lastColumnsOrder = [];
             totalLoadedRecords = 0;
             wsState = 'query';
             data = getSearchFilter(false, false);
             initialSearchData = data;
+            $('#pagination-container').hide();
             doSearch(data);
         }
         $('#daterangepicker').hide();
@@ -518,15 +481,24 @@ function runFilterBtnHandler(evt) {
 }
 
 function filterInputHandler(evt) {
-    if (!evt.shiftKey && evt.keyCode === 13 && ($('#run-filter-btn').text() === ' ' || $('#query-builder-btn').text() === ' ')) {
-        evt.preventDefault();
-        resetDashboard();
-        logsRowData = [];
-        accumulatedRecords = [];
-        totalLoadedRecords = 0;
-        data = getSearchFilter(false, false);
-        initialSearchData = data;
-        doSearch(data);
+    if (!evt.shiftKey && evt.keyCode === 13) {
+        const currentUrl = window.location.href;
+        const url = new URL(currentUrl);
+        const pathOnly = url.pathname;
+
+        const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
+
+        if (isIndexPage) {
+            evt.preventDefault();
+            resetDashboard();
+            logsRowData = [];
+            accumulatedRecords = [];
+            lastColumnsOrder = [];
+            totalLoadedRecords = 0;
+            data = getSearchFilter(false, false);
+            initialSearchData = data;
+            doSearch(data);
+        }
     }
 }
 
@@ -560,8 +532,10 @@ function saveqInputHandler(evt) {
 }
 
 function handleLogOptionChange(viewType) {
-    $('#logs-result-container').toggleClass('multi', viewType !== VIEW_TYPES.SINGLE);
-    $('#views-container .btn-group .btn').removeClass('active');
+    const logsContainer = $('#logs-result-container');
+    const viewButtons = $('#views-container .btn-group .btn');
+    logsContainer.toggleClass('multi', viewType !== VIEW_TYPES.SINGLE);
+    viewButtons.removeClass('active');
 
     switch (viewType) {
         case VIEW_TYPES.SINGLE:
@@ -575,23 +549,20 @@ function handleLogOptionChange(viewType) {
             break;
     }
 
-    logsColumnDefs.forEach(function (colDef) {
-        if (colDef.field !== 'timestamp' && colDef.field !== 'logs') {
-            colDef.cellRenderer = null;
-        }
-    });
+    const columnUpdates = {};
 
     if (viewType === VIEW_TYPES.TABLE) {
-        logsColumnDefs.forEach(function (colDef) {
+        columnUpdates.cellRenderer = (params) => (params.value === '' || params.value === null || params.value === undefined ? '-' : params.value);
+
+        logsColumnDefs.forEach((colDef) => {
             if (colDef.field !== 'timestamp') {
-                colDef.cellRenderer = function (params) {
-                    return params.value === '' || params.value === null || params.value === undefined ? '-' : params.value;
-                };
+                colDef.cellRenderer = columnUpdates.cellRenderer;
             }
 
             if (colDef.field === 'logs') {
                 colDef.cellStyle = null;
                 colDef.autoHeight = null;
+                colDef.suppressSizeToFit = false;
             }
         });
 
@@ -607,10 +578,10 @@ function handleLogOptionChange(viewType) {
     refreshColumnVisibility();
 
     if (viewType === VIEW_TYPES.MULTI) {
-        setTimeout(() => {
+        requestAnimationFrame(() => {
             gridOptions.api.refreshCells({ force: true });
             gridOptions.api.redrawRows();
-        }, 50);
+        });
     }
 
     gridOptions.api.sizeColumnsToFit();
@@ -619,43 +590,44 @@ function handleLogOptionChange(viewType) {
 function configureLogsColumn(viewType) {
     const isSingleLine = viewType === VIEW_TYPES.SINGLE;
 
-    logsColumnDefs.forEach(function (colDef) {
-        if (colDef.field === 'logs') {
-            colDef.cellStyle = isSingleLine ? null : { 'white-space': 'normal' };
-            colDef.autoHeight = isSingleLine ? null : true;
-            colDef.suppressSizeToFit = isSingleLine;
+    const logsColDef = logsColumnDefs.find((colDef) => colDef.field === 'logs');
 
-            colDef.cellRenderer = function (params) {
-                const data = params.data || {};
-                let logString = '';
-                let addSeparator = false;
+    if (!logsColDef) return;
 
-                Object.entries(data)
-                    .filter(([key]) => key !== 'timestamp')
-                    .filter(([_, value]) => value !== '' && value !== null && value !== undefined) // Filter out the column which is empty
-                    .forEach(([key, value]) => {
-                        // Only show selected fields (or all if none selected)
-                        if (key !== 'logs' && selectedFieldsList.length > 0 && !selectedFieldsList.includes(key)) {
-                            return;
-                        }
+    logsColDef.cellStyle = isSingleLine ? null : { 'white-space': 'normal' };
+    logsColDef.autoHeight = isSingleLine ? null : true;
+    logsColDef.suppressSizeToFit = isSingleLine;
 
-                        let colSep = addSeparator ? '<span class="col-sep"> | </span>' : '';
-                        let formattedValue = isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
+    logsColDef.cellRenderer = function (params) {
+        const data = params.data || {};
+        const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
 
-                        logString += `${colSep}<span class="cname-hide-${string2Hex(key)}"><b>${key}</b> ${formattedValue}</span>`;
-                        addSeparator = true;
-                    });
+        const selectedFieldsSet = selectedFieldsList.length > 0 ? new Set(selectedFieldsList) : null;
 
-                const whiteSpaceStyle = isSingleLine ? 'nowrap' : 'pre-wrap';
-
-                if (!logString) {
-                    return `<div style="white-space: ${whiteSpaceStyle};">-</div>`;
-                }
-
-                return `<div style="white-space: ${whiteSpaceStyle};">${logString}</div>`;
-            };
+        if (Object.keys(data).length <= 1) {
+            return `<div style="white-space: ${whiteSpaceStyle};">-</div>`;
         }
-    });
+
+        const logParts = [];
+
+        Object.entries(data)
+            .filter(([key, value]) => {
+                return key !== 'timestamp' && value !== '' && value !== null && value !== undefined && (key === 'logs' || !selectedFieldsSet || selectedFieldsSet.has(key));
+            })
+            .forEach(([key, value], index) => {
+                const colSep = index > 0 ? '<span class="col-sep"> | </span>' : '';
+
+                const formattedValue = isSingleLine ? (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) : formatLogsValue(value);
+
+                logParts.push(`${colSep}<span class="cname-hide-${string2Hex(key)}"><b>${key}</b> ${formattedValue}</span>`);
+            });
+
+        if (logParts.length === 0) {
+            return `<div style="white-space: ${whiteSpaceStyle};">-</div>`;
+        }
+
+        return `<div style="white-space: ${whiteSpaceStyle};">${logParts.join('')}</div>`;
+    };
 
     gridOptions.api.setColumnDefs(logsColumnDefs);
 
@@ -663,12 +635,13 @@ function configureLogsColumn(viewType) {
         gridOptions.api.resetRowHeights();
     }
 
-    // Configure visibility
-    availColNames.forEach((colName) => {
-        gridOptions.columnApi.setColumnVisible(colName, false);
-    });
-    gridOptions.columnApi.setColumnVisible('timestamp', true);
-    gridOptions.columnApi.setColumnVisible('logs', true);
+    const columnsToHide = availColNames.filter((name) => name !== 'timestamp' && name !== 'logs');
+    const columnsToShow = ['timestamp', 'logs'];
+
+    if (columnsToHide.length > 0) {
+        gridOptions.columnApi.setColumnsVisible(columnsToHide, false);
+    }
+    gridOptions.columnApi.setColumnsVisible(columnsToShow, true);
 
     gridOptions.columnApi.autoSizeColumn(gridOptions.columnApi.getColumn('logs'), false);
 }
@@ -690,28 +663,48 @@ function refreshColumnVisibility() {
     const logView = Cookies.get('log-view') || VIEW_TYPES.SINGLE;
     const isTableView = logView === VIEW_TYPES.TABLE;
 
-    // Hide all non-essential columns first
     const allColumns = gridOptions.columnApi.getColumns();
+    if (!allColumns) return;
+
+    const columnsToHide = [];
+    const columnsToShow = [];
+
     allColumns.forEach((column) => {
         const colId = column.getColId();
-        if (colId !== 'timestamp' && colId !== 'logs') {
-            gridOptions.columnApi.setColumnVisible(colId, false);
+
+        if (colId === 'timestamp') {
+            // Timestamp is always visible
+            columnsToShow.push(colId);
+        } else if (colId === 'logs') {
+            // Logs column visibility depends on view type
+            if (isTableView) {
+                columnsToHide.push(colId);
+            } else {
+                columnsToShow.push(colId);
+            }
+        } else if (isTableView) {
+            // For table view, show selected fields
+            const isVisible = selectedFieldsList.length === 0 || selectedFieldsList.includes(colId);
+            if (isVisible) {
+                columnsToShow.push(colId);
+            } else {
+                columnsToHide.push(colId);
+            }
+        } else {
+            // For single/multi view, hide all other columns
+            columnsToHide.push(colId);
         }
     });
 
-    gridOptions.columnApi.setColumnVisible('timestamp', true);
-    gridOptions.columnApi.setColumnVisible('logs', !isTableView);
+    if (columnsToHide.length > 0) {
+        gridOptions.columnApi.setColumnsVisible(columnsToHide, false);
+    }
 
-    if (isTableView) {
-        // Show selected columns in table view
-        availColNames.forEach((colName) => {
-            if (colName !== 'timestamp' && colName !== 'logs') {
-                const isVisible = selectedFieldsList.length === 0 || selectedFieldsList.includes(colName);
-                gridOptions.columnApi.setColumnVisible(colName, isVisible);
-            }
-        });
-    } else {
-        // Update logs column for single/multi view
+    if (columnsToShow.length > 0) {
+        gridOptions.columnApi.setColumnsVisible(columnsToShow, true);
+    }
+
+    if (!isTableView) {
         updateLogsViewColumn(logView);
     }
 

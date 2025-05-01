@@ -655,17 +655,38 @@ func GetColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange, indexNames []s
 	return allColumns
 }
 
-// returns the a map with columns as keys and returns a bool if the segkey/table was found
-func CheckAndGetColsForSegKey(segKey string) (map[string]bool, bool) {
+func CollectColumnsForTheIndexesByTimeRange(timeRange *dtu.TimeRange,
+	indexNames []string, orgid int64, resAllColumns map[string]struct{}) {
+
+	globalMetadata.updateLock.RLock()
+	defer globalMetadata.updateLock.RUnlock()
+	for _, index := range indexNames {
+		tableMicroIndices, ok := globalMetadata.tableSortedMetadata[index]
+		if !ok {
+			continue
+		}
+
+		for _, smi := range tableMicroIndices {
+			if timeRange.CheckRangeOverLap(smi.EarliestEpochMS, smi.LatestEpochMS) && smi.OrgId == orgid {
+				for col := range smi.ColumnNames {
+					resAllColumns[col] = struct{}{}
+				}
+			}
+		}
+	}
+}
+
+func CheckAndCollectColNamesForSegKey(segKey string, resCnames map[string]struct{}) bool {
 
 	globalMetadata.updateLock.RLock()
 	segmentMetadata, segKeyOk := globalMetadata.segmentMetadataReverseIndex[segKey]
 	globalMetadata.updateLock.RUnlock()
 	if !segKeyOk {
-		return nil, false
+		return false
 	}
 
-	return segmentMetadata.GetColumns(), true
+	segmentMetadata.CollectColumnNames(resCnames)
+	return true
 }
 
 func DoesColumnExistForTable(cName string, indices []string) bool {

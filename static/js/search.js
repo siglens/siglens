@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 let lastQType = '';
+let lastColumnsOrder = [];
+
 function wsURL(path) {
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     var url = protocol + location.host;
@@ -26,12 +28,8 @@ function wsURL(path) {
 function doCancel(data) {
     socket.send(JSON.stringify(data));
     $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     $('#progress-div').html(``);
     $('#record-searched').html(``);
 }
@@ -45,7 +43,7 @@ function doLiveTailCancel(_data) {
 
 function resetDataTable(firstQUpdate) {
     if (firstQUpdate) {
-        $('#empty-response, #initial-response').hide();
+        $('#empty-response').hide();
         $('#custom-chart-tab').show().css({ height: '100%' });
         $('.tab-chart-list').show();
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
@@ -54,10 +52,9 @@ function resetDataTable(firstQUpdate) {
             $('#views-container, .fields-sidebar').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar').show();
+            $('#views-container, .fields-sidebar').hide();
         }
         $('#agg-result-container').hide();
-        $('#data-row-container').hide();
         hideError();
     }
 }
@@ -78,28 +75,10 @@ function doSearch(data) {
         doSearchCounter++;
         console.time(timerName);
 
-        // Get the current fieldsHidden state from the renderer and update URL
-        const sidebarRenderer = window.fieldssidebarRenderer;
-        if (sidebarRenderer) {
-            const { isFieldsSidebarHidden } = sidebarRenderer.getState();
-            data.fieldsHidden = isFieldsSidebarHidden; // Update data object
-
-            // Update URL with fieldsHidden only if search is active
-            const searchParams = new URLSearchParams(window.location.search);
-            if (searchParams.has('searchText') && searchParams.has('indexName')) {
-                const url = new URL(window.location);
-                url.searchParams.set('fieldsHidden', isFieldsSidebarHidden);
-                window.history.pushState({ path: url.href }, document.title, url);
-            }
-        }
-
         socket.onopen = function (_e) {
             $('body').css('cursor', 'progress');
-            $('#run-filter-btn').addClass('cancel-search');
-            $('#run-filter-btn').addClass('active');
-            $('#query-builder-btn').html('   ');
-            $('#query-builder-btn').addClass('cancel-search');
-            $('#query-builder-btn').addClass('active');
+            $('#run-filter-btn').addClass('cancel-search').addClass('active');
+            $('#query-builder-btn').addClass('cancel-search').addClass('active');
 
             try {
                 socket.send(JSON.stringify(data));
@@ -170,14 +149,14 @@ function doSearch(data) {
                 case 'ERROR':
                     console.time('ERROR');
                     console.log(`[message] Error state received from server: ${jsonEvent}`);
-                    processErrorUpdate(jsonEvent);
+                    processErrorUpdate(jsonEvent.message);
                     console.timeEnd('ERROR');
                     errorMessages.push(`Error: ${jsonEvent}`);
                     break;
                 default:
                     console.log(`[message] Unknown state received from server: ` + JSON.stringify(jsonEvent));
                     if (jsonEvent.message.includes('expected')) {
-                        jsonEvent.message = 'Your query contains syntax error';
+                        addSyntaxMessagePopup();
                     } else if (jsonEvent.message.includes('not present')) {
                         jsonEvent['no_data_err'] = 'No data found for the query';
                     }
@@ -187,11 +166,21 @@ function doSearch(data) {
         };
 
         socket.onclose = function (event) {
-            if (event.wasClean) {
-                console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+            if (event.code === 1000 || event.code === 1001) {
+                console.log(`[close] Connection closed normally with code ${event.code}`);
+            } else if (event.wasClean) {
+                console.log(`[close] Connection closed cleanly, code=${event.code}`);
             } else {
-                console.log(`Connection close not clean=${event} code=${event.code} reason=${event.reason} `);
-                errorMessages.push(`Connection close not clean=${event} code=${event.code} reason=${event.reason}`);
+                let errorMessage;
+                if (event.code === 1006) {
+                    errorMessage = 'Connection failed - The server may be down or unreachable';
+                } else {
+                    errorMessage = `Connection closed abnormally (code: ${event.code})`;
+                }
+                console.log(`Abnormal WebSocket close: code=${event.code}`);
+                errorMessages.push(errorMessage);
+
+                processErrorUpdate(errorMessage);
             }
 
             if (errorMessages.length === 0) {
@@ -314,7 +303,7 @@ function doLiveTailSearch(data) {
             case 'ERROR':
                 console.time('ERROR');
                 console.log(`[message] Error state received from server: ${jsonEvent}`);
-                processErrorUpdate(jsonEvent);
+                processErrorUpdate(jsonEvent.message);
                 console.timeEnd('ERROR');
                 break;
             default:
@@ -356,14 +345,9 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let queryLanguage = queryParams.get('queryLanguage');
     let queryMode = Cookies.get('queryMode') || 'Builder';
 
-    // Get fieldsHidden from renderer state
-    const sidebarRenderer = window.fieldssidebarRenderer;
-    let fieldsHidden = false;
-    if (sidebarRenderer) {
-        fieldsHidden = sidebarRenderer.getState().isFieldsSidebarHidden;
-    } else {
-        fieldsHidden = queryParams.get('fieldsHidden') === 'true'; // Fallback
-    }
+    let fieldsHidden = queryParams.get('fieldsHidden') || true;
+
+    //eslint-disable-next-line no-undef
     applyFieldsSidebarState(fieldsHidden);
 
     queryLanguage = queryLanguage.replace('"', '');
@@ -385,11 +369,17 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
     let filterTab = queryParams.get('filterTab');
     handleTabAndTooltip(selectedQueryLanguageId, parseInt(filterTab));
     let filterValue = queryParams.get('searchText');
+
     if (filterTab == '0' || filterTab == null) {
-        if (filterValue != '*') {
+        if (filterValue === '* | head 10') {
+            //Default search
+            isQueryBuilderSearch = false;
+        } else if (filterValue != '*') {
             codeToBuilderParsing(filterValue);
             $('#filter-input').val(filterValue).change();
             toggleClearButtonVisibility();
+            isQueryBuilderSearch = true;
+        } else {
             isQueryBuilderSearch = true;
         }
     } else {
@@ -447,33 +437,6 @@ function getInitialSearchFilter(skipPushState, scrollingTrigger) {
         includeNulls: false, // Exclude null values
         fieldsHidden: fieldsHidden,
     };
-}
-
-// Helper function to apply fieldsHidden state to the UI
-function applyFieldsSidebarState(isHidden) {
-    const fieldsSidebar = document.querySelector('.fields-sidebar');
-    const customChartTab = document.querySelector('.custom-chart-tab');
-    const container = document.querySelector('.custom-chart-container');
-
-    if (!fieldsSidebar) return;
-
-    if (isHidden) {
-        fieldsSidebar.classList.add('hidden');
-        if (customChartTab) {
-            customChartTab.classList.add('full-width');
-        }
-        if (container) {
-            container.classList.add('full-width-container');
-        }
-    } else {
-        fieldsSidebar.classList.remove('hidden');
-        if (customChartTab) {
-            customChartTab.classList.remove('full-width');
-        }
-        if (container) {
-            container.classList.remove('full-width-container');
-        }
-    }
 }
 
 function getLiveTailFilter(skipPushState, scrollingTrigger, startTime) {
@@ -556,8 +519,9 @@ function getQueryBuilderCode() {
     else $('#query-builder-btn').removeClass('stop-search').prop('disabled', false);
     return showError ? 'Searches with a Search Criteria must have an Aggregate Attribute' : filterValue;
 }
+
 //eslint-disable-next-line no-unused-vars
-function getSearchFilter(skipPushState, scrollingTrigger) {
+function getSearchFilter(skipPushState, scrollingTrigger, isInitialLoad = false) {
     let currentTab = $('#custom-code-tab').tabs('option', 'active');
     let endDate = filterEndDate || 'now';
     let stDate = filterStartDate || 'now-15m';
@@ -583,9 +547,21 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         //concat the 3 input boxes
         filterValue = getQueryBuilderCode();
         isQueryBuilderSearch = true;
+
+        //Default search
+        if (isInitialLoad && (!filterValue || filterValue === '*')) {
+            filterValue = '* | head 10';
+        }
     } else {
-        filterValue = $('#filter-input').val().trim() || '*';
-        isQueryBuilderSearch = false;
+        const inputValue = $('#filter-input').val().trim();
+
+        // If it's initial load and the field is empty (Default search)
+        if (isInitialLoad && !inputValue) {
+            $('#filter-input').val('* | head 10');
+            filterValue = '* | head 10';
+        } else {
+            filterValue = inputValue || '*';
+        }
     }
 
     if (!skipPushState) {
@@ -595,6 +571,7 @@ function getSearchFilter(skipPushState, scrollingTrigger) {
         addQSParm('indexName', selIndexName);
         addQSParm('queryLanguage', queryLanguage);
         addQSParm('filterTab', currentTab);
+        addQSParm('fieldsHidden', false);
         window.history.pushState({ path: myUrl }, '', myUrl);
     }
 
@@ -628,8 +605,8 @@ function getSearchFilterForSave(qname, qdesc) {
         searchText: filterValue,
         indexName: selectedSearchIndex,
         filterTab: currentTab.toString(),
-        endTime: (data.endEpoch).toString(),
-        startTime: (data.startEpoch).toString(),
+        endTime: data.endEpoch.toString(),
+        startTime: data.startEpoch.toString(),
         queryLanguage: $('#query-language-options .query-language-option.active').html(),
     };
 }
@@ -711,87 +688,40 @@ function processLiveTailQueryUpdate(res, eventType, totalEventsSearched, timeToF
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents);
     $('body').css('cursor', 'default');
 }
+
 function processQueryUpdate(res, eventType, totalEventsSearched, timeToFirstByte, totalHits) {
-    let columnOrder = [];
+    lastQType = res.qtype;
+
     if (res.hits && res.hits.records !== null && res.hits.records.length >= 1 && res.qtype === 'logs-query') {
         if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = _.uniq(
-                _.concat(
-                    // make timestamp the first column
-                    'timestamp',
-                    // make logs the second column
-                    'logs',
-                    res.columnsOrder
-                )
-            );
+            lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.columnsOrder]);
         } else {
-            columnOrder = _.uniq(
-                _.concat(
-                    // make timestamp the first column
-                    'timestamp',
-                    // make logs the second column
-                    'logs',
-                    res.allColumns
-                )
-            );
+            lastColumnsOrder = _.uniq(['timestamp', 'logs', ...res.allColumns]);
         }
 
-        columnCount = Math.max(columnCount, columnOrder.length) - 2; // Excluding timestamp and logs
+        columnCount = Math.max(columnCount, lastColumnsOrder.length) - 2;
 
-        handleSearchResultsForPagination(res);
-        renderLogsGrid(columnOrder, accumulatedRecords);
+        if (res.hits && res.hits.records) {
+            accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
 
-        //eslint-disable-next-line no-undef
-        initializeAvailableFieldsSidebar(columnOrder);
+            $('#logs-result-container').show();
+            $('#agg-result-container').hide();
+            $('#views-container, .fields-sidebar, .fields-resizer').show();
 
-        $('#logs-result-container').show();
-        $('#agg-result-container').hide();
+            //eslint-disable-next-line no-undef
+            updatePaginationState(res);
 
-        if (res && res.hits && res.hits.totalMatched) {
-            totalHits = res.hits.totalMatched;
-        }
-        $('#views-container, .fields-sidebar').show();
-    } else if (res.measure && (res.qtype === 'aggs-query' || res.qtype === 'segstats-query')) {
-        let columnOrder = [];
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
+            if (res.hits.totalMatched) {
+                totalHits = res.hits.totalMatched;
             }
         }
-
-        aggsColumnDefs = [];
-        segStatsRowData = [];
-        $('#views-container, .fields-sidebar').hide();
-        renderMeasuresGrid(columnOrder, res);
     }
-    timeChart(res.qtype);
+
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     let totalPossibleEvents = res.total_possible_events;
-    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents, columnCount);
-    $('body').css('cursor', 'default');
-}
 
-function processEmptyQueryResults(message) {
-    $('#logs-result-container').hide();
-    $('#custom-chart-tab').show().css({ height: 'auto' });
-    $('.tab-chart-list, #views-container, .fields-sidebar, #pagination-container').hide();
-    $('#agg-result-container').hide();
-    $('#data-row-container').hide();
-    $('#corner-popup').hide();
-    $('#empty-response').show();
-    $('#save-query-div').children().hide();
-    $('#show-record-intro-btn').show();
-    $('#initial-response').hide();
-    let el = $('#empty-response');
-    $('#empty-response').empty();
-    $('.json-popup').hide();
-    el.append(`<span>${message}</span>`);
+    renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, '', res.qtype, totalPossibleEvents, columnCount);
 }
 
 function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
@@ -827,127 +757,182 @@ function processLiveTailCompleteUpdate(res, eventType, totalEventsSearched, time
     }
     let totalPossibleEvents = res.total_possible_events;
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents);
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
 }
+
 function processCompleteUpdate(res, eventType, totalEventsSearched, timeToFirstByte, eqRel) {
-    let columnOrder = [];
-    let totalHits = res.totalMatched.value;
-    if ((res.totalMatched == 0 || res.totalMatched.value === 0) && res.measure === undefined) {
-        processEmptyQueryResults('Your query returned no data, adjust your query.');
+    let totalHits = res.totalMatched ? res.totalMatched.value : 0;
+
+    if (res.qtype === 'logs-query' && res.hits && res.hits.records) {
+        accumulatedRecords = [...accumulatedRecords, ...res.hits.records];
+    }
+
+    //eslint-disable-next-line no-undef
+    updatePaginationState(res);
+
+    if ((totalHits === 0 || totalHits === undefined) && res.measure === undefined && accumulatedRecords.length === 0) {
+        processEmptyQueryResults();
     } else {
-        handleSearchResultsForPagination(res);
-    }
-
-    if (res.measureFunctions && res.measureFunctions.length > 0) {
-        measureFunctions = res.measureFunctions;
-    }
-
-    if (res.measure) {
-        measureInfo = res.measure;
-        if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
-            columnOrder = res.columnsOrder;
-        } else {
-            if (res.groupByCols) {
-                columnOrder = _.uniq(_.concat(res.groupByCols));
-            }
-            if (res.measureFunctions) {
-                columnOrder = _.uniq(_.concat(columnOrder, res.measureFunctions));
-            }
+        if (res.measureFunctions && res.measureFunctions.length > 0) {
+            measureFunctions = res.measureFunctions;
         }
-        resetDashboard();
-        $('#logs-result-container').hide();
-        $('#custom-chart-tab').show().css({ height: '100%' });
-        $('#agg-result-container').show();
-        aggsColumnDefs = [];
-        segStatsRowData = [];
-        renderMeasuresGrid(columnOrder, res);
 
-        if ((res.qtype === 'aggs-query' || res.qtype === 'segstats-query') && res.bucketCount) {
-            totalHits = res.bucketCount;
-            $('#views-container, .fields-sidebar').hide();
-            columnCount = Math.max(columnCount, columnOrder.length);
+        if (res.qtype === 'aggs-query' || res.qtype === 'segstats-query') {
+            measureInfo = res.measure;
+
+            if (res.columnsOrder != undefined && res.columnsOrder.length > 0) {
+                lastColumnsOrder = res.columnsOrder;
+            } else {
+                if (res.groupByCols) {
+                    lastColumnsOrder = _.uniq(_.concat(res.groupByCols));
+                }
+                if (res.measureFunctions) {
+                    lastColumnsOrder = _.uniq(_.concat(lastColumnsOrder, res.measureFunctions));
+                }
+            }
+
+            resetDashboard();
+            $('#logs-result-container').hide();
+            $('#custom-chart-tab').show().css({ height: '100%' });
+            $('#agg-result-container').show();
+            aggsColumnDefs = [];
+            segStatsRowData = [];
+
+            renderMeasuresGrid(lastColumnsOrder, res);
+
+            if (res.bucketCount) {
+                totalHits = res.bucketCount;
+                $('#views-container, .fields-sidebar, .fields-resizer').hide();
+                columnCount = Math.max(columnCount, lastColumnsOrder.length);
+            }
+        } else if (res.qtype === 'logs-query' && accumulatedRecords.length > 0) {
+            renderLogsGrid(lastColumnsOrder, accumulatedRecords);
+
+            //eslint-disable-next-line no-undef
+            initializeAvailableFieldsSidebar(lastColumnsOrder);
         }
-    } else {
-        measureInfo = [];
+
+        isTimechart = res.isTimechart;
+        lastQType = res.qtype;
+        timeChart(res.qtype);
     }
-    isTimechart = res.isTimechart;
-    lastQType = res.qtype;
-    timeChart(res.qtype);
+
     let totalTime = Number(new Date().getTime() - startQueryTime).toLocaleString();
     let percentComplete = res.percent_complete;
     if (res.total_rrc_count > 0) {
         totalRrcCount += res.total_rrc_count;
     }
     let totalPossibleEvents = res.total_possible_events;
+
     renderTotalHits(totalHits, totalTime, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, res.qtype, totalPossibleEvents, columnCount);
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
+
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
     wsState = 'query';
     if (canScrollMore === false) {
         scrollFrom = 0;
     }
     $('body').css('cursor', 'default');
 }
-
 function processTimeoutUpdate(res) {
-    showError(`Query ${res.qid} reached the timeout limit of ${res.timeoutSeconds} seconds`);
+    showError(`Query ${res.qid} timed out`, `Your query exceeded the <strong>${res.timeoutSeconds} second</strong> time limit.`);
 }
+
 function processCancelUpdate(res) {
-    showError(`Query ${res.qid} was cancelled`);
+    showError(`Query ${res.qid} has been cancelled`, 'The query was terminated before completion.');
     $('#show-record-intro-btn').hide();
 }
-function processErrorUpdate(res) {
-    showError(`Message: ${res.message}`);
+
+function processErrorUpdate(message) {
+    showError(`Message: ${message}`);
 }
 
 function processSearchErrorLog(res) {
     if (res.can_scroll_more === false) {
-        showInfo(`You've reached maximum scroll limit (10,000).`);
+        showError('Scroll limit reached (10,000 logs)', `You've reached the maximum number of logs that can be displayed.`);
     } else if (res.message != '') {
-        showErrorResponse(`Message: ${res.message}`, res);
+        showErrorResponse(res);
         resetDashboard();
     }
 }
 
-function showErrorResponse(errorMsg, res) {
-    $('#logs-result-container').hide();
-    $('#agg-result-container').hide();
-    $('#data-row-container').hide();
-    $('#corner-popup').hide();
-    $('#empty-response').show();
-    $('#initial-response').hide();
+function processEmptyQueryResults() {
+    $('#views-container, .fields-sidebar, .pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
     $('#save-query-div').children().hide();
-    $('#views-container, .fields-sidebar, .pagination-container').hide();
     $('#custom-chart-tab').hide();
-    let el = $('#empty-response');
-    $('#empty-response').empty();
-    if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
-        el.html(`${res.no_data_err} <br> ` + errorMsg);
-    } else {
-        el.html(errorMsg);
-    }
-    $('body').css('cursor', 'default');
-    $('#run-filter-btn').html(' ');
-    $('#run-filter-btn').removeClass('cancel-search');
-    $('#run-filter-btn').removeClass('active');
-    $('#query-builder-btn').html(' ');
-    $('#query-builder-btn').removeClass('cancel-search');
-    $('#query-builder-btn').removeClass('active');
     $('.json-popup').hide();
+
+    $('#show-record-intro-btn').show();
+    $('#empty-response').empty().show();
+
+    addEmptyMessagePopup();
+}
+
+function showErrorResponse(res) {
+    $('#views-container, .fields-sidebar, .pagination-container, #logs-result-container,#agg-result-container,#corner-popup').hide();
+    $('#save-query-div').children().hide();
+    $('#custom-chart-tab').hide();
+    $('.json-popup').hide();
+
+    $('#empty-response').empty().show();
+    if (res && res.no_data_err && res.no_data_err.includes('No data found')) {
+        addEmptyMessagePopup();
+    } else {
+        showError(`Message: ${res.message}`);
+    }
+
+    $('body').css('cursor', 'default');
+    $('#run-filter-btn').removeClass('cancel-search').removeClass('active');
+    $('#query-builder-btn').removeClass('cancel-search').removeClass('active');
+
     wsState = 'query';
+}
+
+function addEmptyMessagePopup() {
+    let el = $('#empty-response');
+    el.append(`
+    <div class="no-results-container">
+        <div class="icon-container">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6449D6" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        </div>
+        <div class="main-message">No results found for your current query</div>
+        <div class="sub-message">We couldn't find any logs matching your criteria. Try the following:</div>
+        <div class="suggestions-container">
+            <div class="suggestion-item"><span>⏰</span><span class="suggestion-text">Expand the time range</span></div>
+            <div class="suggestion-item"><span>🔍</span><span class="suggestion-text">Remove some filters</span></div>
+        </div>
+    </div>
+`);
+}
+
+function addSyntaxMessagePopup() {
+    let el = $('#empty-response');
+    el.append(`
+        <div class="syntax-error-container">
+        <div class="icon-container">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        </div>
+        <div class="main-message">Your query contains syntax error</div>
+        <div class="sub-message">Please check your query for:</div>
+        <div class="suggestions-container">
+            <div class="suggestion-item"><span class="suggestion-text">Missing quotes or brackets</span></div>            
+            <div class="suggestion-item"><span class="suggestion-text">Invalid operators</span></div>
+            <div class="suggestion-item"><span class="suggestion-text">Incorrect function syntax</span></div>
+        </div>
+    </div>
+`);
 }
 
 function renderTotalHits(totalHits, elapedTimeMS, percentComplete, eventType, totalEventsSearched, timeToFirstByte, eqRel, qtype, totalPossibleEvents, columnCount) {
@@ -1325,16 +1310,6 @@ function updateGridView() {
     const currentPageData = accumulatedRecords.slice(startIndex, endIndex);
 
     if (currentPageData.length > 0 && gridOptions?.api) {
-        if (lastQType === 'aggs-query' || lastQType === 'segstats-query') {
-            gridOptions.api.setRowData(currentPageData);
-        } else {
-            gridOptions.api.setRowData(currentPageData);
-        }
-
-        const allColumnIds = [];
-        gridOptions.columnApi.getColumns().forEach((column) => {
-            allColumnIds.push(column.getId());
-        });
-        gridOptions.columnApi.autoSizeColumns(allColumnIds, false);
+        gridOptions.api.setRowData(currentPageData);
     }
 }

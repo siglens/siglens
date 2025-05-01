@@ -307,12 +307,11 @@ input:checked+.slider:before {
 /* Styles for error messages */
 .error-message {
     display: block;
-    font-weight: 700;
-    font-size: 20px;
-    color: var(--empty-response-text-color, #808080);
+    font-weight: 500;
+    font-size: 22px;
     text-align: center;
     margin: auto;
-    padding: 20px;
+    padding: 10px;
     width: 90%;
     white-space: pre-wrap;
     line-height: 30px;
@@ -338,7 +337,7 @@ input:checked+.slider:before {
 
 .metrics-graph,
 #merged-graph-container {
-    height: 400px;
+    height: 460px;
     border: 1px solid var(--border-btn-color);
     box-sizing: border-box;
     border-radius: 5px;
@@ -430,7 +429,7 @@ input:checked+.slider:before {
 
 .legend-container {
     overflow: scroll;
-    height: 50px;
+    height: 110px;
 }
 
 .metrics-query .query-box .tag-container:focus-within,

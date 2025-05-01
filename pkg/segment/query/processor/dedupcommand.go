@@ -77,7 +77,8 @@ RecordLoop:
 		for _, field := range p.options.FieldList {
 			hash ^= fieldToValues[field][i].Hash()
 
-			if fieldToValues[field][i].Dtype == segutils.SS_DT_BACKFILL {
+			if fieldToValues[field][i].Dtype == segutils.SS_DT_BACKFILL ||
+				fieldToValues[field][i].Dtype == segutils.SS_INVALID {
 				if !p.options.DedupOptions.KeepEmpty {
 					rowsToDiscard = append(rowsToDiscard, i)
 				}

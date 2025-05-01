@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -762,7 +763,7 @@ func GetQueryTimeoutSecs() int {
 
 func GetDefaultRunModConfig() common.RunModConfig {
 	return common.RunModConfig{
-		PQSEnabled:       true,
+		PQSEnabled:       false,
 		QueryTimeoutSecs: DEFAULT_TIMEOUT_SECONDS,
 	}
 }
@@ -1053,13 +1054,13 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 	config.PProfEnabledConverted = pprofEnabled
 
 	if len(config.PQSEnabled) <= 0 {
-		config.PQSEnabled = "true"
+		config.PQSEnabled = "false"
 	}
 	pqsEnabled, err := strconv.ParseBool(config.PQSEnabled)
 	if err != nil {
 		log.Errorf("ExtractConfigData: failed to parse PQS enabled flag. Defaulting to false. Error: %v", err)
-		pqsEnabled = true
-		config.PQSEnabled = "true"
+		pqsEnabled = false
+		config.PQSEnabled = "false"
 	}
 	config.PQSEnabledConverted = pqsEnabled
 
@@ -1265,6 +1266,8 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 		config.Tracing.ServiceName = os.Getenv("SIGLENS_TRACING_SERVICE_NAME")
 	}
 
+	setGoMemLimit(&config)
+
 	if os.Getenv("TRACE_SAMPLING_PERCENTAGE") != "" {
 		samplingPercentage, err := strconv.ParseFloat(os.Getenv("TRACE_SAMPLING_PERCENTAGE"), 64)
 		if err != nil {
@@ -1322,6 +1325,17 @@ func ExtractConfigData(yamlData []byte) (common.Configuration, error) {
 
 func SetConfig(config common.Configuration) {
 	runningConfig = config
+}
+
+// GOMEMLIMIT is set from configuration
+func setGoMemLimit(cfg *common.Configuration) {
+	memLimit := cfg.MemoryConfig.GoMemLimit
+	if memLimit == 0 {
+		return
+	}
+
+	debug.SetMemoryLimit(memLimit)
+	log.Infof("GOMEMLIMIT set to %d (from configuration)", memLimit)
 }
 
 func ExtractCmdLineInput() string {

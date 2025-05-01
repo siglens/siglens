@@ -1057,9 +1057,9 @@ func writeErrMsg(ctx *fasthttp.RequestCtx, functionName string, errorMsg string,
 	ctx.SetStatusCode(fasthttp.StatusBadRequest)
 	_, err = ctx.WriteString(errContent)
 	if err != nil {
-		log.Errorf(functionName, ": could not write error message err=%v", err)
+		log.Errorf("%s: could not write error message err=%v", functionName, err)
 	}
-	log.Errorf(functionName, ": failed to decode search request body! Err=%v", err)
+	log.Errorf("%s: failed to decode search request body! Err=%v", functionName, err)
 }
 
 func ProcessSpanGanttChartRequest(ctx *fasthttp.RequestCtx, myid int64) {

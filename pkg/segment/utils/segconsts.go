@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash"
+	"github.com/siglens/siglens/pkg/regex"
 	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -587,7 +588,7 @@ type DtypeEnclosure struct {
 	StringVal      string
 	StringValBytes []byte   // byte slice representation of StringVal
 	StringSliceVal []string // used for array dict
-	RexpCompiled   *regexp.Regexp
+	RexpCompiled   regex.Regex
 }
 
 func (dte *DtypeEnclosure) GobEncode() ([]byte, error) {
@@ -647,7 +648,7 @@ func (dte *DtypeEnclosure) GobDecode(data []byte) error {
 			return err
 		}
 
-		dte.RexpCompiled, err = regexp.Compile(rexp)
+		dte.RexpCompiled, err = regex.New(rexp)
 		if err != nil {
 			log.Errorf("DtypeEnclosure.GobDecode: error compiling rexp %v: %v", rexp, err)
 			return err
@@ -659,9 +660,19 @@ func (dte *DtypeEnclosure) GobDecode(data []byte) error {
 
 func (dte *DtypeEnclosure) SetRegexp(exp *regexp.Regexp) {
 	dte.RexpCompiled = exp
+
+	if dte.RexpCompiled != nil {
+		r, err := regex.New(dte.RexpCompiled.String())
+		if err != nil {
+			// Ignore this; just use the passed `exp`.
+			return
+		}
+
+		dte.RexpCompiled = r
+	}
 }
 
-func (dte *DtypeEnclosure) GetRegexp() *regexp.Regexp {
+func (dte *DtypeEnclosure) GetRegexp() regex.Regex {
 	return dte.RexpCompiled
 }
 
@@ -921,8 +932,10 @@ func (e *CValueEnclosure) Hash() uint64 {
 		bytes = append(bytes, []byte(strconv.FormatFloat(e.CVal.(float64), 'f', -1, 64))...)
 	case SS_DT_BACKFILL:
 		// Do nothing.
+	case SS_INVALID:
+		// Do nothing.
 	default:
-		log.Errorf("CValueEnclosure.Hash: unsupported Dtype: %v", e.Dtype)
+		log.Debugf("CValueEnclosure.Hash: unsupported Dtype: %v", e.Dtype)
 		return 0
 	}
 

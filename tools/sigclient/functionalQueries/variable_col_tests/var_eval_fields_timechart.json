@@ -4,8 +4,16 @@
         "verifyMinimal": true,
         "totalMatched": {
         },
-        "qtype": "logs-query",
-        "records": [
+        "qtype": "aggs-query",
+        "bucketCount": 0,
+        "doNotVerifyGroupByValues": true,
+        "groupByCols": ["timestamp"],
+        "measureFunctions": [
+            "avg_lat_http: &{8 <nil>}",
+            "avg_lat_http: female",
+            "avg_lat_http: male"
+        ],
+        "measure": [
         ],
         "allColumns": [
             "avg_lat_http: &{8 <nil>}",

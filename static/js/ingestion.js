@@ -20,6 +20,7 @@ let selectedLogSource = '';
 let selectedMetricsSource = '';
 let selectedTracesSource = '';
 let iToken = '';
+let mdFileName = '';
 
 $(document).ready(async function () {
     let pageName = window.location.pathname.split('/').pop() || 'index.html';
@@ -91,20 +92,6 @@ $(document).ready(async function () {
                 selectedLogSource = formattedMethod;
                 navigateToLogDetails(selectedLogSource, ingestURL);
             }
-        } else if (isMetricsPage) {
-            formattedMethod = formatMethodName(methodParam, 'metrics');
-            const matchingCard = $(`.ingestion-card.metrics-card[data-source="${formattedMethod}"]`);
-            if (matchingCard.length) {
-                selectedMetricsSource = formattedMethod;
-                navigateToMetricsDetails(selectedMetricsSource);
-            }
-        } else if (isTracesPage) {
-            formattedMethod = formatMethodName(methodParam, 'traces');
-            const matchingCard = $(`.ingestion-card.traces-card[data-source="${formattedMethod}"]`);
-            if (matchingCard.length) {
-                selectedTracesSource = formattedMethod;
-                navigateToTracesDetails(selectedTracesSource);
-            }
         }
 
         if (pageName === 'log-ingestion.html') {
@@ -127,25 +114,57 @@ function formatMethodName(methodParam, type) {
     if (methodParam === 'opentelemetry') return 'OpenTelemetry Collector';
     
     if (type === 'log') {
-        if (methodParam === 'elasticbulk') return 'Elastic Bulk';
-        if (methodParam === 'splunkhec') return 'Splunk HEC';
         if (methodParam === 'sendtestdata') return 'Send Test Data';
         if (methodParam === 'verifyconnection') return 'Verify Connection';
-    } else if (type === 'metrics') {
-        if (methodParam === 'vector') return 'Vector';
-    } else if (type === 'traces') {
-        if (methodParam === 'goapp') return 'Go App';
-        if (methodParam === 'javaapp') return 'Java App';
-        if (methodParam === 'pythonapp') return 'Python App';
-        if (methodParam === 'dotnetapp') return '.Net App';
-        if (methodParam === 'javascriptapp') return 'Javascript App';
-        if (methodParam === 'opentelemetry') return 'OpenTelemetry Collector';
     }
     
     return methodParam.charAt(0).toUpperCase() + methodParam.slice(1);
 }
 
 function navigateToLogDetails(source, ingestURL) {
+    let urlParam = '';
+
+    switch (source) {
+        case 'Promtail':
+            mdFileName = 'promtail';
+            break;
+        case 'OpenTelemetry Collector':
+            mdFileName = 'opentelemetry';
+            break;
+        case 'Filebeat':
+            mdFileName = 'filebeat';
+            break;
+        case 'Fluentd':
+            mdFileName = 'fluentd';
+            break;
+        case 'Fluent-bit':
+            mdFileName = 'fluent-bit';
+            break;
+        case 'Logstash':
+            mdFileName = 'logstash';
+            break;
+        case 'Vector':
+            mdFileName = 'vector';
+            break;
+        case 'Elastic Bulk':
+            mdFileName = 'elasticbulk';
+            break;
+        case 'Splunk HEC':
+            mdFileName = 'splunkhec';
+            break;
+        case 'Send Test Data':
+            urlParam = 'sendtestdata';
+            break;
+        case 'Verify Connection':
+            urlParam = 'verifyconnection';
+            break;
+    }
+        
+    if (mdFileName) {
+        window.open(`instructions.html?type=logs&method=${mdFileName}`, '_self');
+        return;
+    }
+
     $('#logs-cards-view').hide();
     $('#logs-ingestion-details').show();
 
@@ -183,59 +202,25 @@ function navigateToLogDetails(source, ingestURL) {
     $('#verify-command-hec').text(hecCommand);
     $('#platform-input').val(source);
 
-    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
-    let docPath = '';
-    let urlParam = '';
-
-    switch (source) {
-        case 'OpenTelemetry Collector':
-            docPath = 'log-ingestion/open-telemetry';
-            urlParam = 'opentelemetry';
-            break;
-        case 'Vector':
-            docPath = 'log-ingestion/vector';
-            urlParam = 'vector';
-            break;
-        case 'Logstash':
-            docPath = 'log-ingestion/logstash';
-            urlParam = 'logstash';
-            break;
-        case 'Fluentd':
-            docPath = 'log-ingestion/fluentd';
-            urlParam = 'fluentd';
-            break;
-        case 'Filebeat':
-            docPath = 'log-ingestion/filebeat';
-            urlParam = 'filebeat';
-            break;
-        case 'Promtail':
-            docPath = 'log-ingestion/promtail';
-            urlParam = 'promtail';
-            break;
-        case 'Elastic Bulk':
-            docPath = 'migration/elasticsearch/fluentd';
-            urlParam = 'elasticbulk';
-            break;
-        case 'Splunk HEC':
-            docPath = 'migration/splunk/fluentd';
-            urlParam = 'splunkhec';
-            break;
-        case 'Send Test Data':
-            urlParam = 'sendtestdata';
-            break;
-        case 'Verify Connection':
-            urlParam = 'verifyconnection';
-            break;
-    }
-
-    if (docPath) {
-        $('#logs-setup-instructions-link').attr('href', docsBaseUrl + docPath);
-    }
-
     updateUrlParameter('method', urlParam);
 }
 
 function navigateToMetricsDetails(source) {
+
+    switch (source) {
+        case 'Vector Metrics':
+            mdFileName = 'vector-metrics';
+            break;
+        case 'OpenTelemetry Collector':
+            mdFileName = 'open-telemetry';
+            break;
+    }
+        
+    if (mdFileName) {
+        window.open(`instructions.html?type=metrics&method=${mdFileName}`, '_self');
+        return;
+    }
+
     $('#metrics-cards-view').hide();
     $('#metrics-ingestion-details').show();
     
@@ -244,30 +229,36 @@ function navigateToMetricsDetails(source) {
     }, 500);
     
     updateBreadcrumbsForIngestion('Metrics Ingestion Methods', source);
-    
-    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
-    let docPath = '';
-    let urlParam = '';
-    
-    switch (source) {
-        case 'Vector':
-            docPath = 'metric-ingestion/vector-metrics';
-            urlParam = 'vector';
-            break;
-        case 'OpenTelemetry Collector':
-            docPath = 'metric-ingestion/open-telemetry';
-            urlParam = 'opentelemetry';
-            break;
-    }
-    
-    if (docPath) {
-        $('#metrics-setup-instructions-link').attr('href', docsBaseUrl + docPath);
-    }
-    
-    updateUrlParameter('method', urlParam);
 }
 
 function navigateToTracesDetails(source) {
+    
+    switch (source) {
+        case 'Go App':
+            mdFileName = 'go-app';
+            break;
+        case 'Java App':
+            mdFileName = 'java-app';
+            break;
+        case 'Python App':
+            mdFileName = 'python-app';
+            break;
+        case '.Net App':
+            mdFileName = 'dotnet-app';
+            break;
+        case 'Javascript App':
+            mdFileName = 'js-app';
+            break;
+        case 'OpenTelemetry Collector':
+            mdFileName = 'opentelemetry';
+            break;
+    }
+        
+    if (mdFileName) {
+        window.open(`instructions.html?type=traces&method=${mdFileName}`, '_self');
+        return;
+    }
+
     $('#traces-cards-view').hide();
     $('#traces-ingestion-details').show();
     
@@ -276,43 +267,7 @@ function navigateToTracesDetails(source) {
     }, 500);
     
     updateBreadcrumbsForIngestion('Traces Ingestion Methods', source);
-    
-    const docsBaseUrl = 'https://www.siglens.com/siglens-docs/';
-    let docPath = '';
-    let urlParam = '';
-    
-    switch (source) {
-        case 'Go App':
-            docPath = 'instrument-traces/go-app';
-            urlParam = 'goApp';
-            break;
-        case 'Java App':
-            docPath = 'instrument-traces/java-app';
-            urlParam = 'javaApp';
-            break;
-        case 'Python App':
-            docPath = 'instrument-traces/python-app';
-            urlParam = 'pythonApp';
-            break;
-        case '.Net App':
-            docPath = 'instrument-traces/dotnet-app';
-            urlParam = 'dotnetApp';
-            break;
-        case 'Javascript App':
-            docPath = 'instrument-traces/js-app';
-            urlParam = 'javascriptApp';
-            break;
-        case 'OpenTelemetry Collector':
-            docPath = 'log-ingestion/open-telemetry';
-            urlParam = 'opentelemetry';
-            break;
-    }
-    
-    if (docPath) {
-        $('#traces-setup-instructions-link').attr('href', docsBaseUrl + docPath);
-    }
-    
-    updateUrlParameter('method', urlParam);
+
 }
 
 function updateUrlParameter(key, value) {
