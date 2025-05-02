@@ -525,6 +525,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 		usedDictEncodings[i] = str.treeMeta.allDictEncodings[grpCol]
 	}
 
+	unsetRecord := make(map[string]utils.CValueEnclosure)
 	var retErr error
 	for mkey, ntAgvals := range combiner {
 		if len(ntAgvals) == 0 {
@@ -573,7 +574,7 @@ func (str *AgileTreeReader) ApplyGroupByJit(grpColNames []string,
 				resCvIdx++
 			}
 		}
-		blkResults.AddMeasureResultsToKeyAgileTree(string(rawVal), cvaggvalues, qid, colCntVal)
+		blkResults.AddMeasureResultsToKeyAgileTree(string(rawVal), cvaggvalues, qid, colCntVal, unsetRecord)
 	}
 
 	return retErr

@@ -236,6 +236,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 	}
 
 	groupByCache := make(map[string][]string)
+	unsetRecord := make(map[string]utils.CValueEnclosure) // Make this once instead of each iteration.
 
 	for recNum := uint16(0); recNum < recIT.AllRecLen; recNum++ {
 		if !recIT.ShouldProcessRecord(uint(recNum)) {
@@ -334,7 +335,7 @@ func addRecordToAggregations(grpReq *structs.GroupByRequest, timeHistogram *stru
 			}
 		}
 		blockRes.AddMeasureResultsToKey(aggsKeyWorkingBuf[:aggsKeyBufIdx], measureResults,
-			groupByColVal, usedByTimechart, qid)
+			groupByColVal, usedByTimechart, qid, unsetRecord)
 	}
 
 	if usedByTimechart && len(timeHistogram.Timechart.ByField) > 0 {
@@ -387,6 +388,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 		}
 	}
 
+	unsetRecord := make(map[string]utils.CValueEnclosure)
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
 
 	if nodeResult.RecsAggsColumnKeysMap == nil {
@@ -446,7 +448,7 @@ func PerformGroupByRequestAggsOnRecs(nodeResult *structs.NodeResult, recs map[st
 			}
 		}
 
-		blockRes.AddMeasureResultsToKey(currKey.Bytes(), measureResults, "", false, qid)
+		blockRes.AddMeasureResultsToKey(currKey.Bytes(), measureResults, "", false, qid, unsetRecord)
 	}
 
 	if nodeResult.RecsAggResults.RecsAggsBlockResults == nil {

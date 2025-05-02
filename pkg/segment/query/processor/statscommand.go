@@ -170,6 +170,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
+	unsetRecord := make(map[string]utils.CValueEnclosure)
 
 	for i := 0; i < numOfRecords; i++ {
 		record := inputIQR.GetRecord(i)
@@ -197,7 +198,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 				measureResults[idx] = *cValue
 			}
 		}
-		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, "", false, qid)
+		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults,
+			"", false, qid, unsetRecord)
 	}
 
 	return nil, nil
