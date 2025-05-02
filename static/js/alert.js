@@ -62,8 +62,14 @@ $(document).ready(async function () {
     setupAlertEventHandlers();
     setupValidationHandlers();
     setupTooltips();
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Alert Rules', url: './all-alerts.html' },
+        { name: 'New Alert Rule', url: '#' },
+    ]);
 
     await initializeFromUrl();
+    
 });
 
 function setupAlertEventHandlers() {
@@ -232,7 +238,7 @@ async function initializeFromUrl() {
         alertType = 'logs';
     }
 
-    if (!isEditMode && !isFromMetrics) {
+    if (!isEditMode && !isFromMetrics && alertType !== 'logs') {
         addQueryElement();
     }
 
@@ -457,8 +463,9 @@ async function fillAlertForm(res) {
     }
 
     initializeBreadcrumbs([
-        { name: 'Alerting', url: './all-alerts.html' },
-        { name: res.alert_name ? res.alert_name : 'New Alert', url: '#' },
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Alert Rules', url: './all-alerts.html' },
+        { name: res.alert_name ? res.alert_name : 'New Alert Rule', url: '#' },
     ]);
 
     $('#contact-points-dropdown span').html(res.contact_name).attr('id', res.contact_id);
@@ -480,7 +487,14 @@ async function fillAlertForm(res) {
 
 function createAlertFromLogs(queryLanguage, searchText, startEpoch, endEpoch, filterTab) {
     const urlParams = new URLSearchParams(window.location.search);
-    $('#alert-rule-name').val(decodeURIComponent(urlParams.get('ruleName')));
+    const ruleName = decodeURIComponent(urlParams.get('ruleName'));
+    $('#alert-rule-name').val(ruleName);
+
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Alert Rules', url: './all-alerts.html' },
+        { name: ruleName ? ruleName : 'New Alert Rule', url: '#' },
+    ]);
 
     if (filterTab === '0') {
         codeToBuilderParsing(searchText);
