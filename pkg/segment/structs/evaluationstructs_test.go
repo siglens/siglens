@@ -99,9 +99,9 @@ func Test_NumericExpr(t *testing.T) {
 	assert.Equal(t, exprD.GetFields(), []string{"Min"})
 
 	eFields := exprE.GetFields()
-	assert.True(t, utils.SliceContainsString(eFields, "Min"))
+	assert.True(t, utils.SliceHas(eFields, "Min"))
 
-	assert.True(t, utils.SliceContainsString(eFields, "Max"))
+	assert.True(t, utils.SliceHas(eFields, "Max"))
 
 	// Test Evaluate()
 	fieldToValue := make(map[string]segutils.CValueEnclosure)
@@ -513,14 +513,14 @@ func Test_BoolExpr(t *testing.T) {
 	assert.Equal(t, boolExprB.GetFields(), []string{"FieldWithStrings", "FieldWithNumbers"})
 
 	cFields := boolExprC.GetFields()
-	assert.True(t, utils.SliceContainsString(cFields, "Max"))
-	assert.True(t, utils.SliceContainsString(cFields, "FieldWithStrings"))
-	assert.True(t, utils.SliceContainsString(cFields, "FieldWithNumbers"))
+	assert.True(t, utils.SliceHas(cFields, "Max"))
+	assert.True(t, utils.SliceHas(cFields, "FieldWithStrings"))
+	assert.True(t, utils.SliceHas(cFields, "FieldWithNumbers"))
 
 	dFields := boolExprD.GetFields()
-	assert.True(t, utils.SliceContainsString(dFields, "Max"))
-	assert.True(t, utils.SliceContainsString(dFields, "FieldWithStrings"))
-	assert.True(t, utils.SliceContainsString(dFields, "FieldWithNumbers"))
+	assert.True(t, utils.SliceHas(dFields, "Max"))
+	assert.True(t, utils.SliceHas(dFields, "FieldWithStrings"))
+	assert.True(t, utils.SliceHas(dFields, "FieldWithNumbers"))
 
 	assert.Equal(t, boolExprE.GetFields(), []string{"Max"})
 
