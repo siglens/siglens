@@ -103,7 +103,7 @@ func (rr *RunningBucketResults) AddTimeToBucketStats(count uint16) {
 }
 
 func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, qid uint64,
-	cnt uint64, usedByTimechart bool, batchErr *putils.BatchError) {
+	cnt uint64, usedByTimechart bool, batchErr *putils.BatchError, unsetRecord map[string]utils.CValueEnclosure) {
 	if runningStats == nil {
 		if rr.runningStats == nil {
 			return
@@ -123,7 +123,7 @@ func (rr *RunningBucketResults) AddMeasureResults(runningStats *[]runningStats, 
 			}
 			i += step
 		case utils.Avg:
-			step, err := rr.AddEvalResultsForAvg(runningStats, measureResults, i)
+			step, err := rr.AddEvalResultsForAvg(runningStats, measureResults, i, unsetRecord)
 			if err != nil {
 				batchErr.AddError("RunningBucketResults.AddMeasureResults:Avg", err)
 			}
@@ -386,8 +386,15 @@ func (rr *RunningBucketResults) ProcessReduceForEval(runningStats *[]runningStat
 	return nil
 }
 
-func PopulateFieldToValueFromMeasureResults(fields []string, measureResults []utils.CValueEnclosure, index int) (map[string]utils.CValueEnclosure, error) {
-	fieldToValue := make(map[string]utils.CValueEnclosure)
+// The `fieldToValue` map will be overwritten with the keys in `fields` and the
+// values in `measureResults`.
+func PopulateFieldToValueFromMeasureResults(fieldToValue map[string]utils.CValueEnclosure, fields []string,
+	measureResults []utils.CValueEnclosure, index int) (map[string]utils.CValueEnclosure, error) {
+
+	if fieldToValue == nil {
+		fieldToValue = make(map[string]utils.CValueEnclosure, len(fields))
+	}
+
 	for _, field := range fields {
 		if index >= len(measureResults) {
 			return nil, fmt.Errorf("RunningBucketResults.PopulateFieldToValueFromMeasureResults: index out of bounds, index: %v, len(measureResults): %v", index, len(measureResults))
@@ -395,6 +402,16 @@ func PopulateFieldToValueFromMeasureResults(fields []string, measureResults []ut
 		fieldToValue[field] = measureResults[index]
 		index++
 	}
+
+	if len(fieldToValue) != len(fields) {
+		// The map has stale values we need to remove.
+		for field := range fieldToValue {
+			if !putils.SliceHas(fields, field) {
+				delete(fieldToValue, field)
+			}
+		}
+	}
+
 	return fieldToValue, nil
 }
 
@@ -422,7 +439,9 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	return len(fields) - 1, nil
 }
 
-func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int) (int, error) {
+func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStats,
+	measureResults []utils.CValueEnclosure, i int, unsetRecord map[string]utils.CValueEnclosure) (int, error) {
+
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
@@ -430,7 +449,7 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	if len(fields) == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
 	}
-	fieldToValue, err := PopulateFieldToValueFromMeasureResults(fields, measureResults, i)
+	fieldToValue, err := PopulateFieldToValueFromMeasureResults(unsetRecord, fields, measureResults, i)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: failed to populate field to value, err: %v", err)
 	}

@@ -388,7 +388,8 @@ func (b *BlockResults) ShouldIterateRecords(aggsHasTimeHt bool, isBlkFullyEncose
 
 }
 
-func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []utils.CValueEnclosure, groupByColVal string, usedByTimechart bool, qid uint64) {
+func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []utils.CValueEnclosure,
+	groupByColVal string, usedByTimechart bool, qid uint64, unsetRecord map[string]utils.CValueEnclosure) {
 
 	if b.GroupByAggregation == nil {
 		return
@@ -421,9 +422,9 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 			bucket.groupedRunningStats[groupByColVal] = gRunningStats
 		}
 		gRunningStats = bucket.groupedRunningStats[groupByColVal]
-		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true, b.batchErr)
+		bucket.AddMeasureResults(&gRunningStats, measureResults, qid, 1, true, b.batchErr, unsetRecord)
 	} else {
-		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false, b.batchErr)
+		bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, 1, false, b.batchErr, unsetRecord)
 	}
 
 }

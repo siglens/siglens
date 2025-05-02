@@ -26,6 +26,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func SliceHas[T comparable](slice []T, item T) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+
+	return false
+}
+
 func SliceContainsString(slice []string, s string) bool {
 	for _, v := range slice {
 		if v == s {
