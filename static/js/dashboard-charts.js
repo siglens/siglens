@@ -16,160 +16,157 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 var lineChart;
+var barChart;
 function loadBarOptions(xAxisData, yAxisData) {
-    // Colors for dark & light modes
+    // Get theme colors for charts
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
     let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
     let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
-    let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-    let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
-
+    let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
+    let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
+    
+    // Prepare data for Chart.js
+    let labels = xAxisData;
+    let datasets = [];
     let colorList = ['#6347D9', '#FF8700'];
 
-    // Prepare datasets for Chart.js
-    let datasets = yAxisData.map((dataset, index) => ({
-        label: dataset.name,
-        data: dataset.data,
-        backgroundColor: colorList[index % colorList.length],
-        borderColor: colorList[index % colorList.length],
-        borderWidth: 1,
-        barPercentage: 0.6, 
-        categoryPercentage: 0.6, 
-    }));
-
-    // Determine rotation and padding based on number of bars
+    yAxisData.forEach((dataset, index) => {
+        datasets.push({
+            label: dataset.name,
+            data: dataset.data,
+            backgroundColor: colorList[index % colorList.length],
+            borderColor: colorList[index % colorList.length],
+            borderWidth: 1,
+            barPercentage: 0.6,
+            categoryPercentage: 0.8,
+        });
+    });
 
     const shouldRotateLabels = xAxisData.length > 1;
     const rotationAngle = xAxisData.length > 5 ? 30 : 0;
 
-    let barOptions = {
+    // Chart.js configuration object
+    const config = {
         type: 'bar',
         data: {
-            labels: xAxisData,
-            datasets: datasets,
+            labels: labels,
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: true,
                     position: 'top',
                     labels: {
-                        color: $('html').attr('data-theme') === 'dark' ? labelDarkThemeColor : labelLightThemeColor,
-                    },
+                        color: function() {
+                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+                        }
+                    }
                 },
                 tooltip: {
-                    enabled: true,
                     callbacks: {
-                        label: function (tooltipItem) {
-                            return `${tooltipItem.dataset.label}: ${tooltipItem.raw}`;
-                        },
-                    },
-                },
+                        title: function(tooltipItems) {
+                            return tooltipItems[0].label;
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
                     grid: {
-                        display: true,
+                        display: false
                     },
                     ticks: {
-                        autoSkip: false,
-                        maxRotation: shouldRotateLabels ? rotationAngle : 0,
-                        minRotation: shouldRotateLabels ? rotationAngle : 0,
-                        padding: labelPadding,
-                        color: $('html').attr('data-theme') === 'dark' ? labelDarkThemeColor : labelLightThemeColor,
-                    },
+                        maxRotation: rotationAngle,
+                        minRotation: rotationAngle,
+                        color: function() {
+                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+                        }
+                    }
                 },
                 y: {
                     grid: {
-                        color: $('html').attr('data-theme') === 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor,
+                        color: function() {
+                            return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+                        }
                     },
                     ticks: {
-                        color: $('html').attr('data-theme') === 'dark' ? labelDarkThemeColor : labelLightThemeColor,
-                    },
-                },
-            },
-        },
+                        color: function() {
+                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+                        }
+                    }
+                }
+            }
+        }
     };
 
-    return barOptions;
+    return config;
 }
 
 function loadPieOptions(xAxisData, yAxisData) {
     let pieDataMapList = [];
+    // loop
     for (let i = 0; i < xAxisData.length; i++) {
         let mapVal1 = yAxisData[i];
-        pieDataMapList.push(mapVal1); // Chart.js pie chart expects an array of values
+        let mapVal2 = xAxisData[i];
+        let pieDataMap = {};
+        pieDataMap['value'] = mapVal1;
+        pieDataMap['name'] = mapVal2;
+        pieDataMapList.push(pieDataMap);
     }
-
     let root = document.querySelector(':root');
     let rootStyles = getComputedStyle(root);
     let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
     let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
 
-    const uniqueColors = [
-        '#6347D9', 
-        '#FF8700', 
-        '#a3cafd', 
-        '#5795e4', 
-        '#d7c3fa',  
-        '#7462d8', 
-        '#f7d048', 
-        '#ff6f61', 
-        '#6b7280', 
-        '#34d399', 
-        '#f472b6',
-        '#fbbf24', 
-        '#60a5fa',
-        '#f87171', 
-        '#a78bfa',
-        '#4ade80',
-        '#fb923c',
-        '#9ca3af', 
-        '#2dd4bf', 
-        '#c084fc', 
-    ];
-
     let pieOptions = {
-        type: 'pie',
-        data: {
-            labels: xAxisData,
-            datasets: [{
-                label: 'Pie Chart',
-                data: pieDataMapList,
-                backgroundColor: uniqueColors.slice(0, xAxisData.length), // Use as many colors as there are segments
-                borderColor: uniqueColors.slice(0, xAxisData.length), // Same colors for borders
-                borderWidth: 1,
-            }],
+        tooltip: {
+            trigger: 'item',
+            formatter: '{a} <br/>{b} : {c} ({d}%)',
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'left',
-                    labels: {
-                        color: $('html').attr('data-theme') === 'dark' ? labelDarkThemeColor : labelLightThemeColor,
-                    },
-                },
-                tooltip: {
-                    enabled: true,
-                    callbacks: {
-                        label: function (tooltipItem) {
-                            let dataset = tooltipItem.dataset;
-                            let total = dataset.data.reduce((sum, val) => sum + val, 0);
-                            let value = dataset.data[tooltipItem.dataIndex];
-                            let percentage = ((value / total) * 100).toFixed(2);
-                            return `${dataset.label} <br/>${tooltipItem.label}: ${value} (${percentage}%)`;
-                        },
-                    },
-                },
+        legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: xAxisData,
+            textStyle: {
+                color: labelDarkThemeColor,
+                borderColor: labelDarkThemeColor,
             },
         },
+        series: [
+            {
+                name: 'Pie Chart',
+                type: 'pie',
+                radius: '55%',
+                center: ['50%', '60%'],
+                data: pieDataMapList,
+                itemStyle: {
+                    emphasis: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)',
+                    },
+                },
+                label: {
+                    color: labelDarkThemeColor,
+                },
+            },
+        ],
     };
+
+    if ($('html').attr('data-theme') == 'dark') {
+        pieOptions.series[0].label.color = labelDarkThemeColor;
+        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
+        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
+    } else {
+        pieOptions.series[0].label.color = labelLightThemeColor;
+        pieOptions.legend.textStyle.color = labelLightThemeColor;
+        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
+    }
 
     return pieOptions;
 }
@@ -191,18 +188,18 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
     }
 
     let panelChartEl;
-    let chartInstance;
     if (panelId == -1) {
-        panelChartEl = $(`.panelDisplay .panEdit-panel`);
+        panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
     } else if (chartType !== 'number') {
         panelChartEl = $(`#panel${panelId} .panEdit-panel`);
         panelChartEl.css('width', '100%').css('height', '100%');
+        panelChartEl = document.querySelector(`#panel${panelId} .panEdit-panel`);
     }
 
     if (bigNumVal != null) {
         chartType = 'number';
     }
-
+    
     /* eslint-disable */
     switch (chartType) {
         case 'Bar Chart':
@@ -232,19 +229,28 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
                 return groupByValue;
             });
-
+            
+            // Create canvas for Chart.js
+            $(panelChartEl).empty();
+            $(panelChartEl).html('<canvas class="bar-chart-canvas"></canvas>');
+            
+            let canvasEl = $(panelChartEl).find('canvas')[0];
+            let ctx = canvasEl.getContext('2d');
+            
+            // Set up Chart.js bar chart
             var barOptions = loadBarOptions(xData, seriesData);
-            let barCanvas = $('<canvas></canvas>').css({ width: '100%', height: '100%' });
-            panelChartEl.append(barCanvas);
-            chartInstance = new Chart(barCanvas[0].getContext('2d'), barOptions);
+            if (barChart) {
+                barChart.destroy();
+            }
+            barChart = new Chart(ctx, barOptions);
+            
             break;
-
         case 'Pie Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
 
             let xAxisData = [];
             let yAxisData = [];
-            // Loop through the hits and create the data for the pie chart
+            // loop through the hits and create the data for the bar chart
             for (let i = 0; i < hits.length; i++) {
                 let hit = hits[i];
                 let xAxisValue = hit.GroupByValues[0];
@@ -261,11 +267,9 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
             }
 
             var pieOptions = loadPieOptions(xAxisData, yAxisData);
-            let pieCanvas = $('<canvas></canvas>').css({ width: '100%', height: '100%' });
-            panelChartEl.append(pieCanvas);
-            chartInstance = new Chart(pieCanvas[0].getContext('2d'), pieOptions);
+            let pieChart = echarts.init(panelChartEl);
+            pieChart.setOption(pieOptions);
             break;
-
         case 'number':
             displayBigNumber(bigNumVal, panelId, dataType, panelIndex);
             break;
@@ -273,7 +277,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
     /* eslint-enable */
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 
-    return chartInstance;
+    return chartType === 'Bar Chart' ? barChart : chartType === 'Pie Chart' ? pieChart : null;
 }
 
 let mapIndexToAbbrev = new Map([
@@ -580,7 +584,13 @@ function renderLineChart(seriesData, panelId) {
 }
 
 window.addEventListener('resize', function (_event) {
-    if ($('.panelEditor-container').css('display') !== 'none' && lineChart) {
-        lineChart.resize();
+    if ($('.panelEditor-container').css('display') !== 'none') {
+        // Resize both chart types if they exist
+        if (barChart) {
+            barChart.resize();
+        }
+        if (lineChart) {
+            lineChart.resize();
+        }
     }
 });
