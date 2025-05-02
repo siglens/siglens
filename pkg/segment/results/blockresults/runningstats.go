@@ -455,11 +455,12 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
-	result, err := agg.PerformEvalAggForAvg(rr.currStats[i], 1, exists, *(*runningStats)[i].avgStat, fieldToValue)
+	curr := rr.currStats[i]
+	avgStat := (*runningStats)[i].avgStat
+	result, err := agg.PerformEvalAggForAvg(curr, 1, exists, avgStat, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: failed to evaluate ValueColRequest, err: %v", err)
 	}
-	(*runningStats)[i].avgStat = &result
 	avg := 0.0
 	if result.Count > 0 {
 		avg = result.Sum / float64(result.Count)

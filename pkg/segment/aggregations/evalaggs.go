@@ -477,11 +477,7 @@ func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[st
 	return nil
 }
 
-func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currAvgStat structs.AvgStat, fieldToValue map[string]utils.CValueEnclosure) (structs.AvgStat, error) {
-	finalAvgStat := structs.AvgStat{
-		Sum:   float64(0),
-		Count: int64(0),
-	}
+func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currAvgStat *structs.AvgStat, fieldToValue map[string]utils.CValueEnclosure) (*structs.AvgStat, error) {
 
 	if len(fieldToValue) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
@@ -489,8 +485,8 @@ func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, c
 		if err != nil || !isNumeric {
 			return currAvgStat, fmt.Errorf("PerformEvalAggForAvg: Error while evaluating value col request to a numeric value, err: %v", err)
 		}
-		finalAvgStat.Sum = floatValue * float64(count)
-		finalAvgStat.Count = int64(count)
+		currAvgStat.Sum += floatValue * float64(count)
+		currAvgStat.Count += int64(count)
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
 			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
@@ -498,8 +494,8 @@ func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, c
 				return currAvgStat, fmt.Errorf("PerformEvalAggForAvg: there are some errors in the eval function that is inside the avg function: %v", err)
 			}
 			if boolResult {
-				finalAvgStat.Sum++
-				finalAvgStat.Count++
+				currAvgStat.Sum++
+				currAvgStat.Count++
 			}
 		} else {
 			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
@@ -508,22 +504,19 @@ func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, c
 			}
 			// records that are not float will be ignored
 			if isNumeric {
-				finalAvgStat.Sum += floatValue
-				finalAvgStat.Count++
+				currAvgStat.Sum += floatValue
+				currAvgStat.Count++
 			}
 		}
 	}
 
-	finalAvgStat.Sum += currAvgStat.Sum
-	finalAvgStat.Count += currAvgStat.Count
-
-	return finalAvgStat, nil
+	return currAvgStat, nil
 }
 
 func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]utils.CValueEnclosure)
-	avgStat := structs.AvgStat{}
+	avgStat := &structs.AvgStat{}
 	var err error
 	avgStatVal, currResultExists := runningEvalStats[measureAgg.String()]
 	if currResultExists {
