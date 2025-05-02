@@ -674,7 +674,10 @@ func (iqr *IQR) GetRecord(index int) *Record {
 	return &Record{iqr: iqr, Index: index}
 }
 
-func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) error {
+// Only the first `limit` records are guaranteed to be in the correct order
+// when this function returns. Records after that may not even exist
+// afterwards.
+func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, limit int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
@@ -702,9 +705,16 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) err
 		records[i] = &Record{iqr: iqr, Index: i, SortValues: sortColumnValues}
 	}
 
-	sort.Slice(records, func(i, j int) bool {
-		return less(records[i], records[j])
-	})
+	// If we only want to keep a few records, use a heap to save CPU. If we
+	// want to keep a lot, sort in place to save memory.
+	threshold := 1000 // TODO: tune this
+	if limit <= threshold {
+		records = toputils.GetTopN(limit, records, less)
+	} else {
+		sort.Slice(records, func(i, j int) bool {
+			return less(records[i], records[j])
+		})
+	}
 
 	if iqr.mode == withRRCs {
 		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())

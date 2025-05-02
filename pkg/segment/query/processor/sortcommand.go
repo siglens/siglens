@@ -45,7 +45,7 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	p.validate()
-	err := inputIQR.Sort(p.getSortColumns(), p.less)
+	err := inputIQR.Sort(p.getSortColumns(), p.less, int(p.options.Limit))
 	if err != nil {
 		log.Errorf("sort.Process: cannot sort IQR; err=%v", err)
 		return nil, err
