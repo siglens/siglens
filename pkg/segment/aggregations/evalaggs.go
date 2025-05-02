@@ -478,13 +478,12 @@ func ComputeAggEvalForCount(measureAgg *structs.MeasureAggregator, sstMap map[st
 }
 
 func PerformEvalAggForAvg(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currAvgStat structs.AvgStat, fieldToValue map[string]utils.CValueEnclosure) (structs.AvgStat, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
 	finalAvgStat := structs.AvgStat{
 		Sum:   float64(0),
 		Count: int64(0),
 	}
 
-	if len(fields) == 0 {
+	if len(fieldToValue) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute avg if constant is not numeric
 		if err != nil || !isNumeric {
