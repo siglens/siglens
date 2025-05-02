@@ -426,7 +426,7 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 	if len(fields) == 0 {
 		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:NON_ZERO_FIELDS",
 			fmt.Errorf("need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String()))
@@ -448,7 +448,7 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 	if len(fields) == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
 	}
@@ -475,7 +475,7 @@ func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningS
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 	if len(fields) == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinMax: Need non zero number of fields in expression for eval stats for min/max for aggCol: %v", rr.currStats[i].String())
 	}
@@ -494,7 +494,7 @@ func (rr *RunningBucketResults) AddEvalResultsForRange(runningStats *[]runningSt
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 	if len(fields) == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: Need non zero number of fields in expression for eval stats for range for aggCol: %v", rr.currStats[i].String())
 	}
@@ -527,7 +527,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 		}
 	}
 
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 
 	boolResult := true
 	if rr.currStats[i].ValueColRequest.BooleanExpr != nil {
@@ -568,7 +568,7 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, nil
 	}
 
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 
 	_, err := agg.PerformAggEvalForCardinality(rr.currStats[i], strSet, fieldToValue)
 	if err != nil {
@@ -600,7 +600,7 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 		return 0, nil
 	}
 
-	fields := rr.currStats[i].ValueColRequest.GetFields()
+	fields := putils.GetKeysOfMap(fieldToValue)
 
 	result, err := agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
 	if err != nil {
