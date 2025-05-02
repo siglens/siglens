@@ -430,7 +430,9 @@ func (b *BlockResults) AddMeasureResultsToKey(currKey []byte, measureResults []u
 }
 
 func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
-	measureResults []utils.CValueEnclosure, qid uint64, cnt uint64) {
+	measureResults []utils.CValueEnclosure, qid uint64, cnt uint64,
+	unsetRecord map[string]utils.CValueEnclosure) {
+
 	if b.GroupByAggregation == nil {
 		return
 	}
@@ -448,7 +450,7 @@ func (b *BlockResults) AddMeasureResultsToKeyAgileTree(bKey string,
 	} else {
 		bucket = b.GroupByAggregation.AllRunningBuckets[bucketIdx]
 	}
-	bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, cnt, false, b.batchErr)
+	bucket.AddMeasureResults(&bucket.runningStats, measureResults, qid, cnt, false, b.batchErr, unsetRecord)
 }
 
 func (b *BlockResults) AddKeyToTimeBucket(bucketKey uint64, count uint16) {
