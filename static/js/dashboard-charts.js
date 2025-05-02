@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 var lineChart;
-
 function loadBarOptions(xAxisData, yAxisData) {
     // Colors for dark & light modes
     let root = document.querySelector(':root');
@@ -74,7 +73,7 @@ function loadBarOptions(xAxisData, yAxisData) {
             scales: {
                 x: {
                     grid: {
-                        display: false,
+                        display: true,
                     },
                     ticks: {
                         autoSkip: false,
