@@ -250,7 +250,7 @@ function navigateToTracesDetails(source) {
             mdFileName = 'js-app';
             break;
         case 'OpenTelemetry Collector':
-            mdFileName = 'opentelemetry';
+            mdFileName = 'openTelemetry';
             break;
     }
         

@@ -81,6 +81,10 @@ const instructionData = [
         id: 'python-app',
         title: 'Python App',
     },
+    {
+        id: 'openTelemetry',
+        title: 'OpenTelemetry Collector',
+    },
 ];
 
 const languageMap = {
@@ -101,7 +105,7 @@ async function loadInstruction(instructionId) {
             path = `../../content/log-ingestion-methods/${instructionId}.md`;
         } else if (['vector-metrics', 'open-telemetry'].includes(instructionId)) {
             path = `/content/metric-ingestion-methods/${instructionId}.md`;
-        } else if (['dotnet-app', 'go-app', 'java-app', 'js-app', 'python-app', 'opentelemetry'].includes(instructionId)) {
+        } else if (['dotnet-app', 'go-app', 'java-app', 'js-app', 'python-app', 'openTelemetry'].includes(instructionId)) {
             path = `/content/trace-ingestion-methods/${instructionId}.md`;
         } else {
             throw new Error(`Unknown instruction ID: ${instructionId}`);
@@ -447,7 +451,7 @@ function initializeBreadcrumbsForType(type, methodName) {
             resolvedType = 'logs';
         } else if (['vector-metrics', 'open-telemetry'].includes(methodName)) {
             resolvedType = 'metrics';
-        } else if (['dotnet-app', 'go-app', 'java-app', 'js-app', 'python-app', 'opentelemetry'].includes(methodName)) {
+        } else if (['dotnet-app', 'go-app', 'java-app', 'js-app', 'python-app', 'openTelemetry'].includes(methodName)) {
             resolvedType = 'traces';
         }
     }
