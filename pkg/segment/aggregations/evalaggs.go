@@ -171,11 +171,11 @@ func UpdateRangeStat(floatValue float64, rangeStat *structs.RangeStat) {
 	}
 }
 
-func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, currResultExists bool, currRangeStat structs.RangeStat, fieldToValue map[string]utils.CValueEnclosure) (structs.RangeStat, error) {
+func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, currResultExists bool, currRangeStat *structs.RangeStat, fieldToValue map[string]utils.CValueEnclosure) (*structs.RangeStat, error) {
 	fields := measureAgg.ValueColRequest.GetFields()
-	finalRangeStat := structs.RangeStat{
-		Min: math.MaxFloat64,
-		Max: -math.MaxFloat64,
+	if !currResultExists {
+		currRangeStat.Min = math.MaxFloat64
+		currRangeStat.Max = -math.MaxFloat64
 	}
 	if len(fields) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
@@ -183,7 +183,7 @@ func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, currResultExi
 		if err != nil || !isNumeric {
 			return currRangeStat, fmt.Errorf("PerformEvalAggForRange: Error while evaluating value col request to a numeric value, err: %v", err)
 		}
-		UpdateRangeStat(floatValue, &finalRangeStat)
+		UpdateRangeStat(floatValue, currRangeStat)
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
 			boolResult, err := measureAgg.ValueColRequest.BooleanExpr.Evaluate(fieldToValue)
@@ -191,8 +191,7 @@ func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, currResultExi
 				return currRangeStat, fmt.Errorf("PerformEvalAggForRange: there are some errors in the eval function that is inside the range function: %v", err)
 			}
 			if boolResult {
-				finalRangeStat.Max = 1
-				finalRangeStat.Min = 1
+				UpdateRangeStat(1, currRangeStat)
 			}
 		} else {
 			floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
@@ -201,30 +200,19 @@ func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, currResultExi
 			}
 			// records that are not float will be ignored
 			if isNumeric {
-				UpdateRangeStat(floatValue, &finalRangeStat)
+				UpdateRangeStat(floatValue, currRangeStat)
 			}
 		}
 	}
 
-	if !currResultExists {
-		return finalRangeStat, nil
-	}
-
-	if finalRangeStat.Min > currRangeStat.Min {
-		finalRangeStat.Min = currRangeStat.Min
-	}
-	if finalRangeStat.Max < currRangeStat.Max {
-		finalRangeStat.Max = currRangeStat.Max
-	}
-
-	return finalRangeStat, nil
+	return currRangeStat, nil
 }
 
 func ComputeAggEvalForRange(measureAgg *structs.MeasureAggregator, sstMap map[string]*structs.SegStats, measureResults map[string]utils.CValueEnclosure, runningEvalStats map[string]interface{}) error {
 	fields := measureAgg.ValueColRequest.GetFields()
 	fieldToValue := make(map[string]utils.CValueEnclosure)
 	var err error
-	rangeStat := structs.RangeStat{
+	rangeStat := &structs.RangeStat{
 		Min: math.MaxFloat64,
 		Max: -math.MaxFloat64,
 	}

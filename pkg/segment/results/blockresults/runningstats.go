@@ -502,11 +502,10 @@ func (rr *RunningBucketResults) AddEvalResultsForRange(runningStats *[]runningSt
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
-	result, err := agg.PerformEvalAggForRange(rr.currStats[i], exists, *(*runningStats)[i].rangeStat, fieldToValue)
+	result, err := agg.PerformEvalAggForRange(rr.currStats[i], exists, (*runningStats)[i].rangeStat, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: failed to evaluate ValueColRequest, err: %v", err)
 	}
-	(*runningStats)[i].rangeStat = &result
 	(*runningStats)[i].rawVal = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_FLOAT,
 		CVal:  result.Max - result.Min,
