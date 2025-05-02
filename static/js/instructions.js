@@ -166,13 +166,40 @@ async function loadInstruction(instructionId) {
         `;
     }
 }
+function processNestedMarkdown(content) {
+    // Process admonitions (:::note, :::tip, etc.) within TabItem content
+    content = content.replace(/:::(note|tip|info|warning|danger|caution)\n([\s\S]*?):::/g, function (match, type, innerContent) {
+        const cleanContent = innerContent.replace(/^\s+/gm, '').trim();
+        return `<div class="admonition ${type}"><div class="admonition-heading">${type.charAt(0).toUpperCase() + type.slice(1)}</div><div class="admonition-content">${cleanContent}</div></div>`;
+    });
+
+    // Parse nested markdown (e.g., headings, lists, code blocks) using marked
+    return marked.parse(content, {
+        renderer: createCustomRenderer(),
+        highlight: function (code, language) {
+            if (language && languageMap[language]) {
+                language = languageMap[language];
+            }
+            if (!language || language === '') {
+                language = 'plaintext';
+            }
+            try {
+                return hljs.highlight(code, { language: language }).value;
+            } catch (e) {
+                console.warn(`Highlight.js error for language "${language}":`, e);
+                return hljs.highlightAuto(code).value;
+            }
+        },
+        langPrefix: 'hljs language-',
+    });
+}
 
 // Pre-process markdown content to handle custom components and image paths
 function preprocessMarkdown(markdown) {
     // Process import statements (remove them)
     let processed = markdown.replace(/import\s+.*?from\s+['"].*?['"];?\n?/g, '');
 
-    // Process :::note blocks
+    // Process :::note blocks (outside of tabs)
     processed = processed.replace(/:::(note|tip|info|warning|danger|caution)\n([\s\S]*?):::/g, function (match, type, content) {
         const cleanContent = content.replace(/^\s+/gm, '').trim();
         return `<div class="admonition ${type}"><div class="admonition-heading">${type.charAt(0).toUpperCase() + type.slice(1)}</div><div class="admonition-content">${cleanContent}</div></div>`;
@@ -228,25 +255,16 @@ function preprocessMarkdown(markdown) {
 
         while ((tabMatch = tabItemRegex.exec(tabsBlock)) !== null) {
             const value = tabMatch[1];
-            const content = tabMatch[2].trim();
+            let content = tabMatch[2].trim();
 
             const valueInfo = valuesArray.find((v) => v.value === value);
             const label = valueInfo ? valueInfo.label : value;
 
+            // Process nested markdown within TabItem content
+            content = processNestedMarkdown(content);
+
             tabItems.push({ value, label, content });
         }
-
-        tabItems.forEach((tab) => {
-            // Process code blocks in tab content
-            tab.content = tab.content.replace(/```(\w+)?\n([\s\S]*?)```/g, function (match, language, code) {
-                if (language && languageMap[language]) {
-                    language = languageMap[language];
-                }
-
-                const lang = language || 'plaintext';
-                return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
-            });
-        });
 
         // HTML for the tabs
         let tabsHtml = '\n\n<div class="tabs">\n  <div class="tabs-header">\n';
