@@ -1589,11 +1589,11 @@ progress.hidden {
     font-weight: bold;
 }
 
-.ui-widget-content a{
+.ui-widget-content a {
     color: #0d6efd;
 }
 
-.ui-widget.ui-widget-content{
+.ui-widget.ui-widget-content {
     border: 1px solid var(--ui-widget-border-color);
 }
 
@@ -4410,7 +4410,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 .org-settings {
-    width: 1000px;
+    width: 850px;
+}
+
+.org-settings-table {
+    width: 100%;
+}
+
+#main-settings-table.org-settings-table td,
+#system-info-table.org-settings-table td {
+    display: flex;
+    justify-content: end;
+}
+
+#querytimeout-table td:last-child {
+    justify-content: start;
 }
 
 .org-settings-table tr {
@@ -4419,8 +4433,16 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .org-settings-table tr th,
 .org-settings-table td {
-    padding: 10px;
+    padding: 16px 10px;
     white-space: nowrap
+}
+
+.org-settings-table tr:not(:last-child) {
+    border-bottom: 1px solid var(--alerting-table-line-color);
+}
+
+#querytimeout-table tr:not(:last-child) {
+    border-bottom: none;
 }
 
 .settings-card {
@@ -4434,8 +4456,26 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .settings-card .header {
     font-size: 14px;
-    font-weight: bold;
-    margin-left: 10px;
+    font-weight: 600;
+    color: var(--purple-2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.settings-card .header::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: var(--purple-2);
+    border-radius: 4px;
+}
+
+.usage-info {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--alert-background);
 }
 
 .dist-card .sub-sec {
