@@ -484,7 +484,7 @@ func (iqr *IQR) readColumnWithRRCs(cname string) ([]utils.CValueEnclosure, error
 		return values, nil
 	}
 
-	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation)
+	results, err := toputils.BatchProcess(iqr.rrcs, getBatchKey, batchKeyLess, batchOperation, 1)
 	if err != nil {
 		return nil, toputils.TeeErrorf("IQR.readColumnWithRRCs: error in batch operation: %v", err)
 	}
@@ -524,7 +524,7 @@ func (iqr *IQR) Append(other *IQR) error {
 
 	if iqr.mode == withRRCs && other.mode == withoutRRCs {
 		if iqr.qid != other.qid {
-			return toputils.TeeErrorf("mergeMetadata: inconsistent qids (%v and %v)", iqr.qid, other.qid)
+			return toputils.TeeErrorf("IQR.Append: inconsistent qids (%v and %v)", iqr.qid, other.qid)
 		}
 		newIQR, err := other.getRRCIQR()
 		if err != nil {
@@ -534,7 +534,7 @@ func (iqr *IQR) Append(other *IQR) error {
 		other = newIQR
 	}
 
-	mergedIQR, err := mergeMetadata([]*IQR{iqr, other})
+	mergedIQR, err := mergeMetadata([]*IQR{iqr, other}, false)
 	if err != nil {
 		log.Errorf("qid=%v, IQR.Append: error merging metadata: %v", iqr.qid, err)
 		return err
@@ -674,7 +674,10 @@ func (iqr *IQR) GetRecord(index int) *Record {
 	return &Record{iqr: iqr, Index: index}
 }
 
-func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) error {
+// Only the first `limit` records are guaranteed to be in the correct order
+// when this function returns. Records after that may not even exist
+// afterwards.
+func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool, limit int) error {
 	if err := iqr.validate(); err != nil {
 		log.Errorf("IQR.Sort: validation failed: %v", err)
 		return err
@@ -702,9 +705,16 @@ func (iqr *IQR) Sort(sortColumns []string, less func(*Record, *Record) bool) err
 		records[i] = &Record{iqr: iqr, Index: i, SortValues: sortColumnValues}
 	}
 
-	sort.Slice(records, func(i, j int) bool {
-		return less(records[i], records[j])
-	})
+	// If we only want to keep a few records, use a heap to save CPU. If we
+	// want to keep a lot, sort in place to save memory.
+	threshold := 1000 // TODO: tune this
+	if limit <= threshold {
+		records = toputils.GetTopN(limit, records, less)
+	} else {
+		sort.Slice(records, func(i, j int) bool {
+			return less(records[i], records[j])
+		})
+	}
 
 	if iqr.mode == withRRCs {
 		newRRCs := make([]*utils.RecordResultContainer, iqr.NumberOfRecords())
@@ -794,7 +804,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 		return nil, 0, toputils.TeeErrorf("MergeIQRs: the less function is nil")
 	}
 
-	iqr, err := mergeMetadata(iqrs)
+	iqr, err := mergeMetadata(iqrs, true)
 	if err != nil {
 		log.Errorf("MergeIQRs: error merging metadata: %v", err)
 		return nil, 0, err
@@ -864,7 +874,7 @@ func MergeIQRs(iqrs []*IQR, less func(*Record, *Record) bool) (*IQR, int, error)
 	}
 }
 
-func mergeMetadata(iqrs []*IQR) (*IQR, error) {
+func mergeMetadata(iqrs []*IQR, allocateForAllRecords bool) (*IQR, error) {
 	if len(iqrs) == 0 {
 		return nil, fmt.Errorf("mergeMetadata: no IQRs to merge")
 	}
@@ -877,8 +887,19 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 		result.encodingToSegKey[encoding] = segKey
 	}
 
+	numRecords := 0
+	if allocateForAllRecords {
+		for _, iqr := range iqrs {
+			numRecords += iqr.NumberOfRecords()
+		}
+	}
+
+	if result.mode == withRRCs {
+		result.rrcs = make([]*utils.RecordResultContainer, 0, numRecords)
+	}
+
 	for cname := range iqrs[0].knownValues {
-		result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+		result.knownValues[cname] = make([]utils.CValueEnclosure, 0, numRecords)
 	}
 
 	for _, iqrToMerge := range iqrs {
@@ -906,7 +927,7 @@ func mergeMetadata(iqrs []*IQR) (*IQR, error) {
 
 		for cname := range iqr.knownValues {
 			if _, ok := result.knownValues[cname]; !ok {
-				result.knownValues[cname] = make([]utils.CValueEnclosure, 0)
+				result.knownValues[cname] = make([]utils.CValueEnclosure, 0, numRecords)
 			}
 		}
 

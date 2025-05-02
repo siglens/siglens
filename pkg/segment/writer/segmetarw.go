@@ -547,12 +547,13 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 		return nil
 	}
 
-	fd, err := os.OpenFile(localSegmetaFname, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	tmpFileName := localSegmetaFname + ".tmp"
+	tmpFD, err := os.OpenFile(tmpFileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("removeSegmetas: Failed to open SegMetaFile name=%v, err:%v", localSegmetaFname, err)
+		log.Errorf("removeSegmetas: Failed to create temp segmeta file: %v", err)
 		return nil
 	}
-	defer fd.Close()
+	defer tmpFD.Close()
 
 	for _, smentry := range preservedSmEntries {
 
@@ -564,10 +565,15 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 
 		segmetajson = append(segmetajson, "\n"...)
 
-		if _, err := fd.Write(segmetajson); err != nil {
-			log.Errorf("removeSegmetas: failed to write segmeta filename=%v: err=%v", localSegmetaFname, err)
+		if _, err := tmpFD.Write(segmetajson); err != nil {
+			log.Errorf("removeSegmetas: failed to write segmeta to temp file: err=%v", err)
 			return nil
 		}
+	}
+
+	if err := os.Rename(tmpFileName, localSegmetaFname); err != nil {
+		log.Errorf("removeSegmetas: failed to rename temp file: err=%v", err)
+		return nil
 	}
 
 	return segbaseDirs

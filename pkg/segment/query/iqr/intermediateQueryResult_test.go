@@ -133,7 +133,7 @@ func Test_mergeMetadata(t *testing.T) {
 	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1"}
 	iqr2.encodingToSegKey = map[uint32]string{2: "segKey2"}
 
-	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.NoError(t, err)
 	assert.Equal(t, map[uint32]string{1: "segKey1", 2: "segKey2"}, iqr.encodingToSegKey)
 
@@ -141,7 +141,7 @@ func Test_mergeMetadata(t *testing.T) {
 	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1", 2: "segKey2"}
 	iqr2.encodingToSegKey = map[uint32]string{2: "segKey2", 3: "segKey3"}
 
-	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.NoError(t, err)
 	assert.Equal(t, map[uint32]string{1: "segKey1", 2: "segKey2", 3: "segKey3"}, iqr.encodingToSegKey)
 
@@ -149,7 +149,7 @@ func Test_mergeMetadata(t *testing.T) {
 	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1", 2: "segKey2"}
 	iqr2.encodingToSegKey = map[uint32]string{2: "segKey100", 3: "segKey3"}
 
-	_, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	_, err = mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.Error(t, err)
 }
 
@@ -160,27 +160,27 @@ func Test_mergeMetadata_modes(t *testing.T) {
 	// Incompatible modes.
 	iqr1.mode = withRRCs
 	iqr2.mode = withoutRRCs
-	_, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	_, err := mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.Error(t, err)
 
 	// Same modes.
 	iqr1.mode = withRRCs
 	iqr2.mode = withRRCs
-	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	iqr, err := mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.NoError(t, err)
 	assert.Equal(t, withRRCs, iqr.mode)
 
 	// First is unset.
 	iqr1.mode = notSet
 	iqr2.mode = withoutRRCs
-	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
 	// Second is unset.
 	iqr1.mode = withoutRRCs
 	iqr2.mode = notSet
-	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2})
+	iqr, err = mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 }
@@ -189,7 +189,7 @@ func Test_mergeMetadata_differentQids(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(1)
 
-	_, err := mergeMetadata([]*IQR{iqr1, iqr2})
+	_, err := mergeMetadata([]*IQR{iqr1, iqr2}, false)
 	assert.Error(t, err)
 }
 
@@ -453,7 +453,7 @@ func Test_Sort(t *testing.T) {
 		return aVal.CVal.(string) < bVal.CVal.(string)
 	}
 
-	err = iqr.Sort([]string{"col1", "col2"}, less)
+	err = iqr.Sort([]string{"col1", "col2"}, less, 100)
 	assert.NoError(t, err)
 
 	expected := map[string][]utils.CValueEnclosure{
@@ -529,7 +529,7 @@ func Test_Sort_multipleColumns(t *testing.T) {
 		return aVal2.CVal.(uint64) < bVal2.CVal.(uint64)
 	}
 
-	err = iqr.Sort([]string{"col1", "col2"}, less)
+	err = iqr.Sort([]string{"col1", "col2"}, less, 100)
 	assert.NoError(t, err)
 	values, err := iqr.ReadAllColumns()
 	assert.NoError(t, err)
