@@ -36,16 +36,6 @@ func SliceHas[T comparable](slice []T, item T) bool {
 	return false
 }
 
-func SliceContainsString(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
-}
-
 func SelectIndicesFromSlice(slice []string, indices []int) []string {
 	var result []string
 	for _, v := range indices {
