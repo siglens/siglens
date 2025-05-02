@@ -28,10 +28,9 @@ import (
 )
 
 func PerformEvalAggForMinOrMax(measureAgg *structs.MeasureAggregator, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure, isMin bool) (utils.CValueEnclosure, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
 	finalResult := utils.CValueEnclosure{}
 
-	if len(fields) == 0 {
+	if len(fieldToValue) == 0 {
 		floatValue, strValue, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		if err != nil {
 			return currResult, fmt.Errorf("PerformEvalAggForMinOrMax: Error while evaluating value col request to a numeric value, err: %v", err)
@@ -172,12 +171,11 @@ func UpdateRangeStat(floatValue float64, rangeStat *structs.RangeStat) {
 }
 
 func PerformEvalAggForRange(measureAgg *structs.MeasureAggregator, currResultExists bool, currRangeStat *structs.RangeStat, fieldToValue map[string]utils.CValueEnclosure) (*structs.RangeStat, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
 	if !currResultExists {
 		currRangeStat.Min = math.MaxFloat64
 		currRangeStat.Max = -math.MaxFloat64
 	}
-	if len(fields) == 0 {
+	if len(fieldToValue) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute if constant is not numeric
 		if err != nil || !isNumeric {
@@ -293,14 +291,13 @@ func PopulateFieldToValueFromSegStats(fields []string, measureAgg *structs.Measu
 }
 
 func PerformEvalAggForSum(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
 	finalResult := utils.CValueEnclosure{
 		Dtype: utils.SS_DT_FLOAT,
 		CVal:  float64(0),
 	}
 	finalValue := float64(0)
 
-	if len(fields) == 0 {
+	if len(fieldToValue) == 0 {
 		floatValue, _, isNumeric, err := GetFloatValueAfterEvaluation(measureAgg, fieldToValue)
 		// We cannot compute sum if constant is not numeric
 		if err != nil || !isNumeric {
@@ -386,14 +383,13 @@ func ComputeAggEvalForSum(measureAgg *structs.MeasureAggregator, sstMap map[stri
 }
 
 func PerformEvalAggForCount(measureAgg *structs.MeasureAggregator, count uint64, currResultExists bool, currResult utils.CValueEnclosure, fieldToValue map[string]utils.CValueEnclosure) (utils.CValueEnclosure, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
 	finalResult := utils.CValueEnclosure{
 		Dtype: utils.SS_DT_FLOAT,
 		CVal:  float64(0),
 	}
 	finalValue := float64(0)
 
-	if len(fields) == 0 {
+	if len(fieldToValue) == 0 {
 		finalValue = float64(count)
 	} else {
 		if measureAgg.ValueColRequest.BooleanExpr != nil {
@@ -554,9 +550,7 @@ func ComputeAggEvalForAvg(measureAgg *structs.MeasureAggregator, sstMap map[stri
 
 // Always pass a non-nil strSet when using this function
 func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet map[string]struct{}, fieldToValue map[string]utils.CValueEnclosure) (float64, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
-
-	if len(fields) == 0 {
+	if len(fieldToValue) == 0 {
 		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 		if err != nil {
 			return 0.0, fmt.Errorf("PerformAggEvalForCardinality: Error while evaluating value col request function: %v", err)
@@ -584,10 +578,9 @@ func PerformAggEvalForCardinality(measureAgg *structs.MeasureAggregator, strSet 
 }
 
 func PerformAggEvalForList(measureAgg *structs.MeasureAggregator, currentList []string, fieldToValue map[string]utils.CValueEnclosure) ([]string, error) {
-	fields := measureAgg.ValueColRequest.GetFields()
 	finalList := []string{}
 
-	if len(fields) == 0 || measureAgg.ValueColRequest.BooleanExpr == nil {
+	if len(fieldToValue) == 0 || measureAgg.ValueColRequest.BooleanExpr == nil {
 		valueStr, err := measureAgg.ValueColRequest.EvaluateToString(fieldToValue)
 		if err != nil {
 			return []string{}, fmt.Errorf("PerformAggEvalForList: Error while evaluating value col request function: %v", err)
