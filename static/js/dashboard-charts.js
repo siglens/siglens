@@ -40,12 +40,17 @@ function loadBarOptions(xAxisData, yAxisData) {
             backgroundColor: colorList[index % colorList.length],
             borderColor: colorList[index % colorList.length],
             borderWidth: 1,
+            borderRadius: {
+                topLeft: 4,
+                topRight: 4,
+                bottomLeft: 0,
+                bottomRight: 0
+            },
             barPercentage: 0.6,
             categoryPercentage: 0.8,
         });
     });
 
-    const shouldRotateLabels = xAxisData.length > 1;
     const rotationAngle = xAxisData.length > 5 ? 30 : 0;
 
     // Chart.js configuration object
@@ -78,7 +83,7 @@ function loadBarOptions(xAxisData, yAxisData) {
             scales: {
                 x: {
                     grid: {
-                        display: false
+                        display: true
                     },
                     ticks: {
                         maxRotation: rotationAngle,
