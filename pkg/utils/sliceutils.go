@@ -46,16 +46,6 @@ func SliceContainsString(slice []string, s string) bool {
 	return false
 }
 
-func SliceContainsInt(slice []int, x int) bool {
-	for _, v := range slice {
-		if v == x {
-			return true
-		}
-	}
-
-	return false
-}
-
 func SelectIndicesFromSlice(slice []string, indices []int) []string {
 	var result []string
 	for _, v := range indices {
