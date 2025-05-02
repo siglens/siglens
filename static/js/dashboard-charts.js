@@ -51,7 +51,20 @@ function loadBarOptions(xAxisData, yAxisData) {
         });
     });
 
-    const rotationAngle = xAxisData.length > 5 ? 30 : 0;
+    const labelCount = xAxisData.length;
+    let rotationAngle = 0;
+    let maxTicksLimit = null;
+    
+    if (labelCount > 20) {
+        rotationAngle = 45;
+        maxTicksLimit = Math.max(10, Math.floor(labelCount / 5)); 
+    } else if (labelCount > 10) {
+        rotationAngle = 45;
+        maxTicksLimit = null; 
+    } else if (labelCount > 5) {
+        rotationAngle = 30;
+        maxTicksLimit = null;
+    }
 
     // Chart.js configuration object
     const config = {
@@ -88,8 +101,13 @@ function loadBarOptions(xAxisData, yAxisData) {
                     ticks: {
                         maxRotation: rotationAngle,
                         minRotation: rotationAngle,
+                        autoSkip: true,
+                        maxTicksLimit: maxTicksLimit,
                         color: function() {
                             return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
+                        },
+                        callback: function(value) {
+                            return this.getLabelForValue(value);
                         }
                     }
                 },
@@ -111,7 +129,6 @@ function loadBarOptions(xAxisData, yAxisData) {
 
     return config;
 }
-
 function loadPieOptions(xAxisData, yAxisData) {
     let pieDataMapList = [];
     // loop
