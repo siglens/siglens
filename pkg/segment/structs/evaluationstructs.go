@@ -419,7 +419,6 @@ const (
 	MVEMField
 )
 
-
 var timeFormatReplacements = []struct {
 	key string
 	val string
@@ -450,7 +449,6 @@ var timeFormatReplacements = []struct {
 	{"%X", "15:04:05"},
 	{"%%", "%"},
 }
-
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
