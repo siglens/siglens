@@ -425,8 +425,9 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
-	if len(fields) == 0 {
+
+	numFields := len(fieldToValue)
+	if numFields == 0 {
 		return 0, putils.NewErrorWithCode("RunningBucketResults.AddEvalResultsForSum:NON_ZERO_FIELDS",
 			fmt.Errorf("need non zero number of fields in expression for eval stats for sum for aggCol: %v", rr.currStats[i].String()))
 	}
@@ -438,7 +439,7 @@ func (rr *RunningBucketResults) AddEvalResultsForSum(runningStats *[]runningStat
 	}
 	(*runningStats)[i].rawVal = result
 
-	return len(fields) - 1, nil
+	return numFields - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStats,
@@ -447,17 +448,18 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
-	if len(fields) == 0 {
+	numFields := len(fieldToValue)
+	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: Need non zero number of fields in expression for eval stats for avg for aggCol: %v", rr.currStats[i].String())
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
-	result, err := agg.PerformEvalAggForAvg(rr.currStats[i], 1, exists, *(*runningStats)[i].avgStat, fieldToValue)
+	curr := rr.currStats[i]
+	avgStat := (*runningStats)[i].avgStat
+	result, err := agg.PerformEvalAggForAvg(curr, 1, exists, avgStat, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForAvg: failed to evaluate ValueColRequest, err: %v", err)
 	}
-	(*runningStats)[i].avgStat = &result
 	avg := 0.0
 	if result.Count > 0 {
 		avg = result.Sum / float64(result.Count)
@@ -467,15 +469,15 @@ func (rr *RunningBucketResults) AddEvalResultsForAvg(runningStats *[]runningStat
 		CVal:  avg,
 	}
 
-	return len(fields) - 1, nil
+	return numFields - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, isMin bool, fieldToValue map[string]utils.CValueEnclosure) (int, error) {
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
-	if len(fields) == 0 {
+	numFields := len(fieldToValue)
+	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForMinMax: Need non zero number of fields in expression for eval stats for min/max for aggCol: %v", rr.currStats[i].String())
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
@@ -486,30 +488,29 @@ func (rr *RunningBucketResults) AddEvalResultsForMinMax(runningStats *[]runningS
 	}
 	(*runningStats)[i].rawVal = result
 
-	return len(fields) - 1, nil
+	return numFields - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForRange(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, fieldToValue map[string]utils.CValueEnclosure) (int, error) {
 	if rr.currStats[i].ValueColRequest == nil {
 		return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 	}
-	fields := rr.currStats[i].ValueColRequest.GetFields()
-	if len(fields) == 0 {
+	numFields := len(fieldToValue)
+	if numFields == 0 {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: Need non zero number of fields in expression for eval stats for range for aggCol: %v", rr.currStats[i].String())
 	}
 	exists := (*runningStats)[i].rawVal.Dtype != utils.SS_INVALID
 
-	result, err := agg.PerformEvalAggForRange(rr.currStats[i], exists, *(*runningStats)[i].rangeStat, fieldToValue)
+	result, err := agg.PerformEvalAggForRange(rr.currStats[i], exists, (*runningStats)[i].rangeStat, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForRange: failed to evaluate ValueColRequest, err: %v", err)
 	}
-	(*runningStats)[i].rangeStat = &result
 	(*runningStats)[i].rawVal = utils.CValueEnclosure{
 		Dtype: utils.SS_DT_FLOAT,
 		CVal:  result.Max - result.Min,
 	}
 
-	return len(fields) - 1, nil
+	return numFields - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, usedByTimechart bool, cnt uint64, fieldToValue map[string]utils.CValueEnclosure) (int, error) {
@@ -525,8 +526,6 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 			return 0, rr.ProcessReduce(runningStats, measureResults[i], i)
 		}
 	}
-
-	fields := rr.currStats[i].ValueColRequest.GetFields()
 
 	boolResult := true
 	if rr.currStats[i].ValueColRequest.BooleanExpr != nil {
@@ -545,7 +544,7 @@ func (rr *RunningBucketResults) AddEvalResultsForCount(runningStats *[]runningSt
 		(*runningStats)[i].rawVal.CVal = (*runningStats)[i].rawVal.CVal.(int64) + 1
 	}
 
-	return len(fields) - 1, nil
+	return len(fieldToValue) - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, fieldToValue map[string]utils.CValueEnclosure) (int, error) {
@@ -567,15 +566,13 @@ func (rr *RunningBucketResults) AddEvalResultsForValuesOrCardinality(runningStat
 		return 0, nil
 	}
 
-	fields := rr.currStats[i].ValueColRequest.GetFields()
-
 	_, err := agg.PerformAggEvalForCardinality(rr.currStats[i], strSet, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForValuesOrCardinality: failed to evaluate ValueColRequest to string, err: %v", err)
 	}
 	(*runningStats)[i].rawVal.CVal = strSet
 
-	return len(fields) - 1, nil
+	return len(fieldToValue) - 1, nil
 }
 
 func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningStats, measureResults []utils.CValueEnclosure, i int, fieldToValue map[string]utils.CValueEnclosure) (int, error) {
@@ -599,8 +596,6 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 		return 0, nil
 	}
 
-	fields := rr.currStats[i].ValueColRequest.GetFields()
-
 	result, err := agg.PerformAggEvalForList(rr.currStats[i], strList, fieldToValue)
 	if err != nil {
 		return 0, fmt.Errorf("RunningBucketResults.AddEvalResultsForList: failed to evaluate ValueColRequest to string, err: %v", err)
@@ -610,7 +605,7 @@ func (rr *RunningBucketResults) AddEvalResultsForList(runningStats *[]runningSta
 	}
 	(*runningStats)[i].rawVal.CVal = result
 
-	return len(fields) - 1, nil
+	return len(fieldToValue) - 1, nil
 }
 
 func (rr *RunningBucketResults) GetRunningStatsBucketValues() ([]utils.CValueEnclosure, uint64) {
