@@ -419,6 +419,39 @@ const (
 	MVEMField
 )
 
+
+var timeFormatReplacements = []struct {
+	key string
+	val string
+}{
+	{"%d", "02"},
+	{"%m", "01"},
+	{"%Y", "2006"},
+	{"%H", "15"},
+	{"%I", "03"},
+	{"%p", "PM"},
+	{"%M", "04"},
+	{"%S", "05"},
+	{"%b", "Jan"},
+	{"%B", "January"},
+	{"%y", "06"},
+	{"%e", "2"},
+	{"%a", "Mon"},
+	{"%A", "Monday"},
+	{"%w", "Monday"},
+	{"%j", "002"},
+	{"%U", "00"},
+	{"%W", "00"},
+	{"%V", "00"},
+	{"%z", "-0700"},
+	{"%Z", "MST"},
+	{"%c", "Mon Jan  2 15:04:05 2006"},
+	{"%x", "01/02/06"},
+	{"%X", "15:04:05"},
+	{"%%", "%"},
+}
+
+
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
 }
@@ -2285,35 +2318,9 @@ func formatTime(t time.Time, format string) string {
 
 // parseTime parses a string into a time.Time object based on the provided format string, using mappings for Go's time package.
 func parseTime(dateStr, format string) (time.Time, error) {
-	replacements := map[string]string{
-		"%d": "02",
-		"%m": "01",
-		"%Y": "2006",
-		"%H": "15",
-		"%I": "03",
-		"%p": "PM",
-		"%M": "04",
-		"%S": "05",
-		"%b": "Jan",
-		"%B": "January",
-		"%y": "06",
-		"%e": "2",
-		"%a": "Mon",
-		"%A": "Monday",
-		"%w": "Monday",
-		"%j": "002",
-		"%U": "00",
-		"%W": "00",
-		"%V": "00",
-		"%z": "-0700",
-		"%Z": "MST",
-		"%c": "Mon Jan  2 15:04:05 2006",
-		"%x": "01/02/06",
-		"%X": "15:04:05",
-		"%%": "%",
-	}
-	for k, v := range replacements {
-		format = strings.ReplaceAll(format, k, v)
+
+	for _, r := range timeFormatReplacements {
+		format = strings.ReplaceAll(format, r.key, r.val)
 	}
 
 	// Check if format contains only time components (%H, %I, %M, %S, %p) and no date components (%d, %m, %Y, etc.)
