@@ -310,7 +310,7 @@ func (pqmr *PQMatchResults) Shrink(lastIdx uint) *PQMatchResults {
 	return retval
 }
 
-func (pqmr *PQMatchResults) WriteTo(fd *os.File) error {
+func (pqmr *PQMatchResults) WriteTo(fd io.Writer) error {
 	_, err := pqmr.b.WriteTo(fd)
 	return err
 }

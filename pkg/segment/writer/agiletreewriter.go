@@ -19,11 +19,14 @@ package writer
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 
 	. "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -84,10 +87,11 @@ func (stb *StarTreeBuilder) encodeDictEnc(colName string, colNum uint16,
 	return size, nil
 }
 
-func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
-	writer := bufio.NewWriter(strMFd)
+func (stb *StarTreeBuilder) encodeMetadata(csf *toputils.ChecksumFile) (uint32, error) {
+	var metaBuf bytes.Buffer
+	writer := bufio.NewWriter(&metaBuf)
 	if writer == nil {
-		err := fmt.Errorf("StarTreeBuilder.encodeMetadata: failed to create writer for %v", strMFd.Name())
+		err := fmt.Errorf("StarTreeBuilder.encodeMetadata: failed to create writer for %v", csf.Fd.Name())
 		log.Errorf(err.Error())
 		return 0, err
 	}
@@ -172,8 +176,8 @@ func (stb *StarTreeBuilder) encodeMetadata(strMFd *os.File) (uint32, error) {
 	// Now we know the size of the metadata, so we can write it. The value we
 	// write doesn't include the 4 bytes we use to store the value.
 	// We need to write from the 2nd byte, since the first byte is the file type.
-	_, err = strMFd.WriteAt(utils.Uint32ToBytesLittleEndian(metadataSize-4), 1)
-	if err != nil {
+	binary.LittleEndian.PutUint32(metaBuf.Bytes()[0:4], metadataSize-4)
+	if err := csf.AppendPartialChunk(metaBuf.Bytes()); err != nil {
 		log.Errorf("StarTreeBuilder.encodeMetadata: failed to write metadata length; err=%v", err)
 		return 0, err
 	}
@@ -192,7 +196,8 @@ func (stb *StarTreeBuilder) encodeNddWrapper(segKey string, levsOffsets []int64,
 	}
 	defer strLevFd.Close()
 
-	size, err := stb.encodeNodeDetails(strLevFd, []*Node{stb.tree.Root}, 0, 0, levsOffsets,
+	csf := &toputils.ChecksumFile{Fd: strLevFd}
+	size, err := stb.encodeNodeDetails(csf, []*Node{stb.tree.Root}, 0, 0, levsOffsets,
 		levsSizes)
 	if err != nil {
 		return 0, err
@@ -201,7 +206,7 @@ func (stb *StarTreeBuilder) encodeNddWrapper(segKey string, levsOffsets []int64,
 	return size, nil
 }
 
-func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*Node,
+func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *toputils.ChecksumFile, curLevNodes []*Node,
 	level int, strLevFileOff int64, levsOffsets []int64, levsSizes []uint32) (uint32, error) {
 
 	// save current level offset
@@ -216,12 +221,10 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 	utils.Uint32ToBytesLittleEndianInplace(uint32(len(curLevNodes)), stb.buf[idx:])
 	idx += 4
 
-	_, err := strLevFd.WriteAt(stb.buf[:idx], strLevFileOff)
-	if err != nil {
-		log.Errorf("encodeNodeDetails: meta write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+	if err := strLevFd.AppendPartialChunk(stb.buf[:idx]); err != nil {
+		log.Errorf("encodeNodeDetails: meta write failed, level: %v fname=%v, err=%v", level, strLevFd.Fd.Name(), err)
 		return idx, err
 	}
-	strLevFileOff += int64(idx)
 
 	numNodesNeeded := 0
 	for _, n := range curLevNodes {
@@ -271,31 +274,32 @@ func (stb *StarTreeBuilder) encodeNodeDetails(strLevFd *os.File, curLevNodes []*
 		}
 
 		if clBufIdx >= ATREE_FD_CHUNK_SIZE {
-			_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
-			if err != nil {
-				log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+			if err := strLevFd.AppendPartialChunk(stb.buf[:clBufIdx]); err != nil {
+				log.Errorf("encodeNodeDetails: node write failed, level: %v fname=%v, err=%v", level, strLevFd.Fd.Name(), err)
 				return idx, err
 			}
-			strLevFileOff += int64(clBufIdx)
 			idx += clBufIdx
 			clBufIdx = 0
 		}
 	}
 
 	if clBufIdx > 0 {
-		_, err := strLevFd.WriteAt(stb.buf[:clBufIdx], strLevFileOff)
-		if err != nil {
-			log.Errorf("encodeNodeDetails: nnd write failed, level: %v fname=%v, err=%v", level, strLevFd.Name(), err)
+		if err := strLevFd.AppendPartialChunk(stb.buf[:clBufIdx]); err != nil {
+			log.Errorf("encodeNodeDetails: node write failed, level: %v fname=%v, err=%v", level, strLevFd.Fd.Name(), err)
 			return idx, err
 		}
-		strLevFileOff += int64(clBufIdx)
 		idx += clBufIdx
+	}
+
+	if err := strLevFd.Flush(); err != nil {
+		log.Errorf("encodeNodeDetails: flush failed, level: %v, err=%v", level, err)
+		return idx, err
 	}
 
 	levsSizes[level] = idx
 
 	if len(nextLevelNodes) > 0 {
-		nSize, err := stb.encodeNodeDetails(strLevFd, nextLevelNodes, level+1, strLevFileOff, levsOffsets, levsSizes)
+		nSize, err := stb.encodeNodeDetails(strLevFd, nextLevelNodes, level+1, strLevFileOff+int64(idx), levsOffsets, levsSizes)
 		if err != nil {
 			return 0, err
 		}
@@ -343,15 +347,18 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 		return 0, err
 	}
 
-	_, err = strMFd.Write(VERSION_STAR_TREE_BLOCK)
-	if err != nil {
+	csf := &toputils.ChecksumFile{
+		Fd: strMFd,
+	}
+
+	if err := csf.AppendPartialChunk(VERSION_STAR_TREE_BLOCK); err != nil {
 		log.Errorf("EncodeStarTree: compression Type write failed fname=%v, err=%v", strMetaFname, err)
 		strMFd.Close()
 		_ = os.Remove(strMetaFname) //we don't want half encoded agileTree file
 		return 0, err
 	}
 
-	metaSize, err := stb.encodeMetadata(strMFd)
+	metaSize, err := stb.encodeMetadata(csf)
 	if err != nil {
 		strMFd.Close()
 		_ = os.Remove(strMetaFname)
@@ -364,15 +371,21 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 	nddSize, err := stb.encodeNddWrapper(segKey, levsOffsets, levsSizes)
 	if err != nil {
 		log.Errorf("EncodeStarTree: failed to encode nodeDetails Err: %+v", err)
+		csf.Fd.Close()
+		_ = os.Remove(strMetaFname)
+		return 0, err
+	}
+
+	err = stb.writeLevsInfo(csf, levsOffsets, levsSizes)
+	if err != nil {
+		log.Errorf("EncodeStarTree: failed to write levvsoff Err: %+v", err)
 		strMFd.Close()
 		_ = os.Remove(strMetaFname)
 		return 0, err
 	}
 
-	err = stb.writeLevsInfo(strMFd, levsOffsets, levsSizes)
-	if err != nil {
-		log.Errorf("EncodeStarTree: failed to write levvsoff Err: %+v", err)
-		strMFd.Close()
+	if err := csf.Flush(); err != nil {
+		log.Errorf("EncodeStarTree: flush failed fname=%v, err=%v", strMetaFname, err)
 		_ = os.Remove(strMetaFname)
 		return 0, err
 	}
@@ -381,7 +394,7 @@ func (stb *StarTreeBuilder) EncodeStarTree(segKey string) (uint32, error) {
 	return nddSize + metaSize, nil
 }
 
-func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
+func (stb *StarTreeBuilder) writeLevsInfo(strMFd *toputils.ChecksumFile, levsOffsets []int64,
 	levsSizes []uint32) error {
 
 	idx := uint32(0)
@@ -394,7 +407,7 @@ func (stb *StarTreeBuilder) writeLevsInfo(strMFd *os.File, levsOffsets []int64,
 		idx += 4
 	}
 
-	_, err := strMFd.Write(stb.buf[:idx])
+	err := strMFd.AppendPartialChunk(stb.buf[:idx])
 	if err != nil {
 		log.Errorf("writeLevsInfo: failed levOff writing, err: %v", err)
 		return err

@@ -218,7 +218,7 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 	}
 
 	// for cmilen (4) and blkNum (2)
-	bb := make([]byte, utils.LEN_BLOCK_CMI_SIZE+utils.LEN_BLKNUM_CMI_SIZE)
+	bb := make([]byte, utils.LEN_BLOCK_CMI_SIZE)
 	cmbuf := make([]byte, 0)
 
 	bulkDownloadFiles := make(map[string]string)
@@ -254,9 +254,12 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 		}
 		defer fd.Close()
 
+		csf := toputils.ChecksumFile{Fd: fd}
+
 		offset := int64(0)
+		curCSFMetaLen := int64(0)
 		for {
-			_, err = fd.ReadAt(bb, offset)
+			_, curCSFMetaLen, err = csf.ReadChunkAt(bb, offset, curCSFMetaLen)
 			if err != nil {
 				if err != io.EOF {
 					log.Errorf("readCmis: failed to read cmilen err=[%+v], continuing with rest cmis", err)
@@ -264,14 +267,11 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 				}
 				break
 			}
-			offset += utils.LEN_BLOCK_CMI_SIZE + utils.LEN_BLKNUM_CMI_SIZE // for cmilenHolder (4) and blkNum (2)
+			offset += utils.LEN_BLOCK_CMI_SIZE // for cmilenHolder (4)
 			cmilen := toputils.BytesToUint32LittleEndian(bb[0:utils.LEN_BLOCK_CMI_SIZE])
-			cmilen -= utils.LEN_BLKNUM_CMI_SIZE // for the blkNum(2)
 			cmbuf = toputils.ResizeSlice(cmbuf, int(cmilen))
 
-			blkNum := toputils.BytesToUint16LittleEndian(bb[utils.LEN_BLOCK_CMI_SIZE:])
-
-			_, err = fd.ReadAt(cmbuf[:cmilen], offset)
+			_, curCSFMetaLen, err = csf.ReadChunkAt(cmbuf[:cmilen], offset, curCSFMetaLen)
 			if err != nil {
 				if err != io.EOF {
 					log.Errorf("readCmis: failed to read cmi err=[%+v], continuing with rest cmis", err)
@@ -279,8 +279,9 @@ func (smi *SegmentMicroIndex) readCmis(blocksToLoad map[uint16]map[string]bool,
 				}
 				break
 			}
+			blkNum := toputils.BytesToUint16LittleEndian(cmbuf[:utils.LEN_BLKNUM_CMI_SIZE])
 
-			cmic, err := getCmi(cmbuf[:cmilen])
+			cmic, err := getCmi(cmbuf[utils.LEN_BLKNUM_CMI_SIZE:cmilen])
 			if err != nil {
 				log.Errorf("readCmis: failed to convert CMI, err=[%v], continuing with rest cmis", err)
 				break

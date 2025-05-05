@@ -202,6 +202,58 @@ func Test_checksumFile_ReadMultipleChunks(t *testing.T) {
 	assert.Equal(t, []byte("foobarbaz"), buf)
 }
 
+func TestChecksumFile_MultipleChunks_WithLengthPrefix(t *testing.T) {
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "test")
+	fd, err := os.Create(filePath)
+	require.NoError(t, err)
+	defer fd.Close()
+
+	csf := &ChecksumFile{Fd: fd}
+
+	chunks := [][]byte{
+		[]byte("First chunk of data"),
+		[]byte("Second chunk is a bit longer than the first"),
+		[]byte("Third one!"),
+	}
+
+	for _, chunk := range chunks {
+		// Append length
+		if err := csf.AppendChunk(Uint32ToBytesLittleEndian(uint32(len(chunk)))); err != nil {
+			t.Fatalf("Failed to append length: %v", err)
+		}
+		// Append actual chunk
+		if err := csf.AppendChunk(chunk); err != nil {
+			t.Fatalf("Failed to append chunk: %v", err)
+		}
+	}
+
+	// Reopen for reading
+	readFd, err := os.Open(filePath)
+	require.NoError(t, err)
+
+	defer readFd.Close()
+	csfRead := &ChecksumFile{Fd: readFd}
+
+	offset := int64(0)
+	curCSFMetaLen := int64(0)
+	for {
+		lenBuf := make([]byte, 4)
+		_, curCSFMetaLen, err = csfRead.ReadChunkAt(lenBuf, offset, curCSFMetaLen)
+		if err != nil {
+			break
+		}
+
+		length := BytesToUint32LittleEndian(lenBuf)
+		offset = offset + 4
+		dataBuf := make([]byte, length)
+		_, curCSFMetaLen, err = csfRead.ReadChunkAt(dataBuf, offset, curCSFMetaLen)
+		require.NoError(t, err)
+
+		offset = offset + int64(length)
+	}
+}
+
 func appendChunksNoError(t *testing.T, csf *ChecksumFile, data [][]byte) {
 	t.Helper()
 	for _, chunk := range data {

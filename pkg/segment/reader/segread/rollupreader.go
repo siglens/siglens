@@ -28,6 +28,8 @@ import (
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
+
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/siglens/siglens/pkg/utils"
 
@@ -166,21 +168,24 @@ func (rur *RollupReader) GetDayRollups() (map[uint16]map[uint64]*writer.RolledRe
 func readRollupFile(fd *os.File,
 	allBlks map[uint16]map[uint64]*writer.RolledRecs, qid uint64) error {
 
+	f := toputils.ChecksumFile{Fd: fd}
+
 	offset := int64(0)
 	var blkNum uint16
 	bbBlkNum := make([]byte, 2) // blkNum (2)
 	var bKey uint64
-	bbBKey := make([]byte, 8) // for bucket key timestamp
+	bbBKey := make([]byte, 9) // for bucket key timestamp + RR_ENC_TYPE
 	var numBucks uint16
 	bbNumBucks := make([]byte, 2) // for num of buckets
 	var mrSize uint16
 	bbMrSize := make([]byte, 2) // for bitset match result size
 
 	bsBlk := make([]byte, segutils.WIP_NUM_RECS/8)
-
+	curCSFMetaLen := int64(0)
+	var err error
 	for {
 		// read blkNum
-		_, err := fd.ReadAt(bbBlkNum, offset)
+		_, curCSFMetaLen, err = f.ReadChunkAt(bbBlkNum, offset, curCSFMetaLen)
 		if err != nil {
 			if err != io.EOF {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read blkNum err: %+v",
@@ -194,7 +199,7 @@ func readRollupFile(fd *os.File,
 		allBlks[blkNum] = toxRollup
 
 		// read num of buckets
-		_, err = fd.ReadAt(bbNumBucks, offset)
+		_, curCSFMetaLen, err = f.ReadChunkAt(bbNumBucks, offset, curCSFMetaLen)
 		if err != nil {
 			if err != io.EOF {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read num of buckets, err: %+v", qid, err)
@@ -206,19 +211,19 @@ func readRollupFile(fd *os.File,
 
 		for i := uint16(0); i < numBucks; i++ {
 			// read bucketKey timestamp
-			_, err = fd.ReadAt(bbBKey, offset)
+			_, curCSFMetaLen, err = f.ReadChunkAt(bbBKey, offset, curCSFMetaLen)
 			if err != nil {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read bKey err: %+v",
 					qid, err)
 			}
 			offset += 8
-			bKey = utils.BytesToUint64LittleEndian(bbBKey[:])
+			bKey = utils.BytesToUint64LittleEndian(bbBKey[:8])
 
 			// skip forward for RR_ENC_BITSET, since thats the only type we support today
 			offset += 1
 
 			// read matched result bitset size
-			_, err = fd.ReadAt(bbMrSize, offset)
+			_, curCSFMetaLen, err = f.ReadChunkAt(bbMrSize, offset, curCSFMetaLen)
 			if err != nil {
 				return fmt.Errorf("qid=%d, readRollupFile: failed to read mrsize for blk, err: %+v",
 					qid, err)
@@ -229,7 +234,7 @@ func readRollupFile(fd *os.File,
 			bsBlk = utils.ResizeSlice(bsBlk, int(mrSize))
 
 			// read the actual bitset
-			_, err = fd.ReadAt(bsBlk[:mrSize], offset)
+			_, curCSFMetaLen, err = f.ReadChunkAt(bsBlk[:mrSize], offset, curCSFMetaLen)
 			if err != nil {
 				if err != io.EOF {
 					return fmt.Errorf("qid=%d, readRollupFile: failed to read bitset, err: %+v",

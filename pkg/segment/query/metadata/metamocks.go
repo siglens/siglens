@@ -33,6 +33,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/writer"
 	server_utils "github.com/siglens/siglens/pkg/server/utils"
 	"github.com/siglens/siglens/pkg/utils"
+	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
 )
@@ -206,7 +207,7 @@ func writeMockBlockBloom(file string, blockBlooms []*bloom.BloomFilter) {
 }
 
 func writeMockBlockRI(file string, blockRange []map[string]*structs.Numbers) {
-	bffd, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	bffd, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		log.Errorf("writeMockBlockBloom: open failed fname=%v, err=%v", file, err)
 		return
@@ -214,13 +215,22 @@ func writeMockBlockRI(file string, blockRange []map[string]*structs.Numbers) {
 
 	defer bffd.Close()
 
+	csf := toputils.ChecksumFile{
+		Fd: bffd,
+	}
+
 	for blkNum, blockRI := range blockRange {
 		packedLen, blkRIBuf, err := writer.EncodeRIBlock(blockRI, uint16(blkNum))
 		if err != nil {
 			log.Errorf("writeMockBlockRI: EncodeRIBlock: Failed to encode BlockRangeIndex=%+v, err=%v", blockRI, err)
+		}
+		err = csf.AppendChunk(toputils.Uint32ToBytesLittleEndian(packedLen))
+		if err != nil {
+			log.Errorf("writeMockBlockRI: Error appending chunk for block number: %d, err=%v", blkNum, err)
 			return
 		}
-		if _, err := bffd.Write(blkRIBuf[0:packedLen]); err != nil {
+
+		if err := csf.AppendChunk(blkRIBuf[0:packedLen]); err != nil {
 			log.Errorf("writeMockBlockRI:  write failed blockRangeIndexFname=%v, err=%v", file, err)
 			return
 		}
