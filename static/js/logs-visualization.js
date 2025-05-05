@@ -16,6 +16,26 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+let currentChartType = 'bar'; 
+
+$('.visualization-type-options li').on('click', function() {
+    $('.visualization-type-options li').removeClass('active');
+    
+    $(this).addClass('active');
+    
+    const selectedText = $(this).text();
+    $('.visualization-type button span').text(selectedText);
+    
+    // Only call timeChart if the chart type actually changes
+    const newChartType = (selectedText === 'Column Chart') ? 'bar' : 'line';
+    
+    if (newChartType !== currentChartType) {
+        currentChartType = newChartType;
+        timeChart(lastQType);
+    }
+});
+
 //eslint-disable-next-line no-unused-vars
 function timeChart(qtype) {
     // Check if measureInfo is defined and contains at least one item
@@ -80,7 +100,7 @@ function timeChart(qtype) {
     const rotateLabels = measureInfo.length > 10 ? 45 : 0;
 
     window.myBarChart = new Chart(ctx, {
-        type: 'bar',
+        type: currentChartType,
         data: {
             labels: xData,
             datasets: datasets,

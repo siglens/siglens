@@ -356,7 +356,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div id="tabs-chart" class="tab-content-size">
                         <div class="column-chart">
                             <div class="h-100">
-                                <button id="formatBtn" class="btn btn-grey mb-4">Format</button>
+                                <div class="d-flex gap-3">
+                                    <div class="dropdown visualization-type" style="width: 120px;">
+                                        <button class="btn dropdown-toggle btn-grey w-100" type="button"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            data-bs-toggle="dropdown">
+                                            <span>Column Chart</span>
+                                            <i class="dropdown-arrow"></i>
+                                        </button>
+                                        <div class="dropdown-menu box-shadow visualization-type-options">
+                                            <li class="active">Column Chart</li>
+                                            <li>Line Chart</li>
+                                        </div>
+                                    </div>
+                                    <button id="formatBtn" class="btn btn-grey mb-4">Format</button>
+                                </div>
                                 <div id="columnChart" style="height: calc(100% - 40px);"></div>
                             </div>
                             <div class="format-panel" id="formatPanel">
