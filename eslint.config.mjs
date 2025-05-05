@@ -15,7 +15,7 @@ const compat = new FlatCompat({
 export default [
     ...compat.extends('eslint:recommended', 'prettier'),
     {
-        ignores: ['static/js/common.js', 'static/js/cluster-stats.js', 'static/js/application-version.js', 'static/js/all-slos.js', 'static/js/ingestion.js', 'static/js/settings.js', 'static/js/navbar.js', 'static/js/diagnostics.js', 'static/js/query-stats.js'],
+        ignores: ['static/js/common.js', 'static/js/cluster-stats.js', 'static/js/all-slos.js', 'static/js/ingestion.js', 'static/js/settings.js', 'static/js/navbar.js', 'static/js/query-stats.js'],
     },
     {
         languageOptions: {
@@ -233,7 +233,7 @@ export default [
                 getGraphGridColors: true,
                 updateChartColorsBasedOnTheme: true,
                 hljs: true,
-                marked: true
+                marked: true,
             },
         },
         rules: {

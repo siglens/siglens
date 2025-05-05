@@ -105,7 +105,6 @@ $(document).ready(async function () {
 
     setupCopyFunctionality();
 
-    {{ .Button1Function }}
 });
 
 function formatMethodName(methodParam, type) {

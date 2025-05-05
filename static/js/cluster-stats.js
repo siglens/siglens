@@ -30,7 +30,6 @@ $(document).ready(() => {
     // Make api call to get the cluster stats
     renderClusterStatsTables();
     $('#cancel-del-index-btn, .usage-stats .popupOverlay').on('click', hidePopUpsOnUsageStats);
-    {{ .Button1Function }}
 });
 
 function drawTotalStatsChart(res) {

@@ -711,6 +711,8 @@ $(document).ready(function () {
         setTimeout(updateActiveHighlighting, 100);
     });
 
+    {{ .Button1Function }}
+
 });
 
 function setupNavigationState() {
