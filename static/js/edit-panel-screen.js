@@ -458,10 +458,14 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
 
     // Run the query only if not a new log panel with an empty query
     if (currentPanel.queryType === 'logs' && isNewPanel && (!currentPanel.queryData.searchText || currentPanel.queryData.searchText.trim() === '')) {
-        $('.panelDisplay #empty-response').show().html('<div>Please enter a query to run.</div>').css('background-color', 'var(--datatable-bg-color)');
+        $('.panelDisplay #empty-response').show().html('<div><p>Create a query using the builder to access and view the logs.</p></div>').css({
+            'background-color': 'var(--datatable-bg-color)',
+            'height': '30vh'
+          });
     } else {
         await runQueryBtnHandler();
     }
+
 }
 
 function loadVisualizationOptions(panelType) {
