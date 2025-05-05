@@ -456,13 +456,16 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
     // Pause the Refresh when on Edit Panel Screen
     pauseRefreshInterval();
 
-    // Run the query only if not a new log panel with an empty query
     if (currentPanel.queryType === 'logs' && isNewPanel && (!currentPanel.queryData.searchText || currentPanel.queryData.searchText.trim() === '')) {
-        $('.panelDisplay #empty-response').show().html('<div><p>Create a query using the builder to access and view the logs.</p></div>').css({
-            'background-color': 'var(--datatable-bg-color)',
-            'height': '30vh'
-          });
+        // Ensure parent containers are visible
+        $('.panelEditor-container').css('display', 'flex');
+        $('.panelDisplay .panEdit-panel').css('display', 'none');
+        $('.panelDisplay #empty-response').html('<div>Create a query using the builder to access and view the logs.</div>').css({
+                'display': 'flex',
+                'background-color': 'var(--datatable-bg-color)',
+            });
     } else {
+        $('.panelDisplay .panEdit-panel').show();
         await runQueryBtnHandler();
     }
 
