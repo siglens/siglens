@@ -151,6 +151,7 @@ func (dp *DataProcessor) Cleanup() {
 // example, a two-pass command that finishes its first pass should remember
 // whatever state information it got from the first pass.
 func (dp *DataProcessor) Rewind() {
+	dp.mergeSettings.numReturned = 0
 	for _, stream := range dp.streams {
 		stream.Rewind()
 	}
