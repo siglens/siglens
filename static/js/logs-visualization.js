@@ -17,19 +17,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-let currentChartType = 'bar'; 
+let currentChartType = 'bar';
 
-$('.visualization-type-options li').on('click', function() {
+$('.visualization-type-options li').on('click', function () {
     $('.visualization-type-options li').removeClass('active');
-    
+
     $(this).addClass('active');
-    
+
     const selectedText = $(this).text();
     $('.visualization-type button span').text(selectedText);
-    
+
     // Only call timeChart if the chart type actually changes
-    const newChartType = (selectedText === 'Column Chart') ? 'bar' : 'line';
-    
+    const newChartType = selectedText === 'Column Chart' ? 'bar' : 'line';
+
     if (newChartType !== currentChartType) {
         currentChartType = newChartType;
         timeChart(lastQType);
@@ -416,7 +416,27 @@ function applyChartOverlay() {
     }
 
     chartConfig.data.datasets.forEach((dataset) => {
-        dataset.yAxisID = chartOverlaySettings.metrics.includes(dataset.label) ? 'y1' : 'y';
+        if (!chartOverlaySettings.metrics.includes(dataset.label)) {
+            dataset.yAxisID = 'y';
+            dataset.type = currentChartType;
+            dataset.order = 1;
+        }
+    });
+
+    chartConfig.data.datasets.forEach((dataset) => {
+        if (chartOverlaySettings.metrics.includes(dataset.label)) {
+            dataset.yAxisID = 'y1';
+            dataset.type = 'line'; // Always set overlay metrics to line type
+            dataset.fill = false;
+            dataset.order = 0;
+
+            if (!dataset.pointRadius) {
+                dataset.pointRadius = 3;
+            }
+            if (!dataset.borderWidth) {
+                dataset.borderWidth = 2;
+            }
+        }
     });
 
     window.myBarChart.update();
