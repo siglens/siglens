@@ -237,8 +237,6 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	queryProcessor.queryInfo = queryInfo
 	queryProcessor.isLogsQuery = isLogsQuery
 
-	log.Errorf("andrew QueryProcessor: %s", queryProcessor.DataProcessor)
-
 	return queryProcessor, nil
 }
 
@@ -439,8 +437,6 @@ func (qp *QueryProcessor) GetStreamedResult(stateChan chan *query.QueryStateChan
 				return utils.TeeErrorf("GetStreamedResult: failed to append iqr to the finalIQR, err: %v", appendErr)
 			}
 		}
-
-		log.Errorf("andrew got %v records from iqr", iqr.NumberOfRecords())
 
 		if qp.queryType == structs.RRCCmd && iqr.NumberOfRecords() > 0 {
 			err := query.IncRecordsSent(qp.qid, uint64(iqr.NumberOfRecords()))

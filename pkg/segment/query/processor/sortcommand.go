@@ -35,22 +35,12 @@ type sortProcessor struct {
 	resultsSoFar   *iqr.IQR
 	err            error
 	hasFinalResult bool
-	logged         bool
 }
 
 func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
-	utils.SigDebugEnter(fmt.Sprintf("andrew"))
-	defer utils.SigDebugExit(nil)
-
-	if !p.logged {
-		log.Errorf("andrew sorting with limit=%v", p.options.Limit)
-		p.logged = true
-	}
-
 	if inputIQR == nil {
 		// There's no more input, so we can send the results.
 		p.hasFinalResult = true
-		log.Errorf("andrew early returning %v items from sort with limit=%v", p.resultsSoFar.NumberOfRecords(), p.options.Limit)
 		return p.resultsSoFar, io.EOF
 	}
 
@@ -106,8 +96,6 @@ func (p *sortProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		log.Errorf("sort.Process: cannot discard after limit; err=%v", err)
 		return nil, err
 	}
-
-	log.Errorf("andrew returning %v items from sort with limit=%v", p.resultsSoFar.NumberOfRecords(), p.options.Limit)
 
 	return nil, nil
 }
@@ -322,7 +310,6 @@ func (p *sortProcessor) Cleanup() {
 
 func (p *sortProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 	if p.hasFinalResult {
-		log.Errorf("andrew returning %v items in final result for sort with limit=%v", p.resultsSoFar.NumberOfRecords(), p.options.Limit)
 		return p.resultsSoFar, true
 	}
 

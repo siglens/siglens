@@ -119,8 +119,6 @@ func (dp *DataProcessor) SetMergeSettingsBasedOnStream(stream Streamer) {
 		return
 	}
 
-	log.Errorf("andrew should see this ONCE: name=%v", dp.name)
-
 	if streamDP, ok := stream.(*DataProcessor); ok {
 		switch streamDP.processor.(type) {
 		case *sortProcessor:
@@ -746,8 +744,6 @@ func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 	if input == nil {
 		return nil, io.EOF
 	}
-
-	log.Errorf("andrew passthrough is forwarding %v items", input.NumberOfRecords())
 
 	return input, nil
 }
