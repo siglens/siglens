@@ -937,7 +937,7 @@ function addPanel(chartIndex) {
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: 'Code',
+                queryMode: 'Builder',
             };
             break;
         case 1: // Line chart
