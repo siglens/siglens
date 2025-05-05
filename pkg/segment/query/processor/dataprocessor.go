@@ -65,7 +65,7 @@ type DataProcessor struct {
 func (dp DataProcessor) String() string {
 	inputs := make([]string, 0, len(dp.streams))
 	for _, stream := range dp.streams {
-		inputs = append(inputs, fmt.Sprintf("%s", stream))
+		inputs = append(inputs, stream.String())
 	}
 
 	name := dp.name
