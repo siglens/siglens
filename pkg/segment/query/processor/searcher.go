@@ -199,11 +199,15 @@ func getSubsearchIfNeeded(searcher *Searcher) (*subsearch, error) {
 
 	query.InitProgressForRRCCmd(uint64(metadata.GetTotalBlocksInSegments(getAllSegKeysInQSRS(qsrs))), searcher.qid)
 
-	merger := NewSortDP(searcher.sortExpr) // TODO: use a mergeDP, since each stream is already sorted.
+	// sortExpr := &(*(searcher.sortExpr)) // Shallow copy
+	sortExpr := *(searcher.sortExpr) // Shallow copy
+	sortExprPtr := &sortExpr
+	sortExprPtr.Limit = math.MaxInt64
+	merger := NewSortDP(sortExprPtr) // TODO: use a mergeDP, since each stream is already sorted.
 	for _, searcher := range subsearchers {
 		merger.streams = append(merger.streams, NewCachedStream(searcher))
 	}
-	merger.SetLessFuncBasedOnStream(merger)
+	merger.SetMergeSettingsBasedOnStream(merger)
 
 	return &subsearch{
 		subsearchers: subsearchers,
@@ -256,6 +260,10 @@ func (s *Searcher) initUnprocessedQSRs() {
 	for _, qsr := range s.qsrs {
 		s.unprocessedQSRs.PushBack(qsr)
 	}
+}
+
+func (s Searcher) String() string {
+	return "base searcher"
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {

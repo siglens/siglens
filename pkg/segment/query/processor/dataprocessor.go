@@ -37,10 +37,17 @@ type processor interface {
 	GetFinalResultIfExists() (*iqr.IQR, bool)
 }
 
+type mergeSettings struct {
+	less  func(*iqr.Record, *iqr.Record) bool
+	limit utils.Option[uint64]
+
+	numReturned uint64
+}
+
 type DataProcessor struct {
-	streams   []*CachedStream
-	less      func(*iqr.Record, *iqr.Record) bool
-	processor processor
+	streams       []*CachedStream
+	mergeSettings mergeSettings
+	processor     processor
 
 	inputOrderMatters bool
 	isPermutingCmd    bool // This command may change the order of input.
@@ -51,6 +58,25 @@ type DataProcessor struct {
 
 	processorLock   *sync.Mutex
 	isCleanupCalled bool
+
+	name string // For debugging
+}
+
+func (dp DataProcessor) String() string {
+	inputs := make([]string, 0, len(dp.streams))
+	for _, stream := range dp.streams {
+		if stream == nil {
+			inputs = append(inputs, "<nil>")
+			continue
+		}
+		inputs = append(inputs, fmt.Sprintf("%+v", stream))
+	}
+
+	name := dp.name
+	if name == "" {
+		name = "<unknown>"
+	}
+	return fmt.Sprintf("%s with %d inputs %v", name, len(dp.streams), inputs)
 }
 
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
@@ -82,28 +108,33 @@ func (dp *DataProcessor) SetStreams(streams []*CachedStream) {
 
 // SetLessFunc sets the less function to be used for sorting the input records.
 // The default less function sorts by timestamp.
-func (dp *DataProcessor) setDefaultLessFunc() {
-	dp.less = sortByTimestampLess
+func (dp *DataProcessor) setDefaultMergeSettings() {
+	dp.mergeSettings.less = sortByTimestampLess
+	dp.mergeSettings.limit.Clear()
 }
 
-func (dp *DataProcessor) SetLessFuncBasedOnStream(stream Streamer) {
+func (dp *DataProcessor) SetMergeSettingsBasedOnStream(stream Streamer) {
 	if stream == nil {
-		dp.setDefaultLessFunc()
+		dp.setDefaultMergeSettings()
 		return
 	}
+
+	log.Errorf("andrew should see this ONCE: name=%v", dp.name)
 
 	if streamDP, ok := stream.(*DataProcessor); ok {
 		switch streamDP.processor.(type) {
 		case *sortProcessor:
-			dp.less = streamDP.processor.(*sortProcessor).lessDirectRead
+			sorter := streamDP.processor.(*sortProcessor)
+			dp.mergeSettings.less = sorter.lessDirectRead
+			dp.mergeSettings.limit.Set(sorter.GetLimit())
 		default:
-			dp.setDefaultLessFunc()
+			dp.setDefaultMergeSettings()
 		}
 
 		return
 	}
 
-	dp.setDefaultLessFunc()
+	dp.setDefaultMergeSettings()
 }
 
 func (dp *DataProcessor) CleanupInputStreams() {
@@ -284,10 +315,24 @@ func (dp *DataProcessor) getStreamInput() (*iqr.IQR, error) {
 			return nil, io.EOF
 		}
 
-		iqr, exhaustedIQRIndex, err := iqr.MergeIQRs(iqrs, dp.less)
+		iqr, exhaustedIQRIndex, err := iqr.MergeIQRs(iqrs, dp.mergeSettings.less)
 		if err != nil && err != io.EOF {
 			return nil, utils.WrapErrorf(err, "DP.getStreamInput: failed to merge IQRs: %v", err)
 		}
+
+		totalLimit, ok := dp.mergeSettings.limit.Get()
+		if ok {
+			thisLimit := totalLimit - dp.mergeSettings.numReturned
+			if thisLimit == 0 {
+				return nil, io.EOF
+			}
+
+			err := iqr.DiscardAfter(thisLimit)
+			if err != nil {
+				return nil, utils.WrapErrorf(err, "DP.getStreamInput: failed to discard after limit: %v", err)
+			}
+		}
+		dp.mergeSettings.numReturned += uint64(iqr.NumberOfRecords())
 
 		if exhaustedIQRIndex == -1 {
 			return iqr, err
@@ -376,6 +421,7 @@ func sortByTimestampLess(r1, r2 *iqr.Record) bool {
 func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 	hasSpan := options.BinSpanOptions != nil
 	return &DataProcessor{
+		name:              "bin",
 		streams:           make([]*CachedStream, 0),
 		processor:         &binProcessor{options: options},
 		inputOrderMatters: false,
@@ -389,6 +435,7 @@ func NewBinDP(options *structs.BinCmdOptions) *DataProcessor {
 func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 	hasSort := len(options.DedupSortEles) > 0
 	return &DataProcessor{
+		name:              "dedup",
 		streams:           make([]*CachedStream, 0),
 		processor:         &dedupProcessor{options: options},
 		inputOrderMatters: true,
@@ -413,6 +460,7 @@ func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 
 func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 	return &DataProcessor{
+		name:              "fields",
 		streams:           make([]*CachedStream, 0),
 		processor:         &fieldsProcessor{options: options},
 		inputOrderMatters: false,
@@ -480,6 +528,7 @@ func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 
 func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "head",
 		streams:           make([]*CachedStream, 0),
 		processor:         &headProcessor{options: options},
 		inputOrderMatters: true,
@@ -667,6 +716,7 @@ func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 
 func NewSortDP(options *structs.SortExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "sort",
 		streams:           make([]*CachedStream, 0),
 		processor:         &sortProcessor{options: options},
 		inputOrderMatters: false,
@@ -679,6 +729,7 @@ func NewSortDP(options *structs.SortExpr) *DataProcessor {
 
 func NewScrollerDP(scrollFrom uint64, qid uint64) *DataProcessor {
 	return &DataProcessor{
+		name:              "scroller",
 		streams:           make([]*CachedStream, 0),
 		processor:         &scrollProcessor{scrollFrom: scrollFrom, qid: qid},
 		inputOrderMatters: true,
@@ -696,6 +747,8 @@ func (ptp *passThroughProcessor) Process(input *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 
+	log.Errorf("andrew passthrough is forwarding %v items", input.NumberOfRecords())
+
 	return input, nil
 }
 
@@ -708,6 +761,7 @@ func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcessor {
 	isTransformingCmd := queryType.IsSegmentStatsCmd() || queryType.IsGroupByCmd()
 	return &DataProcessor{
+		name:              "searcher1",
 		streams:           []*CachedStream{NewCachedStream(searcher)},
 		processor:         &passThroughProcessor{},
 		processorLock:     &sync.Mutex{},
@@ -717,6 +771,7 @@ func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcesso
 
 func NewPassThroughDPWithStreams(cachedStreams []*CachedStream) *DataProcessor {
 	return &DataProcessor{
+		name:              "passthrough",
 		streams:           cachedStreams,
 		processor:         &passThroughProcessor{},
 		inputOrderMatters: false,

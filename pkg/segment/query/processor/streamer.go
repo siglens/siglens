@@ -27,12 +27,17 @@ type Streamer interface {
 	Fetch() (*iqr.IQR, error)
 	Rewind()
 	Cleanup()
+	String() string
 }
 
 type CachedStream struct {
 	stream                  Streamer
 	unusedDataFromLastFetch *iqr.IQR
 	isExhausted             bool
+}
+
+func (cs CachedStream) String() string {
+	return cs.stream.String()
 }
 
 func NewCachedStream(stream Streamer) *CachedStream {

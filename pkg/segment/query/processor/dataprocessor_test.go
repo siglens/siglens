@@ -61,6 +61,10 @@ type mockStreamer struct {
 	qid        uint64
 }
 
+func (ms mockStreamer) String() string {
+	return "mockStreamer"
+}
+
 func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {
 	colName := "col1"
 	for col := range ms.allRecords {
