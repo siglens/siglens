@@ -36,10 +36,6 @@ type CachedStream struct {
 	isExhausted             bool
 }
 
-func (cs CachedStream) String() string {
-	return cs.stream.String()
-}
-
 func NewCachedStream(stream Streamer) *CachedStream {
 	return &CachedStream{
 		stream: stream,
@@ -84,4 +80,8 @@ func (cs *CachedStream) IsExhausted() bool {
 
 func (cs *CachedStream) Cleanup() {
 	cs.stream.Cleanup()
+}
+
+func (cs CachedStream) String() string {
+	return cs.stream.String()
 }

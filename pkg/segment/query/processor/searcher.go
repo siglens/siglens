@@ -232,6 +232,10 @@ func (s *Searcher) Cleanup() {
 	// Nothing to do.
 }
 
+func (s Searcher) String() string {
+	return "<base searcher>"
+}
+
 func getNumRecords(blocks []*block) uint64 {
 	var totalRecords uint64
 	for _, block := range blocks {
@@ -258,10 +262,6 @@ func (s *Searcher) initUnprocessedQSRs() {
 	for _, qsr := range s.qsrs {
 		s.unprocessedQSRs.PushBack(qsr)
 	}
-}
-
-func (s Searcher) String() string {
-	return "<base searcher>"
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {

@@ -61,10 +61,6 @@ type mockStreamer struct {
 	qid        uint64
 }
 
-func (ms mockStreamer) String() string {
-	return "<mock streamer>"
-}
-
 func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {
 	colName := "col1"
 	for col := range ms.allRecords {
@@ -98,6 +94,10 @@ func (ms *mockStreamer) Rewind() {
 }
 
 func (ms *mockStreamer) Cleanup() {}
+
+func (ms mockStreamer) String() string {
+	return "<mock streamer>"
+}
 
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{

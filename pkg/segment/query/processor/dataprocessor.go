@@ -62,19 +62,6 @@ type DataProcessor struct {
 	name string // For debugging
 }
 
-func (dp DataProcessor) String() string {
-	inputs := make([]string, 0, len(dp.streams))
-	for _, stream := range dp.streams {
-		inputs = append(inputs, stream.String())
-	}
-
-	name := dp.name
-	if name == "" {
-		name = "<unknown>"
-	}
-	return fmt.Sprintf("<%s> with inputs %v", name, inputs)
-}
-
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
 	return dp.inputOrderMatters
 }
@@ -136,6 +123,19 @@ func (dp *DataProcessor) CleanupInputStreams() {
 	for _, CachedStream := range streams {
 		go CachedStream.Cleanup()
 	}
+}
+
+func (dp DataProcessor) String() string {
+	inputs := make([]string, 0, len(dp.streams))
+	for _, stream := range dp.streams {
+		inputs = append(inputs, stream.String())
+	}
+
+	name := dp.name
+	if name == "" {
+		name = "<unknown>"
+	}
+	return fmt.Sprintf("<%s> with inputs %v", name, inputs)
 }
 
 func (dp *DataProcessor) Cleanup() {
