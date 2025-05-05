@@ -6,38 +6,38 @@ AdvEngineID != 0 | stats count
 * | stats dc(SearchPhrase)
 * | stats min(EventDate), max(EventDate)
 AdvEngineID != 0 | stats count as cnt by AdvEngineID | sort -cnt
-* | stats dc(UserID) as u BY RegionID | sort -u | head 10
-* | stats sum(AdvEngineID), count as c, avg(ResolutionWidth), dc(UserID) by RegionID | sort -c | head 10
-MobilePhoneModel != \"\" | stats dc(UserID) as u by MobilePhoneModel | sort -u | head 10
-MobilePhoneModel != \"\" | stats dc(UserID) as u by MobilePhone, MobilePhoneModel | sort -u | head 10
-SearchPhrase != \"\" | stats count as c by SearchPhrase | sort -c | head 10
-SearchPhrase != \"\" | stats dc(UserID) as u by SearchPhrase | sort -u | head 10
-SearchPhrase != \"\" | stats count as c by SearchEngineID, SearchPhrase | sort -c | head 10
-* | stats count as cnt by UserID | sort -cnt | head 10
-* | stats count as cnt by UserID, SearchPhrase | sort -cnt | head 10
+* | stats dc(UserID) as u BY RegionID | sort 10 -u
+* | stats sum(AdvEngineID), count as c, avg(ResolutionWidth), dc(UserID) by RegionID | sort 10 -c
+MobilePhoneModel != \"\" | stats dc(UserID) as u by MobilePhoneModel | sort 10 -u
+MobilePhoneModel != \"\" | stats dc(UserID) as u by MobilePhone, MobilePhoneModel | sort 10 -u
+SearchPhrase != \"\" | stats count as c by SearchPhrase | sort 10 -c
+SearchPhrase != \"\" | stats dc(UserID) as u by SearchPhrase | sort 10 -u
+SearchPhrase != \"\" | stats count as c by SearchEngineID, SearchPhrase | sort 10 -c
+* | stats count as cnt by UserID | sort 10  -cnt
+* | stats count as cnt by UserID, SearchPhrase | sort 10 -cnt
 * | stats count by UserID, SearchPhrase | head 10
 null
 UserID=435090932899640449 | fields UserID
 * | regex URL = \".*google.*\" | stats count
-SearchPhrase != \"\" | regex URL = \".*google.*\" | stats count as c, min(eval(URL)) by SearchPhrase | sort -c | head 10
-SearchPhrase != \"\" | regex Title = \".*Google.*\" | regex URL != \".*\\.google\\..*\" | stats count as c, min(eval(URL)), min(eval(Title)), dc(UserID) by SearchPhrase | sort -c | head 10
-* | regex URL = \".*google.*\" | sort str(EventTime) | head 10
-SearchPhrase != \"\" | sort str(EventTime) | head 10 | fields SearchPhrase
-SearchPhrase != \"\" | sort str(SearchPhrase) | head 10 | fields SearchPhrase
-SearchPhrase != \"\" | sort str(EventTime), str(SearchPhrase) | head 10 | fields SearchPhrase
-URL != \"\" | stats avg(eval(len(URL))) as l, count as c by CounterID | where c > 100000 | sort -l | head 25
-null
+SearchPhrase != \"\" | regex URL = \".*google.*\" | stats count as c, min(eval(URL)) by SearchPhrase | sort 10 -c
+SearchPhrase != \"\" | regex Title = \".*Google.*\" | regex URL != \".*\\.google\\..*\" | stats count as c, min(eval(URL)), min(eval(Title)), dc(UserID) by SearchPhrase | sort 10  -c
+* | regex URL = \".*google.*\" | sort 10 str(EventTime)
+SearchPhrase != \"\" | sort 10 str(EventTime) | fields SearchPhrase
+SearchPhrase != \"\" | sort 10 str(SearchPhrase) | fields SearchPhrase
+SearchPhrase != \"\" | sort 10 str(EventTime), str(SearchPhrase) | fields SearchPhrase
+URL != \"\" | stats avg(eval(len(URL))) as l, count as c by CounterID | where c > 100000 | sort 25 -l
+Referer != \"\" | rex field=Referer \"^https?://(?:www\\.)?(?<k>[^/]+)\" | stats avg(eval(len(Referer))) as l, count as c, min(eval(Referer)) by k | where c > 100000 | sort\n 25 -l
 * | stats sum(ResolutionWidth) as sum, count as cnt | eval sum2 = sum + cnt*2, sum3 = sum + cnt*3, sum4 = sum + cnt*4, sum5 = sum + cnt*5, sum6 = sum + cnt*6, sum7 = sum + cnt*7, sum8 = sum + cnt*8, sum9 = sum + cnt*9, sum10 = sum + cnt*10, sum11 = sum + cnt*11, sum12 = sum + cnt*12, sum13 = sum + cnt*13, sum14 = sum + cnt*14, sum15 = sum + cnt*15, sum16 = sum + cnt*16, sum17 = sum + cnt*17, sum18 = sum + cnt*18, sum19 = sum + cnt*19, sum20 = sum + cnt*20, sum21 = sum + cnt*21, sum22 = sum + cnt*22, sum23 = sum + cnt*23, sum24 = sum + cnt*24, sum25 = sum + cnt*25, sum26 = sum + cnt*26, sum27 = sum + cnt*27, sum28 = sum + cnt*28, sum29 = sum + cnt*29, sum30 = sum + cnt*30, sum31 = sum + cnt*31, sum32 = sum + cnt*32, sum33 = sum + cnt*33, sum34 = sum + cnt*34, sum34 = sum + cnt*35, sum36 = sum + cnt*36, sum37 = sum + cnt*37, sum38 = sum + cnt*38, sum39 = sum + cnt*39, sum40 = sum + cnt*40, sum41 = sum + cnt*41, sum42 = sum + cnt*42, sum43 = sum + cnt*43, sum44 = sum + cnt*44, sum45 = sum + cnt*45, sum46 = sum + cnt*46, sum47 = sum + cnt*47, sum48 = sum + cnt*48, sum49 = sum + cnt*49, sum50 = sum + cnt*50, sum51 = sum + cnt*51, sum52 = sum + cnt*52, sum53 = sum + cnt*53, sum54 = sum + cnt*54, sum55 = sum + cnt*55, sum56 = sum + cnt*56, sum57 = sum + cnt*57, sum58 = sum + cnt*58, sum59 = sum + cnt*59, sum60 = sum + cnt*60, sum61 = sum + cnt*61, sum62 = sum + cnt*62, sum63 = sum + cnt*63, sum64 = sum + cnt*64, sum65 = sum + cnt*65, sum66 = sum + cnt*66, sum67 = sum + cnt*67, sum68 = sum + cnt*68, sum69 = sum + cnt*69, sum70 = sum + cnt*70, sum71 = sum + cnt*71, sum72 = sum + cnt*72, sum73 = sum + cnt*73, sum74 = sum + cnt*74, sum75 = sum + cnt*75, sum76 = sum + cnt*76, sum77 = sum + cnt*77, sum78 = sum + cnt*78, sum79 = sum + cnt*79, sum80 = sum + cnt*80, sum81 = sum + cnt*81, sum82 = sum + cnt*82, sum83 = sum + cnt*83, sum84 = sum + cnt*84, sum85 = sum + cnt*85, sum86 = sum + cnt*86, sum87 = sum + cnt*87, sum88 = sum + cnt*88, sum89 = sum + cnt*89 | fields sum, sum2, sum3, sum4, sum5, sum6, sum7, sum8, sum9, sum10, sum11, sum12, sum13, sum14, sum15, sum16, sum17, sum18, sum19, sum20, sum21, sum22, sum23, sum24, sum25, sum26, sum27, sum28, sum29, sum30, sum31, sum32, sum33, sum34, sum34, sum36, sum37, sum38, sum39, sum40, sum41, sum42, sum43, sum44, sum45, sum46, sum47, sum48, sum49, sum50, sum51, sum52, sum53, sum54, sum55, sum56, sum57, sum58, sum59, sum60, sum61, sum62, sum63, sum64, sum65, sum66, sum67, sum68, sum69, sum70, sum71, sum72, sum73, sum74, sum75, sum76, sum77, sum78, sum79, sum80, sum81, sum82, sum83, sum84, sum85, sum86, sum87, sum88, sum89
-SearchPhrase != \"\" | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by SearchEngineID, ClientIP | sort -c | head 10
-SearchPhrase != \"\" | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by WatchID, ClientIP | sort -c | head 10
-* | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by WatchID, ClientIP | sort -c | head 10
-* | stats count as c by URL | sort -c | head 10
-* | eval n = 1 | stats count as c by n, URL | sort -c | head 10
-* | eval cp = ClientIP-1, cp2 = ClientIP-2, cp3 = ClientIP-3 | stats count as c by ClientIP, cp, cp2, cp3 | sort -c | head 10
-CounterID = 62 AND DontCountHits = 0 AND IsRefresh = 0 AND URL != \"\" | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\")  | stats count as PageViews by URL | sort -PageViews | head 10
-CounterID = 62 AND DontCountHits = 0 AND IsRefresh = 0 AND Title != \"\" | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\")  AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by Title | sort -PageViews | head 10
-CounterID = 62 AND IsRefresh = 0 AND IsLink != 0 AND IsDownload = 0 | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\")  AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by URL | sort -PageViews | head 1010 | tail 10 | tail 10
-CounterID = 62 AND IsRefresh = 0 | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | eval Src=if(SearchEngineID=0 AND AdvEngineID=0, Referer, \"\") | rename URL as Dst | stats count as PageViews by TraficSourceID, SearchEngineID, AdvEngineID, Src, Dst | sort -PageViews | head 1010 | tail 10 | tail 10
-CounterID = 62  AND IsRefresh = 0 AND RefererHash = \"3594120000172545465\" | where TraficSourceID in(-1, 6) | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by URLHash, EventDate | sort -PageViews | head 110 | tail 10 | tail 10
-CounterID = 62  AND IsRefresh = 0 AND DontCountHits = 0 AND URLHash = \"2868770270353813622\" | where strptime(EventDate,\"%Y-%m-%d\") >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND strptime(EventDate,\"%Y-%m-%d\") <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by WindowClientWidth, WindowClientHeight | sort -PageViews | head 10010 | tail 10 | tail 10
-null
+SearchPhrase != \"\" | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by SearchEngineID, ClientIP | sort 10 -c
+SearchPhrase != \"\" | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by WatchID, ClientIP | sort 10 -c
+* | stats count as c, sum(IsRefresh), avg(ResolutionWidth) by WatchID, ClientIP | sort 10 -c
+* | stats count as c by URL | sort 10 -c
+* | stats count AS c by URL | sort 10  -c | eval n=1 | fields n, URL, c
+*  | stats count as c by ClientIP | sort 10 -c | eval cp = ClientIP-1, cp2 = ClientIP-2, cp3 = ClientIP-3
+CounterID = 62 AND DontCountHits = 0 AND IsRefresh = 0 AND URL != \"\" | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\")  | stats count as PageViews by URL | sort 10  -PageViews
+CounterID = 62 AND DontCountHits = 0 AND IsRefresh = 0 AND Title != \"\" | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\")  AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by Title | sort 10 -PageViews
+CounterID = 62 AND IsRefresh = 0 AND IsLink != 0 AND IsDownload = 0 | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\")  AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by URL | sort 1010  -PageViews | tail 10 | tail 10
+CounterID = 62 AND IsRefresh = 0 | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | eval Src=if(SearchEngineID=0 AND AdvEngineID=0, Referer, \"\") | rename URL as Dst | stats count as PageViews by TraficSourceID, SearchEngineID, AdvEngineID, Src, Dst | sort 1010 -PageViews | tail 10 | tail 10
+CounterID = 62  AND IsRefresh = 0 AND RefererHash = \"3594120000172545465\" | where TraficSourceID in(-1, 6) | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by URLHash, EventDate | sort 110 -PageViews | tail 10 | tail 10
+CounterID = 62  AND IsRefresh = 0 AND DontCountHits = 0 AND URLHash = \"2868770270353813622\" | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | stats count as PageViews by WindowClientWidth, WindowClientHeight | sort 1010 -PageViews  | tail 10 | tail 10
+CounterID=62 DontCountHits = 0 IsRefresh = 0 | eval ptime = strptime(EventDate,\"%Y-%m-%d\") | where ptime >= strptime(\"2013-07-01\", \"%Y-%m-%d\") AND ptime <= strptime(\"2013-07-31\", \"%Y-%m-%d\") | eval truncTime = strftime(tonumber(strptime(EventTime, \"%Y-%m-%d %H:%M:%S\")), \"%Y-%m-%d %H:%M:00\") | stats count as PageViews by truncTime | sort 1010 -truncTime | tail 10 | tail 10

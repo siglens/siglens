@@ -96,6 +96,7 @@ $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
     $('#new-contact-point').on('click', initializeContactForm);
     $('#contact-form-container').css('display', 'none');
+
     getAllContactPoints();
     if (window.location.href.includes('alert.html')) {
         initializeContactForm();
@@ -137,6 +138,13 @@ function initializeContactForm(contactId) {
     $('#new-contact-point').css('display', 'none');
     $('#alert-grid-container').css('display', 'none');
     $('#contact-form-container').css('display', 'block');
+
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Contact Points', url: './contacts.html' },
+        { name: 'New Contact Point', url: '#' },
+    ]);
+    
     const formContainer = $('#contact-form-container');
 
     if (formContainer) {
@@ -620,7 +628,11 @@ function showContactFormForEdit(contactId) {
         return obj.contact_id === contactId;
     });
     $('#contact-name').val(data.contact_name);
-
+    initializeBreadcrumbs([
+        { name: 'Alerting', url: './alerting.html' },
+        { name: 'Contact Points', url: './contacts.html' },
+        { name: data.contact_name? data.contact_name : 'New Contact Point', url: '#' },
+    ]);
     let isFirst = true;
     let containerCount = 0;
 

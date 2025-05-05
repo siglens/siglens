@@ -82,7 +82,7 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 
 	allFiles, err := reader.ReadSegFilesFromBlob(segKey, allCols)
 	if err != nil {
-		return nil, toputils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%v", qid, err)
+		return nil, toputils.TeeErrorf("qid=%d, ReadAllColsForRRCs: failed to read seg files from blob; err=%w", qid, err)
 	}
 
 	defer func() {
@@ -119,19 +119,17 @@ func (reader *RRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs 
 }
 
 func (reader *RRCsReader) GetColsForSegKey(segKey string, vTable string) (map[string]struct{}, error) {
-	var allCols map[string]bool
-	allCols, exists := writer.CheckAndGetColsForUnrotatedSegKey(segKey)
+	allCols := make(map[string]struct{})
+	exists := writer.CheckAndCollectColNamesForSegKey(segKey, allCols)
 	if !exists {
-		allCols, exists = segmetadata.CheckAndGetColsForSegKey(segKey)
+		exists = segmetadata.CheckAndCollectColNamesForSegKey(segKey, allCols)
 		if !exists {
 			return nil, toputils.TeeErrorf("GetColsForSegKey: globalMetadata does not have segKey: %s", segKey)
 		}
 	}
-	allCols[config.GetTimeStampKey()] = true
+	allCols[config.GetTimeStampKey()] = struct{}{}
 
-	// TODO: make the CheckAndGetColsForSegKey functions return a set instead
-	// of a map[string]bool so we don't have to do the conversion here
-	return toputils.MapToSet(allCols), nil
+	return allCols, nil
 }
 
 func (reader *RRCsReader) ReadColForRRCs(segKey string, rrcs []*utils.RecordResultContainer, cname string, qid uint64, fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
@@ -212,21 +210,6 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to get or create query search node result; err=%v", qid, err)
 		nodeRes = &structs.NodeResult{}
 	}
-	consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
-	sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: fetchFromBlob},
-		allBlocksToSearch, blockSummary, 1, consistentCValLen, qid, nodeRes)
-	if err != nil {
-		log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)
-		return nil, err
-	}
-	defer sharedReader.Close()
-
-	colErrorMap := sharedReader.GetColumnsErrorsMap()
-	if len(colErrorMap) > 0 {
-		return nil, colErrorMap[cname]
-	}
-
-	multiReader := sharedReader.MultiColReaders[0]
 
 	batchingFunc := func(rrc *utils.RecordResultContainer) uint16 {
 		return rrc.BlockNum
@@ -240,10 +223,27 @@ func readUserDefinedColForRRCs(segKey string, rrcs []*utils.RecordResultContaine
 			return nil, nil
 		}
 
+		consistentCValLen := map[string]uint32{cname: utils.INCONSISTENT_CVAL_SIZE} // TODO: use correct value
+		sharedReader, err := segread.InitSharedMultiColumnReaders(segKey, map[string]bool{cname: fetchFromBlob},
+			allBlocksToSearch, blockSummary, 1, consistentCValLen, qid, nodeRes)
+		if err != nil {
+			log.Errorf("qid=%v, readUserDefinedColForRRCs: failed to initialize shared readers for segkey %v; err=%v", qid, segKey, err)
+			return nil, err
+		}
+		defer sharedReader.Close()
+
+		colErrorMap := sharedReader.GetColumnsErrorsMap()
+		if len(colErrorMap) > 0 {
+			return nil, colErrorMap[cname]
+		}
+
+		multiReader := sharedReader.MultiColReaders[0]
+
 		return handleBlock(multiReader, rrcsInBatch[0].BlockNum, rrcsInBatch, qid)
 	}
 
-	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation)
+	maxParallelism := runtime.GOMAXPROCS(0)
+	enclosures, _ := toputils.BatchProcess(rrcs, batchingFunc, batchKeyLess, operation, maxParallelism)
 	return enclosures, nil
 }
 

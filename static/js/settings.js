@@ -29,8 +29,6 @@ $(document).ready(async function () {
         inodeInfo = result.inodeInfo;
     }
     fetchQueryTimeout()
-
-    {{ .Button1Function }}
 });
 
 function getRetentionDataFromConfig() {
@@ -114,26 +112,32 @@ function addSystemInfoTable(systemInfo, inodeInfo) {
         ? `${availableMemoryGB} GB` 
         : `${availableMemoryMB} MB`;
 
-    var memoryInfo = `<div><b>Total:</b> ${totalMemoryDisplay}</div>
+    var memoryInfo =`<div class="usage-info">
+                    <div><b>Total:</b> ${totalMemoryDisplay}</div>
                     <div><b>Available:</b> ${availableMemoryDisplay}</div>
-                    <div><b>Used:</b> ${memoryUsage}%</div>`;
+                    <div><b>Used:</b> ${memoryUsage}%</div>
+                    </div>`;
 
     var memoryRow = createRow("Memory Usage", memoryInfo);
 
     var diskUsage = systemInfo.disk.used_percent.toFixed(2);
     var totalDiskGB = (systemInfo.disk.total / Math.pow(1024, 3)).toFixed(2);
     var availableDiskGB = (systemInfo.disk.free / Math.pow(1024, 3)).toFixed(2);
-    var diskInfo = `<div><b>Total:</b> ${totalDiskGB} GB</div>
+    var diskInfo = `<div class="usage-info">
+                    <div><b>Total:</b> ${totalDiskGB} GB</div>
                     <div><b>Available:</b> ${availableDiskGB} GB</div>
-                    <div><b>Used:</b> ${diskUsage}%</div>`;
+                    <div><b>Used:</b> ${diskUsage}%</div>
+                    </div>`;
     var diskRow = createRow("Disk Usage", diskInfo);
 
     var totalInodes = inodeInfo.totalInodes.toLocaleString();
     var usedInodes = inodeInfo.usedInodes.toLocaleString();
     var freeInodes = inodeInfo.freeInodes.toLocaleString();
-    var inodeInfo = `<div><b>Total:</b> ${totalInodes}</div>
+    var inodeInfo = `<div class="usage-info">
+                     <div><b>Total:</b> ${totalInodes}</div>
+                     <div><b>Available:</b> ${freeInodes}</div>
                      <div><b>Used:</b> ${usedInodes}</div>
-                     <div><b>Available:</b> ${freeInodes}</div>`;
+                     </div>`;
     var inodeRow = createRow("iNode Usage", inodeInfo);
 
     var uptime = createRow("Process Uptime", formatUptime(systemInfo.uptime));
@@ -191,15 +195,28 @@ function formatUptime(uptimeMinutes) {
     });
 }
 
-$('#queryTimeout').on('input', function() {
-    const newValue = parseInt($(this).val());
-    const isValid = !isNaN(newValue) && newValue >= 1 && newValue <= 30;
-    
-    if (isValid && newValue !== currentTimeout) {
-        $('#saveTimeout').show();
-    } else {
-        $('#saveTimeout').hide();
-    }
+let timeoutId;
+$('#queryTimeout').on('input change', function() {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+        let newValue = Math.round(parseFloat($(this).val()));
+        
+        const isValid = !isNaN(newValue) && newValue >= 1 && newValue <= 30;
+        
+        if (newValue > 30) {
+            newValue = 30;
+        } else if (newValue < 1 && newValue !== '') {
+            newValue = 1;
+        }
+        
+        $(this).val(newValue);
+        
+        if (isValid && newValue !== currentTimeout) {
+            $('#saveTimeout').show();
+        } else {
+            $('#saveTimeout').hide();
+        }
+    }, 50);
 });
 
 $('#saveTimeout').on('click', function() {

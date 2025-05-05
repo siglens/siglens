@@ -25,8 +25,12 @@ import (
 
 type Record struct {
 	iqr       *IQR
-	index     int
+	Index     int
 	validated bool
+
+	// Outer slice is one column. Only "index" element of inner slice is
+	// relevant for this record.
+	SortValues [][]utils.CValueEnclosure
 }
 
 func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
@@ -44,10 +48,10 @@ func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
 		return nil, fmt.Errorf("Record.ReadColumn: cannot read column %v from IQR; err=%v", cname, err)
 	}
 
-	if record.index >= len(values) {
+	if record.Index >= len(values) {
 		return nil, fmt.Errorf("Record.ReadColumn: index %v out of range (len is %v) for column %v; iqr has %v records",
-			record.index, len(values), cname, record.iqr.NumberOfRecords())
+			record.Index, len(values), cname, record.iqr.NumberOfRecords())
 	}
 
-	return &values[record.index], nil
+	return &values[record.Index], nil
 }

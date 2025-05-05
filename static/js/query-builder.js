@@ -56,10 +56,13 @@ $('#custom-chart-tab').tabs({
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#save-query-div').children().show();
-            $('#views-container, .fields-sidebar, #pagination-container').show();
+            if(lastQType === 'logs-query'){
+                $('#views-container, .fields-sidebar, .expand-svg-container').show();
+            }
+            $('#pagination-container').show();
         } else {
             $('#save-query-div').children().hide();
-            $('#views-container, .fields-sidebar, #pagination-container').hide();
+            $('#views-container, .fields-sidebar, .fields-resizer, .expand-svg-container , #pagination-container').hide();
 
             timeChart();
         }
@@ -665,7 +668,7 @@ function setShowColumnInfoDialog() {
     $('#show-record-popup').dialog({
         autoOpen: false,
         resizable: false,
-        title: false,
+        title: 'Query Results Information',
         maxHeight: 307,
         height: 307,
         width: 464,
@@ -687,6 +690,9 @@ function setShowColumnInfoDialog() {
                     }
                 },
             },
+        },
+        create: function () {
+            $(this).parent().find('.ui-dialog-titlebar').show().addClass('border-bottom p-4');
         },
     });
     $('#show-record-intro-btn').on('click', function () {

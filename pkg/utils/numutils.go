@@ -19,6 +19,7 @@ package utils
 
 import (
 	"errors"
+	"math"
 )
 
 var INVALID_FLOAT_ERR = errors.New("invalid float")
@@ -29,10 +30,12 @@ func FastParseFloat(val []byte) (float64, error) {
 	}
 
 	var sign float64 = 1
-	var i int
+	i := 0
 
 	if val[i] == '-' {
 		sign = -1
+		i++
+	} else if val[i] == '+' {
 		i++
 	}
 
@@ -62,9 +65,42 @@ func FastParseFloat(val []byte) (float64, error) {
 		}
 	}
 
+	result := sign * (intPart + fracPart/divisor)
+
+	if i < len(val) && (val[i] == 'e' || val[i] == 'E') {
+		i++
+		if i == len(val) {
+			return 0, INVALID_FLOAT_ERR
+		}
+
+		expSign := 1
+		if val[i] == '-' {
+			expSign = -1
+			i++
+		} else if val[i] == '+' {
+			i++
+		}
+
+		if i == len(val) || val[i] < '0' || val[i] > '9' {
+			return 0, INVALID_FLOAT_ERR
+		}
+
+		exp := 0
+		for ; i < len(val); i++ {
+			c := val[i]
+			if c >= '0' && c <= '9' {
+				exp = exp*10 + int(c-'0')
+			} else {
+				return 0, INVALID_FLOAT_ERR
+			}
+		}
+		multiplier := math.Pow(10, float64(exp)*float64(expSign))
+		result *= multiplier
+	}
+
 	if i != len(val) {
 		return 0, INVALID_FLOAT_ERR
 	}
 
-	return sign * (intPart + fracPart/divisor), nil
+	return result, nil
 }

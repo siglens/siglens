@@ -1319,3 +1319,7 @@
   height: 24px !important;
   width: 24px !important;
 }
+
+#panEdit-panel .legend-container {
+  height: 40px;
+}

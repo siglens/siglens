@@ -61,6 +61,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     {{ .RunCheck1 | safeHTML }}
 </head>
 {{ if not .EnterpriseEnabled }}
+
 <body>
     <div id="app-container">
         <div id="app-side-nav">
@@ -69,7 +70,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         <div class="myOrg">
             <div class="myOrg-container">
                 <div class="org-nav-tab">
-                    {{ .Button1 | safeHTML }}
                 </div>
 
                 <div class="myOrg-inner-container">
@@ -78,7 +78,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <p class="caption">Personalize your organization's settings</p>
                         </div>
                         <div class="settings-card pt-1 pb-3">
-                            <table class="org-settings-table mt-2" id="org-settings-table">
+                            <table class="org-settings-table mt-2" id="main-settings-table">
                                 <tr>
                                     <th>Organization Name</th>
                                     {{ if .OrgSettingsOrgName }}
@@ -106,19 +106,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <table class="org-settings-table" id="system-info-table"></table>
                         </div>
                         <div class="settings-card pt-2 pb-3">
-                            <table class="org-settings-table mt-2" id="org-settings-table">
+                            <table class="org-settings-table mt-2" style="width: 100%;" id="querytimeout-table">
                                 <tr>
                                     <th>
-                                        <div>
-                                            <div>Query Timeout</div>
-                                            <div style="font-weight: 100; font-size: 12px;">
-                                                <p class="mb-0">
-                                                    Set the maximum duration a query can
-                                                </p>
-                                                <p class="mb-0">run before automatic cancellation. Range: 1-30 minutes.
-                                                </p>
-                                            </div>
-                                        </div>
+                                        <div>Query Timeout</div>
+
                                     </th>
                                     <th>
                                         <div class="d-flex align-items-center">
@@ -130,6 +122,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             </button>
                                         </div>
                                     </th>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="note-box fst-italic">
+                                            Set the maximum duration a query can run before automatic cancellation.
+                                            Range: 1-30
+                                            minutes.
+                                        </div>
+                                    </td>
                                 </tr>
                             </table>
                         </div>

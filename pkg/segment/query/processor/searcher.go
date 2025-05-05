@@ -412,7 +412,7 @@ func (s *Searcher) fetchSortedRRCsFromQSRs() (*iqr.IQR, error) {
 
 		var firstExhaustedIndex int
 		var err error
-		result, firstExhaustedIndex, err = iqr.MergeIQRs(iqrs, sorter.less)
+		result, firstExhaustedIndex, err = iqr.MergeIQRs(iqrs, sorter.lessDirectRead)
 		if err != nil {
 			log.Errorf("qid=%v, searcher.fetchColumnSortedRRCs: failed to merge IQRs: %v", s.qid, err)
 			return nil, err
@@ -775,7 +775,7 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, nil
 	}
 
-	_, err = toputils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation)
+	_, err = toputils.BatchProcess(nextBlocks, getBatchKey, batchKeyLess, batchOperation, 1)
 	if err != nil {
 		log.Errorf("qid=%v, searcher.fetchRRCs: failed to batch process blocks: %v", s.qid, err)
 		return nil, err

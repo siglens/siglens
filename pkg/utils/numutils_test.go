@@ -35,11 +35,28 @@ func TestFastParseFloat(t *testing.T) {
 		{[]byte("-42.1"), -42.1, false},
 		{[]byte("-0.001"), -0.001, false},
 		{[]byte("0"), 0, false},
-		{[]byte(""), 0, true},
-		{[]byte("abc"), 0, true},
-		{[]byte("12abc"), 0, true},
-		{[]byte("12.3.4"), 0, true},
-		{[]byte("1.2.3"), 0, true},
+		{[]byte("-456"), -456.0, false},
+		{[]byte("1.23e3"), 1230.0, false},
+		{[]byte("1.23E3"), 1230.0, false},
+		{[]byte("1e2"), 100.0, false},
+		{[]byte("1e0"), 1.0, false},
+		{[]byte("1.5e-2"), 0.015, false},
+		{[]byte("-2.5e+2"), -250.0, false},
+		{[]byte("0.0001e4"), 1.0, false},
+		{[]byte("42e0"), 42.0, false},
+		{[]byte("000123.4500"), 123.45, false},
+
+		// Invalid cases
+		{[]byte(""), 0.0, true},
+		{[]byte("abc"), 0.0, true},
+		{[]byte("12abc"), 0.0, true},
+		{[]byte("12.3.4"), 0.0, true},
+		{[]byte("1.2.3"), 0.0, true},
+		{[]byte("1e-"), 0.0, true},
+		{[]byte("1e+"), 0.0, true},
+		{[]byte("1.23e+"), 0.0, true},
+		{[]byte("NaN"), 0.0, true},
+		{[]byte("Infinity"), 0.0, true},
 	}
 
 	for _, tt := range tests {
