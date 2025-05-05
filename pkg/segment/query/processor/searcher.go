@@ -263,7 +263,7 @@ func (s *Searcher) initUnprocessedQSRs() {
 }
 
 func (s Searcher) String() string {
-	return "base searcher"
+	return "<base searcher>"
 }
 
 func (s *Searcher) Fetch() (*iqr.IQR, error) {

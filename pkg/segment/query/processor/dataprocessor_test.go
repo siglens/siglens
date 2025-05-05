@@ -62,7 +62,7 @@ type mockStreamer struct {
 }
 
 func (ms mockStreamer) String() string {
-	return "mockStreamer"
+	return "<mock streamer>"
 }
 
 func (ms *mockStreamer) Fetch() (*iqr.IQR, error) {

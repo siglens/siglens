@@ -65,18 +65,14 @@ type DataProcessor struct {
 func (dp DataProcessor) String() string {
 	inputs := make([]string, 0, len(dp.streams))
 	for _, stream := range dp.streams {
-		if stream == nil {
-			inputs = append(inputs, "<nil>")
-			continue
-		}
-		inputs = append(inputs, fmt.Sprintf("%+v", stream))
+		inputs = append(inputs, fmt.Sprintf("%s", stream))
 	}
 
 	name := dp.name
 	if name == "" {
 		name = "<unknown>"
 	}
-	return fmt.Sprintf("%s with %d inputs %v", name, len(dp.streams), inputs)
+	return fmt.Sprintf("<%s> with inputs %v", name, inputs)
 }
 
 func (dp *DataProcessor) DoesInputOrderMatter() bool {
