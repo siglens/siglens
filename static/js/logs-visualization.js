@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+//eslint-disable-next-line no-unused-vars
 function timeChart(qtype) {
-    console.log('Timechart has being called');
     // Check if measureInfo is defined and contains at least one item
     qtype = qtype || lastQType;
     if (isTimechart || qtype === 'aggs-query') {
@@ -298,7 +298,6 @@ function populateTagDropdown() {
 
     // Get all available metrics
     if (window.myBarChart && window.myBarChart.data && window.myBarChart.data.datasets) {
-        console.log('populate tag dropdown');
         // Filter out already selected metrics
         const availableMetrics = window.myBarChart.data.datasets.map((dataset) => dataset.label).filter((metric) => !chartOverlaySettings.metrics.includes(metric));
 
