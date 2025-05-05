@@ -442,6 +442,7 @@ func NewDedupDP(options *structs.DedupExpr) *DataProcessor {
 
 func NewEvalDP(options *structs.EvalExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "eval",
 		streams:           make([]*CachedStream, 0),
 		processor:         &evalProcessor{options: options},
 		inputOrderMatters: false,
@@ -467,6 +468,7 @@ func NewFieldsDP(options *structs.ColumnsRequest) *DataProcessor {
 
 func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 	return &DataProcessor{
+		name:              "rename",
 		streams:           make([]*CachedStream, 0),
 		processor:         &renameProcessor{options: options},
 		inputOrderMatters: false,
@@ -480,6 +482,7 @@ func NewRenameDP(options *structs.RenameExp) *DataProcessor {
 func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 	isFieldListSet := len(options.FieldList) > 0
 	return &DataProcessor{
+		name:              "fillnull",
 		streams:           make([]*CachedStream, 0),
 		processor:         &fillnullProcessor{options: options},
 		inputOrderMatters: false,
@@ -492,6 +495,7 @@ func NewFillnullDP(options *structs.FillNullExpr) *DataProcessor {
 
 func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 	return &DataProcessor{
+		name:    "gentimes",
 		streams: make([]*CachedStream, 0),
 		processor: &gentimesProcessor{
 			options:       options,
@@ -507,6 +511,7 @@ func NewGentimesDP(options *structs.GenTimes) *DataProcessor {
 
 func NewInputLookupDP(options *structs.InputLookup) *DataProcessor {
 	return &DataProcessor{
+		name:    "inputlookup",
 		streams: make([]*CachedStream, 0),
 		processor: &inputlookupProcessor{
 			options: options,
@@ -535,6 +540,7 @@ func NewHeadDP(options *structs.HeadExpr) *DataProcessor {
 
 func NewTailDP(options *structs.TailExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "tail",
 		streams:           make([]*CachedStream, 0),
 		processor:         &tailProcessor{options: options},
 		inputOrderMatters: true,
@@ -547,6 +553,7 @@ func NewTailDP(options *structs.TailExpr) *DataProcessor {
 
 func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 	return &DataProcessor{
+		name:              "makemv",
 		streams:           make([]*CachedStream, 0),
 		processor:         &makemvProcessor{options: options},
 		inputOrderMatters: false,
@@ -559,6 +566,7 @@ func NewMakemvDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 
 func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 	return &DataProcessor{
+		name:              "mvexpand",
 		streams:           make([]*CachedStream, 0),
 		processor:         &mvexpandProcessor{options: options},
 		inputOrderMatters: false,
@@ -571,6 +579,7 @@ func NewMVExpandDP(options *structs.MultiValueColLetRequest) *DataProcessor {
 
 func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "regex",
 		streams:           make([]*CachedStream, 0),
 		processor:         &regexProcessor{options: options},
 		inputOrderMatters: false,
@@ -583,6 +592,7 @@ func NewRegexDP(options *structs.RegexExpr) *DataProcessor {
 
 func NewRexDP(options *structs.RexExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "rex",
 		streams:           make([]*CachedStream, 0),
 		processor:         &rexProcessor{options: options},
 		inputOrderMatters: false,
@@ -595,6 +605,7 @@ func NewRexDP(options *structs.RexExpr) *DataProcessor {
 
 func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "where",
 		streams:           make([]*CachedStream, 0),
 		processor:         &whereProcessor{options: options},
 		inputOrderMatters: false,
@@ -607,6 +618,7 @@ func NewWhereDP(options *structs.BoolExpr) *DataProcessor {
 
 func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 	return &DataProcessor{
+		name:              "streamstats",
 		streams:           make([]*CachedStream, 0),
 		processor:         &streamstatsProcessor{options: options},
 		inputOrderMatters: true,
@@ -619,6 +631,7 @@ func NewStreamstatsDP(options *structs.StreamStatsOptions) *DataProcessor {
 
 func NewTimechartDP(options *timechartOptions) *DataProcessor {
 	return &DataProcessor{
+		name:              "timechart",
 		streams:           make([]*CachedStream, 0),
 		processor:         NewTimechartProcessor(options),
 		inputOrderMatters: false,
@@ -632,6 +645,7 @@ func NewTimechartDP(options *timechartOptions) *DataProcessor {
 
 func NewStatsDP(options *structs.StatsExpr) *DataProcessor {
 	return &DataProcessor{
+		name:              "stats",
 		streams:           make([]*CachedStream, 0),
 		processor:         NewStatsProcessor(options),
 		inputOrderMatters: false,
@@ -672,6 +686,7 @@ func NewStatisticExprDP(options *structs.QueryAggregators, isDistributed bool) *
 
 func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
+		name:              "top",
 		streams:           make([]*CachedStream, 0),
 		processor:         NewTopProcessor(options),
 		inputOrderMatters: false,
@@ -685,6 +700,7 @@ func NewTopDP(options *structs.QueryAggregators) *DataProcessor {
 
 func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 	return &DataProcessor{
+		name:              "rare",
 		streams:           make([]*CachedStream, 0),
 		processor:         NewRareProcessor(options),
 		inputOrderMatters: false,
@@ -698,6 +714,7 @@ func NewRareDP(options *structs.QueryAggregators) *DataProcessor {
 
 func NewTransactionDP(options *structs.TransactionArguments) *DataProcessor {
 	return &DataProcessor{
+		name:              "transaction",
 		streams:           make([]*CachedStream, 0),
 		processor:         &transactionProcessor{options: options},
 		inputOrderMatters: true,
@@ -753,7 +770,7 @@ func (ptp *passThroughProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 func NewSearcherDP(searcher Streamer, queryType structs.QueryType) *DataProcessor {
 	isTransformingCmd := queryType.IsSegmentStatsCmd() || queryType.IsGroupByCmd()
 	return &DataProcessor{
-		name:              "searcher1",
+		name:              "searcher",
 		streams:           []*CachedStream{NewCachedStream(searcher)},
 		processor:         &passThroughProcessor{},
 		processorLock:     &sync.Mutex{},
