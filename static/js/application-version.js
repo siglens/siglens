@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2021-2024 SigScalr, Inc.
  *
  * This file is part of SigLens Observability Solution
@@ -18,30 +18,27 @@
  */
 
 $(document).ready(function () {
-
     $('.theme-btn').on('click', themePickerHandler);
     fetchVersionInfo();
-    {{ .Button1Function }}
 });
 
 function fetchVersionInfo() {
-
     $.ajax({
-        method: "GET",
-        url: "/api/version/info",
+        method: 'GET',
+        url: '/api/version/info',
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Accept': '*/*'
+            Accept: '*/*',
         },
         dataType: 'json',
         crossDomain: true,
-    }).then(function (res) {
-        const versionInfo = `<span style="color:var(--text-color)">SigLens Version: </span> ${res.version}`;
-        $('#versionInfo').html(versionInfo);
-    }).fail(function (jqXHR, textStatus, errorThrown) {
-        console.error('Error fetching version:', textStatus, errorThrown);
-        $('#versionInfo').text('Error loading version');
-    });
+    })
+        .then(function (res) {
+            const versionInfo = `<span style="color:var(--text-color)">SigLens Version: </span> ${res.version}`;
+            $('#versionInfo').html(versionInfo);
+        })
+        .fail(function (jqXHR, textStatus, errorThrown) {
+            console.error('Error fetching version:', textStatus, errorThrown);
+            $('#versionInfo').text('Error loading version');
+        });
 }
-
-

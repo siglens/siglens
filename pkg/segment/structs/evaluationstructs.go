@@ -19,6 +19,7 @@ package structs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -2844,11 +2845,11 @@ func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field strin
 func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsFloat: Missing field %v", field))
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Missing field"))
 	}
 
 	if enclosure.IsNull() {
-		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsFloat: Field %v is null", field))
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Field was null"))
 	}
 
 	if value, err := enclosure.GetFloatValue(); err == nil {
@@ -2862,7 +2863,7 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 		}
 	}
 
-	return 0, toputils.NewErrorWithCode(toputils.CONVERSION_ERR, fmt.Errorf("getValueAsFloat: Cannot convert CValueEnclosure %v to float", enclosure))
+	return 0, toputils.NewErrorWithCode(toputils.CONVERSION_ERR, errors.New("getValueAsFloat: Cannot convert CValueEnclosure to float"))
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {

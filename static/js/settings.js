@@ -29,8 +29,6 @@ $(document).ready(async function () {
         inodeInfo = result.inodeInfo;
     }
     fetchQueryTimeout()
-
-    {{ .Button1Function }}
 });
 
 function getRetentionDataFromConfig() {
