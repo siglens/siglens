@@ -142,7 +142,6 @@ type HtmlSnippets struct {
 	RunCheck1 string
 	RunCheck2 string
 	RunCheck3 string
-	Button1   string
 	Dropdown2 string
 
 	OrgSettingsOrgName string

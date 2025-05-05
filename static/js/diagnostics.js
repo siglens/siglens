@@ -19,7 +19,6 @@
 
 $(document).ready(function () {
     $('.theme-btn').on('click', themePickerHandler);
-    {{ .Button1Function }}
 });
 
 $('#diagnostics-btn').on('click', function () {
