@@ -1041,18 +1041,24 @@ function parseInterval(interval) {
 function codeToBuilderParsing(filterValue) {
     if (filterValue.indexOf('|') != -1) {
         firstBoxSet = new Set(filterValue.split(' | ')[0].match(/(?:[^\s"]+|"[^"]*")+/g));
-        secondBoxSet = new Set(
-            filterValue
-                .split('stats ')[1]
-                .split(' BY')[0]
-                .split(/(?=[A-Z])/)
-        );
+
+        if (filterValue.includes('stats ')) {
+            const statsSection = filterValue.split('stats ')[1].split(' BY')[0].trim();
+            secondBoxSet = new Set(statsSection.split(',').map((item) => item.trim()));
+        }
+
         if (filterValue.includes(' BY ')) {
-            thirdBoxSet = new Set(filterValue.split(' BY ')[1].split(','));
+            thirdBoxSet = new Set(
+                filterValue
+                    .split(' BY ')[1]
+                    .split(',')
+                    .map((item) => item.trim())
+            );
         }
     } else {
         firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
     }
+
     if (firstBoxSet && firstBoxSet.size > 0) {
         let tags = document.getElementById('tags');
         while (tags.firstChild) {
@@ -1067,6 +1073,7 @@ function codeToBuilderParsing(filterValue) {
             tags.appendChild(tag);
         });
     }
+
     if (secondBoxSet && secondBoxSet.size > 0) {
         let tags = document.getElementById('tags-second');
         while (tags.firstChild) {
@@ -1081,6 +1088,7 @@ function codeToBuilderParsing(filterValue) {
             tags.appendChild(tag);
         });
     }
+
     if (thirdBoxSet && thirdBoxSet.size > 0) {
         let tags = document.getElementById('tags-third');
         while (tags.firstChild) {
@@ -1092,10 +1100,10 @@ function codeToBuilderParsing(filterValue) {
             // Add a delete button to the tag
             tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
-
             tags.appendChild(tag);
         });
     }
+
     if (thirdBoxSet.size > 0) $('#aggregations').hide();
     else $('#aggregations').show();
     if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
