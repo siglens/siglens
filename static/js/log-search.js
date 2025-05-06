@@ -131,16 +131,8 @@ $(document).ready(async () => {
     $('body').css('cursor', 'default');
 
     $('.theme-btn').on('click', themePickerHandler);
-    $('.theme-btn').on('click', function () {
-        updateTimeChartTheme();
-    });
-    let ele = $('#available-fields .select-unselect-header');
-
-    if (theme === 'light') {
-        ele.append(`<img class="select-unselect-checkmark" src="assets/available-fields-check-light.svg">`);
-    } else {
-        ele.append(`<img class="select-unselect-checkmark" src="assets/index-selection-check.svg">`);
-    }
+    // eslint-disable-next-line no-undef
+    $('.theme-btn').on('click', updateTimeChartTheme);
 
     setupEventHandlers();
 
@@ -176,21 +168,6 @@ $(document).ready(async () => {
         $('#time-end').val(Cookies.get('customEndTime'));
         $('#time-end').addClass('active');
     }
-
-    $('#info-icon-sql').tooltip({
-        delay: { show: 0, hide: 300 },
-        trigger: 'click',
-    });
-
-    $('#info-icon-sql').on('click', function (_e) {
-        $('#info-icon-sql').tooltip('show');
-    });
-
-    $(document).mouseup(function (e) {
-        if ($(e.target).closest('.tooltip-inner').length === 0) {
-            $('#info-icon-sql').tooltip('hide');
-        }
-    });
 
     $('#info-icon-logQL').tooltip({
         delay: { show: 0, hide: 300 },

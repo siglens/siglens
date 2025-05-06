@@ -736,6 +736,7 @@ function applyChartOverlay(chartConfig) {
     });
 }
 
+//eslint-disable-next-line no-unused-vars
 function updateTimeChartTheme() {
     if (!window.myBarChart) return;
 
