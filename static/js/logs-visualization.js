@@ -337,9 +337,11 @@ function updateFormValues() {
     // Y-Axis settings
     $('input[name="y-axis-title"]').val(chartSettings.yAxis.title);
     $('input[name="y-axis-interval"]').val(chartSettings.yAxis.interval || '');
+    $('input[name="y-axis-interval"]').attr('placeholder', 'Auto');
     $('input[name="y-axis-min"]').val(chartSettings.yAxis.minValue || '');
+    $('input[name="y-axis-min"]').attr('placeholder', 'Auto');
     $('input[name="y-axis-max"]').val(chartSettings.yAxis.maxValue || '');
-
+    $('input[name="y-axis-max"]').attr('placeholder', 'Auto');
     // Set button groups
     $('#y-axis-section .form-row').each(function () {
         const label = $(this).find('.form-label').text().trim();
@@ -352,8 +354,11 @@ function updateFormValues() {
     // Chart overlay settings
     $('input[name="overlay-title"]').val(chartSettings.chartOverlay.title);
     $('input[name="overlay-interval"]').val(chartSettings.chartOverlay.interval || '');
+    $('input[name="overlay-interval"]').attr('placeholder', 'Auto');
     $('input[name="overlay-min"]').val(chartSettings.chartOverlay.minValue || '');
+    $('input[name="overlay-min"]').attr('placeholder', 'Auto');
     $('input[name="overlay-max"]').val(chartSettings.chartOverlay.maxValue || '');
+    $('input[name="overlay-max"]').attr('placeholder', 'Auto');
 
     $('#chart-overlay-section .form-row').each(function () {
         const label = $(this).find('.form-label').text().trim();
