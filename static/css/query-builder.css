@@ -1174,11 +1174,3 @@ html[data-theme="dark"] .icon-container svg {
 .rotation-neg90 {
     transform: rotate(-90deg);
 }
-
-.rotation-45 {
-    transform: rotate(45deg);
-}
-
-.rotation-90 {
-    transform: rotate(90deg);
-}

@@ -24,8 +24,6 @@ let chartSettings = {
     xAxis: {
         title: '',
         labelRotation: 0,
-        autoTitle: true,
-        truncation: true,
     },
     yAxis: {
         title: 'Primary Axis',
@@ -233,7 +231,7 @@ function setupFormatPanel() {
     $('#closeBtn').on('click', function () {
         $('#formatPanel').hide();
     });
-    
+
     // Sidebar navigation
     $('.sidebar-item').on('click', function () {
         $('.sidebar-item').removeClass('active');
@@ -260,14 +258,17 @@ function setupFormatPanel() {
     });
 
     // Rotation button
-    $('.rotation-btn').on('click', function () {
-        $('.rotation-btn').removeClass('active');
-        $(this).addClass('active');
+    $('.rotation-btn')
+        .off('click')
+        .on('click', function () {
+            $('.rotation-btn').removeClass('active');
+            $(this).addClass('active');
 
-        const rotation = parseInt($(this).data('rotation'), 10);
-        chartSettings.xAxis.labelRotation = rotation;
-        updateChart();
-    });
+            const rotation = parseInt($(this).data('rotation'), 10);
+
+            chartSettings.xAxis.labelRotation = rotation;
+            updateChart();
+        });
 
     // Input field changes
     $('.form-input input').on('change', function () {
@@ -390,10 +391,6 @@ function handleButtonGroupChange(section, settingType, value) {
     } else if (section === 'y-axis') {
         if (settingType === 'Number Abbreviations') {
             chartSettings.yAxis.abbreviations = value === 'On';
-        }
-    } else if (section === 'x-axis') {
-        if (settingType === 'Auto Title') {
-            chartSettings.xAxis.autoTitle = value === 'Yes';
         }
     } else if (section === 'legend') {
         if (settingType === 'Show Legend') {
@@ -546,14 +543,14 @@ function updateChart() {
     chartConfig.options.scales.x = chartConfig.options.scales.x || {};
     chartConfig.options.scales.x.title = chartConfig.options.scales.x.title || {};
 
-    if (!chartSettings.xAxis.autoTitle) {
+    if (chartSettings.xAxis.title && chartSettings.xAxis.title.trim() !== '') {
         chartConfig.options.scales.x.title.display = true;
         chartConfig.options.scales.x.title.text = chartSettings.xAxis.title;
     } else {
         chartConfig.options.scales.x.title.display = false;
     }
 
-    // Apply label rotation - Fixed to properly set rotation
+    // Apply label rotation
     chartConfig.options.scales.x.ticks = chartConfig.options.scales.x.ticks || {};
     chartConfig.options.scales.x.ticks.maxRotation = chartSettings.xAxis.labelRotation;
     chartConfig.options.scales.x.ticks.minRotation = chartSettings.xAxis.labelRotation;
