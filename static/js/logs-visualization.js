@@ -203,6 +203,16 @@ function setupFormatPanel() {
     $('#closeBtn').on('click', function () {
         $('#formatPanel').hide();
     });
+    
+    // Sidebar navigation
+    $('.sidebar-item').on('click', function () {
+        $('.sidebar-item').removeClass('active');
+        $(this).addClass('active');
+
+        const section = $(this).data('section');
+        $('.content-section').hide();
+        $(`#${section}-section`).show();
+    });
 
     // Button group selection
     $('.button-group .group-btn').on('click', function () {

@@ -1000,9 +1000,10 @@ html[data-theme="dark"] .icon-container svg {
     font-weight: 500;
 }
 
-.content {
+.content-section {
     flex: 1;
     padding: 15px;
+    min-height: 330px;
 }
 
 .form-row {
@@ -1131,4 +1132,53 @@ html[data-theme="dark"] .icon-container svg {
 .tag-option:hover {
     background: var(--index-drop-down-item-hover-bg-color);
     color: var(--index-drop-down-item-hover-text-color);
+}
+
+.rotation-options {
+    display: flex;
+    gap: 8px;
+}
+
+.rotation-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-color-regular);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.rotation-btn:hover,
+.rotation-btn.active {
+    border-color: var(--purple-1);
+    font-weight: 500;
+    background: var(--index-drop-down-item-hover-bg-color);
+}
+
+.rotation-icon {
+    display: inline-block;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.rotation-0 {
+    transform: rotate(0deg);
+}
+
+.rotation-neg45 {
+    transform: rotate(-45deg);
+}
+
+.rotation-neg90 {
+    transform: rotate(-90deg);
+}
+
+.rotation-45 {
+    transform: rotate(45deg);
+}
+
+.rotation-90 {
+    transform: rotate(90deg);
 }
