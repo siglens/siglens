@@ -56,7 +56,7 @@ $('.visualization-type-options li').on('click', function () {
     $('.visualization-type button span').text(selectedText);
 
     // Only call timeChart if the chart type actually changes
-    const newChartType = selectedText === 'Column Chart' ? 'bar' : 'line';
+    const newChartType = selectedText === 'Bar Chart' ? 'bar' : 'line';
 
     if (newChartType !== currentChartType) {
         currentChartType = newChartType;
@@ -115,7 +115,7 @@ function timeChart(qtype) {
 
     const columnChartEl = $('#columnChart');
     if (!columnChartEl.length) {
-        console.error('Column chart element not found');
+        console.error('Bar chart element not found');
         return;
     }
 
@@ -124,7 +124,6 @@ function timeChart(qtype) {
 
     const ctx = columnChartEl.find('canvas')[0].getContext('2d');
     const fontSize = measureInfo.length > 10 ? 10 : 12;
-    const rotateLabels = measureInfo.length > 10 ? 45 : 0;
 
     const { gridLineColor, tickColor } = getGraphGridColors();
 
@@ -143,8 +142,6 @@ function timeChart(qtype) {
                         font: {
                             size: fontSize,
                         },
-                        maxRotation: rotateLabels,
-                        minRotation: rotateLabels,
                         color: tickColor,
                     },
                     grid: {

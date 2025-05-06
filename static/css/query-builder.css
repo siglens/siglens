@@ -1148,6 +1148,8 @@ html[data-theme="dark"] .icon-container svg {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    background: var(--timepicker-bg-color);
+    color: var(--table-or-regular-text-color);
 }
 
 .rotation-btn:hover,
@@ -1155,6 +1157,7 @@ html[data-theme="dark"] .icon-container svg {
     border-color: var(--purple-1);
     font-weight: 500;
     background: var(--index-drop-down-item-hover-bg-color);
+    color: var(--text-color);
 }
 
 .rotation-icon {
