@@ -765,7 +765,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 10px;
-    padding: 10px;
+    padding: 16px;
     background: var(--black1-to-white0)
 }
 
@@ -961,8 +961,8 @@ html[data-theme="dark"] .icon-container svg {
 
 .format-panel {
     position: absolute;
-    top: 70px;
-    left: 10px;
+    top: 80px;
+    left: 150px;
     width: 550px;
     background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
@@ -1000,9 +1000,10 @@ html[data-theme="dark"] .icon-container svg {
     font-weight: 500;
 }
 
-.content {
+.content-section {
     flex: 1;
     padding: 15px;
+    min-height: 330px;
 }
 
 .form-row {
@@ -1131,4 +1132,48 @@ html[data-theme="dark"] .icon-container svg {
 .tag-option:hover {
     background: var(--index-drop-down-item-hover-bg-color);
     color: var(--index-drop-down-item-hover-text-color);
+}
+
+.rotation-options {
+    display: flex;
+    gap: 8px;
+}
+
+.rotation-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-color-regular);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: var(--timepicker-bg-color);
+    color: var(--table-or-regular-text-color);
+}
+
+.rotation-btn:hover,
+.rotation-btn.active {
+    border-color: var(--purple-1);
+    font-weight: 500;
+    background: var(--index-drop-down-item-hover-bg-color);
+    color: var(--text-color);
+}
+
+.rotation-icon {
+    display: inline-block;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.rotation-0 {
+    transform: rotate(0deg);
+}
+
+.rotation-neg45 {
+    transform: rotate(-45deg);
+}
+
+.rotation-neg90 {
+    transform: rotate(-90deg);
 }
