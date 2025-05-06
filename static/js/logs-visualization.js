@@ -95,16 +95,15 @@ function timeChart(qtype) {
     var xData = measureInfo.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy));
 
     var datasets = measureFunctions.map(function (measureFunction, index) {
-        // Generate colors based on index (you can customize this)
-        const hue = (index * 137) % 360; // Spread colors evenly
-        const color = `hsl(${hue}, 70%, 60%)`;
+        const colorIndex = index % globalColorArray.length;
+        const color = globalColorArray[colorIndex];
 
         return {
             label: measureFunction,
             data: measureInfo.map(function (item) {
                 return item.MeasureVal[measureFunction] || 0;
             }),
-            backgroundColor: color,
+            backgroundColor: currentChartType === 'line' ? color + '70' : color,
             borderColor: color,
             borderWidth: 1,
         };
@@ -652,7 +651,7 @@ function updateChart() {
                 dataset.pointRadius = 2;
                 dataset.pointHoverRadius = 4;
                 dataset.pointHoverBorderWidth = 2;
-                dataset.pointHoverBackgroundColor = dataset.borderColor;
+                dataset.pointHoverBackgroundColor = dataset.borderColor + '70';
                 dataset.pointHoverBorderColor = dataset.borderColor;
                 dataset.borderWidth = 2;
                 dataset.tension = 0.1;
