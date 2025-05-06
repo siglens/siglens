@@ -765,7 +765,7 @@ div.show-record-popup .ui-dialog-buttonpane button {
     border: 1px solid var(--search-input-border);
     box-shadow: var(--box-shadow);
     border-radius: 10px;
-    padding: 10px;
+    padding: 16px;
     background: var(--black1-to-white0)
 }
 
@@ -961,8 +961,8 @@ html[data-theme="dark"] .icon-container svg {
 
 .format-panel {
     position: absolute;
-    top: 70px;
-    left: 10px;
+    top: 80px;
+    left: 150px;
     width: 550px;
     background: var(--timepicker-bg-color);
     border: 1px solid var(--timepicker-border-color);
