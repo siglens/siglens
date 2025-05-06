@@ -27,6 +27,7 @@ type Streamer interface {
 	Fetch() (*iqr.IQR, error)
 	Rewind()
 	Cleanup()
+	String() string
 }
 
 type CachedStream struct {
@@ -79,4 +80,8 @@ func (cs *CachedStream) IsExhausted() bool {
 
 func (cs *CachedStream) Cleanup() {
 	cs.stream.Cleanup()
+}
+
+func (cs CachedStream) String() string {
+	return cs.stream.String()
 }
