@@ -127,6 +127,8 @@ function timeChart(qtype) {
     const fontSize = measureInfo.length > 10 ? 10 : 12;
     const rotateLabels = measureInfo.length > 10 ? 45 : 0;
 
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
     window.myBarChart = new Chart(ctx, {
         type: currentChartType,
         data: {
@@ -144,10 +146,20 @@ function timeChart(qtype) {
                         },
                         maxRotation: rotateLabels,
                         minRotation: rotateLabels,
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
                     },
                 },
                 y: {
                     beginAtZero: true,
+                    ticks: {
+                        color: tickColor,
+                    },
+                    grid: {
+                        color: gridLineColor,
+                    },
                 },
             },
             plugins: {
@@ -159,6 +171,7 @@ function timeChart(qtype) {
                         font: {
                             size: 12,
                         },
+                        color: tickColor,
                     },
                 },
                 tooltip: {
@@ -719,4 +732,20 @@ function applyChartOverlay(chartConfig) {
             dataset.fill = false;
         }
     });
+}
+
+function updateTimeChartTheme() {
+    if (!window.myBarChart) return;
+
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
+    window.myBarChart.options.scales.x.grid.color = gridLineColor;
+    window.myBarChart.options.scales.x.ticks.color = tickColor;
+
+    window.myBarChart.options.scales.y.grid.color = gridLineColor;
+    window.myBarChart.options.scales.y.ticks.color = tickColor;
+
+    window.myBarChart.options.plugins.legend.labels.color = tickColor;
+
+    window.myBarChart.update();
 }

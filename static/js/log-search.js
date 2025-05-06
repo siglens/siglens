@@ -131,6 +131,9 @@ $(document).ready(async () => {
     $('body').css('cursor', 'default');
 
     $('.theme-btn').on('click', themePickerHandler);
+    $('.theme-btn').on('click', function () {
+        updateTimeChartTheme();
+    });
     let ele = $('#available-fields .select-unselect-header');
 
     if (theme === 'light') {
