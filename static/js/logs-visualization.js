@@ -664,6 +664,8 @@ function updateChart() {
 }
 
 function applyChartOverlay(chartConfig) {
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
     // Secondary y-axis (y1)
     chartConfig.options.scales.y1 = {
         type: 'linear',
@@ -675,7 +677,11 @@ function applyChartOverlay(chartConfig) {
         },
         grid: {
             drawOnChartArea: false,
+            color: gridLineColor
         },
+        ticks: {
+            color: tickColor
+        }
     };
 
     // Apply min value if set
@@ -743,6 +749,11 @@ function updateTimeChartTheme() {
 
     window.myBarChart.options.scales.y.grid.color = gridLineColor;
     window.myBarChart.options.scales.y.ticks.color = tickColor;
+
+    if (window.myBarChart.options.scales.y1) {
+        window.myBarChart.options.scales.y1.grid.color = gridLineColor;
+        window.myBarChart.options.scales.y1.ticks.color = tickColor;
+    }
 
     window.myBarChart.options.plugins.legend.labels.color = tickColor;
 
