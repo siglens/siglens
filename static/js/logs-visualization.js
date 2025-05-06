@@ -627,6 +627,26 @@ function updateChart() {
     chartConfig.options.plugins.legend.display = chartSettings.legend.show;
     chartConfig.options.plugins.legend.position = chartSettings.legend.position;
 
+    if (currentChartType === 'line') {
+        // Configure global line chart options
+        chartConfig.options.elements = chartConfig.options.elements || {};
+        chartConfig.options.elements.point = chartConfig.options.elements.point || {};
+        chartConfig.options.elements.line = chartConfig.options.elements.line || {};
+
+        // Apply these properties to individual datasets
+        chartConfig.data.datasets.forEach((dataset) => {
+            if (dataset.type === 'line' || currentChartType === 'line') {
+                dataset.pointRadius = 2;
+                dataset.pointHoverRadius = 4;
+                dataset.pointHoverBorderWidth = 2;
+                dataset.pointHoverBackgroundColor = dataset.borderColor;
+                dataset.pointHoverBorderColor = dataset.borderColor;
+                dataset.borderWidth = 2;
+                dataset.tension = 0.1;
+                dataset.fill = false;
+            }
+        });
+    }
     // Update the chart
     window.myBarChart.update();
 }
@@ -689,12 +709,14 @@ function applyChartOverlay(chartConfig) {
             dataset.fill = false;
             dataset.order = 0;
 
-            if (!dataset.pointRadius) {
-                dataset.pointRadius = 3;
-            }
-            if (!dataset.borderWidth) {
-                dataset.borderWidth = 2;
-            }
+            dataset.pointRadius = 2;
+            dataset.pointHoverRadius = 4;
+            dataset.pointHoverBorderWidth = 2;
+            dataset.pointHoverBackgroundColor = dataset.borderColor;
+            dataset.pointHoverBorderColor = dataset.borderColor;
+            dataset.borderWidth = 2;
+            dataset.tension = 0.1;
+            dataset.fill = false;
         }
     });
 }
