@@ -95,6 +95,10 @@ func (ms *mockStreamer) Rewind() {
 
 func (ms *mockStreamer) Cleanup() {}
 
+func (ms mockStreamer) String() string {
+	return "<mock streamer>"
+}
+
 func Test_Fetch_nonBottleneck(t *testing.T) {
 	stream := &mockStreamer{
 		allRecords: map[string][]utils.CValueEnclosure{
@@ -280,8 +284,10 @@ func Test_Fetch_multipleStreams(t *testing.T) {
 	}
 
 	dp := &DataProcessor{
-		streams:         []*CachedStream{{stream1, nil, false}, {stream2, nil, false}},
-		less:            less,
+		streams: []*CachedStream{{stream1, nil, false}, {stream2, nil, false}},
+		mergeSettings: mergeSettings{
+			less: less,
+		},
 		processor:       &passThroughProcessor{},
 		isBottleneckCmd: false,
 		processorLock:   &sync.Mutex{},

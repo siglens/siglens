@@ -19,6 +19,7 @@ package structs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -145,6 +146,19 @@ type SortExpr struct {
 	SortRecords           map[string]map[string]interface{}
 	NumProcessedSegments  uint64
 	processedSegmentsLock sync.Mutex
+}
+
+func (e *SortExpr) ShallowCopy() *SortExpr {
+	return &SortExpr{
+		SortEles:      e.SortEles,
+		SortAscending: e.SortAscending,
+		Limit:         e.Limit,
+
+		// These aren't used.
+		SortRecords:           nil,
+		NumProcessedSegments:  0,
+		processedSegmentsLock: sync.Mutex{},
+	}
 }
 
 type SortElement struct {
@@ -418,6 +432,37 @@ const (
 	MVEMMultiValueExpr = iota // only used when mode is a MultiValueExpr
 	MVEMField
 )
+
+var timeFormatReplacements = []struct {
+	key string
+	val string
+}{
+	{"%d", "02"},
+	{"%m", "01"},
+	{"%Y", "2006"},
+	{"%H", "15"},
+	{"%I", "03"},
+	{"%p", "PM"},
+	{"%M", "04"},
+	{"%S", "05"},
+	{"%b", "Jan"},
+	{"%B", "January"},
+	{"%y", "06"},
+	{"%e", "2"},
+	{"%a", "Mon"},
+	{"%A", "Monday"},
+	{"%w", "Monday"},
+	{"%j", "002"},
+	{"%U", "00"},
+	{"%W", "00"},
+	{"%V", "00"},
+	{"%z", "-0700"},
+	{"%Z", "MST"},
+	{"%c", "Mon Jan  2 15:04:05 2006"},
+	{"%x", "01/02/06"},
+	{"%X", "15:04:05"},
+	{"%%", "%"},
+}
 
 func (self *DedupExpr) AcquireProcessedSegmentsLock() {
 	self.processedSegmentsLock.Lock()
@@ -2285,35 +2330,9 @@ func formatTime(t time.Time, format string) string {
 
 // parseTime parses a string into a time.Time object based on the provided format string, using mappings for Go's time package.
 func parseTime(dateStr, format string) (time.Time, error) {
-	replacements := map[string]string{
-		"%d": "02",
-		"%m": "01",
-		"%Y": "2006",
-		"%H": "15",
-		"%I": "03",
-		"%p": "PM",
-		"%M": "04",
-		"%S": "05",
-		"%b": "Jan",
-		"%B": "January",
-		"%y": "06",
-		"%e": "2",
-		"%a": "Mon",
-		"%A": "Monday",
-		"%w": "Monday",
-		"%j": "002",
-		"%U": "00",
-		"%W": "00",
-		"%V": "00",
-		"%z": "-0700",
-		"%Z": "MST",
-		"%c": "Mon Jan  2 15:04:05 2006",
-		"%x": "01/02/06",
-		"%X": "15:04:05",
-		"%%": "%",
-	}
-	for k, v := range replacements {
-		format = strings.ReplaceAll(format, k, v)
+
+	for _, r := range timeFormatReplacements {
+		format = strings.ReplaceAll(format, r.key, r.val)
 	}
 
 	// Check if format contains only time components (%H, %I, %M, %S, %p) and no date components (%d, %m, %Y, etc.)
@@ -2839,11 +2858,11 @@ func getValueAsString(fieldToValue map[string]utils.CValueEnclosure, field strin
 func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string) (float64, error) {
 	enclosure, ok := fieldToValue[field]
 	if !ok {
-		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsFloat: Missing field %v", field))
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Missing field"))
 	}
 
 	if enclosure.IsNull() {
-		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, fmt.Errorf("getValueAsFloat: Field %v is null", field))
+		return 0, toputils.NewErrorWithCode(toputils.NIL_VALUE_ERR, errors.New("getValueAsFloat: Field was null"))
 	}
 
 	if value, err := enclosure.GetFloatValue(); err == nil {
@@ -2857,7 +2876,7 @@ func getValueAsFloat(fieldToValue map[string]utils.CValueEnclosure, field string
 		}
 	}
 
-	return 0, toputils.NewErrorWithCode(toputils.CONVERSION_ERR, fmt.Errorf("getValueAsFloat: Cannot convert CValueEnclosure %v to float", enclosure))
+	return 0, toputils.NewErrorWithCode(toputils.CONVERSION_ERR, errors.New("getValueAsFloat: Cannot convert CValueEnclosure to float"))
 }
 
 func (self *SortValue) Compare(other *SortValue) (int, error) {

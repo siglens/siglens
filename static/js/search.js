@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+//eslint-disable-next-line no-unused-vars
 let lastQType = '';
 let lastColumnsOrder = [];
 
@@ -1038,156 +1039,27 @@ function parseInterval(interval) {
     }
 }
 
-function timeChart(qtype) {
-    // Check if measureInfo is defined and contains at least one item
-    qtype = qtype || lastQType;
-    if (isTimechart || qtype === 'aggs-query') {
-        $('#columnChart').show();
-        $('#hideGraph').hide();
-    } else {
-        $('#columnChart').hide();
-        $('#hideGraph').show();
-        return;
-    }
-
-    if (!measureInfo || measureInfo.length === 0) {
-        return;
-    }
-
-    // Ensure all items in measureInfo have GroupByValues property before proceeding
-    const hasGroupByValues = measureInfo.every((item) => item.GroupByValues);
-
-    if (!hasGroupByValues) {
-        return;
-    }
-
-    // Check if there are multiple group-by columns
-    var multipleGroupBy = measureInfo[0].GroupByValues.length > 1;
-
-    // Determine the font size and rotation based on the number of data points
-    var fontSize = measureInfo.length > 10 ? 10 : 12;
-    var rotateLabels = measureInfo.length > 10 ? 45 : 0;
-
-    var xData = measureInfo.map((item) => formatGroupByValues(item.GroupByValues, multipleGroupBy));
-
-    var seriesData = measureFunctions.map(function (measureFunction) {
-        return {
-            name: measureFunction,
-            type: 'bar',
-            data: measureInfo.map(function (item) {
-                return item.MeasureVal[measureFunction] || 0;
-            }),
-        };
-    });
-
-    // ECharts configuration
-    var option = {
-        tooltip: {
-            trigger: 'item',
-            formatter: function (params) {
-                return params.seriesName + ': ' + params.value;
-            },
-        },
-        legend: {
-            textStyle: {
-                color: '#6e7078',
-                fontSize: 12,
-            },
-            data: measureFunctions,
-            type: 'scroll', // Enable folding functionality
-            orient: 'vertical',
-            right: 10,
-            top: 'middle',
-            align: 'left',
-            height: '70%',
-            width: 150,
-        },
-        grid: {
-            left: 10,
-            right: 220,
-            containLabel: true,
-        },
-        xAxis: {
-            type: 'category',
-            data: xData,
-            scale: true,
-            splitLine: { show: false },
-            axisLabel: {
-                fontSize: fontSize,
-                rotate: rotateLabels,
-            },
-        },
-        yAxis: {
-            type: 'value',
-            scale: true,
-            splitLine: { show: false },
-        },
-        series: seriesData,
-    };
-
-    // Initialize ECharts
-    let chart = echarts.init($('#columnChart')[0]);
-    chart.clear(); // Clear previous data
-    // Set the configuration to the chart
-    chart.setOption(option);
-
-    // Ensure the chart resizes properly
-    chart.resize();
-
-    // Made the chart responsive
-    $(window).on('resize', function () {
-        chart.resize();
-    });
-}
-
-function formatGroupByValues(groupByValues, multipleGroupBy) {
-    if (multipleGroupBy) {
-        return groupByValues.map(convertIfTimestamp).join(', ');
-    } else {
-        return convertIfTimestamp(groupByValues[0]);
-    }
-}
-
-function convertTimestamp(timestampString) {
-    var timestamp = parseInt(timestampString);
-    var date = new Date(timestamp);
-
-    var year = date.getFullYear();
-    var month = ('0' + (date.getMonth() + 1)).slice(-2);
-    var day = ('0' + date.getDate()).slice(-2);
-
-    var hours = ('0' + date.getHours()).slice(-2);
-    var minutes = ('0' + date.getMinutes()).slice(-2);
-    var seconds = ('0' + date.getSeconds()).slice(-2);
-
-    var readableDate = year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
-    return readableDate;
-}
-
-function convertIfTimestamp(value) {
-    // Check if the value is a valid timestamp (e.g., length and date after 1970)
-    const isTimestamp = !isNaN(value) && value.length === 13 && new Date(parseInt(value)).getTime() > 0;
-    if (isTimestamp) {
-        return convertTimestamp(value);
-    }
-    return value;
-}
-
 function codeToBuilderParsing(filterValue) {
     if (filterValue.indexOf('|') != -1) {
         firstBoxSet = new Set(filterValue.split(' | ')[0].match(/(?:[^\s"]+|"[^"]*")+/g));
-        secondBoxSet = new Set(
-            filterValue
-                .split('stats ')[1]
-                .split(' BY')[0]
-                .split(/(?=[A-Z])/)
-        );
+
+        if (filterValue.includes('stats ')) {
+            const statsSection = filterValue.split('stats ')[1].split(' BY')[0].trim();
+            secondBoxSet = new Set(statsSection.split(',').map((item) => item.trim()));
+        }
+
         if (filterValue.includes(' BY ')) {
-            thirdBoxSet = new Set(filterValue.split(' BY ')[1].split(','));
+            thirdBoxSet = new Set(
+                filterValue
+                    .split(' BY ')[1]
+                    .split(',')
+                    .map((item) => item.trim())
+            );
         }
     } else {
         firstBoxSet = new Set(filterValue.match(/(?:[^\s"]+|"[^"]*")+/g));
     }
+
     if (firstBoxSet && firstBoxSet.size > 0) {
         let tags = document.getElementById('tags');
         while (tags.firstChild) {
@@ -1202,6 +1074,7 @@ function codeToBuilderParsing(filterValue) {
             tags.appendChild(tag);
         });
     }
+
     if (secondBoxSet && secondBoxSet.size > 0) {
         let tags = document.getElementById('tags-second');
         while (tags.firstChild) {
@@ -1216,6 +1089,7 @@ function codeToBuilderParsing(filterValue) {
             tags.appendChild(tag);
         });
     }
+
     if (thirdBoxSet && thirdBoxSet.size > 0) {
         let tags = document.getElementById('tags-third');
         while (tags.firstChild) {
@@ -1227,10 +1101,10 @@ function codeToBuilderParsing(filterValue) {
             // Add a delete button to the tag
             tag.innerHTML += '<button class="delete-button">×</button>';
             // Append the tag to the tags list
-
             tags.appendChild(tag);
         });
     }
+
     if (thirdBoxSet.size > 0) $('#aggregations').hide();
     else $('#aggregations').show();
     if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();

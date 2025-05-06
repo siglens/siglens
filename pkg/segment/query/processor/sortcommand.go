@@ -315,3 +315,11 @@ func (p *sortProcessor) GetFinalResultIfExists() (*iqr.IQR, bool) {
 
 	return nil, false
 }
+
+func (p *sortProcessor) GetLimit() uint64 {
+	if p.options == nil {
+		return 0
+	}
+
+	return p.options.Limit
+}

@@ -155,6 +155,7 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
 	measureResults := make([]utils.CValueEnclosure, len(internalMops))
+	unsetRecord := make(map[string]utils.CValueEnclosure)
 
 	for i := 0; i < numOfRecords; i++ {
 		bucketKeyBufIdx := 0
@@ -220,7 +221,8 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 				measureResults[idx] = *cValue
 			}
 		}
-		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults, groupByColVal, true, qid)
+		blkResults.AddMeasureResultsToKey(p.bucketKeyWorkingBuf[:bucketKeyBufIdx], measureResults,
+			groupByColVal, true, qid, unsetRecord)
 	}
 
 	if len(byField) > 0 {

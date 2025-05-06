@@ -26,19 +26,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func SliceContainsString(slice []string, s string) bool {
+func SliceHas[T comparable](slice []T, item T) bool {
 	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-
-	return false
-}
-
-func SliceContainsInt(slice []int, x int) bool {
-	for _, v := range slice {
-		if v == x {
+		if v == item {
 			return true
 		}
 	}

@@ -983,7 +983,7 @@ func performStreamStatsOnHistogram(nodeResult *structs.NodeResult, ssOption *str
 
 			for _, measureAgg := range measureAggs {
 				// Check if the column to create already exists and is a GroupBy column.
-				isGroupByCol := putils.SliceContainsString(nodeResult.GroupByCols, measureAgg.String())
+				isGroupByCol := putils.SliceHas(nodeResult.GroupByCols, measureAgg.String())
 
 				streamStatsResult, resultPresent := record[measureAgg.String()]
 				if !resultPresent {

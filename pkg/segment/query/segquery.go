@@ -613,10 +613,6 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 	limitAgileAggsTreeBuckets := canUseBucketLimitedAgileAggsTree(sortedQSRSlice, queryInfo)
 	var agileTreeBuckets map[string]struct{}
 	var agileTreeBuf []byte
-	if config.IsAggregationsEnabled() && queryInfo.qType == structs.GroupByCmd &&
-		queryInfo.sNodeType == structs.MatchAllQuery {
-		agileTreeBuf = make([]byte, 300_000_000)
-	}
 
 	doBuckPull := false
 	rrcsCompleted := false
@@ -668,6 +664,9 @@ func applyFopAllRequests(sortedQSRSlice []*QuerySegmentRequest, queryInfo *Query
 			doAgileTree, str := canUseAgileTree(segReq, queryInfo)
 
 			if doAgileTree {
+				// todo take this from a pool
+				agileTreeBuf = utils.ResizeSlice(agileTreeBuf, 300_000_000)
+
 				sTime := time.Now()
 
 				if limitAgileAggsTreeBuckets {

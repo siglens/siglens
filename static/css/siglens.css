@@ -4405,10 +4405,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     text-align: center;
 }
 
-#logout-btn {
-    width: 80px;
-}
-
 .org-settings {
     width: 850px;
 }
@@ -7650,6 +7646,7 @@ p#versionInfo {
     right: 0;
     height: 40px;
     border-bottom: 1px solid var(--alerting-table-line-color);
+    z-index: 2;
 }
 
 /* Hamburger Icon */
@@ -7660,7 +7657,6 @@ p#versionInfo {
     align-items: center;
     height: 24px;
     margin-right: 16px;
-    z-index: 1011;
     border-radius: 4px;
     background-color: var(--drop-down-btn-bg-regular);
 }
