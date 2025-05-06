@@ -78,7 +78,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	}
 	timeRange := &dtu.TimeRange{
 		StartEpochMs: 1,
-		EndEpochMs:   5,
+		EndEpochMs:   20,
 	}
 	node := &structs.SearchNode{
 		AndSearchConditions: &structs.SearchCondition{
@@ -91,7 +91,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	searchReq.SType = structs.RAW_SEARCH
 	rawSearchColumnar(searchReq, node, timeRange, 10000, nil, 1, allSegFileResults, 1, querySummary, &structs.NodeResult{})
 	assert.Len(t, allSegFileResults.GetAllErrors(), 0)
-	assert.Equal(t, numBuffers*5, len(allSegFileResults.GetResults()))
+	assert.Equal(t, numBuffers*numEntriesForBuffer, len(allSegFileResults.GetResults()))
 	assert.Equal(t, allSegFileResults.GetTotalCount(), uint64(len(allSegFileResults.GetResults())))
 
 	config.SetPQSEnabled(true)
