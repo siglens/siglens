@@ -56,7 +56,7 @@ $('#custom-chart-tab').tabs({
         let currentTab = $('#custom-chart-tab').tabs('option', 'active');
         if (currentTab == 0) {
             $('#save-query-div').children().show();
-            if(lastQType === 'logs-query'){
+            if (lastQType === 'logs-query') {
                 $('#views-container, .fields-sidebar, .expand-svg-container').show();
             }
             $('#pagination-container').show();
@@ -74,12 +74,22 @@ $('#custom-chart-tab').tabs({
 //cancel -> "   "
 //running -> "    "
 $(document).ready(function () {
-    $('#add-con').on('click', filterStart);
-    $('#filter-box-1').on('click', filterStart);
+    $('#add-con')
+        .off('click')
+        .on('click', function (e) {
+            e.stopPropagation();
+            filterStart(e);
+        });
+    $('#filter-box-1').off('click').on('click', filterStart);
     $('#add-con-second').on('click', secondFilterStart);
     $('#filter-box-2').on('click', secondFilterStart);
-    $('#add-con-third').on('click', ThirdFilterStart);
-    $('#filter-box-3').on('click', ThirdFilterStart);
+    $('#add-con-third')
+        .off('click')
+        .on('click', function (e) {
+            e.stopPropagation();
+            ThirdFilterStart(e);
+        });
+    $('#filter-box-3').off('click').on('click', ThirdFilterStart);
     $('#completed').on('click', filterComplete);
     $('#completed-second').on('click', secondFilterComplete);
     $('#cancel-enter').on('click', cancelInfo);
@@ -712,3 +722,438 @@ $(document).click(function (event) {
         $('#setting-container').hide();
     }
 });
+
+let originalTagContent = null;
+let isCurrentlyEditing = false;
+
+$('#tags').on('click', 'li', function (event) {
+    if (!$(event.target).hasClass('delete-button') && event.target.tagName !== 'BUTTON') {
+        event.stopPropagation();
+
+        if (isCurrentlyEditing) return;
+        isCurrentlyEditing = true;
+
+        const tagElement = $(this);
+        originalTagContent = tagElement.text();
+        originalTagContent = originalTagContent.substring(0, originalTagContent.length - 1);
+
+        let column, symbol, value;
+
+        if (originalTagContent.includes('=') || originalTagContent.includes('!=') || originalTagContent.includes('<=') || originalTagContent.includes('>=') || originalTagContent.includes('>') || originalTagContent.includes('<')) {
+            const symbols = ['!=', '<=', '>=', '=', '>', '<'];
+            let foundSymbol = '';
+            for (const sym of symbols) {
+                if (originalTagContent.includes(sym)) {
+                    foundSymbol = sym;
+                    break;
+                }
+            }
+
+            const parts = originalTagContent.split(foundSymbol);
+            column = parts[0].trim();
+            symbol = foundSymbol;
+
+            value = parts[1].trim();
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.substring(1, value.length - 1);
+                ifCurIsNum = false;
+            } else {
+                ifCurIsNum = true;
+            }
+        }
+
+        firstBoxSet.delete(originalTagContent);
+        tagElement.hide();
+
+        $('#filter-box-1').off('click');
+        $('#add-con').off('click');
+
+        $('#filter-box-1').addClass('select-box');
+        $('#add-con').hide();
+        $('#cancel-enter').show();
+        $('#add-filter').show();
+        $('#add-filter').css({ visibility: 'visible' });
+        $('#completed').show();
+
+        $('#column-first').attr('type', 'text').val(column);
+        $('#symbol').attr('type', 'text').val(symbol);
+        $('#value-first').attr('type', 'text').val(value);
+
+        getColumns().then((columnsNames) => {
+            $('#column-first')
+                .autocomplete({
+                    source: columnsNames.sort(),
+                    minLength: 0,
+                    maxheight: 100,
+                    select: async function (_event, ui) {
+                        $('#symbol').attr('type', 'text');
+
+                        let chooseColumn = ui.item.value.trim();
+                        const columnData = await getValuesForColumn(chooseColumn);
+                        const columnValues = columnData.values;
+                        const isNumericColumn = columnData.isNumeric;
+
+                        if (isNumericColumn) {
+                            availSymbol = ['=', '!=', '<=', '>=', '>', '<'];
+                            ifCurIsNum = true;
+                        } else {
+                            availSymbol = ['=', '!='];
+                            ifCurIsNum = false;
+                        }
+
+                        setupSymbolField();
+                        setupValueField(columnValues);
+
+                        checkFirstBox(0);
+                    },
+                })
+                .on('focus', function () {
+                    if (!$(this).val().trim()) $(this).keydown();
+                });
+
+            function setupSymbolField() {
+                $('#symbol')
+                    .autocomplete({
+                        source: availSymbol,
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            $('#value-first').attr('type', 'text');
+                            $('#completed').show();
+
+                            checkFirstBox(1);
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+            }
+
+            function setupValueField(columnValues) {
+                $('#value-first')
+                    .autocomplete({
+                        source: columnValues || [],
+                        minLength: 0,
+                        select: function (_event, _ui) {
+                            checkFirstBox(2);
+                        },
+                    })
+                    .on('focus', function () {
+                        if (!$(this).val().trim()) $(this).keydown();
+                    });
+            }
+
+            if (column) {
+                getValuesForColumn(column).then((columnData) => {
+                    const columnValues = columnData.values;
+
+                    setupSymbolField();
+                    setupValueField(columnValues);
+                });
+            } else {
+                $('#column-first').focus();
+            }
+        });
+
+        checkFirstBox(3);
+
+        $('#completed')
+            .off('click')
+            .on('click', function (e) {
+                if (originalTagContent) {
+                    firstBoxSet.delete(originalTagContent);
+                    originalTagContent = null;
+                }
+                tagElement.remove();
+                filterComplete(e);
+                $('#add-con, #filter-box-1').off('click').on('click', filterStart);
+                isCurrentlyEditing = false;
+            });
+
+        $('#cancel-enter')
+            .off('click')
+            .on('click', function (e) {
+                restoreOriginalFilter(tagElement);
+                cancelInfo(e);
+                $('#add-con, #filter-box-1').off('click').on('click', filterStart);
+                isCurrentlyEditing = false;
+            });
+
+        $(document)
+            .off('mousedown.filterEdit')
+            .on('mousedown.filterEdit', function (e) {
+                if (!$(e.target).closest('#add-filter').length && !$(e.target).closest('.ui-autocomplete').length && !$(e.target).closest('#tags li').length) {
+                    restoreOriginalFilter(tagElement);
+                    cancelInfo(e);
+                    $('#add-con, #filter-box-1').off('click').on('click', filterStart);
+                    isCurrentlyEditing = false;
+
+                    $(document).off('mousedown.filterEdit');
+                }
+            });
+
+        getSearchText();
+        if (firstBoxSet.size > 0) $('#search-filter-text').hide();
+        else $('#search-filter-text').show();
+    }
+});
+
+function restoreOriginalFilter(tagElement) {
+    if (originalTagContent) {
+        firstBoxSet.add(originalTagContent);
+        tagElement.show();
+        originalTagContent = null;
+
+        if (firstBoxSet.size > 0) $('#search-filter-text').hide();
+        else $('#search-filter-text').show();
+    }
+}
+
+let originalSecondTagContent = null;
+
+$('#tags-second').on('click', 'li', function (event) {
+    if (!$(event.target).hasClass('delete-button') && event.target.tagName !== 'BUTTON') {
+        event.stopPropagation();
+
+        if (isCurrentlyEditing) return;
+        isCurrentlyEditing = true;
+
+        const tagElement = $(this);
+        originalSecondTagContent = tagElement.text();
+        originalSecondTagContent = originalSecondTagContent.substring(0, originalSecondTagContent.length - 1);
+
+        let func, column;
+        if (originalSecondTagContent.includes('(') && originalSecondTagContent.includes(')')) {
+            const funcPart = originalSecondTagContent.split('(')[0].trim();
+            const columnPart = originalSecondTagContent.substring(originalSecondTagContent.indexOf('(') + 1, originalSecondTagContent.indexOf(')')).trim();
+
+            func = funcPart;
+            column = columnPart;
+        }
+
+        secondBoxSet.delete(originalSecondTagContent);
+        tagElement.hide();
+
+        $('#filter-box-2').off('click');
+        $('#add-con-second').off('click');
+
+        $('#column-second').attr('type', 'text').val(func);
+        $('#value-second').attr('type', 'text').val(column);
+
+        $('#filter-box-2').addClass('select-box');
+        $('#add-con-second').hide();
+        $('#cancel-enter-second').show();
+        $('#add-filter-second').show();
+        $('#add-filter-second').css({ visibility: 'visible' });
+        $('#completed-second').show();
+        $('#completed-second').attr('disabled', false);
+
+        async function setupColumnField() {
+            const columnsPromise = func === 'count' ? getColumns() : getNumericColumns();
+
+            const columnInfo = await columnsPromise;
+
+            $('#value-second')
+                .autocomplete({
+                    source: columnInfo.sort(),
+                    minLength: 0,
+                    select: function (_event, _ui) {
+                        $('#completed-second').attr('disabled', false);
+                    },
+                })
+                .on('focus', function () {
+                    if (!$(this).val().trim()) $(this).keydown();
+                });
+
+            $('#value-second').focus();
+        }
+
+        $('#column-second')
+            .autocomplete({
+                source: calculations.sort(),
+                minLength: 0,
+                maxheight: 100,
+                select: async function (_event, ui) {
+                    $('#value-second').attr('type', 'text');
+                    $('#completed-second').show();
+                    $('#value-second').val('');
+
+                    func = ui.item.value;
+
+                    await setupColumnField();
+                },
+            })
+            .on('focus', function () {
+                if (!$(this).val().trim()) $(this).keydown();
+            });
+
+        setupColumnField();
+
+        $('#column-second').focus();
+
+        $('#completed-second')
+            .off('click')
+            .on('click', function (e) {
+                if (originalSecondTagContent) {
+                    secondBoxSet.delete(originalSecondTagContent);
+                    originalSecondTagContent = null;
+                }
+                tagElement.remove();
+                secondFilterComplete(e);
+                $('#add-con-second, #filter-box-2').off('click').on('click', secondFilterStart);
+                isCurrentlyEditing = false;
+            });
+
+        $('#cancel-enter-second')
+            .off('click')
+            .on('click', function (e) {
+                restoreOriginalSecondFilter(tagElement);
+                secondCancelInfo(e);
+                $('#add-con-second, #filter-box-2').off('click').on('click', secondFilterStart);
+                isCurrentlyEditing = false;
+            });
+
+        $(document)
+            .off('mousedown.filterEdit2')
+            .on('mousedown.filterEdit2', function (e) {
+                if (!$(e.target).closest('#add-filter-second').length && !$(e.target).closest('.ui-autocomplete').length && !$(e.target).closest('#tags-second li').length) {
+                    restoreOriginalSecondFilter(tagElement);
+                    secondCancelInfo(e);
+                    $('#add-con-second, #filter-box-2').off('click').on('click', secondFilterStart);
+                    isCurrentlyEditing = false;
+
+                    $(document).off('mousedown.filterEdit2');
+                }
+            });
+
+        getSearchText();
+        if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
+        else $('#aggregate-attribute-text').show();
+    }
+});
+
+function restoreOriginalSecondFilter(tagElement) {
+    if (originalSecondTagContent) {
+        secondBoxSet.add(originalSecondTagContent);
+        tagElement.show();
+        originalSecondTagContent = null;
+
+        if (secondBoxSet.size > 0) $('#aggregate-attribute-text').hide();
+        else $('#aggregate-attribute-text').show();
+    }
+}
+
+let originalThirdTagContent = null;
+
+$('#tags-third').on('click', 'li', function (event) {
+    if (!$(event.target).hasClass('delete-button') && event.target.tagName !== 'BUTTON') {
+        event.stopPropagation();
+
+        if (isCurrentlyEditing) return;
+        isCurrentlyEditing = true;
+
+        const tagElement = $(this);
+        originalThirdTagContent = tagElement.text();
+        originalThirdTagContent = originalThirdTagContent.substring(0, originalThirdTagContent.length - 1);
+
+        thirdBoxSet.delete(originalThirdTagContent);
+        tagElement.hide();
+
+        $('#filter-box-3').addClass('select-box');
+        $('#column-third').attr('type', 'text').val(originalThirdTagContent);
+        $('#add-con-third').hide();
+        $('#add-filter-third').show();
+        $('#add-filter-third').css({ visibility: 'visible' });
+
+        getColumns().then((columnsNames) => {
+            $('#filter-box-3').off('click');
+            $('#add-con-third').off('click');
+
+            $('#column-third')
+                .autocomplete({
+                    source: columnsNames,
+                    minLength: 0,
+                    maxheight: 100,
+                    select: function (event, ui) {
+                        event.preventDefault();
+                        tagElement.remove();
+                        originalThirdTagContent = null;
+
+                        let tag = document.createElement('li');
+                        if (ui.item.value !== '') {
+                            if (thirdBoxSet.has(ui.item.value)) {
+                                alert('Duplicate filter!');
+                                return;
+                            } else {
+                                thirdBoxSet.add(ui.item.value);
+                            }
+
+                            tag.innerText = ui.item.value;
+                            tag.innerHTML += '<button class="delete-button">×</button>';
+                            tagThird.appendChild(tag);
+
+                            var dom = $('#tags-third');
+                            var x = dom[0].scrollWidth;
+                            dom[0].scrollLeft = x;
+
+                            $('#column-third').val('');
+                            $(this).blur();
+                            getSearchText();
+                        }
+
+                        if (thirdBoxSet.size > 0) $('#aggregations').hide();
+                        else $('#aggregations').show();
+
+                        ThirdCancelInfo(event);
+
+                        $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                        isCurrentlyEditing = false;
+
+                        return false;
+                    },
+                })
+                .on('focus', function () {
+                    if (!$(this).val().trim()) $(this).keydown();
+                });
+
+            $('#column-third').focus();
+        });
+
+        $(document)
+            .off('mousedown.filterEdit3')
+            .on('mousedown.filterEdit3', function (e) {
+                if (!$(e.target).closest('#add-filter-third').length && !$(e.target).closest('.ui-autocomplete').length && !$(e.target).closest('#tags-third li').length) {
+                    restoreOriginalThirdFilter(tagElement);
+                    ThirdCancelInfo(e);
+                    $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                    isCurrentlyEditing = false;
+
+                    $(document).off('mousedown.filterEdit3');
+                }
+            });
+
+        $('#cancel-enter-third')
+            .off('click')
+            .on('click', function (e) {
+                restoreOriginalThirdFilter(tagElement);
+                ThirdCancelInfo(e);
+                $('#add-con-third, #filter-box-3').off('click').on('click', ThirdFilterStart);
+                isCurrentlyEditing = false;
+            });
+
+        getSearchText();
+        if (thirdBoxSet.size > 0) $('#aggregations').hide();
+        else $('#aggregations').show();
+    }
+});
+
+function restoreOriginalThirdFilter(tagElement) {
+    if (originalThirdTagContent) {
+        thirdBoxSet.add(originalThirdTagContent);
+        tagElement.show();
+        originalThirdTagContent = null;
+
+        if (thirdBoxSet.size > 0) $('#aggregations').hide();
+        else $('#aggregations').show();
+        getSearchText();
+    }
+}
