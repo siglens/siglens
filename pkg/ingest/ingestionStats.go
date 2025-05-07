@@ -55,8 +55,8 @@ func ingestionMetricsLooper() {
 
 		allSegmetas := segwriter.ReadGlobalSegmetas()
 
-		allCnts := segwriter.GetVTableCountsForAll(0, allSegmetas)
-		segwriter.GetUnrotatedVTableCountsForAll(0, allCnts)
+		allCnts := segwriter.GetAllOrgsVTableCounts(allSegmetas)
+		segwriter.GetAllOrgsUnrotatedVTableCounts(allCnts)
 
 		uniqueIndexes, uniqueColumns, totalCmiSize, totalCsgSize, totalSegments := processSegmentAndIndexStats(allSegmetas, allCnts)
 

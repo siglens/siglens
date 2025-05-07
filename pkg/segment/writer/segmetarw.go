@@ -40,15 +40,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const ONE_MiB = 1024 * 1024
-const PQS_TICKER = 10 // seconds
-const PQS_FLUSH_SIZE = 100
-const PQS_CHAN_SIZE = 1000
+const (
+	ONE_MiB        = 1024 * 1024
+	PQS_TICKER     = 10 // seconds
+	PQS_FLUSH_SIZE = 100
+	PQS_CHAN_SIZE  = 1000
+)
 
 const siglensID = -7828473396868711293
 
-var smrLock sync.RWMutex = sync.RWMutex{}
-var localSegmetaFname string
+var (
+	smrLock           sync.RWMutex = sync.RWMutex{}
+	localSegmetaFname string
+)
 
 var SegmetaFilename = "segmeta.json"
 
@@ -70,7 +74,6 @@ type SegmentSizeStats struct {
 var pqsChan = make(chan PQSChanMeta, PQS_CHAN_SIZE)
 
 func initSmr() {
-
 	localSegmetaFname = GetLocalSegmetaFName()
 
 	fd, err := os.OpenFile(localSegmetaFname, os.O_RDONLY, 0666)
@@ -152,7 +155,6 @@ func readSfmForSegMetas(segmetas []*structs.SegMeta) {
 
 // read only the current node's segmeta
 func ReadLocalSegmeta(readFullMeta bool) []*structs.SegMeta {
-
 	smrLock.RLock()
 	segMetas, err := readSegMetaEntries(localSegmetaFname)
 	smrLock.RUnlock()
@@ -327,7 +329,6 @@ func GetAllSegmetaToMap(segMetaFilename string) (map[string]*structs.SegMeta, er
 }
 
 func readSegMetaEntries(segMetaFilename string) ([]*structs.SegMeta, error) {
-
 	allSegMetas := make([]*structs.SegMeta, 0)
 
 	fd, err := os.OpenFile(segMetaFilename, os.O_RDONLY, 0666)
@@ -364,7 +365,6 @@ func readSegMetaEntries(segMetaFilename string) ([]*structs.SegMeta, error) {
 }
 
 func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
-
 	allvtables := make(map[string]*structs.VtableCounts)
 
 	var ok bool
@@ -374,6 +374,27 @@ func GetVTableCountsForAll(orgid int64, allSegmetas []*structs.SegMeta) map[stri
 			continue
 		}
 		if segmeta.OrgId != orgid && orgid != siglensID {
+			continue
+		}
+		cnts, ok = allvtables[segmeta.VirtualTableName]
+		if !ok {
+			cnts = &structs.VtableCounts{}
+			allvtables[segmeta.VirtualTableName] = cnts
+		}
+		cnts.BytesCount += segmeta.BytesReceivedCount
+		cnts.RecordCount += uint64(segmeta.RecordCount)
+		cnts.OnDiskBytesCount += segmeta.OnDiskBytes
+	}
+	return allvtables
+}
+
+func GetAllOrgsVTableCounts(allSegmetas []*structs.SegMeta) map[string]*structs.VtableCounts {
+	allvtables := make(map[string]*structs.VtableCounts)
+
+	var ok bool
+	var cnts *structs.VtableCounts
+	for _, segmeta := range allSegmetas {
+		if segmeta == nil {
 			continue
 		}
 		cnts, ok = allvtables[segmeta.VirtualTableName]
@@ -580,7 +601,6 @@ func removeSegmetas(segkeysToRemove map[string]struct{}, indexName string) map[s
 }
 
 func BulkBackFillPQSSegmetaEntries(segkey string, pqidMap map[string]bool) {
-
 	sfmData, err := ReadSfm(segkey)
 	if err != nil {
 		return
@@ -722,7 +742,6 @@ func processBackFillAndEmptyPQSRequests(pqsRequests []PQSChanMeta) {
 }
 
 func DeletePQSData() error {
-
 	foundPqsidsInSegMeta := false
 	smrLock.Lock()
 	segmetaEntries, err := readSegMetaEntries(localSegmetaFname)
