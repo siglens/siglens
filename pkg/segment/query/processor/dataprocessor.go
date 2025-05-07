@@ -219,7 +219,18 @@ func (dp *DataProcessor) IsDataGenerator() bool {
 	case *gentimesProcessor:
 		return true
 	case *inputlookupProcessor:
+		// TODO: why does IsFirstCommand matter here? Maybe this function
+		// should be renamed; maybe we can merge this with GeneratesData().
 		return dp.processor.(*inputlookupProcessor).options.IsFirstCommand
+	default:
+		return false
+	}
+}
+
+func (dp *DataProcessor) GeneratesData() bool {
+	switch dp.processor.(type) {
+	case *gentimesProcessor, *inputlookupProcessor:
+		return true
 	default:
 		return false
 	}
