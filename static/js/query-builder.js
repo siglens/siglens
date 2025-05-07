@@ -801,7 +801,7 @@ $('#tags').on('click', 'li', function (event) {
                             ifCurIsNum = false;
                         }
 
-                        setupSymbolField(columnValues);
+                        setupSymbolField();
                         setupValueField(columnValues);
 
                         checkFirstBox(0);
@@ -811,7 +811,7 @@ $('#tags').on('click', 'li', function (event) {
                     if (!$(this).val().trim()) $(this).keydown();
                 });
 
-            function setupSymbolField(columnValues) {
+            function setupSymbolField() {
                 $('#symbol')
                     .autocomplete({
                         source: availSymbol,
@@ -846,7 +846,7 @@ $('#tags').on('click', 'li', function (event) {
                 getValuesForColumn(column).then((columnData) => {
                     const columnValues = columnData.values;
 
-                    setupSymbolField(columnValues);
+                    setupSymbolField();
                     setupValueField(columnValues);
                 });
             } else {
