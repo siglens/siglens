@@ -213,7 +213,7 @@ func rawSearchColumnar(searchReq *structs.SegmentSearchRequest, searchNode *stru
 	timeElapsed := time.Since(sTime)
 	querySummary.UpdateSummary(summary.RAW, timeElapsed, queryMetrics)
 
-	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid); ok {
+	if pqid, ok := shouldBackFillPQMR(searchNode, searchReq, qid, timeRange); ok {
 		if config.IsNewQueryPipelineEnabled() {
 			go writePqmrFilesWrapper(segmentSearchRecords, searchReq, qid, pqid)
 		} else {
@@ -230,8 +230,15 @@ func writeEmptyPqmetaFilesWrapper(pqid string, segKey string) {
 	writer.AddToBackFillAndEmptyPQSChan(segKey, pqid, true)
 }
 
-func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest, qid uint64) (string, bool) {
+func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.SegmentSearchRequest,
+	qid uint64, timeRange *dtu.TimeRange) (string, bool) {
+
 	if config.IsPQSEnabled() {
+		if !containsWholeSegment(timeRange, searchReq.SearchMetadata.BlockSummaries) {
+			// Don't write a partial PQMR.
+			return "", false
+		}
+
 		pqid := querytracker.GetHashForQuery(searchNode)
 
 		ok, err := querytracker.IsQueryPersistent([]string{searchReq.VirtualTableName}, searchNode)
@@ -246,6 +253,16 @@ func shouldBackFillPQMR(searchNode *structs.SearchNode, searchReq *structs.Segme
 		}
 	}
 	return "", false
+}
+
+func containsWholeSegment(queryWindow *dtu.TimeRange, allBlockSummaries []*structs.BlockSummary) bool {
+	for _, block := range allBlockSummaries {
+		if !queryWindow.AreTimesFullyEnclosed(block.LowTs, block.HighTs) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func writePqmrFilesWrapper(segmentSearchRecords *SegmentSearchStatus, searchReq *structs.SegmentSearchRequest, qid uint64, pqid string) {

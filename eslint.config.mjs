@@ -234,6 +234,7 @@ export default [
                 updateChartColorsBasedOnTheme: true,
                 hljs: true,
                 marked: true,
+                globalColorArray: true,
             },
         },
         rules: {
