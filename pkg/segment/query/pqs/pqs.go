@@ -29,7 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// segKey -> [qid] -> bool
+// segKey -> [pqid] -> bool
 var allPersistentQueryResults map[string]map[string]bool
 var allPersistentQueryResultsLock sync.RWMutex
 

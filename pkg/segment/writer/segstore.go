@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -778,7 +779,7 @@ func (segstore *SegStore) checkAndRotateColFiles(streamid string, forceRotate bo
 	}
 	maxSegFileSize := config.GetMaxSegFileSize()
 
-	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate {
+	if segstore.OnDiskBytes > maxSegFileSize || forceRotate || onTimeRotate || onTreeRotate || (segstore.numBlocks >= math.MaxUint16-2) {
 		if hook := hooks.GlobalHooks.RotateSegment; hook != nil {
 			alreadyHandled, err := hook(segstore, streamid, forceRotate)
 			if err != nil {
