@@ -70,6 +70,7 @@ type queryStats struct {
 	lock           sync.Mutex
 	numFailedToRun int
 	numBadResults  int
+	numWarnings    int
 	numSuccess     int
 
 	lastFailure string
@@ -79,8 +80,8 @@ func (qs *queryStats) Log() {
 	qs.lock.Lock()
 	defer qs.lock.Unlock()
 
-	log.Infof("QueryStats: %d queries failed to run, %d queries gave bad results, %d queries succeeded",
-		qs.numFailedToRun, qs.numBadResults, qs.numSuccess)
+	log.Infof("QueryStats: %d queries failed to run, %d queries gave bad results, %d queries gave warnings, %d queries succeeded",
+		qs.numFailedToRun, qs.numBadResults, qs.numWarnings, qs.numSuccess)
 
 	if qs.lastFailure != "" {
 		log.Infof("QueryStats: Last failure: %s", qs.lastFailure)
@@ -332,25 +333,24 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 		qm.stats.lastFailure = fmt.Sprintf("failed to run %v; err=%v", queryInfo, err)
 		qm.stats.lock.Unlock()
 
-		logger := qm.logErrorf
-		if validator.ServerMightHaveDuplicates() {
-			logger = log.Warnf
-		}
-		logger("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)
+		qm.logErrorf("queryManager.runQuery: failed to run %v; err=%v", queryInfo, err)
 	}
 
 	err = validator.MatchesResult(result)
 	if err != nil {
 		queryFailed = true
+		logger := qm.logErrorf
+
 		qm.stats.lock.Lock()
-		qm.stats.numBadResults++
+		if validator.ServerMightHaveDuplicates() {
+			logger = log.Warnf
+			qm.stats.numWarnings++
+		} else {
+			qm.stats.numBadResults++
+		}
 		qm.stats.lastFailure = fmt.Sprintf("incorrect results for %v; err=%v", queryInfo, err)
 		qm.stats.lock.Unlock()
 
-		logger := qm.logErrorf
-		if validator.ServerMightHaveDuplicates() {
-			logger = log.Warnf
-		}
 		logger("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
 	}
 
