@@ -7577,7 +7577,7 @@ p#versionInfo {
     border-radius: 4px;
     cursor: pointer;
     position: relative;
-    height: 30px;
+    min-height: 30px;
     margin-left: 20px;
 }
 
@@ -7590,6 +7590,16 @@ p#versionInfo {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: relative;
+    transition: transform 0.2s ease-in-out;
+}
+
+.field-name:hover {
+    transform: scale(1.05);
+    white-space: normal; /* Allow wrapping on hover */
+    word-break: break-word; /* Break long words on hover */
+    overflow: visible; /* Show full text on hover */
+    text-overflow: clip; /* Remove ellipsis on hover */
 }
 
 .field-action {
