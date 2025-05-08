@@ -80,7 +80,7 @@ func (qs *queryStats) Log() {
 	qs.lock.Lock()
 	defer qs.lock.Unlock()
 
-	log.Infof("QueryStats: %d queries failed to run, %d queries gave bad results, %d queries gave warnings, %d queries succeeded",
+	log.Infof("QueryStats: %d failed to run, %d gave bad results, %d gave warnings, %d succeeded",
 		qs.numFailedToRun, qs.numBadResults, qs.numWarnings, qs.numSuccess)
 
 	if qs.lastFailure != "" {
