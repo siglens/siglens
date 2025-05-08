@@ -4044,7 +4044,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     display: flex;
     align-items: center;
     font-weight: bold;
-    gap: 10px;
+    gap: 5px;
 }
 
 .legend-colors {
@@ -7577,7 +7577,7 @@ p#versionInfo {
     border-radius: 4px;
     cursor: pointer;
     position: relative;
-    height: 30px;
+    min-height: 30px;
     margin-left: 20px;
 }
 
@@ -7590,6 +7590,15 @@ p#versionInfo {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: relative;
+    transition: transform 0.2s ease-in-out;
+}
+
+.field-name:hover {
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible; 
+    text-overflow: clip; 
 }
 
 .field-action {

@@ -25,7 +25,7 @@ const VIEW_TYPES = {
 
 //eslint-disable-next-line no-unused-vars
 function setupEventHandlers() {
-    $('#filter-input').on('keydown', filterInputHandler);
+    $('#filter-input').off('keydown').on('keydown', filterInputHandler);
 
     $('#run-filter-btn').off('click').on('click', runFilterBtnHandler);
     $('#query-builder-btn').off('click').on('click', runFilterBtnHandler);
@@ -477,12 +477,13 @@ function runFilterBtnHandler(evt) {
 }
 
 function filterInputHandler(evt) {
-    if (!evt.shiftKey && evt.keyCode === 13) {
+    if ( !evt.shiftKey && evt.keyCode === 13) {
         const currentUrl = window.location.href;
         const url = new URL(currentUrl);
         const pathOnly = url.pathname;
 
         const isIndexPage = pathOnly === '/' || pathOnly === '' || pathOnly.endsWith('index.html');
+        const isDashboardPage = pathOnly.includes('dashboard.html');
 
         if (isIndexPage) {
             evt.preventDefault();
@@ -494,6 +495,9 @@ function filterInputHandler(evt) {
             data = getSearchFilter(false, false);
             initialSearchData = data;
             doSearch(data);
+        }else if (isDashboardPage) {
+            evt.preventDefault();
+            runQueryBtnHandler();
         }
     }
 }
