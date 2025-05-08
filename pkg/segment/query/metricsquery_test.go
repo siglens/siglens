@@ -23,9 +23,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/prometheus/promql/parser"
 	dtu "github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/metadata"
+	"github.com/siglens/siglens/pkg/segment/structs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -56,4 +58,35 @@ func Test_GetAllMetricNamesOverTheTimeRange(t *testing.T) {
 
 	// Cleanup
 	_ = os.RemoveAll(config.GetDataPath())
+}
+
+func Test_getSegmentFilterTimeRange(t *testing.T) {
+	timeRef := uint32(1712659200)
+	timeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: timeRef,
+		EndEpochSec:   timeRef + uint32((60 * time.Minute).Seconds()),
+	}
+
+	query := `max_over_time(
+	sum by (cluster) (
+		1 - max by (cluster, instance, cpu, core) (
+		rate(node_cpu_seconds_total{mode="idle", cluster=~".+"}[5m:1s])
+		)
+	)[1h:5m]
+	)
+	`
+
+	// parse the query
+	parsedQuery, err := parser.ParseExpr(query)
+	assert.Nil(t, err)
+
+	// get the time range
+	segmentTimeRange := getSegmentFilterTimeRange(parsedQuery, *timeRange)
+
+	expectedTimeRange := &dtu.MetricsTimeRange{
+		StartEpochSec: timeRef - 60*60 - 5*60 - uint32(structs.DEFAULT_LOOKBACK_FOR_INSTANT_VECTOR.Seconds()),
+		EndEpochSec:   timeRange.EndEpochSec,
+	}
+
+	assert.Equal(t, expectedTimeRange, segmentTimeRange)
 }

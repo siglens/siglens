@@ -1675,9 +1675,11 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				}
 			}
 
+			retMBlockSummaries := make([]*structs.MBlockSummary, 0, len(blockSummaries))
 			for _, bSum := range blockSummaries {
 				if tRange.CheckRangeOverLap(bSum.LowTs, bSum.HighTs) {
 					retBlocks[bSum.Blknum] = true
+					retMBlockSummaries = append(retMBlockSummaries, bSum)
 				}
 			}
 
@@ -1691,6 +1693,8 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				Mid:                  mSeg.Mid,
 				UnrotatedBlkToSearch: make(map[uint16]bool),
 				MetricsKeyBaseDir:    mSeg.metricsKeyBase + fmt.Sprintf("%d", mSeg.Suffix),
+				EarliestEpochSec:     mSeg.lowTS,
+				LatestEpochSec:       mSeg.highTS,
 				BlocksToSearch:       retBlocks,
 				BlkWorkerParallelism: uint(2),
 				QueryType:            structs.UNROTATED_METRICS_SEARCH,
@@ -1701,7 +1705,10 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 			// Check if the current unrotated block is within the time range
 			if tRange.CheckRangeOverLap(mSeg.mBlock.mBlockSummary.LowTs, mSeg.mBlock.mBlockSummary.HighTs) {
 				finalReq.UnrotatedBlkToSearch[mSeg.mBlock.mBlockSummary.Blknum] = true
+				retMBlockSummaries = append(retMBlockSummaries, mSeg.mBlock.mBlockSummary)
 			}
+
+			finalReq.BlockSummaries = retMBlockSummaries
 
 			if len(retBlocks) == 0 && len(finalReq.UnrotatedBlkToSearch) == 0 {
 				return
@@ -1712,6 +1719,7 @@ func GetUnrotatedMetricsSegmentRequests(tRange *dtu.MetricsTimeRange, querySumma
 				return
 			}
 			baseTTDir := tt.tagstreeBase
+			finalReq.TagsTreeDir = baseTTDir
 			retLock.Lock()
 			_, ok := retVal[baseTTDir]
 			if !ok {
