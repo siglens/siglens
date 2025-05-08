@@ -301,7 +301,7 @@ func generatePrometheusRemoteWriteBody(recs int, preGeneratedSeriesLength uint64
 func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url string, totalEvents int, continuous bool,
 	batchSize, processNo int, indexPrefix string, ctr *uint64, bearerToken string, indexName string, numIndices int,
 	eventsPerDayPerProcess int, totalBytes *uint64,
-	callback func([]map[string]interface{}, []uint64)) {
+	callback func([]map[string]interface{}, []uint64, bool)) {
 
 	defer wg.Done()
 	eventCounter := 0
@@ -359,6 +359,7 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 		startTime := time.Now()
 		var reqErr error
 		retryCounter := 1
+		didRetry := false
 		for {
 			reqErr = sendRequest(iType, client, payload, url, bearerToken)
 			if reqErr == nil {
@@ -372,11 +373,12 @@ func runIngestion(iType IngestType, rdr utils.Generator, wg *sync.WaitGroup, url
 			sleepTime := time.Second * time.Duration(5*(retryCounter))
 			log.Errorf("Error sending request. Attempt: %d. Sleeping for %+v s before retrying.", retryCounter, sleepTime.String())
 			retryCounter++
+			didRetry = true
 			time.Sleep(sleepTime)
 		}
 
 		if callback != nil {
-			callback(rawLogs, allTs)
+			callback(rawLogs, allTs, didRetry)
 		}
 
 		SendPerformanceData(rdr)
@@ -489,7 +491,7 @@ func GetGeneratorDataConfig(maxColumns int, variableColums bool, minColumns int,
 func StartIngestion(iType IngestType, generatorType, dataFile string, totalEvents int, continuous bool,
 	batchSize int, url string, indexPrefix string, indexName string, numIndices, processCount int, addTs bool,
 	nMetrics int, bearerToken string, cardinality uint64, eventsPerDay uint64, iDataGeneratorConfig interface{},
-	callback func(logs []map[string]interface{}, allTs []uint64)) {
+	callback func(logs []map[string]interface{}, allTs []uint64, didRetry bool)) {
 
 	log.Printf("Starting ingestion at %+v for %+v", url, iType.String())
 	if iType == OpenTSDB || iType == PrometheusRemoteWrite {
