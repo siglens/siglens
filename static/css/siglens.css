@@ -4044,7 +4044,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     display: flex;
     align-items: center;
     font-weight: bold;
-    gap: 10px;
+    gap: 5px;
 }
 
 .legend-colors {
