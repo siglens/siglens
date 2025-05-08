@@ -931,13 +931,13 @@ function addPanel(chartIndex) {
             queryType = 'logs';
             queryData = {
                 state: 'query',
-                searchText: 'city=Boston | stats count AS Count BY weekday',
+                searchText: '',
                 startEpoch: filterStartDate,
                 endEpoch: filterEndDate,
                 indexName: selectedSearchIndex,
                 from: 0,
                 queryLanguage: 'Splunk QL',
-                queryMode: 'Code',
+                queryMode: 'Builder',
             };
             break;
         case 1: // Line chart
@@ -985,9 +985,10 @@ function addPanel(chartIndex) {
         queryData: queryData,
         logLinesViewType: logLinesViewType,
         unit: unit,
+        isNewPanel: true, // Keep the flag for log panels
     });
 
-    editPanelInit(panelIndex);
+    editPanelInit(panelIndex, true);
     $('.panelEditor-container').css('display', 'flex');
     $('.popupOverlay').addClass('active');
     handlePanelEdit();
