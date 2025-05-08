@@ -7596,10 +7596,10 @@ p#versionInfo {
 
 .field-name:hover {
     transform: scale(1.05);
-    white-space: normal; /* Allow wrapping on hover */
-    word-break: break-word; /* Break long words on hover */
-    overflow: visible; /* Show full text on hover */
-    text-overflow: clip; /* Remove ellipsis on hover */
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible; 
+    text-overflow: clip; 
 }
 
 .field-action {
