@@ -19,14 +19,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 <!DOCTYPE html>
 <html lang="en">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5SBJC04YFB"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
 
-        gtag('config', 'G-5SBJC04YFB');
-    </script>
+    gtag('config', 'G-5SBJC04YFB');
+</script>
 
 <head>
     <meta charset="UTF-8">
@@ -61,7 +61,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/lib/tippy-bundle.umd.min.js"></script>
     <script src="./js/lib/bootstrap.bundle.min.js"></script>
     <script src="./js/lib/ag-grid-community.min.noStyle.js"></script>
-    <script src="./js/lib/echarts.min.js"></script>
+    <script src="./js/lib/chart.umd.min.js"></script>
 
     <script>
         var defaultTheme = Cookies.get('theme') || 'light';
@@ -85,8 +85,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     <div class="dropdown-box">
                         <div class="d-flex logcontainer">
                             <ul class="tab-list">
-                                <li class="tab-li tab-li-query" id = "tab-title1"><a href="#tabs-1" class="custom-query-builder">Builder</a></li>
-                                <li class="tab-li tab-li-code" id = "tab-title2"><a href="#tabs-2"  class="custom-query-builder">Code</a></li>
+                                <li class="tab-li tab-li-query" id="tab-title1"><a href="#tabs-1"
+                                        class="custom-query-builder">Builder</a></li>
+                                <li class="tab-li tab-li-code" id="tab-title2"><a href="#tabs-2"
+                                        class="custom-query-builder">Code</a></li>
                             </ul>
                             <button class="format-icon" id="formatInput">Format</button>
                         </div>
@@ -99,12 +101,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 </div>
                             </div>
                             <div class="dropdown">
-                                <button class="btn dropdown-toggle" type="button" id="date-picker-btn" data-toggle="dropdown" aria-haspopup="true"
-                                    aria-expanded="false" data-bs-toggle="dropdown">
+                                <button class="btn dropdown-toggle" type="button" id="date-picker-btn"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                    data-bs-toggle="dropdown">
                                     <span>Time Picker</span>
                                     <i class="dropdown-arrow"></i>
                                 </button>
-                                <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn" id="daterangepicker ">
+                                <div class="dropdown-menu daterangepicker" aria-labelledby="index-btn"
+                                    id="daterangepicker ">
                                     <p class="dt-header">Search the last</p>
                                     <div class="ranges">
                                         <div class="inner-range">
@@ -129,7 +133,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                         </div>
                                         <hr>
                                         </hr>
-                                        <div class="dt-header">Custom Search <span id="reset-timepicker" type="reset">Reset</span>
+                                        <div class="dt-header">Custom Search <span id="reset-timepicker"
+                                                type="reset">Reset</span>
                                         </div>
                                         <div id="daterange-from"> <span id="dt-from-text"> From</span> <br />
                                             <input type="date" id="date-start" />
@@ -140,7 +145,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                             <input type="time" id="time-end" value="00:00">
                                         </div>
                                         <div class="drp-buttons">
-                                            <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn" type="button">Apply</button>
+                                            <button class="applyBtn btn btn-sm btn-primary" id="customrange-btn"
+                                                type="button">Apply</button>
                                         </div>
                                     </div>
                                 </div>
@@ -150,24 +156,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <div class="" id="setting-container">
                                 <div class="mb-1">Query Language:</div>
                                 <div class="dropdown w-100">
-                                    <button class="btn btn-grey dropdown-toggle" type="button" id="query-language-btn" data-toggle="dropdown"
-                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown" >
+                                    <button class="btn btn-grey dropdown-toggle" type="button" id="query-language-btn"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown">
                                         <span>Splunk QL</span>
                                         <i class="dropdown-arrow"></i>
                                     </button>
-                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-language-options">
+                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
+                                        id="query-language-options">
                                         {{ .Dropdown2 | safeHTML }}
                                         <li id="option-3" class="query-language-option active">Splunk QL</li>
                                     </div>
                                 </div>
                                 <div class="mt-3 mb-1">Query Mode:</div>
                                 <div class="dropdown w-100">
-                                    <button class="btn btn-grey dropdown-toggle w-100" type="button" id="query-mode-btn" data-toggle="dropdown"
-                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                    <button class="btn btn-grey dropdown-toggle w-100" type="button" id="query-mode-btn"
+                                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown">
                                         <span>Builder</span>
                                         <i class="dropdown-arrow"></i>
                                     </button>
-                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn" id="query-mode-options">
+                                    <div class="dropdown-menu box-shadow" aria-labelledby="index-btn"
+                                        id="query-mode-options">
                                         <li id="mode-option-1" class="query-mode-option">Builder</li>
                                         <li id="mode-option-2" class="query-mode-option">Code</li>
                                     </div>
@@ -176,19 +186,22 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         </div>
                     </div>
                     <div class="d-flex">
-                        <div id = "tabs-1">
+                        <div id="tabs-1">
                             <div class="filter-info">
                                 <div id="filter-container">
                                     <div class="filter-con">
                                         <div class="filter-box" id="filter-box-1">
-                                            <span class = "aggregations" id="search-filter-text">Search filter</span>
+                                            <span class="aggregations" id="search-filter-text">Search filter</span>
                                             <ul id="tags" class="tags-list"></ul>
                                             <button id="add-con" class="add-con btn">+</button>
                                         </div>
                                         <div class="add-filter" id="add-filter">
-                                            <input id="column-first" class="column-first" type="hidden" onkeyup="checkContent(this)"/>
-                                            <input id="symbol" class="symbol" type="hidden" onkeyup="checkContent(this)"/>
-                                            <input id="value-first" class="value-first" type="hidden" onkeyup="checkContent(this)"/>
+                                            <input id="column-first" class="column-first" type="hidden"
+                                                onkeyup="checkContent(this)" />
+                                            <input id="symbol" class="symbol" type="hidden"
+                                                onkeyup="checkContent(this)" />
+                                            <input id="value-first" class="value-first" type="hidden"
+                                                onkeyup="checkContent(this)" />
                                             <button id="completed" class="completed btn"></button>
                                             <button id="cancel-enter" class="cancel-enter btn">×</button>
                                         </div>
@@ -196,21 +209,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                     <div class="builder-div">stats</div>
                                     <div class="filter-con second-enter">
                                         <div class="filter-box" id="filter-box-2">
-                                            <span class = "aggregations" id="aggregate-attribute-text">Aggregation attribute</span>
+                                            <span class="aggregations" id="aggregate-attribute-text">Aggregation
+                                                attribute</span>
                                             <ul id="tags-second" class="tags-list"></ul>
                                             <button id="add-con-second" class="add-con btn">+</button>
                                         </div>
                                         <div class="add-filter add-filters" id="add-filter-second">
-                                            <input id="column-second" class="column-first" type="hidden" onkeyup="checkSecondContent(this)"/>
-                                            <input id="value-second" class="value-first" type="hidden" onkeyup="checkSecondContent(this)"/>
-                                            <button id="completed-second" class="completed btn" ></button>
+                                            <input id="column-second" class="column-first" type="hidden"
+                                                onkeyup="checkSecondContent(this)" />
+                                            <input id="value-second" class="value-first" type="hidden"
+                                                onkeyup="checkSecondContent(this)" />
+                                            <button id="completed-second" class="completed btn"></button>
                                             <button id="cancel-enter-second" class="cancel-enter btn">×</button>
                                         </div>
                                     </div>
                                     <div class="builder-div">group by</div>
                                     <div class="filter-con third-enter">
-                                        <div class="filter-box third-box"  id="filter-box-3">
-                                            <span class = "aggregations" id="aggregations">Group by column name</span>
+                                        <div class="filter-box third-box" id="filter-box-3">
+                                            <span class="aggregations" id="aggregations">Group by column name</span>
                                             <ul id="tags-third" class="tags-list"></ul>
                                             <button id="add-con-third" class="add-con btn">+</button>
                                         </div>
@@ -223,10 +239,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                 <button class="search-img" id="query-builder-btn"></button>
                             </div>
                         </div>
-                        <div id = "tabs-2">
+                        <div id="tabs-2">
                             <div class="filter-container">
                                 <div class="position-relative search-bar-container">
-                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-sql" style="display: none;"
+                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
+                                        id="info-icon-sql" style="display: none;"
                                         title=' SELECT MAX(latency), COUNT(city) FROM `*` GROUP BY country, gender LIMIT 10
                                                                             SELECT * FROM `ind-0`
                                                                             SELECT * FROM `ind-0` ORDER BY latency ASC
@@ -235,16 +252,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             SELECT * FROM `*` WHERE app_name = Wheataccount AND gender = male LIMIT 10'>
 
                                     </i>
-                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-logQL" style="display: none;"
-                                        title=' {app="mysql",name="mysql-backup"}
+                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
+                                        id="info-icon-logQL" style="display: none;" title=' {app="mysql",name="mysql-backup"}
                                                                             {job="mysql"} |= "error"
                                                                             {name="cassandra"} |~ error=\w+
                                                                             {job="mysql"} |= "error" != "timeout"
                                                                             {job="mysql"} |= "error" | json | line_format "&lbrace;{.err}&rbrace;"
                                                                             '>
                                     </i>
-                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip" id="info-icon-spl" style="display: block;"
-                                        title=' app_version!=2.14.2 AND weekday=T*day
+                                    <i class="fa fa-info-circle position-absolute info-icon" rel="tooltip"
+                                        id="info-icon-spl" style="display: block;" title=' app_version!=2.14.2 AND weekday=T*day
                                                                             city=Boston | stats count, avg(latency) BY weekday, http_method
                                                                             city=Boston | stats avg(latency) AS Avg BY weekday | eval Millis=Avg / 1000, Millis=Millis . " ms"
                                                                             city=Boston | ```This is a comment``` fields http*
@@ -253,7 +270,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                                                                             '>
                                     </i>
                                     <textarea class="form-control expandable-textarea" id="filter-input"
-                                        placeholder="Enter your SPL query here, or click the 'i' icon for examples" type="text"></textarea>
+                                        placeholder="Enter your SPL query here, or click the 'i' icon for examples"
+                                        type="text"></textarea>
                                     <span class="clear-icon" id="clearInput"></span>
                                 </div>
                                 <div class="text-end">
@@ -271,11 +289,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div class="custom-chart-container">
                 <div class="fields-sidebar">
                     <div id="selected-fields-header" class="fields-header">
-                      <div>
+                        <div>
                             <i class="fa fa-chevron-down"></i>
                             <span>Selected Fields</span>
-                      </div>
-                      <span class="field-count">0</span>
+                        </div>
+                        <span class="field-count">0</span>
                     </div>
                     <div id="selected-fields-list" class="fields-list"></div>
 
@@ -284,53 +302,260 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             <i class="fa fa-chevron-down"></i>
                             <span>Available Fields</span>
                         </div>
-                      <span class="field-count">0</span>
+                        <span class="field-count">0</span>
                     </div>
                     <div id="available-fields-list" class="fields-list"></div>
                 </div>
                 <div id="custom-chart-tab" class="custom-code-tab custom-chart-tab">
                     <div class="d-flex align-items-center">
                         <ul class="tab-chart-list">
-                            <li class="tab-li" id="tab-table-title"><a href="#showTable" class="custom-query-builder">Table</a>
+                            <li class="tab-li" id="tab-table-title"><a href="#showTable"
+                                    class="custom-query-builder">Table</a>
                             </li>
-                            <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart" class="custom-query-builder">Visualization</a>
+                            <li class="tab-li" id="tab-chart-title"><a href="#tabs-chart"
+                                    class="custom-query-builder">Visualization</a>
                             </li>
                         </ul>
                         <div id="logs-view-controls">
                             <div id="save-query-div">
                                 <button class="btn saveq-btn below-btn-img" id="saveq-btn"></button>
-                                <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn" class="mx-3" ></button>
+                                <button class="btn add-logs-to-db-btn below-btn-img" id="add-logs-to-db-btn"
+                                    class="mx-3"></button>
                                 <button class="btn alert-from-logs-btn below-btn-img" id="alert-from-logs-btn"></button>
                                 <div class="dropdown download-btn">
-                                    <button class="btn dropdown-toggle download-all-logs-btn below-btn-img" type="button" data-toggle="dropdown"
-                                        aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+                                    <button class="btn dropdown-toggle download-all-logs-btn below-btn-img"
+                                        type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                        data-bs-toggle="dropdown">
                                     </button>
-                                    <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn" id="save-query-options">
+                                    <div class="dropdown-menu box-shadow download-options" aria-labelledby="index-btn"
+                                        id="save-query-options">
                                         <li id="csv-block" class="query-language-option">Download as CSV</li>
                                         <li id="json-block" class="query-language-option">Download as JSON</li>
                                         <li id="xml-block" class="query-language-option">Download as XML</li>
                                         <li id="sql-block" class="query-language-option">Download as SQL</li>
                                     </div>
                                 </div>
-                                <button class="btn show-record-intro-btn below-btn-img" id="show-record-intro-btn"></button>
+                                <button class="btn show-record-intro-btn below-btn-img"
+                                    id="show-record-intro-btn"></button>
                             </div>
                         </div>
                         <div id="views-container">
                             <div class="btn-group" role="group" id="log-view">
                                 <button class="btn log-opt-single-btn" id="log-opt-single-btn">
-                                    <span class="single-line-icon" ></span>
+                                    <span class="single-line-icon"></span>
                                 </button>
                                 <button class="btn log-opt-multi-btn" id="log-opt-multi-btn">
                                     <span class="multi-line-icon"></span>
                                 </button>
                                 <button class="btn log-opt-table-btn" id="log-opt-table-btn">
-                                    <span class="table-view-icon" ></span>
+                                    <span class="table-view-icon"></span>
                                 </button>
                             </div>
                         </div>
                     </div>
                     <div id="tabs-chart" class="tab-content-size">
-                        <div id="columnChart" class="column-chart"></div>
+                        <div class="column-chart">
+                            <div class="h-100">
+                                <div class="d-flex gap-3">
+                                    <div class="dropdown visualization-type" style="width: 120px;">
+                                        <button class="btn dropdown-toggle btn-grey w-100" type="button"
+                                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                                            data-bs-toggle="dropdown">
+                                            <span>Bar Chart</span>
+                                            <i class="dropdown-arrow"></i>
+                                        </button>
+                                        <div class="dropdown-menu box-shadow visualization-type-options">
+                                            <li class="active">Bar Chart</li>
+                                            <li>Line Chart</li>
+                                        </div>
+                                    </div>
+                                    <button id="formatBtn" class="btn btn-grey mb-4">Format</button>
+                                </div>
+                                <div id="columnChart" style="height: calc(100% - 40px);"></div>
+                            </div>
+                            <div class="format-panel" id="formatPanel">
+                                <div class="panel-header border-bottom">
+                                    <span id="closeBtn" class="close-button">×</span>
+                                </div>
+                                <div class="format-panel-body d-flex">
+                                    <div class="sidebar">
+                                        <div class="sidebar-item active" data-section="x-axis">X-Axis</div>
+                                        <div class="sidebar-item" data-section="y-axis">Y-Axis</div>
+                                        <div class="sidebar-item" data-section="chart-overlay">Chart Overlay
+                                        </div>
+                                        <div class="sidebar-item" data-section="legend">Legend</div>
+                                    </div>
+                                    <!-- X-Axis section -->
+                                    <div class="content-section" id="x-axis-section">
+                                        <div class="form-row">
+                                            <div class="form-label">Title</div>
+                                            <div class="form-input">
+                                                <input type="text" name="x-axis-title" placeholder="Enter X-Axis title">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Label Rotation</div>
+                                            <div class="form-input">
+                                                <div class="rotation-options">
+                                                    <button class="rotation-btn" data-rotation="0">
+                                                        <span class="rotation-icon rotation-0">abc</span>
+                                                    </button>
+                                                    <button class="rotation-btn" data-rotation="45">
+                                                        <span class="rotation-icon rotation-neg45">abc</span>
+                                                    </button>
+                                                    <button class="rotation-btn" data-rotation="90">
+                                                        <span class="rotation-icon rotation-neg90">abc</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Y-Axis section -->
+                                    <div class="content-section" id="y-axis-section" style="display: none;">
+                                        <div class="form-row">
+                                            <div class="form-label">Title</div>
+                                            <div class="form-input">
+                                                <input type="text" name="y-axis-title" value="Primary Axis">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Interval</div>
+                                            <div class="form-input">
+                                                <input type="text" name="y-axis-interval" value="200">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Min Value</div>
+                                            <div class="form-input">
+                                                <input type="text" name="y-axis-min" placeholder="optional">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Max Value</div>
+                                            <div class="form-input">
+                                                <input type="text" name="y-axis-max" value="1000">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Number Abbreviations</div>
+                                            <div class="form-input">
+                                                <div class="button-group">
+                                                    <button class="group-btn active">Off</button>
+                                                    <button class="group-btn">On</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Chart Overlay section -->
+                                    <div class="content-section" id="chart-overlay-section" style="display: none;">
+                                        <div class="form-row">
+                                            <div class="form-label">Metrics for Secondary Axis</div>
+                                            <div class="form-input">
+                                                <div class="tags-input-container">
+                                                    <div class="selected-tags" id="selectedTags"></div>
+
+                                                    <div class="tag-dropdown-container">
+                                                        <button class="add-con btn" id="addTagBtn">+</button>
+                                                        <div class="tag-dropdown" id="tagDropdown">
+                                                            <div class="tag-dropdown-content" id="tagDropdownContent">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">View as Axis</div>
+                                            <div class="form-input">
+                                                <div class="button-group">
+                                                    <button class="group-btn">On</button>
+                                                    <button class="group-btn active">Off</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Title</div>
+                                            <div class="form-input">
+                                                <input type="text" name="overlay-title" value="Conversion Rates">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Interval</div>
+                                            <div class="form-input">
+                                                <input type="text" name="overlay-interval" value="200">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Min Value</div>
+                                            <div class="form-input">
+                                                <input type="text" name="overlay-min" placeholder="optional">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Max Value</div>
+                                            <div class="form-input">
+                                                <input type="text" name="overlay-max" value="1000">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Number Abbreviations</div>
+                                            <div class="form-input">
+                                                <div class="button-group">
+                                                    <button class="group-btn active">Off</button>
+                                                    <button class="group-btn">On</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Legend section -->
+                                    <div class="content-section" id="legend-section" style="display: none;">
+                                        <div class="form-row">
+                                            <div class="form-label">Show Legend</div>
+                                            <div class="form-input">
+                                                <div class="button-group">
+                                                    <button class="group-btn active">Yes</button>
+                                                    <button class="group-btn">No</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-label">Position</div>
+                                            <div class="form-input">
+                                                <div class="dropdown legends-position" style="width: 120px;">
+                                                    <button class="btn dropdown-toggle btn-grey w-100" type="button"
+                                                        data-toggle="dropdown" aria-haspopup="true"
+                                                        aria-expanded="false" data-bs-toggle="dropdown">
+                                                        <span>Left</span>
+                                                        <i class="dropdown-arrow"></i>
+                                                    </button>
+                                                    <div class="dropdown-menu box-shadow legends-position-options">
+                                                        <li class="active">Left</li>
+                                                        <li>Right</li>
+                                                        <li>Top</li>
+                                                        <li>Bottom</li>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div id="hideGraph" class="hide-graph">
                             <div class="hide-graph-text">This query does not contain visualization data</div>
                         </div>
@@ -350,11 +575,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <div id="empty-response"></div>
             <div id="corner-popup">
                 <div class="corner-container">
-                    <div class="icon-container">          
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    <div class="icon-container">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                            </path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
                         </svg>
                     </div>
                     <div class="corner-text" id="corner-text"></div>
@@ -374,12 +602,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                             class="text ui-widget-content ui-corner-all">
                     </div>
                     <div>
-                        <div class="d-flex mt-4"><label class="mb-1">Description</label><span class="grey-text mx-1">(Optional)</span></div>
-                        <textarea rows="2" type="text" name="description" id="description" placeholder="Add a description..."
+                        <div class="d-flex mt-4"><label class="mb-1">Description</label><span
+                                class="grey-text mx-1">(Optional)</span></div>
+                        <textarea rows="2" type="text" name="description" id="description"
+                            placeholder="Add a description..."
                             class="text ui-widget-content ui-corner-all w-100"></textarea>
                     </div>
                     <div>
-                        <div class="fst-italic mt-3 note-box">Manage all queries in the <a href="./saved-queries.html">Saved Queries</a> library</div>
+                        <div class="fst-italic mt-3 note-box">Manage all queries in the <a
+                                href="./saved-queries.html">Saved Queries</a> library</div>
                     </div>
                     <!-- Allow form submission with keyboard without duplicating the dialog button -->
                     <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
@@ -393,7 +624,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                 </fieldset>
             </form>
         </div>
-        <div id="download-info"  class="save-query">
+        <div id="download-info" class="save-query">
             <p class="validateTips" id="validateTips"></p>
             <form>
                 <fieldset>
@@ -426,8 +657,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                         <label class="mb-1">Dashboard name</label>
                         <input type="text" placeholder="New dashboard" class="input" id="db-name">
                         <p class="error-tip">Dashboard name is required!</p>
-                        <div class="d-flex mt-4"><label class="mb-1">Description</label><span class="grey-text mx-1">(Optional)</span></div>
-                        <textarea rows="2" type="text" placeholder="Add a description..." class="input w-100" id="db-description"></textarea>
+                        <div class="d-flex mt-4"><label class="mb-1">Description</label><span
+                                class="grey-text mx-1">(Optional)</span></div>
+                        <textarea rows="2" type="text" placeholder="Add a description..." class="input w-100"
+                            id="db-description"></textarea>
                     </div>
                 </div>
                 <div class="existing-dashboard">
@@ -450,27 +683,30 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             </div>
         </div>
         <div class="addrulepopupOverlay"></div>
-            <div class="addrulepopupContent popupContent p-0">
-                <div class="p-4 border-bottom">
-                    <h3 class="header mb-0">Create Alert</h3>
-                </div>
-                <div class="popupcont p-4 border-bottom">
+        <div class="addrulepopupContent popupContent p-0">
+            <div class="p-4 border-bottom">
+                <h3 class="header mb-0">Create Alert</h3>
+            </div>
+            <div class="popupcont p-4 border-bottom">
                 <label class="mb-1">Enter alert rule name</label>
                 <input type="text" id="rule-name" name="rule-name" required placeholder="Name">
                 <p class="rule-name-error"></p>
-                <div class="fst-italic mt-3 note-box">You'll be able to configure alert conditions in the next step.</div>
-                </div>
-                <div class="d-flex gap-4 justify-content-end p-4">
-                    <button type="button" id="addrule-cancel-btn" class="btn btn-secondary">Cancel</button>
-                    <button type="button" id="addrule-save-btn" class="btn btn-primary">Add
-                        <img src="assets/new-tab-white-icon.svg">
-                    </button>
+                <div class="fst-italic mt-3 note-box">You'll be able to configure alert conditions in the next step.
                 </div>
             </div>
+            <div class="d-flex gap-4 justify-content-end p-4">
+                <button type="button" id="addrule-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="addrule-save-btn" class="btn btn-primary">Add
+                    <img src="assets/new-tab-white-icon.svg">
+                </button>
+            </div>
+        </div>
 
         <div class="popupContent" id="error-popup">
             <h3 class="header mb-2"><span><i class="fas fa-exclamation-triangle"></i></span> Error loading data</h3>
-            <p class="mt-3">The search settings were changed. To see the updated results, please press the <span style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.<p>
+            <p class="mt-3">The search settings were changed. To see the updated results, please press the <span
+                    style="color: #6449D6; font-weight: 600;">magnifying glass</span> icon.
+            <p>
             <div class="d-flex align-items-center justify-content-end mt-3">
                 <button type="button" id="okay-button" class="btn">OK</button>
             </div>
@@ -495,6 +731,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <script src="./js/log-search.js?cb={{ AppVersion }}"></script>
     <script src="./js/dashboard-from-logs-metrics.js?cb={{ AppVersion }}"></script>
     <script src="./js/query-builder.js?cb={{ AppVersion }}"></script>
+    <script src="./js/logs-visualization.js?cb={{ AppVersion }}"></script>
     <script src="./js/pagination.js?cb={{ AppVersion }}"></script>
     <script src="./js/footer.js?cb={{ AppVersion }}"></script>
 

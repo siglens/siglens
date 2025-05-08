@@ -237,6 +237,8 @@ func NewQueryProcessor(firstAgg *structs.QueryAggregators, queryInfo *query.Quer
 	queryProcessor.queryInfo = queryInfo
 	queryProcessor.isLogsQuery = isLogsQuery
 
+	log.Debugf("qid=%v, Created QueryProcessor with: %s", queryInfo.GetQid(), queryProcessor.DataProcessor)
+
 	return queryProcessor, nil
 }
 

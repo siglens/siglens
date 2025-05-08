@@ -148,6 +148,19 @@ type SortExpr struct {
 	processedSegmentsLock sync.Mutex
 }
 
+func (e *SortExpr) ShallowCopy() *SortExpr {
+	return &SortExpr{
+		SortEles:      e.SortEles,
+		SortAscending: e.SortAscending,
+		Limit:         e.Limit,
+
+		// These aren't used.
+		SortRecords:           nil,
+		NumProcessedSegments:  0,
+		processedSegmentsLock: sync.Mutex{},
+	}
+}
+
 type SortElement struct {
 	SortByAsc bool
 	Op        string

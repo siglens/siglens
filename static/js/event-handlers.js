@@ -82,10 +82,6 @@ function windowPopStateHandler(evt) {
             wsState = 'query';
             doSearch(data);
         }
-
-        if (window.fieldssidebarRenderer) {
-            window.fieldssidebarRenderer.init();
-        }
     }
 }
 

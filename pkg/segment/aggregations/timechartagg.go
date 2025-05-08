@@ -329,11 +329,6 @@ func IsOtherCol(valIsInLimit map[string]bool, groupByColVal string) bool {
 func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hll *putils.GobbableHll, hllToMerge *putils.GobbableHll,
 	strSet map[string]struct{}, strSetToMerge map[string]struct{}, aggFunc utils.AggregateFunctions, useAdditionForMerge bool, batchErr *putils.BatchError) {
 
-	tmp := utils.CValueEnclosure{
-		Dtype: eVal.Dtype,
-		CVal:  eVal.CVal,
-	}
-
 	switch aggFunc {
 	case utils.Count:
 		fallthrough
@@ -380,6 +375,10 @@ func MergeVal(eVal *utils.CValueEnclosure, eValToMerge utils.CValueEnclosure, hl
 		log.Errorf("MergeVal: unsupported aggregation function: %v", aggFunc)
 	}
 
+	tmp := utils.CValueEnclosure{
+		Dtype: eVal.Dtype,
+		CVal:  eVal.CVal,
+	}
 	retVal, err := utils.Reduce(eValToMerge, tmp, aggFunc)
 	if err != nil {
 		batchErr.AddError("MergeVal:eVAL_INTO_cVAL", err)
@@ -427,8 +426,10 @@ func ShouldAddRes(timechart *structs.TimechartExpr, tmLimitResult *structs.TMLim
 		return false
 	} else {
 		if isRankBySum && tmLimitResult.OtherCValArr == nil {
-			scoreVal := tmLimitResult.GroupValScoreMap[groupByColVal]
-			MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
+			scoreVal, ok := tmLimitResult.GroupValScoreMap[groupByColVal]
+			if ok && scoreVal != nil {
+				MergeVal(scoreVal, eVal, tmLimitResult.Hll, hllToMerge, tmLimitResult.StrSet, strSetToMerge, aggFunc, useAdditionForMerge, batchErr)
+			}
 			return false
 		}
 		return true
