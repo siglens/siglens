@@ -70,6 +70,7 @@ type queryStats struct {
 	lock           sync.Mutex
 	numFailedToRun int
 	numBadResults  int
+	numWarnings    int
 	numSuccess     int
 
 	lastFailure string
@@ -79,8 +80,8 @@ func (qs *queryStats) Log() {
 	qs.lock.Lock()
 	defer qs.lock.Unlock()
 
-	log.Infof("QueryStats: %d queries failed to run, %d queries gave bad results, %d queries succeeded",
-		qs.numFailedToRun, qs.numBadResults, qs.numSuccess)
+	log.Infof("QueryStats: %d failed to run, %d gave bad results, %d gave warnings, %d succeeded",
+		qs.numFailedToRun, qs.numBadResults, qs.numWarnings, qs.numSuccess)
 
 	if qs.lastFailure != "" {
 		log.Infof("QueryStats: Last failure: %s", qs.lastFailure)
@@ -149,13 +150,13 @@ func (qm *queryManager) logStatsOnInterval(interval time.Duration) {
 	}
 }
 
-func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs []uint64) {
+func (qm *queryManager) HandleIngestedLogs(logs []map[string]interface{}, allTs []uint64, didRetry bool) {
 	qm.inProgressLock.Lock()
 	defer qm.inProgressLock.Unlock()
 
 	qm.setupOnce.Do(func() { qm.addInitialQueries(logs) })
 	qm.addInProgessQueries()
-	qm.sendToValidators(logs, allTs)
+	qm.sendToValidators(logs, allTs, didRetry)
 
 	if lastEpoch, ok := qm.getLastEpoch(logs); ok {
 		qm.lastLogEpochMs = int64(lastEpoch)
@@ -188,14 +189,14 @@ func (qm *queryManager) addInProgessQueries() {
 	}
 }
 
-func (qm *queryManager) sendToValidators(logs []map[string]interface{}, allTs []uint64) {
+func (qm *queryManager) sendToValidators(logs []map[string]interface{}, allTs []uint64, didRetry bool) {
 	// Just forward to the in progress queries. We don't need to send the logs
 	// to the runnable queries because they don't get marked as runnable until
 	// we've reached an epoch where the time filtering means they won't accept
 	// any more logs.
 	for _, query := range qm.inProgressQueries {
 		for i, log := range logs {
-			query.validator.HandleLog(log, allTs[i])
+			query.validator.HandleLog(log, allTs[i], didRetry)
 		}
 	}
 }
@@ -322,9 +323,11 @@ func (qm *queryManager) startQueries() {
 
 func (qm *queryManager) runQuery(validator queryValidator) {
 	query, startEpoch, endEpoch := validator.GetQuery()
+	queryFailed := false
 	queryInfo := validator.Info()
 	result, err := sendSplunkQuery(qm.url, query, startEpoch, endEpoch)
 	if err != nil {
+		queryFailed = true
 		qm.stats.lock.Lock()
 		qm.stats.numFailedToRun++
 		qm.stats.lastFailure = fmt.Sprintf("failed to run %v; err=%v", queryInfo, err)
@@ -335,17 +338,27 @@ func (qm *queryManager) runQuery(validator queryValidator) {
 
 	err = validator.MatchesResult(result)
 	if err != nil {
+		queryFailed = true
+		logger := qm.logErrorf
+
 		qm.stats.lock.Lock()
-		qm.stats.numBadResults++
+		if validator.ServerMightHaveDuplicates() {
+			logger = log.Warnf
+			qm.stats.numWarnings++
+		} else {
+			qm.stats.numBadResults++
+		}
 		qm.stats.lastFailure = fmt.Sprintf("incorrect results for %v; err=%v", queryInfo, err)
 		qm.stats.lock.Unlock()
 
-		qm.logErrorf("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
+		logger("queryManager.runQuery: incorrect results for %v; err=%v", queryInfo, err)
 	}
 
-	qm.stats.lock.Lock()
-	qm.stats.numSuccess++
-	qm.stats.lock.Unlock()
+	if !queryFailed {
+		qm.stats.lock.Lock()
+		qm.stats.numSuccess++
+		qm.stats.lock.Unlock()
+	}
 
 	qm.numRunningQueries.Add(-1)
 
