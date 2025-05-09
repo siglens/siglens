@@ -5571,6 +5571,10 @@ p#versionInfo {
     cursor: pointer;
 }
 
+.headers-section p{
+    font-size: 11px;
+}
+
 .headers-main-container {
     width: 100%;
     margin-bottom: 15px;
@@ -5583,18 +5587,18 @@ p#versionInfo {
     margin-bottom: 10px;
 }
 
-.input-group {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
+.headers-labels{
+    height: 15px;
+    align-items: center;
+    width: 80%;
     margin-bottom: 0 !important;
 }
 
-.input-group label {
-    font-size: 12px;
-    margin-bottom: 0;
-    color: var(--text-color);
-    font-weight: 500;
+.header-label{
+    flex: 1;
+    min-width: 60px;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 .headers-container input {
@@ -5604,7 +5608,7 @@ p#versionInfo {
 .headers-container input[readonly] {
     background-color: var(--alert-background);
     color: var(--text-color);
-    border-color: var(--search-input-border);
+    border-color: var(--border-color-regular);
     border-radius: 5px !important;
 }
 
@@ -5622,7 +5626,11 @@ p#versionInfo {
     min-width: 180px;
 }
 
- .tick-icon{
+.edit-icon{
+    margin: 10px;
+}
+
+.tick-icon{
     background-repeat: no-repeat;
     width: 15px;
     height: 20px;
