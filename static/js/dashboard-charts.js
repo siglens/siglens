@@ -112,8 +112,8 @@ function loadPieOptions(xAxisData, yAxisData) {
             {
                 name: 'Pie Chart',
                 type: 'pie',
-                radius: '55%',
-                center: ['50%', '60%'],
+                radius: '50%',
+                center: ['50%', '50%'],
                 data: pieDataMapList,
                 itemStyle: {
                     emphasis: {
