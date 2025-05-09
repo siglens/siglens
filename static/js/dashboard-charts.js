@@ -50,10 +50,6 @@ function loadBarOptions(xAxisData, yAxisData, chart) {
                         },
                     },
                 },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                },
             },
             scales: {
                 x: {
