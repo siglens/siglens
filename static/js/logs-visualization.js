@@ -20,24 +20,24 @@
 let currentChartType = 'bar';
 
 let chartSettings = {
-    lastActiveSection: 'x-axis', // Default section to show
+    lastActiveSection: 'x-axis',
     xAxis: {
         title: '',
         labelRotation: 0,
     },
     yAxis: {
         title: 'Primary Axis',
-        interval: null, // Changed from 200 to null for auto
+        interval: null,
         minValue: null,
-        maxValue: null, // Changed from fixed value to null for auto
+        maxValue: null,
         abbreviations: false,
     },
     chartOverlay: {
         enabled: false,
         title: 'Conversion Rates',
-        interval: null, // Changed from 200 to null for auto
+        interval: null,
         minValue: null,
-        maxValue: null, // Changed from fixed value to null for auto
+        maxValue: null,
         abbreviations: false,
         metrics: [],
     },
@@ -55,35 +55,70 @@ $('.visualization-type-options li').on('click', function () {
     const selectedText = $(this).text();
     $('.visualization-type button span').text(selectedText);
 
-    // Only call timeChart if the chart type actually changes
     const newChartType = selectedText === 'Bar Chart' ? 'bar' : 'line';
 
     if (newChartType !== currentChartType) {
         currentChartType = newChartType;
-        timeChart(lastQType);
+
+        if (window.myBarChart) {
+            window.myBarChart.config.type = currentChartType;
+
+            window.myBarChart.data.datasets.forEach(function (dataset, index) {
+                let color;
+                if (dataset.borderColor) {
+                    color = dataset.borderColor;
+                } else {
+                    const colorIndex = index % globalColorArray.length;
+                    color = globalColorArray[colorIndex];
+                }
+
+                if (currentChartType === 'line') {
+                    dataset.type = 'line';
+                    dataset.backgroundColor = color + '70';
+                    dataset.borderWidth = 2;
+                    dataset.fill = false;
+                    dataset.tension = 0.1;
+                    dataset.pointRadius = 3;
+                    dataset.pointHoverRadius = 5;
+                } else {
+                    dataset.type = 'bar';
+                    dataset.backgroundColor = color;
+                    dataset.borderWidth = 1;
+                    dataset.fill = true;
+                    delete dataset.tension;
+                    delete dataset.pointRadius;
+                    delete dataset.pointHoverRadius;
+                }
+            });
+            window.myBarChart.update();
+            setupFormatPanel();
+            updateChart();
+        }
     }
 });
 
-//eslint-disable-next-line no-unused-vars
-function timeChart(qtype) {
-    // Check if measureInfo is defined and contains at least one item
+function toggleChartVisibility(qtype, isTimechart) {
     qtype = qtype || lastQType;
+
+    // Show chart for timechart or aggregation queries
     if (isTimechart || qtype === 'aggs-query') {
         $('.column-chart').show();
         $('#hideGraph').hide();
+        return true; // Chart should be rendered
     } else {
         $('.column-chart').hide();
         $('#hideGraph').show();
-        return;
+        return false; // Chart should not be rendered
     }
+}
 
+function createTimeChart(measureInfo) {
     if (!measureInfo || measureInfo.length === 0) {
         return;
     }
 
-    // Ensure all items in measureInfo have GroupByValues property before proceeding
+    // Ensure all items in measureInfo have GroupByValues property
     const hasGroupByValues = measureInfo.every((item) => item.GroupByValues);
-
     if (!hasGroupByValues) {
         return;
     }
@@ -183,6 +218,16 @@ function timeChart(qtype) {
 
     setupFormatPanel();
     updateChart();
+}
+
+function timeChart(qtype, measureInfo, isTimechart) {
+    const shouldRender = toggleChartVisibility(qtype, isTimechart);
+
+    if (!shouldRender) {
+        return;
+    }
+
+    createTimeChart(measureInfo);
 }
 
 function formatGroupByValues(groupByValues, multipleGroupBy) {
@@ -645,8 +690,8 @@ function updateChart() {
         // Apply these properties to individual datasets
         chartConfig.data.datasets.forEach((dataset) => {
             if (dataset.type === 'line' || currentChartType === 'line') {
-                dataset.pointRadius = 2;
-                dataset.pointHoverRadius = 4;
+                dataset.pointRadius = 3;
+                dataset.pointHoverRadius = 5;
                 dataset.pointHoverBorderWidth = 2;
                 dataset.pointHoverBackgroundColor = dataset.borderColor + '70';
                 dataset.pointHoverBorderColor = dataset.borderColor;
@@ -674,11 +719,11 @@ function applyChartOverlay(chartConfig) {
         },
         grid: {
             drawOnChartArea: false,
-            color: gridLineColor
+            color: gridLineColor,
         },
         ticks: {
-            color: tickColor
-        }
+            color: tickColor,
+        },
     };
 
     // Apply min value if set
@@ -724,10 +769,10 @@ function applyChartOverlay(chartConfig) {
             dataset.fill = false;
             dataset.order = 0;
 
-            dataset.pointRadius = 2;
-            dataset.pointHoverRadius = 4;
+            dataset.pointRadius = 3;
+            dataset.pointHoverRadius = 5;
             dataset.pointHoverBorderWidth = 2;
-            dataset.pointHoverBackgroundColor = dataset.borderColor;
+            dataset.pointBackgroundColor = dataset.borderColor + '70';
             dataset.pointHoverBorderColor = dataset.borderColor;
             dataset.borderWidth = 2;
             dataset.tension = 0.1;
