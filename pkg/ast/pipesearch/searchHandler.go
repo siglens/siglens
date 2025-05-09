@@ -39,7 +39,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
 	log "github.com/sirupsen/logrus"
@@ -488,7 +488,7 @@ func getQueryResponseJson(nodeResult *structs.NodeResult, indexName string, quer
 }
 
 // returns converted json, all columns, or any errors
-func convertRRCsToJSONResponse(rrcs []*sutils.RecordResultContainer, sizeLimit uint64,
+func convertRRCsToJSONResponse(rrcs []*segutils.RecordResultContainer, sizeLimit uint64,
 	qid uint64, segencmap map[uint32]string, aggs *structs.QueryAggregators,
 	allColsInAggs map[string]struct{}, includeNulls bool) ([]map[string]interface{}, []string, error) {
 

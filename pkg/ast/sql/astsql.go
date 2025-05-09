@@ -27,7 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/ast"
 	query "github.com/siglens/siglens/pkg/es/query"
 	structs "github.com/siglens/siglens/pkg/segment/structs"
-	utils "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/xwb1989/sqlparser"
 )
@@ -110,47 +110,47 @@ func getInTable(exp string) (string, error) {
 	return inClauses[1], nil
 }
 
-func getAggregationSQL(agg string, qid uint64) utils.AggregateFunctions {
+func getAggregationSQL(agg string, qid uint64) segutils.AggregateFunctions {
 	agg = strings.ToLower(agg)
 	switch agg {
 	case "count":
-		return utils.Count
+		return segutils.Count
 	case "avg":
-		return utils.Avg
+		return segutils.Avg
 	case "min":
-		return utils.Min
+		return segutils.Min
 	case "max":
-		return utils.Max
+		return segutils.Max
 	case "sum":
-		return utils.Sum
+		return segutils.Sum
 	case "cardinality":
-		return utils.Cardinality
+		return segutils.Cardinality
 	default:
 		log.Errorf("qid=%v, getAggregationSQL: aggregation type: %v is not supported!", qid, agg)
 		return 0
 	}
 }
 
-func getMathEvaluatorSQL(op string, qid uint64) (utils.MathFunctions, error) {
+func getMathEvaluatorSQL(op string, qid uint64) (segutils.MathFunctions, error) {
 	op = strings.ToLower(op)
 	switch op {
 	case "round":
-		return utils.Round, nil
+		return segutils.Round, nil
 	case "ceil":
-		return utils.Ceil, nil
+		return segutils.Ceil, nil
 	case "abs":
-		return utils.Abs, nil
+		return segutils.Abs, nil
 	case "sqrt":
-		return utils.Sqrt, nil
+		return segutils.Sqrt, nil
 	case "exp":
-		return utils.Exp, nil
+		return segutils.Exp, nil
 	default:
 		log.Errorf("qid=%v, getMathEvaluatorSQL: math evaluator type: %v is not supported!", qid, op)
 		return 0, fmt.Errorf("math evaluator type not supported")
 	}
 }
 
-func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uint64) (utils.MathFunctions, *structs.NumericExpr, error) {
+func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uint64) (segutils.MathFunctions, *structs.NumericExpr, error) {
 
 	mathFunc, err := getMathEvaluatorSQL(funcName, qid)
 	if err != nil {
@@ -172,7 +172,7 @@ func getMathFunctionSQL(funcName string, argExprs sqlparser.SelectExprs, qid uin
 	var rightExpr *structs.NumericExpr
 
 	// Check for 'round' function and handle arguments
-	if mathFunc == utils.Round {
+	if mathFunc == segutils.Round {
 		if len(argExprs) == 2 {
 			rightExpr, err = convertToNumericExpr(argExprs[1])
 			if err != nil {
@@ -261,7 +261,7 @@ func parseSingleCondition(expr sqlparser.Expr, astNode *structs.ASTNode, qid uin
 		literal := strings.Join(clause[2:], " ")
 		var criteria []*structs.FilterCriteria
 		var err error
-		switch val := utils.GetLiteralFromString(literal).(type) {
+		switch val := segutils.GetLiteralFromString(literal).(type) {
 		case string:
 			val = strings.ReplaceAll(val, "'", "")
 			val = strings.ReplaceAll(val, "\"", "")

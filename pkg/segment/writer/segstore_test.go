@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	sutils "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -56,7 +56,7 @@ func verifyNumericStats(t *testing.T, sst *structs.SegStats, buf []byte, idx int
 }
 
 func verifyCommon(t *testing.T, sst *structs.SegStats, buf []byte, idx int) int {
-	assert.Equal(t, sutils.VERSION_SEGSTATS_BUF_V4[0], buf[idx])
+	assert.Equal(t, segutils.VERSION_SEGSTATS_BUF_V4[0], buf[idx])
 	idx++
 
 	isNumeric := utils.BytesToBoolLittleEndian(buf[idx : idx+1])
@@ -109,9 +109,9 @@ func Test_writeSstToBufNumStats(t *testing.T) {
 	numRecs := uint64(6)
 
 	addSegStatsStrIngestion(sstMap, cname, []byte("abc"))
-	addSegStatsNums(sstMap, cname, sutils.SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
+	addSegStatsNums(sstMap, cname, segutils.SS_UINT64, 0, uint64(2345), 0, []byte("2345"))
 	addSegStatsStrIngestion(sstMap, cname, []byte("def"))
-	addSegStatsNums(sstMap, cname, sutils.SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
+	addSegStatsNums(sstMap, cname, segutils.SS_FLOAT64, 0, 0, float64(345.1), []byte("345.1"))
 	addSegStatsStrIngestion(sstMap, cname, []byte("9999"))
 	addSegStatsStrIngestion(sstMap, cname, []byte("ghi"))
 
@@ -119,7 +119,7 @@ func Test_writeSstToBufNumStats(t *testing.T) {
 
 	sst := sstMap[cname]
 
-	buf := make([]byte, sutils.WIP_SIZE)
+	buf := make([]byte, segutils.WIP_SIZE)
 
 	_, err := writeSstToBuf(sst, buf)
 	assert.Nil(t, err)
@@ -144,7 +144,7 @@ func Test_writeSstToBufStringStats(t *testing.T) {
 
 	sst := sstMap[cname]
 
-	buf := make([]byte, sutils.WIP_SIZE)
+	buf := make([]byte, segutils.WIP_SIZE)
 
 	_, err := writeSstToBuf(sst, buf)
 	assert.Nil(t, err)
@@ -168,7 +168,7 @@ func Test_writeSstToBufMixed(t *testing.T) {
 
 	sst := sstMap[cname]
 
-	buf := make([]byte, sutils.WIP_SIZE)
+	buf := make([]byte, segutils.WIP_SIZE)
 
 	_, err := writeSstToBuf(sst, buf)
 	assert.Nil(t, err)

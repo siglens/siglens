@@ -7,10 +7,15 @@ issues:
 linters:
   enable:
     - exhaustive
+    - importas
 
 linters-settings:
   exhaustive:
     default-signifies-exhaustive: true
+  importas:
+    alias:
+      - pkg: github.com/siglens/siglens/pkg/segment/utils
+        alias: segutils
 
 run:
   build-tags:

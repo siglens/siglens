@@ -29,19 +29,19 @@ import (
 	rutils "github.com/siglens/siglens/pkg/readerUtils"
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	utils "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
-var aggregatorMapping = map[string]utils.AggregateFunctions{
-	"count":       utils.Count,
-	"avg":         utils.Avg,
-	"min":         utils.Min,
-	"max":         utils.Max,
-	"sum":         utils.Sum,
-	"cardinality": utils.Cardinality,
+var aggregatorMapping = map[string]segutils.AggregateFunctions{
+	"count":       segutils.Count,
+	"avg":         segutils.Avg,
+	"min":         segutils.Min,
+	"max":         segutils.Max,
+	"sum":         segutils.Sum,
+	"cardinality": segutils.Cardinality,
 }
 
 func MetricsQueryExpressionsParser(ctx *fasthttp.RequestCtx) {
@@ -163,7 +163,7 @@ func MetricsQueryExpressionsParseRequest(queryRequest *structs.OTSDBMetricsQuery
 			continue
 		}
 		if metricInfo["aggregator"] != -1 {
-			aggregator = metricInfo["aggregator"].(utils.AggregateFunctions)
+			aggregator = metricInfo["aggregator"].(segutils.AggregateFunctions)
 		}
 		tagsFilter, ok := tags[metricInfo["filter"].(string)]
 		if !ok {
@@ -186,7 +186,7 @@ func MetricsQueryExpressionsParseRequest(queryRequest *structs.OTSDBMetricsQuery
 	return metricsQueryRequest, nil
 }
 
-func metricsQueryExpressionsParseAggregatorDownsampler(queryRequest *structs.OTSDBMetricsQueryExpRequest) (utils.AggregateFunctions, structs.Downsampler, error) {
+func metricsQueryExpressionsParseAggregatorDownsampler(queryRequest *structs.OTSDBMetricsQueryExpRequest) (segutils.AggregateFunctions, structs.Downsampler, error) {
 	downsampler := structs.Downsampler{Interval: 1, Unit: "m", Aggregator: structs.Aggregation{AggregatorFunction: aggregatorMapping["avg"]}}
 	aggregator, ok := aggregatorMapping[queryRequest.Time.Aggregator]
 	if !ok {
