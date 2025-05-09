@@ -274,7 +274,7 @@ function updateDashboardDateRange(startTimestamp, endTimestamp) {
     // if user is on edit panel screen
     if (currentPanel) {
         if (currentPanel.queryData) {
-            if (currentPanel.chartType === 'Line Chart' || currentPanel.queryType === 'metrics') {
+            if (currentPanel.queryType === 'metrics') {
                 if (currentPanel.queryData) {
                     currentPanel.queryData.start = startDateStr;
                     currentPanel.queryData.end = endDateStr;
@@ -304,7 +304,7 @@ function updateDashboardDateRange(startTimestamp, endTimestamp) {
         localPanels.forEach((panel) => {
             delete panel.queryRes;
             if (panel.queryData) {
-                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                if (panel.queryType === 'metrics') {
                     if (panel.queryData) {
                         panel.queryData.start = startDateStr;
                         panel.queryData.end = endDateStr;

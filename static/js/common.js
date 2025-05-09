@@ -706,6 +706,7 @@ function renderChartByChartType(data, queryRes, panelId, currentPanel) {
             break;
         case 'Bar Chart':
         case 'Pie Chart':
+        case 'Line Chart':
             renderPanelAggsQueryRes(data, panelId, currentPanel.chartType, currentPanel.dataType, currentPanel.panelIndex, queryRes);
             break;
         case 'number':

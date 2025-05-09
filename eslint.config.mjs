@@ -100,7 +100,6 @@ export default [
                 editPanelInit: true,
                 flagDBSaved: true,
                 GridStack: true,
-                resetPanelTimeRanges: true,
                 displayStart: true,
                 displayEnd: true,
                 resetCustomDateRange: true,

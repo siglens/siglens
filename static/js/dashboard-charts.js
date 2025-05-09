@@ -16,28 +16,26 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-var lineChart;
-var barChart; 
-function loadBarOptions(xAxisData, yAxisData) {
+function loadBarOptions(xAxisData, yAxisData, chart) {
     const { gridLineColor, tickColor } = getGraphGridColors();
 
     const datasets = yAxisData.map((dataset, index) => {
         return {
             label: dataset.name,
             data: dataset.data,
-            backgroundColor: globalColorArray[index % globalColorArray.length], 
+            backgroundColor: globalColorArray[index % globalColorArray.length],
             borderColor: globalColorArray[index % globalColorArray.length],
             borderWidth: 1,
-            barPercentage: 0.6, 
-            categoryPercentage: 0.8, 
+            barPercentage: 0.6,
+            categoryPercentage: 0.8,
         };
     });
-
+    const chartType = chart === 'Line Chart' ? 'line' : 'bar';
     return {
-        type: 'bar',
+        type: chartType,
         data: {
             labels: xAxisData,
-            datasets: datasets
+            datasets: datasets,
         },
         options: {
             responsive: true,
@@ -48,14 +46,14 @@ function loadBarOptions(xAxisData, yAxisData) {
                     labels: {
                         color: tickColor,
                         font: {
-                            size: 12
-                        }
-                    }
+                            size: 12,
+                        },
+                    },
                 },
                 tooltip: {
                     mode: 'index',
-                    intersect: false
-                }
+                    intersect: false,
+                },
             },
             scales: {
                 x: {
@@ -63,22 +61,22 @@ function loadBarOptions(xAxisData, yAxisData) {
                         color: tickColor,
                         maxRotation: xAxisData.length > 5 ? 30 : 0,
                         autoSkip: true,
-                        autoSkipPadding: 10
+                        autoSkipPadding: 10,
                     },
                     grid: {
-                        display: false
-                    }
+                        display: false,
+                    },
                 },
                 y: {
                     ticks: {
-                        color: tickColor
+                        color: tickColor,
                     },
                     grid: {
-                        color: gridLineColor
-                    }
-                }
-            }
-        }
+                        color: gridLineColor,
+                    },
+                },
+            },
+        },
     };
 }
 
@@ -150,7 +148,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
         bigNumVal = hits[0].MeasureVal[columns[0]];
     }
 
-    let panelChartEl;
+    let panelChartEl, barChart;
     if (panelId == -1) {
         panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
     } else if (chartType !== 'number') {
@@ -166,6 +164,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
     /* eslint-disable */
     switch (chartType) {
         case 'Bar Chart':
+        case 'Line Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
 
             var multipleGroupBy = hits[0].GroupByValues.length > 1;
@@ -190,7 +189,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
                 return groupByValue;
             });
-            
+
             $(panelChartEl).html('<canvas class="bar-chart-canvas"></canvas>');
             const canvasEl = $(panelChartEl).find('canvas')[0];
             const ctx = canvasEl.getContext('2d');
@@ -199,8 +198,8 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
                 barChart.destroy();
             }
 
-            var barConfig = loadBarOptions(xData, seriesData);
-            
+            var barConfig = loadBarOptions(xData, seriesData, chartType);
+
             barChart = new Chart(ctx, barConfig);
             break;
         case 'Pie Chart':
@@ -436,4 +435,4 @@ window.addEventListener('resize', function (_event) {
     if ($('.panelEditor-container').css('display') !== 'none' && panelChart) {
         panelChart.resize();
     }
-}); 
+});
