@@ -14,10 +14,10 @@ linters-settings:
     default-signifies-exhaustive: true
   importas:
     alias:
-      - pkg: github.com/siglens/siglens/pkg/segment/utils
-        alias: segutils
       - pkg: github.com/siglens/siglens/pkg/utils
         alias: utils
+      - pkg: github.com/siglens/siglens/pkg/segment/utils
+        alias: segutils
 
 run:
   build-tags:
