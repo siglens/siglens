@@ -148,8 +148,9 @@ func (SlackTokenConfig) TableName() string {
 }
 
 type WebHookConfig struct {
-	ID      uint   `gorm:"primaryKey;autoIncrement:true"`
-	Webhook string `json:"webhook"`
+	ID      uint              `gorm:"primaryKey;autoIncrement:true"`
+	Webhook string            `json:"webhook"`
+	Headers map[string]string `json:"headers" gorm:"type:text"`
 }
 
 func (WebHookConfig) TableName() string {
