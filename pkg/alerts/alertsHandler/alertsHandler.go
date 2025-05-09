@@ -301,7 +301,7 @@ func testWebhookURL(webhookURL string) error {
 	client := alertutils.GetCertErrorForgivingHttpClient()
 	req, err := http.NewRequest("GET", webhookURL, nil)
 	if err != nil {
-		log.Errorf("testWebhookURL: failed to create a test webhook request - %v", err)
+		log.Errorf("testWebhookURL: failed to create a test webhook request. URL: %v err: %v", webhookURL, err)
 		return err
 	}
 	resp, err := client.Do(req)
