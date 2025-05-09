@@ -245,7 +245,6 @@ $('.refresh-range-item').on('click', refreshRangeItemHandler);
 
 async function updateDashboard() {
     timeRange = $('#date-picker-btn').text().trim().replace(/\s+/g, ' ');
-    resetPanelTimeRanges();
     flagDBSaved = true;
     let tempPanels = JSON.parse(JSON.stringify(localPanels));
     for (let i = 0; i < tempPanels.length; i++) delete tempPanels[i].queryRes;
@@ -449,40 +448,43 @@ function renderDuplicatePanel(duplicatedPanelIndex) {
         handleDescriptionTooltip(panelId, localPanel.description, localPanel.queryData.searchText);
     }
 
-    if (localPanel.chartType == 'Data Table' || localPanel.chartType == 'loglines') {
-        let panEl = $(`#panel${panelId} .panel-body`);
-        let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
-        <div id="empty-response"></div>`;
-        panEl.append(responseDiv);
-        $('#panelLogResultsGrid').show();
-        initialSearchDashboardData = localPanel.queryData;
-        if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
-        else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
-    } else if (localPanel.chartType == 'Line Chart') {
-        let panEl = $(`#panel${panelId} .panel-body`);
-        let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`;
-        panEl.append(responseDiv);
-        if (localPanel.queryRes) runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
-        else runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
-    } else if (localPanel.chartType == 'number') {
-        let panEl = $(`#panel${panelId} .panel-body`);
-        let responseDiv = `<div class="big-number-display-container"></div>
-        <div id="empty-response"></div><div id="corner-popup"></div>`;
-        panEl.append(responseDiv);
-        if (localPanel.queryType === 'metrics') {
-            if (localPanel.queryRes) runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
-            else runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
-        } else {
+    if (localPanel.queryType === 'logs') {
+        // Handle all chart types for logs
+        if (localPanel.chartType == 'Data Table' || localPanel.chartType == 'loglines') {
+            let panEl = $(`#panel${panelId} .panel-body`);
+            let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
+            <div id="empty-response"></div>`;
+            panEl.append(responseDiv);
+            $('#panelLogResultsGrid').show();
+            initialSearchDashboardData = localPanel.queryData;
+            if (localPanel.queryRes) runPanelLogsQuery(localPanel.queryData, panelId, localPanel, localPanel.queryRes);
+            else runPanelLogsQuery(localPanel.queryData, panelId, localPanel);
+        } else if (localPanel.chartType == 'Line Chart' || localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'number') {
+            let panEl = $(`#panel${panelId} .panel-body`);
+            let responseDiv = '';
+
+            if (localPanel.chartType == 'number') {
+                responseDiv = `<div class="big-number-display-container"></div>
+                <div id="empty-response"></div><div id="corner-popup"></div>`;
+                panEl.append(responseDiv);
+                $('.big-number-display-container').show();
+            } else {
+                responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`;
+                panEl.append(responseDiv);
+            }
+
             if (localPanel.queryRes) runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
             else runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
         }
-    } else if (localPanel.chartType == 'Pie Chart' || localPanel.chartType == 'Bar Chart') {
-        // generic for both bar and pie chartTypes.
-        let panEl = $(`#panel${panelId} .panel-body`);
-        let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`;
-        panEl.append(responseDiv);
-        if (localPanel.queryRes) runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
-        else runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+    } else if (localPanel.queryType === 'metrics') {
+        // Only Line Chart for metrics
+        if (localPanel.chartType == 'Line Chart') {
+            let panEl = $(`#panel${panelId} .panel-body`);
+            let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>`;
+            panEl.append(responseDiv);
+            if (localPanel.queryRes) runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
+            else runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
+        }
     }
 }
 
@@ -550,7 +552,7 @@ function setTimePickerValue() {
     if (localPanels.length > 0) {
         localPanels.some((panel) => {
             if (panel.queryData) {
-                if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+                if (panel.queryType === 'metrics') {
                     if (Array.isArray(panel.queryData.queriesData)) {
                         let query = panel.queryData.queriesData[0];
                         start = query.start;
@@ -585,7 +587,7 @@ function updateTimeRangeForAllPanels(filterStartDate, filterEndDate) {
         delete panel.queryRes;
 
         if (panel.queryData) {
-            if (panel.chartType === 'Line Chart' || panel.queryType === 'metrics') {
+            if (panel.queryType === 'metrics') {
                 if (panel.queryData) {
                     // Update start and end for each item in queriesData
                     if (Array.isArray(panel.queryData.queriesData)) {
@@ -744,69 +746,61 @@ async function displayPanels() {
 
         handlePanelRemove(idpanel);
 
-        if (localPanel.chartType == 'Data Table' || localPanel.chartType == 'loglines') {
-            let panEl = $(`#panel${idpanel} .panel-body`);
-            let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
-            <div id="empty-response"></div></div><div id="corner-popup"></div>
-            <div id="panel-loading"></div>`;
-            panEl.append(responseDiv);
+        if (localPanel.queryType === 'logs') {
+            // Handle all chart types for logs
+            if (localPanel.chartType === 'Data Table' || localPanel.chartType === 'loglines') {
+                let panEl = $(`#panel${idpanel} .panel-body`);
+                let responseDiv = `<div id="panelLogResultsGrid" class="panelLogResultsGrid ag-theme-mycustomtheme"></div>
+                <div id="empty-response"></div></div><div id="corner-popup"></div>
+                <div id="panel-loading"></div>`;
+                panEl.append(responseDiv);
 
-            $('#panelLogResultsGrid').show();
-            initialSearchDashboardData = localPanel.queryData;
-            if (!isFilterApplied && localPanel.queryRes) {
-                runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
-            } else {
-                runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
-            }
-        } else if (localPanel.chartType == 'Line Chart') {
-            let panEl = $(`#panel${idpanel} .panel-body`);
-            let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
-            <div id="panel-loading"></div>`;
-            panEl.append(responseDiv);
-            if (localPanel.queryRes) {
-                runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
-            } else {
-                //remove startEpoch from from localPanel.queryData
-                delete localPanel.queryData.startEpoch;
-                delete localPanel.queryData.endEpoch;
-                await runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
-            }
-        } else if (localPanel.chartType == 'number') {
-            let panEl = $(`#panel${idpanel} .panel-body`);
-            let responseDiv = `<div class="big-number-display-container"></div>
-            <div id="empty-response"></div><div id="corner-popup"></div>
-            <div id="panel-loading"></div>`;
-            panEl.append(responseDiv);
-
-            $('.big-number-display-container').show();
-            if (localPanel.queryType === 'metrics') {
-                if (localPanel.queryRes) {
-                    delete localPanel.queryData.startEpoch;
-                    delete localPanel.queryData.endEpoch;
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
+                $('#panelLogResultsGrid').show();
+                initialSearchDashboardData = localPanel.queryData;
+                if (!isFilterApplied && localPanel.queryRes) {
+                    runPanelLogsQuery(localPanel.queryData, idpanel, localPanel, localPanel.queryRes);
                 } else {
-                    //remove startEpoch from from localPanel.queryData
-                    delete localPanel.queryData.startEpoch;
-                    delete localPanel.queryData.endEpoch;
-                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
+                    runPanelLogsQuery(localPanel.queryData, idpanel, localPanel);
                 }
-            } else {
+            } else if (localPanel.chartType === 'Bar Chart' || localPanel.chartType === 'Pie Chart' || localPanel.chartType === 'Line Chart' || localPanel.chartType === 'number') {
+                let panEl = $(`#panel${idpanel} .panel-body`);
+                let responseDiv = ``;
+                if (localPanel.chartType === 'number') {
+                    responseDiv = `<div class="big-number-display-container"></div>
+                    <div id="empty-response"></div><div id="corner-popup"></div>
+                    <div id="panel-loading"></div>`;
+                    panEl.append(responseDiv);
+
+                    $('.big-number-display-container').show();
+                } else {
+                    responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>
+                    <div id="panel-loading"></div>`;
+                    panEl.append(responseDiv);
+                }
+
                 if (!isFilterApplied && localPanel.queryRes) {
                     runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
                 } else {
                     runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
                 }
-            }
-        } else if (localPanel.chartType == 'Bar Chart' || localPanel.chartType == 'Pie Chart') {
-            // generic for both bar and pie chartTypes.
-            let panEl = $(`#panel${idpanel} .panel-body`);
-            let responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>
-            <div id="panel-loading"></div>`;
-            panEl.append(responseDiv);
-            if (!isFilterApplied && localPanel.queryRes) {
-                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex, localPanel.queryRes);
             } else {
-                runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);
+                allResultsDisplayed--;
+            }
+        } else if (localPanel.queryType === 'metrics') {
+            if (localPanel.chartType === 'Line Chart') {
+                let panEl = $(`#panel${idpanel} .panel-body`);
+                let responseDiv = `<div id="empty-response"></div></div><div id="corner-popup"></div>
+                <div id="panel-loading"></div>`;
+                panEl.append(responseDiv);
+                if (localPanel.queryRes) {
+                    runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel, localPanel.queryRes);
+                } else {
+                    delete localPanel.queryData.startEpoch;
+                    delete localPanel.queryData.endEpoch;
+                    await runMetricsQuery(localPanel.queryData, localPanel.panelId, localPanel);
+                }
+            } else {
+                allResultsDisplayed--;
             }
         } else {
             allResultsDisplayed--;

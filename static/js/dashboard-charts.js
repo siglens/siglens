@@ -16,38 +16,26 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-var lineChart;
-var barChart; 
-function loadBarOptions(xAxisData, yAxisData) {
-    // colors for dark & light modes
-    let root = document.querySelector(':root');
-    let rootStyles = getComputedStyle(root);
-    let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
-    let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
-    let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-    let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
-    
-    const textColor = $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
-    const gridColor = $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
-    
+function loadBarOptions(xAxisData, yAxisData, chart) {
+    const { gridLineColor, tickColor } = getGraphGridColors();
+
     const datasets = yAxisData.map((dataset, index) => {
-        let colorList = ['#6347D9', '#FF8700'];
         return {
             label: dataset.name,
             data: dataset.data,
-            backgroundColor: colorList[index % colorList.length], 
-            borderColor: colorList[index % colorList.length],
+            backgroundColor: globalColorArray[index % globalColorArray.length],
+            borderColor: globalColorArray[index % globalColorArray.length],
             borderWidth: 1,
-            barPercentage: 0.6, 
-            categoryPercentage: 0.8, 
+            barPercentage: 0.6,
+            categoryPercentage: 0.8,
         };
     });
-
+    const chartType = chart === 'Line Chart' ? 'line' : 'bar';
     return {
-        type: 'bar',
+        type: chartType,
         data: {
             labels: xAxisData,
-            datasets: datasets
+            datasets: datasets,
         },
         options: {
             responsive: true,
@@ -56,39 +44,35 @@ function loadBarOptions(xAxisData, yAxisData) {
                 legend: {
                     position: 'top',
                     labels: {
-                        color: textColor,
+                        color: tickColor,
                         font: {
-                            size: 12
-                        }
-                    }
+                            size: 12,
+                        },
+                    },
                 },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false
-                }
             },
             scales: {
                 x: {
                     ticks: {
-                        color: textColor,
+                        color: tickColor,
                         maxRotation: xAxisData.length > 5 ? 30 : 0,
                         autoSkip: true,
-                        autoSkipPadding: 10
+                        autoSkipPadding: 10,
                     },
                     grid: {
-                        display: false
-                    }
+                        display: false,
+                    },
                 },
                 y: {
                     ticks: {
-                        color: textColor
+                        color: tickColor,
                     },
                     grid: {
-                        color: gridColor
-                    }
-                }
-            }
-        }
+                        color: gridLineColor,
+                    },
+                },
+            },
+        },
     };
 }
 
@@ -103,10 +87,8 @@ function loadPieOptions(xAxisData, yAxisData) {
         pieDataMap['name'] = mapVal2;
         pieDataMapList.push(pieDataMap);
     }
-    let root = document.querySelector(':root');
-    let rootStyles = getComputedStyle(root);
-    let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-    let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
+
+    const { _, tickColor } = getGraphGridColors();
 
     let pieOptions = {
         tooltip: {
@@ -118,16 +100,16 @@ function loadPieOptions(xAxisData, yAxisData) {
             left: 'left',
             data: xAxisData,
             textStyle: {
-                color: labelDarkThemeColor,
-                borderColor: labelDarkThemeColor,
+                color: tickColor,
+                borderColor: tickColor,
             },
         },
         series: [
             {
                 name: 'Pie Chart',
                 type: 'pie',
-                radius: '55%',
-                center: ['50%', '60%'],
+                radius: '50%',
+                center: ['50%', '50%'],
                 data: pieDataMapList,
                 itemStyle: {
                     emphasis: {
@@ -137,21 +119,11 @@ function loadPieOptions(xAxisData, yAxisData) {
                     },
                 },
                 label: {
-                    color: labelDarkThemeColor,
+                    color: tickColor,
                 },
             },
         ],
     };
-
-    if ($('html').attr('data-theme') == 'dark') {
-        pieOptions.series[0].label.color = labelDarkThemeColor;
-        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
-        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
-    } else {
-        pieOptions.series[0].label.color = labelLightThemeColor;
-        pieOptions.legend.textStyle.color = labelLightThemeColor;
-        pieOptions.legend.textStyle.borderColor = labelDarkThemeColor;
-    }
 
     return pieOptions;
 }
@@ -172,7 +144,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
         bigNumVal = hits[0].MeasureVal[columns[0]];
     }
 
-    let panelChartEl;
+    let panelChartEl, barChart;
     if (panelId == -1) {
         panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
     } else if (chartType !== 'number') {
@@ -188,6 +160,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
     /* eslint-disable */
     switch (chartType) {
         case 'Bar Chart':
+        case 'Line Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
 
             var multipleGroupBy = hits[0].GroupByValues.length > 1;
@@ -212,17 +185,22 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
                 return groupByValue;
             });
-            
+
             $(panelChartEl).html('<canvas class="bar-chart-canvas"></canvas>');
             const canvasEl = $(panelChartEl).find('canvas')[0];
             const ctx = canvasEl.getContext('2d');
-            
+
             if (barChart) {
                 barChart.destroy();
             }
 
-            var barConfig = loadBarOptions(xData, seriesData);
-            
+            var barConfig = loadBarOptions(xData, seriesData, chartType);
+
+            if (panelId !== -1 && seriesData.length > 5) {
+                // Disable legend display
+                barConfig.options.plugins.legend.display = false;
+            }
+
             barChart = new Chart(ctx, barConfig);
             break;
         case 'Pie Chart':
@@ -247,6 +225,12 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
             }
 
             var pieOptions = loadPieOptions(xAxisData, yAxisData);
+
+            if (panelId !== -1 && xAxisData.length > 5) {
+                // Disable legend display for pie chart
+                pieOptions.legend.show = false;
+            }
+
             let panelChart = echarts.init(panelChartEl);
             panelChart.setOption(pieOptions);
             break;
@@ -454,118 +438,8 @@ function displayBigNumber(value, panelId, dataType, panelIndex) {
     }
 }
 
-//eslint-disable-next-line no-unused-vars
-function createColorsArray() {
-    let root = document.querySelector(':root');
-    let rootStyles = getComputedStyle(root);
-    let colorArray = [];
-    for (let i = 1; i <= 20; i++) {
-        colorArray.push(rootStyles.getPropertyValue(`--graph-line-color-${i}`));
-    }
-    return colorArray;
-}
-
-//eslint-disable-next-line no-unused-vars
-function renderLineChart(seriesData, panelId) {
-    let classic = ['#a3cafd', '#5795e4', '#d7c3fa', '#7462d8', '#f7d048', '#fbf09e'];
-    let root = document.querySelector(':root');
-    let rootStyles = getComputedStyle(root);
-    let gridLineDarkThemeColor = rootStyles.getPropertyValue('--black-3');
-    let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
-    let tickDarkThemeColor = rootStyles.getPropertyValue('--white-0');
-    let tickLightThemeColor = rootStyles.getPropertyValue('--white-6');
-    var labels, datasets;
-    var panelChartEl;
-    // Extract labels and datasets from seriesData
-    if (seriesData.length > 0) {
-        labels = Object.keys(seriesData[0].values);
-        datasets = seriesData.map(function (series, index) {
-            return {
-                label: series.seriesName,
-                data: Object.values(series.values),
-                borderColor: classic[index % classic.length],
-                backgroundColor: classic[index % classic.length] + 70,
-                borderWidth: 2,
-                fill: false,
-            };
-        });
-    } else {
-        labels = [];
-        datasets = [];
-    }
-
-    var chartData = {
-        labels: labels,
-        datasets: datasets,
-    };
-
-    const config = {
-        type: 'line',
-        data: chartData,
-        options: {
-            maintainAspectRatio: false,
-            responsive: true,
-            title: {
-                display: true,
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    align: 'start',
-                    labels: {
-                        boxWidth: 10,
-                        boxHeight: 2,
-                        fontSize: 10,
-                    },
-                },
-            },
-            scales: {
-                x: {
-                    grid: {
-                        display: false,
-                    },
-                    ticks: {
-                        color: function () {
-                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
-                        },
-                    },
-                },
-                y: {
-                    grid: {
-                        color: function () {
-                            return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
-                        },
-                    },
-                    ticks: {
-                        color: function () {
-                            return $('html').attr('data-theme') == 'dark' ? tickDarkThemeColor : tickLightThemeColor;
-                        },
-                    },
-                },
-            },
-        },
-    };
-    if (panelId == -1) {
-        panelChartEl = $(`.panelDisplay .panEdit-panel`);
-    } else {
-        panelChartEl = $(`#panel${panelId} .panEdit-panel`);
-        panelChartEl.css('width', '100%').css('height', '100%');
-    }
-
-    let can = `<canvas class="line-chart-canvas" ></canvas>`;
-    panelChartEl.append(can);
-    var lineCanvas = panelChartEl.find('canvas')[0].getContext('2d');
-    lineChart = new Chart(lineCanvas, config);
-    $(`#panel${panelId} .panel-body #panel-loading`).hide();
-    if (panelId === -1) {
-        panelChartEl.append(`<div class="lineChartLegend"></div>`);
-    }
-
-    return lineChart;
-}
-
 window.addEventListener('resize', function (_event) {
     if ($('.panelEditor-container').css('display') !== 'none' && panelChart) {
         panelChart.resize();
     }
-}); 
+});
