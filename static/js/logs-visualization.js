@@ -278,7 +278,7 @@ function setupFormatPanel() {
                 $('.content-section').hide();
                 $(`#${chartSettings.lastActiveSection}-section`).show();
 
-                updateFormValues();
+                updateFormatPanelFields(chartSettings);
             }
         });
 
@@ -381,10 +381,10 @@ function setupFormatPanel() {
     });
 
     // Initialize the form with current settings values
-    updateFormValues();
+    updateFormatPanelFields(chartSettings);
 }
 
-function updateFormValues() {
+function updateFormatPanelFields(chartSettings) {
     // X-Axis settings
     $('input[name="x-axis-title"]').val(chartSettings.xAxis.title);
     $(`.rotation-btn[data-rotation="${chartSettings.xAxis.labelRotation}"]`).addClass('active').siblings().removeClass('active');

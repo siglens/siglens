@@ -125,16 +125,6 @@ $(document).ready(async function () {
         trigger: 'hover',
     });
     $('#favbutton').on('click', toggleFavorite);
-
-    $('.accordion-header').on('click', function() {
-        const header = $(this);
-        const content = $(this).next('.accordion-content');
-        const arrow = $(this).find('.accordion-arrow');
-        
-        header.toggleClass('expanded');
-        content.toggleClass('expanded');
-        arrow.toggleClass('expanded');
-    });
 });
 
 function enableJsonEditing() {

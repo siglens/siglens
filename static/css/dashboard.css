@@ -1462,6 +1462,7 @@
 .accordion-content.expanded {
   display: block;
   width: 420px;
+  min-height: auto;
 }
 
 .accordion-header.expanded::before {

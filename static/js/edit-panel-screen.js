@@ -414,6 +414,38 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
         if (selectedChartTypeIndex === 0 || selectedChartTypeIndex === 1) {
             console.log('selectedChartTypeIndex: ' + selectedChartTypeIndex);
             $('#logs-vis-format-options').show();
+
+            // Initialize format settings if they don't exist
+            if (!currentPanel.formatSettings) {
+                currentPanel.formatSettings = {
+                    xAxis: {
+                        title: '',
+                        labelRotation: 0,
+                    },
+                    yAxis: {
+                        title: 'Primary Axis',
+                        interval: null,
+                        minValue: null,
+                        maxValue: null,
+                        abbreviations: false,
+                    },
+                    chartOverlay: {
+                        enabled: false,
+                        title: 'Secondary Axis',
+                        interval: null,
+                        minValue: null,
+                        maxValue: null,
+                        abbreviations: false,
+                        metrics: [],
+                    },
+                    legend: {
+                        show: true,
+                        position: 'right',
+                    },
+                };
+            }
+
+            initFormatAccordion(currentPanel);
         } else {
             $('#logs-vis-format-options').hide();
         }
@@ -477,6 +509,24 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
         $('.panelDisplay .panEdit-panel').show();
         await runQueryBtnHandler();
     }
+}
+
+function initFormatAccordion(panel) {
+    $('.accordion-header, .accordion-content, .accordion-arrow').removeClass('expanded');
+
+    $('.accordion-header').on('click', function () {
+        const header = $(this);
+        const content = $(this).next('.accordion-content');
+        const arrow = $(this).find('.accordion-arrow');
+
+        header.toggleClass('expanded');
+        content.toggleClass('expanded');
+        arrow.toggleClass('expanded');
+    });
+
+    const settings = panel.formatSettings;
+    updateFormatPanelFields(settings);
+    // setupFormatPanel();
 }
 
 function loadVisualizationOptions(panelType) {
