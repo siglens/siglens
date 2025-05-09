@@ -220,6 +220,7 @@ function createTimeChart(measureInfo) {
     updateChart();
 }
 
+//eslint-disable-next-line no-unused-vars
 function timeChart(qtype, measureInfo, isTimechart) {
     const shouldRender = toggleChartVisibility(qtype, isTimechart);
 

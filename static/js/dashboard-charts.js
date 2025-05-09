@@ -193,7 +193,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
             $(panelChartEl).html('<canvas class="bar-chart-canvas"></canvas>');
             const canvasEl = $(panelChartEl).find('canvas')[0];
             const ctx = canvasEl.getContext('2d');
-            
+
             if (barChart) {
                 barChart.destroy();
             }
