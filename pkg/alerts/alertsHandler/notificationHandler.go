@@ -92,7 +92,7 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 	}
 	if len(webhooks) > 0 {
 		for _, webhook := range webhooks {
-			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage, alertDetails.NumEvaluationsCount, alertState)
+			err = sendWebhooks(webhook.Webhook, subject, message, alertDataMessage, alertDetails.NumEvaluationsCount, alertState, webhook.Headers)
 			if err != nil {
 				log.Errorf("NotifyAlertHandlerRequest: Error sending Webhook message to webhook- %s for alert id- %s, err=%v", webhook.Webhook, alertID, err)
 			} else {
@@ -155,7 +155,7 @@ func sendAlertEmail(emailID, subject, message string, alertDataMessage string) e
 	return err
 }
 func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, numEvaluationsCount uint64,
-	alertState alertutils.AlertState) error {
+	alertState alertutils.AlertState, headers map[string]string	) error {
 
 	var status string
 	switch alertState {
@@ -193,6 +193,11 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 	}
 
 	r.Header.Add("Content-Type", "application/json")
+	if headers != nil {
+		for key, value := range headers {
+			r.Header.Add(key, value)
+		}
+	}
 	client := &http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {

@@ -81,6 +81,16 @@ const contactFormHTML = `
 <div class="webhook-container">
     <label for="webhook">Webhook URL</label>
     <input type="text" class="form-control" id="webhook-id">
+    <div class="headers-section mt-3">
+        <label for="additional-headers">Extra Headers</label>
+        <p>Optionally provide extra headers to be used in the request.</p>
+        <div class="headers-main-container">
+            <!-- Added headers will appear here -->
+        </div>
+        <button class="add-headers-container btn btn-grey" type="button">
+            <span class="plus-icon">+</span>Add Header
+        </button>
+    </div>
 </div>
     </div>
     <button class="add-new-contact-type btn btn-primary" type="button">
@@ -187,11 +197,116 @@ function initializeContactForm(contactId) {
         const container = $(this).closest('.contact-container');
         getContactPointTestData(container);
     });
+
+    $('.add-headers-container').on('click', function () {
+        const headersMainContainer = $(this).closest('.headers-section').find('.headers-main-container');
+        if (headersMainContainer.find('.headers-container').length === 0) {
+            var newHeadersContainer = `
+            <div class="headers-container">
+                <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="">
+                <span class="headers-equal">=</span>
+                <input type="text" id="header-value" class="form-control" placeholder="Value" tabindex="8" value="">
+                <button class="tick-icon" type="button" id="confirm-header"></button>
+                <button class="cross-icon" type="button" id="cancel-header"></button>
+            </div>
+            `;
+            headersMainContainer.append(newHeadersContainer);
+        }
+    });
+
+    $('.headers-main-container').on('click', '.tick-icon', function () {
+        const headerContainer = $(this).closest('.headers-container');
+        const key = headerContainer.find('#header-key').val();
+        const value = headerContainer.find('#header-value').val();
+        const headersMainContainer = headerContainer.closest('.headers-main-container');
+    
+        if (key && value) {
+            const displayHeader = `
+                <div class="added-header">
+                    <span class="header-display">${key}: ${value}</span>
+                    <button class="edit-icon" type="button" id="edit-header"></button>
+                    <button class="delete-icon" type="button" id="delete-header"></button>
+                </div>
+            `;
+            headersMainContainer.append(displayHeader);
+            headerContainer.remove(); 
+        } else {
+            alert('Please fill in both header name and value.');
+        }
+    });
+
+    $('.headers-main-container').on('click', '.cross-icon', function () {
+        const headerContainer = $(this).closest('.headers-container');
+        headerContainer.remove();
+    });
+
+    $('.headers-main-container').on('click', '.edit-icon', function () {
+        const headerDisplay = $(this).closest('.added-header');
+        const headerText = headerDisplay.find('.header-display').text();
+        const [key, value] = headerText.split(': ');
+    
+        const editHeaderContainer = `
+            <div class="headers-container">
+                <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${key}">
+                <span class="headers-equal">=</span>
+                <input type="text" id="header-value" class="form-control" placeholder="Value" value="${value}" tabindex="8">
+                <button class="tick-icon" type="button" id="confirm-header"></button>
+                <button class="cross-icon" type="button" id="cancel-header"></button>
+            </div>
+        `;
+        headerDisplay.replaceWith(editHeaderContainer);
+    });
+
+    $('.headers-main-container').on('click', '.delete-icon', function () {
+        $(this).closest('.added-header').remove();
+    });
+
     updateTestButtonState();
     $('#contact-form').on('input', function () {
         updateTestButtonState();
     });
 }
+
+function setContactForm() {
+    contactData.contact_name = $('#contact-name').val();
+    contactData.slack = [];
+    contactData.webhook = [];
+
+    $('.contact-container').each(function () {
+        let contactType = $(this).find('#contact-types span').text();
+
+        if (contactType === 'Slack') {
+            let slackValue = $(this).find('#slack-channel-id').val();
+            let slackToken = $(this).find('#slack-token').val();
+            if (slackValue && slackToken) {
+                let slackContact = {
+                    channel_id: slackValue,
+                    slack_token: slackToken,
+                };
+                contactData.slack.push(slackContact);
+            }
+        } else if (contactType === 'Webhook') {
+            let webhookValue = $(this).find('#webhook-id').val();
+            if (webhookValue) {
+                let headers = {};
+                $(this).find('.added-header').each(function () {
+                    const headerText = $(this).find('.header-display').text();
+                    const [key, value] = headerText.split(': ');
+                    headers[key] = value;
+                });
+
+                let webhookContact = {
+                    webhook: webhookValue,
+                    headers: headers
+                };
+                contactData.webhook.push(webhookContact);
+            }
+        }
+    });
+    contactData.pager_duty = '';
+    updateTestButtonState();
+}
+
 function updateTestButtonState() {
     $('.contact-container').each(function () {
         const isSlack = $(this).find('#contact-types span').text() === 'Slack';
@@ -277,38 +392,6 @@ function resetContactForm() {
     $('.contact-option').removeClass('active');
     $('.contact-options #option-0').addClass('active');
     contactData = {};
-    updateTestButtonState();
-}
-
-function setContactForm() {
-    contactData.contact_name = $('#contact-name').val();
-    contactData.slack = [];
-    contactData.webhook = [];
-
-    $('.contact-container').each(function () {
-        let contactType = $(this).find('#contact-types span').text();
-
-        if (contactType === 'Slack') {
-            let slackValue = $(this).find('#slack-channel-id').val();
-            let slackToken = $(this).find('#slack-token').val();
-            if (slackValue && slackToken) {
-                let slackContact = {
-                    channel_id: slackValue,
-                    slack_token: slackToken,
-                };
-                contactData.slack.push(slackContact);
-            }
-        } else if (contactType === 'Webhook') {
-            let webhookValue = $(this).find('#webhook-id').val();
-            if (webhookValue) {
-                let webhookContact = {
-                    webhook: webhookValue,
-                };
-                contactData.webhook.push(webhookContact);
-            }
-        }
-    });
-    contactData.pager_duty = '';
     updateTestButtonState();
 }
 
@@ -437,9 +520,9 @@ class btnRenderer {
     init(params) {
         this.eGui = document.createElement('span');
         this.eGui.innerHTML = `<div id="alert-grid-btn">
-				<button class='btn' id="editbutton"></button>
+                <button class='btn' id="editbutton"></button>
                 <button class="btn-simple mx-4" id="delbutton"></button>
-				</div>`;
+                </div>`;
         this.eButton = this.eGui.querySelector('.btn');
         this.dButton = this.eGui.querySelector('.btn-simple');
 
@@ -665,6 +748,18 @@ function showContactFormForEdit(contactId) {
                     contactContainer.find('.webhook-container').css('display', 'block');
                     contactContainer.find('.slack-container').css('display', 'none');
                     contactContainer.find('.webhook-container #webhook-id').val(value.webhook);
+                    if (value.headers) {
+                        Object.entries(value.headers).forEach(([headerKey, headerValue]) => {
+                            const displayHeader = `
+                                <div class="added-header">
+                                    <span class="header-display">${headerKey}: ${headerValue}</span>
+                                    <button class="edit-icon" type="button" id="edit-header"></button>
+                                    <button class="delete-icon" type="button" id="delete-header"></button>
+                                </div>
+                            `;
+                            contactContainer.find('.headers-main-container').append(displayHeader);
+                        });
+                    }
                 }
                 if (key != 'slack' && key != 'webhook') {
                     contactContainer.find(`.${key}-container .form-control`).val(value);
@@ -715,11 +810,18 @@ function getContactPointTestData(container) {
             }
         } else if (contactType === 'Webhook') {
             let webhookValue = container.find('#webhook-id').val();
+            let headers = {};
+            container.find('.added-header').each(function () {
+                const headerText = $(this).find('.header-display').text();
+                const [key, value] = headerText.split(': ');
+                headers[key] = value;
+            });
             if (webhookValue) {
                 contactData = {
                     type: 'webhook',
                     settings: {
                         webhook: webhookValue,
+                        headers: headers
                     },
                 };
             }

@@ -20,6 +20,8 @@ package alertutils
 import (
 	"fmt"
 	"time"
+	"database/sql/driver"
+	"encoding/json"
 
 	"github.com/go-co-op/gocron"
 	"github.com/siglens/siglens/pkg/utils"
@@ -147,9 +149,22 @@ func (SlackTokenConfig) TableName() string {
 	return "slack_token"
 }
 
+type JSONMap map[string]string
+func (j JSONMap) Value() (driver.Value, error) {
+	return json.Marshal(j)
+}
+func (j *JSONMap) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("JSONMap Scan: failed to assert database value as []byte")
+	}
+	return json.Unmarshal(bytes, j)
+}
+
 type WebHookConfig struct {
 	ID      uint   `gorm:"primaryKey;autoIncrement:true"`
 	Webhook string `json:"webhook"`
+	Headers JSONMap `json:"headers" gorm:"type:text"` // stored as JSON string in a TEXT column
 }
 
 func (WebHookConfig) TableName() string {
