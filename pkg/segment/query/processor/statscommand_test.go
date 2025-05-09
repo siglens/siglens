@@ -24,35 +24,35 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func getTestData() map[string][]utils.CValueEnclosure {
-	knownValues := map[string][]utils.CValueEnclosure{
+func getTestData() map[string][]segutils.CValueEnclosure {
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(5)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(5)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
 		},
 		"col3": {
-			{Dtype: utils.SS_DT_STRING, CVal: "z"},
-			{Dtype: utils.SS_DT_STRING, CVal: "y"},
-			{Dtype: utils.SS_DT_STRING, CVal: "x"},
-			{Dtype: utils.SS_DT_STRING, CVal: "w"},
-			{Dtype: utils.SS_DT_STRING, CVal: "v"},
-			{Dtype: utils.SS_DT_STRING, CVal: "u"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "z"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "y"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "x"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "w"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "v"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "u"},
 		},
 	}
 
@@ -63,15 +63,15 @@ func getGroupByProcessor() *statsProcessor {
 	measureOperations := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "col2",
-			MeasureFunc: utils.Count,
+			MeasureFunc: segutils.Count,
 		},
 		{
 			MeasureCol:  "col2",
-			MeasureFunc: utils.Sum,
+			MeasureFunc: segutils.Sum,
 		},
 		{
 			MeasureCol:  "col2",
-			MeasureFunc: utils.Avg,
+			MeasureFunc: segutils.Avg,
 		},
 	}
 
@@ -113,13 +113,13 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
 
-	expectedCountRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+	expectedCountRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 	}
 
 	countColName := "count(col2)"
@@ -127,13 +127,13 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedCountRes, actualCountRes)
 
-	expectedSumRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(5)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+	expectedSumRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(5)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
 	}
 
 	sumColName := "sum(col2)"
@@ -141,13 +141,13 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedSumRes, actualSumRes)
 
-	expectedAvgRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(1)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(2)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(4)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(5)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(6)},
+	expectedAvgRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(5)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(6)},
 	}
 
 	avgColName := "avg(col2)"
@@ -155,22 +155,22 @@ func Test_ProcessGroupByRequest_AllColsExist(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedAvgRes, actualAvgRes)
 
-	expectedGroupByCols := map[string][]utils.CValueEnclosure{
+	expectedGroupByCols := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col3": {
-			{Dtype: utils.SS_DT_STRING, CVal: "z"},
-			{Dtype: utils.SS_DT_STRING, CVal: "y"},
-			{Dtype: utils.SS_DT_STRING, CVal: "x"},
-			{Dtype: utils.SS_DT_STRING, CVal: "w"},
-			{Dtype: utils.SS_DT_STRING, CVal: "v"},
-			{Dtype: utils.SS_DT_STRING, CVal: "u"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "z"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "y"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "x"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "w"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "v"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "u"},
 		},
 	}
 
@@ -215,17 +215,17 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
 
-	expectedCountRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)}, // Missing col3, so its "a~nil" repeated twice
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)}, // Missing col3, so its "b~nil" repeated twice
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+	expectedCountRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)}, // Missing col3, so its "a~nil" repeated twice
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)}, // Missing col3, so its "b~nil" repeated twice
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
 	}
 
 	countColName := "count(col2)"
@@ -233,17 +233,17 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedCountRes, actualCountRes)
 
-	expectedSumRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(9)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(5)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(7)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+	expectedSumRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(9)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(5)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(7)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
 	}
 
 	sumColName := "sum(col2)"
@@ -251,17 +251,17 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedSumRes, actualSumRes)
 
-	expectedAvgRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(1)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(4.5)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(4)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(5)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(4)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(6)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3.5)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(1)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(2)},
+	expectedAvgRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4.5)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(5)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(6)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3.5)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)},
 	}
 
 	avgColName := "avg(col2)"
@@ -269,30 +269,30 @@ func Test_ProcessGroupByRequest_SomeColsMissing(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, expectedAvgRes, actualAvgRes)
 
-	expectedGroupByCols := map[string][]utils.CValueEnclosure{
+	expectedGroupByCols := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 		"col3": {
-			{Dtype: utils.SS_DT_STRING, CVal: "w"},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			{Dtype: utils.SS_DT_STRING, CVal: "z"},
-			{Dtype: utils.SS_DT_STRING, CVal: "x"},
-			{Dtype: utils.SS_DT_STRING, CVal: "v"},
-			{Dtype: utils.SS_DT_STRING, CVal: "u"},
-			{Dtype: utils.SS_DT_BACKFILL, CVal: nil},
-			{Dtype: utils.SS_DT_STRING, CVal: "y"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "w"},
+			{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: segutils.SS_DT_STRING, CVal: "z"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "x"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "v"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "u"},
+			{Dtype: segutils.SS_DT_BACKFILL, CVal: nil},
+			{Dtype: segutils.SS_DT_STRING, CVal: "y"},
 		},
 	}
 
@@ -370,46 +370,46 @@ func Test_ProcessGroupByRequest_MergeIqrStats(t *testing.T) {
 	knownValues, err = resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 
-	expectedKnownValues := map[string][]utils.CValueEnclosure{
+	expectedKnownValues := map[string][]segutils.CValueEnclosure{
 		"count(col2)": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
 		},
 		"sum(col2)": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(9)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(12)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(15)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(18)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(9)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(12)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(15)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(18)},
 		},
 		"avg(col2)": {
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(1)},
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(2)},
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(3)},
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(4)},
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(5)},
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(6)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(1)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(2)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(4)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(5)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(6)},
 		},
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col3": {
-			{Dtype: utils.SS_DT_STRING, CVal: "z"},
-			{Dtype: utils.SS_DT_STRING, CVal: "y"},
-			{Dtype: utils.SS_DT_STRING, CVal: "x"},
-			{Dtype: utils.SS_DT_STRING, CVal: "w"},
-			{Dtype: utils.SS_DT_STRING, CVal: "v"},
-			{Dtype: utils.SS_DT_STRING, CVal: "u"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "z"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "y"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "x"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "w"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "v"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "u"},
 		},
 	}
 
@@ -425,15 +425,15 @@ func getStatsMeasureProcessor() *statsProcessor {
 	measureOperations := []*structs.MeasureAggregator{
 		{
 			MeasureCol:  "col2",
-			MeasureFunc: utils.Count,
+			MeasureFunc: segutils.Count,
 		},
 		{
 			MeasureCol:  "col2",
-			MeasureFunc: utils.Sum,
+			MeasureFunc: segutils.Sum,
 		},
 		{
 			MeasureCol:  "col2",
-			MeasureFunc: utils.Avg,
+			MeasureFunc: segutils.Avg,
 		},
 	}
 
@@ -467,8 +467,8 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, actualKnownValues)
 
-	expectedCountRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+	expectedCountRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
 	}
 
 	countColName := "count(col2)"
@@ -477,8 +477,8 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	assert.Equal(t, 1, len(actualCountRes))
 	assert.Equal(t, expectedCountRes, actualCountRes)
 
-	expectedSumRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(21)},
+	expectedSumRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(21)},
 	}
 
 	sumColName := "sum(col2)"
@@ -487,8 +487,8 @@ func Test_ProcessSegmentStats(t *testing.T) {
 	assert.Equal(t, 1, len(actualSumRes))
 	assert.Equal(t, expectedSumRes, actualSumRes)
 
-	expectedAvgRes := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(3.5)},
+	expectedAvgRes := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3.5)},
 	}
 
 	avgColName := "avg(col2)"
@@ -563,15 +563,15 @@ func Test_ProcessSegmentStats_MergeIqrStats(t *testing.T) {
 	knownValues, err = resultIqr.ReadAllColumns()
 	assert.NoError(t, err)
 
-	expectedKnownValues := map[string][]utils.CValueEnclosure{
+	expectedKnownValues := map[string][]segutils.CValueEnclosure{
 		"count(col2)": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(18)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(18)},
 		},
 		"sum(col2)": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(63)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(63)},
 		},
 		"avg(col2)": {
-			{Dtype: utils.SS_DT_FLOAT, CVal: float64(3.5)},
+			{Dtype: segutils.SS_DT_FLOAT, CVal: float64(3.5)},
 		},
 	}
 
@@ -590,9 +590,9 @@ func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
 	factorSize := 5 // should be greater than len(groupByCols)
 
 	for i := 0; i < len(col1Values); i++ {
-		byteVal := make([]byte, utils.MAX_RECORD_SIZE*factorSize)
+		byteVal := make([]byte, segutils.MAX_RECORD_SIZE*factorSize)
 
-		for j := 0; j < utils.MAX_RECORD_SIZE; j++ {
+		for j := 0; j < segutils.MAX_RECORD_SIZE; j++ {
 			byteVal[j] = byte(col1Values[i].CVal.(string)[0])
 		}
 
@@ -609,7 +609,7 @@ func Test_ProcessGroupByRequestFullBuffer(t *testing.T) {
 	// value of col1 at each record is utils.MAX_RECORD_SIZE * factor bytes
 	// +
 	// value of col3 at each record is 1 byte
-	estimatedSizeOfBuffer := (utils.MAX_RECORD_SIZE * factorSize) + 1
+	estimatedSizeOfBuffer := (segutils.MAX_RECORD_SIZE * factorSize) + 1
 
 	// the p.bucketKeyWorkingBuf should be at least the size of the estimated buffer
 	assert.GreaterOrEqual(t, len(processor.bucketKeyWorkingBuf), estimatedSizeOfBuffer, "bucketKeyWorkingBuf size is less than estimated buffer size")

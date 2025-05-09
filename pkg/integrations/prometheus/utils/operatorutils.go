@@ -25,7 +25,6 @@ import (
 
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -94,23 +93,23 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 	}
 
 	switch queryOp.Operation {
-	case utils.LetAdd:
+	case segutils.LetAdd:
 		finalResult[groupID][timestamp] = valueLHS + valueRHS
-	case utils.LetDivide:
+	case segutils.LetDivide:
 		if valueRHS == 0 {
 			return
 		}
 		finalResult[groupID][timestamp] = valueLHS / valueRHS
-	case utils.LetMultiply:
+	case segutils.LetMultiply:
 		finalResult[groupID][timestamp] = valueLHS * valueRHS
-	case utils.LetSubtract:
+	case segutils.LetSubtract:
 		val := valueLHS - valueRHS
 		finalResult[groupID][timestamp] = val
-	case utils.LetModulo:
+	case segutils.LetModulo:
 		finalResult[groupID][timestamp] = math.Mod(valueLHS, valueRHS)
-	case utils.LetPower:
+	case segutils.LetPower:
 		finalResult[groupID][timestamp] = math.Pow(valueLHS, valueRHS)
-	case utils.LetGreaterThan:
+	case segutils.LetGreaterThan:
 		isGtr := valueLHS > valueRHS
 		if isGtr {
 			if queryOp.ReturnBool {
@@ -124,7 +123,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetGreaterThanOrEqualTo:
+	case segutils.LetGreaterThanOrEqualTo:
 		isGte := valueLHS >= valueRHS
 		if isGte {
 			if queryOp.ReturnBool {
@@ -137,7 +136,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetLessThan:
+	case segutils.LetLessThan:
 		isLss := valueLHS < valueRHS
 		if isLss {
 			if queryOp.ReturnBool {
@@ -150,7 +149,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetLessThanOrEqualTo:
+	case segutils.LetLessThanOrEqualTo:
 		isLte := valueLHS <= valueRHS
 		if isLte {
 			if queryOp.ReturnBool {
@@ -163,7 +162,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetEquals:
+	case segutils.LetEquals:
 		if valueLHS == valueRHS {
 			if queryOp.ReturnBool {
 				finalResult[groupID][timestamp] = 1
@@ -171,7 +170,7 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 				finalResult[groupID][timestamp] = valueLHS
 			}
 		}
-	case utils.LetNotEquals:
+	case segutils.LetNotEquals:
 		if valueLHS != valueRHS {
 			if queryOp.ReturnBool {
 				finalResult[groupID][timestamp] = 1
@@ -187,11 +186,11 @@ func SetFinalResult(queryOp *structs.QueryArithmetic, finalResult map[string]map
 	// Logical ops can only been used between 2 vectors
 	if !queryOp.ConstantOp && IsLogicalOperator(queryOp.Operation) {
 		switch queryOp.Operation {
-		case utils.LetAnd:
+		case segutils.LetAnd:
 			finalResult[groupID][timestamp] = valueLHS
-		case utils.LetOr:
+		case segutils.LetOr:
 			finalResult[groupID][timestamp] = valueLHS
-		case utils.LetUnless:
+		case segutils.LetUnless:
 			finalResult[groupID][timestamp] = valueLHS
 		default:
 			// TODO: fix the flooding of this log

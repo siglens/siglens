@@ -22,7 +22,7 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,17 +30,17 @@ func getWhereCommandProcessorForTest() *whereProcessor {
 	return &whereProcessor{}
 }
 
-func getTestKnownValues() map[string][]utils.CValueEnclosure {
-	return map[string][]utils.CValueEnclosure{
+func getTestKnownValues() map[string][]segutils.CValueEnclosure {
+	return map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
 		},
 	}
 }

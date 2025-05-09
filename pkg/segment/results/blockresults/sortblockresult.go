@@ -22,7 +22,7 @@ import (
 	"errors"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 )
 
 type SortResults struct {
@@ -33,7 +33,7 @@ type SortResults struct {
 	Sort      *structs.SortRequest // request for aggregations
 }
 
-func GetRrsFromRrc(rec *utils.RecordResultContainer, sortReq *structs.SortRequest) *ResultRecordSort {
+func GetRrsFromRrc(rec *segutils.RecordResultContainer, sortReq *structs.SortRequest) *ResultRecordSort {
 
 	currRrs := &ResultRecordSort{
 		Rrc:       rec,
@@ -61,7 +61,7 @@ Returns:
   - bool if this record was added
   - string for any remote records that were removed
 */
-func (s *SortResults) Add(rrc *utils.RecordResultContainer) (bool, string) {
+func (s *SortResults) Add(rrc *segutils.RecordResultContainer) (bool, string) {
 
 	// first record seen
 	if currRes := uint64(s.Results.Len()); currRes == 0 {
@@ -94,7 +94,7 @@ func (s *SortResults) Add(rrc *utils.RecordResultContainer) (bool, string) {
 	return false, ""
 }
 
-func (s *SortResults) ShouldAddRecord(rrc *utils.RecordResultContainer) bool {
+func (s *SortResults) ShouldAddRecord(rrc *segutils.RecordResultContainer) bool {
 	if s.Ascending {
 		if rrc.SortColumnValue < s.LastValue {
 			return true
@@ -172,13 +172,13 @@ func (s *SortResults) GetLastValue() float64 {
 }
 
 // This function uses heap.Pop, therefore can only be called once
-func (s *SortResults) GetSortedResults() []*utils.RecordResultContainer {
+func (s *SortResults) GetSortedResults() []*segutils.RecordResultContainer {
 	size := uint64(s.Results.Len())
 	if s.Count < size {
 		size = s.Count
 	}
 
-	allSorts := make([]*utils.RecordResultContainer, size)
+	allSorts := make([]*segutils.RecordResultContainer, size)
 	resultIdx := uint64(0)
 	for s.Results.Len() > 0 && resultIdx < s.Count {
 		item := heap.Pop(s.Results).(*ResultRecordSort)
@@ -189,13 +189,13 @@ func (s *SortResults) GetSortedResults() []*utils.RecordResultContainer {
 	return allSorts
 }
 
-func (s *SortResults) GetSortedResultsCopy() []*utils.RecordResultContainer {
+func (s *SortResults) GetSortedResultsCopy() []*segutils.RecordResultContainer {
 	size := uint64(s.Results.Len())
 	if s.Count < size {
 		size = s.Count
 	}
 
-	allSorts := make([]*utils.RecordResultContainer, size)
+	allSorts := make([]*segutils.RecordResultContainer, size)
 	resultIdx := uint64(0)
 
 	var newHeap SortedResultRecords

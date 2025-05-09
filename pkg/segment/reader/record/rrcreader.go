@@ -29,7 +29,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
 )
@@ -52,8 +52,8 @@ func GetOrCreateNodeRes(qid uint64) *structs.NodeResult {
 	return nodeRes
 }
 
-func buildSegMapOldPipeline(allrrc []*utils.RecordResultContainer, segEncToKey map[uint32]string) (map[string]*utils.BlkRecIdxContainer, map[string]int) {
-	segmap := make(map[string]*utils.BlkRecIdxContainer)
+func buildSegMapOldPipeline(allrrc []*segutils.RecordResultContainer, segEncToKey map[uint32]string) (map[string]*segutils.BlkRecIdxContainer, map[string]int) {
+	segmap := make(map[string]*segutils.BlkRecIdxContainer)
 	recordIndexInFinal := make(map[string]int)
 
 	for idx, rrc := range allrrc {
@@ -69,7 +69,7 @@ func buildSegMapOldPipeline(allrrc []*utils.RecordResultContainer, segEncToKey m
 		blkIdxsCtr, ok := segmap[segkey]
 		if !ok {
 			innermap := make(map[uint16]map[uint16]uint64)
-			blkIdxsCtr = &utils.BlkRecIdxContainer{BlkRecIndexes: innermap, VirtualTableName: rrc.VirtualTableName}
+			blkIdxsCtr = &segutils.BlkRecIdxContainer{BlkRecIndexes: innermap, VirtualTableName: rrc.VirtualTableName}
 			segmap[segkey] = blkIdxsCtr
 		}
 		_, ok = blkIdxsCtr.BlkRecIndexes[rrc.BlockNum]
@@ -184,7 +184,7 @@ func finalizeRecords(allRecords []map[string]interface{}, finalCols map[string]b
 }
 
 // Gets all raw json records from RRCs. If esResponse is false, _id and _type will not be added to any record
-func GetJsonFromAllRrcOldPipeline(allrrc []*utils.RecordResultContainer, esResponse bool, qid uint64,
+func GetJsonFromAllRrcOldPipeline(allrrc []*segutils.RecordResultContainer, esResponse bool, qid uint64,
 	segEncToKey map[uint32]string, aggs *structs.QueryAggregators, allColsInAggs map[string]struct{}) ([]map[string]interface{}, []string, error) {
 
 	sTime := time.Now()
@@ -459,7 +459,7 @@ func extractKeyValuePairsFromString(str string) (map[string]interface{}, error) 
 		if len(parts) == 2 {
 			key := strings.TrimSpace(parts[0])
 			value := strings.TrimSpace(parts[1])
-			keyValuePairs[key] = utils.GetLiteralFromString(value)
+			keyValuePairs[key] = segutils.GetLiteralFromString(value)
 		} else {
 			return nil, fmt.Errorf("invalid key-value pair: %s", pair)
 		}

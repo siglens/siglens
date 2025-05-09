@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,8 +50,8 @@ func Test_JoinStats(t *testing.T) {
 		GroupByRequest: &structs.GroupByRequest{
 			GroupByColumns: []string{"a", "b"},
 			MeasureOperations: []*structs.MeasureAggregator{
-				{MeasureCol: "c", MeasureFunc: utils.Min},
-				{MeasureCol: "d", MeasureFunc: utils.Max},
+				{MeasureCol: "c", MeasureFunc: segutils.Min},
+				{MeasureCol: "d", MeasureFunc: segutils.Max},
 			},
 			BucketCount: 100,
 		},
@@ -61,9 +61,9 @@ func Test_JoinStats(t *testing.T) {
 	for i := uint64(0); i < 10; i++ {
 		var buf bytes.Buffer
 		buf.WriteString(fmt.Sprintf("%v", i))
-		mRes := []utils.CValueEnclosure{
-			{CVal: uint64(1), Dtype: utils.SS_DT_UNSIGNED_NUM},
-			{CVal: uint64(1), Dtype: utils.SS_DT_UNSIGNED_NUM},
+		mRes := []segutils.CValueEnclosure{
+			{CVal: uint64(1), Dtype: segutils.SS_DT_UNSIGNED_NUM},
+			{CVal: uint64(1), Dtype: segutils.SS_DT_UNSIGNED_NUM},
 		}
 		bRes.AddMeasureResultsToKey(buf.Bytes(), mRes, "", false, 5, nil)
 	}
@@ -71,8 +71,8 @@ func Test_JoinStats(t *testing.T) {
 	assert.Len(t, bRes.GroupByAggregation.AllRunningBuckets, 10)
 	for _, bucket := range bRes.GroupByAggregation.AllRunningBuckets {
 		assert.Len(t, bucket.runningStats, 2)
-		assert.Equal(t, bucket.runningStats[0].rawVal, utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)})
-		assert.Equal(t, bucket.runningStats[1].rawVal, utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)})
+		assert.Equal(t, bucket.runningStats[0].rawVal, segutils.CValueEnclosure{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)})
+		assert.Equal(t, bucket.runningStats[1].rawVal, segutils.CValueEnclosure{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)})
 		assert.Equal(t, bucket.count, uint64(1))
 	}
 
@@ -81,9 +81,9 @@ func Test_JoinStats(t *testing.T) {
 	for i := uint64(0); i < 10; i++ {
 		var buf bytes.Buffer
 		buf.WriteString(fmt.Sprintf("%v", i))
-		mRes := []utils.CValueEnclosure{
-			{CVal: uint64(1), Dtype: utils.SS_DT_UNSIGNED_NUM},
-			{CVal: i, Dtype: utils.SS_DT_UNSIGNED_NUM},
+		mRes := []segutils.CValueEnclosure{
+			{CVal: uint64(1), Dtype: segutils.SS_DT_UNSIGNED_NUM},
+			{CVal: i, Dtype: segutils.SS_DT_UNSIGNED_NUM},
 		}
 		toMerge.AddMeasureResultsToKey(buf.Bytes(), mRes, "", false, 5, nil)
 	}
@@ -96,12 +96,12 @@ func Test_JoinStats(t *testing.T) {
 		assert.True(t, ok)
 		bucket := bRes.GroupByAggregation.AllRunningBuckets[idx]
 		assert.Equal(t, bucket.count, uint64(2))
-		assert.Equal(t, bucket.runningStats[0].rawVal, utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)}, "min stays the same")
+		assert.Equal(t, bucket.runningStats[0].rawVal, segutils.CValueEnclosure{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)}, "min stays the same")
 
 		var max = i
 		if i == 0 {
 			max = uint64(1)
 		}
-		assert.Equal(t, bucket.runningStats[1].rawVal, utils.CValueEnclosure{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: max}, "max should be i or 1 if i==0")
+		assert.Equal(t, bucket.runningStats[1].rawVal, segutils.CValueEnclosure{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: max}, "max should be i or 1 if i==0")
 	}
 }

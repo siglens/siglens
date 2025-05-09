@@ -30,7 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 )
 
 type inputlookupProcessor struct {
@@ -46,18 +46,18 @@ func isCSVFormat(filename string) bool {
 	return strings.HasSuffix(filename, ".csv") || strings.HasSuffix(filename, ".csv.gz")
 }
 
-func createRecord(columnNames []string, record []string) (map[string]utils.CValueEnclosure, error) {
+func createRecord(columnNames []string, record []string) (map[string]segutils.CValueEnclosure, error) {
 	if len(columnNames) != len(record) {
 		return nil, fmt.Errorf("createRecord: columnNames and record lengths are not equal, len(columnNames): %v, len(record): %v",
 			len(columnNames), len(record))
 	}
-	recordMap := make(map[string]utils.CValueEnclosure)
+	recordMap := make(map[string]segutils.CValueEnclosure)
 	for i, cname := range columnNames {
 		floatVal, floatErr := strconv.ParseFloat(record[i], 64)
 		if floatErr != nil {
-			recordMap[cname] = utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: record[i]}
+			recordMap[cname] = segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: record[i]}
 		} else {
-			recordMap[cname] = utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: floatVal}
+			recordMap[cname] = segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT, CVal: floatVal}
 		}
 	}
 	return recordMap, nil
@@ -89,7 +89,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 		return nil, io.EOF
 	}
 	if p.limit == 0 {
-		p.limit = utils.QUERY_EARLY_EXIT_LIMIT // TODO: Find a better way to deal with scroll and set limit for later inputlookups
+		p.limit = segutils.QUERY_EARLY_EXIT_LIMIT // TODO: Find a better way to deal with scroll and set limit for later inputlookups
 	}
 
 	if p.options == nil {
@@ -133,7 +133,7 @@ func (p *inputlookupProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	count := uint64(0)
-	records := map[string][]utils.CValueEnclosure{}
+	records := map[string][]segutils.CValueEnclosure{}
 
 	for !p.eof && count < min(p.options.Max, p.limit) {
 		count++

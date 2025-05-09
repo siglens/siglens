@@ -20,7 +20,7 @@ package querytracker
 import (
 	"testing"
 
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 
 	. "github.com/siglens/siglens/pkg/segment/structs"
@@ -28,7 +28,7 @@ import (
 
 func Test_HashSearchNode(t *testing.T) {
 
-	qVal, err := utils.CreateDtypeEnclosure("iOS", 0)
+	qVal, err := segutils.CreateDtypeEnclosure("iOS", 0)
 	assert.Nil(t, err)
 
 	sNode := &SearchNode{
@@ -37,7 +37,7 @@ func Test_HashSearchNode(t *testing.T) {
 				{
 					ExpressionFilter: &SearchExpression{
 						LeftSearchInput:  &SearchExpressionInput{ColumnName: "os"},
-						FilterOp:         utils.Equals,
+						FilterOp:         segutils.Equals,
 						RightSearchInput: &SearchExpressionInput{ColumnValue: qVal},
 					},
 					SearchType: SimpleExpression,

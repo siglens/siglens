@@ -27,7 +27,7 @@ import (
 	"testing"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,16 +40,16 @@ func Test_sstReadWrite(t *testing.T) {
 
 	myNums := structs.NumericStats{
 		NumericCount: 123,
-		Sum: utils.NumTypeEnclosure{Ntype: utils.SS_DT_SIGNED_NUM,
+		Sum: segutils.NumTypeEnclosure{Ntype: segutils.SS_DT_SIGNED_NUM,
 			IntgrVal: 789},
 	}
 
 	inSst := structs.SegStats{
 		IsNumeric: true,
 		Count:     2345,
-		Min: utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM,
+		Min: segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM,
 			CVal: int64(456)},
-		Max: utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT,
+		Max: segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT,
 			CVal: 23.4567},
 		NumStats: &myNums,
 	}
@@ -109,14 +109,14 @@ func TestGetSegList(t *testing.T) {
 		name           string
 		runningSegStat *structs.SegStats
 		currSegStat    *structs.SegStats
-		expectedRes    *utils.CValueEnclosure
+		expectedRes    *segutils.CValueEnclosure
 		expectedErr    error
 	}{
 		{
 			name:           "currSegStat is nil",
 			runningSegStat: nil,
 			currSegStat:    nil,
-			expectedRes:    &utils.CValueEnclosure{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{}},
+			expectedRes:    &segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{}},
 			expectedErr:    errors.New("GetSegList: currSegStat does not contain string list <nil>"),
 		},
 		{
@@ -127,8 +127,8 @@ func TestGetSegList(t *testing.T) {
 					StrList: generateStringList(5),
 				},
 			},
-			expectedRes: &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
+			expectedRes: &segutils.CValueEnclosure{
+				Dtype: segutils.SS_DT_STRING_SLICE,
 				CVal:  generateStringList(5),
 			},
 			expectedErr: nil,
@@ -138,12 +138,12 @@ func TestGetSegList(t *testing.T) {
 			runningSegStat: nil,
 			currSegStat: &structs.SegStats{
 				StringStats: &structs.StringStats{
-					StrList: generateStringList(utils.MAX_SPL_LIST_SIZE + 5),
+					StrList: generateStringList(segutils.MAX_SPL_LIST_SIZE + 5),
 				},
 			},
-			expectedRes: &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
-				CVal:  generateStringList(utils.MAX_SPL_LIST_SIZE),
+			expectedRes: &segutils.CValueEnclosure{
+				Dtype: segutils.SS_DT_STRING_SLICE,
+				CVal:  generateStringList(segutils.MAX_SPL_LIST_SIZE),
 			},
 			expectedErr: nil,
 		},
@@ -159,8 +159,8 @@ func TestGetSegList(t *testing.T) {
 					StrList: generateStringList(4),
 				},
 			},
-			expectedRes: &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
+			expectedRes: &segutils.CValueEnclosure{
+				Dtype: segutils.SS_DT_STRING_SLICE,
 				CVal:  append(generateStringList(3), generateStringList(4)...),
 			},
 			expectedErr: nil,
@@ -177,8 +177,8 @@ func TestGetSegList(t *testing.T) {
 					StrList: []string{},
 				},
 			},
-			expectedRes: &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_STRING_SLICE,
+			expectedRes: &segutils.CValueEnclosure{
+				Dtype: segutils.SS_DT_STRING_SLICE,
 				CVal:  []string{},
 			},
 			expectedErr: nil,
@@ -202,8 +202,8 @@ func TestGetSegAvg_CurrSegStatIsNil(t *testing.T) {
 	runningSegStat := &structs.SegStats{}
 	currSegStat := (*structs.SegStats)(nil)
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		IntgrVal: 0,
 	}
 	result, err := GetSegAvg(runningSegStat, currSegStat)
@@ -218,8 +218,8 @@ func TestGetSegAvg_CurrSegStatIsNonNumeric(t *testing.T) {
 		IsNumeric: false,
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		IntgrVal: 0,
 	}
 	result, err := GetSegAvg(runningSegStat, currSegStat)
@@ -234,15 +234,15 @@ func TestGetSegAvg_FirstSegmentWithIntegerStats(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_SIGNED_NUM,
 				IntgrVal: 20,
 			},
 		},
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 10.0,
 	}
 	result, err := GetSegAvg(nil, currSegStat)
@@ -257,15 +257,15 @@ func TestGetSegAvg_FirstSegmentWithFloatStats(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_FLOAT,
 				FloatVal: 20.0,
 			},
 		},
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 10.0,
 	}
 	result, err := GetSegAvg(nil, currSegStat)
@@ -280,8 +280,8 @@ func TestGetSegAvg_RunningSegmentIntAndCurrentSegmentFloat(t *testing.T) {
 		Count:     3,
 		NumStats: &structs.NumericStats{
 			NumericCount: 3,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_SIGNED_NUM,
 				IntgrVal: 30,
 			},
 		},
@@ -292,15 +292,15 @@ func TestGetSegAvg_RunningSegmentIntAndCurrentSegmentFloat(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_FLOAT,
 				FloatVal: 20.0,
 			},
 		},
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 10.0,
 	}
 	result, err := GetSegAvg(runningSegStat, currSegStat)
@@ -315,8 +315,8 @@ func TestGetSegAvg_RunningAndCurrentSegmentWithFloatStats(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_FLOAT,
 				FloatVal: 20.0,
 			},
 		},
@@ -327,15 +327,15 @@ func TestGetSegAvg_RunningAndCurrentSegmentWithFloatStats(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_FLOAT,
 				FloatVal: 10.0,
 			},
 		},
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 7.5,
 	}
 	result, err := GetSegAvg(runningSegStat, currSegStat)
@@ -350,8 +350,8 @@ func TestGetSegAvg_RunningSegmentFloatAndCurrentSegmentInt(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_FLOAT,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_FLOAT,
 				FloatVal: 20.0,
 			},
 		},
@@ -362,15 +362,15 @@ func TestGetSegAvg_RunningSegmentFloatAndCurrentSegmentInt(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_SIGNED_NUM,
 				IntgrVal: 10,
 			},
 		},
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 7.5,
 	}
 	result, err := GetSegAvg(runningSegStat, currSegStat)
@@ -385,8 +385,8 @@ func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
 		Count:     3,
 		NumStats: &structs.NumericStats{
 			NumericCount: 3,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_SIGNED_NUM,
 				IntgrVal: 30,
 			},
 		},
@@ -397,15 +397,15 @@ func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
 		Count:     2,
 		NumStats: &structs.NumericStats{
 			NumericCount: 2,
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_SIGNED_NUM,
 				IntgrVal: 20,
 			},
 		},
 	}
 
-	expected := &utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	expected := &segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 10.0,
 	}
 	result, err := GetSegAvg(runningSegStat, currSegStat)
@@ -415,8 +415,8 @@ func TestGetSegAvg_BothSegmentsWithIntStats(t *testing.T) {
 }
 
 func TestGetAverage_IntegerSum(t *testing.T) {
-	sum := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_SIGNED_NUM,
+	sum := segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_SIGNED_NUM,
 		IntgrVal: 20,
 	}
 	count := uint64(4)
@@ -428,8 +428,8 @@ func TestGetAverage_IntegerSum(t *testing.T) {
 }
 
 func TestGetAverage_FloatSum(t *testing.T) {
-	sum := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	sum := segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 20.0,
 	}
 	count := uint64(4)
@@ -441,8 +441,8 @@ func TestGetAverage_FloatSum(t *testing.T) {
 }
 
 func TestGetAverage_ZeroCount(t *testing.T) {
-	sum := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_FLOAT,
+	sum := segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_FLOAT,
 		FloatVal: 20.0,
 	}
 	count := uint64(0)
@@ -452,8 +452,8 @@ func TestGetAverage_ZeroCount(t *testing.T) {
 }
 
 func TestGetAverage_InvalidType(t *testing.T) {
-	sum := utils.NumTypeEnclosure{
-		Ntype:    utils.SS_DT_STRING,
+	sum := segutils.NumTypeEnclosure{
+		Ntype:    segutils.SS_DT_STRING,
 		FloatVal: 20.0,
 	}
 	count := uint64(4)
@@ -466,8 +466,8 @@ func Test_GetSegMin(t *testing.T) {
 	runningSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     3,
-		Min: utils.CValueEnclosure{
-			Dtype: utils.SS_DT_SIGNED_NUM,
+		Min: segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_SIGNED_NUM,
 			CVal:  int64(30),
 		},
 	}
@@ -475,14 +475,14 @@ func Test_GetSegMin(t *testing.T) {
 	currSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     2,
-		Min: utils.CValueEnclosure{
-			Dtype: utils.SS_DT_FLOAT,
+		Min: segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_FLOAT,
 			CVal:  float64(20),
 		},
 	}
 
-	expected := &utils.CValueEnclosure{
-		Dtype: utils.SS_DT_FLOAT,
+	expected := &segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_FLOAT,
 		CVal:  20.0,
 	}
 	result, err := GetSegMin(runningSegStat, currSegStat)
@@ -492,8 +492,8 @@ func Test_GetSegMin(t *testing.T) {
 
 	runningSegStat2 := &structs.SegStats{
 		IsNumeric: false,
-		Min: utils.CValueEnclosure{
-			Dtype: utils.SS_DT_STRING,
+		Min: segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
 			CVal:  "abc",
 		},
 	}
@@ -509,8 +509,8 @@ func Test_GetSegMax(t *testing.T) {
 	runningSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     3,
-		Max: utils.CValueEnclosure{
-			Dtype: utils.SS_DT_SIGNED_NUM,
+		Max: segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_SIGNED_NUM,
 			CVal:  int64(30),
 		},
 	}
@@ -518,14 +518,14 @@ func Test_GetSegMax(t *testing.T) {
 	currSegStat := &structs.SegStats{
 		IsNumeric: true,
 		Count:     2,
-		Max: utils.CValueEnclosure{
-			Dtype: utils.SS_DT_FLOAT,
+		Max: segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_FLOAT,
 			CVal:  float64(20),
 		},
 	}
 
-	expected := &utils.CValueEnclosure{
-		Dtype: utils.SS_DT_FLOAT,
+	expected := &segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_FLOAT,
 		CVal:  30.0,
 	}
 	result, err := GetSegMax(runningSegStat, currSegStat)
@@ -535,8 +535,8 @@ func Test_GetSegMax(t *testing.T) {
 
 	runningSegStat2 := &structs.SegStats{
 		IsNumeric: false,
-		Max: utils.CValueEnclosure{
-			Dtype: utils.SS_DT_STRING,
+		Max: segutils.CValueEnclosure{
+			Dtype: segutils.SS_DT_STRING,
 			CVal:  "abc",
 		},
 	}

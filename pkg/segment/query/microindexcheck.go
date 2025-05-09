@@ -27,8 +27,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -60,7 +60,7 @@ func MicroIndexCheck(currQuery *SearchQuery, filesToSearch map[string]map[string
 // returns final SSRs, count of total blocks checked, count of blocks that passed
 func filterViaMicroIndices(currQuery *structs.SearchQuery, indexNames []string, timeRange *dtu.TimeRange,
 	filesToSearch map[string]map[string]*BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp LogicalOperator,
-	rangeFilter map[string]string, rangeOp utils.FilterOperator, wildCardValue bool,
+	rangeFilter map[string]string, rangeOp segutils.FilterOperator, wildCardValue bool,
 	isRange bool, qid uint64, isQueryPersistent bool, pqid string) (map[string]*SegmentSearchRequest, uint64, uint64) {
 
 	finalResults := make(map[string]*SegmentSearchRequest)
@@ -82,8 +82,8 @@ func filterViaMicroIndices(currQuery *structs.SearchQuery, indexNames []string, 
 
 // returns a list of search request, max possible number of blocks, num blocks to be searched, error
 func getAllSearchRequestsFromCmi(currQuery *structs.SearchQuery, timeRange *dtu.TimeRange,
-	segkeysToCheck map[string]map[string]*BlockTracker, bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp utils.LogicalOperator,
-	rangeFilter map[string]string, rangeOp utils.FilterOperator, isRange bool, wildCardValue bool,
+	segkeysToCheck map[string]map[string]*BlockTracker, bloomKeys map[string]bool, originalBloomKeys map[string]string, bloomOp segutils.LogicalOperator,
+	rangeFilter map[string]string, rangeOp segutils.FilterOperator, isRange bool, wildCardValue bool,
 	qid uint64, isQueryPersistent bool, pqid string) ([]*structs.SegmentSearchRequest, uint64, uint64, []error) {
 
 	sizeChannel := 0

@@ -29,7 +29,6 @@ import (
 	"github.com/nethruster/go-fraction"
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/bytebufferpool"
@@ -48,7 +47,7 @@ type Series struct {
 	grpID     *bytebufferpool.ByteBuffer
 
 	// If the original Downsampler Aggregator is Avg, the convertedDownsampleAggFn is set to Sum; otherwise, it is set to the original Downsampler Aggregator.
-	convertedDownsampleAggFn utils.AggregateFunctions
+	convertedDownsampleAggFn segutils.AggregateFunctions
 	aggregationConstant      float64
 }
 
@@ -58,7 +57,7 @@ type DownsampleSeries struct {
 	sorted bool
 
 	// original Downsampler Aggregator which comes in with metricsQuery
-	downsampleAggFn     utils.AggregateFunctions
+	downsampleAggFn     segutils.AggregateFunctions
 	aggregationConstant float64
 	runningEntries      []RunningEntry
 	grpID               *bytebufferpool.ByteBuffer
@@ -89,8 +88,8 @@ func InitSeriesHolder(mQuery *structs.MetricsQuery, tsGroupId *bytebufferpool.By
 	ds := mQuery.Downsampler
 	downsampleAggFn := mQuery.Downsampler.Aggregator.AggregatorFunction
 	convertedDownsampleAggFn := mQuery.Downsampler.Aggregator.AggregatorFunction
-	if downsampleAggFn == utils.Avg {
-		convertedDownsampleAggFn = utils.Sum
+	if downsampleAggFn == segutils.Avg {
+		convertedDownsampleAggFn = segutils.Sum
 	}
 	aggregationConstant := mQuery.FirstAggregator.FuncConstant
 
@@ -872,32 +871,32 @@ func (dss *DownsampleSeries) sortEntries() {
 	dss.sorted = true
 }
 
-func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant float64) (float64, error) {
+func reduceEntries(entries []Entry, fn segutils.AggregateFunctions, fnConstant float64) (float64, error) {
 	var ret float64
 	switch fn {
-	case utils.Sum:
+	case segutils.Sum:
 		for i := range entries {
 			ret += entries[i].dpVal
 		}
-	case utils.BottomK:
+	case segutils.BottomK:
 		fallthrough
-	case utils.Min:
+	case segutils.Min:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal < ret {
 				ret = entries[i].dpVal
 			}
 		}
-	case utils.TopK:
+	case segutils.TopK:
 		fallthrough
-	case utils.Max:
+	case segutils.Max:
 		for i := range entries {
 			if i == 0 || entries[i].dpVal > ret {
 				ret = entries[i].dpVal
 			}
 		}
-	case utils.Count:
+	case segutils.Count:
 		// Count is to calculate the number of time series, we do not care about the entry value
-	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
+	case segutils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
 		entriesCopy := make([]Entry, len(entries))
@@ -920,15 +919,15 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 		} else {
 			ret = entriesCopy[int(index)].dpVal
 		}
-	case utils.Stddev:
+	case segutils.Stddev:
 		fallthrough
-	case utils.Stdvar:
+	case segutils.Stdvar:
 		sum := 0.0
 		for i := range entries {
 			sum += entries[i].dpVal
 		}
 		ret = sum / float64(len(entries))
-	case utils.Group:
+	case segutils.Group:
 		ret = 1
 	default:
 		err := fmt.Errorf("reduceEntries: unsupported AggregateFunction: %v", fn)
@@ -939,35 +938,35 @@ func reduceEntries(entries []Entry, fn utils.AggregateFunctions, fnConstant floa
 	return ret, nil
 }
 
-func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, fnConstant float64) (float64, error) {
+func reduceRunningEntries(entries []RunningEntry, fn segutils.AggregateFunctions, fnConstant float64) (float64, error) {
 	var ret float64
 	switch fn {
-	case utils.Avg:
+	case segutils.Avg:
 		count := uint64(0)
 		for i := range entries {
 			ret += entries[i].runningVal
 			count += entries[i].runningCount
 		}
 		ret = ret / float64(count)
-	case utils.Sum:
+	case segutils.Sum:
 		for i := range entries {
 			ret += entries[i].runningVal
 		}
-	case utils.Min:
+	case segutils.Min:
 		for i := range entries {
 			if i == 0 || entries[i].runningVal < ret {
 				ret = entries[i].runningVal
 			}
 		}
-	case utils.Max:
+	case segutils.Max:
 		for i := range entries {
 			if i == 0 || entries[i].runningVal > ret {
 				ret = entries[i].runningVal
 			}
 		}
-	case utils.Count:
+	case segutils.Count:
 		// Count is to calculate the number of time series, we do not care about the entry value
-	case utils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
+	case segutils.Quantile: //valid range for fnConstant is 0 <= fnConstant <= 1
 		// TODO: calculate the quantile without needing to sort the elements.
 
 		entriesCopy := make([]RunningEntry, len(entries))
@@ -991,7 +990,7 @@ func reduceRunningEntries(entries []RunningEntry, fn utils.AggregateFunctions, f
 		} else {
 			log.Errorf("reduceRunningEntries: invalid index: %v, len(entriesCopy): %v", index, len(entriesCopy))
 		}
-	case utils.Group:
+	case segutils.Group:
 		ret = 1
 	default:
 		err := fmt.Errorf("reduceRunningEntries: unsupported AggregateFunction: %v", fn)

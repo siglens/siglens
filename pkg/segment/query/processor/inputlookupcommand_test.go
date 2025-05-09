@@ -27,7 +27,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -94,25 +94,25 @@ func Test_InputLookup(t *testing.T) {
 
 	col_a, err := iqr.ReadColumn("a")
 	assert.Nil(t, err)
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a4"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a7"},
+	expected := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a4"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "a7"},
 	}
 	assert.Equal(t, expected, col_a)
 
 	col_b, err := iqr.ReadColumn("b")
 	assert.Nil(t, err)
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "b5"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b8"},
+	expected = []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "b5"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b8"},
 	}
 	assert.Equal(t, expected, col_b)
 
 	col_c, err := iqr.ReadColumn("c")
 	assert.Nil(t, err)
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "c6"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c9"},
+	expected = []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "c6"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c9"},
 	}
 	assert.Equal(t, expected, col_c)
 
@@ -123,11 +123,11 @@ func Test_InputLookup(t *testing.T) {
 	os.RemoveAll(config.GetDataPath())
 }
 
-func getExpectedColumnValues(val string, start int, count int) []utils.CValueEnclosure {
-	var expected []utils.CValueEnclosure
+func getExpectedColumnValues(val string, start int, count int) []segutils.CValueEnclosure {
+	var expected []segutils.CValueEnclosure
 	for i := 0; i < count; i++ {
 		colValue := fmt.Sprintf("%v%v", val, start+i)
-		expected = append(expected, utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: colValue})
+		expected = append(expected, segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: colValue})
 	}
 	return expected
 }
@@ -272,31 +272,31 @@ func Test_MultipleInputlookups(t *testing.T) {
 
 	col_a, err := finalRes.ReadColumn("a")
 	assert.Nil(t, err)
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a1"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a4"},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(40)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(70)},
+	expected := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a1"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "a4"},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(40)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(70)},
 	}
 	assert.Equal(t, expected, col_a)
 
 	col_b, err := finalRes.ReadColumn("b")
 	assert.Nil(t, err)
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "b2"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b5"},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(50)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(80)},
+	expected = []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "b2"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b5"},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(50)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(80)},
 	}
 	assert.Equal(t, expected, col_b)
 
 	col_c, err := finalRes.ReadColumn("c")
 	assert.Nil(t, err)
-	expected = []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "c3"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c6"},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(60)},
-		{Dtype: utils.SS_DT_FLOAT, CVal: float64(90)},
+	expected = []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "c3"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c6"},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(60)},
+		{Dtype: segutils.SS_DT_FLOAT, CVal: float64(90)},
 	}
 	assert.Equal(t, expected, col_c)
 

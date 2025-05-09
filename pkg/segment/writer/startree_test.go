@@ -28,7 +28,7 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	. "github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -266,7 +266,7 @@ func TestStarTree(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, segutils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
@@ -367,7 +367,7 @@ func TestStarTreeMedium(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, segutils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
@@ -468,7 +468,7 @@ func TestStarTreeMediumEncoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, segutils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
@@ -571,7 +571,7 @@ func TestStarTreeMediumEncodingDecoding(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, segutils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
@@ -815,7 +815,7 @@ func (builder *StarTreeBuilder) GetColValueEncodings(wip WipBlock, recGroupByVal
 	return colValueToEncMap, nil
 }
 
-func populateAggsFromTree(t *testing.T, root *Node, aggValues map[string][]*utils.Number, key string) {
+func populateAggsFromTree(t *testing.T, root *Node, aggValues map[string][]*segutils.Number, key string) {
 	var newKey string
 	if key == "" {
 		newKey = fmt.Sprintf("%v", root.myKey)
@@ -840,7 +840,7 @@ func createKey(root *Node, encMap map[string]map[string]uint32, grpCols []string
 	return strings.Join(keys, "_")
 }
 
-func testAggs(t *testing.T, expected []int, aggValues []*utils.Number) {
+func testAggs(t *testing.T, expected []int, aggValues []*segutils.Number) {
 	assert.Equal(t, len(expected), len(aggValues))
 
 	for offset := 0; offset < len(expected); offset += TotalMeasFns {
@@ -930,7 +930,7 @@ func TestStarTree2(t *testing.T) {
 		raw, err := json.Marshal(record_json)
 		assert.NoError(t, err)
 
-		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, utils.SIGNAL_EVENTS,
+		_, err = ss.EncodeColumns(raw, uint64(i), &tsKey, segutils.SIGNAL_EVENTS,
 			cnameCacheByteHashToStr, jsParsingStackbuf[:])
 		assert.NoError(t, err)
 
@@ -951,7 +951,7 @@ func TestStarTree2(t *testing.T) {
 	encMap, err := builder.GetColValueEncodings(ss.wipBlock, allGrpVals)
 	assert.NoError(t, err)
 
-	aggValues := make(map[string][]*utils.Number)
+	aggValues := make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	// check the tree structure
@@ -1001,7 +1001,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"invalid"})
 	assert.NotNil(t, err)
 
-	aggValues = make(map[string][]*utils.Number)
+	aggValues = make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	// check the tree structure
@@ -1051,7 +1051,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"brand"})
 	assert.NoError(t, err)
 
-	aggValues = make(map[string][]*utils.Number, 0)
+	aggValues = make(map[string][]*segutils.Number, 0)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	_, err = builder.EncodeStarTree(ss.SegmentKey)
@@ -1101,7 +1101,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"color"})
 	assert.NoError(t, err)
 
-	aggValues = make(map[string][]*utils.Number)
+	aggValues = make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	gCols = []string{"brand", "type"}
@@ -1144,7 +1144,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"type"})
 	assert.NoError(t, err)
 
-	aggValues = make(map[string][]*utils.Number)
+	aggValues = make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	_, err = builder.EncodeStarTree(ss.SegmentKey)
@@ -1188,7 +1188,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"brand", "color"})
 	assert.NoError(t, err)
 
-	aggValues = make(map[string][]*utils.Number)
+	aggValues = make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	_, err = builder.EncodeStarTree(ss.SegmentKey)
@@ -1218,7 +1218,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"color", "type"})
 	assert.NoError(t, err)
 
-	aggValues = make(map[string][]*utils.Number)
+	aggValues = make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	_, err = builder.EncodeStarTree(ss.SegmentKey)
@@ -1248,7 +1248,7 @@ func TestStarTree2(t *testing.T) {
 	err = builder.DropColumns([]string{"brand", "type"})
 	assert.NoError(t, err)
 
-	aggValues = make(map[string][]*utils.Number)
+	aggValues = make(map[string][]*segutils.Number)
 	populateAggsFromTree(t, root, aggValues, "")
 
 	_, err = builder.EncodeStarTree(ss.SegmentKey)

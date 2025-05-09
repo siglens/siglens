@@ -24,7 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,30 +36,30 @@ func Test_TailCommand_Simple(t *testing.T) {
 	}
 
 	iqr1 := iqr.NewIQR(0)
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
 		},
 	})
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
+	expectedCol1 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
 	}
 
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+	expectedCol2 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
 	}
 
 	for {
@@ -88,38 +88,38 @@ func Test_TailCommand_Discard(t *testing.T) {
 	}
 
 	iqr1 := iqr.NewIQR(0)
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "f"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(5)},
-			{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(5)},
+			{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
 		},
 	})
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "f"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	expectedCol1 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "f"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 	}
 
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(6)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(5)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+	expectedCol2 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(6)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(5)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
 	}
 
 	for {
@@ -147,32 +147,32 @@ func Test_TailCommand_WithRRC(t *testing.T) {
 		},
 	}
 
-	rrcs := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
+	rrcs := []*segutils.RecordResultContainer{
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 5},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 6},
 	}
 	mockReader := &record.MockRRCsReader{
 		RRCs: rrcs,
-		FieldToValues: map[string][]utils.CValueEnclosure{
+		FieldToValues: map[string][]segutils.CValueEnclosure{
 			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "c"},
-				{Dtype: utils.SS_DT_STRING, CVal: "d"},
-				{Dtype: utils.SS_DT_STRING, CVal: "e"},
-				{Dtype: utils.SS_DT_STRING, CVal: "f"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "f"},
 			},
 			"col2": {
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(3)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
 			},
 		},
 	}
@@ -200,16 +200,16 @@ func Test_TailCommand_WithRRC(t *testing.T) {
 	result, err := tail.Process(nil)
 	assert.Equal(t, io.EOF, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "f"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	expectedCol1 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "f"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 	}
 
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
-		{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
+	expectedCol2 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(6)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(5)},
+		{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(4)},
 	}
 
 	col1, err := result.ReadColumn("col1")

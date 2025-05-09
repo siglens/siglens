@@ -24,8 +24,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/ast"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	. "github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1125,7 +1125,7 @@ func TestAST_simpleAnd_SegLevelStats(t *testing.T) {
 	assert.NotNil(t, aggNode)
 	assert.NotNil(t, aggNode.MeasureOperations)
 	assert.Equal(t, aggNode.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggNode.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, aggNode.MeasureOperations[0].MeasureFunc, segutils.Min)
 }
 
 func TestAST_blankSearchFilter_SegLevelStats(t *testing.T) {
@@ -1141,7 +1141,7 @@ func TestAST_blankSearchFilter_SegLevelStats(t *testing.T) {
 	assert.NotNil(t, aggNode)
 	assert.NotNil(t, aggNode.MeasureOperations)
 	assert.Equal(t, aggNode.MeasureOperations[0].MeasureCol, "cnt")
-	assert.Equal(t, aggNode.MeasureOperations[0].MeasureFunc, utils.Max)
+	assert.Equal(t, aggNode.MeasureOperations[0].MeasureFunc, segutils.Max)
 }
 
 func TestAST_blankSearchFilter_ColumnAgg_ExcludeList(t *testing.T) {
@@ -1197,7 +1197,7 @@ func TestAST_simpleAnd_LetAgg_Single(t *testing.T) {
 	assert.Equal(t, aggNode.OutputTransforms.LetColumns.NewColName, "isError")
 	assert.NotNil(t, aggNode.OutputTransforms.LetColumns.SingleColRequest)
 	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.CName, "status")
-	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.Oper, utils.LogicalAndArithmeticOperator(LetGreaterThanOrEqualTo))
+	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.Oper, segutils.LogicalAndArithmeticOperator(LetGreaterThanOrEqualTo))
 	assert.Equal(t, aggNode.OutputTransforms.LetColumns.SingleColRequest.Value.UnsignedVal, uint64(399))
 
 }
@@ -1217,9 +1217,9 @@ func TestAST_simpleAnd_seglevelStats_commaSeparated(t *testing.T) {
 	assert.Equal(t, res.AndFilterCondition.FilterCriteria[1].ExpressionFilter.FilterOperator, Equals)
 	assert.NotNil(t, aggNode.MeasureOperations)
 	assert.Equal(t, aggNode.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggNode.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, aggNode.MeasureOperations[0].MeasureFunc, segutils.Min)
 	assert.Equal(t, aggNode.MeasureOperations[1].MeasureCol, "latency")
-	assert.Equal(t, aggNode.MeasureOperations[1].MeasureFunc, utils.Max)
+	assert.Equal(t, aggNode.MeasureOperations[1].MeasureFunc, segutils.Max)
 }
 
 func TestAST_GroupByseglevelStats_commaSeparated(t *testing.T) {
@@ -1235,9 +1235,9 @@ func TestAST_GroupByseglevelStats_commaSeparated(t *testing.T) {
 	assert.NotNil(t, aggNode.GroupByRequest)
 	assert.NotNil(t, aggNode.GroupByRequest.MeasureOperations)
 	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureFunc, segutils.Min)
 	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureCol, "latency")
-	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Max)
+	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureFunc, segutils.Max)
 	assert.NotNil(t, aggNode.GroupByRequest.GroupByColumns)
 	assert.Equal(t, aggNode.GroupByRequest.GroupByColumns[0], "region")
 }
@@ -1255,9 +1255,9 @@ func TestAST_GroupByseglevelStats_commaSeparated_multipleGroups(t *testing.T) {
 	assert.NotNil(t, aggNode.GroupByRequest)
 	assert.NotNil(t, aggNode.GroupByRequest.MeasureOperations)
 	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureFunc, segutils.Min)
 	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureCol, "latency")
-	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Max)
+	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureFunc, segutils.Max)
 	assert.NotNil(t, aggNode.GroupByRequest.GroupByColumns)
 	assert.Equal(t, aggNode.GroupByRequest.GroupByColumns[0], "region")
 	assert.Equal(t, aggNode.GroupByRequest.GroupByColumns[1], "os_name")
@@ -1276,9 +1276,9 @@ func TestAST_GroupByseglevelStats_commaSeparated_multipleGroups_withPipe(t *test
 	assert.NotNil(t, aggNode.GroupByRequest)
 	assert.NotNil(t, aggNode.GroupByRequest.MeasureOperations)
 	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureCol, "latency")
-	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureFunc, utils.Min)
+	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[0].MeasureFunc, segutils.Min)
 	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureCol, "latency")
-	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureFunc, utils.Max)
+	assert.Equal(t, aggNode.GroupByRequest.MeasureOperations[1].MeasureFunc, segutils.Max)
 	assert.NotNil(t, aggNode.GroupByRequest.GroupByColumns)
 	assert.Equal(t, aggNode.GroupByRequest.GroupByColumns[0], "region")
 	assert.Equal(t, aggNode.GroupByRequest.GroupByColumns[1], "os_name")

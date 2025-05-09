@@ -13,9 +13,10 @@ linters-settings:
   exhaustive:
     default-signifies-exhaustive: true
   importas:
+    no-unaliased: true
     alias:
       - pkg: github.com/siglens/siglens/pkg/utils
-        alias: utils
+        alias: ""
       - pkg: github.com/siglens/siglens/pkg/segment/utils
         alias: segutils
 

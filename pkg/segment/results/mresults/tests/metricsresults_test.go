@@ -26,13 +26,13 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	mresults "github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/valyala/bytebufferpool"
 )
 
 func Test_GetResults_AggFn_Sum(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Sum, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Sum, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -40,7 +40,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Sum},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -102,7 +102,7 @@ func Test_GetResults_AggFn_Sum(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Avg(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -110,7 +110,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Sum},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -174,7 +174,7 @@ func Test_GetResults_AggFn_Avg(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Count(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Count, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Count, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -208,7 +208,7 @@ func Test_GetResults_AggFn_Count(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Group(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Group, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Group, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -244,7 +244,7 @@ func Test_GetResults_AggFn_Group(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Stdvar(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Stdvar, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Stdvar, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -284,7 +284,7 @@ func Test_GetResults_AggFn_Stdvar(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Stddev(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Stddev, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Stddev, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -325,7 +325,7 @@ func Test_GetResults_AggFn_Stddev(t *testing.T) {
 
 func Test_GetResults_AggFn_Multiple(t *testing.T) {
 	var numSeries int = 5
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -333,7 +333,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 			Interval:   2,
 			Unit:       "s",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Sum},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Sum},
 		},
 		TagsFilters: []*structs.TagsFilter{
 			{
@@ -386,7 +386,7 @@ func Test_GetResults_AggFn_Multiple(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_Quantile(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.5, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Quantile, FuncConstant: 0.5, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -456,7 +456,7 @@ func Test_GetResults_AggFn_Quantile(t *testing.T) {
 }
 
 func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Quantile, FuncConstant: 0.3, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Quantile, FuncConstant: 0.3, Without: true}
 	mQuery := &structs.MetricsQuery{
 		MetricName:      "test.metric.0",
 		FirstAggregator: aggregator,
@@ -527,7 +527,7 @@ func Test_GetResults_AggFn_QuantileFloatIndex(t *testing.T) {
 
 func Test_GetResults_AggFn_TopK(t *testing.T) {
 	// Compute top 2 elements for each timestamp
-	aggregator := structs.Aggregation{AggregatorFunction: utils.TopK, FuncConstant: 2.0, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.TopK, FuncConstant: 2.0, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -570,7 +570,7 @@ func Test_GetResults_AggFn_TopK(t *testing.T) {
 
 func Test_GetResults_AggFn_BottomK(t *testing.T) {
 	// Compute bottom 2 elements for each timestamp
-	aggregator := structs.Aggregation{AggregatorFunction: utils.BottomK, FuncConstant: 2.0, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.BottomK, FuncConstant: 2.0, Without: true}
 	metricName := "test.metric.1"
 	downsampler := structs.Downsampler{
 		Interval:   1,
@@ -666,7 +666,7 @@ func Test_GetResults_Modulo(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetModulo,
+				Operation:  segutils.LetModulo,
 				Constant:   5,
 			},
 		},
@@ -674,7 +674,7 @@ func Test_GetResults_Modulo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -695,7 +695,7 @@ func Test_GetResults_Addition(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetAdd,
+				Operation:  segutils.LetAdd,
 				Constant:   5,
 			},
 		},
@@ -703,7 +703,7 @@ func Test_GetResults_Addition(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -724,7 +724,7 @@ func Test_GetResults_Subtraction(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetSubtract,
+				Operation:  segutils.LetSubtract,
 				Constant:   5,
 			},
 		},
@@ -732,7 +732,7 @@ func Test_GetResults_Subtraction(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -753,7 +753,7 @@ func Test_GetResults_Multiplication(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetMultiply,
+				Operation:  segutils.LetMultiply,
 				Constant:   5,
 			},
 		},
@@ -761,7 +761,7 @@ func Test_GetResults_Multiplication(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -782,7 +782,7 @@ func Test_GetResults_Division(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetDivide,
+				Operation:  segutils.LetDivide,
 				Constant:   5,
 			},
 		},
@@ -790,7 +790,7 @@ func Test_GetResults_Division(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -809,7 +809,7 @@ func Test_GetResults_Power(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetPower,
+				Operation:  segutils.LetPower,
 				Constant:   2,
 			},
 		},
@@ -817,7 +817,7 @@ func Test_GetResults_Power(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -836,7 +836,7 @@ func Test_GetResults_GreaterThan(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetGreaterThan,
+				Operation:  segutils.LetGreaterThan,
 				Constant:   1045,
 			},
 		},
@@ -844,7 +844,7 @@ func Test_GetResults_GreaterThan(t *testing.T) {
 			Interval:   3,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -864,7 +864,7 @@ func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetGreaterThanOrEqualTo,
+				Operation:  segutils.LetGreaterThanOrEqualTo,
 				Constant:   100,
 			},
 		},
@@ -872,7 +872,7 @@ func Test_GetResults_GreaterThanOrEqualTo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -892,7 +892,7 @@ func Test_GetResults_LessThan(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetLessThan,
+				Operation:  segutils.LetLessThan,
 				Constant:   1045,
 			},
 		},
@@ -900,7 +900,7 @@ func Test_GetResults_LessThan(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -920,7 +920,7 @@ func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetLessThanOrEqualTo,
+				Operation:  segutils.LetLessThanOrEqualTo,
 				Constant:   1045,
 			},
 		},
@@ -928,7 +928,7 @@ func Test_GetResults_LessThanOrEqualTo(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -947,7 +947,7 @@ func Test_GetResults_Equals(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetEquals,
+				Operation:  segutils.LetEquals,
 				Constant:   45,
 			},
 		},
@@ -955,7 +955,7 @@ func Test_GetResults_Equals(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -975,7 +975,7 @@ func Test_GetResults_NotEquals(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetNotEquals,
+				Operation:  segutils.LetNotEquals,
 				Constant:   45,
 			},
 		},
@@ -983,7 +983,7 @@ func Test_GetResults_NotEquals(t *testing.T) {
 			Interval:   2,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		},
 	)
 }
@@ -1005,7 +1005,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetGreaterThan,
+				Operation:  segutils.LetGreaterThan,
 				Constant:   4,
 				ReturnBool: true,
 			},
@@ -1014,7 +1014,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		})
 
 	// GreaterThanOrEqualTo
@@ -1033,7 +1033,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetGreaterThanOrEqualTo,
+				Operation:  segutils.LetGreaterThanOrEqualTo,
 				Constant:   5,
 				ReturnBool: true,
 			},
@@ -1042,7 +1042,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		})
 
 	// LessThan
@@ -1061,7 +1061,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetLessThan,
+				Operation:  segutils.LetLessThan,
 				Constant:   5,
 				ReturnBool: true,
 			},
@@ -1070,7 +1070,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		})
 
 	// LessThanOrEqualTo
@@ -1089,7 +1089,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetLessThanOrEqualTo,
+				Operation:  segutils.LetLessThanOrEqualTo,
 				Constant:   5,
 				ReturnBool: true,
 			},
@@ -1098,7 +1098,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		})
 
 	// Equals
@@ -1117,7 +1117,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetEquals,
+				Operation:  segutils.LetEquals,
 				Constant:   5,
 				ReturnBool: true,
 			},
@@ -1126,7 +1126,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		})
 
 	// NotEquals
@@ -1145,7 +1145,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			{
 				LHS:        1,
 				ConstantOp: true,
-				Operation:  utils.LetNotEquals,
+				Operation:  segutils.LetNotEquals,
 				Constant:   5,
 				ReturnBool: true,
 			},
@@ -1154,7 +1154,7 @@ func Test_GetResults_Comparison_Ops_With_ReturnBool(t *testing.T) {
 			Interval:   1,
 			Unit:       "h",
 			CFlag:      false,
-			Aggregator: structs.Aggregation{AggregatorFunction: utils.Avg},
+			Aggregator: structs.Aggregation{AggregatorFunction: segutils.Avg},
 		})
 }
 
@@ -1199,7 +1199,7 @@ func test_GetResults_Ops(t *testing.T, initialEntries map[uint32]float64, ansMap
 }
 
 func Test_GetResults_And(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains only one matching label set
 	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
@@ -1223,7 +1223,7 @@ func Test_GetResults_And(t *testing.T) {
 			{
 				LHS:       1,
 				RHS:       2,
-				Operation: utils.LetAnd,
+				Operation: segutils.LetAnd,
 			},
 		},
 		structs.Downsampler{
@@ -1237,7 +1237,7 @@ func Test_GetResults_And(t *testing.T) {
 }
 
 func Test_GetResults_Or(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	expectedResults := make(map[string]map[uint32]float64)
 	// There is the expected result: contains all unique label sets
 	expectedResults["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
@@ -1267,7 +1267,7 @@ func Test_GetResults_Or(t *testing.T) {
 			{
 				LHS:       1,
 				RHS:       2,
-				Operation: utils.LetOr,
+				Operation: segutils.LetOr,
 			},
 		},
 		structs.Downsampler{
@@ -1281,7 +1281,7 @@ func Test_GetResults_Or(t *testing.T) {
 }
 
 func Test_GetResults_Unless(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	expectedResults := make(map[string]map[uint32]float64)
 	expectedResults["test.metric.1{color:yellow,type:compact,"] = map[uint32]float64{
 		0:    45,
@@ -1305,7 +1305,7 @@ func Test_GetResults_Unless(t *testing.T) {
 			{
 				LHS:       1,
 				RHS:       2,
-				Operation: utils.LetUnless,
+				Operation: segutils.LetUnless,
 			},
 		},
 		structs.Downsampler{
@@ -1436,7 +1436,7 @@ func validateResults(t *testing.T, res map[string]map[uint32]float64, ansMap map
 }
 
 func Test_GetResults_On(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    3,
@@ -1466,7 +1466,7 @@ func Test_GetResults_On(t *testing.T) {
 			{
 				LHS:            1,
 				RHS:            2,
-				Operation:      utils.LetAdd,
+				Operation:      segutils.LetAdd,
 				VectorMatching: vectorMatching,
 			},
 		},
@@ -1481,7 +1481,7 @@ func Test_GetResults_On(t *testing.T) {
 }
 
 func Test_GetResults_Ignoring(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    -5,
@@ -1515,7 +1515,7 @@ func Test_GetResults_Ignoring(t *testing.T) {
 			{
 				LHS:            1,
 				RHS:            2,
-				Operation:      utils.LetSubtract,
+				Operation:      segutils.LetSubtract,
 				VectorMatching: vectorMatching,
 			},
 		},
@@ -1530,7 +1530,7 @@ func Test_GetResults_Ignoring(t *testing.T) {
 }
 
 func Test_GetResults_GroupRight(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.2{color:red,type:compact,"] = map[uint32]float64{
 		0:    100,
@@ -1565,7 +1565,7 @@ func Test_GetResults_GroupRight(t *testing.T) {
 			{
 				LHS:            1,
 				RHS:            2,
-				Operation:      utils.LetDivide,
+				Operation:      segutils.LetDivide,
 				VectorMatching: vectorMatching,
 			},
 		},
@@ -1580,7 +1580,7 @@ func Test_GetResults_GroupRight(t *testing.T) {
 }
 
 func Test_GetResults_GroupLeft(t *testing.T) {
-	aggregator := structs.Aggregation{AggregatorFunction: utils.Avg, Without: true}
+	aggregator := structs.Aggregation{AggregatorFunction: segutils.Avg, Without: true}
 	results := make(map[string]map[uint32]float64)
 	results["test.metric.1{color:red,type:compact,"] = map[uint32]float64{
 		0:    2,
@@ -1615,7 +1615,7 @@ func Test_GetResults_GroupLeft(t *testing.T) {
 			{
 				LHS:            1,
 				RHS:            2,
-				Operation:      utils.LetMultiply,
+				Operation:      segutils.LetMultiply,
 				VectorMatching: vectorMatching,
 			},
 		},

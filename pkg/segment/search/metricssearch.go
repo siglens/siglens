@@ -30,7 +30,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	tsidtracker "github.com/siglens/siglens/pkg/segment/results/mresults/tsid"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics"
 	"github.com/siglens/siglens/pkg/utils/semaphore"
 	log "github.com/sirupsen/logrus"
@@ -71,7 +71,7 @@ func RawSearchMetricsSegment(mQuery *structs.MetricsQuery, tsidInfo *tsidtracker
 		return
 	}
 	defer metricSearch.Release(1)
-	searchMemory := uint64(utils.MAX_RAW_DATAPOINTS_IN_RESULT*12 + 80)
+	searchMemory := uint64(segutils.MAX_RAW_DATAPOINTS_IN_RESULT*12 + 80)
 	err = limit.RequestSearchMemory(searchMemory)
 	if err != nil {
 		log.Errorf("qid=%d, RawSearchMetricsSegment: Failed to acquire memory from global pool for search! Error: %v", qid, err)

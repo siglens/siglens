@@ -25,7 +25,6 @@ import (
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
 	log "github.com/sirupsen/logrus"
@@ -69,8 +68,8 @@ func createSearchRequestForUnrotated(fileName string, tableName string,
 // filters unrotated blocks based on search conditions
 // returns the final search request, total blocks, sum of filtered blocks, and any errors
 func CheckMicroIndicesForUnrotated(currQuery *structs.SearchQuery, lookupTimeRange *dtu.TimeRange, indexNames []string,
-	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp utils.LogicalOperator, rangeFilter map[string]string,
-	rangeOp utils.FilterOperator, isRange bool, wildcardValue bool, qid uint64) (map[string]*structs.SegmentSearchRequest, uint64, uint64, error) {
+	allBlocksToSearch map[string]map[string]*structs.BlockTracker, bloomWords map[string]bool, originalBloomWords map[string]string, bloomOp segutils.LogicalOperator, rangeFilter map[string]string,
+	rangeOp segutils.FilterOperator, isRange bool, wildcardValue bool, qid uint64) (map[string]*structs.SegmentSearchRequest, uint64, uint64, error) {
 
 	writer.UnrotatedInfoLock.RLock()
 	defer writer.UnrotatedInfoLock.RUnlock()

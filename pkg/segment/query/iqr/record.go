@@ -20,7 +20,7 @@ package iqr
 import (
 	"fmt"
 
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 )
 
 type Record struct {
@@ -30,11 +30,11 @@ type Record struct {
 
 	// Outer slice is one column. Only "index" element of inner slice is
 	// relevant for this record.
-	SortValues [][]utils.CValueEnclosure
+	SortValues [][]segutils.CValueEnclosure
 }
 
-func (record *Record) ReadColumn(cname string) (*utils.CValueEnclosure, error) {
-	var values []utils.CValueEnclosure
+func (record *Record) ReadColumn(cname string) (*segutils.CValueEnclosure, error) {
+	var values []segutils.CValueEnclosure
 	var err error
 	if !record.validated {
 		values, err = record.iqr.ReadColumn(cname)
