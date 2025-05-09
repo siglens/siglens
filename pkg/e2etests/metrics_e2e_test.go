@@ -373,7 +373,7 @@ func rotateMetricsDataAndClearSegStore(forceRotate bool) ([]*metrics.MetricsSegm
 	for idx, mSeg := range metrics.GetAllMetricsSegments() {
 		err := mSeg.CheckAndRotate(forceRotate)
 		if err != nil {
-			log.Errorf("writeMockMetrics: unable to force rotate: %s", err)
+			log.Errorf("rotateMetricsDataAndClearSegStore: unable to force rotate: %s", err)
 			return nil, err
 		}
 		retVal[idx] = mSeg
