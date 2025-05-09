@@ -200,6 +200,11 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
             var barConfig = loadBarOptions(xData, seriesData, chartType);
 
+            if (panelId !== -1 && seriesData.length > 5) {
+                // Disable legend display
+                barConfig.options.plugins.legend.display = false;
+            }
+
             barChart = new Chart(ctx, barConfig);
             break;
         case 'Pie Chart':
@@ -224,6 +229,12 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
             }
 
             var pieOptions = loadPieOptions(xAxisData, yAxisData);
+
+            if (panelId !== -1 && xAxisData.length > 5) {
+                // Disable legend display for pie chart
+                pieOptions.legend.show = false;
+            }
+
             let panelChart = echarts.init(panelChartEl);
             panelChart.setOption(pieOptions);
             break;
