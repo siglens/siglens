@@ -737,6 +737,10 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
+	// We chose the blocks using s.cutOffTimestampInMs, so we can only return
+	// RRCs up to that time; if we returned records past that time, then we
+	// can't guarantee the records we return are in the correct order
+	// considering ALL data we have.
 	switch s.sortMode {
 	case recentFirst:
 		endTime = max(endTime, s.cutOffTimestampInMs)
