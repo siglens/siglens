@@ -18,7 +18,7 @@
  */
 
 
-:root {
+ :root {
     --black: #000;
     --white: #fff;
     --error: #f00;
@@ -5504,8 +5504,7 @@ p#versionInfo {
     outline: none !important;
 }
 
-.label-equal,
-.headers-equal {
+.label-equal {
     padding: 0px 10px;
 }
 
@@ -5572,11 +5571,6 @@ p#versionInfo {
     cursor: pointer;
 }
 
-
-.headers-section {
-    margin-bottom: 20px;
-}
-
 .headers-main-container {
     width: 100%;
     margin-bottom: 15px;
@@ -5589,8 +5583,33 @@ p#versionInfo {
     margin-bottom: 10px;
 }
 
+.input-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    margin-bottom: 0 !important;
+}
+
+.input-group label {
+    font-size: 12px;
+    margin-bottom: 0;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
 .headers-container input {
     height: 24px;
+}
+
+.headers-container input[readonly] {
+    background-color: var(--alert-background);
+    color: var(--text-color);
+    border-color: var(--search-input-border);
+    border-radius: 5px !important;
+}
+
+.headers-gap {
+    padding: 0px 10px;
 }
 
 .headers-container #header-key {
@@ -5603,30 +5622,9 @@ p#versionInfo {
     min-width: 180px;
 }
 
-.added-header {
-    display: flex;
-    align-items: center;
-    padding: 5px 10px;
-    height: 36px;
-    width: 100%;
-    max-width: 600px;
-    border-radius: 4px;
-    border: 1px solid var(--search-input-border);
-    background: var(--alert-background);
-    margin-bottom: 10px;
-}
-
-.header-display {
-    flex-grow: 1;
-    font-size: 14px;
-    color: var(--text-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
  .tick-icon{
     background-repeat: no-repeat;
-    width: 20px;
+    width: 15px;
     height: 20px;
     cursor: pointer;
     background-color: transparent;

@@ -82,8 +82,8 @@ const contactFormHTML = `
     <label for="webhook">Webhook URL</label>
     <input type="text" class="form-control" id="webhook-id">
     <div class="headers-section mt-3">
-        <label for="additional-headers">Extra Headers</label>
-        <p>Optionally provide extra headers to be used in the request.</p>
+        <label for="additional-headers">Custom Headers</label>
+        <p>Optionally provide extra custom headers to be used in the request.</p>
         <div class="headers-main-container">
             <!-- Added headers will appear here -->
         </div>
@@ -200,18 +200,16 @@ function initializeContactForm(contactId) {
 
     $('.add-headers-container').on('click', function () {
         const headersMainContainer = $(this).closest('.headers-section').find('.headers-main-container');
-        if (headersMainContainer.find('.headers-container').length === 0) {
-            var newHeadersContainer = `
-            <div class="headers-container">
-                <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="">
-                <span class="headers-equal">=</span>
-                <input type="text" id="header-value" class="form-control" placeholder="Value" tabindex="8" value="">
-                <button class="tick-icon" type="button" id="confirm-header"></button>
-                <button class="cross-icon" type="button" id="cancel-header"></button>
-            </div>
-            `;
-            headersMainContainer.append(newHeadersContainer);
-        }
+        var newHeadersContainer = `
+        <div class="headers-container">
+            <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="">
+            <span class="headers-gap"></span>
+            <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="">
+            <button class="tick-icon" type="button" id="confirm-header"></button>
+            <button class="cross-icon" type="button" id="cancel-header"></button>
+        </div>
+        `;
+        headersMainContainer.append(newHeadersContainer);
     });
 
     $('.headers-main-container').on('click', '.tick-icon', function () {
@@ -222,14 +220,22 @@ function initializeContactForm(contactId) {
     
         if (key && value) {
             const displayHeader = `
-                <div class="added-header">
-                    <span class="header-display">${key}: ${value}</span>
+                <div class="headers-container">
+                    <div class="input-group">
+                        <label for="header-key">Header Name</label>
+                        <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${key}" readonly>
+                    </div>
+                    <span class="headers-equal"></span>
+                    <div class="input-group">
+                        <label for="header-value">Header Value</label>
+                        <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="${value}" readonly>
+                    </div>
                     <button class="edit-icon" type="button" id="edit-header"></button>
                     <button class="delete-icon" type="button" id="delete-header"></button>
                 </div>
             `;
             headersMainContainer.append(displayHeader);
-            headerContainer.remove(); 
+            headerContainer.remove();
         } else {
             alert('Please fill in both header name and value.');
         }
@@ -241,24 +247,30 @@ function initializeContactForm(contactId) {
     });
 
     $('.headers-main-container').on('click', '.edit-icon', function () {
-        const headerDisplay = $(this).closest('.added-header');
-        const headerText = headerDisplay.find('.header-display').text();
-        const [key, value] = headerText.split(': ');
+        const headerContainer = $(this).closest('.headers-container');
+        const key = headerContainer.find('#header-key').val();
+        const value = headerContainer.find('#header-value').val();
     
         const editHeaderContainer = `
             <div class="headers-container">
-                <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${key}">
-                <span class="headers-equal">=</span>
-                <input type="text" id="header-value" class="form-control" placeholder="Value" value="${value}" tabindex="8">
+                <div class="input-group">
+                    <label for="header-key">Header Name</label>
+                    <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${key}">
+                </div>
+                <span class="headers-equal"></span>
+                <div class="input-group">
+                    <label for="header-value">Header Value</label>
+                    <input type="text" id="header-value" class="form-control" placeholder="Header Value" value="${value}" tabindex="8">
+                </div>
                 <button class="tick-icon" type="button" id="confirm-header"></button>
                 <button class="cross-icon" type="button" id="cancel-header"></button>
             </div>
         `;
-        headerDisplay.replaceWith(editHeaderContainer);
+        headerContainer.replaceWith(editHeaderContainer);
     });
 
     $('.headers-main-container').on('click', '.delete-icon', function () {
-        $(this).closest('.added-header').remove();
+        $(this).closest('.headers-container').remove();
     });
 
     updateTestButtonState();
@@ -289,10 +301,14 @@ function setContactForm() {
             let webhookValue = $(this).find('#webhook-id').val();
             if (webhookValue) {
                 let headers = {};
-                $(this).find('.added-header').each(function () {
-                    const headerText = $(this).find('.header-display').text();
-                    const [key, value] = headerText.split(': ');
-                    headers[key] = value;
+                // Update to use the new header format
+                $(this).find('.headers-container').each(function () {
+                    const keyInput = $(this).find('#header-key');
+                    const valueInput = $(this).find('#header-value');
+                    // Only include headers if both key and value inputs exist and are not empty
+                    if (keyInput.length && valueInput.length && keyInput.val() && valueInput.val()) {
+                        headers[keyInput.val()] = valueInput.val();
+                    }
                 });
 
                 let webhookContact = {
@@ -751,8 +767,16 @@ function showContactFormForEdit(contactId) {
                     if (value.headers) {
                         Object.entries(value.headers).forEach(([headerKey, headerValue]) => {
                             const displayHeader = `
-                                <div class="added-header">
-                                    <span class="header-display">${headerKey}: ${headerValue}</span>
+                                <div class="headers-container">
+                                    <div class="input-group">
+                                        <label for="header-key">Header Name</label>
+                                        <input type="text" id="header-key" class="form-control" placeholder="Header name" tabindex="7" value="${headerKey}" readonly>
+                                    </div>
+                                    <span class="headers-equal"></span>
+                                    <div class="input-group">
+                                        <label for="header-value">Header Value</label>
+                                        <input type="text" id="header-value" class="form-control" placeholder="Header Value" tabindex="8" value="${headerValue}" readonly>
+                                    </div>
                                     <button class="edit-icon" type="button" id="edit-header"></button>
                                     <button class="delete-icon" type="button" id="delete-header"></button>
                                 </div>
@@ -811,11 +835,16 @@ function getContactPointTestData(container) {
         } else if (contactType === 'Webhook') {
             let webhookValue = container.find('#webhook-id').val();
             let headers = {};
-            container.find('.added-header').each(function () {
-                const headerText = $(this).find('.header-display').text();
-                const [key, value] = headerText.split(': ');
-                headers[key] = value;
+            // Update to use the new header format
+            container.find('.headers-container').each(function () {
+                const keyInput = $(this).find('#header-key');
+                const valueInput = $(this).find('#header-value');
+                // Only include headers if both key and value inputs exist and are not empty
+                if (keyInput.length && valueInput.length && keyInput.val() && valueInput.val()) {
+                    headers[keyInput.val()] = valueInput.val();
+                }
             });
+            
             if (webhookValue) {
                 contactData = {
                     type: 'webhook',
