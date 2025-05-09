@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 var lineChart;
+var barChart; 
 function loadBarOptions(xAxisData, yAxisData) {
     // colors for dark & light modes
     let root = document.querySelector(':root');
@@ -26,97 +26,72 @@ function loadBarOptions(xAxisData, yAxisData) {
     let gridLineLightThemeColor = rootStyles.getPropertyValue('--white-3');
     let labelDarkThemeColor = rootStyles.getPropertyValue('--white-0');
     let labelLightThemeColor = rootStyles.getPropertyValue('--black-1');
-
-    let legendData = [];
-    let seriesData = [];
-    let colorList = ['#6347D9', '#FF8700'];
-
-    yAxisData.forEach((dataset, index) => {
-        legendData.push(dataset.name); // Add dataset names to legend
-        seriesData.push({
-            name: dataset.name,
-            type: 'bar',
+    
+    const textColor = $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+    const gridColor = $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+    
+    const datasets = yAxisData.map((dataset, index) => {
+        let colorList = ['#6347D9', '#FF8700'];
+        return {
+            label: dataset.name,
             data: dataset.data,
-            barWidth: '60%',
-            itemStyle: {
-                color: colorList[index % colorList.length],
-            },
-            barCategoryGap: '40%', // space between bars
-            barGap: '15%',
-            emphasis: {
-                itemStyle: {
-                    color: colorList[index % colorList.length],
-                }
-            },
-        });
+            backgroundColor: colorList[index % colorList.length], 
+            borderColor: colorList[index % colorList.length],
+            borderWidth: 1,
+            barPercentage: 0.6, 
+            categoryPercentage: 0.8, 
+        };
     });
 
-    const shouldRotateLabels = xAxisData.length > 1;
-    const rotationAngle = xAxisData.length > 5 ? 30 : 0;
-
-    let barOptions = {
-        tooltip: {
-            trigger: 'axis',
-            axisPointer: {
-                type: 'shadow',
-            },
-            formatter: function (params) {
-                return params[0].name + ': ' + params[0].value;
-            },
+    return {
+        type: 'bar',
+        data: {
+            labels: xAxisData,
+            datasets: datasets
         },
-        legend: {
-            data: legendData,
-            textStyle: {
-                color: function () {
-                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: textColor,
+                        font: {
+                            size: 12
+                        }
+                    }
                 },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
             },
-        },
-        xAxis: {
-            type: 'category',
-            data: xAxisData,
-            axisLine: {
-                lineStyle: {
-                    color: function () {
-                        return $('html').attr('data-theme') == 'dark' ? gridLineDarkThemeColor : gridLineLightThemeColor;
+            scales: {
+                x: {
+                    ticks: {
+                        color: textColor,
+                        maxRotation: xAxisData.length > 5 ? 30 : 0,
+                        autoSkip: true,
+                        autoSkipPadding: 10
                     },
+                    grid: {
+                        display: false
+                    }
                 },
-            },
-            axisLabel: {
-                interval: 0,
-                rotate: shouldRotateLabels ? rotationAngle : 0,
-                margin: shouldRotateLabels ? 10 : 5,
-                color: function () {
-                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
-                },
-            },
-        },
-        yAxis: {
-            type: 'value',
-            axisLabel: {
-                color: function () {
-                    return $('html').attr('data-theme') == 'dark' ? labelDarkThemeColor : labelLightThemeColor;
-                },
-            },
-            splitLine: {
-                lineStyle: {
-                    lineStyle: {
-                        color: gridLineDarkThemeColor,
+                y: {
+                    ticks: {
+                        color: textColor
                     },
-                },
-            },
-        },
-        series: seriesData,
+                    grid: {
+                        color: gridColor
+                    }
+                }
+            }
+        }
     };
-    if ($('html').attr('data-theme') == 'dark') {
-        barOptions.xAxis.axisLine.lineStyle.color = gridLineDarkThemeColor;
-        barOptions.yAxis.splitLine.lineStyle.color = gridLineDarkThemeColor;
-    } else {
-        barOptions.xAxis.axisLine.lineStyle.color = gridLineLightThemeColor;
-        barOptions.yAxis.splitLine.lineStyle.color = gridLineLightThemeColor;
-    }
-    return barOptions;
 }
+
 function loadPieOptions(xAxisData, yAxisData) {
     let pieDataMapList = [];
     // loop
@@ -197,29 +172,27 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
         bigNumVal = hits[0].MeasureVal[columns[0]];
     }
 
-    let panelChart;
+    let panelChartEl;
     if (panelId == -1) {
-        let panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
-        panelChart = echarts.init(panelChartEl);
+        panelChartEl = document.querySelector(`.panelDisplay .panEdit-panel`);
     } else if (chartType !== 'number') {
-        let panelChartEl = $(`#panel${panelId} .panEdit-panel`);
-        panelChartEl.css('width', '100%').css('height', '100%');
-        panelChart = echarts.init(document.querySelector(`#panel${panelId} .panEdit-panel`));
+        let panelChartSelector = $(`#panel${panelId} .panEdit-panel`);
+        panelChartSelector.css('width', '100%').css('height', '100%');
+        panelChartEl = document.querySelector(`#panel${panelId} .panEdit-panel`);
     }
 
     if (bigNumVal != null) {
         chartType = 'number';
     }
+
     /* eslint-disable */
     switch (chartType) {
         case 'Bar Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
 
-            // Determine if multiple group by values are used
             var multipleGroupBy = hits[0].GroupByValues.length > 1;
             let measureFunctions = res.measureFunctions;
 
-            // Prepare series data for the bar chart
             var seriesData = measureFunctions.map(function (measureFunction) {
                 return {
                     name: measureFunction,
@@ -239,8 +212,18 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
 
                 return groupByValue;
             });
-            var barOptions = loadBarOptions(xData, seriesData);
-            panelChart.setOption(barOptions);
+            
+            $(panelChartEl).html('<canvas class="bar-chart-canvas"></canvas>');
+            const canvasEl = $(panelChartEl).find('canvas')[0];
+            const ctx = canvasEl.getContext('2d');
+            
+            if (barChart) {
+                barChart.destroy();
+            }
+
+            var barConfig = loadBarOptions(xData, seriesData);
+            
+            barChart = new Chart(ctx, barConfig);
             break;
         case 'Pie Chart':
             $(`.panelDisplay .big-number-display-container`).hide();
@@ -264,6 +247,7 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
             }
 
             var pieOptions = loadPieOptions(xAxisData, yAxisData);
+            let panelChart = echarts.init(panelChartEl);
             panelChart.setOption(pieOptions);
             break;
         case 'number':
@@ -273,7 +257,8 @@ function renderBarChart(columns, res, panelId, chartType, dataType, panelIndex) 
     /* eslint-enable */
     $(`#panel${panelId} .panel-body #panel-loading`).hide();
 
-    return panelChart;
+    // Return the appropriate chart instance
+    return chartType === 'Bar Chart' ? barChart : panelChart;
 }
 
 let mapIndexToAbbrev = new Map([
@@ -583,4 +568,4 @@ window.addEventListener('resize', function (_event) {
     if ($('.panelEditor-container').css('display') !== 'none' && panelChart) {
         panelChart.resize();
     }
-});
+}); 
