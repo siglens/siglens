@@ -305,7 +305,7 @@ func testWebhookURL(webhookURL string, headers map[string]string) error {
 		log.Errorf("testWebhookURL: failed to create a test webhook request. URL: %v err: %v", webhookURL, err)
 		return err
 	}
-  for key, value := range headers {
+	for key, value := range headers {
 		req.Header.Add(key, value)
 	}
 	resp, err := client.Do(req)

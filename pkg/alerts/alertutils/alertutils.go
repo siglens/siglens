@@ -18,9 +18,9 @@
 package alertutils
 
 import (
+	"crypto/tls"
 	"database/sql/driver"
 	"encoding/json"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
