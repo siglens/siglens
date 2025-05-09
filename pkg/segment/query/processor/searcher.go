@@ -1190,8 +1190,7 @@ func makeBlocksFromSSR(qsr *query.QuerySegmentRequest, segkeyFname string,
 type sortMode int
 
 const (
-	invalidSortMode sortMode = iota
-	recentFirst
+	recentFirst sortMode = iota + 1
 	recentLast
 	anyOrder
 )
