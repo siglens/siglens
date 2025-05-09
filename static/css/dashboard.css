@@ -1401,3 +1401,65 @@
 #panEdit-panel .legend-container {
   height: 40px;
 }
+
+.accordion-item {
+  border: 1px solid var(--border-color-regular);
+  border-radius: 0 !important;
+  background: none;
+}
+
+.accordion-header {
+  padding: 12px 15px;
+  background-color: var(--drop-down-btn-bg-regular);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.accordion-header::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background-repeat: no-repeat;
+  background-image: var(--front-arrow, url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>'));
+  background-position: center;
+  background-size: contain;
+  margin-left: 8px;
+  margin-right: 8px;
+  transform: rotate(0deg);
+  transition: transform 0.3s ease;
+  opacity: 0.8;
+}
+
+.accordion-header:hover {
+  background: var(--index-drop-down-item-hover-bg-color);
+}
+
+.accordion-title {
+  font-weight: 500;
+}
+
+.accordion-arrow {
+  transition: transform 0.3s;
+  font-size: 18px;
+}
+
+.accordion-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.accordion-content {
+  padding: 15px;
+  display: none;
+  border-bottom: 1px solid var(--border-color-regular);
+  background-color: var(--db-bg-color);
+}
+
+.accordion-content.expanded {
+  display: block;
+  width: 420px;
+}
+
+.accordion-header.expanded::before {
+  transform: rotate(90deg);
+}
