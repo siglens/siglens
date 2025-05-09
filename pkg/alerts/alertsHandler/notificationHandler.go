@@ -103,7 +103,6 @@ func NotifyAlertHandlerRequest(alertID string, alertState alertutils.AlertState,
 
 	if !emailSent && !slackSent && !webhookSent {
 		return false, errors.New("neither emails or slack message or webhook sent for this notification")
-
 	}
 
 	return true, nil
@@ -154,9 +153,10 @@ func sendAlertEmail(emailID, subject, message string, alertDataMessage string) e
 	err := smtp.SendMail(host+":"+strconv.Itoa(port), auth, senderEmail, []string{emailID}, []byte(body))
 	return err
 }
-func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, numEvaluationsCount uint64,
-	alertState alertutils.AlertState) error {
 
+func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, numEvaluationsCount uint64,
+	alertState alertutils.AlertState,
+) error {
 	var status string
 	switch alertState {
 	case alertutils.Normal:
@@ -193,7 +193,7 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 	}
 
 	r.Header.Add("Content-Type", "application/json")
-	client := &http.Client{}
+	client := alertutils.GetCertErrorForgivingHttpClient()
 	resp, err := client.Do(r)
 	if err != nil {
 		log.Errorf("sendWebhooks: Error sending request. WebhookURL=%v, Error=%v", webhookUrl, err)
@@ -234,7 +234,6 @@ func getSlackMessageColor(alertState alertutils.AlertState) string {
 }
 
 func sendSlack(alertName string, message string, channel alertutils.SlackTokenConfig, alertState alertutils.AlertState, alertDataMessage string) error {
-
 	channelID := channel.ChannelId
 	token := channel.SlToken
 	client := slack.New(token, slack.OptionDebug(false))
