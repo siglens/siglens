@@ -1283,11 +1283,11 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 
 			switch mode {
 			case recentFirst:
-				if endTime < overallEndTime {
+				if overallEndTime > endTime {
 					overallEndTime = endTime
 				}
 			case recentLast:
-				if endTime > overallEndTime {
+				if overallEndTime < endTime {
 					overallEndTime = endTime
 				}
 			default:
