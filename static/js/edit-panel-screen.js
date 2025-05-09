@@ -461,14 +461,13 @@ async function editPanelInit(redirectedFromViewScreen, isNewPanel) {
         $('.panelEditor-container').css('display', 'flex');
         $('.panelDisplay .panEdit-panel').css('display', 'none');
         $('.panelDisplay #empty-response').html('<div>Create a query using the builder to access and view the logs.</div>').css({
-                'display': 'flex',
-                'background-color': 'var(--datatable-bg-color)',
-            });
+            display: 'flex',
+            'background-color': 'var(--datatable-bg-color)',
+        });
     } else {
         $('.panelDisplay .panEdit-panel').show();
         await runQueryBtnHandler();
     }
-
 }
 
 function loadVisualizationOptions(panelType) {
@@ -476,7 +475,7 @@ function loadVisualizationOptions(panelType) {
     $('.chart-options').removeClass('selected');
 
     if (panelType === 'logs') {
-        $('.chart-options').not('[data-index="0"]').show();
+        $('.chart-options').show();
         $('[data-index="1"]').addClass('selected');
     } else if (panelType === 'metrics') {
         $('[data-index="0"]').show();
@@ -485,7 +484,7 @@ function loadVisualizationOptions(panelType) {
 }
 $('.panEdit-discard').on('click', goToDashboard);
 $('.panEdit-save').on('click', async function (_redirectedFromViewScreen) {
-    if (currentPanel.chartType === 'Line Chart' && currentPanel.queryType === 'metrics') {
+    if (currentPanel.queryType === 'metrics') {
         const data = getMetricsQData();
         currentPanel.queryData = data;
         currentPanel.style = {};
@@ -1089,14 +1088,6 @@ function goToDashboard() {
         startRefreshInterval(dbRefresh);
     }
 }
-//eslint-disable-next-line no-unused-vars
-function resetPanelTimeRanges() {
-    for (let i = 0; i < localPanels.length; i++) {
-        if (localPanels[i].queryData) {
-            (localPanels[i].chartType === 'Line Chart' || localPanels[i].chartType === 'number') && localPanels[i].queryType === 'metrics' ? (localPanels[i].queryData.start = filterStartDate) : (localPanels[i].queryData.startEpoch = filterStartDate);
-        }
-    }
-}
 
 function resetEditPanelScreen() {
     resetEditPanel();
@@ -1248,8 +1239,7 @@ function displayPanelView(panelIndex) {
             break;
 
         case 'Line Chart':
-        case 'number':
-            responseDiv = localPanel.chartType === 'number' ? `<div class="big-number-display-container"></div><div id="empty-response"></div><div id="corner-popup"></div>` : `<div id="empty-response"></div><div id="corner-popup"></div>`;
+            responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`;
             panEl.append(responseDiv);
 
             if (localPanel.queryType === 'metrics') {
@@ -1261,6 +1251,8 @@ function displayPanelView(panelIndex) {
 
         case 'Pie Chart':
         case 'Bar Chart':
+        case 'number':
+            if(localPanel.chartType)
             responseDiv = `<div id="empty-response"></div><div id="corner-popup"></div>`;
             panEl.append(responseDiv);
             runPanelAggsQuery(localPanel.queryData, localPanel.panelId, localPanel.chartType, localPanel.dataType, localPanel.panelIndex);

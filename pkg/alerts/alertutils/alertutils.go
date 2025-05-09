@@ -20,7 +20,9 @@ package alertutils
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/go-co-op/gocron"
@@ -70,7 +72,7 @@ func (AlertDetails) TableName() string {
 }
 
 type AlertLabel struct {
-	LabelName  string `json:"label_name" gorm:"primaryKey;size:256;not null;"` //unique
+	LabelName  string `json:"label_name" gorm:"primaryKey;size:256;not null;"` // unique
 	LabelValue string `json:"label_value"`
 }
 
@@ -304,4 +306,14 @@ func (alert *AlertDetails) DecodeQueryParamFromBase64() error {
 	}
 
 	return nil
+}
+
+func GetCertErrorForgivingHttpClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
 }

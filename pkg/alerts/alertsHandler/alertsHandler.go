@@ -299,15 +299,15 @@ func ProcessTestContactPointRequest(ctx *fasthttp.RequestCtx) {
 }
 
 func testWebhookURL(webhookURL string, headers map[string]string) error {
+	client := alertutils.GetCertErrorForgivingHttpClient()
 	req, err := http.NewRequest("GET", webhookURL, nil)
 	if err != nil {
-		log.Errorf("testWebhookURL: failed to create request. URL: %v err: %v", webhookURL, err)
+		log.Errorf("testWebhookURL: failed to create a test webhook request. URL: %v err: %v", webhookURL, err)
 		return err
 	}
-	for key, value := range headers {
+  for key, value := range headers {
 		req.Header.Add(key, value)
 	}
-	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("testWebhookURL: failed to test webhook URL. URL: %v err: %v", webhookURL, err)
@@ -452,7 +452,6 @@ func ProcessUpdateAlertRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	err = RemoveCronJob(alertToBeUpdated.AlertId)
-
 	if err != nil {
 		utils.SendError(ctx, fmt.Sprintf("Failed to remove cron job for alert. Error=%v", err), fmt.Sprintf("alert name: %v", alertToBeUpdated.AlertName), err)
 		return
@@ -651,7 +650,7 @@ func InitAlertingService(getMyIds func() []int64) {
 	myids := getMyIds()
 	for _, myid := range myids {
 
-		//get all alerts from database
+		// get all alerts from database
 		allAlerts, err := databaseObj.GetAllAlerts(myid)
 		if err != nil {
 			log.Errorf("InitAlertingService: unable to GetAllAlerts: ,err: %+v", err)
@@ -680,7 +679,7 @@ func InitMinionSearchService(getMyIds func() []int64) {
 	myids := getMyIds()
 	for _, myid := range myids {
 
-		//get all alerts from database
+		// get all alerts from database
 		allMinionSearches, err := databaseObj.GetAllMinionSearches(myid)
 		if err != nil {
 			log.Errorf("InitMinionSearchService: unable to GetAllAlerts: ,err: %+v", err)
