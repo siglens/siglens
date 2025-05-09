@@ -23,7 +23,7 @@ export GO
 
 
 lint:
-	golangci-lint run --timeout=3m
+	golangci-lint run --timeout=3m --fix --max-issues-per-linter=0 --max-same-issues=0
 
 test:
 	$(GO) test ./... -count 1
