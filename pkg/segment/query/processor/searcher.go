@@ -1283,13 +1283,9 @@ func getNextBlocks(sortedBlocks []*block, maxBlocks int, mode sortMode) ([]*bloc
 
 			switch mode {
 			case recentFirst:
-				if overallEndTime > endTime {
-					overallEndTime = endTime
-				}
+				overallEndTime = min(overallEndTime, endTime)
 			case recentLast:
-				if overallEndTime < endTime {
-					overallEndTime = endTime
-				}
+				overallEndTime = max(overallEndTime, endTime)
 			default:
 				return nil, 0, toputils.TeeErrorf("getNextBlocks: invalid sort mode: %v", mode)
 			}
