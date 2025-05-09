@@ -43,12 +43,12 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/reader/microreader"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/compress"
 	"github.com/siglens/siglens/pkg/segment/writer/metrics/meta"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
 	"github.com/siglens/siglens/pkg/usageStats"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -309,11 +309,11 @@ func GetUnrotatedMetricStats(orgid int64) (uint64, uint64, uint64) {
 }
 
 func getNumberOfSegmentsFromMemory(mem uint64) uint64 {
-	mb := utils.ConvertUintBytesToMB(mem)
-	retVal := mem / utils.MAX_BYTES_METRICS_BLOCK
+	mb := segutils.ConvertUintBytesToMB(mem)
+	retVal := mem / segutils.MAX_BYTES_METRICS_BLOCK
 	concurreny := uint64(config.GetParallelism())
 	if retVal == 0 {
-		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", utils.ConvertUintBytesToMB(mem))
+		log.Infof("getNumberOfSegmentsFromMemory: Less than %dMB was allocated. Defaulting to 1 metrics segment", segutils.ConvertUintBytesToMB(mem))
 		retVal = 1
 	} else if retVal > concurreny {
 		retVal = concurreny
@@ -327,7 +327,7 @@ func timeBasedRotate() {
 		time.Sleep(METRICS_BLK_ROTATE_SLEEP_DURATION * time.Second)
 		for _, ms := range GetAllMetricsSegments() {
 			encSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
-			if encSize > utils.MAX_BYTES_METRICS_BLOCK {
+			if encSize > segutils.MAX_BYTES_METRICS_BLOCK {
 				ms.rwLock.Lock()
 				err := ms.CheckAndRotate(false)
 				ms.rwLock.Unlock()
@@ -421,7 +421,7 @@ func InitMetricsSegment(orgid int64, mId string) (*MetricsSegment, error) {
 				segID:           suffix,
 				mId:             mId,
 				dpIdx:           0,
-				dpsInWalMem:     make([]wal.WalDatapoint, utils.WAL_BLOCK_FLUSH_SIZE),
+				dpsInWalMem:     make([]wal.WalDatapoint, segutils.WAL_BLOCK_FLUSH_SIZE),
 			},
 			mBlockSummary: &structs.MBlockSummary{
 				Blknum: 0,
@@ -837,7 +837,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				}
 				mName = value
 			default:
-				return toputils.TeeErrorf("ExtractOTSDBPayload: invalid type %v for metric name %v", valueType, value)
+				return utils.TeeErrorf("ExtractOTSDBPayload: invalid type %v for metric name %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
@@ -859,14 +859,14 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 						log.Errorf("ExtractOTSDBPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
 						return fmt.Errorf("ExtractOTSDBPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
 					} else {
-						if toputils.IsTimeInMilli(uint64(fltVal)) {
+						if utils.IsTimeInMilli(uint64(fltVal)) {
 							ts = uint32(fltVal / 1000)
 						} else {
 							ts = uint32(fltVal)
 						}
 					}
 				} else {
-					if toputils.IsTimeInMilli(uint64(intVal)) {
+					if utils.IsTimeInMilli(uint64(intVal)) {
 						ts = uint32(intVal / 1000)
 					} else {
 						ts = uint32(intVal)
@@ -876,7 +876,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 				// First, try to parse the date as a number (seconds or milliseconds since epoch)
 				if t, err := strconv.ParseInt(string(value), 10, 64); err == nil {
 					// Determine if the number is in seconds or milliseconds
-					if toputils.IsTimeInMilli(uint64(t)) {
+					if utils.IsTimeInMilli(uint64(t)) {
 						ts = uint32(t / 1000)
 					} else {
 						ts = uint32(t)
@@ -900,7 +900,7 @@ func ExtractOTSDBPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uin
 					return fmt.Errorf("unknown timestamp format %s", value)
 				}
 			default:
-				return toputils.TeeErrorf("ExtractOTSDBPayload: invalid type %v for timestamp %v", valueType, value)
+				return utils.TeeErrorf("ExtractOTSDBPayload: invalid type %v for timestamp %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {
@@ -979,7 +979,7 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 				}
 				mName = value
 			default:
-				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for metric name %v", valueType, value)
+				return utils.TeeErrorf("ExtractOTLPPayload: invalid type %v for metric name %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_tags):
 			if valueType != jp.Object {
@@ -1001,18 +1001,18 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 						log.Errorf("ExtractOTLPPayload: failed to parse timestamp %v as int or float, err=%v", value, err)
 						return fmt.Errorf("ExtractOTLPPayload: failed to parse timestamp! Not expected type:%+v", valueType.String())
 					} else {
-						if toputils.IsTimeInNano(uint64(fltVal)) {
+						if utils.IsTimeInNano(uint64(fltVal)) {
 							ts = uint32(fltVal / 1_000_000_000)
-						} else if toputils.IsTimeInMilli(uint64(fltVal)) {
+						} else if utils.IsTimeInMilli(uint64(fltVal)) {
 							ts = uint32(fltVal / 1000)
 						} else {
 							ts = uint32(fltVal)
 						}
 					}
 				} else {
-					if toputils.IsTimeInNano(uint64(intVal)) {
+					if utils.IsTimeInNano(uint64(intVal)) {
 						ts = uint32(intVal / 1_000_000_000)
-					} else if toputils.IsTimeInMilli(uint64(intVal)) {
+					} else if utils.IsTimeInMilli(uint64(intVal)) {
 						ts = uint32(intVal / 1000)
 					} else {
 						ts = uint32(intVal)
@@ -1020,7 +1020,7 @@ func ExtractOTLPPayload(rawJson []byte, tags *TagsHolder) ([]byte, float64, uint
 				}
 
 			default:
-				return toputils.TeeErrorf("ExtractOTLPPayload: invalid type %v for timestamp %v", valueType, value)
+				return utils.TeeErrorf("ExtractOTLPPayload: invalid type %v for timestamp %v", valueType, value)
 			}
 		case bytes.Equal(key, otsdb_value):
 			if valueType != jp.Number {
@@ -1128,8 +1128,8 @@ func (mb *MetricsBlock) GetTimeSeries(tsid uint64) (*TimeSeries, bool, error) {
 	var ts *TimeSeries
 	idx, ok := mb.tsidLookup[tsid]
 	if !ok {
-		if len(mb.allSeries) >= utils.MAX_ACTIVE_SERIES_PER_SEGMENT {
-			err := fmt.Errorf("MetricsBlock.GetTimeSeries: reached limit for max active series (%d) per segment", utils.MAX_ACTIVE_SERIES_PER_SEGMENT)
+		if len(mb.allSeries) >= segutils.MAX_ACTIVE_SERIES_PER_SEGMENT {
+			err := fmt.Errorf("MetricsBlock.GetTimeSeries: reached limit for max active series (%d) per segment", segutils.MAX_ACTIVE_SERIES_PER_SEGMENT)
 			log.Errorf(err.Error())
 			return nil, false, err
 		}
@@ -1179,8 +1179,8 @@ Returns bool if the tsid already existed, the idx it exists at, or any errors
 func (mb *MetricsBlock) InsertTimeSeries(tsid uint64, ts *TimeSeries) (bool, int, error) {
 	idx, ok := mb.tsidLookup[tsid]
 	if !ok {
-		if len(mb.allSeries) >= utils.MAX_ACTIVE_SERIES_PER_SEGMENT {
-			err := fmt.Errorf("MetricsBlock.InsertTimeSeries: reached limit for max active series (%d) per segment", utils.MAX_ACTIVE_SERIES_PER_SEGMENT)
+		if len(mb.allSeries) >= segutils.MAX_ACTIVE_SERIES_PER_SEGMENT {
+			err := fmt.Errorf("MetricsBlock.InsertTimeSeries: reached limit for max active series (%d) per segment", segutils.MAX_ACTIVE_SERIES_PER_SEGMENT)
 			log.Errorf(err.Error())
 			return false, 0, err
 		}
@@ -1243,8 +1243,8 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 
 	totalEncSize := atomic.LoadUint64(&ms.mSegEncodedSize)
 	blkEncSize := atomic.LoadUint64(&ms.mBlock.blkEncodedSize)
-	if blkEncSize > utils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
-		(blkEncSize > 0 && totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT) {
+	if blkEncSize > segutils.MAX_BYTES_METRICS_BLOCK || (blkEncSize > 0 && forceRotate) ||
+		(blkEncSize > 0 && totalEncSize > segutils.MAX_BYTES_METRICS_SEGMENT) {
 		err := ms.mBlock.rotateBlock(ms.metricsKeyBase, ms.Suffix, ms.currBlockNum)
 		if err != nil {
 			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate block for key=%v, suffix=%v, blocknum=%v, err=%v",
@@ -1256,7 +1256,7 @@ func (ms *MetricsSegment) CheckAndRotate(forceRotate bool) error {
 		}
 	}
 
-	if totalEncSize > utils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
+	if totalEncSize > segutils.MAX_BYTES_METRICS_SEGMENT || (totalEncSize > 0 && forceRotate) {
 		err := ms.rotateSegment(forceRotate)
 		if err != nil {
 			log.Errorf("MetricsSegment.CheckAndRotate: failed to rotate mid %v: %v", ms.metricsKeyBase, err)
@@ -1296,38 +1296,38 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 		return mb.sortedTsids[i] < mb.sortedTsids[j]
 	})
 
-	_, err := tsoBuffer.Write(utils.VERSION_TSOFILE_V2)
+	_, err := tsoBuffer.Write(segutils.VERSION_TSOFILE_V2)
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write version byte to file %v. Err %v", tsoFileName, err)
 		return err
 	}
 
-	_, err = tsgBuffer.Write(utils.VERSION_TSGFILE)
+	_, err = tsgBuffer.Write(segutils.VERSION_TSGFILE)
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write version byte to file %v. Err %v", tsoFileName, err)
 		return err
 	}
 
 	size := uint32(0)
-	_, err = tsoBuffer.Write(toputils.Uint64ToBytesLittleEndian(uint64(length)))
+	_, err = tsoBuffer.Write(utils.Uint64ToBytesLittleEndian(uint64(length)))
 	if err != nil {
 		log.Infof("FlushTSOAndTSGFiles: Could not write tsid to file %v. Err %v", tsoFileName, err)
 		return err
 	}
 
 	for _, tsid := range mb.sortedTsids {
-		_, err := tsoBuffer.Write(toputils.Uint64ToBytesLittleEndian(tsid))
+		_, err := tsoBuffer.Write(utils.Uint64ToBytesLittleEndian(tsid))
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not write tsid to file %v. Err %v", tsoFileName, err)
 			return err
 		}
-		_, err = tsoBuffer.Write(toputils.Uint32ToBytesLittleEndian(size))
+		_, err = tsoBuffer.Write(utils.Uint32ToBytesLittleEndian(size))
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not write tsid offset to file %v. Err %v", tsoFileName, err)
 			return err
 		}
 
-		_, err = tsgBuffer.Write(toputils.Uint64ToBytesLittleEndian(tsid))
+		_, err = tsgBuffer.Write(utils.Uint64ToBytesLittleEndian(tsid))
 		size += 8
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not write tsid to file %v. Err %v", tsgFileName, err)
@@ -1341,7 +1341,7 @@ func (mb *MetricsBlock) FlushTSOAndTSGFiles(file string) error {
 			return err
 		}
 
-		_, err = tsgBuffer.Write(toputils.Uint32ToBytesLittleEndian(uint32(mb.allSeries[index].rawEncoding.Len())))
+		_, err = tsgBuffer.Write(utils.Uint32ToBytesLittleEndian(uint32(mb.allSeries[index].rawEncoding.Len())))
 		size += 4
 		if err != nil {
 			log.Infof("FlushTSOAndTSGFiles: Could not write len of raw series to file %v. Err %v", tsgFileName, err)
@@ -1465,7 +1465,7 @@ func (ms *MetricsSegment) rotateSegment(forceRotate bool) error {
 		return err
 	}
 
-	err = toputils.WriteValidityFile(ms.metricsKeyBase)
+	err = utils.WriteValidityFile(ms.metricsKeyBase)
 	if err != nil {
 		log.Errorf("rotateSegment: failed to write validity file for %s, orgid=%v, Error %+v", ms.metricsKeyBase, ms.Orgid, err)
 		return err
@@ -1561,7 +1561,7 @@ func (ms *MetricsSegment) FlushMetricNames() error {
 	defer fd.Close()
 
 	for mName := range ms.mNamesMap {
-		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
+		if _, err = fd.Write(utils.Uint16ToBytesLittleEndian(uint16(len(mName)))); err != nil {
 			log.Errorf("FlushMetricNames: failed to write metric length for metric=%+v, filename=%v: err=%v", mName, filePath, err)
 			return err
 		}
@@ -1878,7 +1878,7 @@ func GetTagsTreeHolder(orgid int64, mid string) *TagsTreeHolder {
 }
 
 func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
-	seriesCardMap map[string]*toputils.GobbableHll) error {
+	seriesCardMap map[string]*utils.GobbableHll) error {
 
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
@@ -1903,7 +1903,7 @@ func CountUnrotatedTSIDsForTagKeys(tRange *dtu.MetricsTimeRange, myid int64,
 }
 
 func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
-	tagPairsCardMap map[string]map[string]*toputils.GobbableHll) error {
+	tagPairsCardMap map[string]map[string]*utils.GobbableHll) error {
 
 	unrotatedMetricSegments, err := GetUnrotatedMetricSegmentsOverTheTimeRange(tRange, myid)
 	if err != nil {
@@ -1917,7 +1917,7 @@ func CountUnrotatedTSIDsForTagPairs(tRange *dtu.MetricsTimeRange, myid int64,
 			for tagkey, tkTree := range tagsTreeHolder.allTrees {
 				valuesSet, ok := tagPairsCardMap[tagkey]
 				if !ok || valuesSet == nil {
-					valuesSet = make(map[string]*toputils.GobbableHll)
+					valuesSet = make(map[string]*utils.GobbableHll)
 					tagPairsCardMap[tagkey] = valuesSet
 				}
 				tkTree.countTSIDsForTagPairs(valuesSet)
@@ -2001,14 +2001,14 @@ func (mb *MetricsBlock) appendToWALBuffer(timestamp uint32, dp float64, tsid uin
 	mb.dpWalState.lock.Lock()
 	defer mb.dpWalState.lock.Unlock()
 
-	if int(mb.dpWalState.dpIdx) >= utils.WAL_BLOCK_FLUSH_SIZE {
+	if int(mb.dpWalState.dpIdx) >= segutils.WAL_BLOCK_FLUSH_SIZE {
 		err := mb.dpWalState.currentWal.Append(mb.dpWalState.dpsInWalMem[0:mb.dpWalState.dpIdx])
 		if err != nil {
 			log.Errorf("AppendWalDataPoint : Failed to append datapoints to WAL: %v", err)
 			return err
 		}
 		totalEncodedSize := mb.dpWalState.currentWal.GetWALStats()
-		if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
+		if totalEncodedSize > segutils.MAX_WAL_FILE_SIZE_BYTES {
 			if err := mb.rotateWAL(); err != nil {
 				log.Errorf("appendToWALBuffer : Failed to rotate WAL file: %v", err)
 				return err
@@ -2036,7 +2036,7 @@ func timeBasedWalDPSFlush() {
 					log.Warnf("timeBasedWalDPSFlush : Failed to append datapoints to WAL: %v", err)
 				}
 				totalEncodedSize := ms.mBlock.dpWalState.currentWal.GetWALStats()
-				if totalEncodedSize > utils.MAX_WAL_FILE_SIZE_BYTES {
+				if totalEncodedSize > segutils.MAX_WAL_FILE_SIZE_BYTES {
 					if err := ms.mBlock.rotateWAL(); err != nil {
 						log.Warnf("timeBasedWalDPSFlush : Failed to rotate WAL file: %v", err)
 					}

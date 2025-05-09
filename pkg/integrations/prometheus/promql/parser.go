@@ -17,7 +17,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/mresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -644,7 +644,7 @@ func handleCallExprVectorSelectorNode(expr *parser.Call, mQuery *structs.Metrics
 
 		rawRegex := rawRegexStrLiteral.Val
 
-		gobRegexp := &toputils.GobbableRegex{}
+		gobRegexp := &utils.GobbableRegex{}
 		err := gobRegexp.SetRegex(rawRegex)
 		if err != nil {
 			return fmt.Errorf("handleCallExprVectorSelectorNode: Error compiling regex for the GobRegex Pattern: %v. Error=%v", rawRegex, err)

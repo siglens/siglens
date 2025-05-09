@@ -22,8 +22,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,18 +32,18 @@ func Test_MVExpand_noLimit(t *testing.T) {
 		options: &structs.MultiValueColLetRequest{
 			Command: "mvexpand",
 			ColName: "col1",
-			Limit:   toputils.NewUnsetOption[int64](),
+			Limit:   utils.NewUnsetOption[int64](),
 		},
 	}
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
-			{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
+			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_STRING, CVal: "red"},
-			{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
 		},
 	})
 	assert.NoError(t, err)
@@ -51,19 +51,19 @@ func Test_MVExpand_noLimit(t *testing.T) {
 	iqr, err = mvexpand.Process(iqr)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
+	expectedCol1 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "red"},
-		{Dtype: utils.SS_DT_STRING, CVal: "red"},
-		{Dtype: utils.SS_DT_STRING, CVal: "red"},
-		{Dtype: utils.SS_DT_STRING, CVal: "blue"},
-		{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+	expectedCol2 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
 	}
 
 	actualCol1, err := iqr.ReadColumn("col1")
@@ -80,18 +80,18 @@ func Test_MVExpand_withLimit(t *testing.T) {
 		options: &structs.MultiValueColLetRequest{
 			Command: "mvexpand",
 			ColName: "col1",
-			Limit:   toputils.NewOptionWithValue[int64](2),
+			Limit:   utils.NewOptionWithValue[int64](2),
 		},
 	}
 	iqr := iqr.NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
-			{Dtype: utils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
+			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"a", "b", "c"}},
+			{Dtype: segutils.SS_DT_STRING_SLICE, CVal: []string{"d", "e"}},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_STRING, CVal: "red"},
-			{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
 		},
 	})
 	assert.NoError(t, err)
@@ -99,17 +99,17 @@ func Test_MVExpand_withLimit(t *testing.T) {
 	iqr, err = mvexpand.Process(iqr)
 	assert.NoError(t, err)
 
-	expectedCol1 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
+	expectedCol1 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 	}
-	expectedCol2 := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "red"},
-		{Dtype: utils.SS_DT_STRING, CVal: "red"},
-		{Dtype: utils.SS_DT_STRING, CVal: "blue"},
-		{Dtype: utils.SS_DT_STRING, CVal: "blue"},
+	expectedCol2 := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "red"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "blue"},
 	}
 
 	actualCol1, err := iqr.ReadColumn("col1")

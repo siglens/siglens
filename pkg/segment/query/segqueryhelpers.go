@@ -26,8 +26,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/summary"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -50,7 +50,7 @@ type QueryInformation struct {
 	orgId              int64
 	alreadyDistributed bool
 	containsKibana     bool
-	batchErr           *toputils.BatchError
+	batchErr           *utils.BatchError
 }
 
 type QuerySegmentRequest struct {
@@ -156,7 +156,7 @@ func (qi *QueryInformation) ContainsKibana() bool {
 	return qi.containsKibana
 }
 
-func (qi *QueryInformation) GetBatchError() *toputils.BatchError {
+func (qi *QueryInformation) GetBatchError() *utils.BatchError {
 	return qi.batchErr
 }
 
@@ -235,7 +235,7 @@ func InitQueryInformation(s *structs.SearchNode, aggs *structs.QueryAggregators,
 		qType:              qType,
 		orgId:              orgid,
 		containsKibana:     containsKibana,
-		batchErr:           toputils.GetOrCreateBatchErrorWithQid(qid),
+		batchErr:           utils.GetOrCreateBatchErrorWithQid(qid),
 	}, nil
 }
 
@@ -327,32 +327,32 @@ func ExtractSSRFromSearchNode(node *structs.SearchNode, filesToSearch map[string
 	// todo: better joining of intermediate results of block summaries
 	finalList := make(map[string]*structs.SegmentSearchRequest)
 	if node.AndSearchConditions != nil {
-		andSegmentFiles := extractSSRFromCondition(node.AndSearchConditions, utils.And,
+		andSegmentFiles := extractSSRFromCondition(node.AndSearchConditions, segutils.And,
 			filesToSearch, timeRange, indexNames, querySummary, qid, isQueryPersistent, pqid)
 		for fileName, searchReq := range andSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
 				continue
 			}
-			finalList[fileName].JoinRequest(searchReq, utils.And)
+			finalList[fileName].JoinRequest(searchReq, segutils.And)
 		}
 	}
 
 	if node.OrSearchConditions != nil {
-		orSegmentFiles := extractSSRFromCondition(node.OrSearchConditions, utils.Or,
+		orSegmentFiles := extractSSRFromCondition(node.OrSearchConditions, segutils.Or,
 			filesToSearch, timeRange, indexNames, querySummary, qid, isQueryPersistent, pqid)
 		for fileName, searchReq := range orSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
 				finalList[fileName] = searchReq
 				continue
 			}
-			finalList[fileName].JoinRequest(searchReq, utils.Or)
+			finalList[fileName].JoinRequest(searchReq, segutils.Or)
 		}
 	}
 	// for exclusion, only join the column info for files that exist and not the actual search request info
 	// exclusion conditions should not influence raw blocks to search
 	if node.ExclusionSearchConditions != nil {
-		exclustionSegmentFiles := extractSSRFromCondition(node.ExclusionSearchConditions, utils.And,
+		exclustionSegmentFiles := extractSSRFromCondition(node.ExclusionSearchConditions, segutils.And,
 			filesToSearch, timeRange, indexNames, querySummary, qid, isQueryPersistent, pqid)
 		for fileName, searchReq := range exclustionSegmentFiles {
 			if _, ok := finalList[fileName]; !ok {
@@ -365,7 +365,7 @@ func ExtractSSRFromSearchNode(node *structs.SearchNode, filesToSearch map[string
 	return finalList
 }
 
-func extractSSRFromCondition(condition *structs.SearchCondition, op utils.LogicalOperator, filesToSearch map[string]map[string]*structs.BlockTracker,
+func extractSSRFromCondition(condition *structs.SearchCondition, op segutils.LogicalOperator, filesToSearch map[string]map[string]*structs.BlockTracker,
 	timeRange *dtu.TimeRange, indexNames []string, querySummary *summary.QuerySummary, qid uint64, isQueryPersistent bool, pqid string) map[string]*structs.SegmentSearchRequest {
 	finalSegFiles := make(map[string]*structs.SegmentSearchRequest)
 	if condition.SearchQueries != nil {

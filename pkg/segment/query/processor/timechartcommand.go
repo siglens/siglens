@@ -28,8 +28,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -77,7 +77,7 @@ func NewTimechartProcessor(options *timechartOptions) *timechartProcessor {
 	}
 
 	if timechart.GroupBy != nil {
-		timechart.GroupBy.BucketCount = int(utils.QUERY_MAX_BUCKETS)
+		timechart.GroupBy.BucketCount = int(segutils.QUERY_MAX_BUCKETS)
 	}
 
 	processor := &timechartProcessor{qid: qid}
@@ -121,7 +121,7 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	}
 
 	if p.options == nil {
-		return nil, toputils.TeeErrorf("timechartProcessor.Process: Timechart options is nil")
+		return nil, utils.TeeErrorf("timechartProcessor.Process: Timechart options is nil")
 	}
 
 	if inputIQR == nil {
@@ -132,15 +132,15 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	qid := inputIQR.GetQID()
 
 	if p.bucketKeyWorkingBuf == nil {
-		p.bucketKeyWorkingBuf = make([]byte, len(p.options.groupByRequest.GroupByColumns)*utils.MAX_RECORD_SIZE)
+		p.bucketKeyWorkingBuf = make([]byte, len(p.options.groupByRequest.GroupByColumns)*segutils.MAX_RECORD_SIZE)
 	}
 
 	if p.searchResults == nil {
-		p.options.groupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
+		p.options.groupByRequest.BucketCount = int(segutils.QUERY_MAX_BUCKETS)
 		aggs := &structs.QueryAggregators{GroupByRequest: p.options.groupByRequest, TimeHistogram: p.options.timeBucket}
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.Process: cannot initialize search results; err=%v", qid, err)
+			return nil, utils.TeeErrorf("qid=%v, timechartProcessor.Process: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 	}
@@ -154,8 +154,8 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	groupByColValCount := make(map[string]int, 0)
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
-	measureResults := make([]utils.CValueEnclosure, len(internalMops))
-	unsetRecord := make(map[string]utils.CValueEnclosure)
+	measureResults := make([]segutils.CValueEnclosure, len(internalMops))
+	unsetRecord := make(map[string]segutils.CValueEnclosure)
 
 	for i := 0; i < numOfRecords; i++ {
 		bucketKeyBufIdx := 0
@@ -165,8 +165,8 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 		tsCValue, err := record.ReadColumn(timestampKey)
 		if err != nil {
 			p.errorData.readColumns[timestampKey] = err
-			tsCValue = &utils.CValueEnclosure{
-				Dtype: utils.SS_DT_UNSIGNED_NUM,
+			tsCValue = &segutils.CValueEnclosure{
+				Dtype: segutils.SS_DT_UNSIGNED_NUM,
 				CVal:  uint64(time.Now().UnixMilli()),
 			}
 		}
@@ -182,9 +182,9 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 
 		timePoint := aggregations.FindTimeRangeBucket(p.timeRangeBuckets, ts, p.options.timeBucket.IntervalMillis)
 
-		copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], utils.VALTYPE_ENC_UINT64[:])
+		copy(p.bucketKeyWorkingBuf[bucketKeyBufIdx:], segutils.VALTYPE_ENC_UINT64[:])
 		bucketKeyBufIdx += 1
-		toputils.Uint64ToBytesLittleEndianInplace(timePoint, p.bucketKeyWorkingBuf[bucketKeyBufIdx:])
+		utils.Uint64ToBytesLittleEndianInplace(timePoint, p.bucketKeyWorkingBuf[bucketKeyBufIdx:])
 		bucketKeyBufIdx += 8
 
 		if byField != "" && !isTsCol {
@@ -214,7 +214,7 @@ func (p *timechartProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
-				cValue = &utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_DT_BACKFILL}
+				cValue = &segutils.CValueEnclosure{CVal: nil, Dtype: segutils.SS_DT_BACKFILL}
 			}
 
 			for _, idx := range indices {
@@ -273,12 +273,12 @@ func (p *timechartProcessor) extractTimechartResults() (*iqr.IQR, error) {
 		groupByBuckets, timeBuckets := p.searchResults.BlockResults.GroupByAggregation, p.searchResults.BlockResults.TimeAggregation
 		err := iqr.SetIqrStatsResults(structs.GroupByCmd, nil, groupByBuckets, timeBuckets, aggs)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
+			return nil, utils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
 		}
 	} else {
 		err := iqr.CreateGroupByStatsResults(p.searchResults)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot create groupby results; err=%v", iqr.GetQID(), err)
+			return nil, utils.TeeErrorf("qid=%v, timechartProcessor.extractTimechartResults: cannot create groupby results; err=%v", iqr.GetQID(), err)
 		}
 	}
 
@@ -299,8 +299,8 @@ func (p *timechartProcessor) logErrorsAndWarnings(qid uint64) {
 		allErrorsLen := len(p.searchResults.AllErrors)
 		if allErrorsLen > 0 {
 			size := allErrorsLen
-			if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
-				size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+			if allErrorsLen > segutils.MAX_SIMILAR_ERRORS_TO_LOG {
+				size = segutils.MAX_SIMILAR_ERRORS_TO_LOG
 			}
 			log.Errorf("qid=%v, timechartProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 		}

@@ -35,7 +35,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -54,7 +54,7 @@ func Test_simpleRawSearch(t *testing.T) {
 	numEntriesForBuffer := 10
 	_, allBlockSummaries, _, allCols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBuffers, numEntriesForBuffer)
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	searchReq := &structs.SegmentSearchRequest{
 		SegmentKey:        segKey,
@@ -311,7 +311,7 @@ func Test_simpleRawSearch_jaeger(t *testing.T) {
 	segKey := dataDir + "mock-host/raw_search_test_jaeger"
 	_, allBlockSummaries, _, allCols, allBmi := writer.WriteMockTraceFile(segKey, numBuffers, numEntriesForBuffer)
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	searchReq := &structs.SegmentSearchRequest{
 		SegmentKey:        segKey,
@@ -610,7 +610,7 @@ func createBenchQuery(b *testing.B, segKey string,
 		log.Fatal(err)
 	}
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	searchReq := &structs.SegmentSearchRequest{
 		SegmentKey: segKey,

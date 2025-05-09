@@ -29,13 +29,13 @@ import (
 	"github.com/siglens/siglens/pkg/segment"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
 func MetricsQueryParser(ctx *fasthttp.RequestCtx, myid int64) {
-	var httpResp toputils.HttpServerResponse
+	var httpResp utils.HttpServerResponse
 	queryReq := ctx.QueryArgs()
 	startStr := string(queryReq.Peek("start"))
 	endStr := string(queryReq.Peek("end"))
@@ -45,7 +45,7 @@ func MetricsQueryParser(ctx *fasthttp.RequestCtx, myid int64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		httpResp.Message = err.Error()
 		httpResp.StatusCode = fasthttp.StatusBadRequest
-		toputils.WriteResponse(ctx, httpResp)
+		utils.WriteResponse(ctx, httpResp)
 		return
 	}
 	qid := rutils.GetNextQid()
@@ -57,11 +57,11 @@ func MetricsQueryParser(ctx *fasthttp.RequestCtx, myid int64) {
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		httpResp.Message = err.Error()
 		httpResp.StatusCode = fasthttp.StatusBadRequest
-		toputils.WriteResponse(ctx, httpResp)
+		utils.WriteResponse(ctx, httpResp)
 		return
 	}
-	toputils.WriteJsonResponse(ctx, &mQResponse)
-	ctx.SetContentType(toputils.ContentJson)
+	utils.WriteJsonResponse(ctx, &mQResponse)
+	ctx.SetContentType(utils.ContentJson)
 	ctx.SetStatusCode(fasthttp.StatusOK)
 }
 
@@ -148,7 +148,7 @@ func parseTime(timeStr string) (uint32, error) {
 	var err error
 	// unixtime
 	if unixTime, err := strconv.ParseInt(timeStr, 10, 64); err == nil {
-		if toputils.IsTimeInMilli(uint64(unixTime)) {
+		if utils.IsTimeInMilli(uint64(unixTime)) {
 			return uint32(unixTime / 1e3), nil
 		}
 		return uint32(unixTime), nil

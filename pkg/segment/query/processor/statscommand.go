@@ -26,9 +26,9 @@ import (
 	"github.com/siglens/siglens/pkg/segment/results/segresults"
 	"github.com/siglens/siglens/pkg/segment/search"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/stats"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	bbp "github.com/valyala/bytebufferpool"
 )
@@ -95,7 +95,7 @@ func (p *statsProcessor) Process(inputIQR *iqr.IQR) (*iqr.IQR, error) {
 	case structs.SegmentStatsCmd:
 		return p.processMeasureOperations(inputIQR)
 	default:
-		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.Process: no group by or measure operations specified", inputIQR.GetQID())
+		return nil, utils.TeeErrorf("qid=%v, statsProcessor.Process: no group by or measure operations specified", inputIQR.GetQID())
 	}
 }
 
@@ -143,7 +143,7 @@ func (p *statsProcessor) extractFinalStatsResults() (*iqr.IQR, error) {
 	case structs.SegmentStatsCmd:
 		return p.extractSegmentStatsResults(iqr)
 	default:
-		return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractFinalStatsResults: invalid processor type", p.qid)
+		return nil, utils.TeeErrorf("qid=%v, statsProcessor.extractFinalStatsResults: invalid processor type", p.qid)
 	}
 }
 
@@ -152,16 +152,16 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	qid := inputIQR.GetQID()
 
 	if len(p.bucketKeyWorkingBuf) == 0 {
-		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*utils.MAX_RECORD_SIZE)
+		p.bucketKeyWorkingBuf = make([]byte, len(p.options.GroupByRequest.GroupByColumns)*segutils.MAX_RECORD_SIZE)
 	}
 
 	if p.searchResults == nil {
-		p.options.GroupByRequest.BucketCount = int(utils.QUERY_MAX_BUCKETS)
+		p.options.GroupByRequest.BucketCount = int(segutils.QUERY_MAX_BUCKETS)
 		p.options.GroupByRequest.IsBucketKeySeparatedByDelim = true
 		aggs := &structs.QueryAggregators{GroupByRequest: p.options.GroupByRequest}
 		searchResults, err := segresults.InitSearchResults(uint64(numOfRecords), aggs, structs.GroupByCmd, qid)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
+			return nil, utils.TeeErrorf("qid=%v, statsProcessor.processGroupByRequest: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 	}
@@ -169,8 +169,8 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 	blkResults := p.searchResults.BlockResults
 
 	measureInfo, internalMops := blkResults.GetConvertedMeasureInfo()
-	measureResults := make([]utils.CValueEnclosure, len(internalMops))
-	unsetRecord := make(map[string]utils.CValueEnclosure)
+	measureResults := make([]segutils.CValueEnclosure, len(internalMops))
+	unsetRecord := make(map[string]segutils.CValueEnclosure)
 
 	for i := 0; i < numOfRecords; i++ {
 		record := inputIQR.GetRecord(i)
@@ -182,7 +182,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
-				cValue = &utils.CValueEnclosure{CVal: nil, Dtype: utils.SS_DT_BACKFILL}
+				cValue = &segutils.CValueEnclosure{CVal: nil, Dtype: segutils.SS_DT_BACKFILL}
 			}
 			p.bucketKeyWorkingBuf, bucketKeyBufIdx = cValue.WriteToBytesWithType(p.bucketKeyWorkingBuf, bucketKeyBufIdx)
 		}
@@ -191,7 +191,7 @@ func (p *statsProcessor) processGroupByRequest(inputIQR *iqr.IQR) (*iqr.IQR, err
 			cValue, err := record.ReadColumn(cname)
 			if err != nil {
 				p.errorData.readColumns[cname] = err
-				cValue = &utils.CValueEnclosure{CVal: utils.VALTYPE_ENC_BACKFILL, Dtype: utils.SS_DT_BACKFILL}
+				cValue = &segutils.CValueEnclosure{CVal: segutils.VALTYPE_ENC_BACKFILL, Dtype: segutils.SS_DT_BACKFILL}
 			}
 
 			for _, idx := range indices {
@@ -213,12 +213,12 @@ func (p *statsProcessor) extractGroupByResults(iqr *iqr.IQR) (*iqr.IQR, error) {
 		groupByBuckets, TimeBuckets := p.searchResults.BlockResults.GroupByAggregation, p.searchResults.BlockResults.TimeAggregation
 		err := iqr.SetIqrStatsResults(structs.GroupByCmd, nil, groupByBuckets, TimeBuckets, aggs)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
+			return nil, utils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
 		}
 	} else {
 		err := iqr.CreateGroupByStatsResults(p.searchResults)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot create group by stats results; err=%v", iqr.GetQID(), err)
+			return nil, utils.TeeErrorf("qid=%v, statsProcessor.extractGroupByResults: cannot create group by stats results; err=%v", iqr.GetQID(), err)
 		}
 	}
 
@@ -233,7 +233,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 	if p.searchResults == nil {
 		searchResults, err := segresults.InitSearchResults(numOfRecords, &structs.QueryAggregators{MeasureOperations: p.options.MeasureOperations}, structs.SegmentStatsCmd, inputIQR.GetQID())
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.processMeasureOperations: cannot initialize search results; err=%v", qid, err)
+			return nil, utils.TeeErrorf("qid=%v, statsProcessor.processMeasureOperations: cannot initialize search results; err=%v", qid, err)
 		}
 		p.searchResults = searchResults
 		p.searchResults.InitSegmentStatsResults(p.options.MeasureOperations)
@@ -278,7 +278,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 				}
 
 				if values[i].IsFloat() {
-					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
+					stats.AddSegStatsNums(segStatsMap, colName, segutils.SS_FLOAT64, 0, 0, values[i].CVal.(float64),
 						stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
 				} else {
 					intVal, err := values[i].GetIntValue()
@@ -288,7 +288,7 @@ func (p *statsProcessor) processMeasureOperations(inputIQR *iqr.IQR) (*iqr.IQR, 
 						intVal = 0
 					}
 
-					stats.AddSegStatsNums(segStatsMap, colName, utils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
+					stats.AddSegStatsNums(segStatsMap, colName, segutils.SS_INT64, intVal, 0, 0, stringVal, p.byteBuffer, aggColUsage, hasValuesFunc, hasListFunc)
 				}
 			} else {
 				p.errorData.notSupportedStatsType[colName] = struct{}{}
@@ -314,12 +314,12 @@ func (p *statsProcessor) extractSegmentStatsResults(iqr *iqr.IQR) (*iqr.IQR, err
 		aggs := p.searchResults.GetAggs()
 		err := iqr.SetIqrStatsResults(structs.SegmentStatsCmd, segStatsMap, nil, nil, aggs)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
+			return nil, utils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot set iqr stats results; err=%v", iqr.GetQID(), err)
 		}
 	} else {
 		err := iqr.CreateSegmentStatsResults(p.searchResults, segStatsMap, p.options.MeasureOperations)
 		if err != nil {
-			return nil, toputils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot create segment stats results; err=%v", iqr.GetQID(), err)
+			return nil, utils.TeeErrorf("qid=%v, statsProcessor.extractSegmentStatsResults: cannot create segment stats results; err=%v", iqr.GetQID(), err)
 		}
 	}
 
@@ -348,8 +348,8 @@ func (p *statsProcessor) logErrorsAndWarnings(qid uint64) {
 		allErrorsLen := len(p.searchResults.AllErrors)
 		if allErrorsLen > 0 {
 			size := allErrorsLen
-			if allErrorsLen > utils.MAX_SIMILAR_ERRORS_TO_LOG {
-				size = utils.MAX_SIMILAR_ERRORS_TO_LOG
+			if allErrorsLen > segutils.MAX_SIMILAR_ERRORS_TO_LOG {
+				size = segutils.MAX_SIMILAR_ERRORS_TO_LOG
 			}
 			log.Errorf("qid=%v, statsProcessor.logErrorsAndWarnings: search results errors: %v", qid, p.searchResults.AllErrors[:size])
 		}

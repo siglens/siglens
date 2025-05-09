@@ -25,8 +25,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -72,14 +72,14 @@ func (p *makemvProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	return iqr, nil
 }
 
-func (p *makemvProcessor) processOneValue(value *utils.CValueEnclosure) error {
+func (p *makemvProcessor) processOneValue(value *segutils.CValueEnclosure) error {
 	if value == nil {
-		return toputils.TeeErrorf("makemv.processOneValue: value is nil")
+		return utils.TeeErrorf("makemv.processOneValue: value is nil")
 	}
 
 	strVal, err := value.GetString()
 	if err != nil {
-		if toputils.IsNilValueError(err) {
+		if utils.IsNilValueError(err) {
 			cErr := value.ConvertValue(nil)
 			if cErr != nil {
 				return fmt.Errorf("makemv.processOneValue: failed to convert nil value; err=%v", cErr)
@@ -102,16 +102,16 @@ func (p *makemvProcessor) processOneValue(value *utils.CValueEnclosure) error {
 	}
 
 	if !p.options.AllowEmpty {
-		values = toputils.SelectFromSlice(values, func(s string) bool {
+		values = utils.SelectFromSlice(values, func(s string) bool {
 			return s != ""
 		})
 	}
 
 	if p.options.Setsv {
-		value.Dtype = utils.SS_DT_STRING
+		value.Dtype = segutils.SS_DT_STRING
 		value.CVal = strings.Join(values, " ")
 	} else {
-		value.Dtype = utils.SS_DT_STRING_SLICE
+		value.Dtype = segutils.SS_DT_STRING_SLICE
 		value.CVal = values
 	}
 

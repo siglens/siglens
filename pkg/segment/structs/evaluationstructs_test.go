@@ -23,7 +23,6 @@ import (
 
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -2133,7 +2132,7 @@ func Test_MultiValueExpr(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "4", countVal)
 
-	gobRegex := toputils.GobbableRegex{}
+	gobRegex := utils.GobbableRegex{}
 	err = gobRegex.SetRegex("b2*")
 	assert.Nil(t, err)
 

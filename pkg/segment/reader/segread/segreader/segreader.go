@@ -30,9 +30,8 @@ import (
 	"github.com/siglens/siglens/pkg/memorypool"
 	segmetadata "github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -211,7 +210,7 @@ func ReadAllRecords(segkey string, cname string) (map[uint16][][]byte, error) {
 		return nil, fmt.Errorf("ReadAllRecords: failed to get block info for segkey %s; err=%+v", segkey, err)
 	}
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	fileReader, err := InitNewSegFileReader(fd, cname, allBlocksToSearch, 0, blockSummaries,
 		segutils.INCONSISTENT_CVAL_SIZE, allBmi)
@@ -374,7 +373,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 		sfr.currFileBuffer = GetBufFromPool(int64(cOffAndLen.Length))
 	}
 
-	checksumFile := toputils.ChecksumFile{Fd: sfr.currFD}
+	checksumFile := utils.ChecksumFile{Fd: sfr.currFD}
 	_, err := checksumFile.ReadAt(sfr.currFileBuffer[:cOffAndLen.Length], cOffAndLen.Offset)
 	if err != nil {
 		return true, fmt.Errorf("SegmentFileReader.loadBlockUsingBuffer: read file error at offset: %v, err: %+v", cOffAndLen.Offset, err)
@@ -383,10 +382,10 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 	sfr.encType = sfr.currFileBuffer[oPtr]
 	oPtr++
 
-	if sfr.encType == utils.ZSTD_COMLUNAR_BLOCK[0] {
+	if sfr.encType == segutils.ZSTD_COMLUNAR_BLOCK[0] {
 		err := sfr.unpackRawCsg(sfr.currFileBuffer[oPtr:cOffAndLen.Length], blockNum)
 		return true, err
-	} else if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
+	} else if sfr.encType == segutils.ZSTD_DICTIONARY_BLOCK[0] {
 		err := sfr.ReadDictEnc(sfr.currFileBuffer[oPtr:cOffAndLen.Length], blockNum)
 		return true, err
 	} else {
@@ -398,7 +397,7 @@ func (sfr *SegmentFileReader) loadBlockUsingBuffer(blockNum uint16) (bool, error
 // Returns the raw bytes of the record in the currently loaded block
 func (sfr *SegmentFileReader) ReadRecord(recordNum uint16) ([]byte, error) {
 	// if dict encoding, we use the dictmapping
-	if sfr.encType == utils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType == segutils.ZSTD_DICTIONARY_BLOCK[0] {
 		ret, err := sfr.deGetRec(recordNum)
 		return ret, err
 	}
@@ -469,40 +468,40 @@ func (sfr *SegmentFileReader) getCurrentRecordLength() (uint32, error) {
 	// This value comes from the segment metadata, where we store the column value size
 	// at segment level. If the value is >0 and is != INCONSISTENT_CVAL_SIZE it means all records in the segment for this column
 	// have the same length and if it is equal to INCONSISTENT_CVAL_SIZE, it means the records have different lengths
-	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != utils.INCONSISTENT_CVAL_SIZE {
+	if sfr.consistentColValueLen > 0 && sfr.consistentColValueLen != segutils.INCONSISTENT_CVAL_SIZE {
 		return sfr.consistentColValueLen, nil
 	}
 	var reclen uint32
 	switch sfr.currRawBlockBuffer[sfr.currOffset] {
-	case utils.VALTYPE_ENC_SMALL_STRING[0]:
+	case segutils.VALTYPE_ENC_SMALL_STRING[0]:
 		// 1 byte for type, 2 for str-len, then str-len for actual string
-		reclen = 3 + uint32(toputils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
-	case utils.VALTYPE_ENC_BOOL[0]:
+		reclen = 3 + uint32(utils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
+	case segutils.VALTYPE_ENC_BOOL[0]:
 		reclen = 2
-	case utils.VALTYPE_ENC_INT8[0]:
+	case segutils.VALTYPE_ENC_INT8[0]:
 		reclen = 2
-	case utils.VALTYPE_ENC_INT16[0]:
+	case segutils.VALTYPE_ENC_INT16[0]:
 		reclen = 3
-	case utils.VALTYPE_ENC_INT32[0]:
+	case segutils.VALTYPE_ENC_INT32[0]:
 		reclen = 5
-	case utils.VALTYPE_ENC_INT64[0]:
+	case segutils.VALTYPE_ENC_INT64[0]:
 		reclen = 9
-	case utils.VALTYPE_ENC_UINT8[0]:
+	case segutils.VALTYPE_ENC_UINT8[0]:
 		reclen = 2
-	case utils.VALTYPE_ENC_UINT16[0]:
+	case segutils.VALTYPE_ENC_UINT16[0]:
 		reclen = 3
-	case utils.VALTYPE_ENC_UINT32[0]:
+	case segutils.VALTYPE_ENC_UINT32[0]:
 		reclen = 5
-	case utils.VALTYPE_ENC_UINT64[0]:
+	case segutils.VALTYPE_ENC_UINT64[0]:
 		reclen = 9
-	case utils.VALTYPE_ENC_FLOAT64[0]:
+	case segutils.VALTYPE_ENC_FLOAT64[0]:
 		reclen = 9
-	case utils.VALTYPE_ENC_BACKFILL[0]:
+	case segutils.VALTYPE_ENC_BACKFILL[0]:
 		reclen = 1
-	case utils.VALTYPE_DICT_ARRAY[0]:
-		reclen = 3 + uint32(toputils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
-	case utils.VALTYPE_RAW_JSON[0]:
-		reclen = 3 + uint32(toputils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
+	case segutils.VALTYPE_DICT_ARRAY[0]:
+		reclen = 3 + uint32(utils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
+	case segutils.VALTYPE_RAW_JSON[0]:
+		reclen = 3 + uint32(utils.BytesToUint16LittleEndian(sfr.currRawBlockBuffer[sfr.currOffset+1:]))
 
 	default:
 		return 0, fmt.Errorf("SegmentFileReader.getCurrentRecordLength: Received an unknown encoding type %+v at offset %+v", sfr.currRawBlockBuffer[sfr.currOffset], sfr.currOffset)
@@ -521,7 +520,7 @@ func (sfr *SegmentFileReader) IsBlkDictEncoded(blockNum uint16) (bool, error) {
 		}
 	}
 
-	if sfr.encType != utils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType != segutils.ZSTD_DICTIONARY_BLOCK[0] {
 		return false, nil
 	}
 
@@ -532,11 +531,11 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 	idx := uint32(0)
 
 	// read num of dict words
-	numWords := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+	numWords := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 	idx += 2
 
-	sfr.deTlv = toputils.ResizeSlice(sfr.deTlv, int(numWords))
-	sfr.deRecToTlv = toputils.ResizeSlice(sfr.deRecToTlv, int(sfr.blockSummaries[blockNum].RecCount))
+	sfr.deTlv = utils.ResizeSlice(sfr.deTlv, int(numWords))
+	sfr.deRecToTlv = utils.ResizeSlice(sfr.deRecToTlv, int(sfr.blockSummaries[blockNum].RecCount))
 
 	var numRecs uint16
 	var soffW uint32
@@ -547,14 +546,14 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 		soffW = idx
 		// read dictWord 'T'
 		switch buf[idx] {
-		case utils.VALTYPE_ENC_SMALL_STRING[0]:
+		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
 			//  3 => 1 for 'T' and 2 for 'L' of string
-			idx += uint32(3 + toputils.BytesToUint16LittleEndian(buf[idx+1:idx+3]))
-		case utils.VALTYPE_ENC_BOOL[0]:
+			idx += uint32(3 + utils.BytesToUint16LittleEndian(buf[idx+1:idx+3]))
+		case segutils.VALTYPE_ENC_BOOL[0]:
 			idx += 2 // 1 for T and 1 for Boolean value
-		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
+		case segutils.VALTYPE_ENC_INT64[0], segutils.VALTYPE_ENC_FLOAT64[0]:
 			idx += 9 // 1 for T and 8 bytes for 'L' int64
-		case utils.VALTYPE_ENC_BACKFILL[0]:
+		case segutils.VALTYPE_ENC_BACKFILL[0]:
 			idx += 1 // 1 for T
 		default:
 			return fmt.Errorf("SegmentFileReader.ReadDictEnc: unknown dictEnc: %v only supported flt/int64/str/bool", buf[idx])
@@ -563,12 +562,12 @@ func (sfr *SegmentFileReader) ReadDictEnc(buf []byte, blockNum uint16) error {
 		sfr.deTlv[w] = buf[soffW:idx]
 
 		// read num of records
-		numRecs = toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+		numRecs = utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 		idx += 2
 
 		for i := uint16(0); i < numRecs; i++ {
 			// at this recNum's position in the array store the idx of the TLV byte slice
-			recNum := toputils.BytesToUint16LittleEndian(buf[idx : idx+2])
+			recNum := utils.BytesToUint16LittleEndian(buf[idx : idx+2])
 			idx += 2
 
 			if int(recNum) >= len(sfr.deRecToTlv) {
@@ -633,14 +632,14 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFileOldPipeline(results map[
 		}
 	}
 
-	if sfr.encType != utils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType != segutils.ZSTD_DICTIONARY_BLOCK[0] {
 		return false
 	}
 
 	return sfr.DeToResultOldPipeline(results, orderedRecNums)
 }
 
-func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]utils.CValueEnclosure,
+func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]segutils.CValueEnclosure,
 	blockNum uint16, orderedRecNums []uint16,
 ) bool {
 	if !sfr.isBlockLoaded || sfr.currBlockNum != blockNum {
@@ -653,7 +652,7 @@ func (sfr *SegmentFileReader) GetDictEncCvalsFromColFile(results map[string][]ut
 		}
 	}
 
-	if sfr.encType != utils.ZSTD_DICTIONARY_BLOCK[0] {
+	if sfr.encType != segutils.ZSTD_DICTIONARY_BLOCK[0] {
 		return false
 	}
 
@@ -670,15 +669,15 @@ func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[strin
 		if !ok {
 			results[rn] = make(map[string]interface{})
 		}
-		if dWord[0] == utils.VALTYPE_ENC_SMALL_STRING[0] {
+		if dWord[0] == segutils.VALTYPE_ENC_SMALL_STRING[0] {
 			results[rn][sfr.ColName] = string(dWord[3:])
-		} else if dWord[0] == utils.VALTYPE_ENC_BOOL[0] {
-			results[rn][sfr.ColName] = toputils.BytesToBoolLittleEndian(dWord[1:])
-		} else if dWord[0] == utils.VALTYPE_ENC_INT64[0] {
-			results[rn][sfr.ColName] = toputils.BytesToInt64LittleEndian(dWord[1:])
-		} else if dWord[0] == utils.VALTYPE_ENC_FLOAT64[0] {
-			results[rn][sfr.ColName] = toputils.BytesToFloat64LittleEndian(dWord[1:])
-		} else if dWord[0] == utils.VALTYPE_ENC_BACKFILL[0] {
+		} else if dWord[0] == segutils.VALTYPE_ENC_BOOL[0] {
+			results[rn][sfr.ColName] = utils.BytesToBoolLittleEndian(dWord[1:])
+		} else if dWord[0] == segutils.VALTYPE_ENC_INT64[0] {
+			results[rn][sfr.ColName] = utils.BytesToInt64LittleEndian(dWord[1:])
+		} else if dWord[0] == segutils.VALTYPE_ENC_FLOAT64[0] {
+			results[rn][sfr.ColName] = utils.BytesToFloat64LittleEndian(dWord[1:])
+		} else if dWord[0] == segutils.VALTYPE_ENC_BACKFILL[0] {
 			results[rn][sfr.ColName] = nil
 		} else {
 			log.Errorf("SegmentFileReader.DeToResultsOldPipeline: de only supported for str/int64/float64/bool")
@@ -688,7 +687,7 @@ func (sfr *SegmentFileReader) DeToResultOldPipeline(results map[uint16]map[strin
 	return true
 }
 
-func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclosure,
+func (sfr *SegmentFileReader) deToResults(results map[string][]segutils.CValueEnclosure,
 	orderedRecNums []uint16,
 ) bool {
 	for recIdx, rn := range orderedRecNums {
@@ -701,20 +700,20 @@ func (sfr *SegmentFileReader) deToResults(results map[string][]utils.CValueEnclo
 		dWord := sfr.deTlv[dwIdx]
 
 		switch dWord[0] {
-		case utils.VALTYPE_ENC_SMALL_STRING[0]:
+		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
 			results[sfr.ColName][recIdx].CVal = string(dWord[3:])
-			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_STRING
-		case utils.VALTYPE_ENC_BOOL[0]:
-			results[sfr.ColName][recIdx].CVal = toputils.BytesToBoolLittleEndian(dWord[1:])
-			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BOOL
-		case utils.VALTYPE_ENC_INT64[0]:
-			results[sfr.ColName][recIdx].CVal = toputils.BytesToInt64LittleEndian(dWord[1:])
-			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_SIGNED_NUM
-		case utils.VALTYPE_ENC_FLOAT64[0]:
-			results[sfr.ColName][recIdx].CVal = toputils.BytesToFloat64LittleEndian(dWord[1:])
-			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_FLOAT
-		case utils.VALTYPE_ENC_BACKFILL[0]:
-			results[sfr.ColName][recIdx].Dtype = utils.SS_DT_BACKFILL
+			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_STRING
+		case segutils.VALTYPE_ENC_BOOL[0]:
+			results[sfr.ColName][recIdx].CVal = utils.BytesToBoolLittleEndian(dWord[1:])
+			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_BOOL
+		case segutils.VALTYPE_ENC_INT64[0]:
+			results[sfr.ColName][recIdx].CVal = utils.BytesToInt64LittleEndian(dWord[1:])
+			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_SIGNED_NUM
+		case segutils.VALTYPE_ENC_FLOAT64[0]:
+			results[sfr.ColName][recIdx].CVal = utils.BytesToFloat64LittleEndian(dWord[1:])
+			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_FLOAT
+		case segutils.VALTYPE_ENC_BACKFILL[0]:
+			results[sfr.ColName][recIdx].Dtype = segutils.SS_DT_BACKFILL
 		default:
 			log.Debugf("SegmentFileReader.deToResults: de only supported for str/int64/float64/bool but received %v", dWord[0])
 			return false

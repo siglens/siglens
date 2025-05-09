@@ -27,8 +27,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/blob"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -103,23 +103,23 @@ func ReadBlockSummaries(fileName string,
 		}
 
 		// read blknum
-		blkNum := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+		blkNum := utils.BytesToUint16LittleEndian(rbuf[offset:])
 		offset += 2
 
 		// read highTs
-		highTs := toputils.BytesToUint64LittleEndian(rbuf[offset:])
+		highTs := utils.BytesToUint64LittleEndian(rbuf[offset:])
 		offset += 8
 
 		// read lowTs
-		lowTs := toputils.BytesToUint64LittleEndian(rbuf[offset:])
+		lowTs := utils.BytesToUint64LittleEndian(rbuf[offset:])
 		offset += 8
 
 		// read recCount
-		recCount := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+		recCount := utils.BytesToUint16LittleEndian(rbuf[offset:])
 		offset += 2
 
 		// read numCols
-		numCols := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+		numCols := utils.BytesToUint16LittleEndian(rbuf[offset:])
 		offset += 2
 
 		var bmh *structs.BlockMetadataHolder
@@ -136,7 +136,7 @@ func ReadBlockSummaries(fileName string,
 					2, len(rbuf[offset:]), fileName, offset)
 				return blockSummaries, allBmi, errors.New("bad data")
 			}
-			cnamelen := toputils.BytesToUint16LittleEndian(rbuf[offset:])
+			cnamelen := utils.BytesToUint16LittleEndian(rbuf[offset:])
 			offset += 2
 
 			if minLen := int(offset + int64(cnamelen) + 12); len(rbuf) < minLen {
@@ -152,9 +152,9 @@ func ReadBlockSummaries(fileName string,
 				cname := internCnamesBytes(rbuf[offset : offset+int64(cnamelen)])
 
 				offset += int64(cnamelen)
-				blkOff := toputils.BytesToInt64LittleEndian(rbuf[offset:])
+				blkOff := utils.BytesToInt64LittleEndian(rbuf[offset:])
 				offset += 8
-				blkLen := toputils.BytesToUint32LittleEndian(rbuf[offset:])
+				blkLen := utils.BytesToUint32LittleEndian(rbuf[offset:])
 				offset += 4
 
 				cnameIdx, ok := allBmi.CnameDict[cname]
@@ -243,22 +243,22 @@ func ReadMetricsBlockSummaries(fileName string) ([]*structs.MBlockSummary, error
 
 	versionBlockSummary := make([]byte, 1)
 	copy(versionBlockSummary, data[:1])
-	if versionBlockSummary[0] != utils.VERSION_MBLOCKSUMMARY[0] {
-		return mBlockSummaries, fmt.Errorf("ReadMetricsBlockSummaries: the file version doesn't match. Expected Version: %v, Got Version: %v", utils.VERSION_MBLOCKSUMMARY[0], versionBlockSummary[0])
+	if versionBlockSummary[0] != segutils.VERSION_MBLOCKSUMMARY[0] {
+		return mBlockSummaries, fmt.Errorf("ReadMetricsBlockSummaries: the file version doesn't match. Expected Version: %v, Got Version: %v", segutils.VERSION_MBLOCKSUMMARY[0], versionBlockSummary[0])
 	}
 	offset := int64(1)
 	for offset < fileSize {
-		blkNum := toputils.BytesToUint16LittleEndian(data[offset:])
+		blkNum := utils.BytesToUint16LittleEndian(data[offset:])
 		offset += 2
 
 		// todo fix bug here, the highTs/lowTs are only 4 bytes but we are reading 8
 		// once the writer is switched to 4 bytes and version updated, do same here
 		// read highTs
-		highTs := toputils.BytesToUint32LittleEndian(data[offset:])
+		highTs := utils.BytesToUint32LittleEndian(data[offset:])
 		offset += 8
 
 		// read lowTs
-		lowTs := toputils.BytesToUint32LittleEndian(data[offset:])
+		lowTs := utils.BytesToUint32LittleEndian(data[offset:])
 		offset += 8
 
 		blkSumm := &structs.MBlockSummary{HighTs: highTs,

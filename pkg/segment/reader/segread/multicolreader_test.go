@@ -23,10 +23,9 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -45,7 +44,7 @@ func Test_segReader(t *testing.T) {
 	assert.Greater(t, len(cols), 1)
 	var queryCol string
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	colsToReadIndices := make(map[int]struct{})
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bsm, 3, nil, 9, &structs.NodeResult{})
@@ -114,7 +113,7 @@ func Test_multiSegReader(t *testing.T) {
 	numEntriesInBlock := 10
 	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	assert.Greater(t, len(cols), 1)
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})
@@ -151,7 +150,7 @@ func Test_multiSegReader(t *testing.T) {
 
 		cKeyidx, _ = multiReader.GetColKeyIndex(colName)
 
-		var cValEnc utils.CValueEnclosure
+		var cValEnc segutils.CValueEnclosure
 
 		// correct block, incorrect recordNum
 		err = multiReader.ExtractValueFromColumnFile(cKeyidx, 0, uint16(numEntriesInBlock), 0,
@@ -189,7 +188,7 @@ func Test_InitSharedMultiColumnReaders(t *testing.T) {
 	numEntriesInBlock := 10
 	_, bSum, _, cols, allBmi, _ := writer.WriteMockColSegFile(segBaseDir, segKey, numBlocks, numEntriesInBlock)
 
-	allBlocksToSearch := toputils.MapToSet(allBmi.AllBmh)
+	allBlocksToSearch := utils.MapToSet(allBmi.AllBmh)
 
 	assert.Greater(t, len(cols), 1)
 	sharedReader, foundErr := InitSharedMultiColumnReaders(segKey, cols, allBlocksToSearch, bSum, 3, nil, 9, &structs.NodeResult{})

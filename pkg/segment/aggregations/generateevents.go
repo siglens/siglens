@@ -11,16 +11,16 @@ import (
 
 	"github.com/siglens/siglens/pkg/config"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 )
 
 func createGenTimeEvent(start time.Time, end time.Time) map[string]interface{} {
 	return map[string]interface{}{
 		"starttime":  uint64(start.UnixMilli()) / 1000,
 		"endtime":    uint64(end.UnixMilli()) / 1000,
-		"starthuman": putils.FormatToHumanReadableTime(start),
-		"endhuman":   putils.FormatToHumanReadableTime(end),
+		"starthuman": utils.FormatToHumanReadableTime(start),
+		"endhuman":   utils.FormatToHumanReadableTime(end),
 	}
 }
 
@@ -52,7 +52,7 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	if aggs.GenerateEvent.GenTimes.Interval == nil {
 		aggs.GenerateEvent.GenTimes.Interval = &structs.SpanLength{
 			Num:       1,
-			TimeScalr: utils.TMDay,
+			TimeScalr: segutils.TMDay,
 		}
 	}
 	genCols := []string{"starttime", "endtime", "starthuman", "endhuman"}
@@ -82,11 +82,11 @@ func PerformGenTimes(aggs *structs.QueryAggregators) error {
 	for start < end {
 		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)
 
-		endTime, err := utils.ApplyOffsetToTime(int64(interval), aggs.GenerateEvent.GenTimes.Interval.TimeScalr, currTime)
+		endTime, err := segutils.ApplyOffsetToTime(int64(interval), aggs.GenerateEvent.GenTimes.Interval.TimeScalr, currTime)
 		if err != nil {
 			return fmt.Errorf("PerformGenTimes: Error while calculating end time, err: %v", err)
 		}
-		intervalEndTime, err := utils.ApplyOffsetToTime(-1, utils.TMSecond, endTime)
+		intervalEndTime, err := segutils.ApplyOffsetToTime(-1, segutils.TMSecond, endTime)
 		if err != nil {
 			return fmt.Errorf("PerformGenTimes: Error while calculating interval end time, err: %v", err)
 		}
@@ -158,7 +158,7 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 
 	key := 0
 	count := 0
-	fieldToValue := make(map[string]utils.CValueEnclosure)
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
 	for count < int(aggs.GenerateEvent.InputLookup.Max) {
 		count++
 		recordKey := fmt.Sprintf("%v_%v", aggs.GenerateEvent.EventPosition, key)
@@ -171,7 +171,7 @@ func PerformInputLookup(aggs *structs.QueryAggregators) error {
 			return fmt.Errorf("PerformInputLookup: Error reading record, err: %v", err)
 		}
 
-		record, err := putils.CreateRecord(columnNames, csvRecord)
+		record, err := utils.CreateRecord(columnNames, csvRecord)
 		if err != nil {
 			return fmt.Errorf("PerformInputLookup: Error creating record, err: %v", err)
 		}

@@ -29,8 +29,8 @@ import (
 	"time"
 
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,8 +39,8 @@ type SimpleSearchExpr struct {
 	Field          string
 	Values         interface{}
 	ValueIsRegex   bool
-	ExprType       utils.SS_DTYPE
-	DtypeEnclosure *utils.DtypeEnclosure
+	ExprType       segutils.SS_DTYPE
+	DtypeEnclosure *segutils.DtypeEnclosure
 }
 
 func Test_conditionMatch(t *testing.T) {
@@ -193,7 +193,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("GET"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("GET"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -204,7 +204,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("POST1"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("POST1"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -223,7 +223,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("DELETE"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("DELETE"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -234,7 +234,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("POST2"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("POST2"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -254,9 +254,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "GET",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "GET",
 					},
 				},
@@ -265,9 +265,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "POST1",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "POST1",
 					},
 				},
@@ -280,9 +280,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "DELETE",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "DELETE",
 					},
 				},
@@ -291,9 +291,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "POST2",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "POST2",
 					},
 				},
@@ -313,7 +313,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("GET"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("GET"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -324,7 +324,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("POST2"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("POST2"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -343,7 +343,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("DELETE"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("DELETE"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -369,7 +369,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("GET"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("GET"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -380,7 +380,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("male"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("male"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -399,7 +399,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("DELETE"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("DELETE"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -418,9 +418,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "GET",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:          utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:          segutils.SS_DT_STRING,
 						StringVal:      "GET",
 						StringValBytes: []byte("GET"),
 					},
@@ -432,9 +432,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "gender",
 					Values:       "male",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:          utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:          segutils.SS_DT_STRING,
 						StringVal:      "male",
 						StringValBytes: []byte("male"),
 					},
@@ -448,9 +448,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "DELETE",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "DELETE",
 					},
 				},
@@ -472,23 +472,23 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "http_status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.GreaterThanOrEqualTo,
+								FilterOperator: segutils.GreaterThanOrEqualTo,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:       segutils.SS_DT_UNSIGNED_NUM,
 												UnsignedVal: uint64(300),
 												SignedVal:   int64(300),
 												FloatVal:    float64(300),
 												StringVal:   "300",
 											},
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
@@ -509,9 +509,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("300"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(300),
 						UnsignedVal: uint64(300),
 						SignedVal:   int64(300),
@@ -536,16 +536,16 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "city",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.GreaterThan,
+								FilterOperator: segutils.GreaterThan,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:     segutils.SS_DT_STRING,
 												StringVal: "Hyderabad",
 											},
 										},
@@ -575,23 +575,23 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "city",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.GreaterThan,
+								FilterOperator: segutils.GreaterThan,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:       segutils.SS_DT_UNSIGNED_NUM,
 												StringVal:   "300",
 												UnsignedVal: uint64(300),
 												SignedVal:   int64(300),
 												FloatVal:    float64(300),
 											},
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
@@ -611,7 +611,7 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 								MatchWords: [][]byte{
 									[]byte("DELETE"),
 								},
-								MatchOperator: utils.And,
+								MatchOperator: segutils.And,
 								MatchPhrase:   []byte("DELETE"),
 								MatchType:     structs.MATCH_PHRASE,
 							},
@@ -637,16 +637,16 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "city",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: segutils.Equals,
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:     segutils.SS_DT_STRING,
 												StringVal: "Hyderabad",
 											},
 										},
@@ -669,9 +669,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "city",
 					Values:       "Hyderabad",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "Hyderabad",
 					},
 				},
@@ -763,9 +763,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("300"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(300),
 						UnsignedVal: uint64(300),
 						SignedVal:   int64(300),
@@ -779,9 +779,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "POST",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "POST",
 					},
 				},
@@ -790,9 +790,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "PUT",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "PUT",
 					},
 				},
@@ -815,24 +815,24 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "http_method",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:     utils.SS_DT_STRING,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:     segutils.SS_DT_STRING,
 												StringVal: "POST",
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: segutils.Equals,
 							},
 						},
 					},
@@ -848,15 +848,15 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 														ColumnValue: nil,
 														ColumnName:  "http_status",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: segutils.Add,
 													RightInput:   nil,
 												},
 											},
 											RightInput: &structs.FilterInput{
 												Expression: &structs.Expression{
 													LeftInput: &structs.ExpressionInput{
-														ColumnValue: &utils.DtypeEnclosure{
-															Dtype:       utils.SS_DT_UNSIGNED_NUM,
+														ColumnValue: &segutils.DtypeEnclosure{
+															Dtype:       segutils.SS_DT_UNSIGNED_NUM,
 															UnsignedVal: uint64(300),
 															SignedVal:   int64(300),
 															FloatVal:    float64(300),
@@ -864,11 +864,11 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 														},
 														ColumnName: "",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: segutils.Add,
 													RightInput:   nil,
 												},
 											},
-											FilterOperator: utils.GreaterThan,
+											FilterOperator: segutils.GreaterThan,
 										},
 									},
 									{
@@ -879,15 +879,15 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 														ColumnValue: nil,
 														ColumnName:  "http_status",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: segutils.Add,
 													RightInput:   nil,
 												},
 											},
 											RightInput: &structs.FilterInput{
 												Expression: &structs.Expression{
 													LeftInput: &structs.ExpressionInput{
-														ColumnValue: &utils.DtypeEnclosure{
-															Dtype:       utils.SS_DT_UNSIGNED_NUM,
+														ColumnValue: &segutils.DtypeEnclosure{
+															Dtype:       segutils.SS_DT_UNSIGNED_NUM,
 															UnsignedVal: uint64(201),
 															SignedVal:   int64(201),
 															FloatVal:    float64(201),
@@ -895,11 +895,11 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 														},
 														ColumnName: "",
 													},
-													ExpressionOp: utils.Add,
+													ExpressionOp: segutils.Add,
 													RightInput:   nil,
 												},
 											},
-											FilterOperator: utils.Equals,
+											FilterOperator: segutils.Equals,
 										},
 									},
 								},
@@ -942,9 +942,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("400"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(400),
 						UnsignedVal: uint64(400),
 						SignedVal:   int64(400),
@@ -960,9 +960,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("300"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(300),
 						UnsignedVal: uint64(300),
 						SignedVal:   int64(300),
@@ -974,9 +974,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("201"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(201),
 						UnsignedVal: uint64(201),
 						SignedVal:   int64(201),
@@ -990,9 +990,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_method",
 					Values:       "POST",
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_STRING,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:     utils.SS_DT_STRING,
+					ExprType:     segutils.SS_DT_STRING,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:     segutils.SS_DT_STRING,
 						StringVal: "POST",
 					},
 				},
@@ -1015,15 +1015,15 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "http_status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:       segutils.SS_DT_UNSIGNED_NUM,
 												UnsignedVal: uint64(300),
 												SignedVal:   int64(300),
 												FloatVal:    float64(300),
@@ -1031,11 +1031,11 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.GreaterThan,
+								FilterOperator: segutils.GreaterThan,
 							},
 						},
 						{
@@ -1046,15 +1046,15 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											ColumnValue: nil,
 											ColumnName:  "http_status",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
 								RightInput: &structs.FilterInput{
 									Expression: &structs.Expression{
 										LeftInput: &structs.ExpressionInput{
-											ColumnValue: &utils.DtypeEnclosure{
-												Dtype:       utils.SS_DT_UNSIGNED_NUM,
+											ColumnValue: &segutils.DtypeEnclosure{
+												Dtype:       segutils.SS_DT_UNSIGNED_NUM,
 												UnsignedVal: uint64(201),
 												SignedVal:   int64(201),
 												FloatVal:    float64(201),
@@ -1062,11 +1062,11 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 											},
 											ColumnName: "",
 										},
-										ExpressionOp: utils.Add,
+										ExpressionOp: segutils.Add,
 										RightInput:   nil,
 									},
 								},
-								FilterOperator: utils.Equals,
+								FilterOperator: segutils.Equals,
 							},
 						},
 					},
@@ -1106,9 +1106,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("400"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(400),
 						UnsignedVal: uint64(400),
 						SignedVal:   int64(400),
@@ -1124,9 +1124,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("300"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(300),
 						UnsignedVal: uint64(300),
 						SignedVal:   int64(300),
@@ -1138,9 +1138,9 @@ func All_TestCasesForTransactionCommands() (map[int]bool, []*structs.Transaction
 					Field:        "http_status",
 					Values:       json.Number("201"),
 					ValueIsRegex: false,
-					ExprType:     utils.SS_DT_SIGNED_NUM,
-					DtypeEnclosure: &utils.DtypeEnclosure{
-						Dtype:       utils.SS_DT_SIGNED_NUM,
+					ExprType:     segutils.SS_DT_SIGNED_NUM,
+					DtypeEnclosure: &segutils.DtypeEnclosure{
+						Dtype:       segutils.SS_DT_SIGNED_NUM,
 						FloatVal:    float64(201),
 						UnsignedVal: uint64(201),
 						SignedVal:   int64(201),
@@ -1598,7 +1598,7 @@ func Test_performArithmeticOperation_Addition(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.Add)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.Add)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -1686,7 +1686,7 @@ func Test_performArithmeticOperation_Subtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.Subtract)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.Subtract)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -1756,7 +1756,7 @@ func Test_performArithmeticOperation_Multiplication(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.Multiply)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.Multiply)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -1833,7 +1833,7 @@ func Test_performArithmeticOperation_Division(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.Divide)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.Divide)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -1903,7 +1903,7 @@ func Test_performArithmeticOperation_Modulo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.Modulo)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.Modulo)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -1961,7 +1961,7 @@ func Test_performArithmeticOperation_BitwiseAnd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseAnd)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.BitwiseAnd)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -2025,7 +2025,7 @@ func Test_performArithmeticOperation_BitwiseOr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseOr)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.BitwiseOr)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -2089,7 +2089,7 @@ func Test_performArithmeticOperation_BitwiseExclusiveOr(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := performArithmeticOperation(tt.left, tt.right, utils.BitwiseExclusiveOr)
+			got, err := performArithmeticOperation(tt.left, tt.right, segutils.BitwiseExclusiveOr)
 			if !tt.wantErr {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.want, got)
@@ -2248,7 +2248,7 @@ func Test_performMultiValueColRequestOnHistogram_OnlyDelimiter(t *testing.T) {
 				Results: []*structs.BucketResult{
 					{
 						ElemCount: 1,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"john@example.com,jane@example.com,doe@example.com", "host@id.com",
 						},
@@ -2256,7 +2256,7 @@ func Test_performMultiValueColRequestOnHistogram_OnlyDelimiter(t *testing.T) {
 					},
 					{
 						ElemCount: 2,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"foo@example.com,,bar@example.com", "host@id.com",
 						},
@@ -2298,7 +2298,7 @@ func Test_performMultiValueColRequestOnHistogram_OnlyRegexDelimiter(t *testing.T
 				Results: []*structs.BucketResult{
 					{
 						ElemCount: 1,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"john@example.com|jane@example.com|doe@example.com", "host@id.com",
 						},
@@ -2306,7 +2306,7 @@ func Test_performMultiValueColRequestOnHistogram_OnlyRegexDelimiter(t *testing.T
 					},
 					{
 						ElemCount: 2,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"foo@example.com||bar@example.com", "host@id.com",
 						},
@@ -2347,7 +2347,7 @@ func Test_performMultiValueColRequestOnHistogram_DelimiterWithAllowEmptyValues(t
 				Results: []*structs.BucketResult{
 					{
 						ElemCount: 1,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"john@example.com,jane@example.com,,doe@example.com", "host@id.com",
 						},
@@ -2355,7 +2355,7 @@ func Test_performMultiValueColRequestOnHistogram_DelimiterWithAllowEmptyValues(t
 					},
 					{
 						ElemCount: 2,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							",foo@example.com,,bar@example.com,", "host@id.com",
 						},
@@ -2396,7 +2396,7 @@ func Test_performMultiValueColRequestOnHistogram_Setsv(t *testing.T) {
 				Results: []*structs.BucketResult{
 					{
 						ElemCount: 1,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"john@example.com jane@example.com  doe@example.com", "host@id.com",
 						},
@@ -2404,7 +2404,7 @@ func Test_performMultiValueColRequestOnHistogram_Setsv(t *testing.T) {
 					},
 					{
 						ElemCount: 2,
-						StatRes:   map[string]utils.CValueEnclosure{},
+						StatRes:   map[string]segutils.CValueEnclosure{},
 						BucketKey: []string{
 							"foo@example.com  bar@example.com", "host@id.com",
 						},
@@ -2461,7 +2461,7 @@ func Test_performBinWithSpan(t *testing.T) {
 	spanOpt := &structs.BinSpanOptions{
 		BinSpanLength: &structs.BinSpanLength{
 			Num:       10,
-			TimeScale: utils.TMInvalid,
+			TimeScale: segutils.TMInvalid,
 		},
 	}
 
@@ -2473,7 +2473,7 @@ func Test_performBinWithSpan(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "290-300", fmt.Sprintf("%v", val))
 
-	spanOpt.BinSpanLength.TimeScale = utils.TMSecond
+	spanOpt.BinSpanLength.TimeScale = segutils.TMSecond
 
 	val, err = performBinWithSpan(300, spanOpt)
 	assert.Nil(t, err)
@@ -2560,22 +2560,22 @@ func Test_findSpan(t *testing.T) {
 	spanOpt, err := findSpan(301, 500, 100, nil, "abc")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
 
 	spanOpt, err = findSpan(301, 500, 2, nil, "abc")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(1000), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
 
 	minSpan := &structs.BinSpanLength{
 		Num:       1001,
-		TimeScale: utils.TMInvalid,
+		TimeScale: segutils.TMInvalid,
 	}
 
 	spanOpt, err = findSpan(301, 500, 100, minSpan, "abc")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(10000), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMInvalid, spanOpt.BinSpanLength.TimeScale)
 
 	minTime := time.Date(2024, time.July, 7, 17, 0, 0, 0, time.UTC).UnixMilli()
 	maxTime := time.Date(2024, time.July, 7, 17, 0, 35, 0, time.UTC).UnixMilli()
@@ -2583,48 +2583,48 @@ func Test_findSpan(t *testing.T) {
 	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 100, nil, "timestamp")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(1), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMSecond, spanOpt.BinSpanLength.TimeScale)
 
 	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, nil, "timestamp")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(10), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMSecond, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMSecond, spanOpt.BinSpanLength.TimeScale)
 
 	minSpan.Num = 2
-	minSpan.TimeScale = utils.TMMinute
+	minSpan.TimeScale = segutils.TMMinute
 
 	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 10, minSpan, "timestamp")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMMinute, spanOpt.BinSpanLength.TimeScale)
 
 	maxTime = time.Date(2024, time.July, 7, 17, 2, 35, 0, time.UTC).UnixMilli()
 
 	spanOpt, err = findSpan(float64(minTime), float64(maxTime), 2, nil, "timestamp")
 	assert.Nil(t, err)
 	assert.Equal(t, float64(5), spanOpt.BinSpanLength.Num)
-	assert.Equal(t, utils.TMMinute, spanOpt.BinSpanLength.TimeScale)
+	assert.Equal(t, segutils.TMMinute, spanOpt.BinSpanLength.TimeScale)
 
 }
 
-func compareValues(cValue1 utils.CValueEnclosure, cValue2 utils.CValueEnclosure) bool {
+func compareValues(cValue1 segutils.CValueEnclosure, cValue2 segutils.CValueEnclosure) bool {
 	if cValue1.Dtype != cValue2.Dtype {
 		return false
 	}
-	if cValue1.Dtype == utils.SS_DT_STRING {
+	if cValue1.Dtype == segutils.SS_DT_STRING {
 		return cValue1.CVal.(string) == cValue2.CVal.(string)
 	}
-	if cValue1.Dtype == utils.SS_DT_FLOAT {
+	if cValue1.Dtype == segutils.SS_DT_FLOAT {
 		return cValue1.CVal.(float64) == cValue2.CVal.(float64)
 	}
-	if cValue1.Dtype == utils.SS_INVALID {
+	if cValue1.Dtype == segutils.SS_INVALID {
 		return cValue1.CVal == cValue2.CVal
 	}
 
 	return false
 }
 
-func WindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedValues2 [][]utils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
+func WindowStreamStatsHelperTest(t *testing.T, values []segutils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]segutils.CValueEnclosure, expectedValues2 [][]segutils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
 
 	for i, measureAgg := range measureAggs {
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
@@ -2634,22 +2634,22 @@ func WindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, s
 			if !ssOption.Current {
 				if j == 0 {
 					assert.False(t, exist)
-					assert.True(t, compareValues(utils.CValueEnclosure{}, res))
+					assert.True(t, compareValues(segutils.CValueEnclosure{}, res))
 				} else {
 					assert.True(t, exist)
 					assert.True(t, compareValues(expectedValues[i][j-1], res))
 				}
 			} else {
 				assert.True(t, exist)
-				if measureAgg.MeasureFunc == utils.Avg {
+				if measureAgg.MeasureFunc == segutils.Avg {
 					assert.True(t, compareValues(expectedValues[i][j], res))
 				}
 			}
 			assert.Equal(t, expectedLen[i][j], ssResults.Window.Len())
-			if measureAgg.MeasureFunc == utils.Range || measureAgg.MeasureFunc == utils.Min || measureAgg.MeasureFunc == utils.Max {
+			if measureAgg.MeasureFunc == segutils.Range || measureAgg.MeasureFunc == segutils.Min || measureAgg.MeasureFunc == segutils.Max {
 				assert.Equal(t, expectedSecondaryLen[i][j], ssResults.SecondaryWindow.Len())
 			}
-			if measureAgg.MeasureFunc == utils.Avg {
+			if measureAgg.MeasureFunc == segutils.Avg {
 				assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
 			} else {
 				assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
@@ -2658,7 +2658,7 @@ func WindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, s
 	}
 }
 
-func WindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
+func WindowStreamStatsHelperTest2(t *testing.T, values []segutils.CValueEnclosure, ssOption *structs.StreamStatsOptions, windowSize int, timestamps []uint64, measureAggs []*structs.MeasureAggregator, expectedValues [][]segutils.CValueEnclosure, expectedLen [][]int, expectedSecondaryLen [][]int) {
 
 	for i, measureAgg := range measureAggs {
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
@@ -2668,7 +2668,7 @@ func WindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, 
 			if !ssOption.Current {
 				if j == 0 {
 					assert.False(t, exist)
-					assert.True(t, compareValues(utils.CValueEnclosure{}, res))
+					assert.True(t, compareValues(segutils.CValueEnclosure{}, res))
 				} else {
 					assert.True(t, compareValues(expectedValues[i][j-1], res))
 				}
@@ -2682,16 +2682,16 @@ func WindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, 
 	}
 }
 
-func StreamStatsValuesHelper(t *testing.T, colValues []utils.CValueEnclosure, expectedValues [][]string, ssOption *structs.StreamStatsOptions, timestamps []uint64, windowSize int) {
-	var result utils.CValueEnclosure
+func StreamStatsValuesHelper(t *testing.T, colValues []segutils.CValueEnclosure, expectedValues [][]string, ssOption *structs.StreamStatsOptions, timestamps []uint64, windowSize int) {
+	var result segutils.CValueEnclosure
 	var exist bool
 	var err error
 
 	measureAgg := &structs.MeasureAggregator{
-		MeasureFunc: utils.Values,
+		MeasureFunc: segutils.Values,
 	}
 
-	ssResult := InitRunningStreamStatsResults(utils.Values)
+	ssResult := InitRunningStreamStatsResults(segutils.Values)
 	for i, colValue := range colValues {
 		if windowSize == 0 && ssOption.TimeWindow == nil {
 			result, exist, err = PerformNoWindowStreamStatsOnSingleFunc(ssOption, ssResult, measureAgg, colValue, true)
@@ -2706,34 +2706,34 @@ func StreamStatsValuesHelper(t *testing.T, colValues []utils.CValueEnclosure, ex
 				assert.False(t, exist)
 			} else {
 				assert.True(t, exist)
-				assert.Equal(t, utils.SS_DT_STRING_SLICE, result.Dtype)
-				assert.True(t, putils.CompareStringSlices(expectedValues[i-1], result.CVal.([]string)))
+				assert.Equal(t, segutils.SS_DT_STRING_SLICE, result.Dtype)
+				assert.True(t, utils.CompareStringSlices(expectedValues[i-1], result.CVal.([]string)))
 			}
 		} else {
 			assert.True(t, exist)
-			assert.True(t, putils.CompareStringSlices(expectedValues[i], result.CVal.([]string)))
+			assert.True(t, utils.CompareStringSlices(expectedValues[i], result.CVal.([]string)))
 		}
 	}
 }
 
-func getDtypes(len int, stringTypeIndex []int, inValidIndex []int) []utils.SS_DTYPE {
-	var dtypes []utils.SS_DTYPE
+func getDtypes(len int, stringTypeIndex []int, inValidIndex []int) []segutils.SS_DTYPE {
+	var dtypes []segutils.SS_DTYPE
 	for i := 0; i < len; i++ {
-		dtypes = append(dtypes, utils.SS_DT_FLOAT)
+		dtypes = append(dtypes, segutils.SS_DT_FLOAT)
 	}
 
 	for _, index := range stringTypeIndex {
-		dtypes[index] = utils.SS_DT_STRING
+		dtypes[index] = segutils.SS_DT_STRING
 	}
 
 	for _, index := range inValidIndex {
-		dtypes[index] = utils.SS_INVALID
+		dtypes[index] = segutils.SS_INVALID
 	}
 
 	return dtypes
 }
 
-func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure, expectedValues2 [][]utils.CValueEnclosure, expectedValues3 [][]utils.CValueEnclosure) {
+func NoWindowStreamStatsHelperTest(t *testing.T, values []segutils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]segutils.CValueEnclosure, expectedValues2 [][]segutils.CValueEnclosure, expectedValues3 [][]segutils.CValueEnclosure) {
 
 	for i, measureAgg := range measureAggs {
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
@@ -2745,7 +2745,7 @@ func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure,
 			if !ssOption.Current {
 				if j == 0 {
 					assert.False(t, exist)
-					assert.True(t, compareValues(utils.CValueEnclosure{}, result))
+					assert.True(t, compareValues(segutils.CValueEnclosure{}, result))
 				} else {
 					assert.True(t, exist)
 					assert.True(t, compareValues(expectedValues[i][j-1], result))
@@ -2753,13 +2753,13 @@ func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure,
 			} else {
 				assert.Equal(t, 0, ssResults.Window.Len())
 				assert.Equal(t, 0, ssResults.SecondaryWindow.Len())
-				if measureAgg.MeasureFunc == utils.Avg {
+				if measureAgg.MeasureFunc == segutils.Avg {
 					assert.True(t, compareValues(expectedValues[i][j], result))
 					assert.True(t, compareValues(expectedValues2[i][j], ssResults.CurrResult))
-				} else if measureAgg.MeasureFunc == utils.Range {
+				} else if measureAgg.MeasureFunc == segutils.Range {
 					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
-					assert.True(t, compareValues(expectedValues2[i][j], utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Max}))
-					assert.True(t, compareValues(expectedValues3[i][j], utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Min}))
+					assert.True(t, compareValues(expectedValues2[i][j], segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Max}))
+					assert.True(t, compareValues(expectedValues3[i][j], segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT, CVal: ssResults.RangeStat.Min}))
 				} else {
 					assert.True(t, compareValues(expectedValues[i][j], ssResults.CurrResult))
 				}
@@ -2768,7 +2768,7 @@ func NoWindowStreamStatsHelperTest(t *testing.T, values []utils.CValueEnclosure,
 	}
 }
 
-func NoWindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]utils.CValueEnclosure) {
+func NoWindowStreamStatsHelperTest2(t *testing.T, values []segutils.CValueEnclosure, ssOption *structs.StreamStatsOptions, measureAggs []*structs.MeasureAggregator, expectedValues [][]segutils.CValueEnclosure) {
 
 	for i, measureAgg := range measureAggs {
 		ssResults := InitRunningStreamStatsResults(measureAgg.MeasureFunc)
@@ -2780,7 +2780,7 @@ func NoWindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure
 			if !ssOption.Current {
 				if j == 0 {
 					assert.False(t, exist)
-					assert.True(t, compareValues(utils.CValueEnclosure{}, result))
+					assert.True(t, compareValues(segutils.CValueEnclosure{}, result))
 				} else {
 					assert.True(t, compareValues(expectedValues[i][j-1], result))
 				}
@@ -2793,7 +2793,7 @@ func NoWindowStreamStatsHelperTest2(t *testing.T, values []utils.CValueEnclosure
 	}
 }
 
-func getMeasureAggs(measureFuncs []utils.AggregateFunctions) []*structs.MeasureAggregator {
+func getMeasureAggs(measureFuncs []segutils.AggregateFunctions) []*structs.MeasureAggregator {
 	var measureAggs []*structs.MeasureAggregator
 	for _, measureFunc := range measureFuncs {
 		measureAggs = append(measureAggs, &structs.MeasureAggregator{
@@ -2804,16 +2804,16 @@ func getMeasureAggs(measureFuncs []utils.AggregateFunctions) []*structs.MeasureA
 
 }
 
-func createCValues(values []interface{}, dtypes []utils.SS_DTYPE) []utils.CValueEnclosure {
-	var expectedValues []utils.CValueEnclosure
+func createCValues(values []interface{}, dtypes []segutils.SS_DTYPE) []segutils.CValueEnclosure {
+	var expectedValues []segutils.CValueEnclosure
 	for i, value := range values {
-		if dtypes[i] == utils.SS_DT_FLOAT {
+		if dtypes[i] == segutils.SS_DT_FLOAT {
 			floatVal, _ := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
-			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: utils.SS_DT_FLOAT, CVal: floatVal})
-		} else if dtypes[i] == utils.SS_INVALID {
-			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: utils.SS_INVALID, CVal: nil})
+			expectedValues = append(expectedValues, segutils.CValueEnclosure{Dtype: segutils.SS_DT_FLOAT, CVal: floatVal})
+		} else if dtypes[i] == segutils.SS_INVALID {
+			expectedValues = append(expectedValues, segutils.CValueEnclosure{Dtype: segutils.SS_INVALID, CVal: nil})
 		} else {
-			expectedValues = append(expectedValues, utils.CValueEnclosure{Dtype: dtypes[i], CVal: value})
+			expectedValues = append(expectedValues, segutils.CValueEnclosure{Dtype: dtypes[i], CVal: value})
 		}
 	}
 	return expectedValues
@@ -2842,18 +2842,18 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 
 	dtypes := getDtypes(len(values), []int{}, []int{})
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesAvg, dtypes),
@@ -2862,7 +2862,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc(t *testing.T) {
 		createCValues(expectedValuesRange, dtypes),
 		createCValues(expectedValuesCardinality, dtypes),
 	}
-	expectedFuncValues2 := [][]utils.CValueEnclosure{
+	expectedFuncValues2 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesSum, dtypes),
@@ -2893,7 +2893,7 @@ func Test_Time_Window(t *testing.T) {
 		Global:  true,
 		TimeWindow: &structs.BinSpanLength{
 			Num:       2,
-			TimeScale: utils.TMSecond,
+			TimeScale: segutils.TMSecond,
 		},
 	}
 
@@ -2916,19 +2916,19 @@ func Test_Time_Window(t *testing.T) {
 
 	dtypes := getDtypes(len(values), []int{}, []int{})
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesAvg, dtypes),
@@ -2937,7 +2937,7 @@ func Test_Time_Window(t *testing.T) {
 		createCValues(expectedValuesRange, dtypes),
 		createCValues(expectedValuesCardinality, dtypes),
 	}
-	expectedFuncValues2 := [][]utils.CValueEnclosure{
+	expectedFuncValues2 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesSum, dtypes),
@@ -2968,12 +2968,12 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 	expectedValuesRange := []interface{}{0, 5, 5, 6, 6, 6, 7, 7, 8, 8}
 	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 9}
 
-	measureFunctions := []utils.AggregateFunctions{utils.Count, utils.Sum, utils.Avg, utils.Max, utils.Min, utils.Range, utils.Cardinality}
+	measureFunctions := []segutils.AggregateFunctions{segutils.Count, segutils.Sum, segutils.Avg, segutils.Max, segutils.Min, segutils.Range, segutils.Cardinality}
 	measureAggs := getMeasureAggs(measureFunctions)
 
 	dtypes := getDtypes(len(values), []int{}, []int{})
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesAvg, dtypes),
@@ -2983,7 +2983,7 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 		createCValues(expectedValuesCardinality, dtypes),
 	}
 
-	expectedFuncValues2 := [][]utils.CValueEnclosure{
+	expectedFuncValues2 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesSum, dtypes),
@@ -2993,7 +2993,7 @@ func Test_NoWindow_StreamStats(t *testing.T) {
 		createCValues(expectedValuesCardinality, dtypes),
 	}
 
-	expectedFuncValues3 := [][]utils.CValueEnclosure{
+	expectedFuncValues3 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypes),
 		createCValues(expectedValuesSum, dtypes),
 		createCValues(expectedValuesSum, dtypes),
@@ -3033,11 +3033,11 @@ func Test_Cardinality(t *testing.T) {
 	expectedValuesNoWindowCardinality := []interface{}{1, 2, 2, 2, 3, 3, 4, 4, 5, 6}
 	measureAggs := []*structs.MeasureAggregator{
 		{
-			MeasureFunc: utils.Cardinality,
+			MeasureFunc: segutils.Cardinality,
 		},
 	}
-	expectedFuncValues := [][]utils.CValueEnclosure{createCValues(expectedValuesCardinality, dtypes)}
-	expectedNoWindowFuncValues := [][]utils.CValueEnclosure{createCValues(expectedValuesNoWindowCardinality, dtypes)}
+	expectedFuncValues := [][]segutils.CValueEnclosure{createCValues(expectedValuesCardinality, dtypes)}
+	expectedNoWindowFuncValues := [][]segutils.CValueEnclosure{createCValues(expectedValuesNoWindowCardinality, dtypes)}
 	CValues := createCValues(values, dtypes)
 
 	optionSettings := []bool{true, false}
@@ -3130,18 +3130,18 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 	expectedValuesRange := []interface{}{0, 14, 14, 89, 0, 101, 0, 0, 0}
 	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
 		createCValues(expectedValuesAvg, dtypesFloats),
@@ -3150,7 +3150,7 @@ func Test_PerformWindowStreamStatsOnSingleFunc_2(t *testing.T) {
 		createCValues(expectedValuesRange, dtypesFloats),
 		createCValues(expectedValuesCardinality, dtypesFloats),
 	}
-	expectedFuncValues2 := [][]utils.CValueEnclosure{
+	expectedFuncValues2 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
@@ -3206,18 +3206,18 @@ func Test_PerformWindowStreamStatsOnSingleFunc_3(t *testing.T) {
 	expectedValuesRange := []interface{}{0, 14, 14, 0, nil, 0, 0, 101, 21}
 	expectedValuesCardinality := []interface{}{1, 2, 3, 3, 3, 3, 3, 3, 3}
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesSum),
 		createCValues(expectedValuesAvg, dtypesSum),
@@ -3249,7 +3249,7 @@ func Test_Time_Window_2(t *testing.T) {
 		Global:  true,
 		TimeWindow: &structs.BinSpanLength{
 			Num:       2,
-			TimeScale: utils.TMSecond,
+			TimeScale: segutils.TMSecond,
 		},
 	}
 
@@ -3280,18 +3280,18 @@ func Test_Time_Window_2(t *testing.T) {
 
 	timestamps := []uint64{1000, 2000, 3000, 6000, 6500, 7100, 10000, 11500, 12000}
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesSum),
 		createCValues(expectedValuesAvg, dtypesSum),
@@ -3324,18 +3324,18 @@ func Test_NoWindow_StreamStats_2(t *testing.T) {
 	expectedValuesRange := []interface{}{0, 14, 14, 103, 103, 103, 103, 103, 103}
 	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
 		createCValues(expectedValuesAvg, dtypesFloats),
@@ -3344,7 +3344,7 @@ func Test_NoWindow_StreamStats_2(t *testing.T) {
 		createCValues(expectedValuesRange, dtypesFloats),
 		createCValues(expectedValuesCardinality, dtypesFloats),
 	}
-	expectedFuncValues2 := [][]utils.CValueEnclosure{
+	expectedFuncValues2 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
@@ -3353,7 +3353,7 @@ func Test_NoWindow_StreamStats_2(t *testing.T) {
 		createCValues(expectedValuesMax, dtypesFloats),
 		createCValues(expectedValuesCardinality, dtypesFloats),
 	}
-	expectedFuncValues3 := [][]utils.CValueEnclosure{
+	expectedFuncValues3 := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesFloats),
@@ -3394,18 +3394,18 @@ func Test_NoWindow_StreamStats_3(t *testing.T) {
 	expectedValuesRange := []interface{}{nil, nil, 0, 101, 101, 103, 103, 103, 103}
 	expectedValuesCardinality := []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9}
 
-	measureFunctions := []utils.AggregateFunctions{
-		utils.Count,
-		utils.Sum,
-		utils.Avg,
-		utils.Max,
-		utils.Min,
-		utils.Range,
-		utils.Cardinality,
+	measureFunctions := []segutils.AggregateFunctions{
+		segutils.Count,
+		segutils.Sum,
+		segutils.Avg,
+		segutils.Max,
+		segutils.Min,
+		segutils.Range,
+		segutils.Cardinality,
 	}
 	measureAggs := getMeasureAggs(measureFunctions)
 
-	expectedFuncValues := [][]utils.CValueEnclosure{
+	expectedFuncValues := [][]segutils.CValueEnclosure{
 		createCValues(expectedValuesCount, dtypesFloats),
 		createCValues(expectedValuesSum, dtypesSum),
 		createCValues(expectedValuesAvg, dtypesSum),

@@ -23,8 +23,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 )
 
 type evalProcessor struct {
@@ -39,7 +39,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		return iqr, fmt.Errorf("evalProcessor.Process: options is nil")
 	}
 	if p.options.ValueExpr == nil {
-		return iqr, toputils.TeeErrorf("evalProcessor.Process: ValueExpr is nil")
+		return iqr, utils.TeeErrorf("evalProcessor.Process: ValueExpr is nil")
 	}
 	fieldsInExpr := p.options.ValueExpr.GetFields()
 
@@ -56,7 +56,7 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	numRecords := iqr.NumberOfRecords()
 
-	records := make(map[string][]utils.CValueEnclosure)
+	records := make(map[string][]segutils.CValueEnclosure)
 	for _, field := range fieldsInExpr {
 		record, err := iqr.ReadColumn(field)
 		if err != nil {
@@ -68,10 +68,10 @@ func (p *evalProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		records[field] = record
 	}
 
-	knownValues := make(map[string][]utils.CValueEnclosure)
-	knownValuesCvals := make([]utils.CValueEnclosure, numRecords)
+	knownValues := make(map[string][]segutils.CValueEnclosure)
+	knownValuesCvals := make([]segutils.CValueEnclosure, numRecords)
 
-	fieldToValue := make(map[string]utils.CValueEnclosure)
+	fieldToValue := make(map[string]segutils.CValueEnclosure)
 	for i := 0; i < numRecords; i++ {
 		for field, record := range records {
 			fieldToValue[field] = record[i]

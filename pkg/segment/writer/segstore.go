@@ -43,9 +43,9 @@ import (
 	"github.com/siglens/siglens/pkg/segment/metadata"
 	"github.com/siglens/siglens/pkg/segment/sortindex"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
 	"github.com/siglens/siglens/pkg/segment/writer/suffix"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 
 	"github.com/siglens/siglens/pkg/segment/pqmr"
 	vtable "github.com/siglens/siglens/pkg/virtualtable"
@@ -139,7 +139,7 @@ func NewSegStore(orgId int64) *SegStore {
 		AllSst:             make(map[string]*structs.SegStats),
 		OrgId:              orgId,
 		stbDictEncWorkBuf:  make([][]string, 0),
-		segStatsWorkBuf:    make([]byte, utils.WIP_SIZE),
+		segStatsWorkBuf:    make([]byte, segutils.WIP_SIZE),
 	}
 
 	return segstore
@@ -149,7 +149,7 @@ func (ss *SegStore) GetNewBitset(bsSize uint) *bitset.BitSet {
 	lastKnownLen := uint32(len(ss.bsPool))
 	if ss.bsPoolCurrIdx >= lastKnownLen {
 		newCount := BS_INITIAL_SIZE
-		ss.bsPool = toputils.ResizeSlice(ss.bsPool, int(newCount+lastKnownLen))
+		ss.bsPool = utils.ResizeSlice(ss.bsPool, int(newCount+lastKnownLen))
 		for i := uint32(0); i < newCount; i++ {
 			newBs := bitset.New(bsSize)
 			ss.bsPool[lastKnownLen+i] = newBs
@@ -167,7 +167,7 @@ func (segStore *SegStore) StoreSegmentError(errMsg string, logLevel log.Level, e
 
 func (segStore *SegStore) LogAndFlushErrors() {
 	for errMsg, errInfo := range segStore.SegmentErrors {
-		toputils.LogUsingLevel(errInfo.LogLevel, "SegmentKey: %v, %v, Count: %v, ExtraInfo: %v", segStore.SegmentKey, errMsg, errInfo.Count, errInfo.Error)
+		utils.LogUsingLevel(errInfo.LogLevel, "SegmentKey: %v, %v, Count: %v, ExtraInfo: %v", segStore.SegmentKey, errMsg, errInfo.Count, errInfo.Error)
 		delete(segStore.SegmentErrors, errMsg)
 	}
 }
@@ -303,7 +303,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 	numPrevRec := segstore.wipBlock.blockSummary.RecCount
 	for pqid, pNode := range persistentQueries {
 		if _, ok := segstore.pqMatches[pqid]; !ok {
-			mrSize := utils.PQMR_SIZE
+			mrSize := segutils.PQMR_SIZE
 			if segstore.numBlocks > 0 || numPrevRec == 0 {
 				mrSize = uint(numPrevRec)
 			}
@@ -312,7 +312,7 @@ func (segstore *SegStore) resetSegStore(streamid string, virtualTableName string
 		segstore.pqTracker.addSearchNode(pqid, pNode)
 	}
 
-	promoted, demoted := toputils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
+	promoted, demoted := utils.SetDifference(segstore.pqMatches, segstore.LastSegPqids)
 	if len(promoted) > 0 {
 		log.Infof("resetSegStore: PQIDs Promoted: %v", promoted)
 	}
@@ -383,9 +383,9 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 		i++
 
 		switch valType {
-		case utils.VALTYPE_ENC_SMALL_STRING[0]:
+		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Parse the string.
-			numBytes := int(toputils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
+			numBytes := int(utils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
 			i += 2
 			numberAsString := string(oldColWip.cbuf.Slice(i, i+numBytes))
 			i += numBytes
@@ -394,7 +394,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			intVal, err := strconv.ParseInt(numberAsString, 10, 64)
 			if err == nil {
 				// Conversion succeeded.
-				newColWip.cbuf.Append(utils.VALTYPE_ENC_INT64[:])
+				newColWip.cbuf.Append(segutils.VALTYPE_ENC_INT64[:])
 				newColWip.cbuf.AppendInt64LittleEndian(intVal)
 				newColWip.cbufidx += 1 + 8
 				addIntToRangeIndex(colName, intVal, rangeIndex)
@@ -405,7 +405,7 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			floatVal, err := strconv.ParseFloat(numberAsString, 64)
 			if err == nil {
 				// Conversion succeeded.
-				newColWip.cbuf.Append(utils.VALTYPE_ENC_FLOAT64[:])
+				newColWip.cbuf.Append(segutils.VALTYPE_ENC_FLOAT64[:])
 				newColWip.cbuf.AppendFloat64LittleEndian(floatVal)
 				newColWip.cbufidx += 1 + 8
 				addFloatToRangeIndex(colName, floatVal, rangeIndex)
@@ -415,19 +415,19 @@ func convertColumnToNumbers(wipBlock *WipBlock, colName string, segmentKey strin
 			// Conversion failed.
 			return false, nil
 
-		case utils.VALTYPE_ENC_INT64[0], utils.VALTYPE_ENC_FLOAT64[0]:
+		case segutils.VALTYPE_ENC_INT64[0], segutils.VALTYPE_ENC_FLOAT64[0]:
 			// Already a number, so just copy it.
 			// It's alrady in the range index, so we don't need to add it again.
 			newColWip.cbuf.Append(oldColWip.cbuf.Slice(i-1, i+8))
 			newColWip.cbufidx += 9
 			i += 8
 
-		case utils.VALTYPE_ENC_BACKFILL[0]:
+		case segutils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			newColWip.cbuf.Append(utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbuf.Append(segutils.VALTYPE_ENC_BACKFILL[:])
 			newColWip.cbufidx += 1
 
-		case utils.VALTYPE_ENC_BOOL[0]:
+		case segutils.VALTYPE_ENC_BOOL[0]:
 			// Cannot convert bool to number.
 			return false, nil
 
@@ -460,39 +460,39 @@ func convertColumnToStrings(wipBlock *WipBlock, colName string, segmentKey strin
 		i++
 
 		switch valType {
-		case utils.VALTYPE_ENC_SMALL_STRING[0]:
+		case segutils.VALTYPE_ENC_SMALL_STRING[0]:
 			// Already a string, so just copy it.
 			// This is already in the bloom, so we don't need to add it again.
-			numBytes := int(toputils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
+			numBytes := int(utils.BytesToUint16LittleEndian(oldColWip.cbuf.Slice(i, i+2)))
 			i += 2
 			newColWip.cbuf.Append(oldColWip.cbuf.Slice(i-3, i+numBytes))
 			newColWip.cbufidx += uint32(3 + numBytes)
 			i += numBytes
 
-		case utils.VALTYPE_ENC_INT64[0]:
+		case segutils.VALTYPE_ENC_INT64[0]:
 			// Parse the integer.
-			intVal := toputils.BytesToInt64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
+			intVal := utils.BytesToInt64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
 			i += 8
 
 			stringVal := strconv.FormatInt(intVal, 10)
 			newColWip.WriteSingleString(stringVal)
 			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
-		case utils.VALTYPE_ENC_FLOAT64[0]:
+		case segutils.VALTYPE_ENC_FLOAT64[0]:
 			// Parse the float.
-			floatVal := toputils.BytesToFloat64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
+			floatVal := utils.BytesToFloat64LittleEndian(oldColWip.cbuf.Slice(i, i+8))
 			i += 8
 
 			stringVal := strconv.FormatFloat(floatVal, 'f', -1, 64)
 			newColWip.WriteSingleString(stringVal)
 			bloom.uniqueWordCount += addToBlockBloomBothCases(bloom.Bf, []byte(stringVal))
 
-		case utils.VALTYPE_ENC_BACKFILL[0]:
+		case segutils.VALTYPE_ENC_BACKFILL[0]:
 			// This is a null value.
-			newColWip.cbuf.Append(utils.VALTYPE_ENC_BACKFILL[:])
+			newColWip.cbuf.Append(segutils.VALTYPE_ENC_BACKFILL[:])
 			newColWip.cbufidx += 1
 
-		case utils.VALTYPE_ENC_BOOL[0]:
+		case segutils.VALTYPE_ENC_BOOL[0]:
 			// Parse the bool.
 			boolVal, err := oldColWip.cbuf.At(i)
 			if err != nil {
@@ -557,12 +557,12 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 		if config.IsLowMemoryModeEnabled() {
 			flushParallelism = 1
 		}
-		segstore.workBufForCompression = toputils.ResizeSlice(segstore.workBufForCompression,
+		segstore.workBufForCompression = utils.ResizeSlice(segstore.workBufForCompression,
 			flushParallelism)
 		// now make each of these bufs of atleast WIP_SIZE
 		for i := 0; i < len(segstore.workBufForCompression); i++ {
-			segstore.workBufForCompression[i] = toputils.ResizeSlice(segstore.workBufForCompression[i],
-				utils.WIP_SIZE)
+			segstore.workBufForCompression[i] = utils.ResizeSlice(segstore.workBufForCompression[i],
+				segutils.WIP_SIZE)
 		}
 
 		if config.IsAggregationsEnabled() {
@@ -587,9 +587,9 @@ func (segstore *SegStore) AppendWipToSegfile(streamid string, forceRotate bool, 
 						}
 						_ = segstore.writeWipTsRollups(cname)
 					} else if colWip.deData.deCount > 0 && colWip.deData.deCount < wipCardLimit {
-						encType = utils.ZSTD_DICTIONARY_BLOCK
+						encType = segutils.ZSTD_DICTIONARY_BLOCK
 					} else {
-						encType = utils.ZSTD_COMLUNAR_BLOCK
+						encType = segutils.ZSTD_COMLUNAR_BLOCK
 					}
 
 					if !isKibana {
@@ -1022,7 +1022,7 @@ func (segstore *SegStore) computeStarTree() {
 		}
 		if len(colsToDrop) > 0 {
 			log.Warnf("computeStarTree: Dropping cols with high cardinality: %v, blockNum: %v", colsToDrop, segstore.numBlocks)
-			colsToDropSlice := toputils.GetKeysOfMap(colsToDrop)
+			colsToDropSlice := utils.GetKeysOfMap(colsToDrop)
 			err := segstore.stbHolder.stbPtr.DropColumns(colsToDropSlice)
 			if err != nil {
 				log.Errorf("computeStarTree: Dropping SegTree and release STB, Error while dropping columns, err: %v", err)
@@ -1102,13 +1102,13 @@ func (wipBlock *WipBlock) adjustEarliestLatestTimes(ts_millis uint64) {
 }
 
 func (segstore *SegStore) WritePackedRecord(rawJson []byte, ts_millis uint64,
-	signalType utils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
+	signalType segutils.SIGNAL_TYPE, cnameCacheByteHashToStr map[uint64]string,
 	jsParsingStackbuf []byte) error {
 
 	var err error
 	var matchedPCols bool
 	tsKey := config.GetTimeStampKey()
-	if signalType == utils.SIGNAL_EVENTS || signalType == utils.SIGNAL_JAEGER_TRACES {
+	if signalType == segutils.SIGNAL_EVENTS || signalType == segutils.SIGNAL_JAEGER_TRACES {
 		matchedPCols, err = segstore.EncodeColumns(rawJson, ts_millis, &tsKey, signalType,
 			cnameCacheByteHashToStr, jsParsingStackbuf)
 		if err != nil {
@@ -1169,14 +1169,14 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	bytesWritten += 4
 
 	// copy the blockNum
-	if _, err = bffd.Write(toputils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
+	if _, err = bffd.Write(utils.Uint16ToBytesLittleEndian(ss.numBlocks)); err != nil {
 		log.Errorf("flushBloomIndex: block num write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
-	bytesWritten += utils.LEN_BLKNUM_CMI_SIZE
+	bytesWritten += segutils.LEN_BLKNUM_CMI_SIZE
 
 	// write CMI type
-	if _, err = bffd.Write(utils.CMI_BLOOM_INDEX); err != nil {
+	if _, err = bffd.Write(segutils.CMI_BLOOM_INDEX); err != nil {
 		log.Errorf("flushBloomIndex: CMI Type write failed fname=%v, err=%v", fname, err)
 		return 0
 	}
@@ -1191,7 +1191,7 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	bytesWritten += uint32(bloomSize)
 
 	// write the correct bloom size
-	_, err = bffd.WriteAt(toputils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
+	_, err = bffd.WriteAt(utils.Uint32ToBytesLittleEndian(bytesWritten-4), startOffset)
 	if err != nil {
 		log.Errorf("flushBloomIndex: failed to write bloom size to fname=%v, err=%v", fname, err)
 		return 0
@@ -1202,8 +1202,8 @@ func (ss *SegStore) flushBloomIndex(cname string, bi *BloomIndex) uint64 {
 	}
 	//adding to block history list
 	bi.HistoricalCount = append(bi.HistoricalCount, bi.uniqueWordCount)
-	if streamIdHistory := len(bi.HistoricalCount); streamIdHistory > utils.BLOOM_SIZE_HISTORY {
-		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-utils.BLOOM_SIZE_HISTORY:]
+	if streamIdHistory := len(bi.HistoricalCount); streamIdHistory > segutils.BLOOM_SIZE_HISTORY {
+		bi.HistoricalCount = bi.HistoricalCount[streamIdHistory-segutils.BLOOM_SIZE_HISTORY:]
 
 	}
 	return uint64(bytesWritten)
@@ -1222,7 +1222,7 @@ func (segstore *SegStore) flushBlockSummary(blkNum uint16) uint64 {
 
 	defer fd.Close()
 
-	blkSumBuf := make([]byte, utils.BLOCK_SUMMARY_SIZE)
+	blkSumBuf := make([]byte, segutils.BLOCK_SUMMARY_SIZE)
 	packedLen, blkSumBuf, err := EncodeBlocksum(&segstore.wipBlock.blockSummary,
 		blkSumBuf[0:], blkNum, segstore.wipBlock.bmiCnameIdxDict,
 		segstore.wipBlock.bmiColOffLen)
@@ -1308,7 +1308,7 @@ func (segStore *SegStore) clearPQMatchInfo() {
 
 func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 
-	encType := utils.TIMESTAMP_TOPDIFF_VARENC
+	encType := segutils.TIMESTAMP_TOPDIFF_VARENC
 
 	tsWip := wipBlock.colWips[config.GetTimeStampKey()]
 	tsWip.cbufidx = 0 // reset to zero since packer we set it to 1, so that the writeWip gets invoked
@@ -1316,11 +1316,11 @@ func (wipBlock *WipBlock) encodeTimestamps() ([]byte, error) {
 	var tsType structs.TS_TYPE
 	diff := wipBlock.blockSummary.HighTs - wipBlock.blockSummary.LowTs
 
-	if diff <= toputils.UINT8_MAX {
+	if diff <= utils.UINT8_MAX {
 		tsType = structs.TS_Type8
-	} else if diff <= toputils.UINT16_MAX {
+	} else if diff <= utils.UINT16_MAX {
 		tsType = structs.TS_Type16
-	} else if diff <= toputils.UINT32_MAX {
+	} else if diff <= utils.UINT32_MAX {
 		tsType = structs.TS_Type32
 	} else {
 		tsType = structs.TS_Type64
@@ -1430,14 +1430,14 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 	}
 
 	// write blkNum
-	_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(blkNum))
+	_, err = fd.Write(utils.Uint16ToBytesLittleEndian(blkNum))
 	if err != nil {
 		log.Errorf("writeSingleRup: blkNum write failed fname=%v, err=%v", fname, err)
 		return err
 	}
 
 	// write num of bucketKeys
-	_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(tRup))))
+	_, err = fd.Write(utils.Uint16ToBytesLittleEndian(uint16(len(tRup))))
 	if err != nil {
 		log.Errorf("writeSingleRup: failed to write num of bucket keys %+v", err)
 		return err
@@ -1446,14 +1446,14 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 	for bkey, rr := range tRup {
 
 		// write bucketKey ts
-		if _, err = fd.Write(toputils.Uint64ToBytesLittleEndian(bkey)); err != nil {
+		if _, err = fd.Write(utils.Uint64ToBytesLittleEndian(bkey)); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v write failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
 			return err
 		}
 
 		// write encoding type
-		if _, err = fd.Write([]byte{utils.RR_ENC_BITSET}); err != nil {
+		if _, err = fd.Write([]byte{segutils.RR_ENC_BITSET}); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v enc type failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
 			return err
@@ -1464,7 +1464,7 @@ func writeSingleRup(blkNum uint16, fname string, tRup map[uint64]*RolledRecs) er
 		// pad an extra word (64 bits) so that shrink does not loose data
 		cb := rr.MatchedRes.Shrink(uint(rr.lastRecNum + 64))
 		mrSize := uint16(cb.GetInMemSize())
-		if _, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(mrSize))); err != nil {
+		if _, err = fd.Write(utils.Uint16ToBytesLittleEndian(uint16(mrSize))); err != nil {
 			log.Errorf("writeSingleRup: blkNum=%v bkey=%v mrsize write failed fname=%v, err=%v",
 				blkNum, bkey, fname, err)
 			return err
@@ -1521,7 +1521,7 @@ func (ss *SegStore) FlushSegStats() error {
 	defer fd.Close()
 
 	// version
-	_, err = fd.Write(utils.VERSION_SEGSTATS)
+	_, err = fd.Write(segutils.VERSION_SEGSTATS)
 	if err != nil {
 		log.Errorf("FlushSegStats: failed to write version err=%v", err)
 		return err
@@ -1530,7 +1530,7 @@ func (ss *SegStore) FlushSegStats() error {
 	for cname, sst := range ss.AllSst {
 
 		// cname len
-		_, err = fd.Write(toputils.Uint16ToBytesLittleEndian(uint16(len(cname))))
+		_, err = fd.Write(utils.Uint16ToBytesLittleEndian(uint16(len(cname))))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write cnamelen cname=%v err=%v", cname, err)
 			return err
@@ -1550,7 +1550,7 @@ func (ss *SegStore) FlushSegStats() error {
 		}
 
 		// colsegencodinglen
-		_, err = fd.Write(toputils.Uint32ToBytesLittleEndian(idx))
+		_, err = fd.Write(utils.Uint32ToBytesLittleEndian(idx))
 		if err != nil {
 			log.Errorf("FlushSegStats: failed to write colsegencodlen cname=%v err=%v", cname, err)
 			return err
@@ -1585,21 +1585,21 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx := uint32(0)
 
 	// version
-	copy(buf[idx:], utils.VERSION_SEGSTATS_BUF_V4)
+	copy(buf[idx:], segutils.VERSION_SEGSTATS_BUF_V4)
 	idx++
 
 	// isNumeric
-	copy(buf[idx:], toputils.BoolToBytesLittleEndian(sst.IsNumeric))
+	copy(buf[idx:], utils.BoolToBytesLittleEndian(sst.IsNumeric))
 	idx++
 
 	// Count
-	toputils.Uint64ToBytesLittleEndianInplace(sst.Count, buf[idx:])
+	utils.Uint64ToBytesLittleEndianInplace(sst.Count, buf[idx:])
 	idx += 8
 
 	hllDataSize := sst.GetHllDataSize()
 
 	// HLL_Size
-	toputils.Uint32ToBytesLittleEndianInplace(uint32(hllDataSize), buf[idx:])
+	utils.Uint32ToBytesLittleEndianInplace(uint32(hllDataSize), buf[idx:])
 	idx += 4
 
 	// HLL_Data
@@ -1618,25 +1618,25 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	if hllByteSliceLen != hllDataSize {
 		// This case should not happen, but if it does, we need to adjust the size
 		log.Errorf("writeSstToBuf: hllByteSlice size mismatch, expected: %v, got: %v", hllDataSize, hllByteSliceLen)
-		toputils.Uint32ToBytesLittleEndianInplace(uint32(hllByteSliceLen), buf[idx-4:idx])
+		utils.Uint32ToBytesLittleEndianInplace(uint32(hllByteSliceLen), buf[idx-4:idx])
 	}
 	copy(buf[idx:], hllByteSlice)
 	idx += uint32(hllByteSliceLen)
 
 	if !sst.IsNumeric {
 
-		if sst.Min.Dtype != utils.SS_DT_STRING || sst.Max.Dtype != utils.SS_DT_STRING {
-			copy(buf[idx:], []byte{byte(utils.SS_DT_BACKFILL)})
+		if sst.Min.Dtype != segutils.SS_DT_STRING || sst.Max.Dtype != segutils.SS_DT_STRING {
+			copy(buf[idx:], []byte{byte(segutils.SS_DT_BACKFILL)})
 			idx++
 			return idx, nil
 		}
 
 		// Min Dtype
-		copy(buf[idx:], []byte{byte(utils.SS_DT_STRING)})
+		copy(buf[idx:], []byte{byte(segutils.SS_DT_STRING)})
 		idx++
 		// Min Length
 		minLen := uint16(len(sst.Min.CVal.(string)))
-		toputils.Uint16ToBytesLittleEndianInplace(minLen, buf[idx:])
+		utils.Uint16ToBytesLittleEndianInplace(minLen, buf[idx:])
 		idx += 2
 
 		// Min Value
@@ -1645,7 +1645,7 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 
 		// Max Length
 		maxLen := uint16(len(sst.Max.CVal.(string)))
-		toputils.Uint16ToBytesLittleEndianInplace(maxLen, buf[idx:])
+		utils.Uint16ToBytesLittleEndianInplace(maxLen, buf[idx:])
 		idx += 2
 
 		// Max Value
@@ -1660,10 +1660,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Min
-	if sst.Min.Dtype == utils.SS_DT_FLOAT {
-		toputils.Float64ToBytesLittleEndianInplace(sst.Min.CVal.(float64), buf[idx:])
+	if sst.Min.Dtype == segutils.SS_DT_FLOAT {
+		utils.Float64ToBytesLittleEndianInplace(sst.Min.CVal.(float64), buf[idx:])
 	} else {
-		toputils.Int64ToBytesLittleEndianInplace(sst.Min.CVal.(int64), buf[idx:])
+		utils.Int64ToBytesLittleEndianInplace(sst.Min.CVal.(int64), buf[idx:])
 	}
 	idx += 8
 
@@ -1672,10 +1672,10 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Max
-	if sst.Max.Dtype == utils.SS_DT_FLOAT {
-		toputils.Float64ToBytesLittleEndianInplace(sst.Max.CVal.(float64), buf[idx:])
+	if sst.Max.Dtype == segutils.SS_DT_FLOAT {
+		utils.Float64ToBytesLittleEndianInplace(sst.Max.CVal.(float64), buf[idx:])
 	} else {
-		toputils.Int64ToBytesLittleEndianInplace(sst.Max.CVal.(int64), buf[idx:])
+		utils.Int64ToBytesLittleEndianInplace(sst.Max.CVal.(int64), buf[idx:])
 	}
 	idx += 8
 
@@ -1684,15 +1684,15 @@ func writeSstToBuf(sst *structs.SegStats, buf []byte) (uint32, error) {
 	idx++
 
 	// Sum
-	if sst.NumStats.Sum.Ntype == utils.SS_DT_FLOAT {
-		toputils.Float64ToBytesLittleEndianInplace(sst.NumStats.Sum.FloatVal, buf[idx:])
+	if sst.NumStats.Sum.Ntype == segutils.SS_DT_FLOAT {
+		utils.Float64ToBytesLittleEndianInplace(sst.NumStats.Sum.FloatVal, buf[idx:])
 	} else {
-		toputils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
+		utils.Int64ToBytesLittleEndianInplace(sst.NumStats.Sum.IntgrVal, buf[idx:])
 	}
 	idx += 8
 
 	// NumCount
-	toputils.Uint64ToBytesLittleEndianInplace(sst.NumStats.NumericCount, buf[idx:])
+	utils.Uint64ToBytesLittleEndianInplace(sst.NumStats.NumericCount, buf[idx:])
 	idx += 8
 
 	return idx, nil
@@ -1733,7 +1733,7 @@ func (ss *SegStore) getAllColsSizes() map[string]*structs.ColSizeInfo {
 		}
 		if colValueLen == 0 {
 			log.Errorf("getAllColsSizes: colValueLen is 0 for cname: %v. This should not happen.", cname)
-			colValueLen = utils.INCONSISTENT_CVAL_SIZE
+			colValueLen = segutils.INCONSISTENT_CVAL_SIZE
 		}
 
 		csinfo := structs.ColSizeInfo{CmiSize: cmiSize, CsgSize: csgSize, ConsistentCvalSize: colValueLen}

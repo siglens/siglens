@@ -24,8 +24,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	putils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 )
 
 type gentimesProcessor struct {
@@ -35,25 +35,25 @@ type gentimesProcessor struct {
 	limit         uint64
 }
 
-func addGenTimeEvent(values map[string][]utils.CValueEnclosure, start time.Time, end time.Time) {
-	values["starttime"] = append(values["starttime"], utils.CValueEnclosure{
-		Dtype: utils.SS_DT_UNSIGNED_NUM,
+func addGenTimeEvent(values map[string][]segutils.CValueEnclosure, start time.Time, end time.Time) {
+	values["starttime"] = append(values["starttime"], segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_UNSIGNED_NUM,
 		CVal:  uint64(start.UnixMilli()) / 1000,
 	})
 
-	values["endttime"] = append(values["endttime"], utils.CValueEnclosure{
-		Dtype: utils.SS_DT_UNSIGNED_NUM,
+	values["endttime"] = append(values["endttime"], segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_UNSIGNED_NUM,
 		CVal:  uint64(end.UnixMilli()) / 1000,
 	})
 
-	values["starthuman"] = append(values["starthuman"], utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  putils.FormatToHumanReadableTime(start),
+	values["starthuman"] = append(values["starthuman"], segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  utils.FormatToHumanReadableTime(start),
 	})
 
-	values["endhuman"] = append(values["endhuman"], utils.CValueEnclosure{
-		Dtype: utils.SS_DT_STRING,
-		CVal:  putils.FormatToHumanReadableTime(end),
+	values["endhuman"] = append(values["endhuman"], segutils.CValueEnclosure{
+		Dtype: segutils.SS_DT_STRING,
+		CVal:  utils.FormatToHumanReadableTime(end),
 	})
 }
 
@@ -75,15 +75,15 @@ func (p *gentimesProcessor) Process(inpIqr *iqr.IQR) (*iqr.IQR, error) {
 
 	curr := p.currStartTime
 	currTime := time.UnixMilli(int64(p.currStartTime))
-	knownValues := make(map[string][]utils.CValueEnclosure, 0)
+	knownValues := make(map[string][]segutils.CValueEnclosure, 0)
 
 	count := uint64(0)
 	for curr < p.options.EndTime && count < p.limit {
-		endTime, err := utils.ApplyOffsetToTime(int64(p.options.Interval.Num), p.options.Interval.TimeScalr, currTime)
+		endTime, err := segutils.ApplyOffsetToTime(int64(p.options.Interval.Num), p.options.Interval.TimeScalr, currTime)
 		if err != nil {
 			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating end time, err: %v", err)
 		}
-		intervalEndTime, err := utils.ApplyOffsetToTime(-1, utils.TMSecond, endTime)
+		intervalEndTime, err := segutils.ApplyOffsetToTime(-1, segutils.TMSecond, endTime)
 		if err != nil {
 			return nil, fmt.Errorf("gentimesProcessor.Process: Error while calculating interval end time, err: %v", err)
 		}

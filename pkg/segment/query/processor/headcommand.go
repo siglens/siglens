@@ -23,8 +23,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,12 +41,12 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 	requiredFields := p.options.BoolExpr.GetFields()
 	records, err := iqr.ReadColumnsWithBackfill(requiredFields)
 	if err != nil {
-		return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: failed to read columns, requiredFields: %v, err: %v", requiredFields, err)
+		return nil, utils.TeeErrorf("headProcessor.processHeadExpr: failed to read columns, requiredFields: %v, err: %v", requiredFields, err)
 	}
 
 	row := 0
 	for row < iqr.NumberOfRecords() && !p.options.Done && p.numRecordsSent < p.options.MaxRows {
-		fieldToValue := make(map[string]utils.CValueEnclosure, len(requiredFields))
+		fieldToValue := make(map[string]segutils.CValueEnclosure, len(requiredFields))
 		for _, field := range requiredFields {
 			fieldToValue[field] = records[field][row]
 		}
@@ -56,7 +56,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 		if err != nil {
 			nullFields, errGetNullFields := p.options.BoolExpr.GetNullFields(fieldToValue)
 			if errGetNullFields != nil {
-				return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: error while getting null fields, err: %v", errGetNullFields)
+				return nil, utils.TeeErrorf("headProcessor.processHeadExpr: error while getting null fields, err: %v", errGetNullFields)
 			}
 
 			if len(nullFields) > 0 {
@@ -67,7 +67,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 			}
 		}
 
-		if conditionCValEnc.Dtype == utils.SS_DT_BACKFILL {
+		if conditionCValEnc.Dtype == segutils.SS_DT_BACKFILL {
 			if p.options.Null {
 				// include the records since null is allowed
 			} else if p.options.Keeplast {
@@ -78,7 +78,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 				p.options.Done = true
 				break
 			}
-		} else if conditionCValEnc.Dtype == utils.SS_DT_BOOL {
+		} else if conditionCValEnc.Dtype == segutils.SS_DT_BOOL {
 			conditionPassed := conditionCValEnc.CVal.(bool)
 			if !conditionPassed {
 				// false condition so adding last record if keeplast
@@ -102,7 +102,7 @@ func (p *headProcessor) processHeadExpr(iqr *iqr.IQR) (*iqr.IQR, error) {
 	}
 	err = iqr.DiscardAfter(uint64(row))
 	if err != nil {
-		return nil, toputils.TeeErrorf("headProcessor.processHeadExpr: failed to discard after %v records, totalRecords: %v, err: %v", row, iqr.NumberOfRecords(), err)
+		return nil, utils.TeeErrorf("headProcessor.processHeadExpr: failed to discard after %v records, totalRecords: %v, err: %v", row, iqr.NumberOfRecords(), err)
 	}
 
 	if p.options.Done {

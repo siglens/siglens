@@ -18,23 +18,23 @@
 package record
 
 import (
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 type MockRRCsReader struct {
-	RRCs          []*utils.RecordResultContainer
-	FieldToValues map[string][]utils.CValueEnclosure
-	ReaderId      utils.T_SegReaderId
+	RRCs          []*segutils.RecordResultContainer
+	FieldToValues map[string][]segutils.CValueEnclosure
+	ReaderId      segutils.T_SegReaderId
 }
 
-func (mocker *MockRRCsReader) GetReaderId() utils.T_SegReaderId {
+func (mocker *MockRRCsReader) GetReaderId() segutils.T_SegReaderId {
 	return mocker.ReaderId
 }
 
-func (mocker *MockRRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*utils.RecordResultContainer,
-	qid uint64, ignoredCols map[string]struct{}) (map[string][]utils.CValueEnclosure, error) {
+func (mocker *MockRRCsReader) ReadAllColsForRRCs(segKey string, vTable string, rrcs []*segutils.RecordResultContainer,
+	qid uint64, ignoredCols map[string]struct{}) (map[string][]segutils.CValueEnclosure, error) {
 
 	columns, err := mocker.GetColsForSegKey(segKey, vTable)
 	if err != nil {
@@ -46,7 +46,7 @@ func (mocker *MockRRCsReader) ReadAllColsForRRCs(segKey string, vTable string, r
 		delete(columns, ignoredCol)
 	}
 
-	results := make(map[string][]utils.CValueEnclosure)
+	results := make(map[string][]segutils.CValueEnclosure)
 	for cname := range columns {
 		values, err := mocker.ReadColForRRCs(segKey, rrcs, cname, qid, false)
 		if err != nil {
@@ -62,19 +62,19 @@ func (mocker *MockRRCsReader) ReadAllColsForRRCs(segKey string, vTable string, r
 
 func (mocker *MockRRCsReader) GetColsForSegKey(_segKey string, _vTable string) (map[string]struct{}, error) {
 	columns := make(map[string]struct{})
-	toputils.AddSliceToSet(columns, toputils.GetKeysOfMap(mocker.FieldToValues))
+	utils.AddSliceToSet(columns, utils.GetKeysOfMap(mocker.FieldToValues))
 
 	return columns, nil
 }
 
-func (mocker *MockRRCsReader) ReadColForRRCs(_segKey string, rrcs []*utils.RecordResultContainer,
-	cname string, _qid uint64, _fetchFromBlob bool) ([]utils.CValueEnclosure, error) {
+func (mocker *MockRRCsReader) ReadColForRRCs(_segKey string, rrcs []*segutils.RecordResultContainer,
+	cname string, _qid uint64, _fetchFromBlob bool) ([]segutils.CValueEnclosure, error) {
 
 	if _, ok := mocker.FieldToValues[cname]; !ok {
 		return nil, nil
 	}
 
-	values := make([]utils.CValueEnclosure, 0, len(rrcs))
+	values := make([]segutils.CValueEnclosure, 0, len(rrcs))
 Outer:
 	for _, rrc := range rrcs {
 		for i := range mocker.RRCs {
@@ -84,7 +84,7 @@ Outer:
 			}
 		}
 
-		return nil, toputils.TeeErrorf("ReadColForRRCs: rrc %+v not found", rrc)
+		return nil, utils.TeeErrorf("ReadColForRRCs: rrc %+v not found", rrc)
 	}
 
 	return values, nil

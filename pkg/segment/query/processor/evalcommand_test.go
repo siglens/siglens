@@ -22,8 +22,8 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -115,32 +115,32 @@ func Test_EvalCommand(t *testing.T) {
 	}
 
 	inputIqr := iqr.NewIQR(0)
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"state": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "Massachusetts"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "California"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "New York"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "RAW_STRING"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "Massachusetts"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "California"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "New York"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "RAW_STRING"},
 		},
 		"numField": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(3)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(3)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 		},
 		"country": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "USA"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "India"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "China"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "Japan"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "USA"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "India"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "China"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "Japan"},
 		},
 	}
 
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		{Dtype: utils.SS_DT_STRING, CVal: "India"},
-		{Dtype: utils.SS_DT_STRING, CVal: "China"},
-		{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(4)},
+	expected := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		{Dtype: segutils.SS_DT_STRING, CVal: "India"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "China"},
+		{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(4)},
 	}
 
 	err := inputIqr.AppendKnownValues(knownValues)
@@ -149,7 +149,7 @@ func Test_EvalCommand(t *testing.T) {
 	assert.Equal(t, 4, inputIqr.NumberOfRecords())
 	cols, err := inputIqr.GetColumns()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{"state", "numField", "country"}, toputils.GetKeysOfMap(cols))
+	assert.ElementsMatch(t, []string{"state", "numField", "country"}, utils.GetKeysOfMap(cols))
 
 	iqr, err := evalProcessor.Process(inputIqr)
 	assert.NoError(t, err)
@@ -157,7 +157,7 @@ func Test_EvalCommand(t *testing.T) {
 	assert.Equal(t, 4, iqr.NumberOfRecords())
 	cols, err = iqr.GetColumns()
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{"state", "numField", "country", "evalField"}, toputils.GetKeysOfMap(cols))
+	assert.ElementsMatch(t, []string{"state", "numField", "country", "evalField"}, utils.GetKeysOfMap(cols))
 
 	records, err := iqr.ReadColumn("evalField")
 	assert.NoError(t, err)

@@ -24,7 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,7 +47,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 		}
 
 		if compiledRegex == nil {
-			return nil, toputils.TeeErrorf("rex.Process: compiled regex is nil for %v",
+			return nil, utils.TeeErrorf("rex.Process: compiled regex is nil for %v",
 				p.options.Pattern)
 		}
 
@@ -67,7 +67,7 @@ func (p *rexProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 
 	newColValues := make(map[string][]segutils.CValueEnclosure, len(p.options.RexColNames))
 	for _, rexColName := range p.options.RexColNames {
-		newColValues[rexColName] = toputils.ResizeSliceWithDefault(newColValues[rexColName], len(values), segutils.CValueEnclosure{
+		newColValues[rexColName] = utils.ResizeSliceWithDefault(newColValues[rexColName], len(values), segutils.CValueEnclosure{
 			Dtype: segutils.SS_DT_BACKFILL,
 			CVal:  nil,
 		})

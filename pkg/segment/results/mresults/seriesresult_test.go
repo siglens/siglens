@@ -26,7 +26,7 @@ import (
 	"github.com/siglens/siglens/pkg/common/dtypeutils"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -2003,7 +2003,7 @@ func Test_applyLabelReplace(t *testing.T) {
 
 	rawRegex := "(?P<name>.*)-(?P<version>.*)"
 
-	labelFunctionExpr.GobRegexp = &toputils.GobbableRegex{}
+	labelFunctionExpr.GobRegexp = &utils.GobbableRegex{}
 	err := labelFunctionExpr.GobRegexp.SetRegex(rawRegex)
 	assert.Nil(t, err)
 

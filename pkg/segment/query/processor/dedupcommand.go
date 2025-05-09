@@ -23,7 +23,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -34,11 +34,11 @@ type dedupProcessor struct {
 
 func (p *dedupProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 	if len(p.options.DedupSortEles) > 0 {
-		return nil, toputils.TeeErrorf("dedup.Process: sorting is not yet implemented")
+		return nil, utils.TeeErrorf("dedup.Process: sorting is not yet implemented")
 	}
 
 	if len(p.options.FieldList) == 0 {
-		return nil, toputils.TeeErrorf("dedup.Process: no field specified")
+		return nil, utils.TeeErrorf("dedup.Process: no field specified")
 	}
 
 	if iqr == nil {

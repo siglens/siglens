@@ -24,7 +24,7 @@ import (
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
 	segutils "github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -71,7 +71,7 @@ func (p *mvexpandProcessor) Process(iqr *iqr.IQR) (*iqr.IQR, error) {
 				orderedItems = append(orderedItems, orderedItem[interface{}]{index: i, value: v})
 			}
 		default:
-			return nil, toputils.TeeErrorf("mvexpand.Process: unexpected dtype: %v", value.Dtype)
+			return nil, utils.TeeErrorf("mvexpand.Process: unexpected dtype: %v", value.Dtype)
 		}
 	}
 

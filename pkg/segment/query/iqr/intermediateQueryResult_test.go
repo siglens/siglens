@@ -24,8 +24,8 @@ import (
 	"github.com/siglens/siglens/pkg/segment/reader/record"
 	"github.com/siglens/siglens/pkg/segment/results/blockresults"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,11 +42,11 @@ func Test_initIQR(t *testing.T) {
 
 func Test_AppendRRCs(t *testing.T) {
 	iqr := NewIQR(0)
-	segKeyInfo1 := utils.SegKeyInfo{
+	segKeyInfo1 := segutils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
 	encodingToSegKey := map[uint32]string{1: "segKey1"}
-	rrcs := []*utils.RecordResultContainer{
+	rrcs := []*segutils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
@@ -62,10 +62,10 @@ func Test_AppendRRCs(t *testing.T) {
 func Test_AppendKnownValues_OnEmptyIQR(t *testing.T) {
 	iqr := NewIQR(0)
 
-	knownValues1 := map[string][]utils.CValueEnclosure{
+	knownValues1 := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 	}
 	err := iqr.AppendKnownValues(knownValues1)
@@ -74,33 +74,33 @@ func Test_AppendKnownValues_OnEmptyIQR(t *testing.T) {
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
 	// A different column with a different number of records should fail.
-	knownValues2 := map[string][]utils.CValueEnclosure{
+	knownValues2 := map[string][]segutils.CValueEnclosure{
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 	}
 	err = iqr.AppendKnownValues(knownValues2)
 	assert.Error(t, err)
 
 	// A different column with the same number of records should succeed.
-	knownValues3 := map[string][]utils.CValueEnclosure{
+	knownValues3 := map[string][]segutils.CValueEnclosure{
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "x"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "y"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "x"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "y"},
 		},
 	}
 	err = iqr.AppendKnownValues(knownValues3)
 	assert.NoError(t, err)
-	assert.Equal(t, toputils.MergeMaps(knownValues1, knownValues3), iqr.knownValues)
+	assert.Equal(t, utils.MergeMaps(knownValues1, knownValues3), iqr.knownValues)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 }
 
 func Test_AsResult(t *testing.T) {
 	iqr := NewIQR(0)
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 	}
 	err := iqr.AppendKnownValues(knownValues)
@@ -108,7 +108,7 @@ func Test_AsResult(t *testing.T) {
 
 	expectedResult := &structs.PipeSearchResponseOuter{
 		Hits: structs.PipeSearchResponse{
-			TotalMatched: toputils.HitsCount{Value: 2, Relation: "eq"},
+			TotalMatched: utils.HitsCount{Value: 2, Relation: "eq"},
 			Hits: []map[string]interface{}{
 				{"col1": "a"},
 				{"col1": "b"},
@@ -197,26 +197,26 @@ func Test_Append(t *testing.T) {
 	iqr1 := NewIQR(0)
 	iqr2 := NewIQR(0)
 
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "y"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "z"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "y"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "z"},
 		},
 	})
 	assert.NoError(t, err)
 
-	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr2.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 		"col3": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "foo"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "bar"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "foo"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "bar"},
 		},
 	})
 	assert.NoError(t, err)
@@ -224,24 +224,24 @@ func Test_Append(t *testing.T) {
 	err = iqr1.Append(iqr2)
 	assert.NoError(t, err)
 
-	expected := map[string][]utils.CValueEnclosure{
+	expected := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "y"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "z"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "y"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "z"},
 			*backfillCVal,
 			*backfillCVal,
 		},
 		"col3": {
 			*backfillCVal,
 			*backfillCVal,
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "foo"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "bar"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "foo"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "bar"},
 		},
 	}
 
@@ -264,16 +264,16 @@ func Test_Append_mergeMetaData(t *testing.T) {
 	iqr1.encodingToSegKey = map[uint32]string{1: "segKey1"}
 	iqr2.encodingToSegKey = map[uint32]string{2: "segKey2"}
 
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 	})
 	assert.NoError(t, err)
 
-	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr2.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 	})
 	assert.NoError(t, err)
@@ -293,11 +293,11 @@ func Test_Append_mergeMetaData(t *testing.T) {
 
 func Test_Append_withRRCs(t *testing.T) {
 	iqr := NewIQR(0)
-	segKeyInfo1 := utils.SegKeyInfo{
+	segKeyInfo1 := segutils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
 	encodingToSegKey := map[uint32]string{1: "segKey1"}
-	rrcs := []*utils.RecordResultContainer{
+	rrcs := []*segutils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
@@ -306,11 +306,11 @@ func Test_Append_withRRCs(t *testing.T) {
 	assert.NoError(t, err)
 
 	otherIqr := NewIQR(0)
-	segKeyInfo2 := utils.SegKeyInfo{
+	segKeyInfo2 := segutils.SegKeyInfo{
 		SegKeyEnc: 2,
 	}
 	encodingToSegKey2 := map[uint32]string{2: "segKey2"}
-	rrcs2 := []*utils.RecordResultContainer{
+	rrcs2 := []*segutils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 2},
 		{SegKeyInfo: segKeyInfo2, BlockNum: 1, RecordNum: 3},
@@ -318,11 +318,11 @@ func Test_Append_withRRCs(t *testing.T) {
 	err = otherIqr.AppendRRCs(rrcs2, encodingToSegKey2)
 	assert.NoError(t, err)
 
-	err = otherIqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = otherIqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
 		},
 	})
 	assert.NoError(t, err)
@@ -336,20 +336,20 @@ func Test_Append_withRRCs(t *testing.T) {
 }
 
 func setupTestIQRsWithRRCs(t *testing.T) (*IQR, *IQR) {
-	allRRCs := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+	allRRCs := []*segutils.RecordResultContainer{
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
 	}
 	mockReader := &record.MockRRCsReader{
 		RRCs: allRRCs,
-		FieldToValues: map[string][]utils.CValueEnclosure{
+		FieldToValues: map[string][]segutils.CValueEnclosure{
 			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "c"},
-				{Dtype: utils.SS_DT_STRING, CVal: "d"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 			},
 		},
 	}
@@ -373,9 +373,9 @@ func Test_Append_withRRCs_firstHasKnownValues(t *testing.T) {
 	// Read from one IQR but not the other.
 	values, err := iqr1.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
+	assert.Equal(t, []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 	}, values)
 
 	_, ok := iqr1.knownValues["col1"]
@@ -389,11 +389,11 @@ func Test_Append_withRRCs_firstHasKnownValues(t *testing.T) {
 	assert.NoError(t, err)
 	values, err = iqr1.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	assert.Equal(t, []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 	}, values)
 }
 
@@ -405,9 +405,9 @@ func Test_Append_withRRCs_secondHasKnownValues(t *testing.T) {
 	// Read from one IQR but not the other.
 	values, err := iqr2.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	assert.Equal(t, []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 	}, values)
 
 	_, ok := iqr1.knownValues["col1"]
@@ -421,24 +421,24 @@ func Test_Append_withRRCs_secondHasKnownValues(t *testing.T) {
 	assert.NoError(t, err)
 	values, err = iqr1.ReadColumn("col1")
 	assert.NoError(t, err)
-	assert.Equal(t, []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
+	assert.Equal(t, []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 	}, values)
 }
 
 func Test_Sort(t *testing.T) {
 	iqr := NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "f"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 	})
 	assert.NoError(t, err)
@@ -456,14 +456,14 @@ func Test_Sort(t *testing.T) {
 	err = iqr.Sort([]string{"col1", "col2"}, less, 100)
 	assert.NoError(t, err)
 
-	expected := map[string][]utils.CValueEnclosure{
+	expected := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "f"},
 		},
 	}
 
@@ -480,26 +480,26 @@ func Test_Sort(t *testing.T) {
 }
 
 func Test_Sort_multipleColumns(t *testing.T) {
-	rrcs := []*utils.RecordResultContainer{
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
-		{SegKeyInfo: utils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
+	rrcs := []*segutils.RecordResultContainer{
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 1},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 2},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 3},
+		{SegKeyInfo: segutils.SegKeyInfo{SegKeyEnc: 1}, BlockNum: 1, RecordNum: 4},
 	}
 	mockReader := &record.MockRRCsReader{
 		RRCs: rrcs,
-		FieldToValues: map[string][]utils.CValueEnclosure{
+		FieldToValues: map[string][]segutils.CValueEnclosure{
 			"col1": {
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "b"},
-				{Dtype: utils.SS_DT_STRING, CVal: "a"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+				{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 			},
 			"col2": {
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-				{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+				{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
 			},
 		},
 	}
@@ -533,32 +533,32 @@ func Test_Sort_multipleColumns(t *testing.T) {
 	assert.NoError(t, err)
 	values, err := iqr.ReadAllColumns()
 	assert.NoError(t, err)
-	assert.Equal(t, map[string][]utils.CValueEnclosure{
+	assert.Equal(t, map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
-			{Dtype: utils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(1)},
+			{Dtype: segutils.SS_DT_UNSIGNED_NUM, CVal: uint64(2)},
 		},
 	}, values)
 }
 
 func Test_ReverseRecords(t *testing.T) {
 	iqr := NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "f"},
 		},
 	})
 	assert.NoError(t, err)
@@ -566,13 +566,13 @@ func Test_ReverseRecords(t *testing.T) {
 	err = iqr.ReverseRecords()
 	assert.NoError(t, err)
 
-	expected := []utils.CValueEnclosure{
-		{Dtype: utils.SS_DT_STRING, CVal: "f"},
-		{Dtype: utils.SS_DT_STRING, CVal: "e"},
-		{Dtype: utils.SS_DT_STRING, CVal: "d"},
-		{Dtype: utils.SS_DT_STRING, CVal: "c"},
-		{Dtype: utils.SS_DT_STRING, CVal: "b"},
-		{Dtype: utils.SS_DT_STRING, CVal: "a"},
+	expected := []segutils.CValueEnclosure{
+		{Dtype: segutils.SS_DT_STRING, CVal: "f"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "e"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "d"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+		{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 	}
 
 	col1, err := iqr.ReadColumn("col1")
@@ -585,26 +585,26 @@ func Test_MergeIQRs(t *testing.T) {
 	iqr2 := NewIQR(0)
 	iqr3 := NewIQR(0)
 
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 		},
 	})
 	assert.NoError(t, err)
 
-	err = iqr2.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr2.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "f"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "f"},
 		},
 	})
 	assert.NoError(t, err)
 
-	err = iqr3.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr3.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 	})
 	assert.NoError(t, err)
@@ -623,12 +623,12 @@ func Test_MergeIQRs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, firstExhaustedIndex)
 	assert.Equal(t, 4, mergedIqr.NumberOfRecords())
-	assert.Equal(t, map[string][]utils.CValueEnclosure{
+	assert.Equal(t, map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 	}, mergedIqr.knownValues)
 
@@ -654,10 +654,10 @@ func Test_MergeIQR_withNotSetIQRs(t *testing.T) {
 	assert.Equal(t, 0, firstExhaustedIndex)
 
 	iqr1 := NewIQR(0)
-	err = iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err = iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 		},
 	})
 
@@ -673,18 +673,18 @@ func Test_Mode_AfterAppendRRC(t *testing.T) {
 
 	encodingToSegKey := map[uint32]string{1: "segKey1"}
 
-	err := iqr.AppendRRCs([]*utils.RecordResultContainer{}, encodingToSegKey)
+	err := iqr.AppendRRCs([]*segutils.RecordResultContainer{}, encodingToSegKey)
 	assert.NoError(t, err)
 	assert.Equal(t, withRRCs, iqr.mode)
 }
 
 func Test_Discard(t *testing.T) {
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 	}
 	iqr := NewIQR(0)
@@ -717,11 +717,11 @@ func Test_Discard(t *testing.T) {
 
 func Test_DiscardAfter(t *testing.T) {
 	iqr := NewIQR(0)
-	segKeyInfo1 := utils.SegKeyInfo{
+	segKeyInfo1 := segutils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
 	encodingToSegKey := map[uint32]string{1: "segKey1"}
-	rrcs := []*utils.RecordResultContainer{
+	rrcs := []*segutils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
@@ -740,28 +740,28 @@ func Test_DiscardAfter(t *testing.T) {
 	assert.Equal(t, 1, iqr.NumberOfRecords())
 }
 
-func getTestKnownValues() map[string][]utils.CValueEnclosure {
-	return map[string][]utils.CValueEnclosure{
+func getTestKnownValues() map[string][]segutils.CValueEnclosure {
+	return map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a2"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a3"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a2"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a3"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b2"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b3"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b2"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b3"},
 		},
 	}
 }
 
 func Test_MergeWithoutRRCIQRIntoRRCIQR(t *testing.T) {
 	rrcIqr := NewIQR(0)
-	segKeyInfo1 := utils.SegKeyInfo{
+	segKeyInfo1 := segutils.SegKeyInfo{
 		SegKeyEnc: 1,
 	}
 	encodingToSegKey := map[uint32]string{1: "segKey1"}
-	rrcs := []*utils.RecordResultContainer{
+	rrcs := []*segutils.RecordResultContainer{
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 1},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 2},
 		{SegKeyInfo: segKeyInfo1, BlockNum: 1, RecordNum: 3},
@@ -820,7 +820,7 @@ func Test_getRRCIQR(t *testing.T) {
 	assert.Equal(t, 3, convertedRRCIQR.NumberOfRecords())
 }
 
-func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []utils.CValueEnclosure) {
+func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expectedValue []segutils.CValueEnclosure) {
 	for _, oldName := range oldNames {
 		values, err := iqr.ReadColumn(oldName)
 		assert.NoError(t, err)
@@ -833,34 +833,34 @@ func test_Rename(t *testing.T, iqr *IQR, oldNames []string, newName string, expe
 
 func Test_RenameColumn(t *testing.T) {
 	iqr := NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 	})
 	assert.NoError(t, err)
 
 	err = iqr.RenameColumn("col1", "newCol1")
 	assert.NoError(t, err)
-	test_Rename(t, iqr, []string{"col1"}, "newCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr, []string{"col1"}, "newCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
 
 	// Rename the renamed column.
 	err = iqr.RenameColumn("newCol1", "superNewCol1")
 	assert.NoError(t, err)
-	test_Rename(t, iqr, []string{"col1", "newCol1"}, "superNewCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr, []string{"col1", "newCol1"}, "superNewCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
 }
 
 func Test_RenameColumn_GrpBy_MeasureCol(t *testing.T) {
 	iqr := NewIQR(0)
-	err := iqr.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col3": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
 		},
 	})
 	iqr.measureColumns = []string{"col2", "col1"}
@@ -870,16 +870,16 @@ func Test_RenameColumn_GrpBy_MeasureCol(t *testing.T) {
 	// Rename measure column
 	err = iqr.RenameColumn("col1", "newCol1")
 	assert.NoError(t, err)
-	test_Rename(t, iqr, []string{"col1"}, "newCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr, []string{"col1"}, "newCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
 
 	err = iqr.RenameColumn("col2", "newCol2")
 	assert.NoError(t, err)
-	test_Rename(t, iqr, []string{"col2"}, "newCol2", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "b"}})
+	test_Rename(t, iqr, []string{"col2"}, "newCol2", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "b"}})
 
 	// Rename group by Column
 	err = iqr.RenameColumn("col3", "newCol3")
 	assert.NoError(t, err)
-	test_Rename(t, iqr, []string{"col3"}, "newCol3", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "c"}})
+	test_Rename(t, iqr, []string{"col3"}, "newCol3", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "c"}})
 
 	assert.Equal(t, []string{"newCol2", "newCol1"}, iqr.measureColumns)
 	assert.Equal(t, []string{"newCol3"}, iqr.groupbyColumns)
@@ -888,18 +888,18 @@ func Test_RenameColumn_GrpBy_MeasureCol(t *testing.T) {
 func Test_RenameMultiple(t *testing.T) {
 	iqr1 := NewIQR(0)
 
-	err := iqr1.AppendKnownValues(map[string][]utils.CValueEnclosure{
+	err := iqr1.AppendKnownValues(map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col3": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
 		},
 		"col4": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 	})
 	iqr1.measureColumns = []string{"col1"}
@@ -911,12 +911,12 @@ func Test_RenameMultiple(t *testing.T) {
 	assert.NoError(t, err)
 	err = iqr1.RenameColumn("newCol1", "superNewCol1")
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{"col1", "newCol1"}, "superNewCol1", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "a"}})
+	test_Rename(t, iqr1, []string{"col1", "newCol1"}, "superNewCol1", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "a"}})
 
 	// Rename group by Column
 	err = iqr1.RenameColumn("col3", "newCol3")
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{"col3"}, "newCol3", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "c"}})
+	test_Rename(t, iqr1, []string{"col3"}, "newCol3", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "c"}})
 
 	assert.Equal(t, []string{"superNewCol1"}, iqr1.measureColumns)
 	assert.Equal(t, []string{"newCol3"}, iqr1.groupbyColumns)
@@ -931,29 +931,29 @@ func Test_RenameMultiple(t *testing.T) {
 	// Rename knownValue column over RRC column
 	err = iqr1.RenameColumn("col4", "col2")
 	assert.NoError(t, err)
-	test_Rename(t, iqr1, []string{"col4"}, "col2", []utils.CValueEnclosure{{Dtype: utils.SS_DT_STRING, CVal: "d"}})
+	test_Rename(t, iqr1, []string{"col4"}, "col2", []segutils.CValueEnclosure{{Dtype: segutils.SS_DT_STRING, CVal: "d"}})
 }
 
 func Test_GetColumnsOrder(t *testing.T) {
 	iqr := NewIQR(0)
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
 		},
 		"col22": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
 		},
 		"col3": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 		"col0": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 		},
 		"col23": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 		},
 	}
 	err := iqr.AppendKnownValues(knownValues)
@@ -966,7 +966,7 @@ func Test_GetColumnsOrder(t *testing.T) {
 		"col3":  2,
 	})
 
-	assert.Equal(t, []string{"col1", "col2", "col22", "col3", "col0", "col23"}, iqr.GetColumnsOrder(toputils.GetKeysOfMap(knownValues)))
+	assert.Equal(t, []string{"col1", "col2", "col22", "col3", "col0", "col23"}, iqr.GetColumnsOrder(utils.GetKeysOfMap(knownValues)))
 }
 
 func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
@@ -976,9 +976,9 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 	bucketHolderSlice := []*structs.BucketHolder{
 		{
 			GroupByValues: []string{"a", "b"},
-			IGroupByValues: []utils.CValueEnclosure{
-				{CVal: "a", Dtype: utils.SS_DT_STRING},
-				{CVal: "b", Dtype: utils.SS_DT_STRING},
+			IGroupByValues: []segutils.CValueEnclosure{
+				{CVal: "a", Dtype: segutils.SS_DT_STRING},
+				{CVal: "b", Dtype: segutils.SS_DT_STRING},
 			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(10),
@@ -988,9 +988,9 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 		},
 		{
 			GroupByValues: []string{"a", "c"},
-			IGroupByValues: []utils.CValueEnclosure{
-				{CVal: "a", Dtype: utils.SS_DT_STRING},
-				{CVal: "c", Dtype: utils.SS_DT_STRING},
+			IGroupByValues: []segutils.CValueEnclosure{
+				{CVal: "a", Dtype: segutils.SS_DT_STRING},
+				{CVal: "c", Dtype: segutils.SS_DT_STRING},
 			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(20),
@@ -1000,9 +1000,9 @@ func getTestValuesForGroupBy() ([]*structs.BucketHolder, []string, []string) {
 		},
 		{
 			GroupByValues: []string{"d", "e"},
-			IGroupByValues: []utils.CValueEnclosure{
-				{CVal: "d", Dtype: utils.SS_DT_STRING},
-				{CVal: "e", Dtype: utils.SS_DT_STRING},
+			IGroupByValues: []segutils.CValueEnclosure{
+				{CVal: "d", Dtype: segutils.SS_DT_STRING},
+				{CVal: "e", Dtype: segutils.SS_DT_STRING},
 			},
 			MeasureVal: map[string]interface{}{
 				"count":  int64(30),
@@ -1043,31 +1043,31 @@ func Test_CreateRRCStatsResults_GroupBy(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
-	expected := map[string][]utils.CValueEnclosure{
+	expected := map[string][]segutils.CValueEnclosure{
 		"val1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "d"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "d"},
 		},
 		"val2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "e"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "e"},
 		},
 		"count": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(20)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(30)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(20)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(30)},
 		},
 		"sum(x)": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(100)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(200)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(300)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(100)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(200)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(300)},
 		},
 		"avg(y)": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(20)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(30)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(20)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(30)},
 		},
 	}
 
@@ -1092,15 +1092,15 @@ func Test_CreateRRCStatsResults_SegmentStats(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, withoutRRCs, iqr.mode)
 
-	expected := map[string][]utils.CValueEnclosure{
+	expected := map[string][]segutils.CValueEnclosure{
 		"count": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(10)},
 		},
 		"sum(x)": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(100)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(100)},
 		},
 		"avg(y)": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(10)},
 		},
 	}
 
@@ -1152,7 +1152,7 @@ func Test_getFinalStatsResults(t *testing.T) {
 		actualBucketHolder := actualBucketHolderSlice[i]
 		if len(expectedBucketHolder.GroupByValues) == 0 {
 			expectedBucketHolder.GroupByValues = []string{"*"}
-			expectedBucketHolder.IGroupByValues = []utils.CValueEnclosure{{CVal: "*", Dtype: utils.SS_DT_STRING}}
+			expectedBucketHolder.IGroupByValues = []segutils.CValueEnclosure{{CVal: "*", Dtype: segutils.SS_DT_STRING}}
 		}
 		assert.Equal(t, expectedBucketHolder, actualBucketHolder, "i=%v", i)
 	}
@@ -1160,21 +1160,21 @@ func Test_getFinalStatsResults(t *testing.T) {
 
 func Test_ReadColumnsWithBackfill(t *testing.T) {
 	iqr := NewIQR(0)
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c1"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a2"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b2"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c2"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a2"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b2"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c2"},
 		},
 		"col3": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a3"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b3"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "c3"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a3"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b3"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "c3"},
 		},
 	}
 	err := iqr.AppendKnownValues(knownValues)
@@ -1190,7 +1190,7 @@ func Test_ReadColumnsWithBackfill(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(columnValues))
 	assert.Equal(t, knownValues["col3"], columnValues["col3"])
-	expectedBackfilledCol := []utils.CValueEnclosure{}
+	expectedBackfilledCol := []segutils.CValueEnclosure{}
 	for i := 0; i < 3; i++ {
 		expectedBackfilledCol = append(expectedBackfilledCol, *backfillCVal)
 	}
@@ -1199,20 +1199,20 @@ func Test_ReadColumnsWithBackfill(t *testing.T) {
 
 func Test_IQRBytesEncodeDecode(t *testing.T) {
 	iqr := NewIQR(0)
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "a1"},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_STRING, CVal: "b1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "a1"},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_STRING, CVal: "b1"},
 		},
 		"col2": {
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-			utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(2)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+			segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(2)},
 		},
 	}
 
-	rrcs := []*utils.RecordResultContainer{
+	rrcs := []*segutils.RecordResultContainer{
 		{
-			SegKeyInfo:       utils.SegKeyInfo{SegKeyEnc: 1, RecordId: "record1"},
+			SegKeyInfo:       segutils.SegKeyInfo{SegKeyEnc: 1, RecordId: "record1"},
 			BlockNum:         1,
 			RecordNum:        1,
 			SortColumnValue:  float64(1),
@@ -1220,7 +1220,7 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 			VirtualTableName: "vt1",
 		},
 		{
-			SegKeyInfo:       utils.SegKeyInfo{SegKeyEnc: 2, RecordId: "record2"},
+			SegKeyInfo:       segutils.SegKeyInfo{SegKeyEnc: 2, RecordId: "record2"},
 			BlockNum:         2,
 			RecordNum:        2,
 			SortColumnValue:  float64(2),
@@ -1233,12 +1233,12 @@ func Test_IQRBytesEncodeDecode(t *testing.T) {
 	segStatsMap["segKey1"] = &structs.SegStats{
 		IsNumeric: true,
 		Count:     10,
-		Min:       utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(1)},
-		Max:       utils.CValueEnclosure{Dtype: utils.SS_DT_SIGNED_NUM, CVal: int64(10)},
+		Min:       segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(1)},
+		Max:       segutils.CValueEnclosure{Dtype: segutils.SS_DT_SIGNED_NUM, CVal: int64(10)},
 		Hll:       structs.CreateNewHll(),
 		NumStats: &structs.NumericStats{
-			Sum: utils.NumTypeEnclosure{
-				Ntype:    utils.SS_DT_SIGNED_NUM,
+			Sum: segutils.NumTypeEnclosure{
+				Ntype:    segutils.SS_DT_SIGNED_NUM,
 				IntgrVal: int64(55),
 				FloatVal: float64(55),
 			},
@@ -1312,14 +1312,14 @@ func Test_RemovesEmptyColumns(t *testing.T) {
 	iqr := NewIQR(0)
 	iqr.mode = withoutRRCs
 
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "value1"},
-			{Dtype: utils.SS_DT_STRING, CVal: "value2"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+			{Dtype: segutils.SS_DT_STRING, CVal: "value2"},
 		},
 		"empty_col": {
-			{Dtype: utils.SS_DT_STRING, CVal: ""},
-			{Dtype: utils.SS_DT_STRING, CVal: ""},
+			{Dtype: segutils.SS_DT_STRING, CVal: ""},
+			{Dtype: segutils.SS_DT_STRING, CVal: ""},
 		},
 	}
 	err := iqr.AppendKnownValues(knownValues)
@@ -1327,7 +1327,7 @@ func Test_RemovesEmptyColumns(t *testing.T) {
 
 	expected := &structs.PipeSearchResponseOuter{
 		Hits: structs.PipeSearchResponse{
-			TotalMatched: toputils.HitsCount{Value: 2, Relation: "eq"},
+			TotalMatched: utils.HitsCount{Value: 2, Relation: "eq"},
 			Hits: []map[string]interface{}{
 				{"col1": "value1"},
 				{"col1": "value2"},
@@ -1349,13 +1349,13 @@ func Test__RemoveEmptyRecords(t *testing.T) {
 	iqr := NewIQR(0)
 	iqr.mode = withoutRRCs
 
-	knownValues := map[string][]utils.CValueEnclosure{}
+	knownValues := map[string][]segutils.CValueEnclosure{}
 	err := iqr.AppendKnownValues(knownValues)
 	require.NoError(t, err)
 
 	expected := &structs.PipeSearchResponseOuter{
 		Hits: structs.PipeSearchResponse{
-			TotalMatched: toputils.HitsCount{Value: 0, Relation: "eq"},
+			TotalMatched: utils.HitsCount{Value: 0, Relation: "eq"},
 			Hits:         []map[string]interface{}{},
 		},
 		AllPossibleColumns: []string{},
@@ -1374,14 +1374,14 @@ func Test_RemoveOneEmptyRecord(t *testing.T) {
 	iqr := NewIQR(0)
 	iqr.mode = withoutRRCs
 
-	knownValues := map[string][]utils.CValueEnclosure{
+	knownValues := map[string][]segutils.CValueEnclosure{
 		"col1": {
-			{Dtype: utils.SS_DT_STRING, CVal: "value1"},
-			{Dtype: utils.SS_DT_STRING, CVal: ""},
+			{Dtype: segutils.SS_DT_STRING, CVal: "value1"},
+			{Dtype: segutils.SS_DT_STRING, CVal: ""},
 		},
 		"col2": {
-			{Dtype: utils.SS_DT_STRING, CVal: "value2"},
-			{Dtype: utils.SS_DT_STRING, CVal: ""},
+			{Dtype: segutils.SS_DT_STRING, CVal: "value2"},
+			{Dtype: segutils.SS_DT_STRING, CVal: ""},
 		},
 	}
 
@@ -1390,7 +1390,7 @@ func Test_RemoveOneEmptyRecord(t *testing.T) {
 
 	expected := &structs.PipeSearchResponseOuter{
 		Hits: structs.PipeSearchResponse{
-			TotalMatched: toputils.HitsCount{Value: 1, Relation: "eq"},
+			TotalMatched: utils.HitsCount{Value: 1, Relation: "eq"},
 			Hits: []map[string]interface{}{
 				{
 					"col1": "value1",

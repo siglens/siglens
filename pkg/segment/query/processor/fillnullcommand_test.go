@@ -23,26 +23,26 @@ import (
 
 	"github.com/siglens/siglens/pkg/segment/query/iqr"
 	"github.com/siglens/siglens/pkg/segment/structs"
-	"github.com/siglens/siglens/pkg/segment/utils"
-	toputils "github.com/siglens/siglens/pkg/utils"
+	segutils "github.com/siglens/siglens/pkg/segment/utils"
+	"github.com/siglens/siglens/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
-func insertColumnsWithSomeNulls(t *testing.T, iqr *iqr.IQR, fillValue utils.CValueEnclosure, columnsToInsert []string, valuesCountToInsert int) (
-	map[string][]utils.CValueEnclosure, map[string][]utils.CValueEnclosure) {
-	knownValuesToInsert := make(map[string][]utils.CValueEnclosure)
-	knownValuesToExpect := make(map[string][]utils.CValueEnclosure)
+func insertColumnsWithSomeNulls(t *testing.T, iqr *iqr.IQR, fillValue segutils.CValueEnclosure, columnsToInsert []string, valuesCountToInsert int) (
+	map[string][]segutils.CValueEnclosure, map[string][]segutils.CValueEnclosure) {
+	knownValuesToInsert := make(map[string][]segutils.CValueEnclosure)
+	knownValuesToExpect := make(map[string][]segutils.CValueEnclosure)
 
 	var err error
 
 	for _, column := range columnsToInsert {
-		valuesToInsert := make([]utils.CValueEnclosure, valuesCountToInsert)
-		valuesToExpect := make([]utils.CValueEnclosure, valuesCountToInsert)
+		valuesToInsert := make([]segutils.CValueEnclosure, valuesCountToInsert)
+		valuesToExpect := make([]segutils.CValueEnclosure, valuesCountToInsert)
 		for i := 0; i < valuesCountToInsert; i++ {
 			insertNull := i%2 == 0
 
-			cValueToInsert := utils.CValueEnclosure{}
-			var cValueToExpect utils.CValueEnclosure
+			cValueToInsert := segutils.CValueEnclosure{}
+			var cValueToExpect segutils.CValueEnclosure
 			if insertNull {
 				err = cValueToInsert.ConvertValue(nil)
 				assert.NoError(t, err)
@@ -72,7 +72,7 @@ func Test_fillNullCommandWithFields(t *testing.T) {
 	valuesCountToInsert := 10
 
 	fillValue := "fill-value"
-	fillCValue := utils.CValueEnclosure{}
+	fillCValue := segutils.CValueEnclosure{}
 	err := fillCValue.ConvertValue(fillValue)
 	assert.NoError(t, err)
 
@@ -125,7 +125,7 @@ func Test_fillNullCommandWithNoFields(t *testing.T) {
 	valuesCountToInsert := 10
 
 	fillValue := "fill-value"
-	fillCValue := utils.CValueEnclosure{}
+	fillCValue := segutils.CValueEnclosure{}
 	err := fillCValue.ConvertValue(fillValue)
 	assert.NoError(t, err)
 
@@ -154,7 +154,7 @@ func Test_fillNullCommandWithNoFields(t *testing.T) {
 	iqr2, err = fillNullProcessor.Process(iqr2)
 	assert.NoError(t, err)
 
-	knownValuesToExpect := toputils.MergeMapSlicesWithBackfill(knownValuesToExpect1, knownValuesToExpect2, fillCValue, valuesCountToInsert)
+	knownValuesToExpect := utils.MergeMapSlicesWithBackfill(knownValuesToExpect1, knownValuesToExpect2, fillCValue, valuesCountToInsert)
 
 	// second pass
 

@@ -16,6 +16,8 @@ linters-settings:
     alias:
       - pkg: github.com/siglens/siglens/pkg/segment/utils
         alias: segutils
+      - pkg: github.com/siglens/siglens/pkg/utils
+        alias: utils
 
 run:
   build-tags:
