@@ -568,4 +568,4 @@ window.addEventListener('resize', function (_event) {
     if ($('.panelEditor-container').css('display') !== 'none' && panelChart) {
         panelChart.resize();
     }
-});
+}); 
