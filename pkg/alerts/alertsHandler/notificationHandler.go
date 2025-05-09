@@ -193,10 +193,9 @@ func sendWebhooks(webhookUrl, subject, message string, alertDataMessage string, 
 	}
 
 	r.Header.Add("Content-Type", "application/json")
-	if headers != nil {
-		for key, value := range headers {
-			r.Header.Add(key, value)
-		}
+
+	for key, value := range headers {
+		r.Header.Add(key, value)
 	}
 	client := &http.Client{}
 	resp, err := client.Do(r)
