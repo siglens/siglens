@@ -24,10 +24,6 @@ $(function () {
 });
 $('#custom-code-tab').tabs({
     activate: function (_event, _ui) {
-        let currentResTab = $('#custom-chart-tab').tabs('option', 'active');
-        if (currentResTab == 1) {
-            timeChart();
-        }
         let currentTab = $('#custom-code-tab').tabs('option', 'active');
         if (currentTab == 0) {
             // Query Builder Tab
@@ -63,8 +59,6 @@ $('#custom-chart-tab').tabs({
         } else {
             $('#save-query-div').children().hide();
             $('#views-container, .fields-sidebar, .fields-resizer, .expand-svg-container , #pagination-container').hide();
-
-            timeChart();
         }
     },
 });
@@ -111,7 +105,6 @@ $(document).ready(function () {
     if (firstBoxSet.size > 0) $('#search-filter-text').hide();
     else $('#search-filter-text').show();
     setShowColumnInfoDialog();
-    timeChart();
 });
 
 const tags = document.getElementById('tags');
