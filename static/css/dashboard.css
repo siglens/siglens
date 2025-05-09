@@ -305,13 +305,17 @@
 
 .inner-options:hover,
 .editPanelMenu-unit-options:hover,
-.editPanelMenu-options:hover,
+.editPanelMenu-options:hover {
+  background: var(--index-drop-down-item-hover-bg-color);
+  color: var(--index-drop-down-item-hover-text-color);
+}
+
 .editPanelMenu-options.selected,
 .editPanelMenu-unit-options.selected,
 .inner-options.selected,
 .inner-options.active {
-  background-color: var(--purple-1);
-  color: var(--white-0);
+  background: var(--index-drop-down-item-active-bg-color);
+  color: var(--index-drop-down-item-active-text-color);
 }
 
 /* QUERY INPUT SECTION - BOTTOM LEFT */
