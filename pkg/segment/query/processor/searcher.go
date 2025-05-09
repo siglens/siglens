@@ -293,6 +293,7 @@ func (s *Searcher) Fetch() (*iqr.IQR, error) {
 				return nil, err
 			}
 
+			blocks = append(blocks, s.remainingBlocksSorted...)
 			err = sortBlocks(blocks, s.sortMode)
 			if err != nil {
 				log.Errorf("qid=%v, searcher.Fetch: failed to sort blocks: %v", s.qid, err)
@@ -736,13 +737,22 @@ func (s *Searcher) fetchRRCs() (*iqr.IQR, error) {
 		return nil, err
 	}
 
+	switch s.sortMode {
+	case recentFirst:
+		endTime = max(endTime, s.cutOffTimestampInMs)
+	case recentLast:
+		endTime = min(endTime, s.cutOffTimestampInMs)
+	case anyOrder:
+		// Do nothing.
+	}
+
 	// Remove the blocks we're going to process. Since the blocks are sorted,
 	// we always take blocks from the front of the list.
 	s.remainingBlocksSorted = s.remainingBlocksSorted[len(nextBlocks):]
 
-	if len(s.remainingBlocksSorted) == 0 {
-		// Since we are fetching blocks in batches based on cutOffTimestampInMs, we need to fetch more
-		// blocks to process if we have processed all the blocks in the current batch.
+	if len(s.remainingBlocksSorted) == 0 || endTime == s.cutOffTimestampInMs {
+		// We've processed all the blocks that we safely can, so we need to
+		// fetch more.
 		s.gotBlocks = false
 	}
 
